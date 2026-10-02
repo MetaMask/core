@@ -2218,9 +2218,9 @@ export type PerpsProvider = {
   /**
    * Normalize a Scale ladder using the selected provider's venue rules.
    *
-   * @param params - Market, ladder bounds, count, and optional provider route.
-   * @returns Provider-normalized prices or a typed unavailable result.
-   * @throws When the provider cannot normalize the requested ladder.
+   * @param params - Market, ladder bounds, count, optional sizing and provider route.
+   * @returns Provider-normalized prices with sizingPreview when supported, or a typed unavailable result.
+   * @throws When bounds or sizing violate the provider's venue rules.
    */
   getScalePriceLadder?(
     params: GetScalePriceLadderParams,

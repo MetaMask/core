@@ -700,9 +700,9 @@ describe('LighterProvider', () => {
 
     it.each([
       ['1', PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL],
-      ['0', 'Lighter Scale values must be positive'],
-      ['NaN', 'Invalid Lighter Scale decimal'],
-      ['60usd', 'Invalid Lighter Scale decimal'],
+      ['0', PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE],
+      ['NaN', PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE],
+      ['60usd', PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE],
     ])(
       'rejects a quote intent %s that cannot produce valid maker rungs',
       async (usdAmount, message) => {
@@ -717,6 +717,57 @@ describe('LighterProvider', () => {
         expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
       },
     );
+
+    it.each(['0', 'NaN', '60usd'])(
+      'reports a positive-size error for base intent %s',
+      async (size) => {
+        const built = buildProvider();
+
+        await expect(
+          built.provider.getScalePriceLadder({
+            ...previewIntent,
+            sizing: { size },
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      { usdAmount: '60', skew: 0 },
+      { size: '0.0006', skew: Number.NaN },
+    ])(
+      'preserves the range error for nonpositive or nonfinite skew %j',
+      async (sizing) => {
+        const built = buildProvider();
+
+        await expect(
+          built.provider.getScalePriceLadder({ ...previewIntent, sizing }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it('reports the quote minimum when every rung satisfies the base minimum', async () => {
+      const built = buildProvider();
+      built.clientInstance.getOrderBooks.mockResolvedValueOnce([
+        { ...BTC_MARKET, minQuoteAmount: '100' },
+      ]);
+
+      await expect(
+        built.provider.getScalePriceLadder({
+          ...previewIntent,
+          sizing: { size: '0.0006' },
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL);
+
+      expect(built.calls).toStrictEqual([]);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
 
     it('captures the sizing intent before deferred market metadata arrives', async () => {
       const built = buildProvider();

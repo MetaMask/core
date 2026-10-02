@@ -2983,13 +2983,17 @@ export class PerpsController extends BaseController<
   /**
    * Build a Scale price ladder using the active provider's venue rules.
    *
-   * @param params - Market, ladder bounds, count, and optional explicit route.
-   * @returns Provider-normalized prices or a typed unavailable result.
-   * @throws When the provider cannot normalize the requested ladder.
+   * @param params - Market, ladder bounds, count, optional sizing and explicit route.
+   * @returns Provider-normalized prices with sizingPreview when supported, or a typed unavailable result.
+   * @throws When bounds or sizing violate the provider's venue rules.
    */
   async getScalePriceLadder(
     params: GetScalePriceLadderParams,
   ): Promise<PerpsScalePriceLadder> {
+    const intent = {
+      ...params,
+      sizing: params.sizing === undefined ? undefined : { ...params.sizing },
+    };
     let activeProvider: PerpsProvider;
     try {
       activeProvider = await this.#getActiveProviderWhenReady();
@@ -3000,13 +3004,13 @@ export class PerpsController extends BaseController<
       });
       return this.#getUnavailableScalePriceLadder(
         'provider_unavailable',
-        params.providerId,
+        intent.providerId,
       );
     }
 
     const resolvedProviderId =
-      params.providerId ?? this.#getDirectProviderId(activeProvider);
-    if (this.#hasConflictingProviderRoute(params.providerId, activeProvider)) {
+      intent.providerId ?? this.#getDirectProviderId(activeProvider);
+    if (this.#hasConflictingProviderRoute(intent.providerId, activeProvider)) {
       return this.#getUnavailableScalePriceLadder(
         'provider_not_routable',
         resolvedProviderId,
@@ -3019,7 +3023,7 @@ export class PerpsController extends BaseController<
       );
     }
 
-    const result = await activeProvider.getScalePriceLadder(params);
+    const result = await activeProvider.getScalePriceLadder(intent);
     if (
       result.status === 'unavailable' &&
       result.providerId === undefined &&

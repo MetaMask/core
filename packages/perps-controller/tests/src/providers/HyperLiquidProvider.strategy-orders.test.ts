@@ -9483,6 +9483,21 @@ describe('HyperLiquidProvider - strategy order types', () => {
       count: 3,
     };
 
+    it('leaves optional sizing absent while preserving normalized prices', async () => {
+      useStrategyClients();
+
+      const result = await provider.getScalePriceLadder({
+        ...params,
+        sizing: { usdAmount: '60' },
+      });
+
+      expect(result).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        prices: ['1234.6', '1234.7', '1234.8'],
+      });
+    });
+
     it('normalizes every rung with provider-owned market precision', async () => {
       const { infoClient } = useStrategyClients();
 

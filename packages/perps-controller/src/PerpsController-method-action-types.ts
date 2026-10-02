@@ -114,9 +114,9 @@ export type PerpsControllerGetMarginModeLockAction = {
 /**
  * Build a Scale price ladder using the active provider's venue rules.
  *
- * @param params - Market, ladder bounds, count, and optional explicit route.
- * @returns Provider-normalized prices or a typed unavailable result.
- * @throws When the provider cannot normalize the requested ladder.
+ * @param params - Market, ladder bounds, count, optional sizing and explicit route.
+ * @returns Provider-normalized prices with sizingPreview when supported, or a typed unavailable result.
+ * @throws When bounds or sizing violate the provider's venue rules.
  */
 export type PerpsControllerGetScalePriceLadderAction = {
   type: `PerpsController:getScalePriceLadder`;

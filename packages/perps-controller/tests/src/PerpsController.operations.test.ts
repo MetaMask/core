@@ -32,6 +32,7 @@ import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js'
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import type {
   GetAvailableDexsParams,
+  GetScalePriceLadderParams,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
@@ -1467,6 +1468,56 @@ describe('PerpsController', () => {
       maxPrice: 200,
       count: 3,
     };
+
+    it.each(['ready', 'initializing'] as const)(
+      'captures outer and nested inputs before %s provider readiness',
+      async (readiness) => {
+        const release = createDeferred<void>();
+        let initialization: Promise<void> | undefined;
+        if (readiness === 'initializing') {
+          const started = createDeferred<void>();
+          jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => {
+            throw new Error('Transient initialization failure');
+          });
+          jest.mocked(mockWait).mockImplementationOnce(() => {
+            started.resolve();
+            return release.promise;
+          });
+          initialization = controller.init();
+          await started.promise;
+          expect(controller.state.initializationState).toBe(
+            InitializationState.Initializing,
+          );
+        } else {
+          markControllerAsInitialized();
+          controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        }
+        const sizing = { usdAmount: '60', skew: 1 };
+        const request: GetScalePriceLadderParams = {
+          ...params,
+          providerId: 'hyperliquid',
+          sizing,
+        };
+        const expected = { ...request, sizing: { ...sizing } };
+
+        const pending = controller.getScalePriceLadder(request);
+        request.symbol = 'SOL';
+        request.minPrice = 1;
+        request.maxPrice = 2;
+        request.count = 2;
+        request.providerId = 'lighter';
+        sizing.usdAmount = '600';
+        sizing.skew = 2;
+        release.resolve();
+        await initialization;
+
+        await expect(pending).resolves.toMatchObject({
+          status: 'ready',
+          providerId: 'hyperliquid',
+        });
+        expect(mockProvider.getScalePriceLadder).toHaveBeenCalledWith(expected);
+      },
+    );
 
     it('uses the active provider when providerId is omitted', async () => {
       markControllerAsInitialized();

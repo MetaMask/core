@@ -7336,13 +7336,13 @@ export class LighterProvider implements PerpsProvider {
         capability.reason === 'strategy_market_unsupported'
           ? 'market_not_found'
           : capability.reason;
-      return { status: 'unavailable', providerId: 'lighter', reason };
+      return { status: 'unavailable', providerId: this.protocolId, reason };
     }
     const market = this.#marketsBySymbol.get(intent.symbol);
     if (!market) {
       return {
         status: 'unavailable',
-        providerId: 'lighter',
+        providerId: this.protocolId,
         reason: 'market_not_found',
       };
     }
@@ -7382,7 +7382,7 @@ export class LighterProvider implements PerpsProvider {
     }
     return {
       status: 'ready',
-      providerId: 'lighter',
+      providerId: this.protocolId,
       prices: normalizeLighterScalePrices(
         String(intent.minPrice),
         String(intent.maxPrice),
@@ -8845,7 +8845,7 @@ export class LighterProvider implements PerpsProvider {
           group.rungs.some(
             (rung) =>
               rung.clientOrderId === row.clientOrderIndex &&
-              (rung.state !== 'rejected' || row.status === 'rejected') &&
+              rung.state !== 'rejected' &&
               (rung.orderId === undefined ||
                 rung.orderId === String(row.orderIndex)) &&
               new BigNumber(rung.size).eq(row.initialBaseAmount) &&

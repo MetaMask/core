@@ -215,13 +215,23 @@ export function buildLighterScaleLadder(
   ) {
     throw new Error('Invalid Lighter Scale precision');
   }
-  const budget =
-    params.usdAmount === undefined
-      ? undefined
-      : parseScaleDecimal(params.usdAmount);
-  const rawSize = budget
-    ? budget.div(prices[0])
-    : parseScaleDecimal(params.size);
+  if (
+    params.scaleSkew !== undefined &&
+    (!Number.isFinite(params.scaleSkew) || params.scaleSkew <= 0)
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+  }
+  let budget: BigNumber | undefined;
+  let rawSize: BigNumber;
+  try {
+    budget =
+      params.usdAmount === undefined
+        ? undefined
+        : parseScaleDecimal(params.usdAmount);
+    rawSize = budget ? budget.div(prices[0]) : parseScaleDecimal(params.size);
+  } catch {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+  }
   const units = rawSize.shiftedBy(decimals).integerValue(BigNumber.ROUND_DOWN);
   if (units.gt(Number.MAX_SAFE_INTEGER) || units.lt(count)) {
     throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
@@ -281,11 +291,11 @@ export function buildLighterScaleLadder(
   const minimumBase = parseScaleDecimal(market.minBaseAmount);
   const minimumQuote = parseScaleDecimal(market.minQuoteAmount);
   for (const [index, size] of sizes.entries()) {
-    if (
-      new BigNumber(size).lt(minimumBase) ||
-      new BigNumber(size).times(prices[index]).lt(minimumQuote)
-    ) {
+    if (new BigNumber(size).lt(minimumBase)) {
       throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
+    }
+    if (new BigNumber(size).times(prices[index]).lt(minimumQuote)) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL);
     }
   }
   const normalized = new BigNumber(total).shiftedBy(-decimals);
