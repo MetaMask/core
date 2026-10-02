@@ -573,6 +573,20 @@ export class TradingService {
   }): Promise<OrderResult> {
     const { provider, context, reportOrderToDataLake } = options;
     let params = { ...options.params };
+    try {
+      params = captureScaleOrderParams(params);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE
+      ) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
+        };
+      }
+      throw error;
+    }
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     let traceData:
@@ -594,7 +608,6 @@ export class TradingService {
         : 'perps_balance';
 
     try {
-      params = captureScaleOrderParams(params);
       this.#deps.tracer.addBreadcrumb({
         category: 'perps',
         message: 'Order execution started',

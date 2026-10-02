@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Return `ORDER_SCALE_PREVIEW_STALE` as an unsuccessful order result for malformed Scale expectations passed directly to `TradingService`, before fee resolution or placement ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Treat confirmed absent and known Premium Lighter accounts as local-only recovery inventories without acknowledgment. Verify account ownership and index before caching or recording recovery authority. Preserve durable obligations and refuse transport, storage, ownership or unverified account-type failures; Premium trading remains unsupported.
 - Recheck HyperLiquid position protection after SDK signing and correlate partial SDK acknowledgments by exact signed child IDs. Preserve uncertain outcomes and restore only exact pre-call reduce-only protection when replacement becomes stale after cancellation; report protection loss if restoration fails ([#10644](https://github.com/MetaMask/core/pull/10644))
 - Release only proven-unsent Lighter TP/SL attempts, ownership and nonce reservations after final position rejection, allowing a refreshed update or close while retaining older uncertain attempts. Preserve the position rejection if unsent cleanup fails, and direct failed older-slot retirement to explicit recovery ([#10644](https://github.com/MetaMask/core/pull/10644))
