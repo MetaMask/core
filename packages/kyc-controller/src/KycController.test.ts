@@ -224,6 +224,91 @@ describe('KycController', () => {
         expect(controller.state.sessionStatus).toBeNull();
       });
     });
+
+    it('logs timing for createUkycSession, verifyWrappingKeys, and generateWrappedAuthorizations', async () => {
+      const logSpy = jest.spyOn(console, 'log');
+
+      try {
+        await withController(async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+          await controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+          });
+        });
+
+        const timingMessages = logSpy.mock.calls
+          .map(([message]) => message)
+          .filter(
+            (message): message is string =>
+              typeof message === 'string' &&
+              message.startsWith('[KycController] '),
+          );
+
+        expect(timingMessages).toStrictEqual(
+          expect.arrayContaining([
+            expect.stringMatching(
+              /^\[KycController\] #createUkycSession generateSessionKeypair: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #createUkycSession KycService:createUkycSession: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #createUkycSession KycService:setAuthorizations: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #createUkycSession total: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #verifyWrappingKeys fetchJwks: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #verifyWrappingKeys assertAttestedServerPublicKey: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #verifyWrappingKeys total: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #generateWrappedAuthorizations getOrCreateLocalUserSecret: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #getOrCreateLocalUserSecret loadExisting: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #getOrCreateLocalUserSecret generate: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #getOrCreateLocalUserSecret persist: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #getOrCreateLocalUserSecret reloadAfterPersist: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #getOrCreateLocalUserSecret total: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #generateWrappedAuthorizations deriveClientMaterial: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #generateWrappedAuthorizations wrapEncryptionDataKey: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #generateWrappedAuthorizations signStorageAccessToken: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #generateWrappedAuthorizations wrapUkycCapabilityToken: \d+\.\d{2}ms$/u,
+            ),
+            expect.stringMatching(
+              /^\[KycController\] #generateWrappedAuthorizations total: \d+\.\d{2}ms$/u,
+            ),
+          ]),
+        );
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
   });
 
   describe('reset and clearState', () => {

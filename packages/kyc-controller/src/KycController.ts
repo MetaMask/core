@@ -84,6 +84,18 @@ const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
 // How often to poll UKYC session status until a terminal `finalStatus`.
 const SESSION_STATUS_POLL_INTERVAL_MS = 15_000;
 
+/**
+ * Logs elapsed milliseconds for a named UKYC session-creation stage.
+ *
+ * @param label - Stage name.
+ * @param startedAt - `performance.now()` captured at the start of the stage.
+ */
+function logUkycTiming(label: string, startedAt: number): void {
+  console.log(
+    `[KycController] ${label}: ${(performance.now() - startedAt).toFixed(2)}ms`,
+  );
+}
+
 // === STATE ===
 
 /**
@@ -596,17 +608,22 @@ export class KycController extends BaseController<
     vendor: KycVendor;
     geoCountry: string;
   }): Promise<KycSessionStatus> {
+    const totalStartedAt = performance.now();
+
     // Establish a per-session X25519 keypair used to seal both secrets. The
     // private half stays on the device; the public half is registered on the
     // session so the server can open later authorizations. Each encryption
     // schema from session creation supplies the matching server public key.
+    let stageStartedAt = performance.now();
     const sessionClientPrivateKey = x25519.utils.randomSecretKey();
     const sessionClientPublicKey = toBase64Url(
       x25519.getPublicKey(sessionClientPrivateKey),
     );
+    logUkycTiming('#createUkycSession generateSessionKeypair', stageStartedAt);
     // Residence is the ISO 3166-1 alpha-3 country already resolved for
     // disclaimers / KYC-required; fetch it if this sub-flow started without
     // that earlier step.
+    stageStartedAt = performance.now();
     const {
       sessionId,
       encryptionDataKey,
@@ -616,6 +633,10 @@ export class KycController extends BaseController<
       residenceCountry: params.geoCountry,
       vendor: params.vendor,
     });
+    logUkycTiming(
+      '#createUkycSession KycService:createUkycSession',
+      stageStartedAt,
+    );
 
     await this.#verifyWrappingKeys(encryptionDataKey, capabilityTokenSchema);
 
@@ -626,6 +647,7 @@ export class KycController extends BaseController<
         capabilityTokenSchema,
       );
 
+    stageStartedAt = performance.now();
     const sessionStatus = await this.messenger.call(
       'KycService:setAuthorizations',
       {
@@ -634,11 +656,16 @@ export class KycController extends BaseController<
         wrappedUkycCapabilityToken,
       },
     );
+    logUkycTiming(
+      '#createUkycSession KycService:setAuthorizations',
+      stageStartedAt,
+    );
 
     this.update((state) => {
       state.sessionStatus = sessionStatus;
     });
 
+    logUkycTiming('#createUkycSession total', totalStartedAt);
     return sessionStatus;
   }
 
@@ -1013,13 +1040,25 @@ export class KycController extends BaseController<
     encryptionDataKey: EncryptionSchema,
     capabilityTokenSchema: EncryptionSchema,
   ): Promise<void> {
+    const totalStartedAt = performance.now();
+
+    let stageStartedAt = performance.now();
     const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] =
       await Promise.all([
         this.messenger.call('KycService:fetchIdosEnclaveJwks'),
         this.messenger.call('KycService:fetchIdosRelayJwks'),
       ]);
+    logUkycTiming('#verifyWrappingKeys fetchJwks', stageStartedAt);
+
+    stageStartedAt = performance.now();
     assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
     assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    logUkycTiming(
+      '#verifyWrappingKeys assertAttestedServerPublicKey',
+      stageStartedAt,
+    );
+
+    logUkycTiming('#verifyWrappingKeys total', totalStartedAt);
   }
 
   /**
@@ -1044,28 +1083,59 @@ export class KycController extends BaseController<
     wrappedEncryptionDataKey: CapabilityAuthorization;
     wrappedUkycCapabilityToken: CapabilityAuthorization;
   }> {
+    const totalStartedAt = performance.now();
+
+    let stageStartedAt = performance.now();
     const localUserSecret = await getOrCreateLocalUserSecret(
       this.#localUserSecretStore,
     );
+    logUkycTiming(
+      '#generateWrappedAuthorizations getOrCreateLocalUserSecret',
+      stageStartedAt,
+    );
+
+    stageStartedAt = performance.now();
     const clientMaterial = deriveClientMaterial(localUserSecret);
+    logUkycTiming(
+      '#generateWrappedAuthorizations deriveClientMaterial',
+      stageStartedAt,
+    );
+
+    stageStartedAt = performance.now();
     const wrappedEncryptionDataKey = wrapEncryptionKey(
       sessionClientPrivateKey,
       encryptionDataKey.serverPublicKey.x,
       clientMaterial.dataEncryptionKey,
     );
+    logUkycTiming(
+      '#generateWrappedAuthorizations wrapEncryptionDataKey',
+      stageStartedAt,
+    );
 
+    stageStartedAt = performance.now();
     const ukycCapabilityToken = signStorageAccessToken({
       material: clientMaterial,
       // TODO: Confirm with idOS when this can be switched back to read and a separate token is sent for write
       operations: ['read', 'write'],
       expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
     });
+    logUkycTiming(
+      '#generateWrappedAuthorizations signStorageAccessToken',
+      stageStartedAt,
+    );
+
+    stageStartedAt = performance.now();
     const wrappedUkycCapabilityToken = wrapEncryptionKey(
       sessionClientPrivateKey,
       capabilityTokenSchema.serverPublicKey.x,
       stringToBytes(encodeStorageAccessTokenForHeader(ukycCapabilityToken)),
     );
+    logUkycTiming(
+      '#generateWrappedAuthorizations wrapUkycCapabilityToken',
+      stageStartedAt,
+    );
 
+    logUkycTiming('#generateWrappedAuthorizations total', totalStartedAt);
     return { wrappedEncryptionDataKey, wrappedUkycCapabilityToken };
   }
 }

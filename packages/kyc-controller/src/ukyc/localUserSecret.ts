@@ -8,6 +8,18 @@ import {
 } from './constants.js';
 
 /**
+ * Logs elapsed milliseconds for a named `getOrCreateLocalUserSecret` stage.
+ *
+ * @param label - Stage name.
+ * @param startedAt - `performance.now()` captured at the start of the stage.
+ */
+function logUkycTiming(label: string, startedAt: number): void {
+  console.log(
+    `[KycController] ${label}: ${(performance.now() - startedAt).toFixed(2)}ms`,
+  );
+}
+
+/**
  * Orchestrates creation and loading of the UKYC `local_user_secret`.
  *
  * The `local_user_secret` is the root secret for all UKYC client-derived
@@ -154,28 +166,48 @@ export async function getOrCreateLocalUserSecret(
   store: UkycLocalUserSecretStore,
   entropySourceId?: string,
 ): Promise<Uint8Array> {
+  const totalStartedAt = performance.now();
   const cacheKey = entropySourceId ?? '';
 
   const pending = inFlightCreations.get(cacheKey);
   if (pending) {
-    return pending;
+    try {
+      return await pending;
+    } finally {
+      logUkycTiming(
+        '#getOrCreateLocalUserSecret awaitInFlight',
+        totalStartedAt,
+      );
+      logUkycTiming('#getOrCreateLocalUserSecret total', totalStartedAt);
+    }
   }
 
   const creation = (async (): Promise<Uint8Array> => {
+    let stageStartedAt = performance.now();
     const existing = await loadLocalUserSecret(store, entropySourceId);
+    logUkycTiming('#getOrCreateLocalUserSecret loadExisting', stageStartedAt);
     if (existing) {
       return existing;
     }
 
+    stageStartedAt = performance.now();
     const localUserSecret = randomBytes(UKYC_LOCAL_USER_SECRET_SIZE_BYTES);
+    logUkycTiming('#getOrCreateLocalUserSecret generate', stageStartedAt);
+
+    stageStartedAt = performance.now();
     await persistLocalUserSecret(store, localUserSecret, entropySourceId);
+    logUkycTiming('#getOrCreateLocalUserSecret persist', stageStartedAt);
 
     // Re-read after persisting so that all callers converge on whatever value
     // actually landed in storage (defends against a competing write that may
     // have won the race, e.g. from another device syncing the same feature).
-    return (
-      (await loadLocalUserSecret(store, entropySourceId)) ?? localUserSecret
+    stageStartedAt = performance.now();
+    const reloaded = await loadLocalUserSecret(store, entropySourceId);
+    logUkycTiming(
+      '#getOrCreateLocalUserSecret reloadAfterPersist',
+      stageStartedAt,
     );
+    return reloaded ?? localUserSecret;
   })();
 
   inFlightCreations.set(cacheKey, creation);
@@ -184,6 +216,7 @@ export async function getOrCreateLocalUserSecret(
     return await creation;
   } finally {
     inFlightCreations.delete(cacheKey);
+    logUkycTiming('#getOrCreateLocalUserSecret total', totalStartedAt);
   }
 }
 
