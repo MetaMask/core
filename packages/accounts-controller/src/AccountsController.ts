@@ -53,7 +53,7 @@ import {
   getUUIDFromAddressOfNormalAccount,
   isHdKeyringType,
   isHdSnapKeyringAccount,
-  isMoneyKeyringType,
+  isSkippedKeyringType,
   isSnapKeyringType,
   isSnapKeyringV2Type,
   keyringTypeToName,
@@ -680,9 +680,11 @@ export class AccountsController extends BaseController<
 
     const { keyrings } = this.messenger.call('KeyringController:getState');
     for (const keyring of keyrings) {
-      // Money accounts are not treated as real accounts, they are owned by the `MoneyAccountController`, so
-      // we need to filter them out here.
-      if (isMoneyKeyringType(keyring.type)) {
+      const { type } = keyring;
+
+      // Skipped accounts (Money or MPC) are not treated as real accounts, they are owned by their
+      // respective controllers, so we need to filter them out here.
+      if (isSkippedKeyringType(type)) {
         continue;
       }
 
@@ -1006,9 +1008,9 @@ export class AccountsController extends BaseController<
     // Go over all keyring changes and create patches out of it.
     const addresses = new Set<string>();
     for (const keyring of keyrings) {
-      // Money accounts are not treated as real accounts, they are owned by the `MoneyAccountController`, so
-      // we need to filter them out here.
-      if (isMoneyKeyringType(keyring.type)) {
+      // Skipped accounts (Money or MPC) are not treated as real accounts, they are owned by their
+      // respective controllers, so we need to filter them out here.
+      if (isSkippedKeyringType(keyring.type)) {
         continue;
       }
 
