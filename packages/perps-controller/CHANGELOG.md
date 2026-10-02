@@ -73,6 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Select and persist the bounded testnet Chase child's final book quote after preparation and nonce acquisition, retaining five-second quote freshness, original duration and dispatch safety checks ([#10638](https://github.com/MetaMask/core/pull/10638)).
+
 - Reject Scale children above Lighter's native base-amount maximum before preview readiness or trading setup, and validate the same limit in durable records. Preserve valid larger aggregates split across bounded children ([#10638](https://github.com/MetaMask/core/pull/10638)).
 - Resolve public perps constant and utility subpaths from source during monorepo checks without requiring built outputs; retain separate compiled consumer validation ([#10638](https://github.com/MetaMask/core/pull/10638)).
 

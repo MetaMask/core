@@ -31856,6 +31856,408 @@ describe('Lighter bounded Chase provider probe', () => {
     orderType: 'chase';
     providerId: 'lighter';
   } => ({ symbol: 'BTC', orderId, orderType: 'chase', providerId: 'lighter' });
+  describe('late Chase quote preparation', () => {
+    type Book = Awaited<ReturnType<LighterClientService['getOrderBookOrders']>>;
+    const finalBook = async (
+      built: BuiltProvider,
+      change: (book: Book) => Book,
+    ): Promise<void> => {
+      const book = (await built.clientInstance.getOrderBookOrders(1)) as Book;
+      let reads = 0;
+      built.clientInstance.getOrderBookOrders.mockImplementation(async () => {
+        reads += 1;
+        return reads >= 4 ? change(structuredClone(book)) : book;
+      });
+    };
+    it('places and cancels one exact child after cumulative slow preparation with a fresh final quote', async () => {
+      jest.useFakeTimers();
+      const deps = diskDependencies();
+      const built = setup({ platformDependencies: deps });
+      const start = Date.now();
+      let preparing = false;
+      let reads = 0;
+      const advance = (ms: number): void => {
+        jest.setSystemTime(Date.now() + ms);
+      };
+      const book = (await built.clientInstance.getOrderBookOrders(1)) as Book;
+      built.clientInstance.getOrderBookOrders.mockImplementation(async () => {
+        reads += 1;
+        if (reads === 3) {
+          preparing = true;
+        }
+        if (preparing) {
+          advance(50);
+        }
+        return book;
+      });
+      const delayed =
+        <Args extends unknown[], Result>(
+          original: (...args: Args) => Promise<Result>,
+          ms: number,
+        ): ((...args: Args) => Promise<Result>) =>
+        async (...args) => {
+          if (preparing) {
+            advance(ms);
+          }
+          return await original(...args);
+        };
+      const markets =
+        built.clientInstance.getOrderBooks.getMockImplementation();
+      const account =
+        built.clientInstance.getAccountByIndex.getMockImplementation();
+      const active =
+        built.clientInstance.getActiveOrders.getMockImplementation();
+      const nonce = built.clientInstance.getNextNonce.getMockImplementation();
+      const read = jest
+        .spyOn(deps.diskCache, 'getItem')
+        .getMockImplementation();
+      const write = jest
+        .spyOn(deps.diskCache, 'setItem')
+        .getMockImplementation();
+      const execute = jest
+        .spyOn(built.bridge, 'execute')
+        .getMockImplementation();
+      if (
+        !markets ||
+        !account ||
+        !active ||
+        !nonce ||
+        !read ||
+        !write ||
+        !execute
+      ) {
+        throw new Error('Missing Chase latency collaborators');
+      }
+      built.clientInstance.getOrderBooks.mockImplementation(
+        delayed(markets, 1100),
+      );
+      built.clientInstance.getAccountByIndex.mockImplementation(
+        delayed(account, 700),
+      );
+      built.clientInstance.getActiveOrders.mockImplementation(
+        delayed(active, 400),
+      );
+      built.clientInstance.getNextNonce.mockImplementation(delayed(nonce, 200));
+      jest.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) => {
+        if (preparing && key.startsWith('lighterNonceLedger:')) {
+          advance(5);
+        }
+        return await read(key);
+      });
+      jest
+        .spyOn(deps.diskCache, 'setItem')
+        .mockImplementation(async (key, value) => {
+          if (preparing) {
+            advance(key.startsWith('lighterNonceLedger:') ? 200 : 100);
+          }
+          return await write(key, value);
+        });
+      jest.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+        if (call.function === '_signCreateOrder') {
+          advance(400);
+        }
+        return await execute(call);
+      });
+      try {
+        const result = await built.provider.placeOrder(intent);
+        expect(Date.now() - start).toBeGreaterThan(5000);
+        expect({
+          result,
+          signingCalls: built.calls.filter(
+            (call) => call.function === '_signCreateOrder',
+          ).length,
+          transportCalls: built.clientInstance.sendTx.mock.calls.filter(
+            ([kind]) => kind === LIGHTER_TX_TYPE_CREATE_ORDER,
+          ).length,
+        }).toMatchObject({
+          result: { success: true, childOrderIds: ['9001'] },
+          signingCalls: 1,
+          transportCalls: 1,
+        });
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+        expect(
+          built.clientInstance.sendTx.mock.calls.filter(
+            ([kind]) => kind === LIGHTER_TX_TYPE_CREATE_ORDER,
+          ),
+        ).toHaveLength(1);
+        const record = (await built.provider.getNativeChaseRecords())[0];
+        expect(
+          record.children[0].quotedAt - record.intent.startedAt,
+        ).toBeGreaterThan(3000);
+        preparing = false;
+        built.clientInstance.getOrderBookOrders.mockRejectedValue(
+          new Error('price feed unavailable'),
+        );
+        expect(
+          (
+            await built.provider.cancelOrder(
+              cancelParams(result.orderId as string),
+            )
+          ).success,
+        ).toBe(true);
+        expect((await built.provider.getNativeChaseRecords())[0]).toMatchObject(
+          {
+            status: 'canceled',
+            children: [{ observation: { terminal: true } }],
+          },
+        );
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+        expect(
+          built.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(1);
+      } finally {
+        await built.provider.disconnect();
+        jest.useRealTimers();
+      }
+    });
+    it('signs and persists the genuine final price rather than relabeling the early quote', async () => {
+      jest.useFakeTimers();
+      const built = setup();
+      await finalBook(built, (book) => ({
+        ...book,
+        bids: book.bids.map((row) => ({ ...row, price: '99999.6' })),
+      }));
+      try {
+        expect((await built.provider.placeOrder(intent)).success).toBe(true);
+        const create = built.calls.filter(
+          (call) => call.function === '_signCreateOrder',
+        );
+        expect(create).toHaveLength(1);
+        expect(create[0].params[4]).toBe('999997');
+        expect(
+          (await built.provider.getNativeChaseRecords())[0].children[0].price,
+        ).toBe('99999.7');
+        expect(
+          built.clientInstance.sendTx.mock.calls.filter(
+            ([kind]) => kind === LIGHTER_TX_TYPE_CREATE_ORDER,
+          ),
+        ).toHaveLength(1);
+      } finally {
+        await built.provider.disconnect();
+        jest.useRealTimers();
+      }
+    });
+    it.each(['distance', 'notional', 'incomplete same-side book'] as const)(
+      'refuses a final quote violating %s before signing or transport',
+      async (condition) => {
+        jest.useFakeTimers();
+        const built = setup();
+        await finalBook(built, (book) =>
+          condition === 'incomplete same-side book'
+            ? { ...book, totalBids: 2, bids: [] }
+            : {
+                ...book,
+                bids: book.bids.map((row) => ({
+                  ...row,
+                  price: condition === 'distance' ? '103000' : '100000',
+                })),
+                asks: book.asks.map((row) => ({ ...row, price: '104000' })),
+              },
+        );
+        try {
+          const result = await built.provider.placeOrder(intent);
+          expect(result.success).toBe(false);
+          expect(result.error).toContain(
+            {
+              distance: 'maximum distance',
+              notional: 'aggregate budget',
+              'incomplete same-side book': 'book is incomplete',
+            }[condition],
+          );
+          expect(
+            built.calls.filter((call) => call.function === '_signCreateOrder'),
+          ).toHaveLength(0);
+          expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        } finally {
+          await built.provider.disconnect();
+          jest.useRealTimers();
+        }
+      },
+    );
+    it.each(['missing', 'malformed', 'crossed', 'stale', 'backwards'] as const)(
+      'refuses a %s final book before signing or transport',
+      async (condition) => {
+        jest.useFakeTimers();
+        const built = setup();
+        await finalBook(built, (book) => {
+          if (condition === 'stale' || condition === 'backwards') {
+            jest.setSystemTime(
+              Date.now() + (condition === 'stale' ? 5001 : -1),
+            );
+            return book;
+          }
+          if (condition === 'missing') {
+            return { ...book, totalBids: 0, bids: [] };
+          }
+          return {
+            ...book,
+            bids: book.bids.map((row) => ({
+              ...row,
+              price: condition === 'malformed' ? 'NaN' : '100002',
+            })),
+          };
+        });
+        try {
+          const result = await built.provider.placeOrder(intent);
+          expect(result.success).toBe(false);
+          expect(
+            built.calls.filter((call) => call.function === '_signCreateOrder'),
+          ).toHaveLength(0);
+          expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        } finally {
+          await built.provider.disconnect();
+          jest.useRealTimers();
+        }
+      },
+    );
+    it.each(['account', 'signer reset'] as const)(
+      'refuses %s changes during final quote acquisition',
+      async (condition) => {
+        jest.useFakeTimers();
+        const built = setup();
+        await finalBook(built, (book) => {
+          if (condition === 'account') {
+            built.getUserAddressMock.mockReturnValue('0xother');
+          } else {
+            built.fireReset();
+          }
+          return book;
+        });
+        try {
+          expect((await built.provider.placeOrder(intent)).success).toBe(false);
+          expect(
+            built.calls.filter((call) => call.function === '_signCreateOrder'),
+          ).toHaveLength(0);
+          expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        } finally {
+          await built.provider.disconnect();
+          jest.useRealTimers();
+        }
+      },
+    );
+    it.each(['final exposure', 'nonce append', 'attempted journal'] as const)(
+      'retains stale-quote refusal after slow %s and retires only the proven-unsent nonce',
+      async (condition) => {
+        jest.useFakeTimers();
+        const deps = diskDependencies();
+        const built = setup({ platformDependencies: deps });
+        let signed = false;
+        let delayed = false;
+        const execute = jest
+          .spyOn(built.bridge, 'execute')
+          .getMockImplementation();
+        const write = jest
+          .spyOn(deps.diskCache, 'setItem')
+          .getMockImplementation();
+        const account =
+          built.clientInstance.getAccountByIndex.getMockImplementation() as
+            | LighterClientService['getAccountByIndex']
+            | undefined;
+        if (!execute || !write || !account) {
+          throw new Error('Missing dispatch collaborators');
+        }
+        jest.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+          const result = await execute(call);
+          if (call.function === '_signCreateOrder') {
+            signed = true;
+          }
+          return result;
+        });
+        built.clientInstance.getAccountByIndex.mockImplementation(
+          async (
+            ...args: Parameters<LighterClientService['getAccountByIndex']>
+          ) => {
+            if (signed && !delayed && condition === 'final exposure') {
+              delayed = true;
+              jest.setSystemTime(Date.now() + 5001);
+            }
+            return await account(...args);
+          },
+        );
+        jest
+          .spyOn(deps.diskCache, 'setItem')
+          .mockImplementation(async (key, value) => {
+            if (
+              signed &&
+              !delayed &&
+              ((condition === 'nonce append' &&
+                key.startsWith('lighterNonceLedger:') &&
+                !value.includes('"entries":[]')) ||
+                (condition === 'attempted journal' &&
+                  key.startsWith('lighterChase:') &&
+                  value.includes('"phase":"attempted"')))
+            ) {
+              delayed = true;
+              jest.setSystemTime(Date.now() + 5001);
+            }
+            return await write(key, value);
+          });
+        try {
+          const result = await built.provider.placeOrder(intent);
+          expect(result).toMatchObject({
+            success: false,
+            error: 'Lighter Chase quote is stale before dispatch',
+          });
+          expect(delayed).toBe(true);
+          expect(
+            built.calls.filter((call) => call.function === '_signCreateOrder'),
+          ).toHaveLength(1);
+          expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+          const child = (await built.provider.getNativeChaseRecords())[0]
+            .children[0];
+          expect(child.placement).toMatchObject({
+            phase: 'failed',
+            nonce: expect.any(Number) as number,
+            txHash: expect.any(String) as string,
+          });
+          const ledger = await deps.diskCache.getItem(
+            'lighterNonceLedger:testnet:28:7',
+          );
+          expect(ledger).toContain('"entries":[]');
+          expect(
+            built.clientInstance.getNextNonce.mock.results.at(-1)?.value,
+          ).toBeDefined();
+        } finally {
+          await built.provider.disconnect();
+          jest.useRealTimers();
+        }
+      },
+    );
+    it('retains the frozen parent refusal when signing alone ages a fresh quote', async () => {
+      jest.useFakeTimers();
+      const built = setup();
+      const execute = jest
+        .spyOn(built.bridge, 'execute')
+        .getMockImplementation();
+      if (!execute) {
+        throw new Error('Missing signer implementation');
+      }
+      jest.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+        if (call.function === '_signCreateOrder') {
+          jest.setSystemTime(Date.now() + 5001);
+        }
+        return await execute(call);
+      });
+      try {
+        const result = await built.provider.placeOrder(intent);
+        expect(result).toMatchObject({
+          success: false,
+          error: 'Lighter Chase quote is stale before dispatch',
+        });
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      } finally {
+        await built.provider.disconnect();
+        jest.useRealTimers();
+      }
+    });
+  });
   it.each(['preparation', 'readiness', 'account exclusion'] as const)(
     'rejects a Chase start suspended during deferred %s before service registration',
     async (boundary) => {

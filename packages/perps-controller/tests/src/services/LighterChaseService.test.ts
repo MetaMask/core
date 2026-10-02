@@ -127,6 +127,144 @@ const setup = (): TestEnvironment => {
 };
 
 describe('Lighter bounded Chase lifecycle', () => {
+  describe('prepared final quote', () => {
+    it('persists a fresh bounded price after slow preparation without changing the original intent', async () => {
+      const env = setup();
+      const initial = structuredClone(intent);
+      const place = jest.mocked(env.io.place).getMockImplementation();
+      if (!place) {
+        throw new Error('Missing placement implementation');
+      }
+      jest.mocked(env.io.place).mockImplementation(async (child, hooks) => {
+        const { clientOrderId } = child;
+        env.setNow(106000);
+        await hooks.prepareQuote('99999.9');
+        expect(child).toMatchObject({
+          clientOrderId,
+          price: '99999.9',
+          size: intent.originalSize,
+          quotedAt: 106000,
+          placement: { phase: 'prepared' },
+        });
+        expect([...env.disk.values()].join(' ')).toContain('"price":"99999.9"');
+        await place(child, hooks);
+      });
+      const result = await env.service.start(intent, env.io);
+      expect(result.status).toBe('active');
+      expect(result.intent).toStrictEqual(initial);
+      expect(result.children).toHaveLength(1);
+      expect(result.repricings).toBe(0);
+    });
+    it.each(['signed', 'attempted', 'acknowledged'] as const)(
+      'refuses final quote mutation of a %s child',
+      async (phase) => {
+        const env = setup();
+        let retained: LighterChaseDispatchHooks | undefined;
+        let refusal: unknown;
+        const mutate = async (
+          hooks: LighterChaseDispatchHooks,
+        ): Promise<void> => {
+          try {
+            await hooks.prepareQuote('99999.8');
+          } catch (error) {
+            refusal = error;
+          }
+        };
+        jest.mocked(env.io.place).mockImplementation(async (child, hooks) => {
+          retained = hooks;
+          await hooks.prepareQuote('99999.9');
+          await hooks.signed({
+            nonce: 8,
+            txHash: 'abcdabcd',
+            expiresAt: 110000,
+          });
+          if (phase === 'signed') {
+            await mutate(hooks);
+          }
+          await hooks.beforeDispatch();
+          if (phase === 'attempted') {
+            await mutate(hooks);
+          }
+          env.observed.set(child.clientOrderId, {
+            orderId: '9001',
+            terminal: false,
+            filledSize: '0',
+            filledNotional: '0',
+            remainingSize: child.size,
+          });
+        });
+        const result = await env.service.start(intent, env.io);
+        expect(result.status).toBe('active');
+        if (!retained) {
+          throw new Error('Missing retained hooks');
+        }
+        if (phase === 'acknowledged') {
+          await mutate(retained);
+        }
+        if (!(refusal instanceof Error)) {
+          throw new Error('Expected a refused quote mutation');
+        }
+        expect(refusal.message).toContain('cannot change after signing');
+        expect(result.children[0]).toMatchObject({
+          price: '99999.9',
+          quotedAt: 100000,
+          size: intent.originalSize,
+          placement: { phase: 'acknowledged' },
+        });
+      },
+    );
+    it.each([
+      { now: 99999, error: 'clock moved backwards' },
+      { now: 160000, error: 'duration elapsed' },
+    ])('refuses a fresh quote with $error', async ({ now, error }) => {
+      const env = setup();
+      jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+        env.setNow(now);
+        await hooks.prepareQuote('99999.9');
+      });
+      const result = await env.service.start(intent, env.io);
+      expect(result.status).toBe('failed');
+      expect(result.error).toContain(error);
+      expect(env.observed.size).toBe(0);
+      expect(result.children[0].price).toBe('100000');
+    });
+    it.each(['failure', 'slow write'] as const)(
+      'does not sign after final quote persistence %s',
+      async (condition) => {
+        const env = setup();
+        let injected = false;
+        env.storage.setItem.mockImplementation(async (key, value) => {
+          if (!injected && value.includes('"price":"99999.9"')) {
+            injected = true;
+            if (condition === 'failure') {
+              throw new Error('final quote disk failure');
+            }
+            env.setNow(106000);
+          }
+          env.disk.set(key, value);
+        });
+        const signed = jest.fn();
+        jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+          await hooks.prepareQuote('99999.9');
+          signed();
+          await hooks.signed({
+            nonce: 8,
+            txHash: 'abcdabcd',
+            expiresAt: 110000,
+          });
+        });
+        const result = await env.service.start(intent, env.io);
+        expect(result.status).toBe('failed');
+        expect(result.error).toContain(
+          condition === 'failure'
+            ? 'final quote disk failure'
+            : 'quote is stale',
+        );
+        expect(signed).not.toHaveBeenCalled();
+        expect(env.observed.size).toBe(0);
+      },
+    );
+  });
   it('cancels the exact owned child despite unavailable fill reconciliation and retains pending termination', async () => {
     const env = setup();
     await env.service.start(intent, env.io);

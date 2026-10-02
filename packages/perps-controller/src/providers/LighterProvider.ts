@@ -11898,29 +11898,31 @@ export class LighterProvider implements PerpsProvider {
         dispatch.phase = 'failed';
       }
     };
+    const quote = async (): Promise<string> => {
+      assertCurrent();
+      const started = Date.now();
+      const book = await this.#clientService.getOrderBookOrders(
+        intent.marketId,
+      );
+      assertCurrent();
+      if (
+        Date.now() < started ||
+        Date.now() - started > LIGHTER_CHASE_QUOTE_MAX_AGE_MS ||
+        Date.now() - started > LIGHTER_POST_ONLY_QUOTE_MAX_AGE_MS
+      ) {
+        throw new Error('Lighter Chase book is stale');
+      }
+      return readLighterChaseQuote(book, {
+        isBuy: intent.isBuy,
+        accountIndex: intent.owner.accountIndex,
+        priceDecimals: intent.priceDecimals,
+      });
+    };
     return {
       assertCurrent,
       now: () => Date.now(),
       allocateClientId: () => String(this.#allocateClientOrderIndexes(1)[0]),
-      quote: async () => {
-        assertCurrent();
-        const started = Date.now();
-        const book = await this.#clientService.getOrderBookOrders(
-          intent.marketId,
-        );
-        assertCurrent();
-        if (
-          Date.now() < started ||
-          Date.now() - started > LIGHTER_CHASE_QUOTE_MAX_AGE_MS
-        ) {
-          throw new Error('Lighter Chase book is stale');
-        }
-        return readLighterChaseQuote(book, {
-          isBuy: intent.isBuy,
-          accountIndex: intent.owner.accountIndex,
-          priceDecimals: intent.priceDecimals,
-        });
-      },
+      quote,
       place: async (child, hooks) => {
         assertSigning();
         const market = (await this.#ensureMarkets(true)).get(intent.symbol);
@@ -11953,12 +11955,12 @@ export class LighterProvider implements PerpsProvider {
           intent.owner.accountIndex,
           async (nonce, submit) => {
             assertSigning();
-            await this.#assertPostOnlyBook(
-              intent.marketId,
-              intent.isBuy,
-              Number(child.price),
-              generation,
-            );
+            // Read only after preparation and nonce/bridge serialization. The
+            // complete book validates both sides and selects a passive price;
+            // the service persists its bounded final quote before signing.
+            const price = await quote();
+            assertSigning();
+            await hooks.prepareQuote(price);
             assertSigning();
             const signed = await this.#getSignerBridge().execute({
               function: '_signCreateOrder',

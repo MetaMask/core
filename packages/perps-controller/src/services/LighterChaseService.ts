@@ -123,6 +123,7 @@ export type LighterChaseChild = Infer<typeof ChildStruct>;
 export type LighterChaseRecord = Infer<typeof RecordStruct>;
 type Journal = Infer<typeof JournalStruct>;
 export type LighterChaseDispatchHooks = {
+  prepareQuote: (price: string) => Promise<void>;
   signed: (identity: {
     nonce: number;
     txHash: string;
@@ -503,11 +504,23 @@ export class LighterChaseService {
     financialContinuation: boolean,
     send: (hooks: LighterChaseDispatchHooks) => Promise<void>,
   ): Promise<void> {
+    let signedQuote:
+      | Pick<LighterChaseChild, 'price' | 'size' | 'quotedAt'>
+      | undefined;
     const guard = (): void => {
       io.assertCurrent();
       if (financialContinuation) {
         this.#running(record);
-        const quotedAt = record.children.at(-1)?.quotedAt;
+        const child = record.children.at(-1);
+        if (
+          signedQuote &&
+          (child?.price !== signedQuote.price ||
+            child.size !== signedQuote.size ||
+            child.quotedAt !== signedQuote.quotedAt)
+        ) {
+          throw new Error('Lighter Chase signed quote changed');
+        }
+        const quotedAt = child?.quotedAt;
         if (
           quotedAt === undefined ||
           io.now() < quotedAt ||
@@ -521,6 +534,30 @@ export class LighterChaseService {
       }
     };
     const hooks: LighterChaseDispatchHooks = {
+      prepareQuote: async (price) => {
+        io.assertCurrent();
+        this.#running(record);
+        const child = record.children.at(-1);
+        if (
+          !financialContinuation ||
+          !child ||
+          child.placement !== dispatch ||
+          dispatch.phase !== 'prepared'
+        ) {
+          throw new Error('Lighter Chase quote cannot change after signing');
+        }
+        if (io.now() < child.quotedAt) {
+          throw new Error('Lighter Chase quote clock moved backwards');
+        }
+        if (io.now() >= record.intent.startedAt + record.intent.maxDurationMs) {
+          throw new Error('Lighter Chase duration elapsed before dispatch');
+        }
+        this.#checkQuote(record, price, child.size);
+        child.price = price;
+        child.quotedAt = io.now();
+        await this.#write(record.intent.owner, journal, io);
+        guard();
+      },
       signed: async (identity) => {
         guard();
         if (
@@ -532,6 +569,17 @@ export class LighterChaseService {
           identity.expiresAt <= io.now()
         ) {
           throw new Error('Invalid Lighter Chase signing identity');
+        }
+        if (financialContinuation) {
+          const child = record.children.at(-1);
+          if (!child) {
+            throw new Error('Lighter Chase signing child is missing');
+          }
+          signedQuote = {
+            price: child.price,
+            size: child.size,
+            quotedAt: child.quotedAt,
+          };
         }
         Object.assign(dispatch, identity, { phase: 'signed' });
         await this.#write(record.intent.owner, journal, io);
