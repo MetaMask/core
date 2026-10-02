@@ -8,6 +8,9 @@ import type {
   PerpsChaseOrderOwnership,
   PerpsControllerGetChaseOrderOwnershipAction,
   OrderResult,
+  PositionProtectionReceipt,
+  LighterCredentials,
+  UpdatePositionTPSLParams,
   OrderEditObservation,
   EditOrderParams,
   LighterSignModifyOrderWireParams,
@@ -253,9 +256,9 @@ export type PartialRecoveryConsumerContract = AssertTrue<
   IsExact<
     PerpsPendingManualRecovery['partialIntent'],
     | {
-        version: 1;
+        version: 1 | 2;
         positionSide: 'long' | 'short';
-        linkage: 'single' | 'oco';
+        linkage: 'single' | 'oco' | 'independent';
         legs: {
           type: 'take-profit' | 'stop-loss';
           size: string;
@@ -578,3 +581,28 @@ export type ChaseOwnershipConsumerContracts = [
     >
   >,
 ];
+
+export type IndependentProtectionPublicContract = [
+  AssertTrue<
+    IsExact<
+      UpdatePositionTPSLParams['partialPairLinkage'],
+      'equal-quantity-oco' | 'independent' | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      NonNullable<OrderResult['positionProtection']>,
+      PositionProtectionReceipt
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PositionProtectionReceipt['legs'][number]['requestedSize'],
+      string | undefined
+    >
+  >,
+];
+
+export type ChaseProbePublicContract = AssertTrue<
+  IsExact<LighterCredentials['chaseTestnetProbe'], boolean | undefined>
+>;

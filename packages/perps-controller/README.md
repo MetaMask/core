@@ -249,14 +249,14 @@ last known rows alongside that error.
 `updatePositionTPSL` accepts a positive `takeProfitSize` or `stopLossSize` for
 one trigger, or both sizes for an equal-quantity OCO pair. Explicit quantities
 normalize downward on the market size grid without increasing the request.
-Values below one tick or above the exact current position are rejected. A pair
-with unequal normalized quantities or only one supplied size is rejected before
-mutation. Omitting both sizes retains the existing full-position snapshot
+Values below one tick or above the exact current position are rejected. With
+the default native OCO linkage, unequal normalized quantities or only one supplied
+size are rejected before mutation. Omitting both sizes retains the existing full-position snapshot
 behavior. Explicit sizes never become the venue's dynamic zero-quantity
 sentinel.
 
 Partial replacement cancels only managed or explicitly selected protection, then
-proves exact cancellations before creating the replacement. Independent orders
+proves exact cancellations before creating the replacement. Unrelated independent orders
 remain untouched. This leaves a protection gap if creation fails. The durable
 operation records the original fixed quantities and client IDs before
 cancellation; ambiguous creation is reconciled without replay.
@@ -273,9 +273,21 @@ lifecycle ID, so even an identical-looking position could have been closed and
 reopened. Ordinary retries cannot change or dispatch the stored intent. Inspect
 the exact recovery and call `resolveRecoveryProtection` with its recovery ID and
 a fresh explicit intent for the current position. The capability metadata
-reports this boundary, snapshot coverage, and equal-quantity OCO linkage.
+reports this boundary, snapshot coverage, and supported pair linkages.
 Hyperliquid continues to report independent fixed partial triggers and dynamic
 whole-position coverage through its existing implementation.
+
+Explicit `partialPairLinkage: 'independent'` supports equal or unequal TP/SL
+quantities, including an omitted sibling captured from the full current position.
+At least one size and both prices are required. The default remains native equal
+OCO; explicit OCO is never converted to independent orders. `supportedPairs`
+reports the available choices while `pair` retains the provider default.
+Independent triggers are submitted TP then SL with separate durable identities.
+Uncertainty, rejection, a fired first leg or changed position stops the sibling.
+Failures retain accepted coverage and expose observed role-bound
+`positionProtection` receipts; saved requests are never automatically replayed.
+An omitted `requestedSize` in a receipt means captured full-position coverage.
+Venue activation and sibling cancellation are not implied by independent linkage.
 
 ## Native Lighter attached orders
 
@@ -492,11 +504,13 @@ This transport support does not advertise Chase or establish its venue proof.
 
 ## Bounded Lighter Chase lifecycle
 
-Normal Chase capability remains unavailable. A constructor-only
-`chaseTestnetProbe: true` enables bounded Chase transport on testnet; mainnet
-construction rejects it. The controller factory does not pass this option.
-The option defaults to false. Production Chase capability remains unavailable;
-client integration and live venue acceptance are required before enabling it.
+The default leaves Chase unavailable. Set
+`clientConfig.providerCredentials.lighter.chaseTestnetProbe: true` to enable the
+bounded probe on the actual testnet provider with an injected signer. Controller
+registration omits this setting on mainnet; direct mainnet
+construction rejects it.
+Enabled testnet capabilities include Chase. Production remains unavailable;
+client integration and live venue acceptance are still required for rollout.
 
 The probe uses the existing `orderType: 'chase'` contract with exact base size,
 explicit existing 1x leverage, a 20 USD aggregate notional ceiling, an interval
@@ -656,3 +670,9 @@ Earlier acceptance or execution proof remains pending through later lookup loss.
 This Core contract does not establish venue edit effects, Mobile bridge support
 or delivered client parity. Mobile adoption and testnet same-order price/size
 lifecycle proof remain separate validation work.
+
+The Chase probe accepts Mobile's explicit `usdAmount` only when its downward-grid
+size agrees with the captured current price and fresh venue quote. The USD amount
+becomes the durable aggregate budget for original and replacement children, within
+the 20 USD limit. Preparation is repeated after signer readiness, and existing
+late dispatch, 1x, opening-only, fill and child-ownership checks remain required.

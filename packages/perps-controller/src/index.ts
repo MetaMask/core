@@ -220,6 +220,8 @@ export type {
   ExpectedScaleLadder,
   MarginMode,
   OrderResult,
+  PositionProtectionReceipt,
+  LighterCredentials,
   OrderEditObservation,
   AttachedOrderGroup,
   ScaleOrderChild,

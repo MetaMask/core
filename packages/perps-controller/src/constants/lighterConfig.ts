@@ -442,3 +442,6 @@ export const LIGHTER_CHASE_MAX_REPRICINGS = 20;
 export const LIGHTER_CHASE_MAX_DISTANCE_BPS = 10_000;
 export const LIGHTER_CHASE_QUOTE_MAX_AGE_MS = 5_000;
 export const LIGHTER_CHASE_HANDLE_MAX_LENGTH = 128;
+
+/** Maximum duration of a post-only crossing-check book read. */
+export const LIGHTER_POST_ONLY_QUOTE_MAX_AGE_MS = 5_000;

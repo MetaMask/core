@@ -425,7 +425,29 @@ export type OrderEditObservation = {
   };
 };
 
+/** Observed protection outcome; independent legs have no sibling cancellation guarantee. */
+export type PositionProtectionReceipt = {
+  linkage: 'single' | 'equal-quantity-oco' | 'independent';
+  legs: {
+    role: 'take-profit' | 'stop-loss';
+    /** Absent when the caller requested the captured full-position quantity. */
+    requestedSize?: string;
+    normalizedSize: string;
+    clientOrderId?: string;
+    orderId?: string;
+    status:
+      | 'unknown'
+      | 'resting'
+      | 'partially-filled'
+      | 'filled'
+      | 'canceled'
+      | 'rejected';
+  }[];
+};
+
 export type OrderResult = {
+  /** Exact protection intent and any observed leg outcomes, including failures. */
+  positionProtection?: PositionProtectionReceipt;
   /** Durable native edit outcome, including unresolved earlier intent on retry. */
   orderEdit?: OrderEditObservation;
   attachedOrderGroup?: AttachedOrderGroup;
@@ -531,9 +553,9 @@ export type PerpsPendingManualRecovery = {
    * result before selecting explicit recovery; listing does not reconcile it.
    */
   partialIntent?: {
-    version: 1;
+    version: 1 | 2;
     positionSide: 'long' | 'short';
-    linkage: 'single' | 'oco';
+    linkage: 'single' | 'oco' | 'independent';
     legs: {
       type: 'take-profit' | 'stop-loss';
       size: string;
@@ -1390,6 +1412,8 @@ export type HyperLiquidCredentials = {
 };
 
 export type LighterCredentials = {
+  /** Explicit bounded Chase probe on the actual testnet provider; ignored on mainnet. */
+  chaseTestnetProbe?: boolean;
   /** Whether Lighter provider is enabled via local env var. */
   enabled?: boolean;
   /** Lighter account index override (testnet tooling). */
@@ -2021,6 +2045,8 @@ type ReadyPerpsOrderCapabilities = Readonly<{
       single: true;
       /** Equal native OCO quantities, or independently sized sibling triggers. */
       pair: 'equal-quantity-oco' | 'independent';
+      /** Explicit alternatives; absent permits only the declared default pair. */
+      supportedPairs?: readonly ('equal-quantity-oco' | 'independent')[];
       /** Prior selected protection is canceled before replacement creation. */
       replacement: 'cancel-before-create';
       /** Explicit recovery ID/current intent, or the provider's existing recovery policy. */
@@ -2284,6 +2310,8 @@ export type UpdatePositionTPSLParams = {
   // quantity.
   takeProfitSize?: string;
   stopLossSize?: string;
+  /** Pair-only opt-in for partial position coverage; omission keeps the provider default. */
+  partialPairLinkage?: 'equal-quantity-oco' | 'independent';
   // Optional tracking data for MetaMetrics events
   trackingData?: TPSLTrackingData;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing

@@ -10493,6 +10493,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         ? undefined
         : { ...params.expectedPosition };
     try {
+      if (
+        params.partialPairLinkage !== undefined &&
+        (params.partialPairLinkage !== 'independent' ||
+          !params.takeProfitPrice ||
+          !params.stopLossPrice ||
+          (params.takeProfitSize === undefined &&
+            params.stopLossSize === undefined))
+      ) {
+        throw new Error(
+          'Hyperliquid partial pair linkage requires an independently sized TP/SL pair',
+        );
+      }
+
       const lifecycle = this.#lifecycleGeneration;
       const isTestnet = this.#clientService.isTestnetMode();
       const userAddress = await this.#walletService.getUserAddressWithDefault();

@@ -2469,6 +2469,7 @@ export class PerpsController extends BaseController<
   protected registerLighterProvider(
     LighterProviderClass: new (opts: {
       isTestnet: boolean;
+      chaseTestnetProbe?: boolean;
       platformDependencies: PerpsPlatformDependencies;
       messenger: PerpsControllerMessenger;
       lighterAuthConfig: LighterAuthConfig;
@@ -2483,6 +2484,9 @@ export class PerpsController extends BaseController<
       this.#options.clientConfig?.providerCredentials?.lighter ?? {};
     const lighterProvider = new LighterProviderClass({
       isTestnet: lighterIsTestnet,
+      ...(lighterIsTestnet && lighter.chaseTestnetProbe === true
+        ? { chaseTestnetProbe: true }
+        : {}),
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
       signerBridge: lighter.signerBridge,

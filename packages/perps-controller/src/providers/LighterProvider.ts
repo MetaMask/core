@@ -33,6 +33,7 @@ import {
   LIGHTER_CHASE_MAX_REPRICINGS,
   LIGHTER_CHASE_MAX_DISTANCE_BPS,
   LIGHTER_CHASE_QUOTE_MAX_AGE_MS,
+  LIGHTER_POST_ONLY_QUOTE_MAX_AGE_MS,
   fromLighterInteger,
   getLighterChainId,
   getLighterTransactionOutcome,
@@ -691,13 +692,19 @@ type TpslRecoverySuccessor = {
 };
 
 type PartialTpslIntent = {
-  version: 1;
   positionSign: 1 | -1;
   positionWireSize: number;
   sizeDecimals: number;
-  linkage: 'single' | 'oco';
   orders: LighterCreateOrderWireParams[];
-};
+} & (
+  | { version: 1; linkage: 'single' | 'oco' }
+  | {
+      version: 2;
+      linkage: 'independent';
+      positionSize: string;
+      requestedSizes: (string | null)[];
+    }
+);
 
 /**
  * Validate persisted fixed coverage before it can authorize recovery.
@@ -713,7 +720,49 @@ const isPartialTpslIntent = (value: unknown): value is PartialTpslIntent => {
   const { orders: rawOrders } = intent;
   const orders: unknown[] = Array.isArray(rawOrders) ? rawOrders : [];
   return (
-    intent.version === 1 &&
+    (intent.version === 1 ||
+      (intent.version === 2 &&
+        intent.linkage === 'independent' &&
+        typeof intent.positionSize === 'string' &&
+        new BigNumber(intent.positionSize).isFinite() &&
+        new BigNumber(intent.positionSize).gt(0) &&
+        new BigNumber(intent.positionSize)
+          .shiftedBy(Number(intent.sizeDecimals))
+          .integerValue(BigNumber.ROUND_DOWN)
+          .eq(Number(intent.positionWireSize)) &&
+        Number(intent.positionWireSize) < 2 ** 48 &&
+        Array.isArray(intent.requestedSizes) &&
+        intent.requestedSizes.length === 2 &&
+        intent.requestedSizes.some((size) => size !== null) &&
+        intent.requestedSizes.every((size: unknown, index: number) => {
+          if (
+            size !== null &&
+            (typeof size !== 'string' ||
+              !/^(?:\d+(?:\.\d*)?|\.\d+)$/u.test(size))
+          ) {
+            return false;
+          }
+          const amount = new BigNumber(size ?? (intent.positionSize as string));
+          const wire = amount
+            .shiftedBy(Number(intent.sizeDecimals))
+            .integerValue(BigNumber.ROUND_DOWN);
+          const order = orders[index];
+          return (
+            amount.isFinite() &&
+            amount.gt(0) &&
+            amount.lte(intent.positionSize as string) &&
+            Array.isArray(order) &&
+            typeof order[2] === 'string' &&
+            wire.eq(order[2]) &&
+            wire.lt(2 ** 48) &&
+            Number(order[3]) < 2 ** 32 &&
+            Number(order[8]) < 2 ** 32 &&
+            order[5] ===
+              (index === 0
+                ? LIGHTER_ORDER_TYPE_TAKE_PROFIT
+                : LIGHTER_ORDER_TYPE_STOP_LOSS)
+          );
+        }))) &&
     (intent.positionSign === 1 || intent.positionSign === -1) &&
     typeof intent.positionWireSize === 'number' &&
     Number.isSafeInteger(intent.positionWireSize) &&
@@ -723,8 +772,15 @@ const isPartialTpslIntent = (value: unknown): value is PartialTpslIntent => {
     intent.sizeDecimals >= 0 &&
     intent.sizeDecimals <= 18 &&
     Array.isArray(rawOrders) &&
-    ((intent.linkage === 'single' && orders.length === 1) ||
-      (intent.linkage === 'oco' && orders.length === 2)) &&
+    ((intent.version === 1 &&
+      intent.linkage === 'single' &&
+      orders.length === 1) ||
+      (intent.version === 1 &&
+        intent.linkage === 'oco' &&
+        orders.length === 2) ||
+      (intent.version === 2 &&
+        intent.linkage === 'independent' &&
+        orders.length === 2)) &&
     orders.every(
       (order: unknown) =>
         Array.isArray(order) &&
@@ -753,7 +809,7 @@ const isPartialTpslIntent = (value: unknown): value is PartialTpslIntent => {
         Array.isArray(orders[1]) &&
         orders[0][0] === orders[1][0] &&
         orders[0][1] !== orders[1][1] &&
-        orders[0][2] === orders[1][2] &&
+        (intent.linkage === 'independent' || orders[0][2] === orders[1][2]) &&
         orders[0][5] !== orders[1][5]))
   );
 };
@@ -1794,7 +1850,7 @@ export class LighterProvider implements PerpsProvider {
   readonly #nativeTwapService: LighterTwapService;
 
   constructor(options: {
-    /** Explicit bounded testnet research path; never enables product capability. */
+    /** Explicit bounded testnet probe, advertised only with an injected signer. */
     chaseTestnetProbe?: boolean;
     nativeTwapTestnetProbe?: boolean;
     isTestnet?: boolean;
@@ -3363,7 +3419,7 @@ export class LighterProvider implements PerpsProvider {
     ): PerpsPendingManualRecovery['partialIntent'] =>
       intent
         ? {
-            version: 1,
+            version: intent.version,
             positionSide: intent.positionSign === 1 ? 'long' : 'short',
             linkage: intent.linkage,
             legs: intent.orders.map((order) => ({
@@ -4785,9 +4841,13 @@ export class LighterProvider implements PerpsProvider {
       };
     }
     if (
-      (parsed.version === 3 || parsed.version === 4 || parsed.version === 5) &&
-      (parsed.version === 5
+      (parsed.version === 3 ||
+        parsed.version === 4 ||
+        parsed.version === 5 ||
+        parsed.version === 6) &&
+      (parsed.version === 5 || parsed.version === 6
         ? isPartialTpslIntent(parsed.partialIntent) &&
+          parsed.partialIntent.version === (parsed.version === 6 ? 2 : 1) &&
           parsed.intent === 'replace' &&
           parsed.phase !== 'creating'
         : parsed.partialIntent === undefined) &&
@@ -4840,7 +4900,9 @@ export class LighterProvider implements PerpsProvider {
       Array.isArray(parsed.attempts) &&
       // Only schema 5 records a validated intent before any cancellation.
       // Older schemas require at least one signed attempt.
-      (parsed.attempts.length >= 1 || parsed.version === 5) &&
+      (parsed.attempts.length >= 1 ||
+        parsed.version === 5 ||
+        parsed.version === 6) &&
       parsed.attempts.length <= 40 &&
       parsed.attempts.every(isAttempt) &&
       // Attempt IDENTITY is the attemptId — nonces may legitimately
@@ -4865,7 +4927,20 @@ export class LighterProvider implements PerpsProvider {
             priorTriggers.some((trigger) => trigger.orderId === priorOrderId),
           ),
       );
-      if (restoresLinked) {
+      const independentIntent = parsed.partialIntent;
+      const independentAttemptsValid =
+        !isPartialTpslIntent(independentIntent) ||
+        independentIntent.version !== 2 ||
+        attempts
+          .filter((attempt) => attempt.kind === 'create')
+          .every(
+            (attempt, index) =>
+              attempt.kind === 'create' &&
+              attempt.role === 'replacement' &&
+              attempt.clientIds.length === 1 &&
+              independentIntent.orders[index]?.[1] === attempt.clientIds[0],
+          );
+      if (restoresLinked && independentAttemptsValid) {
         return {
           attempts: attempts.map((attempt) =>
             attempt.kind === 'create'
@@ -5374,7 +5449,9 @@ export class LighterProvider implements PerpsProvider {
         await this.#deps.diskCache.setItem(
           this.#tpslJournalOpKey(settlementKey, journal.operationId),
           JSON.stringify({
-            version: journal.partialIntent ? 5 : 4,
+            version: journal.partialIntent
+              ? journal.partialIntent.version + 4
+              : 4,
             partialIntent: journal.partialIntent,
             recordedAt: journal.recordedAt,
             operationId: journal.operationId,
@@ -6356,6 +6433,17 @@ export class LighterProvider implements PerpsProvider {
       );
       return true;
     };
+    if (
+      journalEntry.partialIntent?.version === 2 &&
+      (anyFailed ||
+        journalEntry.partialIntent.orders.some(
+          (order) => !replacementIds.includes(order[1]),
+        ))
+    ) {
+      return await parkManual(
+        'Independent protection was not fully established; surviving legs require explicit current-position recovery',
+      );
+    }
     if (context.readOnlyApiKeyIndex !== undefined) {
       const hasPriorSurvivors = journalEntry.priorTriggers.some(priorActive);
       const replacementWon = anySuccess || (anyActive && !anyFailed);
@@ -8140,7 +8228,13 @@ export class LighterProvider implements PerpsProvider {
     return Object.freeze({
       status: 'ready',
       providerId: this.protocolId,
-      supportedStrategies: Object.freeze(['scale'] as const),
+      supportedStrategies: Object.freeze(
+        this.#chaseTestnetProbe &&
+          this.#isTestnet &&
+          this.#signerBridge !== null
+          ? (['scale', 'chase'] as const)
+          : (['scale'] as const),
+      ),
       supportedMarginModes: Object.freeze(['cross', 'isolated'] as const),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
       attachedTpsl: Object.freeze({
@@ -8159,6 +8253,10 @@ export class LighterProvider implements PerpsProvider {
         partialCoverage: Object.freeze({
           single: true,
           pair: 'equal-quantity-oco',
+          supportedPairs: Object.freeze([
+            'equal-quantity-oco',
+            'independent',
+          ] as const),
           replacement: 'cancel-before-create',
           recovery: 'explicit-current-position-intent',
         }),
@@ -10714,7 +10812,10 @@ export class LighterProvider implements PerpsProvider {
     if (generation !== undefined) {
       this.#assertSession(generation);
     }
-    if (Date.now() < startedAt || Date.now() - startedAt > 5000) {
+    if (
+      Date.now() < startedAt ||
+      Date.now() - startedAt > LIGHTER_POST_ONLY_QUOTE_MAX_AGE_MS
+    ) {
       throw new Error('Lighter post-only book is stale');
     }
     const opposing = isBuy ? book.asks : book.bids;
@@ -11507,7 +11608,6 @@ export class LighterProvider implements PerpsProvider {
       throw new Error('Lighter Chase probe is unavailable');
     }
     const unsupported: (keyof OrderParams)[] = [
-      'usdAmount',
       'price',
       'triggerPrice',
       'timeInForce',
@@ -11569,7 +11669,14 @@ export class LighterProvider implements PerpsProvider {
     if (!/^\d+(?:\.\d+)?$/u.test(params.size)) {
       throw new Error('Lighter Chase requires exact positive size');
     }
-    const size = new BigNumber(params.size);
+    const requestedSize = new BigNumber(params.size);
+    const size =
+      params.usdAmount === undefined
+        ? requestedSize
+        : requestedSize.decimalPlaces(
+            market.supportedSizeDecimals,
+            BigNumber.ROUND_DOWN,
+          );
     const units = size.shiftedBy(market.supportedSizeDecimals);
     if (
       !units.isInteger() ||
@@ -11594,6 +11701,43 @@ export class LighterProvider implements PerpsProvider {
       accountIndex,
       priceDecimals: market.supportedPriceDecimals,
     });
+    let maxNotional = String(LIGHTER_NATIVE_PROBE_MAX_NOTIONAL);
+    if (params.usdAmount !== undefined) {
+      const budget = new BigNumber(params.usdAmount);
+      if (
+        !/^(?:\d+(?:\.\d*)?|\.\d+)$/u.test(params.usdAmount) ||
+        !budget.isFinite() ||
+        !budget.gt(0) ||
+        budget.gt(LIGHTER_NATIVE_PROBE_MAX_NOTIONAL)
+      ) {
+        throw new Error(
+          'Lighter Chase USD amount must be positive and within the 20 USD cap',
+        );
+      }
+      const referencePrices = [
+        arrivalPrice,
+        params.currentPrice,
+        params.priceAtCalculation,
+      ].filter((value) => value !== undefined);
+      if (
+        referencePrices.some((value) => {
+          const price = new BigNumber(value);
+          return (
+            !price.isFinite() ||
+            !price.gt(0) ||
+            !budget
+              .div(price)
+              .decimalPlaces(market.supportedSizeDecimals, BigNumber.ROUND_DOWN)
+              .eq(size)
+          );
+        })
+      ) {
+        throw new Error(
+          'Lighter Chase size does not match its USD amount and current price',
+        );
+      }
+      maxNotional = budget.toFixed();
+    }
     if (
       size.times(arrivalPrice).gt(LIGHTER_NATIVE_PROBE_MAX_NOTIONAL) ||
       size.times(arrivalPrice).lt(market.minQuoteAmount) ||
@@ -11610,7 +11754,7 @@ export class LighterProvider implements PerpsProvider {
       marketId: market.marketId,
       isBuy: params.isBuy,
       reduceOnly: false,
-      originalSize: params.size,
+      originalSize: size.toFixed(),
       arrivalPrice,
       sizeDecimals: market.supportedSizeDecimals,
       priceDecimals: market.supportedPriceDecimals,
@@ -11619,11 +11763,11 @@ export class LighterProvider implements PerpsProvider {
       maxDurationMs,
       maxRepricings,
       maxDistanceBps,
-      maxNotional: String(LIGHTER_NATIVE_PROBE_MAX_NOTIONAL),
+      maxNotional,
       minBaseAmount: market.minBaseAmount,
       minQuoteAmount: market.minQuoteAmount,
     };
-    await this.#assertChaseProbeExposure(intent, params.size, generation);
+    await this.#assertChaseProbeExposure(intent, size.toFixed(), generation);
     return intent;
   }
 
@@ -13734,6 +13878,7 @@ export class LighterProvider implements PerpsProvider {
       generation: number;
     },
   ): Promise<OrderResult> => {
+    let positionProtection: OrderResult['positionProtection'];
     let expectedPosition =
       params.expectedPosition === undefined
         ? undefined
@@ -13745,6 +13890,19 @@ export class LighterProvider implements PerpsProvider {
       const partialRequested =
         params.takeProfitSize !== undefined ||
         params.stopLossSize !== undefined;
+      if (
+        params.partialPairLinkage !== undefined &&
+        (!partialRequested ||
+          !params.takeProfitPrice ||
+          !params.stopLossPrice ||
+          !['equal-quantity-oco', 'independent'].includes(
+            params.partialPairLinkage,
+          ))
+      ) {
+        throw new Error(
+          'Partial pair linkage requires a supported explicitly sized TP/SL pair',
+        );
+      }
       if (
         (params.takeProfitSize !== undefined && !params.takeProfitPrice) ||
         (params.stopLossSize !== undefined && !params.stopLossPrice)
@@ -13811,8 +13969,10 @@ export class LighterProvider implements PerpsProvider {
       let singleOrderPayload: LighterCreateOrderWireParams | null = null;
       let groupedOrderPayload: LighterGroupedOrderWireParams | null = null;
       let createdClientIds: number[] = [];
-      let childOrderIds: string[] = [];
-      let createdIdsNeedingFinalCheck: number[] = [];
+      let childOrderIds: string[] | undefined = wantsReplacement
+        ? undefined
+        : [];
+      const createdIdsNeedingFinalCheck: number[] = [];
       let preflightPositionWireSize: number | null = null;
       let preflightPositionSign: 1 | -1 | null = null;
       if (wantsReplacement && position) {
@@ -13898,7 +14058,13 @@ export class LighterProvider implements PerpsProvider {
               ? params.takeProfitSize
               : params.stopLossSize;
           if (!partialRequested || raw === undefined) {
-            return sizeInt;
+            return params.partialPairLinkage === 'independent'
+              ? new BigNumber(position.size)
+                  .abs()
+                  .shiftedBy(market.supportedSizeDecimals)
+                  .integerValue(BigNumber.ROUND_DOWN)
+                  .toNumber()
+              : sizeInt;
           }
           // Preserve decimal intent through the bounds check and downward grid
           // normalization; binary conversion can widen a requested quantity.
@@ -13928,6 +14094,7 @@ export class LighterProvider implements PerpsProvider {
         });
         if (
           partialRequested &&
+          params.partialPairLinkage !== 'independent' &&
           partialSizes.length === 2 &&
           (params.takeProfitSize === undefined ||
             params.stopLossSize === undefined ||
@@ -13963,16 +14130,57 @@ export class LighterProvider implements PerpsProvider {
         );
         if (partialRequested) {
           partialIntent = {
-            version: 1,
+            ...(params.partialPairLinkage === 'independent'
+              ? {
+                  version: 2 as const,
+                  linkage: 'independent' as const,
+                  positionSize: new BigNumber(position.size).abs().toFixed(),
+                  requestedSizes: [
+                    params.takeProfitSize ?? null,
+                    params.stopLossSize ?? null,
+                  ],
+                }
+              : {
+                  version: 1 as const,
+                  linkage:
+                    wireOrders.length === 2
+                      ? ('oco' as const)
+                      : ('single' as const),
+                }),
             positionSign: isLong ? 1 : -1,
-            positionWireSize: sizeInt,
+            positionWireSize:
+              params.partialPairLinkage === 'independent'
+                ? new BigNumber(position.size)
+                    .abs()
+                    .shiftedBy(market.supportedSizeDecimals)
+                    .integerValue(BigNumber.ROUND_DOWN)
+                    .toNumber()
+                : sizeInt,
             sizeDecimals: market.supportedSizeDecimals,
-            linkage: wireOrders.length === 2 ? 'oco' : 'single',
             orders: wireOrders,
           };
           if (!isPartialTpslIntent(partialIntent)) {
             throw new Error('Invalid fixed partial protection intent');
           }
+        }
+        if (partialIntent?.version === 2) {
+          positionProtection = {
+            linkage: partialIntent.linkage,
+            legs: wireOrders.map((order) => ({
+              role:
+                order[5] === LIGHTER_ORDER_TYPE_TAKE_PROFIT
+                  ? 'take-profit'
+                  : 'stop-loss',
+              requestedSize:
+                order[5] === LIGHTER_ORDER_TYPE_TAKE_PROFIT
+                  ? params.takeProfitSize
+                  : params.stopLossSize,
+              normalizedSize: new BigNumber(order[2])
+                .shiftedBy(-market.supportedSizeDecimals)
+                .toFixed(),
+              status: 'unknown',
+            })),
+          };
         }
         const [first, second] = wireOrders;
         if (first === undefined) {
@@ -14167,6 +14375,61 @@ export class LighterProvider implements PerpsProvider {
             market.marketId,
           );
 
+          const collectRetainedReceipt = async (
+            groups: number[][],
+          ): Promise<void> => {
+            // The current preflight IDs are unsent; they cannot describe an earlier intent.
+            positionProtection = undefined;
+            childOrderIds = undefined;
+            const ids = groups.flat();
+            if (ids.length === 0) {
+              return;
+            }
+            const active = await readActiveRaw();
+            const missing = ids.filter(
+              (id) => !active.some((row) => row.clientOrderIndex === id),
+            );
+            const inactive =
+              missing.length > 0 ? await readInactiveFor(missing) : [];
+            this.#assertSession(generationAtIntent);
+            const receipt: string[] = [];
+            for (const id of ids) {
+              const activeRows = active.filter(
+                (row) => row.clientOrderIndex === id,
+              );
+              const rows =
+                activeRows.length > 0
+                  ? activeRows
+                  : inactive.filter((row) => row.clientOrderIndex === id);
+              const [row] = rows;
+              if (
+                rows.length !== 1 ||
+                !row ||
+                row.ownerAccountIndex !== accountIndex ||
+                row.marketIndex !== market.marketId ||
+                !Number.isSafeInteger(row.orderIndex) ||
+                row.orderIndex <= 0 ||
+                receipt.includes(String(row.orderIndex))
+              ) {
+                return;
+              }
+              receipt.push(String(row.orderIndex));
+            }
+            childOrderIds = receipt;
+          };
+          const replacementGroups = (journal: TpslJournalState): number[][] =>
+            journal.retainedReplacementGroups ??
+            journal.attempts
+              .filter(
+                (attempt): attempt is TpslCreateAttempt =>
+                  attempt.kind === 'create' &&
+                  attempt.role === 'replacement' &&
+                  attempt.neverLanded !== true &&
+                  getLighterTransactionOutcome(attempt.terminalStatus) !==
+                    'failed',
+              )
+              .map((attempt) => attempt.clientIds);
+
           if (sourceRecovery) {
             selectedSuccessor = await this.#loadRecoverySuccessor(
               sourceRecovery.settlementKey,
@@ -14174,6 +14437,8 @@ export class LighterProvider implements PerpsProvider {
             );
             this.#assertSession(generationAtIntent);
             if (selectedSuccessor?.state === 'settled') {
+              childOrderIds = undefined;
+              positionProtection = undefined;
               return;
             }
             if (selectedSuccessor?.state === 'failed') {
@@ -14240,6 +14505,17 @@ export class LighterProvider implements PerpsProvider {
                   );
                   this.#assertSession(generationAtIntent);
                   if (settled && after?.state === 'settled') {
+                    if (
+                      pendingSuccessor.intent === 'remove' &&
+                      pendingSuccessor.retainedReplacementGroups === undefined
+                    ) {
+                      childOrderIds = [];
+                      positionProtection = undefined;
+                    } else {
+                      await collectRetainedReceipt(
+                        replacementGroups(pendingSuccessor),
+                      );
+                    }
                     return;
                   }
                   throw new Error(
@@ -14323,8 +14599,22 @@ export class LighterProvider implements PerpsProvider {
                   );
                   const alreadyWon =
                     pendingSuccessor.intent === 'remove' ||
-                    (groups.length > 0 && coverage.outcome === 'settled');
+                    (groups.length > 0 &&
+                      coverage.outcome === 'settled' &&
+                      (pendingSuccessor.partialIntent?.version !== 2 ||
+                        pendingSuccessor.partialIntent.orders.every((order) =>
+                          groups.flat().includes(order[1]),
+                        )));
                   if (alreadyWon && priorGone) {
+                    if (
+                      pendingSuccessor.intent === 'remove' &&
+                      pendingSuccessor.retainedReplacementGroups === undefined
+                    ) {
+                      childOrderIds = [];
+                      positionProtection = undefined;
+                    } else {
+                      await collectRetainedReceipt(groups);
+                    }
                     await this.#finishRecoverySuccessor(
                       pendingSuccessor,
                       'settled',
@@ -14378,6 +14668,9 @@ export class LighterProvider implements PerpsProvider {
               }
             }
             if (selectedSuccessor?.retainedReplacementGroups !== undefined) {
+              await collectRetainedReceipt(
+                selectedSuccessor.retainedReplacementGroups,
+              );
               wantsReplacement = false;
             }
             if (!position && wantsReplacement) {
@@ -15039,6 +15332,83 @@ export class LighterProvider implements PerpsProvider {
             );
           };
 
+          const observeProtection = async (): Promise<void> => {
+            if (!positionProtection) {
+              return;
+            }
+            this.#assertSession(generationAtIntent);
+            const active = await readActiveRaw();
+            const missing = createdClientIds.filter(
+              (id) =>
+                positionProtection?.legs.some(
+                  (leg) => leg.clientOrderId === String(id),
+                ) &&
+                !active.some(
+                  (row) => String(row.clientOrderIndex) === String(id),
+                ),
+            );
+            const inactive =
+              missing.length > 0 ? await readInactiveFor(missing) : [];
+            this.#assertSession(generationAtIntent);
+            for (const leg of positionProtection.legs) {
+              if (!leg.clientOrderId) {
+                continue;
+              }
+              leg.status = 'unknown';
+              const activeRows = active.filter(
+                (row) => String(row.clientOrderIndex) === leg.clientOrderId,
+              );
+              const rows =
+                activeRows.length > 0
+                  ? activeRows
+                  : inactive.filter(
+                      (row) =>
+                        String(row.clientOrderIndex) === leg.clientOrderId,
+                    );
+              const [row] = rows;
+              if (
+                rows.length !== 1 ||
+                !row ||
+                row.ownerAccountIndex !== accountIndex ||
+                row.marketIndex !== market.marketId ||
+                !Number.isSafeInteger(row.orderIndex) ||
+                row.orderIndex <= 0
+              ) {
+                continue;
+              }
+              if (
+                leg.orderId !== undefined &&
+                leg.orderId !== String(row.orderIndex)
+              ) {
+                throw new Error('Lighter protection receipt identity changed');
+              }
+              leg.orderId = String(row.orderIndex);
+              const remaining = new BigNumber(row.remainingBaseAmount);
+              const initial = new BigNumber(row.initialBaseAmount);
+              const status = row.status.toLowerCase();
+              leg.status = 'unknown';
+              if (
+                activeRows.length > 0 &&
+                remaining.isFinite() &&
+                remaining.gt(0) &&
+                remaining.lte(initial)
+              ) {
+                leg.status = remaining.lt(initial)
+                  ? 'partially-filled'
+                  : 'resting';
+              } else if (
+                (status === 'filled' || status === 'executed') &&
+                remaining.eq(0)
+              ) {
+                leg.status = 'filled';
+              } else if (status === 'canceled' || status === 'cancelled') {
+                leg.status = 'canceled';
+              } else if (status === 'rejected') {
+                leg.status = 'rejected';
+              }
+            }
+          };
+
           try {
             if (partialIntent) {
               await persistJournal();
@@ -15079,175 +15449,233 @@ export class LighterProvider implements PerpsProvider {
               wantsReplacement &&
               (singleOrderPayload !== null || groupedOrderPayload !== null)
             ) {
-              const createNonce = await nextNonce();
-              // A lone trigger is an ordinary CreateOrder (same wire
-              // layout); only a TP+SL pair uses the grouped OCO transaction.
-              let signed: LighterTxResult;
-              let isSingleTrigger = false;
-              if (singleOrderPayload === null) {
-                if (groupedOrderPayload === null) {
-                  throw new Error('Lighter TP/SL preflight payload is missing');
-                }
-                signed = await this.#getSignerBridge().execute({
-                  function: '_signCreateGroupedOrders',
-                  params: [
-                    accountIndex,
-                    LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER,
-                    2,
-                    ...groupedOrderPayload,
-                    createNonce,
-                  ],
-                });
-              } else {
-                isSingleTrigger = true;
-                signed = await this.#getSignerBridge().execute({
-                  function: '_signCreateOrder',
-                  params: [accountIndex, ...singleOrderPayload, createNonce],
-                });
-              }
-              if (signed.error) {
-                throw new Error(signed.error);
-              }
-              // UNKNOWN recorded BEFORE the wire — in memory AND durably
-              // (awaited): a transport failure after venue commit, or
-              // provider/process death, must still leave a reconciliation
-              // obligation resolvable by EXACT tx hash. A failed durable
-              // write, or a signing result without hash/expiry, aborts the
-              // mutation before submission.
-              const createIdentity = requireSignedTxIdentity(signed);
-              const createAttempt: TpslCreateAttempt = {
-                kind: 'create',
-                attemptId: nextAttemptIdFor(journal),
-                nonce: createNonce,
-                outcome: 'unknown',
-                clientIds: [...createdClientIds],
-                orderExpiries: requireSignedOrderExpiries(
-                  signed,
-                  createdClientIds,
-                ),
-                txHash: createIdentity.txHash,
-                expiresAt: createIdentity.expiresAt,
-                role: 'replacement',
-              };
-              journal.attempts.push(createAttempt);
-              this.#tpslUnsettled.set(settlementKey, journal);
-              await persistJournal();
-              await submit(
-                isSingleTrigger
-                  ? LIGHTER_TX_TYPE_CREATE_ORDER
-                  : LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
-                signed.txInfo,
-                () => {
-                  // Acceptance OBSERVED (pre-fence): absence from the books
-                  // can now only mean visibility lag, never never-landed.
-                  createAttempt.outcome = 'accepted';
-                },
-                {
-                  txHash: createIdentity.txHash,
-                  expiresAt: createIdentity.expiresAt,
-                  owner: journal.operationId,
-                  beforeDispatch: assertLiveExpected,
-                  onNotDispatched: async (): Promise<void> =>
-                    discardUnsentAttempt(createAttempt),
-                },
-              );
-
-              // PHASE BARRIER: prove the replacement is on the venue's books
-              // BEFORE touching the old protection. An accepted create can
-              // be asynchronously rejected/venue-cancelled; cancelling stale
-              // triggers first would strip valid protection and discover it
-              // afterwards.
-              const createVisibility = await this.#awaitTpslVisibility(
-                readActiveRaw,
-                readInactiveFor,
-                {
-                  createdClientIds,
-                  cancelledOrderIds: [],
-                },
-                {
-                  receiptIdentity: {
-                    accountIndex,
-                    marketIndex: market.marketId,
-                  },
-                },
-              );
-              if (createVisibility.outcome === 'timeout') {
-                throw new Error(
-                  `Lighter TP/SL update for ${params.symbol} was submitted but its settlement is not yet visible; further protection changes are blocked until the venue reflects it`,
-                );
-              }
-              if (createVisibility.outcome === 'created-terminal-failed') {
-                if (partialIntent) {
-                  throw new Error(
-                    'Partial replacement failed after cancellation; explicit recovery is required',
-                  );
-                }
-                // The replacement (or one OCO leg) failed before the old
-                // protection was touched. ROLL BACK any leg still resting
-                // active so the venue returns to exactly the prior
-                // protection, then resolve the obligation for a retry.
-                if (createVisibility.survivingActiveClientIds.length > 0) {
-                  const activeNow = await readActiveRaw();
-                  const survivorOrderIds: string[] = [];
-                  for (const clientId of createVisibility.survivingActiveClientIds) {
-                    const survivor = activeNow.find(
-                      (order) =>
-                        String(order.clientOrderIndex) === String(clientId),
-                    );
-                    if (survivor) {
-                      survivorOrderIds.push(String(survivor.orderIndex));
-                      await submitTrackedCancel(
-                        String(survivor.orderIndex),
-                        'rollback',
+              const batches =
+                partialIntent?.version === 2
+                  ? partialIntent.orders.map((order) => ({
+                      single: order,
+                      grouped: null,
+                      clientIds: [order[1]],
+                    }))
+                  : [
+                      {
+                        single: singleOrderPayload,
+                        grouped: groupedOrderPayload,
+                        clientIds: createdClientIds,
+                      },
+                    ];
+              const independentPair = partialIntent?.version === 2;
+              const receipt = positionProtection;
+              const allClientIds = createdClientIds;
+              for (const batch of batches) {
+                const assertCreateCurrent = async (): Promise<void> => {
+                  await assertLiveExpected();
+                  if (independentPair && batch !== batches[0]) {
+                    await observeProtection();
+                    if (receipt?.legs[0].status !== 'resting') {
+                      throw new Error(
+                        'Independent protection first leg changed; the stale sibling was not sent',
                       );
                     }
                   }
-                  const rollback = await this.#awaitTpslVisibility(
-                    readActiveRaw,
-                    readInactiveFor,
-                    {
-                      createdClientIds: [],
-                      cancelledOrderIds: survivorOrderIds,
-                    },
-                  );
-                  if (rollback.outcome === 'timeout') {
+                };
+                if (independentPair) {
+                  await assertCreateCurrent();
+                }
+                const createNonce = await nextNonce();
+                // A lone trigger is an ordinary CreateOrder (same wire
+                // layout); only a TP+SL pair uses the grouped OCO transaction.
+                let signed: LighterTxResult;
+                let isSingleTrigger = false;
+                if (batch.single === null) {
+                  if (batch.grouped === null) {
                     throw new Error(
-                      `Lighter TP/SL update for ${params.symbol} was submitted but its settlement is not yet visible; further protection changes are blocked until the venue reflects it`,
+                      'Lighter TP/SL preflight payload is missing',
                     );
                   }
+                  signed = await this.#getSignerBridge().execute({
+                    function: '_signCreateGroupedOrders',
+                    params: [
+                      accountIndex,
+                      LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER,
+                      2,
+                      ...batch.grouped,
+                      createNonce,
+                    ],
+                  });
+                } else {
+                  isSingleTrigger = true;
+                  signed = await this.#getSignerBridge().execute({
+                    function: '_signCreateOrder',
+                    params: [accountIndex, ...batch.single, createNonce],
+                  });
                 }
-                await this.#finishRecoverySuccessor(
-                  journal,
-                  'failed',
-                  await readActiveRaw(),
-                  generationAtIntent,
+                if (signed.error) {
+                  throw new Error(signed.error);
+                }
+                // UNKNOWN recorded BEFORE the wire — in memory AND durably
+                // (awaited): a transport failure after venue commit, or
+                // provider/process death, must still leave a reconciliation
+                // obligation resolvable by EXACT tx hash. A failed durable
+                // write, or a signing result without hash/expiry, aborts the
+                // mutation before submission.
+                const createIdentity = requireSignedTxIdentity(signed);
+                const createAttempt: TpslCreateAttempt = {
+                  kind: 'create',
+                  attemptId: nextAttemptIdFor(journal),
+                  nonce: createNonce,
+                  outcome: 'unknown',
+                  clientIds: [...batch.clientIds],
+                  orderExpiries: requireSignedOrderExpiries(
+                    signed,
+                    batch.clientIds,
+                  ),
+                  txHash: createIdentity.txHash,
+                  expiresAt: createIdentity.expiresAt,
+                  role: 'replacement',
+                };
+                journal.attempts.push(createAttempt);
+                this.#tpslUnsettled.set(settlementKey, journal);
+                await persistJournal();
+                await submit(
+                  isSingleTrigger
+                    ? LIGHTER_TX_TYPE_CREATE_ORDER
+                    : LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS,
+                  signed.txInfo,
+                  () => {
+                    // Acceptance OBSERVED (pre-fence): absence from the books
+                    // can now only mean visibility lag, never never-landed.
+                    createAttempt.outcome = 'accepted';
+                  },
+                  {
+                    txHash: createIdentity.txHash,
+                    expiresAt: createIdentity.expiresAt,
+                    owner: journal.operationId,
+                    beforeDispatch: assertCreateCurrent,
+                    onDispatch: () => {
+                      for (const clientId of batch.clientIds) {
+                        const leg =
+                          receipt?.legs[allClientIds.indexOf(clientId)];
+                        if (leg) {
+                          leg.clientOrderId = String(clientId);
+                        }
+                      }
+                    },
+                    onNotDispatched: async (): Promise<void> =>
+                      discardUnsentAttempt(createAttempt),
+                  },
                 );
-                await this.#clearTpslJournal(
-                  settlementKey,
-                  journal.operationId,
-                  await readActiveRaw(),
+
+                // PHASE BARRIER: prove the replacement is on the venue's books
+                // BEFORE touching the old protection. An accepted create can
+                // be asynchronously rejected/venue-cancelled; cancelling stale
+                // triggers first would strip valid protection and discover it
+                // afterwards.
+                const createVisibility = await this.#awaitTpslVisibility(
+                  readActiveRaw,
+                  readInactiveFor,
+                  {
+                    createdClientIds: batch.clientIds,
+                    cancelledOrderIds: [],
+                  },
+                  {
+                    receiptIdentity: {
+                      accountIndex,
+                      marketIndex: market.marketId,
+                    },
+                  },
                 );
-                throw new Error(
-                  `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue before becoming active; the existing protection was left untouched`,
-                );
-              }
-              // Barrier-proved TERMINAL success is immutable: skip those ids
-              // in the final settlement check (no duplicate high-weight
-              // inactive read); active-at-barrier ids are still re-verified
-              // there (they can terminal-fail before the cancels settle).
-              childOrderIds = createVisibility.childOrderIds;
-              createdIdsNeedingFinalCheck = createVisibility.executedCreated
-                ? []
-                : createdClientIds;
-              if (createVisibility.executedCreated) {
-                // The trigger EXECUTED before activation was observed (an
-                // immediate/crossed TP/SL): not a failure — the position may
-                // already be closed. Stale triggers below are still cleaned
-                // up as reduce-only leftovers.
-                this.#deps.debugLogger.log(
-                  '[LighterProvider] replacement trigger executed immediately',
-                  { symbol: params.symbol },
-                );
+                await observeProtection();
+                if (createVisibility.outcome === 'timeout') {
+                  throw new Error(
+                    `Lighter TP/SL update for ${params.symbol} was submitted but its settlement is not yet visible; further protection changes are blocked until the venue reflects it`,
+                  );
+                }
+                if (createVisibility.outcome === 'created-terminal-failed') {
+                  if (partialIntent) {
+                    throw new Error(
+                      'Partial replacement failed after cancellation; explicit recovery is required',
+                    );
+                  }
+                  // The replacement (or one OCO leg) failed before the old
+                  // protection was touched. ROLL BACK any leg still resting
+                  // active so the venue returns to exactly the prior
+                  // protection, then resolve the obligation for a retry.
+                  if (createVisibility.survivingActiveClientIds.length > 0) {
+                    const activeNow = await readActiveRaw();
+                    const survivorOrderIds: string[] = [];
+                    for (const clientId of createVisibility.survivingActiveClientIds) {
+                      const survivor = activeNow.find(
+                        (order) =>
+                          String(order.clientOrderIndex) === String(clientId),
+                      );
+                      if (survivor) {
+                        survivorOrderIds.push(String(survivor.orderIndex));
+                        await submitTrackedCancel(
+                          String(survivor.orderIndex),
+                          'rollback',
+                        );
+                      }
+                    }
+                    const rollback = await this.#awaitTpslVisibility(
+                      readActiveRaw,
+                      readInactiveFor,
+                      {
+                        createdClientIds: [],
+                        cancelledOrderIds: survivorOrderIds,
+                      },
+                    );
+                    if (rollback.outcome === 'timeout') {
+                      throw new Error(
+                        `Lighter TP/SL update for ${params.symbol} was submitted but its settlement is not yet visible; further protection changes are blocked until the venue reflects it`,
+                      );
+                    }
+                  }
+                  await this.#finishRecoverySuccessor(
+                    journal,
+                    'failed',
+                    await readActiveRaw(),
+                    generationAtIntent,
+                  );
+                  await this.#clearTpslJournal(
+                    settlementKey,
+                    journal.operationId,
+                    await readActiveRaw(),
+                  );
+                  throw new Error(
+                    `Lighter replacement TP/SL for ${params.symbol} was cancelled or rejected by the venue before becoming active; the existing protection was left untouched`,
+                  );
+                }
+                // Barrier-proved TERMINAL success is immutable: skip those ids
+                // in the final settlement check (no duplicate high-weight
+                // inactive read); active-at-barrier ids are still re-verified
+                // there (they can terminal-fail before the cancels settle).
+                childOrderIds = [
+                  ...(childOrderIds ?? []),
+                  ...createVisibility.childOrderIds,
+                ];
+                if (!createVisibility.executedCreated) {
+                  createdIdsNeedingFinalCheck.push(...batch.clientIds);
+                }
+                if (
+                  independentPair &&
+                  batch !== batches.at(-1) &&
+                  (createVisibility.executedCreated ||
+                    receipt?.legs[0].status !== 'resting')
+                ) {
+                  throw new Error(
+                    'Independent protection first leg executed; the stale sibling was not sent',
+                  );
+                }
+                if (createVisibility.executedCreated) {
+                  // The trigger EXECUTED before activation was observed (an
+                  // immediate/crossed TP/SL): not a failure — the position may
+                  // already be closed. Stale triggers below are still cleaned
+                  // up as reduce-only leftovers.
+                  this.#deps.debugLogger.log(
+                    '[LighterProvider] replacement trigger executed immediately',
+                    { symbol: params.symbol },
+                  );
+                }
               }
             }
 
@@ -15276,6 +15704,13 @@ export class LighterProvider implements PerpsProvider {
                     .map((attempt) => attempt.orderId),
                 },
                 {
+                  ...(partialIntent?.version === 2
+                    ? {
+                        createdGroups: createdIdsNeedingFinalCheck.map((id) => [
+                          id,
+                        ]),
+                      }
+                    : {}),
                   receiptIdentity: {
                     accountIndex,
                     marketIndex: market.marketId,
@@ -15344,9 +15779,16 @@ export class LighterProvider implements PerpsProvider {
               }
               if (
                 createdIdsNeedingFinalCheck.length > 0 &&
-                (settled.childOrderIds.length !== childOrderIds.length ||
+                (settled.childOrderIds.length !==
+                  createdIdsNeedingFinalCheck.length ||
                   settled.childOrderIds.some(
-                    (id, index) => id !== childOrderIds[index],
+                    (id, index) =>
+                      id !==
+                      childOrderIds?.[
+                        createdClientIds.indexOf(
+                          createdIdsNeedingFinalCheck[index],
+                        )
+                      ],
                   ))
               ) {
                 throw new Error(
@@ -15395,6 +15837,14 @@ export class LighterProvider implements PerpsProvider {
             this.#assertSession(generationAtIntent);
           } catch (error) {
             try {
+              await observeProtection();
+            } catch (observationError) {
+              this.#deps.debugLogger.log(
+                '[LighterProvider] Protection receipt observation unavailable',
+                { error: String(observationError) },
+              );
+            }
+            try {
               if (partialIntent && journal.attempts.length === 0) {
                 this.#assertSession(generationAtIntent);
                 await this.#finishRecoverySuccessor(
@@ -15440,7 +15890,11 @@ export class LighterProvider implements PerpsProvider {
         generationAtIntent,
         successorSlot,
       );
-      return { success: true, childOrderIds };
+      return {
+        success: true,
+        ...(childOrderIds === undefined ? {} : { childOrderIds }),
+        ...(positionProtection ? { positionProtection } : {}),
+      };
     } catch (error) {
       const wrappedError = ensureError(
         error,
@@ -15453,7 +15907,11 @@ export class LighterProvider implements PerpsProvider {
           ...this.#getErrorContext('updatePositionTPSL'),
         },
       );
-      return { success: false, error: wrappedError.message };
+      return {
+        success: false,
+        error: wrappedError.message,
+        ...(positionProtection ? { positionProtection } : {}),
+      };
     }
   };
 
