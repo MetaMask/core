@@ -392,7 +392,23 @@ export type ScaleOrderGroup = Pick<
   network: 'mainnet' | 'testnet';
 };
 
+/** Same-order edit outcome; acceptance alone remains pending. */
+export type OrderEditObservation = {
+  status: 'pending' | 'settled' | 'failed' | 'terminal';
+  requestedPrice: string;
+  requestedSize: string;
+  observation?: {
+    price: string;
+    size: string;
+    remainingSize: string;
+    filledSize: string;
+    status: Order['status'];
+  };
+};
+
 export type OrderResult = {
+  /** Durable native edit outcome, including unresolved earlier intent on retry. */
+  orderEdit?: OrderEditObservation;
   attachedOrderGroup?: AttachedOrderGroup;
   success?: boolean;
   /**

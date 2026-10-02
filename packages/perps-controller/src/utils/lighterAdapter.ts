@@ -628,7 +628,7 @@ export function adaptAccountStateFromLighter(
  * @param status - Raw status from the Lighter API.
  * @returns Canonical order status.
  */
-function adaptOrderStatus(status: string): Order['status'] {
+export function adaptOrderStatus(status: string): Order['status'] {
   switch (status) {
     case 'open':
     case 'pending':

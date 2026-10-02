@@ -6,6 +6,7 @@ import {
 } from '../../../src/constants/lighterConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterProvider } from '../../../src/providers/LighterProvider.js';
+import { LighterChaseService } from '../../../src/services/LighterChaseService.js';
 import {
   LighterApiError,
   LighterClientService,
@@ -23,6 +24,7 @@ import type {
 import type {
   LighterSignerBridge,
   LighterApiOrder,
+  LighterEditableOrder,
   LighterSignerOperation,
   LighterSignerResult,
   LighterWasmCall,
@@ -241,6 +243,25 @@ function createMockBridge(): MockBridgeBundle {
               txHash: createHash,
             } as LighterSignerResult<Operation>;
           }
+          case '_signModifyOrder': {
+            signSequence += 1;
+            return {
+              txInfo: JSON.stringify({
+                AccountIndex: call.params[0],
+                ApiKeyIndex: 7,
+                MarketIndex: call.params[1],
+                Index: String(call.params[2]),
+                BaseAmount: call.params[3],
+                Price: call.params[4],
+                TriggerPrice: call.params[5],
+                Nonce: call.params[6],
+                ExpiredAt: Date.now() + 599_000,
+                Sig: `${'A'.repeat(107)}=`,
+                L2TxAttributes: null,
+              }).replace(/"Index":"(\d+)"/u, '"Index":$1'),
+              txHash: `dddd${String(signSequence).padStart(12, '0')}`,
+            } as LighterSignerResult<Operation>;
+          }
           case '_signCancelOrder': {
             signSequence += 1;
             const cancelHash = `bbbb${String(signSequence).padStart(12, '0')}`;
@@ -330,6 +351,7 @@ function createMockBridge(): MockBridgeBundle {
 }
 
 type MockClientInstance = {
+  getEditableOrders: jest.Mock;
   network: string;
   getCandles: jest.Mock;
   getOrderBookOrders: jest.Mock;
@@ -408,6 +430,7 @@ function buildProvider(
     sharedBridge,
   } = options;
   const clientInstance = {
+    getEditableOrders: jest.fn().mockResolvedValue({ code: 200, orders: [] }),
     getOrdersByClientIds: jest
       .fn()
       .mockResolvedValue({ code: 200, orders: [] }),
@@ -673,6 +696,833 @@ class StreamFakeWebSocket implements LighterWebSocketLike {
 const fakeStreamCtor = StreamFakeWebSocket as unknown as LighterWebSocketCtor;
 
 describe('LighterProvider', () => {
+  describe('native ordinary resting-limit edit', () => {
+    const target = (): LighterEditableOrder => ({
+      orderIndex: '288230376151711745',
+      orderId: '288230376151711745',
+      clientOrderIndex: 1,
+      marketIndex: 1,
+      ownerAccountIndex: 28,
+      initialBaseAmount: '0.001',
+      remainingBaseAmount: '0.001',
+      filledBaseAmount: '0',
+      price: '90000',
+      isAsk: false,
+      type: 'limit',
+      timeInForce: 'good-till-time',
+      reduceOnly: 0,
+      status: 'open',
+      orderExpiry: 0,
+      timestamp: 1700000000,
+    });
+    const edit = {
+      orderId: '288230376151711745',
+      newOrder: {
+        symbol: 'BTC',
+        orderType: 'limit' as const,
+        isBuy: true,
+        size: '0.001',
+        price: '91000',
+      },
+    };
+    const executed = {
+      code: 200,
+      hash: 'dddd000000000001',
+      accountIndex: 28,
+      apiKeyIndex: 7,
+      nonce: 42,
+      status: 2,
+    };
+    const journalKey = `lighterNativeEdit:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, edit.orderId])}`;
+
+    it('retains exact execution proof across later lookup loss and settles fresh same-order fields', async () => {
+      const deps = createMockInfrastructure();
+      const first = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: deps,
+      });
+      first.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [target()],
+      });
+      first.clientInstance.getTx.mockResolvedValue(executed);
+      expect(await first.provider.editOrder(edit)).toMatchObject({
+        success: false,
+        orderEdit: { status: 'pending' },
+      });
+      const restarted = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: deps,
+      });
+      restarted.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [{ ...target(), price: '91000' }],
+      });
+      restarted.clientInstance.getTx.mockRejectedValue(
+        new Error('lookup temporarily offline'),
+      );
+      expect(await restarted.provider.editOrder(edit)).toMatchObject({
+        success: true,
+        orderEdit: { status: 'settled' },
+      });
+      expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('releases an expired exact absent timeout only after rereading its target', async () => {
+      const deps = createMockInfrastructure();
+      const built = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: deps,
+      });
+      built.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [target()],
+      });
+      built.clientInstance.sendTx.mockRejectedValue(new Error('timeout'));
+      await built.provider.editOrder(edit);
+      const stored = JSON.parse(
+        (await deps.diskCache.getItem(journalKey)) ?? '',
+      ) as { expiresAt: number };
+      const clock = jest
+        .spyOn(Date, 'now')
+        .mockReturnValue(stored.expiresAt + 31_000);
+      try {
+        built.clientInstance.getEditableOrders.mockResolvedValue({
+          code: 200,
+          orders: [],
+        });
+        expect(await built.provider.editOrder(edit)).toMatchObject({
+          success: false,
+          orderEdit: { status: 'pending' },
+        });
+        built.clientInstance.getEditableOrders.mockResolvedValue({
+          code: 200,
+          orders: [target()],
+        });
+        expect(await built.provider.editOrder(edit)).toMatchObject({
+          success: false,
+          orderEdit: { status: 'failed' },
+        });
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        await built.provider.editOrder(edit);
+        expect(
+          built.calls
+            .filter((call) => call.function === '_signModifyOrder')
+            .map((call) => call.params[6]),
+        ).toStrictEqual([42, 42]);
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
+    it('never treats acceptance as absent after its signed expiry', async () => {
+      const deps = createMockInfrastructure();
+      const built = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: deps,
+      });
+      built.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [target()],
+      });
+      await built.provider.editOrder(edit);
+      const stored = JSON.parse(
+        (await deps.diskCache.getItem(journalKey)) ?? '',
+      ) as { expiresAt: number };
+      const clock = jest
+        .spyOn(Date, 'now')
+        .mockReturnValue(stored.expiresAt + 31_000);
+      try {
+        expect(await built.provider.editOrder(edit)).toMatchObject({
+          success: false,
+          orderEdit: { status: 'pending' },
+        });
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
+    it.each(['prepared', 'signed', 'attempted'] as const)(
+      'refuses dispatch when durable %s persistence fails',
+      async (phase) => {
+        const deps = createMockInfrastructure();
+        const persist = jest
+          .mocked(deps.diskCache)
+          .setItem.getMockImplementation();
+        jest
+          .mocked(deps.diskCache)
+          .setItem.mockImplementation(async (key: string, raw: string) => {
+            if (
+              key === journalKey &&
+              (JSON.parse(raw) as { phase: string }).phase === phase
+            ) {
+              throw new Error('private disk path');
+            }
+            await persist?.(key, raw);
+          });
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: deps,
+        });
+        built.clientInstance.getEditableOrders.mockResolvedValue({
+          code: 200,
+          orders: [target()],
+        });
+        expect(await built.provider.editOrder(edit)).toMatchObject({
+          success: false,
+        });
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it('preserves durable attempted state when saving acceptance fails', async () => {
+      const deps = createMockInfrastructure();
+      const persist = jest
+        .mocked(deps.diskCache)
+        .setItem.getMockImplementation();
+      jest
+        .mocked(deps.diskCache)
+        .setItem.mockImplementation(async (key: string, raw: string) => {
+          if (
+            key === journalKey &&
+            (JSON.parse(raw) as { phase: string }).phase === 'accepted'
+          ) {
+            throw new Error('private disk error');
+          }
+          await persist?.(key, raw);
+        });
+      const first = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: deps,
+      });
+      first.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [target()],
+      });
+      expect(await first.provider.editOrder(edit)).toMatchObject({
+        success: false,
+        orderEdit: { status: 'pending' },
+      });
+      const stored = JSON.parse(
+        (await deps.diskCache.getItem(journalKey)) ?? '',
+      ) as { expiresAt: number; phase: string };
+      expect(stored.phase).toBe('attempted');
+      const clock = jest
+        .spyOn(Date, 'now')
+        .mockReturnValue(stored.expiresAt + 31_000);
+      try {
+        const restarted = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: deps,
+        });
+        restarted.clientInstance.getEditableOrders.mockResolvedValue({
+          code: 200,
+          orders: [target()],
+        });
+        expect(await restarted.provider.editOrder(edit)).toMatchObject({
+          success: false,
+          orderEdit: { status: 'pending' },
+        });
+        expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
+    it('rejects corrupt durable storage before read authority or signer initialization', async () => {
+      const deps = createMockInfrastructure();
+      await deps.diskCache.setItem(journalKey, '{"version":1}');
+      const built = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: deps,
+      });
+      expect(await built.provider.editOrder(edit)).toMatchObject({
+        success: false,
+      });
+      expect(jest.mocked(built.bridge).createClient.mock.calls).toHaveLength(0);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(await deps.diskCache.getItem(journalKey)).toBe('{"version":1}');
+    });
+
+    it('refuses retry when the original signing slot is unavailable', async () => {
+      const deps = createMockInfrastructure();
+      const first = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: deps,
+      });
+      first.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [target()],
+      });
+      await first.provider.editOrder(edit);
+      const restarted = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: deps,
+        apiKeyIndex: 8,
+      });
+      expect(await restarted.provider.editOrder(edit)).toMatchObject({
+        success: false,
+      });
+      expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(
+        restarted.calls.some(
+          (call) =>
+            call.function === '_signModifyOrder' ||
+            call.function === '_signChangePubKey',
+        ),
+      ).toBe(false);
+    });
+
+    it.each(['signing', 'submission'] as const)(
+      'fences a session change during %s and retains original intent',
+      async (during) => {
+        const deps = createMockInfrastructure();
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: deps,
+        });
+        built.clientInstance.getEditableOrders.mockResolvedValue({
+          code: 200,
+          orders: [target()],
+        });
+        const execute = jest
+          .mocked(built.bridge)
+          .execute.getMockImplementation();
+        if (during === 'signing') {
+          jest.mocked(built.bridge).execute.mockImplementation(async (call) => {
+            const result = await execute?.(call);
+            if (call.function === '_signModifyOrder') {
+              built.getUserAddressMock.mockReturnValue(`0x${'11'.repeat(20)}`);
+            }
+            return result as never;
+          });
+        } else {
+          built.clientInstance.sendTx.mockImplementation(async () => {
+            built.getUserAddressMock.mockReturnValue(`0x${'11'.repeat(20)}`);
+            return { code: 200 };
+          });
+        }
+        expect(await built.provider.editOrder(edit)).toMatchObject({
+          success: false,
+        });
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(
+          during === 'signing' ? 0 : 1,
+        );
+        expect(await deps.diskCache.getItem(journalKey)).not.toBeNull();
+      },
+    );
+
+    it('refuses a target that fills while the signer is running and retires only its unsent nonce', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      let row = target();
+      built.clientInstance.getEditableOrders.mockImplementation(async () => ({
+        code: 200,
+        orders: [row],
+      }));
+      const execute = jest.mocked(built.bridge).execute.getMockImplementation();
+      jest.mocked(built.bridge).execute.mockImplementation(async (call) => {
+        const result = await execute?.(call);
+        if (call.function === '_signModifyOrder') {
+          row = {
+            ...row,
+            filledBaseAmount: '0.0005',
+            remainingBaseAmount: '0.0005',
+          };
+        }
+        return result as never;
+      });
+      expect(await built.provider.editOrder(edit)).toMatchObject({
+        success: false,
+        orderEdit: { status: 'failed' },
+      });
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      row = target();
+      jest.mocked(built.bridge).execute.mockImplementation(
+        execute ??
+          (async (): Promise<never> => {
+            throw new Error('missing bridge');
+          }),
+      );
+      await built.provider.editOrder(edit);
+      expect(
+        built.calls
+          .filter((call) => call.function === '_signModifyOrder')
+          .map((call) => call.params[6]),
+      ).toStrictEqual([42, 42]);
+    });
+
+    it.each(['missing', 'foreign', 'pending'] as const)(
+      'suppresses retry for %s settlement evidence',
+      async (caseName) => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        built.clientInstance.getEditableOrders.mockResolvedValue({
+          code: 200,
+          orders: [target()],
+        });
+        await built.provider.editOrder(edit);
+        if (caseName === 'missing') {
+          built.clientInstance.getEditableOrders.mockResolvedValue({
+            code: 200,
+            orders: [],
+          });
+          built.clientInstance.getTx.mockResolvedValue(executed);
+        }
+        if (caseName === 'foreign') {
+          built.clientInstance.getTx.mockResolvedValue({
+            ...executed,
+            accountIndex: 99,
+          });
+        }
+        if (caseName === 'pending') {
+          built.clientInstance.getTx.mockResolvedValue({
+            ...executed,
+            status: 3,
+          });
+          built.clientInstance.getEditableOrders.mockResolvedValue({
+            code: 200,
+            orders: [{ ...target(), price: '91000' }],
+          });
+        }
+        expect(await built.provider.editOrder(edit)).toMatchObject({
+          success: false,
+        });
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('reports exact transaction failure and permits only a subsequent explicit refreshed retry', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      built.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [target()],
+      });
+      built.clientInstance.getTx.mockResolvedValue({ ...executed, status: 0 });
+      expect(await built.provider.editOrder(edit)).toMatchObject({
+        success: false,
+        orderEdit: { status: 'failed' },
+      });
+      await built.provider.editOrder(edit);
+      expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(2);
+      expect(
+        built.calls
+          .filter((call) => call.function === '_signModifyOrder')
+          .map((call) => call.params[6]),
+      ).toStrictEqual([42, 43]);
+    });
+
+    it.each(['managed', 'chase'] as const)(
+      'refuses an explicitly recorded %s child that looks like an ordinary limit',
+      async (strategy) => {
+        const deps = createMockInfrastructure();
+        const wallet = ACCOUNT.l1Address.toLowerCase();
+        if (strategy === 'managed') {
+          await deps.diskCache.setItem(
+            `lighterManagedTpsl:testnet:${wallet}:28:BTC`,
+            JSON.stringify({
+              version: 1,
+              orders: [{ clientId: '1', orderId: edit.orderId }],
+            }),
+          );
+        } else {
+          await deps.diskCache.setItem(
+            `lighterChase:${JSON.stringify(['testnet', wallet, 28])}`,
+            JSON.stringify({
+              version: 1,
+              records: [
+                {
+                  intent: {
+                    owner: {
+                      wallet,
+                      network: 'testnet',
+                      accountIndex: 28,
+                      apiKeyIndex: 7,
+                    },
+                    handle: 'test-chase',
+                    symbol: 'BTC',
+                    marketId: 1,
+                    isBuy: true,
+                    reduceOnly: false,
+                    originalSize: '0.0002',
+                    arrivalPrice: '90000',
+                    sizeDecimals: 5,
+                    priceDecimals: 1,
+                    startedAt: Date.now(),
+                    intervalMs: 1000,
+                    maxDurationMs: 10000,
+                    maxRepricings: 1,
+                    maxDistanceBps: 100,
+                    maxNotional: '20',
+                    minBaseAmount: '0.0002',
+                    minQuoteAmount: '10',
+                  },
+                  children: [
+                    {
+                      clientOrderId: '1',
+                      size: '0.0002',
+                      price: '90000',
+                      quotedAt: Date.now(),
+                      placement: {
+                        phase: 'attempted',
+                        nonce: 1,
+                        txHash: 'dddd000000000002',
+                        expiresAt: Date.now() + 599000,
+                      },
+                      cancellations: [],
+                    },
+                  ],
+                  status: 'active',
+                  repricings: 0,
+                  lastTickAt: Date.now(),
+                  executedSize: '0',
+                  executedNotional: '0',
+                },
+              ],
+            }),
+          );
+        }
+        const chase = new LighterChaseService({ storage: deps.diskCache });
+        expect(
+          await chase.hasRecordedChild(
+            { wallet, network: 'testnet', accountIndex: 28, apiKeyIndex: 7 },
+            '1',
+            { assertCurrent: () => undefined },
+          ),
+        ).toBe(strategy === 'chase');
+        const before = jest.mocked(deps.diskCache).setItem.mock.calls.length;
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: deps,
+        });
+        built.clientInstance.getEditableOrders.mockResolvedValue({
+          code: 200,
+          orders: [target()],
+        });
+        expect(await built.provider.editOrder(edit)).toMatchObject({
+          success: false,
+        });
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(jest.mocked(deps.diskCache).setItem.mock.calls).toHaveLength(
+          before,
+        );
+      },
+    );
+
+    it('keeps accepted but unchanged intent pending and suppresses duplicate dispatch', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      built.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [target()],
+      });
+      built.clientInstance.getTx.mockResolvedValue(executed);
+      const first = await built.provider.editOrder(edit);
+      expect(first).toMatchObject({
+        success: false,
+        orderEdit: {
+          status: 'pending',
+          requestedPrice: '91000',
+          requestedSize: '0.001',
+        },
+      });
+      expect(await built.provider.editOrder(edit)).toMatchObject({
+        success: false,
+        orderEdit: { status: 'pending' },
+      });
+      expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+      expect(
+        built.calls.filter((call) => call.function === '_signModifyOrder'),
+      ).toHaveLength(1);
+    });
+
+    it('retains a timed-out dispatch across restart and settles the same order without retrying', async () => {
+      const deps = createMockInfrastructure();
+      const first = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: deps,
+      });
+      first.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [target()],
+      });
+      first.clientInstance.sendTx.mockRejectedValue(
+        new Error('private transport detail'),
+      );
+      expect(await first.provider.editOrder(edit)).toMatchObject({
+        success: false,
+        orderEdit: { status: 'pending' },
+      });
+      const restarted = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: deps,
+      });
+      restarted.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [{ ...target(), price: '91000' }],
+      });
+      restarted.clientInstance.getTx.mockResolvedValue(executed);
+      expect(await restarted.provider.editOrder(edit)).toMatchObject({
+        success: true,
+        orderEdit: { status: 'settled' },
+      });
+      expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(
+        restarted.calls.some((call) => call.function === '_signModifyOrder'),
+      ).toBe(false);
+      expect(restarted.clientInstance.getEditableOrders).toHaveBeenCalledWith(
+        28,
+        expect.any(String),
+        ['1'],
+      );
+    });
+
+    it.each([
+      { ownerAccountIndex: 99 },
+      { marketIndex: 2 },
+      { orderIndex: '288230376151711746' },
+      { type: 'stop-loss-limit', triggerPrice: '80000' },
+      { parentOrderIndex: '9' },
+      { remainingBaseAmount: '0.0005', filledBaseAmount: '0.0005' },
+      { status: 'canceled' },
+      { timeInForce: 'immediate-or-cancel' },
+    ])(
+      'refuses unsupported or foreign target %j before financial signing',
+      async (changes) => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        built.clientInstance.getEditableOrders.mockResolvedValue({
+          code: 200,
+          orders: [{ ...target(), ...changes }],
+        });
+        expect(await built.provider.editOrder(edit)).toMatchObject({
+          success: false,
+        });
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(
+          built.calls.some((call) => call.function === '_signModifyOrder'),
+        ).toBe(false);
+      },
+    );
+
+    it.each([
+      { price: '91000.01' },
+      { price: '429496729.6' },
+      { size: '0.001001' },
+      { size: '2814749767.10656' },
+      { isBuy: false },
+      { triggerPrice: '80000' },
+    ])('refuses unsafe mutation %j', async (changes) => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      built.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [target()],
+      });
+      expect(
+        await built.provider.editOrder({
+          ...edit,
+          newOrder: { ...edit.newOrder, ...changes },
+        }),
+      ).toMatchObject({ success: false });
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it.each(['fill', 'cancel'] as const)(
+      'reports the exact %s race without fabricated success',
+      async (race) => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        let row = target();
+        built.clientInstance.getEditableOrders.mockImplementation(async () => ({
+          code: 200,
+          orders: [row],
+        }));
+        built.clientInstance.getTx.mockResolvedValue(executed);
+        built.clientInstance.sendTx.mockImplementation(async () => {
+          row =
+            race === 'fill'
+              ? {
+                  ...row,
+                  price: '91000',
+                  remainingBaseAmount: '0.0005',
+                  filledBaseAmount: '0.0005',
+                }
+              : { ...row, status: 'canceled', remainingBaseAmount: '0' };
+          return { code: 200 };
+        });
+        const result = await built.provider.editOrder(edit);
+        expect(result).toMatchObject({
+          success: false,
+          orderEdit: {
+            status: race === 'fill' ? 'pending' : 'terminal',
+            observation: { status: race === 'fill' ? 'open' : 'canceled' },
+          },
+        });
+        expect(result).not.toHaveProperty('filledSize');
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('refuses ambiguous duplicate exact identities', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      built.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [target(), target()],
+      });
+      expect(await built.provider.editOrder(edit)).toMatchObject({
+        success: false,
+      });
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('never signs a rounded caller order identity', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      expect(
+        await built.provider.editOrder({
+          ...edit,
+          orderId: Number(edit.orderId),
+        }),
+      ).toMatchObject({ success: false });
+      expect(built.clientInstance.getEditableOrders).not.toHaveBeenCalled();
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('refuses an actual bridge response signed for a different exact order', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      built.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [target()],
+      });
+      const execute = jest.mocked(built.bridge).execute.getMockImplementation();
+      jest.mocked(built.bridge).execute.mockImplementation(async (call) => {
+        const result = await execute?.(call);
+        if (
+          call.function === '_signModifyOrder' &&
+          result &&
+          'txInfo' in result &&
+          typeof result.txInfo === 'string'
+        ) {
+          return {
+            ...result,
+            txInfo: result.txInfo.replace(edit.orderId, '288230376151711746'),
+          };
+        }
+        return result as never;
+      });
+      expect(await built.provider.editOrder(edit)).toMatchObject({
+        success: false,
+      });
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('keeps a previous settled intent separate from a different retry request', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      let row = target();
+      built.clientInstance.getEditableOrders.mockImplementation(async () => ({
+        code: 200,
+        orders: [row],
+      }));
+      built.clientInstance.getTx.mockResolvedValue(executed);
+      await built.provider.editOrder(edit);
+      row = { ...row, price: '91000' };
+      const next = await built.provider.editOrder({
+        ...edit,
+        newOrder: { ...edit.newOrder, price: '92000' },
+      });
+      expect(next).toMatchObject({
+        success: false,
+        orderEdit: { status: 'settled', requestedPrice: '91000' },
+      });
+      expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['price', 'size'] as const)(
+      'settles a native %s edit on the same exact int64 order',
+      async (field) => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        let row = {
+          orderIndex: '288230376151711745',
+          orderId: '288230376151711745',
+          clientOrderIndex: 1,
+          marketIndex: 1,
+          ownerAccountIndex: 28,
+          initialBaseAmount: '0.001',
+          remainingBaseAmount: '0.001',
+          filledBaseAmount: '0',
+          price: '90000',
+          isAsk: false,
+          type: 'limit',
+          timeInForce: 'good-till-time',
+          reduceOnly: 0,
+          status: 'open',
+          orderExpiry: 0,
+          timestamp: 1700000000,
+        };
+        Object.assign(built.clientInstance, {
+          getEditableOrders: jest
+            .fn()
+            .mockImplementation(async () => ({ code: 200, orders: [row] })),
+        });
+        built.clientInstance.sendTx.mockImplementation(
+          async (kind: number, txInfo: string) => {
+            if (kind !== 17) {
+              throw new Error('Unexpected edit transaction type');
+            }
+            const tx = JSON.parse(txInfo) as {
+              Price: number;
+              BaseAmount: number;
+              Nonce: number;
+            };
+            row = {
+              ...row,
+              price: String(tx.Price / 10),
+              initialBaseAmount: String(tx.BaseAmount / 100000),
+              remainingBaseAmount: String(tx.BaseAmount / 100000),
+            };
+            built.clientInstance.getTx.mockImplementation(
+              async (hash: string) => ({
+                code: 200,
+                hash,
+                accountIndex: 28,
+                apiKeyIndex: 7,
+                nonce: tx.Nonce,
+                status: 2,
+              }),
+            );
+            return { code: 200, txHash: 'accepted' };
+          },
+        );
+        const result = await built.provider.editOrder({
+          orderId: row.orderId,
+          newOrder: {
+            symbol: 'BTC',
+            orderType: 'limit',
+            isBuy: true,
+            size: field === 'size' ? '0.002' : '0.001',
+            price: field === 'price' ? '91000' : undefined,
+          },
+        });
+        expect(result).toMatchObject({
+          success: true,
+          orderId: '288230376151711745',
+        });
+        expect(
+          built.calls.filter((call) => call.function === '_signModifyOrder'),
+        ).toStrictEqual([
+          {
+            function: '_signModifyOrder',
+            params: [
+              28,
+              1,
+              '288230376151711745',
+              field === 'size' ? 200 : 100,
+              field === 'price' ? 910000 : 900000,
+              0,
+              42,
+            ],
+          },
+        ]);
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+      },
+    );
+  });
+
   describe('provider-owned Scale sizing preview', () => {
     const previewIntent = {
       symbol: 'BTC',

@@ -546,3 +546,44 @@ must supply a development integration; these are not enabled product features.
 
 This package is part of a monorepo. Instructions for contributing can be found
 in the [monorepo README](https://github.com/MetaMask/core#readme).
+
+### Native resting-order edits
+
+Lighter `editOrder` modifies the same exact venue order with transaction type 17.
+It supports price or size changes to verified unfilled ordinary active perpetual
+limits with GTC or post-only time-in-force. Side, type, time-in-force, reduce-only
+and expiry stay fixed. Trigger, linked protection and durably recorded Scale,
+Chase and position-protection children are refused. Partially filled orders are
+also refused because the pinned signer proof does not establish total-versus-
+remaining amount semantics for those orders.
+
+Pass unsafe int64 venue IDs as canonical decimal strings. Core decodes raw venue
+and signed JSON with ordinary string parsing, preserving integer identities
+without Node reviver extensions or rewriting the signed transaction. It checks
+the refreshed market grid, minimums and native integer widths before signing,
+and rereads the target after signing. The pinned seven-position
+`_signModifyOrder` tuple has no order-version or resting-expiry argument, so a
+fill or cancel can still race after that final read.
+
+`OrderResult.orderEdit` reports requested price and size, a durable status and an
+optional exact same-order observation. `success:true` requires exact transaction
+execution and an unfilled open observation with the requested price, size and
+remaining size. HTTP acceptance, unchanged fields, missing rows, lookup failures
+and partial-fill races remain pending. An exactly observed filled or canceled
+order after proved execution is terminal with `success:false`; it is not an edit
+success or a fabricated fill receipt. No cancel/re-place fallback runs.
+
+Core persists unsigned intent before signing and records the exact nonce, hash,
+expiry and original wallet/network/account/key before dispatch. It never stores
+signed payloads or keys in the edit journal. After interruption or restart,
+calling `editOrder` on that ID reconciles the retained intent using the original
+registered local key before financial setup. The call returns that prior outcome
+without submitting another edit, including when the new desired fields differ.
+Pending records cannot be overwritten by retries. Exact failed or proved-unsent
+attempts, and unaccepted exact hashes confirmed absent after signed expiry plus
+clock slack and an exact target reread, permit a subsequent explicit retry.
+Earlier acceptance or execution proof remains pending through later lookup loss.
+
+This Core contract does not establish venue edit effects, Mobile bridge support
+or delivered client parity. Mobile adoption and testnet same-order price/size
+lifecycle proof remain separate validation work.

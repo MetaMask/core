@@ -77,6 +77,74 @@ describe('LighterClientService', () => {
     global.fetch = fetchMock;
   });
 
+  describe('lossless native edit reads', () => {
+    const raw =
+      '{"code":200,"orders":[{"order_index":288230376151711745,"client_order_index":1,"market_index":1,"owner_account_index":28,"initial_base_amount":"0.001","remaining_base_amount":"0.001","filled_base_amount":"0","price":"90000","is_ask":false,"type":"limit","time_in_force":"good-till-time","reduce_only":0,"status":"open","order_expiry":0,"timestamp":1700000000}]}';
+    it('preserves a raw unquoted int64 venue identity in active reads', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: jest.fn().mockResolvedValue(raw),
+      });
+      const result = await buildService().getEditableOrders(28, 'auth');
+      expect(result.orders[0].orderIndex).toBe('288230376151711745');
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/accountActiveOrders?account_index=28'),
+        expect.any(Object),
+      );
+    });
+    it('reconciles with the documented client-order lookup rather than venue IDs', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: jest.fn().mockResolvedValue(raw),
+      });
+      await buildService().getEditableOrders(28, 'auth', ['1']);
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '/api/v1/accountOrders?account_index=28&client_order_indexes=1',
+        ),
+        expect.any(Object),
+      );
+      await expect(
+        buildService().getEditableOrders(28, 'auth', ['288230376151711745']),
+      ).rejects.toThrow(Error);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+    it('refuses distinct wire keys that collapse to the same financial identity', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: jest
+          .fn()
+          .mockResolvedValue(
+            raw.replace(
+              '"client_order_index":1',
+              '"client_order_index":1,"clientOrderIndex":2',
+            ),
+          ),
+      });
+      await expect(
+        buildService().getEditableOrders(28, 'auth'),
+      ).rejects.toThrow('Ambiguous Lighter response keys');
+    });
+    it.each(['1.00000000000000001', '1152921504606846976'])(
+      'rejects lossy or out-of-range order identity %s',
+      async (id) => {
+        fetchMock.mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: jest
+            .fn()
+            .mockResolvedValue(raw.replace('288230376151711745', id)),
+        });
+        await expect(
+          buildService().getEditableOrders(28, 'auth'),
+        ).rejects.toThrow(Error);
+      },
+    );
+  });
+
   describe('post-only book reads', () => {
     it('requests a bounded fresh public book and validates its full order identities', async () => {
       const row = {

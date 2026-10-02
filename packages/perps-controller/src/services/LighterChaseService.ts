@@ -862,6 +862,27 @@ export class LighterChaseService {
    * @param io - Read authority and ownership fence only; no transport is used.
    * @returns Visible owned state without automatic financial continuation.
    */
+  /**
+   * Read recorded child identities without the Chase loop/journal lock or writes.
+   * A venue-lock caller must not wait on the loop, which can itself await that
+   * venue lock. Each storage read validates the complete durable snapshot.
+   *
+   * @param owner - Captured account ownership.
+   * @param clientOrderId - Exact target client ID.
+   * @param io - Session fence.
+   * @returns Whether this ID belongs to any retained Chase child.
+   */
+  async hasRecordedChild(
+    owner: LighterChaseOwner,
+    clientOrderId: string,
+    io: Pick<LighterChaseIo, 'assertCurrent'>,
+  ): Promise<boolean> {
+    const journal = await this.#read(owner, io);
+    return journal.records.some((record) =>
+      record.children.some((child) => child.clientOrderId === clientOrderId),
+    );
+  }
+
   async list(
     owner: LighterChaseOwner,
     io: Pick<LighterChaseIo, 'assertCurrent'>,

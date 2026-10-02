@@ -1,5 +1,12 @@
 import type { ChaseOrder } from '@metamask/perps-controller';
 import type {
+  OrderResult,
+  OrderEditObservation,
+  EditOrderParams,
+  LighterSignModifyOrderWireParams,
+  PerpsControllerEditOrderAction,
+} from '@metamask/perps-controller';
+import type {
   ScaleOrderGroup,
   PerpsProvider,
   ScaleOrderChild,
@@ -48,6 +55,49 @@ type IsExact<Actual, Expected> =
     ? true
     : false;
 type AssertTrue<Value extends true> = Value;
+export type NativeEditConsumerContracts = [
+  AssertTrue<
+    IsExact<NonNullable<OrderResult['orderEdit']>, OrderEditObservation>
+  >,
+  AssertTrue<
+    IsExact<
+      OrderEditObservation['status'],
+      'pending' | 'settled' | 'failed' | 'terminal'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      LighterWasmCall<'_signModifyOrder'>['params'],
+      LighterSignModifyOrderWireParams
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      LighterSignModifyOrderWireParams,
+      [
+        accountIndex: number,
+        marketIndex: number,
+        orderIndex: string,
+        baseAmount: number,
+        price: number,
+        triggerPrice: number,
+        nonce: number,
+      ]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerEditOrderAction['handler']>,
+      [params: EditOrderParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerEditOrderAction['handler']>,
+      Promise<OrderResult>
+    >
+  >,
+];
 export type RecoveryConsumerContracts = [
   AssertTrue<
     IsExact<

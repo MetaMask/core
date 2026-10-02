@@ -44,6 +44,7 @@ import type {
   LighterAccountResponse,
   LighterAccountsByL1AddressResponse,
   LighterActiveOrdersResponse,
+  LighterEditableOrdersResponse,
   LighterApiKeysResponse,
   LighterNetwork,
   LighterNextNonceResponse,
@@ -64,6 +65,7 @@ import type {
   LighterTransferHistoryResponse,
   LighterWithdrawHistoryResponse,
 } from '../types/lighter-types.js';
+import { parseLighterLosslessJson } from '../utils/lighterLosslessJson.js';
 
 /**
  * Duration market metadata stays cached before a refetch.
@@ -327,6 +329,30 @@ const BookOrderStruct = type({
   transactionTime: NonNegativeIntegerStruct,
 });
 
+const LosslessOrderIndexStruct = define<number | string>(
+  'exact nonnegative native order identity',
+  (value) => {
+    if (typeof value === 'number') {
+      return Number.isSafeInteger(value) && value >= 0;
+    }
+    return (
+      typeof value === 'string' &&
+      /^(?:0|[1-9]\d*)$/u.test(value) &&
+      value.length <= 19 &&
+      BigInt(value) <= BigInt(LIGHTER_MAX_ORDER_ID)
+    );
+  },
+);
+const EditableOrderStruct = type({
+  ...OrderStruct.schema,
+  orderIndex: LosslessOrderIndexStruct,
+  parentOrderIndex: optional(LosslessOrderIndexStruct),
+});
+const EditableOrdersStruct = type({
+  ...BaseResponseStruct.schema,
+  orders: array(EditableOrderStruct),
+});
+
 const ResponseStructs = {
   orderBookOrders: type({
     code: SafeIntegerStruct,
@@ -506,17 +532,30 @@ function toCamelKey(key: string): string {
  * follow camelCase conventions (see types/lighter-types.ts).
  *
  * @param value - Parsed JSON value.
+ * @param rejectCollisions - Refuse distinct wire keys that camelize to one identity.
  * @returns The value with camelCase keys.
  */
-export function convertKeysToCamelCase(value: unknown): unknown {
+export function convertKeysToCamelCase(
+  value: unknown,
+  rejectCollisions = false,
+): unknown {
   if (Array.isArray(value)) {
-    return value.map(convertKeysToCamelCase);
+    return value.map((entry) =>
+      convertKeysToCamelCase(entry, rejectCollisions),
+    );
   }
   if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (
+      rejectCollisions &&
+      new Set(entries.map(([key]) => toCamelKey(key))).size !== entries.length
+    ) {
+      throw new Error('Ambiguous Lighter response keys');
+    }
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+      entries.map(([key, entry]) => [
         toCamelKey(key),
-        convertKeysToCamelCase(entry),
+        convertKeysToCamelCase(entry, rejectCollisions),
       ]),
     );
   }
@@ -765,6 +804,48 @@ export class LighterClientService {
   }
 
   /**
+   * Read active targets or exact client-correlated lifecycle rows without rounding int64 venue IDs.
+   * Uses the saved accountOrders contract, which accepts client IDs, not venue order IDs.
+   *
+   * @param accountIndex - Verified owner account.
+   * @param authToken - Existing registered read authority.
+   * @param clientOrderIds - Exact client identities once an active target is known.
+   * @returns Validated lossless order observations. Missing rows are never terminal proof.
+   */
+  async getEditableOrders(
+    accountIndex: number,
+    authToken: string,
+    clientOrderIds?: readonly string[],
+  ): Promise<LighterEditableOrdersResponse> {
+    if (
+      !Number.isSafeInteger(accountIndex) ||
+      accountIndex < 0 ||
+      accountIndex > Number(LIGHTER_MAX_BASE_AMOUNT) ||
+      (clientOrderIds &&
+        (clientOrderIds.length === 0 ||
+          clientOrderIds.length > LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT ||
+          new Set(clientOrderIds).size !== clientOrderIds.length ||
+          clientOrderIds.some(
+            (id) =>
+              !/^[1-9]\d*$/u.test(id) ||
+              id.length > 15 ||
+              BigInt(id) > BigInt(LIGHTER_MAX_BASE_AMOUNT),
+          )))
+    ) {
+      throw new Error('Invalid Lighter editable-order identity');
+    }
+    const path = clientOrderIds
+      ? `/api/v1/accountOrders?account_index=${accountIndex}&client_order_indexes=${encodeURIComponent(clientOrderIds.join(','))}`
+      : `/api/v1/accountActiveOrders?account_index=${accountIndex}`;
+    return await this.#request(
+      path,
+      { method: 'GET', headers: { authorization: authToken } },
+      EditableOrdersStruct,
+      true,
+    );
+  }
+
+  /**
    * Fetch historical (inactive) orders: filled and canceled lifecycle
    * states, newest first (auth token required).
    *
@@ -992,6 +1073,7 @@ export class LighterClientService {
     path: string,
     init: { method: string; headers?: Record<string, string>; body?: string },
     responseStruct: Struct<Result, unknown>,
+    lossless = false,
   ): Promise<Result> => {
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
@@ -1008,7 +1090,12 @@ export class LighterClientService {
         signal: controller.signal,
       });
 
-      const payload: unknown = convertKeysToCamelCase(await response.json());
+      const payload: unknown = convertKeysToCamelCase(
+        lossless
+          ? parseLighterLosslessJson(await response.text())
+          : await response.json(),
+        lossless,
+      );
       assert(payload, BaseResponseStruct);
 
       // Lighter returns HTTP 200 with an application-level error code, and
