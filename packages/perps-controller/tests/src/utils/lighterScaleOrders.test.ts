@@ -87,6 +87,29 @@ function groupFixture(): LighterScaleGroup {
 }
 
 describe('Lighter Scale exact builder', () => {
+  it('accepts children at the native maximum even when their aggregate exceeds it', () => {
+    const result = buildLighterScaleLadder(
+      { ...intent, size: '562.94995342131', scaleSkew: 1 },
+      { ...market, supportedSizeDecimals: 12 },
+    );
+    expect(result.sizes).toStrictEqual([
+      '281.474976710655',
+      '281.474976710655',
+    ]);
+  });
+  it.each([
+    { size: '562.949953421312', scaleSkew: 1 },
+    { size: '600', scaleSkew: 1 },
+    { size: '500', scaleSkew: 2 },
+  ])('rejects a child above the native amount maximum %j', (override) => {
+    expect(() =>
+      buildLighterScaleLadder(
+        { ...intent, ...override },
+        { ...market, supportedSizeDecimals: 12 },
+      ),
+    ).toThrow('Lighter Scale child exceeds native base amount');
+  });
+
   it.each([0.5, Number.NaN, Number.POSITIVE_INFINITY, -1, 21])(
     'rejects invalid price precision %s before applying decimal shifts',
     (decimals) => {
@@ -179,6 +202,22 @@ describe('Lighter Scale exact builder', () => {
 });
 
 describe('Lighter Scale durable receipt', () => {
+  it('validates persisted native base amounts at the maximum and one unit above', () => {
+    const group = groupFixture();
+    group.sizeDecimals = 12;
+    group.rungs[0].sizeInt = 281474976710655;
+    group.rungs[0].size = '281.474976710655';
+    group.rungs[1].size = '0.000000000064';
+    expect(parseLighterScaleGroups(JSON.stringify([group]))).toStrictEqual([
+      group,
+    ]);
+    group.rungs[0].sizeInt = 281474976710656;
+    group.rungs[0].size = '281.474976710656';
+    expect(() => parseLighterScaleGroups(JSON.stringify([group]))).toThrow(
+      /scale/iu,
+    );
+  });
+
   it('retains uncertainty without fabricating child identity or acceptance', () => {
     const group = groupFixture();
     group.rungs[0].state = 'unknown';

@@ -1687,6 +1687,38 @@ describe('LighterProvider', () => {
   });
 
   describe('provider-owned Scale sizing preview', () => {
+    it('refuses a native-overflow Scale child before preview readiness, setup or leverage transport', async () => {
+      const built = buildProvider();
+      built.clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, supportedSizeDecimals: 12 },
+      ]);
+      await expect(
+        built.provider.getScalePriceLadder({
+          symbol: 'BTC',
+          minPrice: 99000,
+          maxPrice: 100000,
+          count: 2,
+          sizing: { size: '600' },
+        }),
+      ).rejects.toThrow('Lighter Scale child exceeds native base amount');
+      const request: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        orderType: 'scale',
+        size: '600',
+        scaleMinPrice: '99000',
+        scaleMaxPrice: '100000',
+        scaleNumOrders: 2,
+        scaleSkew: 1,
+        leverage: 2,
+      };
+      expect((await built.provider.validateOrder(request)).isValid).toBe(false);
+      expect((await built.provider.placeOrder(request)).success).toBe(false);
+      expect(built.calls).toStrictEqual([]);
+      expect(built.clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
     const previewIntent = {
       symbol: 'BTC',
       minPrice: 99000,

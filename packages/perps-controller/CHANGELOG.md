@@ -73,6 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject Scale children above Lighter's native base-amount maximum before preview readiness or trading setup, and validate the same limit in durable records. Preserve valid larger aggregates split across bounded children ([#10638](https://github.com/MetaMask/core/pull/10638)).
+- Resolve public perps constant and utility subpaths from source during monorepo checks without requiring built outputs; retain separate compiled consumer validation ([#10638](https://github.com/MetaMask/core/pull/10638)).
+
 - Preserve exact replacement child receipts when reconciling committed protection successors; omit unavailable identities and reserve empty receipts for confirmed removal ([#10638](https://github.com/MetaMask/core/pull/10638)).
 
 - Require fresh isolated-position identity and collateral bounds for Lighter margin adjustments, recheck before signing and dispatch, and report success only after exact transaction execution. Preserve unresolved collateral/mode transactions across expiry, nonce advance and restart until exact terminal proof; require exact micro-USDC amounts ([#10638](https://github.com/MetaMask/core/pull/10638)).

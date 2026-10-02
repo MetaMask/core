@@ -2,6 +2,7 @@ import { BigNumber } from 'bignumber.js';
 
 import {
   LIGHTER_MAX_WIRE_PRICE,
+  LIGHTER_MAX_BASE_AMOUNT,
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
   LIGHTER_MAX_TRADING_API_KEY_INDEX,
 } from '../constants/lighterConfig.js';
@@ -379,6 +380,9 @@ export function buildLighterScaleLadder(
   const minimumBase = parseScaleDecimal(market.minBaseAmount);
   const minimumQuote = parseScaleDecimal(market.minQuoteAmount);
   for (const [index, size] of sizes.entries()) {
+    if (new BigNumber(size).shiftedBy(decimals).gt(LIGHTER_MAX_BASE_AMOUNT)) {
+      throw new Error('Lighter Scale child exceeds native base amount');
+    }
     if (new BigNumber(size).lt(minimumBase)) {
       throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
     }
@@ -560,6 +564,7 @@ export function parseLighterScaleGroups(
         rung.priceInt > LIGHTER_MAX_WIRE_PRICE ||
         !integer(rung.sizeInt) ||
         rung.sizeInt < 1 ||
+        new BigNumber(rung.sizeInt).gt(LIGHTER_MAX_BASE_AMOUNT) ||
         ![
           'prepared',
           'unknown',
