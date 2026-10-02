@@ -127,6 +127,7 @@ import type {
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
   PerpsRecoveryVenueReview,
+  ScaleOrderGroup,
   ResolveRecoveryProtectionParams,
   PerpsRecoveryProtectionResult,
   Position,
@@ -955,6 +956,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPositions',
   'getSelectedOrderType',
   'getRecoveredDispatches',
+  'getScaleOrderGroups',
+  'reviewScaleOrderGroups',
   'reconcileRecoveredDispatches',
   'reviewRecoveryVenue',
   'resolveRecoveryProtection',
@@ -4061,6 +4064,59 @@ export class PerpsController extends BaseController<
         id: traceId,
       });
     }
+  }
+
+  /**
+   * Read durable Scale groups without placing or replaying any child.
+   * @returns Groups belonging to the issuing controller context.
+   */
+  async getScaleOrderGroups(): Promise<ScaleOrderGroup[]> {
+    const context = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (context !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    const groups = (await provider.getScaleOrderGroups?.()) ?? [];
+    if (context !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return groups;
+  }
+
+  /**
+   * Reconcile durable Scale groups for an explicitly selected provider.
+   * @param params - Issuing provider route.
+   * @param params.providerId - Provider to review.
+   * @returns Fresh durable groups; never replays placement.
+   */
+  async reviewScaleOrderGroups(
+    params: { providerId?: PerpsProviderType } = {},
+  ): Promise<ScaleOrderGroup[]> {
+    const context = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (context !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    if (this.state.activeProvider === 'aggregated' && !params.providerId) {
+      throw new Error('Scale review requires an explicit provider');
+    }
+    if (
+      params.providerId &&
+      this.state.activeProvider !== 'aggregated' &&
+      params.providerId !== this.state.activeProvider
+    ) {
+      throw new Error(
+        'Scale review provider does not match the active context',
+      );
+    }
+    if (!provider.reviewScaleOrderGroups) {
+      throw new Error('Scale review is unavailable for this provider');
+    }
+    const groups = await provider.reviewScaleOrderGroups(params);
+    if (context !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return groups;
   }
 
   /**

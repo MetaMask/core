@@ -1,5 +1,9 @@
 import type {
   DirectProviderOrderCapabilities,
+  ScaleOrderGroup,
+  ScaleOrderChild,
+  PerpsControllerGetScaleOrderGroupsAction,
+  PerpsControllerReviewScaleOrderGroupsAction,
   TriggerOrderType,
   PerpsRecoveredDispatch,
   PerpsPendingManualRecovery,
@@ -177,3 +181,33 @@ export type PartialRecoveryConsumerContract = AssertTrue<
 export type RecoveryAccountCapacityConsumerContract = AssertTrue<
   IsExact<typeof LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT, 64>
 >;
+
+export type ScaleInventoryConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerGetScaleOrderGroupsAction['handler']>,
+      Promise<ScaleOrderGroup[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerReviewScaleOrderGroupsAction['handler']>,
+      Promise<ScaleOrderGroup[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<
+        ScaleOrderChild,
+        { state: 'resting' | 'filled' | 'canceled' }
+      >['orderId'],
+      string
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ScaleOrderGroup['state'],
+      'placing' | 'stopped' | 'unknown' | 'terminal'
+    >
+  >,
+];

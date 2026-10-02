@@ -76,6 +76,7 @@ import type {
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
   PerpsRecoveryVenueReview,
+  ScaleOrderGroup,
   ResolveRecoveryProtectionParams,
   PerpsRecoveryProtectionResult,
   PerpsProviderType,
@@ -851,6 +852,41 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       ),
     );
     return results.flat();
+  }
+
+  /**
+   * List durable Scale groups from providers that expose group ownership.
+   * @returns Owned groups with their provider routes.
+   */
+  async getScaleOrderGroups(): Promise<ScaleOrderGroup[]> {
+    const groups = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        ((await provider.getScaleOrderGroups?.()) ?? []).map((group) => ({
+          ...group,
+          providerId,
+        })),
+      ),
+    );
+    return groups.flat();
+  }
+
+  /**
+   * Review one selected provider's Scale groups without replaying placement.
+   * @param params - Explicit provider route.
+   * @param params.providerId - Owning provider.
+   * @returns Reconciled durable groups.
+   */
+  async reviewScaleOrderGroups(
+    params: { providerId?: PerpsProviderType } = {},
+  ): Promise<ScaleOrderGroup[]> {
+    if (!params.providerId) {
+      throw new Error('Scale review requires an explicit provider');
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    if (!provider.reviewScaleOrderGroups) {
+      throw new Error('Scale review is unavailable for this provider');
+    }
+    return provider.reviewScaleOrderGroups(params);
   }
 
   /**

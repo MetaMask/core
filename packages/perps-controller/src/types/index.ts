@@ -329,13 +329,25 @@ export type OrderParams = {
 
 export type ScaleOrderChild =
   | {
-      state: 'resting' | 'filled';
+      state: 'resting' | 'filled' | 'canceled';
       orderId: string;
     }
   | {
       state: 'waitingForFill' | 'waitingForTrigger';
       orderId?: never;
     };
+
+/** Durable strategy inventory without fabricated venue IDs or unknown fills. */
+export type ScaleOrderGroup = Partial<OrderResult> & {
+  groupId: string;
+  symbol: string;
+  providerId: PerpsProviderType;
+  accountIndex: number;
+  apiKeyIndex: number;
+  state: 'placing' | 'stopped' | 'unknown' | 'terminal';
+  walletAddress: string;
+  network: 'mainnet' | 'testnet';
+};
 
 export type OrderResult = {
   success?: boolean;
@@ -345,10 +357,10 @@ export type OrderResult = {
    * For an ordinary placement this is the exchange's order ID. For a *strategy*
    * placement it is a handle instead — a venue TWAP id, or a client-generated
    * scale-group or chase-session id — which is what `CancelOrderParams` takes
-   * together with the matching `orderType` and `providerId`. Scale and chase
-   * handles are held in the provider session that created them. Scale handles
-   * are also encoded in each rung's venue client-order ID, so an open-order
-   * read can recover the group after reconnect. Chase handles cannot be
+   * together with the matching `orderType` and `providerId`. Hyperliquid Scale handles
+   * are encoded in venue client-order IDs and recovered from open-order reads.
+   * Lighter Scale handles and unresolved rungs persist in account-scoped local
+   * storage. Chase handles are session-local and cannot be
    * recovered because every replacement receives a new exchange order ID.
    * The individual exchange IDs a strategy expanded into are in
    * `childOrderIds`.
@@ -2138,6 +2150,15 @@ export type Funding = {
 };
 
 export type PerpsProvider = {
+  /** Local durable Scale inventory; unsupported providers omit the methods. */
+  getScaleOrderGroups?(params?: {
+    providerId?: PerpsProviderType;
+  }): Promise<ScaleOrderGroup[]>;
+  /** Explicit read-only venue reconciliation, without placement replay. */
+  reviewScaleOrderGroups?(params?: {
+    providerId?: PerpsProviderType;
+  }): Promise<ScaleOrderGroup[]>;
+
   readonly protocolId: string;
 
   /** Whether this provider routes individual requests by `providerId`. */
