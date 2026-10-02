@@ -5096,6 +5096,9 @@ export class LighterProvider implements PerpsProvider {
         current !== null &&
         current.operationId !== expectedOperationId
       ) {
+        if (requireSettledJournal) {
+          return;
+        }
         throw new Error(
           'Lighter recovery source operation changed before completion',
         );

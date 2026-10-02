@@ -1106,11 +1106,6 @@ export class LighterChaseService {
   }
 
   /**
-   * @param owner - Account-scoped durable inventory.
-   * @param io - Read authority and ownership fence only; no transport is used.
-   * @returns Visible owned state without automatic financial continuation.
-   */
-  /**
    * Read recorded child identities without the Chase loop/journal lock or writes.
    * A venue-lock caller must not wait on the loop, which can itself await that
    * venue lock. Each storage read validates the complete durable snapshot.
@@ -1131,6 +1126,11 @@ export class LighterChaseService {
     );
   }
 
+  /**
+   * @param owner - Account-scoped durable inventory.
+   * @param io - Read authority and ownership fence only; no transport is used.
+   * @returns Visible owned state without automatic financial continuation.
+   */
   async list(
     owner: LighterChaseOwner,
     io: Pick<LighterChaseIo, 'assertCurrent'>,

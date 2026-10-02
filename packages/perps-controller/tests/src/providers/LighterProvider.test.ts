@@ -821,6 +821,83 @@ describe('LighterProvider', () => {
     };
     const journalKey = `lighterNativeEdit:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, edit.orderId])}`;
 
+    it('keeps an uncertain native edit fenced from margin writes after key migration', async () => {
+      const deps = createMockInfrastructure();
+      const first = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: deps,
+      });
+      first.clientInstance.getEditableOrders.mockResolvedValue({
+        code: 200,
+        orders: [target()],
+      });
+      first.clientInstance.getTx.mockResolvedValue({
+        ...executed,
+        apiKeyIndex: 7,
+        status: 1,
+      });
+      first.clientInstance.sendTx.mockRejectedValue(
+        new Error('edit response lost'),
+      );
+      expect(await first.provider.editOrder(edit)).toMatchObject({
+        success: false,
+        orderEdit: { status: 'pending' },
+      });
+      expect(first.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+      const originalJournal = await deps.diskCache.getItem(journalKey);
+      await first.provider.disconnect();
+
+      const migrated = buildProvider({
+        apiKeyIndex: 19,
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: deps,
+      });
+      Object.assign(migrated.bridge, {
+        getRecoverableKeyIndices: async (): Promise<number[]> => [19, 7],
+      });
+      migrated.clientInstance.getApiKeys.mockResolvedValue({
+        code: 200,
+        apiKeys: [
+          { apiKeyIndex: 7, publicKey: 'ab'.repeat(40) },
+          { apiKeyIndex: 19, publicKey: '9c'.repeat(40) },
+        ],
+      });
+      migrated.clientInstance.getTx.mockResolvedValue({
+        ...executed,
+        apiKeyIndex: 7,
+        status: 1,
+      });
+      migrated.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [
+              {
+                ...ACCOUNT.positions[0],
+                marginMode: 1,
+                allocatedMargin: '2000',
+              },
+            ],
+          },
+        ],
+      });
+
+      const result = await migrated.provider.updateMargin({
+        symbol: 'BTC',
+        amount: '10',
+      });
+
+      expect(result.success).toBe(false);
+      expect(migrated.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(
+        migrated.calls.some((call) => call.function === '_signUpdateMargin'),
+      ).toBe(false);
+      expect(await deps.diskCache.getItem(journalKey)).toBe(originalJournal);
+      expect(originalJournal).not.toBeNull();
+      await migrated.provider.disconnect();
+    });
+
     it('retains exact execution proof across later lookup loss and settles fresh same-order fields', async () => {
       const deps = createMockInfrastructure();
       const first = buildProvider({
@@ -25407,18 +25484,22 @@ describe('LighterProvider', () => {
           ],
         },
       });
-      const send = built.clientInstance.sendTx.getMockImplementation();
+      const send = built.clientInstance.sendTx.getMockImplementation() as
+        | LighterClientService['sendTx']
+        | undefined;
       if (!send) {
         throw new Error('Missing venue sender');
       }
-      built.clientInstance.sendTx.mockImplementation(async (...args) => {
-        const receipt = await send(...args);
-        // Earlier-key reconciliation publishes its durable manual obligation
-        // after this operation has already passed its explicit-intent preflight.
-        await infra.diskCache.setItem(indexKey, JSON.stringify([key]));
-        await infra.diskCache.setItem(docKey, bytes);
-        return receipt;
-      });
+      built.clientInstance.sendTx.mockImplementation(
+        async (...args: Parameters<LighterClientService['sendTx']>) => {
+          const receipt = await send(...args);
+          // Earlier-key reconciliation publishes its durable manual obligation
+          // after this operation has already passed its explicit-intent preflight.
+          await infra.diskCache.setItem(indexKey, JSON.stringify([key]));
+          await infra.diskCache.setItem(docKey, bytes);
+          return receipt;
+        },
+      );
 
       const result = await built.provider.updatePositionTPSL({
         symbol: 'BTC',
@@ -25496,22 +25577,20 @@ describe('LighterProvider', () => {
         const key = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
         const docKey = `lighterTpslManual:testnet:${key}`;
         const indexKey = 'lighterTpslManualIndex:testnet';
-        const bytes =
-          failure === 'corrupt'
-            ? 'corrupt warning'
-            : JSON.stringify({
-                version: 1,
-                settlementKey: key,
-                symbol: 'BTC',
-                reason: 'Prior review',
-                priorIntent: 'remove',
-                priorTriggers: [],
-                survivingOrderIds: ['777'],
-                operationId: 'prior-operation',
-                recordedAt: 5,
-              });
+        const validBytes = JSON.stringify({
+          version: 1,
+          settlementKey: key,
+          symbol: 'BTC',
+          reason: 'Prior review',
+          priorIntent: 'remove',
+          priorTriggers: [],
+          survivingOrderIds: ['777'],
+          operationId: 'prior-operation',
+          recordedAt: 5,
+        });
+        const bytes = failure === 'corrupt' ? 'corrupt warning' : validBytes;
         await infra.diskCache.setItem(indexKey, JSON.stringify([key]));
-        await infra.diskCache.setItem(docKey, bytes);
+        await infra.diskCache.setItem(docKey, validBytes);
         let cleanup = false;
         const getItem = jest
           .spyOn(infra.diskCache, 'getItem')
@@ -25519,14 +25598,6 @@ describe('LighterProvider', () => {
         if (!getItem) {
           throw new Error('Missing storage reader');
         }
-        jest
-          .spyOn(infra.diskCache, 'getItem')
-          .mockImplementation(async (storageKey) => {
-            if (storageKey === docKey) {
-              cleanup = true;
-            }
-            return getItem(storageKey);
-          });
         const read =
           built.clientInstance.getActiveOrders.getMockImplementation() as
             | (() => Promise<{ code: number; orders: RawTriggerOrder[] }>)
@@ -25563,12 +25634,22 @@ describe('LighterProvider', () => {
             if (failure === 'storage' && storageKey === docKey) {
               throw new Error('Cleanup storage unavailable');
             }
-            return removeItem(storageKey);
+            await removeItem(storageKey);
+            if (
+              storageKey ===
+              `lighterTpslJournal:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`
+            ) {
+              cleanup = true;
+              if (failure === 'corrupt') {
+                await infra.diskCache.setItem(docKey, bytes);
+              }
+            }
           });
         const result = await built.provider.updatePositionTPSL({
           symbol: 'BTC',
           stopLossPrice: replacement ? '85000' : undefined,
         });
+        expect(cleanup).toBe(true);
         expect(result).toStrictEqual({
           success: true,
           childOrderIds: replacement
@@ -25783,11 +25864,29 @@ describe('LighterProvider', () => {
         if (!getItem) {
           throw new Error('Missing storage reader');
         }
+        let settled = false;
+        const removeItem = jest
+          .spyOn(infra.diskCache, 'removeItem')
+          .getMockImplementation();
+        if (!removeItem) {
+          throw new Error('Missing storage remover');
+        }
+        jest
+          .spyOn(infra.diskCache, 'removeItem')
+          .mockImplementation(async (storageKey) => {
+            await removeItem(storageKey);
+            if (
+              storageKey ===
+              `lighterTpslManual:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`
+            ) {
+              settled = true;
+            }
+          });
         let reads = 0;
         jest
           .spyOn(infra.diskCache, 'getItem')
           .mockImplementation(async (storageKey) => {
-            if (storageKey === docKey) {
+            if (settled && storageKey === docKey) {
               reads += 1;
               if (reads === 2) {
                 if (change === 'warning') {
@@ -25807,6 +25906,7 @@ describe('LighterProvider', () => {
         const result = await built.provider.updatePositionTPSL({
           symbol: 'BTC',
         });
+        expect(settled).toBe(true);
         expect(result.success).toBe(change !== 'session');
         expect(await getItem(indexKey)).toBe(JSON.stringify([key]));
         expect(await getItem(docKey)).toBe(change === 'warning' ? bytes : null);
@@ -31328,6 +31428,7 @@ describe('Lighter bounded Chase provider probe', () => {
       ),
   ): void => {
     const child = record.children[0];
+    const orderExpiry = Date.now() + 100000;
     built.clientInstance.getOrdersByClientIds.mockImplementation(
       async (_account: number, _token: string, ids: string[]) => ({
         code: 200,
@@ -31350,7 +31451,7 @@ describe('Lighter bounded Chase provider probe', () => {
                 timeInForce: 'post-only',
                 reduceOnly: 0,
                 status: terminal() ? 'canceled' : 'open',
-                orderExpiry: Date.now() + 100000,
+                orderExpiry,
                 timestamp: 1,
                 nonce: child.placement.nonce,
               },
