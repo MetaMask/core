@@ -6,11 +6,14 @@ import { ExchangeClient } from '@nktkas/hyperliquid';
  *
  * @param client - Captured SDK client, including wallet and nonce configuration.
  * @param beforeDispatch - Authoritative operation precondition.
+ * @param onDispatchRefused - Reports the exact signed exchange payload when
+ * the precondition refuses dispatch.
  * @returns A client whose writes are fenced at the transport boundary.
  */
 export function createGuardedHyperLiquidClient(
   client: ExchangeClient,
   beforeDispatch: () => Promise<void>,
+  onDispatchRefused?: (payload: unknown) => void,
 ): ExchangeClient {
   const { transport } = client.config_;
   return new ExchangeClient({
@@ -22,7 +25,18 @@ export function createGuardedHyperLiquidClient(
         payload: unknown,
         signal?: AbortSignal,
       ): Promise<Result> {
-        await beforeDispatch();
+        try {
+          await beforeDispatch();
+        } catch (error) {
+          if (endpoint === 'exchange') {
+            try {
+              onDispatchRefused?.(payload);
+            } catch {
+              // Reporting must preserve the authoritative refusal error.
+            }
+          }
+          throw error;
+        }
         return transport.request<Result>(endpoint, payload, signal);
       },
     },

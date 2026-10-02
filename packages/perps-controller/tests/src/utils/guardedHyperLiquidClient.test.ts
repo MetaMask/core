@@ -17,6 +17,97 @@ const order = {
 };
 
 describe('createGuardedHyperLiquidClient', () => {
+  it.each([false, true])(
+    'reports the exact refused exchange payload and preserves the guard error when reporting throws: %s',
+    async (reportingThrows) => {
+      const request = jest.fn();
+      const client = new ExchangeClient({
+        wallet: {
+          address: '0x1111111111111111111111111111111111111111',
+          signTypedData: jest.fn(),
+        },
+        transport: { isTestnet: false, request },
+      });
+      const refusal = new Error('scope changed');
+      const payload = { signature: { r: `0x${'11'.repeat(32)}` } };
+      const onDispatchRefused = jest.fn<void, [unknown]>(() => {
+        if (reportingThrows) {
+          throw new Error('observer failed');
+        }
+      });
+      const guarded = createGuardedHyperLiquidClient(
+        client,
+        async () => {
+          throw refusal;
+        },
+        onDispatchRefused,
+      );
+
+      await expect(
+        guarded.config_.transport.request('exchange', payload),
+      ).rejects.toBe(refusal);
+
+      expect(onDispatchRefused.mock.calls).toStrictEqual([[payload]]);
+      expect(onDispatchRefused.mock.calls[0]?.[0]).toBe(payload);
+      expect(request).not.toHaveBeenCalled();
+    },
+  );
+
+  it('does not report a refused info request as an exchange request', async () => {
+    const request = jest.fn();
+    const client = new ExchangeClient({
+      wallet: {
+        address: '0x1111111111111111111111111111111111111111',
+        signTypedData: jest.fn(),
+      },
+      transport: { isTestnet: false, request },
+    });
+    const refusal = new Error('scope changed');
+    const onDispatchRefused = jest.fn();
+    const guarded = createGuardedHyperLiquidClient(
+      client,
+      async () => {
+        throw refusal;
+      },
+      onDispatchRefused,
+    );
+
+    await expect(
+      guarded.config_.transport.request('info', { type: 'meta' }),
+    ).rejects.toBe(refusal);
+
+    expect(onDispatchRefused).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('leaves dispatched transport failures to the reporting transport', async () => {
+    const failure = new Error('fetch failed');
+    const request = jest.fn().mockRejectedValue(failure);
+    const client = new ExchangeClient({
+      wallet: {
+        address: '0x1111111111111111111111111111111111111111',
+        signTypedData: jest.fn(),
+      },
+      transport: { isTestnet: false, request },
+    });
+    const onDispatchRefused = jest.fn();
+    const guarded = createGuardedHyperLiquidClient(
+      client,
+      jest.fn().mockResolvedValue(undefined),
+      onDispatchRefused,
+    );
+    const payload = { action: { type: 'cancel' } };
+
+    await expect(
+      guarded.config_.transport.request('exchange', payload),
+    ).rejects.toBe(failure);
+
+    expect(request.mock.calls).toStrictEqual([
+      ['exchange', payload, undefined],
+    ]);
+    expect(onDispatchRefused).not.toHaveBeenCalled();
+  });
+
   it('preserves SDK signing configuration without changing the shared client or transport', async () => {
     const events: string[] = [];
     const wallet = {

@@ -520,9 +520,20 @@ export class HyperLiquidClientService {
       this.ensureInitialized();
       throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
     }
-    return beforeDispatch
-      ? createGuardedHyperLiquidClient(this.#exchangeClient, beforeDispatch)
-      : this.#exchangeClient;
+    if (!beforeDispatch) {
+      return this.#exchangeClient;
+    }
+    const wallet = this.#walletParams;
+    const onExchangeRequest = this.#onExchangeRequest;
+    return createGuardedHyperLiquidClient(
+      this.#exchangeClient,
+      beforeDispatch,
+      (payload) => {
+        if (wallet) {
+          onExchangeRequest?.(payload, undefined, wallet);
+        }
+      },
+    );
   }
 
   /**
