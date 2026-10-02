@@ -252,3 +252,10 @@ export type AttachedGroupConsumerContracts = [
     >
   >,
 ];
+
+export type AttachedHistoryConsumerContract = AssertTrue<
+  IsExact<
+    AttachedOrderGroup['historyStatus'],
+    'complete' | 'bounded' | undefined
+  >
+>;

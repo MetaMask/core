@@ -21,6 +21,10 @@ import type {
 /** Account-scoped immutable unsigned intent; no signed payloads or keys. */
 export type LighterAttachedGroup = {
   version: 1;
+  /** Local preparation time in milliseconds; older journals may omit it. */
+  preparedAt?: number;
+  /** Full exact venue observation persisted before nonce-ledger acceptance settlement. */
+  acceptanceReviewedAt?: number;
   groupId: string;
   symbol: string;
   accountIndex: number;
@@ -108,6 +112,15 @@ export function parseLighterAttachedGroups(
     const group = item as Partial<LighterAttachedGroup>;
     if (
       group.version !== 1 ||
+      (group.preparedAt !== undefined &&
+        (!isInteger(group.preparedAt) || group.preparedAt <= 0)) ||
+      (group.acceptanceReviewedAt !== undefined &&
+        (!isInteger(group.acceptanceReviewedAt) ||
+          group.acceptanceReviewedAt <= 0 ||
+          !['accepted', 'completed', 'canceled'].includes(
+            group.submission ?? '',
+          ) ||
+          !group.venueIds?.every((id) => id !== null))) ||
       typeof group.groupId !== 'string' ||
       !group.groupId.startsWith(LIGHTER_ATTACHED_HANDLE_PREFIX) ||
       typeof group.symbol !== 'string' ||
@@ -138,6 +151,16 @@ export function parseLighterAttachedGroups(
       )
     ) {
       throw new Error('Invalid Lighter attached-order journal');
+    }
+    if (
+      group.preparedAt !== undefined &&
+      ((group.expiresAt !== null &&
+        group.expiresAt !== undefined &&
+        group.preparedAt > group.expiresAt) ||
+        (group.acceptanceReviewedAt !== undefined &&
+          group.preparedAt > group.acceptanceReviewedAt))
+    ) {
+      throw new Error('Invalid Lighter attached preparation time');
     }
     if (
       group.nonAcceptance !== undefined &&

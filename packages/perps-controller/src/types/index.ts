@@ -351,7 +351,7 @@ export type AttachedOrderGroup = {
   childOrderIds?: string[];
   /** Automatic parent/child cancellation is not assumed. */
   cancellation: 'explicit-exact-owned-orders';
-  /** Explicit review observations; terminal groups return local identities only. Absence is not an empty book. */
+  /** Explicit review observations; terminal groups without a pending dispatch return local identities only. Absence is not an empty book. */
   orders?: {
     clientOrderId: string;
     orderId?: string;
@@ -365,6 +365,8 @@ export type AttachedOrderGroup = {
       | 'rejected';
     filledSize?: string;
   }[];
+  /** A bounded review leaves missing legs unknown rather than asserting absence. */
+  historyStatus?: 'complete' | 'bounded';
   /** Parent/child references only; this does not prove automatic OCO cancellation. */
   linkage?: 'confirmed' | 'unknown';
 };
