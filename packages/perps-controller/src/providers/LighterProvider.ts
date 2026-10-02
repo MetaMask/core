@@ -4737,9 +4737,16 @@ export class LighterProvider implements PerpsProvider {
   readonly #loadPendingKeyRegistration = async (
     accountIndex: number,
   ): Promise<LighterPendingKeyRegistration | null> => {
-    const raw = await this.#deps.diskCache.getItem(
-      this.#pendingKeyRegistrationKey(accountIndex),
-    );
+    let raw: string | null;
+    try {
+      raw = await this.#deps.diskCache.getItem(
+        this.#pendingKeyRegistrationKey(accountIndex),
+      );
+    } catch (error) {
+      throw new Error(
+        `Lighter pending key registration read failed: ${ensureError(error, 'LighterProvider.#loadPendingKeyRegistration').message}`,
+      );
+    }
     if (raw === null) {
       return null;
     }
@@ -5188,54 +5195,67 @@ export class LighterProvider implements PerpsProvider {
         'Lighter registration signing result has no complete transaction identity',
       );
     }
-    const registrationKey = this.#pendingKeyRegistrationKey(accountIndex);
-    const pending: LighterPendingKeyRegistration = {
-      version: 1,
-      accountIndex,
-      apiKeyIndex: this.#apiKeyIndex,
-      publicKey: (this.#venuePublicKey ?? '').replace(/^0x/u, '').toLowerCase(),
-      txHash: identity.txHash,
-      nonce,
-      expiresAt: identity.expiresAt,
-      accepted: false,
-    };
-    await this.#deps.diskCache.setItem(
-      registrationKey,
-      JSON.stringify(pending),
-    );
-    let dispatched = false;
     let result: LighterSendTxResponse;
-    try {
-      this.#assertSession(generation);
+    if (!bridge.getRecoverableKeyIndices && !bridge.getStoredKeyIndices) {
+      // Legacy bridges use only their explicitly configured slot. Preserve
+      // that contract; durable allocation tracking applies to discovery.
       result = await submit(
         LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
         signed.txInfo,
-        () => {
-          pending.accepted = true;
-        },
-        {
-          ...identity,
-          onDispatch: () => {
-            dispatched = true;
-          },
-        },
+        undefined,
+        identity,
       );
-    } catch (error) {
-      if (!dispatched) {
-        await this.#deps.diskCache.removeItem(registrationKey);
-      } else if (pending.accepted) {
-        await this.#deps.diskCache.setItem(
-          registrationKey,
-          JSON.stringify(pending),
+    } else {
+      const registrationKey = this.#pendingKeyRegistrationKey(accountIndex);
+      const pending: LighterPendingKeyRegistration = {
+        version: 1,
+        accountIndex,
+        apiKeyIndex: this.#apiKeyIndex,
+        publicKey: (this.#venuePublicKey ?? '')
+          .replace(/^0x/u, '')
+          .toLowerCase(),
+        txHash: identity.txHash,
+        nonce,
+        expiresAt: identity.expiresAt,
+        accepted: false,
+      };
+      await this.#deps.diskCache.setItem(
+        registrationKey,
+        JSON.stringify(pending),
+      );
+      let dispatched = false;
+      try {
+        this.#assertSession(generation);
+        result = await submit(
+          LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
+          signed.txInfo,
+          () => {
+            pending.accepted = true;
+          },
+          {
+            ...identity,
+            onDispatch: () => {
+              dispatched = true;
+            },
+          },
         );
+      } catch (error) {
+        if (!dispatched) {
+          await this.#deps.diskCache.removeItem(registrationKey);
+        } else if (pending.accepted) {
+          await this.#deps.diskCache.setItem(
+            registrationKey,
+            JSON.stringify(pending),
+          );
+        }
+        throw error;
       }
-      throw error;
+      await this.#deps.diskCache.setItem(
+        registrationKey,
+        JSON.stringify(pending),
+      );
+      this.#assertSession(generation);
     }
-    await this.#deps.diskCache.setItem(
-      registrationKey,
-      JSON.stringify(pending),
-    );
-    this.#assertSession(generation);
     this.#deps.debugLogger.log('[LighterProvider] Venue key registered', {
       accountIndex,
       apiKeyIndex: this.#apiKeyIndex,
