@@ -21,22 +21,17 @@ export type SubscriptionDelegationServiceCheckMoneyAccountBalanceAction = {
  * Runs the complete Money Account subscription checkout authorization flow.
  *
  * Subscriptions are refreshed first. An active subscription for the product
- * is rejected before Money Account upgrade, approval, delegation signing,
- * persistence, or CHOMP registration.
+ * is rejected before Money Account upgrade, delegation signing, persistence,
+ * or CHOMP registration.
  *
- * Before the approval, `MoneyAccountUpgradeController` is asked to ensure
- * the Money Account vault delegations and CHOMP intents exist; the
- * Subscription API validates them server-side. The custom approval is the
- * sole consent and funding boundary for the payment permission. No payment
- * delegation signing, persistence, or intent mutation occurs before it
- * returns a funding transaction hash.
+ * The caller must obtain user consent and initiate funding before calling.
+ * `MoneyAccountUpgradeController` ensures the Money Account vault
+ * delegations and CHOMP intents exist. The Subscription API validates those
+ * delegations and the Money Account balance server-side. No payment
+ * delegation signing, persistence, or intent mutation occurs before the
+ * account is upgraded.
  *
- * When `request.skipApproval` is `true`, the approval request and its
- * result validation are skipped and the flow proceeds directly to signing.
- * The caller is then responsible for consent and funding.
- *
- * @param request - Product selection, Money Account identity, and optional
- * `skipApproval` flag.
+ * @param request - Product selection and Money Account identity.
  * @returns The result from `SubscriptionController:startSubscriptionWithCrypto`.
  */
 export type SubscriptionDelegationServiceStartSubscriptionWithDelegationAction =
