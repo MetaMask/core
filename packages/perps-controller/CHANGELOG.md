@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reconcile previous-key Lighter protection journals using their original transaction identity without signing follow-up operations. Resolve visible settlement or preserve surviving protection for explicit review when the original venue key has been replaced.
+
 - Block Lighter protection changes after trading-key migration while a journal for the same wallet, network, account and symbol remains unfinished under its original key slot ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Reject recovered-dispatch acknowledgment when the selected wallet, network, provider or provider lifetime changes during readiness or acknowledgment, including failed provider/network switch rollbacks and legacy recovery IDs. A stale-context rejection after provider success does not undo acknowledgment in the issuing account; callers must re-list outcomes before acting again ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Refuse stale signer readiness after a wallet switch or bridge reset while setup finishes, preserving unfinished TP/SL recovery visibility ([#10618](https://github.com/MetaMask/core/pull/10618))
