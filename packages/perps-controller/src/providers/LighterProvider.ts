@@ -413,9 +413,6 @@ const toFiniteCandle = (candle: LighterCandle): CandleStick | null => {
   };
 };
 
-/** No retained local key matches a current venue registration. */
-class LighterRecoveryReadAuthorityError extends Error {}
-
 /**
  * One recorded TP/SL venue mutation attempt. Each attempt carries its own
  * nonce and outcome: a single flat flag cannot represent "create accepted,
@@ -1347,6 +1344,14 @@ const resolveLighterTriggerPrices = (
     triggerPriceInt,
   };
 };
+
+/** No retained local key matches a current venue registration. */
+class LighterRecoveryReadAuthorityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LighterRecoveryReadAuthorityError';
+  }
+}
 
 /** A definitive venue response that the selected wallet has no account. */
 class LighterAccountNotFoundError extends Error {
@@ -7926,6 +7931,9 @@ export class LighterProvider implements PerpsProvider {
           !new BigNumber(row.initialBaseAmount).eq(rung.size)
         ) {
           throw new Error('Lighter Scale order does not match signed intent');
+        }
+        if (rung.state === 'rejected' && row.status !== 'rejected') {
+          throw new Error('Lighter Scale rejection conflicts with venue order');
         }
         const adapted =
           row.status === 'rejected'

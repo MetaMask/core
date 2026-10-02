@@ -33,7 +33,9 @@ import {
 } from '../../helpers/serviceMocks.js';
 
 jest.mock('../../../src/services/LighterClientService', () => ({
-  ...jest.requireActual('../../../src/services/LighterClientService'),
+  ...jest.requireActual<
+    typeof import('../../../src/services/LighterClientService')
+  >('../../../src/services/LighterClientService'),
   // Only the service class is doubled; convertKeysToCamelCase stays real so
   // the WebSocket message router operates on faithfully camelized payloads.
   LighterClientService: jest.fn(),
@@ -812,6 +814,117 @@ describe('LighterProvider', () => {
             .filter((call) => call.function === '_signCancelOrder')
             .map((call) => call.params[2]),
         ).toStrictEqual(['801']);
+      },
+    );
+
+    it.each(['review', 'cancel'] as const)(
+      'refuses Scale %s when a live row contradicts expired rejection',
+      async (operation) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        const venue = scaleVenue(built);
+        const send = built.clientInstance.sendTx.getMockImplementation();
+        let submitted = 0;
+        built.clientInstance.sendTx.mockImplementation(
+          async (kind: number, txInfo: string) => {
+            const wire = JSON.parse(txInfo) as { createOrder?: boolean };
+            if (wire.createOrder) {
+              submitted += 1;
+              if (submitted === 2) {
+                throw new Error('lost second response');
+              }
+            }
+            const response: unknown = await send?.(kind, txInfo);
+            if (
+              response === null ||
+              typeof response !== 'object' ||
+              !('code' in response) ||
+              typeof response.code !== 'number' ||
+              !('txHash' in response) ||
+              typeof response.txHash !== 'string'
+            ) {
+              throw new Error('Missing mock transaction response');
+            }
+            return { code: response.code, txHash: response.txHash };
+          },
+        );
+        const placed = await built.provider.placeOrder(intent);
+        expect(placed.success).toBe(false);
+        const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
+        const [pending] = parseLighterScaleGroups(
+          await infra.diskCache.getItem(key),
+        );
+        expect(pending.rungs[0].state).toBe('resting');
+        expect(pending.rungs[1].state).toBe('unknown');
+        const clock = jest
+          .spyOn(Date, 'now')
+          .mockReturnValue(Number(pending.rungs[1].expiresAt) + 31_000);
+        try {
+          await built.provider.reviewScaleOrderGroups();
+          const [rejected] = parseLighterScaleGroups(
+            await infra.diskCache.getItem(key),
+          );
+          expect(rejected.rungs[1]).toMatchObject({
+            state: 'rejected',
+            nonAcceptance: 'expired',
+          });
+          const signed = built.calls
+            .filter((call) => call.function === '_signCreateOrder')
+            .at(-1);
+          if (!signed) {
+            throw new Error('Missing second signed child');
+          }
+          venue.active.push({
+            ...venue.active[0],
+            orderIndex: 801,
+            clientOrderIndex: Number(signed.params[2]),
+            initialBaseAmount: pending.rungs[1].size,
+            remainingBaseAmount: pending.rungs[1].size,
+            filledBaseAmount: '0',
+            price: pending.rungs[1].price,
+          });
+          const sendsBefore = built.clientInstance.sendTx.mock.calls.length;
+
+          const outcome =
+            operation === 'review'
+              ? await built.provider.reviewScaleOrderGroups().then(
+                  () => ({ success: true }),
+                  (error: unknown) => ({
+                    success: false,
+                    error:
+                      error instanceof Error ? error.message : String(error),
+                  }),
+                )
+              : await built.provider.cancelOrder({
+                  symbol: 'BTC',
+                  orderId: String(placed.orderId),
+                  orderType: 'scale',
+                });
+          expect(outcome).toMatchObject({
+            success: false,
+            error: 'Lighter Scale rejection conflicts with venue order',
+          });
+
+          expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(
+            sendsBefore,
+          );
+          expect(venue.active.map((row) => row.orderIndex)).toStrictEqual([
+            800, 801,
+          ]);
+          const [retained] = parseLighterScaleGroups(
+            await infra.diskCache.getItem(key),
+          );
+          expect(retained.rungs[0].state).toBe('resting');
+          expect(retained.rungs[1]).toMatchObject({
+            state: 'rejected',
+            nonAcceptance: 'expired',
+          });
+        } finally {
+          clock.mockRestore();
+        }
       },
     );
 
@@ -5491,19 +5604,19 @@ describe('LighterProvider', () => {
         webSocketCtor: fakeCtor,
         registeredKey: '9c'.repeat(40),
       });
-      const realExecute = (bridge.execute as jest.Mock)
-        .getMockImplementation()
-        ?.bind(bridge);
-      (bridge.execute as jest.Mock).mockImplementation(
-        async (call: LighterWasmCall) => {
-          if (call.function === '_createAuthToken') {
-            throw new Error(
-              'Invalid Lighter venue data: malformed auth-token response',
-            );
-          }
-          return await realExecute?.(call);
-        },
-      );
+      const mockedExecute = jest.spyOn(bridge, 'execute');
+      const realExecute = mockedExecute.getMockImplementation()?.bind(bridge);
+      if (!realExecute) {
+        throw new Error('Missing bridge mock implementation');
+      }
+      mockedExecute.mockImplementation(async (call: LighterWasmCall) => {
+        if (call.function === '_createAuthToken') {
+          throw new Error(
+            'Invalid Lighter venue data: malformed auth-token response',
+          );
+        }
+        return await realExecute(call);
+      });
       const ordersCallback = jest.fn();
       const onError = jest.fn();
       const unsubscribe = provider.subscribeToOrders({
