@@ -130,10 +130,12 @@ export type ProfileServiceGetXAccountAction = {
 
 /**
  * Disconnects the X account linked to the given profile.
+ * A `404` response is treated as success (the X account is already
+ * disconnected, or the profile is unknown), making the operation idempotent.
  *
  * @param profileId - The ID of the profile to disconnect the linked X account from.
  * @returns The result of the mutation.
- * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {HttpError} If the API returns a non-2xx response other than `404`.
  */
 export type ProfileServiceDisconnectXAction = {
   type: `ProfileService:disconnectX`;

@@ -618,6 +618,16 @@ describe('ProfileService', () => {
       );
     });
 
+    it('resolves when the API returns 404 (already disconnected)', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = createService();
+
+      await service.disconnectX('profile-123');
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
     it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 500 });
 

@@ -563,19 +563,32 @@ export class ProfileService extends BaseDataService<
 
   /**
    * Disconnects the X account linked to the given profile.
+   * A `404` response is treated as success (the X account is already
+   * disconnected, or the profile is unknown), making the operation idempotent.
    *
    * @param profileId - The ID of the profile to disconnect the linked X account from.
    * @returns The result of the mutation.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {HttpError} If the API returns a non-2xx response other than `404`.
    */
   async disconnectX(profileId: string): Promise<void> {
     return this.executeMutation({
       mutationKey: [`${this.name}:disconnectX`, profileId],
-      mutationFn: async () =>
-        this.#fetch(`profiles/${encodeURIComponent(profileId)}/x`, {
-          method: 'DELETE',
-          error: ProfileServiceErrorMessage.DISCONNECT_X_FAILED,
-        }),
+      mutationFn: async () => {
+        try {
+          return await this.#fetch(
+            `profiles/${encodeURIComponent(profileId)}/x`,
+            {
+              method: 'DELETE',
+              error: ProfileServiceErrorMessage.DISCONNECT_X_FAILED,
+            },
+          );
+        } catch (error) {
+          if (error instanceof HttpError && error.httpStatus === 404) {
+            return null;
+          }
+          throw error;
+        }
+      },
     });
   }
 }

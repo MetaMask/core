@@ -17,11 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `ProfileController` for managing user profile state, exposing `getMetaMaskProfile`, `getXprofile`, `createProfile`, `replaceProfile`, `updateProfile`, `deleteProfile`, `checkUsernameAvailability`, `getXAuthUrl`, `connectX`, and `getXAccount` via the messenger ([#10558](https://github.com/MetaMask/core/pull/10558))
+- Add `ProfileController` for managing user profile state, exposing `getProfile`, `getXProfile`, `createProfile`, `replaceProfile`, `updateProfile`, `deleteProfile`, `checkUsernameAvailability`, `connectX`, `fetchAndUpdateXAccount`, `startXConnect`, and `disconnectX` via the messenger ([#10558](https://github.com/MetaMask/core/pull/10558))
 - Add `ProfileService` for communicating with the MetaMask Profile API, exposing `getProfile`, `createProfile`, `replaceProfile`, `updateProfile`, `deleteProfile`, `checkUsernameAvailability`, `getXAuthUrl`, `connectX`, and `getXAccount` via the messenger, with superstruct validation on all inputs and responses ([#10558](https://github.com/MetaMask/core/pull/10558))
 - Add `startXConnect` method to `ProfileController` for initiating the X OAuth flow. It fetches the authorization URL via `ProfileService:getXAuthUrl` (the profile is resolved server-side from the verified bearer token) and returns the authorization URL and state parameter as ephemeral session data, without storing them in controller state ([#0000](https://github.com/MetaMask/core/pull/0000))
 - Add `disconnectX` method to `ProfileController` for unlinking the X account from a profile. It delegates to `ProfileService:disconnectX`, clears `xProfile` from controller state, and sets `connectedToX` to `false` when the disconnected profile matches the profile in state ([#0000](https://github.com/MetaMask/core/pull/0000))
-- Add `disconnectX` method to `ProfileService` for sending an authenticated `DELETE` request to the `profiles/{profileId}/x` endpoint ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `disconnectX` method to `ProfileService` for sending an authenticated `DELETE` request to the `profiles/{profileId}/x` endpoint; a `404` response is treated as success (the X account is already disconnected) ([#0000](https://github.com/MetaMask/core/pull/0000))
 
 ### Changed
 

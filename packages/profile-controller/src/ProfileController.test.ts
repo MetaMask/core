@@ -769,7 +769,9 @@ describe('ProfileController', () => {
       );
 
       const { controller } = createController({ rootMessenger });
-      const result = await rootMessenger.call('ProfileController:startXConnect');
+      const result = await rootMessenger.call(
+        'ProfileController:startXConnect',
+      );
 
       expect(result).toStrictEqual(mockXConnectSession);
       expect(controller.state.xProfile).toBeUndefined();
