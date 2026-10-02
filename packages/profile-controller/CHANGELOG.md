@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `startXConnect` method to `ProfileController` for initiating the X OAuth flow. It fetches the authorization URL via `ProfileService:getXAuthUrl`, forwarding an optional CAIP-10 `linkedAddress` (the profile is resolved server-side from the verified bearer token), and returns the authorization URL and state parameter as ephemeral session data, without storing them in controller state ([#10668](https://github.com/MetaMask/core/pull/10668))
+- Add `disconnectX` method to `ProfileController` for unlinking the X account from a profile. It delegates to `ProfileService:disconnectX`, clears `xProfile` from controller state, and sets `connectedToX` to `false` when the disconnected profile matches the profile in state ([#10668](https://github.com/MetaMask/core/pull/10668))
+- Add `disconnectX` method to `ProfileService` for sending an authenticated `DELETE` request to the `profiles/{profileId}/x` endpoint; a `404` response is treated as success (the X account is already disconnected) ([#10668](https://github.com/MetaMask/core/pull/10668))
+
+### Changed
+
+- **BREAKING**: `ProfileController.connectX` now takes `{ code, state, profileId }`, always fetches the profile from the backend after the connect (the backend auto-creates the profile during X connect when missing), persists both `profile` and `xProfile` in state, and returns `{ profile, xProfile, profileCreated }` instead of just the X profile ([#10668](https://github.com/MetaMask/core/pull/10668))
+- `ProfileService.connectX` response now includes the optional `profile_created` boolean reported by the backend (optional so older backends without the field still validate) ([#10668](https://github.com/MetaMask/core/pull/10668))
+- `ProfileService.getXAuthUrl` now accepts an optional CAIP-10 `linkedAddress` parameter, sent as the `linked_address` query parameter (required by the backend when the profile does not exist yet) ([#10668](https://github.com/MetaMask/core/pull/10668))
+- `ProfileController.connectX` persists `xProfile` in state immediately after a successful connect; if the follow-up profile fetch fails, the X link stays persisted and a clear error is thrown ([#10668](https://github.com/MetaMask/core/pull/10668))
+
 ## [1.0.1]
 
 ### Changed
