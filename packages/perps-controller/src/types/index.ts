@@ -415,6 +415,13 @@ export type OrderResult = {
  * user. Surfaced by providers with durable settlement state (Lighter).
  */
 export type PerpsPendingManualRecovery = {
+  /** Owning provider route; mandatory on aggregated recovery rows. */
+  providerId?: PerpsProviderType;
+  /** Issuing wallet/network scope when supplied by the provider. */
+  walletAddress?: string;
+  network?: string;
+  /** Opaque selected source-operation identity, when explicit resolution is supported. */
+  recoveryId?: string;
   symbol: string;
   /** Durable identity (address:accountIndex:apiKey:symbol). */
   settlementKey: string;
@@ -425,21 +432,73 @@ export type PerpsPendingManualRecovery = {
   priorIntent: 'replace' | 'remove';
   /** Venue order ids still on the books when the state was parked. */
   survivingOrderIds: string[];
+  /**
+   * Original fixed coverage, for review only; never permission to replay.
+   * A current-key journal may still belong to a running operation. Await its
+   * result before selecting explicit recovery; listing does not reconcile it.
+   */
+  partialIntent?: {
+    version: 1;
+    positionSide: 'long' | 'short';
+    linkage: 'single' | 'oco';
+    legs: {
+      type: 'take-profit' | 'stop-loss';
+      size: string;
+      clientOrderId: string;
+    }[];
+  };
   /** What the user should do to resolve the state. */
   actionNeeded: string;
 };
+
+/** Fresh, authoritative venue state for one issuing provider context. */
+export type PerpsRecoveryVenueReview =
+  | { status: 'unsupported'; providerId: PerpsProviderType; reason: string }
+  | {
+      status: 'ready';
+      providerId: PerpsProviderType;
+      walletAddress: string;
+      network: string;
+      accountIndex: number;
+      positions: Position[];
+      orders: Order[];
+      reviewedAt: number;
+    };
+
+/** Explicit successor protection for one opaque durable source obligation. */
+export type ResolveRecoveryProtectionParams = UpdatePositionTPSLParams & {
+  recoveryId: string;
+};
+
+/** Unsupported capability is distinct from a supported but unresolved intent. */
+export type PerpsRecoveryProtectionResult =
+  | (OrderResult & {
+      status: 'settled' | 'unresolved';
+      providerId: PerpsProviderType;
+    })
+  | {
+      status: 'unsupported';
+      providerId: PerpsProviderType;
+      success: false;
+      error: string;
+    };
 
 /**
  * A local dispatch requiring reconciliation or acknowledgment. Raw unresolved
  * dispatches include current-session in-flight submissions, have
  * acknowledgeable:false and cannot be acknowledged. Listing starts no
- * background reconciliation; a later fenced financial action checks
- * authoritative state before dispatch and remains blocked if unresolved. For
+ * background reconciliation. Explicit reconcileRecoveredDispatches checks venue
+ * evidence without signing or retrying; TP/SL-owned entries remain pending. A
+ * later fenced financial action still blocks unresolved dispatches. For
  * resolved outcomes, writes stay blocked until explicitly acknowledged via
  * `acknowledgeRecoveredDispatch` (after the caller refreshes venue
  * state) — except `failed`, which is retry-safe and non-blocking.
  */
 export type PerpsRecoveredDispatch = {
+  /** Owning provider for strict review and explicit acknowledgment routing. */
+  providerId?: PerpsProviderType;
+  walletAddress?: string;
+  network?: string;
   /** Opaque stable id for selective acknowledgment; preserve exactly, never parse. */
   recoveryId: string;
   /** Original trading-key slot when the provider has per-key recovery ledgers. */
@@ -1771,6 +1830,19 @@ type ReadyPerpsOrderCapabilities = Readonly<{
     childOrderIds: 'request-correlated';
     takeProfitOrderType: 'take_profit_market' | 'take_profit_limit';
     stopLossOrderType: 'stop_market' | 'stop_limit';
+    /** Coverage when the caller omits explicit TP/SL sizes. */
+    defaultCoverage?: 'position-snapshot' | 'dynamic-position';
+    /** Fixed positive quantities; omitted means support is unreported. */
+    partialCoverage?: Readonly<{
+      /** When reported, a single explicitly sized leg is supported. */
+      single: true;
+      /** Equal native OCO quantities, or independently sized sibling triggers. */
+      pair: 'equal-quantity-oco' | 'independent';
+      /** Prior selected protection is canceled before replacement creation. */
+      replacement: 'cancel-before-create';
+      /** Explicit recovery ID/current intent, or the provider's existing recovery policy. */
+      recovery: 'explicit-current-position-intent' | 'provider-default';
+    }>;
   }>;
 
   /**
@@ -2127,7 +2199,15 @@ export type PerpsProvider = {
   // settlement state — Lighter). Read-only listings plus selective,
   // explicit acknowledgment; never destructive read-all.
   getPendingManualRecoveries?(): Promise<PerpsPendingManualRecovery[]>;
+  reviewRecoveryVenue?(params?: {
+    providerId?: PerpsProviderType;
+  }): Promise<PerpsRecoveryVenueReview>;
+  resolveRecoveryProtection?(
+    params: ResolveRecoveryProtectionParams,
+  ): Promise<PerpsRecoveryProtectionResult>;
   getRecoveredDispatches?(): Promise<PerpsRecoveredDispatch[]>;
+  /** Non-financial venue checks with local persistence; no signing, retry or acknowledgment. */
+  reconcileRecoveredDispatches?(): Promise<PerpsRecoveredDispatch[]>;
   acknowledgeRecoveredDispatch?(recoveryId: string): Promise<void>;
   getPositions(params?: GetPositionsParams): Promise<Position[]>;
   getAccountState(params?: GetAccountStateParams): Promise<AccountState>;

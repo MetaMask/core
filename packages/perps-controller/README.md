@@ -169,6 +169,93 @@ read errors instead of relying on a session's old active-market snapshot.
 `MarketInfo.priceDecimals` exposes Lighter's fixed price grid for callers
 deriving thresholds. Missing precision is unknown, not a zero-decimal grid.
 
+## Explicit dispatch reconciliation
+
+`reviewRecoveryVenue({ providerId })` reads fresh authoritative positions and orders
+for one provider, wallet, network and venue account. A ready response carries that
+scope and `reviewedAt`; transport, identity, authentication or metadata failures
+reject instead of returning an empty account. The read can sign an authentication
+token with a matching locally retained registered key. It never registers a key,
+allocates a venue slot, signs a financial transaction, starts protection recovery,
+or acknowledges or clears an obligation. Missing local read authority requires
+reconnecting a matching key. Aggregated callers must name the owning provider;
+unsupported providers return `status: 'unsupported'`.
+
+A manual protection row may include an opaque `recoveryId`. After review, an
+explicit `resolveRecoveryProtection({ providerId, recoveryId, symbol,
+expectedPosition, takeProfitPrice, stopLossPrice })` selects that exact obligation
+and requests new protection (omit both prices for removal). Preserve the ID
+verbatim. Lighter reconciles pending original-slot attempts by their exact venue
+identity before using a matching current registered key; the original private key
+is not required when this evidence is authoritative. The successor only replaces
+orders owned by the selected obligation. Its durable source relationship survives
+response loss and restart; failed or ambiguous settlement leaves recovery visible.
+The result distinguishes `settled`, `unresolved`, and `unsupported`. This is an
+explicit financial operation and must never run as part of review or rendering.
+
+`getRecoveredDispatches()` and `getPendingManualRecoveries()` list local recovery
+state. Confirmed account absence and known Premium accounts retain their local rows without signer setup
+or venue reconciliation; a wallet with no recorded obligations returns an empty
+inventory. Premium trading remains unsupported. Transport failures, corrupt or
+unavailable storage, wrong-wallet accounts and unknown account types still reject.
+Verified accounts are indexed before venue mutation so nonce-only obligations
+remain discoverable after restart even if the venue reports account absence.
+Existing protection indices also preserve older account identities. Legacy
+nonce-only obligations without an account or protection index become discoverable
+when the venue account returns; they are never deleted or reset during absence.
+Account capacity is bounded by `LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT`, exported through
+`constants` and `constants/lighterConfig`.
+
+Call `reconcileRecoveredDispatches()` only when the user requests a status check.
+This non-financial operation reads venue evidence and updates local ledgers.
+It does not initialize a signer, register a key, sign, submit, cancel, acknowledge
+or retry an intent. Lighter checks owner-null dispatches across all trading slots;
+TP/SL-owned entries and their journals remain pending for their separate recovery
+flow. Existing quarantines do not prevent checking other unresolved entries.
+
+Replace the displayed list with the returned list, including its opaque IDs.
+Pending rows and all local-only absent or Premium rows have
+`acknowledgeable: false`. Acknowledgment requires a supported current account.
+A pending row disappearing can mean its exact transaction was proven absent,
+not successful execution. Unknown outcomes remain unknown. Acknowledgment still requires explicit user review and
+never grants permission to resubmit an ambiguous intent. Providers without this
+capability return their local listing, or an empty list if they have no recovery
+state. Aggregation rejects when any provider fails; consumers should retain their
+last known rows alongside that error.
+
+## Lighter fixed partial position protection
+
+`updatePositionTPSL` accepts a positive `takeProfitSize` or `stopLossSize` for
+one trigger, or both sizes for an equal-quantity OCO pair. Explicit quantities
+normalize downward on the market size grid without increasing the request.
+Values below one tick or above the exact current position are rejected. A pair
+with unequal normalized quantities or only one supplied size is rejected before
+mutation. Omitting both sizes retains the existing full-position snapshot
+behavior. Explicit sizes never become the venue's dynamic zero-quantity
+sentinel.
+
+Partial replacement cancels only managed or explicitly selected protection, then
+proves exact cancellations before creating the replacement. Independent orders
+remain untouched. This leaves a protection gap if creation fails. The durable
+operation records the original fixed quantities and client IDs before
+cancellation; ambiguous creation is reconciled without replay.
+
+A proven-unsent operation releases its journal and permits fresh intent. Listing
+keeps unsent journals selectable until a fresh update retires them.
+Current-key journals with attempted transactions may appear while their
+operation is still running; wait for the issuing operation to finish before
+choosing recovery.
+
+After a dispatched cancellation or interrupted creation, recovery never attaches
+the saved quantity automatically. Lighter does not expose an immutable position
+lifecycle ID, so even an identical-looking position could have been closed and
+reopened. Ordinary retries cannot change or dispatch the stored intent. Inspect
+the exact recovery and call `resolveRecoveryProtection` with its recovery ID and
+a fresh explicit intent for the current position. The capability metadata
+reports this boundary, snapshot coverage, and equal-quantity OCO linkage.
+Hyperliquid continues to report independent fixed partial triggers and dynamic
+whole-position coverage through its existing implementation.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).

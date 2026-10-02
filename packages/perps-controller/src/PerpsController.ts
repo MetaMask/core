@@ -126,6 +126,9 @@ import type {
   ScalePriceLadderUnavailableReason,
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
+  PerpsRecoveryVenueReview,
+  ResolveRecoveryProtectionParams,
+  PerpsRecoveryProtectionResult,
   Position,
   SubscribeAccountParams,
   SubscribeCandlesParams,
@@ -952,6 +955,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPositions',
   'getSelectedOrderType',
   'getRecoveredDispatches',
+  'reconcileRecoveredDispatches',
+  'reviewRecoveryVenue',
+  'resolveRecoveryProtection',
   'acknowledgeRecoveredDispatch',
   'getTradeConfiguration',
   'getRecentlyViewedMarkets',
@@ -3979,6 +3985,149 @@ export class PerpsController extends BaseController<
       return [];
     }
     return provider.getRecoveredDispatches();
+  }
+
+  /**
+   * Execute an explicit successor for one selected durable protection obligation.
+   *
+   * @param params - Owning provider, opaque source ID and new protection intent.
+   * @returns Settled, unresolved or unsupported recovery result.
+   */
+  async resolveRecoveryProtection(
+    params: ResolveRecoveryProtectionParams,
+  ): Promise<PerpsRecoveryProtectionResult> {
+    const issuedContext = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    if (this.state.activeProvider === 'aggregated' && !params.providerId) {
+      throw new Error('Protection recovery requires an explicit provider');
+    }
+    if (
+      params.providerId &&
+      this.state.activeProvider !== 'aggregated' &&
+      params.providerId !== this.state.activeProvider
+    ) {
+      throw new Error(
+        'Protection recovery provider does not match the active context',
+      );
+    }
+    const providerId = params.providerId ?? this.state.activeProvider;
+    if (providerId === 'aggregated') {
+      throw new Error('Protection recovery requires an explicit provider');
+    }
+    if (!provider.resolveRecoveryProtection) {
+      return {
+        status: 'unsupported',
+        providerId,
+        success: false,
+        error: 'Selected protection recovery is unavailable for this provider',
+      };
+    }
+    const traceId = uuidv4();
+    this.#options.infrastructure.tracer.trace({
+      name: PerpsTraceNames.UpdateTpsl,
+      op: PerpsTraceOperations.PositionManagement,
+      id: traceId,
+      tags: { provider: providerId },
+    });
+    try {
+      const result = await provider.resolveRecoveryProtection(params);
+      if (issuedContext !== this.#getActionContext()) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+      if (result.status === 'settled' && result.success) {
+        this.update((state) => {
+          state.lastUpdateTimestamp = Date.now();
+        });
+      }
+      this.#options.infrastructure.tracer.addBreadcrumb({
+        category: 'perps.recovery',
+        message: 'Explicit protection recovery completed',
+        level: result.status === 'settled' ? 'info' : 'warning',
+        data: { providerId, status: result.status },
+      });
+      return result;
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.resolveRecoveryProtection'),
+        this.#getErrorContext('resolveRecoveryProtection'),
+      );
+      throw error;
+    } finally {
+      this.#options.infrastructure.tracer.endTrace({
+        name: PerpsTraceNames.UpdateTpsl,
+        id: traceId,
+      });
+    }
+  }
+
+  /**
+   * Review fresh venue positions and orders for one issuing provider context.
+   * Auth signing may be required; registration and financial writes are forbidden.
+   *
+   * @param params - Owning provider route.
+   * @param params.providerId - Explicit provider identifier.
+   * @returns Strict venue review or honest unsupported capability.
+   */
+  async reviewRecoveryVenue(
+    params: { providerId?: PerpsProviderType } = {},
+  ): Promise<PerpsRecoveryVenueReview> {
+    const issuedContext = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    if (this.state.activeProvider === 'aggregated' && !params.providerId) {
+      throw new Error('Recovery review requires an explicit provider');
+    }
+    if (
+      params.providerId &&
+      this.state.activeProvider !== 'aggregated' &&
+      params.providerId !== this.state.activeProvider
+    ) {
+      throw new Error(
+        'Recovery review provider does not match the active context',
+      );
+    }
+    if (!provider.reviewRecoveryVenue) {
+      const providerId = params.providerId ?? this.state.activeProvider;
+      if (providerId === 'aggregated') {
+        throw new Error('Recovery review requires an explicit provider');
+      }
+      return {
+        status: 'unsupported',
+        providerId,
+        reason:
+          'Authoritative recovery review is unavailable for this provider',
+      };
+    }
+    const review = await provider.reviewRecoveryVenue(params);
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return review;
+  }
+
+  /**
+   * Explicit non-financial reconciliation with local persistence. Never signs,
+   * retries or acknowledges dispatches. Unsupported providers return their local
+   * listed state, or an empty list when neither capability is available.
+   * Rejects account, network or provider changes during controller readiness.
+   *
+   * @returns Newly scoped pending and recovered dispatches.
+   */
+  async reconcileRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const issuedContext = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (this.#getActionContext() !== issuedContext) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    if (provider.reconcileRecoveredDispatches) {
+      return provider.reconcileRecoveredDispatches();
+    }
+    return provider.getRecoveredDispatches?.() ?? [];
   }
 
   /**

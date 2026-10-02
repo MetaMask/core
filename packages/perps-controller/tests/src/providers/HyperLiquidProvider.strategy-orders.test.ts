@@ -8171,6 +8171,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -8199,6 +8206,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -8224,6 +8238,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -8264,6 +8285,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
             childOrderIds: 'request-correlated',
             takeProfitOrderType: 'take_profit_limit',
             stopLossOrderType: 'stop_market',
+            defaultCoverage: 'dynamic-position',
+            partialCoverage: {
+              single: true,
+              pair: 'independent',
+              replacement: 'cancel-before-create',
+              recovery: 'provider-default',
+            },
           },
           supportedTriggerOrderTypes: [
             'stop_market',
@@ -8361,6 +8389,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -8483,6 +8518,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -8511,6 +8553,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -8595,6 +8644,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -8621,6 +8677,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -8670,6 +8733,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
             childOrderIds: 'request-correlated',
             takeProfitOrderType: 'take_profit_limit',
             stopLossOrderType: 'stop_market',
+            defaultCoverage: 'dynamic-position',
+            partialCoverage: {
+              single: true,
+              pair: 'independent',
+              replacement: 'cancel-before-create',
+              recovery: 'provider-default',
+            },
           },
           supportedTriggerOrderTypes: [
             'stop_market',
@@ -8688,6 +8758,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
             childOrderIds: 'request-correlated',
             takeProfitOrderType: 'take_profit_limit',
             stopLossOrderType: 'stop_market',
+            defaultCoverage: 'dynamic-position',
+            partialCoverage: {
+              single: true,
+              pair: 'independent',
+              replacement: 'cancel-before-create',
+              recovery: 'provider-default',
+            },
           },
           supportedTriggerOrderTypes: [
             'stop_market',
@@ -8790,6 +8867,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -8911,6 +8995,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -8973,6 +9064,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -9015,6 +9113,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -9064,6 +9169,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',
@@ -9292,6 +9404,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
           childOrderIds: 'request-correlated',
           takeProfitOrderType: 'take_profit_limit',
           stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
         },
         supportedTriggerOrderTypes: [
           'stop_market',

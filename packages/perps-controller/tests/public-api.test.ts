@@ -6,6 +6,7 @@ import {
   LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS,
   LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS,
   LIGHTER_FILL_REPLAY_LIMIT,
+  LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
   LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT,
   LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT,
 } from '../src/constants/index.js';
@@ -33,6 +34,24 @@ import { createGuardedHyperLiquidClient } from '../src/utils/guardedHyperLiquidC
 import { assertExpectedPosition } from '../src/utils/positionProtection.js';
 
 describe('@metamask/perps-controller public API', () => {
+  it('exports the durable recovery account capacity', () => {
+    expect(LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT).toBe(64);
+  });
+  it('exports strict recovery review and explicit protection resolution', () => {
+    expect(typeof PerpsController.prototype.reviewRecoveryVenue).toBe(
+      'function',
+    );
+    expect(typeof PerpsController.prototype.resolveRecoveryProtection).toBe(
+      'function',
+    );
+  });
+
+  it('exposes explicit non-financial reconciliation on the public controller', () => {
+    expect(typeof PerpsController.prototype.reconcileRecoveredDispatches).toBe(
+      'function',
+    );
+  });
+
   it('exports the trading configuration constants', () => {
     expect([
       LIGHTER_MIN_TRADING_API_KEY_INDEX,
@@ -60,6 +79,13 @@ describe('@metamask/perps-controller public API', () => {
         childOrderIds: 'request-correlated',
         takeProfitOrderType: 'take_profit_market',
         stopLossOrderType: 'stop_market',
+        defaultCoverage: 'position-snapshot',
+        partialCoverage: {
+          single: true,
+          pair: 'equal-quantity-oco',
+          replacement: 'cancel-before-create',
+          recovery: 'explicit-current-position-intent',
+        },
       },
     };
     expect(legacy.expectedPosition).toBeUndefined();
@@ -70,6 +96,9 @@ describe('@metamask/perps-controller public API', () => {
       }),
     ).not.toThrow();
     expect(capability.positionTpsl?.supportsExpectedPosition).toBe(true);
+    expect(capability.positionTpsl?.partialCoverage?.pair).toBe(
+      'equal-quantity-oco',
+    );
     expect(typeof createGuardedHyperLiquidClient).toBe('function');
   });
 

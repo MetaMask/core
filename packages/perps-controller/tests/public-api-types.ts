@@ -2,9 +2,17 @@ import type {
   DirectProviderOrderCapabilities,
   TriggerOrderType,
   PerpsRecoveredDispatch,
+  PerpsPendingManualRecovery,
+  PerpsRecoveryVenueReview,
+  PerpsRecoveryProtectionResult,
+  ResolveRecoveryProtectionParams,
+  PerpsControllerReviewRecoveryVenueAction,
+  PerpsControllerResolveRecoveryProtectionAction,
   PerpsControllerGetRecoveredDispatchesAction,
+  PerpsControllerReconcileRecoveredDispatchesAction,
   PerpsControllerAcknowledgeRecoveredDispatchAction,
 } from '@metamask/perps-controller';
+import type { LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT } from '@metamask/perps-controller/constants/lighterConfig';
 
 // Compile-time consumer contracts. These are not runtime fixture assertions.
 type AssertCompatible<Expected, Actual extends Expected> = Actual;
@@ -16,6 +24,43 @@ type IsExact<Actual, Expected> =
     : false;
 type AssertTrue<Value extends true> = Value;
 export type RecoveryConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerReviewRecoveryVenueAction['handler']>,
+      Promise<PerpsRecoveryVenueReview>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerResolveRecoveryProtectionAction['handler']>,
+      [params: ResolveRecoveryProtectionParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerResolveRecoveryProtectionAction['handler']>,
+      Promise<PerpsRecoveryProtectionResult>
+    >
+  >,
+
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerReconcileRecoveredDispatchesAction['handler']>,
+      []
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerReconcileRecoveredDispatchesAction['handler']>,
+      Promise<PerpsRecoveredDispatch[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerReconcileRecoveredDispatchesAction['type'],
+      'PerpsController:reconcileRecoveredDispatches'
+    >
+  >,
   AssertTrue<
     IsExact<PerpsRecoveredDispatch['apiKeyIndex'], number | undefined>
   >,
@@ -96,4 +141,39 @@ export type TriggerCapabilityConsumerContract = AssertTrue<
     >['supportedTriggerOrderTypes'],
     readonly TriggerOrderType[] | undefined
   >
+>;
+
+export type PartialProtectionCapabilityConsumerContract = AssertTrue<
+  IsExact<
+    NonNullable<
+      NonNullable<
+        Extract<
+          DirectProviderOrderCapabilities,
+          { status: 'ready' }
+        >['positionTpsl']
+      >['partialCoverage']
+    >['pair'],
+    'equal-quantity-oco' | 'independent'
+  >
+>;
+
+export type PartialRecoveryConsumerContract = AssertTrue<
+  IsExact<
+    PerpsPendingManualRecovery['partialIntent'],
+    | {
+        version: 1;
+        positionSide: 'long' | 'short';
+        linkage: 'single' | 'oco';
+        legs: {
+          type: 'take-profit' | 'stop-loss';
+          size: string;
+          clientOrderId: string;
+        }[];
+      }
+    | undefined
+  >
+>;
+
+export type RecoveryAccountCapacityConsumerContract = AssertTrue<
+  IsExact<typeof LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT, 64>
 >;
