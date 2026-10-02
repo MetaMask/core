@@ -5842,7 +5842,7 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   /**
-   * Report native standalone triggers for an active, known market. Explicit
+   * Report native standalone triggers for an active, known perpetual market. Explicit
    * margin modes and strategies remain unreported until their write paths exist.
    *
    * @param params - Market route to inspect.

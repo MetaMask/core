@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support native Lighter standalone `stop_market`, `stop_limit`, `take_profit_market` and `take_profit_limit` placement and validation for active markets, preserving trigger levels, execution protection and reduce-only quantities. Report the supported types through `getOrderCapabilities` and expose the fixed venue grid as optional `MarketInfo.priceDecimals` ([#10638](https://github.com/MetaMask/core/pull/10638))
+- Support native Lighter standalone `stop_market`, `stop_limit`, `take_profit_market` and `take_profit_limit` placement and validation for active perpetual markets, preserving trigger levels, execution protection and reduce-only quantities. Report the supported types through `getOrderCapabilities` and expose the fixed venue grid as optional `MarketInfo.priceDecimals` ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Export `LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT` and `LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT` from both `constants` and `constants/lighterConfig` ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Export Lighter trading-slot bounds/count, registration visibility timeout/poll/attempt cap and fill replay capacity from both `constants` and `constants/lighterConfig`: `LIGHTER_MIN_TRADING_API_KEY_INDEX`, `LIGHTER_MAX_TRADING_API_KEY_INDEX`, `LIGHTER_TRADING_API_KEY_COUNT`, `LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS`, `LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS`, `LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS`, and `LIGHTER_FILL_REPLAY_LIMIT` ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Add optional `supportedTriggerOrderTypes` to ready order capabilities and the public `HYPERLIQUID_ORDER_CAPABILITIES` constant. Hyperliquid reports its implemented standalone stop/take-profit placements; missing declarations mean unsupported, independently of strategy and attached TP/SL support ([#10629](https://github.com/MetaMask/core/pull/10629))
@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Add `order_market_unsupported` to `DirectProviderOrderCapabilitiesUnavailableReason` and `OrderCapabilitiesUnavailableReason` for known inactive markets that cannot accept native triggers. Consumers exhaustively matching these unions must include the new reason; Scale price-ladder reasons are unchanged ([#10638](https://github.com/MetaMask/core/pull/10638))
+- **BREAKING:** Add `order_market_unsupported` to `DirectProviderOrderCapabilitiesUnavailableReason` and `OrderCapabilitiesUnavailableReason` for known markets that are inactive or not perpetual and cannot accept native triggers. Consumers exhaustively matching these unions must include the new reason; Scale price-ladder reasons are unchanged ([#10638](https://github.com/MetaMask/core/pull/10638))
 - **BREAKING:** Refuse stray `triggerPrice` on Lighter basic market and limit orders with `ORDER_TRIGGER_PRICE_NOT_SUPPORTED` rather than silently ignoring it. Omit the field or select an explicit trigger order type ([#10638](https://github.com/MetaMask/core/pull/10638))
 - **BREAKING:** Lighter position TP/SL replacement and removal preserve independent partial triggers and trigger limits. Legacy unrecorded trigger-market orders count as protection only on the closing side with exactly the in-lock position quantity and a known restorable time-in-force. Cancel independent orders and pre-upgrade protection whose quantity no longer matches explicitly ([#10638](https://github.com/MetaMask/core/pull/10638))
 - **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
@@ -28,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Restrict Lighter native standalone trigger capabilities, validation and placement to active perpetual markets; reject spot triggers before signer setup or submission ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Keep newly created Lighter TP/SL ownership across resizing and restart. Bound history reads to one page, reclaim only proven terminal or expired IDs, and retain uncertain IDs when history is unavailable ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Keep Lighter TP/SL recovery obligations for venue-accepted submissions when a later lookup cannot find them, so recovery cannot discard live protection ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Allow removal of proven managed Lighter TP/SL IDs when the position disappears, becomes zero or falls below the size tick after preflight. Require an authoritative account/positions response, preserve unrecorded protection without valid live quantity and side, and retain replacement size/side guards ([#10638](https://github.com/MetaMask/core/pull/10638))
