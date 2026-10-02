@@ -743,7 +743,6 @@ export class KycService extends BaseDataService<
       body: JSON.stringify({
         vendorId: params.vendor ?? 'moonpay',
         vendorUserId: 'mockedId',
-        jwtToken: 'mock-jwt-token', // TODO: Remove this from the kyc-api
         sessionClientPublicKey: params.sessionClientPublicKey,
         residenceCountry: params.residenceCountry,
         vendorMetadata: params.vendorMetadata ?? {},
