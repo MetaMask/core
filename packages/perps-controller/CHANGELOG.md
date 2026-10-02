@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block Lighter protection changes after trading-key migration while a journal for the same wallet, network, account and symbol remains unfinished under its original key slot ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Reject recovered-dispatch acknowledgment when the selected wallet, network, provider or provider lifetime changes during readiness or acknowledgment, including failed provider/network switch rollbacks and legacy recovery IDs. A stale-context rejection after provider success does not undo acknowledgment in the issuing account; callers must re-list outcomes before acting again ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Refuse stale signer readiness after a wallet switch or bridge reset while setup finishes, preserving unfinished TP/SL recovery visibility ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Fence Lighter financial writes across every local account key slot so migration cannot bypass a pending or quarantined dispatch. Reconcile exact transaction identities under an account-wide write mutex; discovery and key registration share this mutex but bypass other-slot financial obligations. Nonterminal or mismatched transactions stay unresolved and cannot be acknowledged ([#10618](https://github.com/MetaMask/core/pull/10618))
