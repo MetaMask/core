@@ -222,7 +222,7 @@ describe('Lighter bounded Chase lifecycle', () => {
     env.setNow(101000);
     env.setQuote('99999');
     const result = await env.service.tick(owner, intent.handle, env.io);
-    expect(result.status).toBe('termination_pending');
+    expect(result.status).toBe('active');
     expect(env.io.place).toHaveBeenCalledTimes(1);
     await env.service.tick(owner, intent.handle, env.io);
     expect(env.io.cancel).toHaveBeenCalledTimes(1);
@@ -335,7 +335,9 @@ describe('Lighter bounded Chase lifecycle', () => {
       env.setNow(next);
       env.setQuote(quote);
       const result = await env.service.tick(owner, intent.handle, env.io);
-      expect(result.status).toBe(status);
+      expect(result.status).toBe('canceled');
+      expect(result.stopReason).toBe(status);
+      expect(result.children.at(-1)?.observation?.terminal).toBe(true);
       expect(env.io.place).toHaveBeenCalledTimes(1);
       expect(env.io.cancel).toHaveBeenCalledTimes(1);
     },
@@ -443,5 +445,194 @@ describe('Lighter bounded Chase lifecycle', () => {
       (await restarted.stop(owner, intent.handle, env.io, 'canceled')).status,
     ).toBe('canceled');
     expect(env.io.place).toHaveBeenCalledTimes(1);
+  });
+  it('keeps local stop of a settled handle from interrupting newer or unrelated sessions', async () => {
+    const env = setup();
+    await env.service.start(intent, env.io);
+    const settled = await env.service.stop(
+      owner,
+      intent.handle,
+      env.io,
+      'canceled',
+    );
+    const newer = { ...intent, handle: 'lighter-chase:200' };
+    const unrelated = {
+      ...intent,
+      handle: 'lighter-chase:300',
+      owner: { ...owner, accountIndex: 29 },
+    };
+    const current = await env.service.start(newer, env.io);
+    const other = await env.service.start(unrelated, env.io);
+
+    expect(
+      await env.service.stopLocally(
+        owner,
+        intent.handle,
+        { assertCurrent: env.io.assertCurrent },
+        'backgrounded',
+        'authority unavailable',
+      ),
+    ).toStrictEqual(settled);
+
+    expect((await env.service.list(owner, env.io))[1]).toStrictEqual(current);
+    expect((await env.service.list(unrelated.owner, env.io))[0]).toStrictEqual(
+      other,
+    );
+    env.setNow(101000);
+    env.setQuote('99999');
+    expect(
+      (await env.service.tick(owner, newer.handle, env.io)).repricings,
+    ).toBe(1);
+    expect(
+      (await env.service.tick(unrelated.owner, unrelated.handle, env.io))
+        .repricings,
+    ).toBe(1);
+  });
+  it('rejects a local stop when its session changes during the journal read', async () => {
+    const env = setup();
+    const retained = await env.service.start(intent, env.io);
+    const entered = createDeferred<void>();
+    const pending = createDeferred<void>();
+    let current = true;
+    const assertCurrent = (): void => {
+      if (!current) {
+        throw new Error('session changed');
+      }
+    };
+    env.storage.getItem.mockImplementationOnce(async (key) => {
+      entered.resolve();
+      await pending.promise;
+      return env.disk.get(key) ?? null;
+    });
+    const writes = env.storage.setItem.mock.calls.length;
+    const reads = jest.mocked(env.io.observe).mock.calls.length;
+    const stopping = env.service.stopLocally(
+      owner,
+      intent.handle,
+      { assertCurrent },
+      'backgrounded',
+      'authority unavailable',
+    );
+    await entered.promise;
+    current = false;
+    pending.resolve();
+
+    await expect(stopping).rejects.toThrow('session changed');
+
+    expect(env.storage.setItem).toHaveBeenCalledTimes(writes);
+    expect(jest.mocked(env.io.observe)).toHaveBeenCalledTimes(reads);
+    expect(env.io.cancel).not.toHaveBeenCalled();
+    expect((await env.service.list(owner, env.io))[0].children).toStrictEqual(
+      retained.children,
+    );
+  });
+  it('rejects failed local stop persistence without consuming cancellation ownership', async () => {
+    const env = setup();
+    const retained = await env.service.start(intent, env.io);
+    env.storage.setItem.mockRejectedValueOnce(
+      new Error('local stop storage unavailable'),
+    );
+
+    await expect(
+      env.service.stopLocally(
+        owner,
+        intent.handle,
+        { assertCurrent: env.io.assertCurrent },
+        'backgrounded',
+        'authority unavailable',
+      ),
+    ).rejects.toThrow('local stop storage unavailable');
+
+    expect(env.io.cancel).not.toHaveBeenCalled();
+    expect((await env.service.list(owner, env.io))[0].children).toStrictEqual(
+      retained.children,
+    );
+  });
+  it('checks the absolute duration before the interval throttle', async () => {
+    const env = setup();
+    await env.service.start(
+      { ...intent, intervalMs: 120000, maxDurationMs: 180000 },
+      env.io,
+    );
+    env.setNow(220000);
+    await env.service.tick(owner, intent.handle, env.io);
+    env.setNow(280000);
+    const result = await env.service.tick(owner, intent.handle, env.io);
+    expect(result).toMatchObject({
+      status: 'canceled',
+      stopReason: 'duration_reached',
+    });
+    expect(env.io.cancel).toHaveBeenCalledTimes(1);
+    expect(env.io.place).toHaveBeenCalledTimes(1);
+  });
+  it('requests duration cleanup after a slow quote without replacing', async () => {
+    const env = setup();
+    await env.service.start(intent, env.io);
+    env.setNow(159000);
+    jest.mocked(env.io.quote).mockImplementation(async () => {
+      env.setNow(160000);
+      return '99999';
+    });
+    const result = await env.service.tick(owner, intent.handle, env.io);
+    expect(result).toMatchObject({
+      status: 'canceled',
+      stopReason: 'duration_reached',
+    });
+    expect(env.io.place).toHaveBeenCalledTimes(1);
+    expect(env.io.cancel).toHaveBeenCalledTimes(1);
+  });
+  it('keeps a settled stop reason and status unchanged on later cancellation', async () => {
+    const env = setup();
+    await env.service.start(intent, env.io);
+    env.setNow(160000);
+    const stopped = await env.service.tick(owner, intent.handle, env.io);
+    const repeated = await env.service.stop(
+      owner,
+      intent.handle,
+      env.io,
+      'backgrounded',
+    );
+    expect(repeated).toStrictEqual(stopped);
+    expect(repeated).toMatchObject({
+      status: 'canceled',
+      stopReason: 'duration_reached',
+    });
+    expect(env.io.cancel).toHaveBeenCalledTimes(1);
+  });
+  it('preserves the first stop reason while cleanup remains uncertain', async () => {
+    const env = setup();
+    await env.service.start(intent, env.io);
+    jest.mocked(env.io.cancel).mockRejectedValue(new Error('unavailable'));
+    await env.service.stop(owner, intent.handle, env.io, 'canceled');
+    const result = await env.service.stop(
+      owner,
+      intent.handle,
+      env.io,
+      'backgrounded',
+    );
+    expect(result.stopReason).toBe('canceled');
+    expect(result.status).toBe('termination_pending');
+  });
+  it('retains the explicit stop reason requested during an in-flight quote', async () => {
+    const env = setup();
+    await env.service.start(intent, env.io);
+    env.setNow(101000);
+    const quoted = createDeferred<void>();
+    const pending = createDeferred<string>();
+    jest.mocked(env.io.quote).mockImplementation(async () => {
+      quoted.resolve();
+      return await pending.promise;
+    });
+    const ticking = env.service.tick(owner, intent.handle, env.io);
+    await quoted.promise;
+    const stopping = env.service.stop(owner, intent.handle, env.io, 'canceled');
+    pending.resolve('99999');
+    await ticking;
+    expect(await stopping).toMatchObject({
+      status: 'canceled',
+      stopReason: 'canceled',
+    });
+    expect(env.io.place).toHaveBeenCalledTimes(1);
+    expect(env.io.cancel).toHaveBeenCalledTimes(1);
   });
 });

@@ -81,6 +81,8 @@ import type {
   CancelOrdersParams,
   CancelOrdersResult,
   ChaseOrder,
+  GetChaseOrderOwnershipParams,
+  PerpsChaseOrderOwnership,
   ChaseOrderMaxDistanceReached,
   ClosePositionParams,
   ClosePositionsParams,
@@ -934,6 +936,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getCachedMarketDataForActiveProvider',
   'getCachedUserDataForActiveProvider',
   'getChaseOrders',
+  'getChaseOrderOwnership',
   'getTwapOrders',
   'getUserDataSnapshot',
   'getCurrentNetwork',
@@ -1322,6 +1325,7 @@ export class PerpsController extends BaseController<
     // preload-scoped account handler is torn down on disconnect, so it cannot
     // carry this.
     const forgetRegisteredTradingAddresses = (): void => {
+      this.#selectedAccountGeneration += 1;
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
       // Clearing alone only guarantees the *next preview* re-registers. An
       // order submitted straight after a switch, with no preview in between,
@@ -3234,8 +3238,78 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Stop Chase repricing for app backgrounding without cancelling the current
-   * resting children.
+   * Observe durable ownership for an exact Chase handle through one provider.
+   * Starts no signing, transport, continuation, cancellation or durable writes.
+   * Original owner/child IDs are observations, never permission for cleanup in
+   * a different context. Providers without durable history report unsupported.
+   *
+   * @param input - Opaque handle, explicit route and optional original owner.
+   * @returns Complete local child history, unsupported, or explicit absence.
+   * @throws On corrupt storage or account/network/provider/lifetime changes.
+   */
+  async getChaseOrderOwnership(
+    input: GetChaseOrderOwnershipParams,
+  ): Promise<PerpsChaseOrderOwnership> {
+    const params = {
+      ...input,
+      owner: input.owner ? { ...input.owner } : undefined,
+    };
+    if (!params.providerId || !params.handle) {
+      throw new Error(
+        'Chase ownership requires an exact handle and explicit provider',
+      );
+    }
+    const issuedContext = this.#getActionContext();
+    const issuedGeneration = this.#lifecycleGeneration;
+    const issuedAccountGeneration = this.#selectedAccountGeneration;
+    const issuedInstance = this.activeProviderInstance;
+    const assertCurrent = (): void => {
+      if (
+        issuedContext !== this.#getActionContext() ||
+        issuedGeneration !== this.#lifecycleGeneration ||
+        issuedAccountGeneration !== this.#selectedAccountGeneration ||
+        (issuedInstance !== null &&
+          this.activeProviderInstance !== issuedInstance)
+      ) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+    };
+    let provider: PerpsProvider;
+    try {
+      provider = await this.#getActiveProviderWhenReady();
+    } catch (error) {
+      assertCurrent();
+      throw error;
+    }
+    assertCurrent();
+    if (
+      this.state.activeProvider !== 'aggregated' &&
+      params.providerId !== this.state.activeProvider
+    ) {
+      throw new Error(
+        'Chase ownership provider does not match the active context',
+      );
+    }
+    if (!provider.getChaseOrderOwnership) {
+      return {
+        status: 'unsupported',
+        providerId: params.providerId,
+        handle: params.handle,
+        reason: 'Durable Chase ownership is unavailable for this provider',
+      };
+    }
+    const ownership = await provider.getChaseOrderOwnership(params);
+    assertCurrent();
+    if (this.getActiveProviderOrNull() !== provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return ownership;
+  }
+
+  /**
+   * Stop Chase repricing for app backgrounding. HyperLiquid leaves current
+   * children resting. The bounded Lighter probe attempts exact cancellation and
+   * reports canceled or termination_pending rather than a resting status.
    *
    * @returns Chase snapshots after suspension.
    * @throws If an aggregated provider cannot suspend every active venue. Other
@@ -4588,6 +4662,9 @@ export class PerpsController extends BaseController<
   #userPreloadQueued = false;
 
   #lifecycleGeneration = 0;
+
+  // Account events also fence round trips that finish at the original address.
+  #selectedAccountGeneration = 0;
 
   readonly #userSnapshotRequests = new Map<
     string,

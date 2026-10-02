@@ -3,9 +3,17 @@ import { webcrypto } from 'crypto';
 import {
   LIGHTER_TX_TYPE_CREATE_ORDER,
   LIGHTER_TX_TYPE_CANCEL_ORDER,
+  LIGHTER_NATIVE_PROBE_CANCEL_LIMIT,
 } from '../../../src/constants/lighterConfig.js';
+import {
+  PerpsController,
+  InitializationState,
+} from '../../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
+import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { LighterProvider } from '../../../src/providers/LighterProvider.js';
+import type { LighterChaseRecord } from '../../../src/services/LighterChaseService.js';
 import {
   LighterApiError,
   LighterClientService,
@@ -19,6 +27,10 @@ import type {
   OrderBookData,
   OrderFill,
   OrderParams,
+  PerpsProvider,
+  PerpsProviderType,
+  GetChaseOrderOwnershipParams,
+  PerpsActiveProviderMode,
 } from '../../../src/types/index.js';
 import type {
   LighterSignerBridge,
@@ -35,6 +47,8 @@ import {
   createMockInfrastructure,
   createMockServiceContext,
   createDeferred,
+  createKeyringlessMessenger,
+  keyringCalls,
 } from '../../helpers/serviceMocks.js';
 
 jest.mock('../../../src/services/LighterClientService', () => ({
@@ -671,6 +685,75 @@ class StreamFakeWebSocket implements LighterWebSocketLike {
 }
 
 const fakeStreamCtor = StreamFakeWebSocket as unknown as LighterWebSocketCtor;
+
+/** Real public controller with initialized providers and host-controlled selection. */
+class ChaseOwnershipController extends PerpsController {
+  /**
+   * @param provider - Actual provider under test.
+   * @param mode - Host route.
+   */
+  activate(
+    provider: PerpsProvider,
+    mode: PerpsActiveProviderMode = 'lighter',
+  ): void {
+    this.activeProviderInstance = provider;
+    if (mode !== 'aggregated') {
+      this.providers.set(mode, provider);
+    }
+    this.isInitialized = true;
+    this.update((state) => {
+      state.activeProvider = mode;
+      state.initializationState = InitializationState.Initialized;
+    });
+  }
+
+  /**
+   * @param change - Host context changes during an asynchronous read.
+   */
+  changeContext(change: {
+    isTestnet?: boolean;
+    activeProvider?: PerpsActiveProviderMode;
+  }): void {
+    this.update((state) => Object.assign(state, change));
+  }
+}
+
+/**
+ * @param provider - Real provider, with only external I/O mocked.
+ * @param mode - Active route.
+ * @returns Real controller and its registered public messenger.
+ */
+function ownershipController(
+  provider: PerpsProvider,
+  mode: PerpsActiveProviderMode = 'lighter',
+): {
+  controller: ChaseOwnershipController;
+  host: ReturnType<typeof createKeyringlessMessenger>;
+} {
+  const host = createKeyringlessMessenger();
+  host.selectAccount(ACCOUNT.l1Address as `0x${string}`);
+  host.rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({ remoteFeatureFlags: {}, cacheTimestamp: 0 }),
+  );
+  host.rootMessenger.delegate({
+    actions: ['RemoteFeatureFlagController:getState'],
+    events: [
+      'RemoteFeatureFlagController:stateChange',
+      'AccountsController:selectedAccountChange',
+      'AccountTreeController:selectedAccountGroupChange',
+    ],
+    messenger: host.messenger,
+  });
+  const controller = new ChaseOwnershipController({
+    messenger: host.messenger,
+    state: { isTestnet: true },
+    infrastructure: createMockInfrastructure(),
+    deferEligibilityCheck: true,
+  });
+  controller.activate(provider, mode);
+  return { controller, host };
+}
 
 describe('LighterProvider', () => {
   describe('provider-owned Scale sizing preview', () => {
@@ -29000,6 +29083,8 @@ describe('Lighter post-only placement', () => {
 });
 
 describe('Lighter bounded Chase provider probe', () => {
+  type ExactLookup = LighterClientService['getOrdersByClientIds'];
+  type TxLookup = LighterClientService['getTx'];
   const intent: OrderParams = {
     symbol: 'BTC',
     isBuy: true,
@@ -29011,8 +29096,11 @@ describe('Lighter bounded Chase provider probe', () => {
     chaseMaxRepricings: 1,
     chaseMaxDistanceBps: 100,
   };
-  const setup = (): BuiltProvider => {
+  const setup = (
+    options: Parameters<typeof buildProvider>[0] = {},
+  ): BuiltProvider => {
     const built = buildProvider({
+      ...options,
       chaseTestnetProbe: true,
       nativeTwapTestnetProbe: true,
       registeredKey: '9c'.repeat(40),
@@ -29082,6 +29170,13 @@ describe('Lighter bounded Chase provider probe', () => {
     }));
     built.clientInstance.getOrdersByClientIds.mockImplementation(
       async (_account: number, _token: string, ids: string[]) => {
+        const creates = built.calls.filter(
+          (call) => call.function === '_signCreateOrder',
+        );
+        const childIndex = creates.findIndex(
+          (call) => String(call.params[2]) === ids[0],
+        );
+        const orderId = String(9001 + childIndex);
         const create = built.calls.find(
           (call) =>
             call.function === '_signCreateOrder' &&
@@ -29091,14 +29186,16 @@ describe('Lighter bounded Chase provider probe', () => {
           return { code: 200, orders: [] };
         }
         const canceled = built.calls.some(
-          (call) => call.function === '_signCancelOrder',
+          (call) =>
+            call.function === '_signCancelOrder' &&
+            String(call.params[2]) === orderId,
         );
         return {
           code: 200,
           orders: [
             {
-              orderIndex: 9001,
-              orderId: '9001',
+              orderIndex: Number(orderId),
+              orderId,
               clientOrderIndex: Number(ids[0]),
               clientOrderId: ids[0],
               marketIndex: 1,
@@ -29107,7 +29204,7 @@ describe('Lighter bounded Chase provider probe', () => {
               remainingBaseAmount: '0.0002',
               filledBaseAmount: '0',
               filledQuoteAmount: '0',
-              price: '99999.9',
+              price: String(Number(create.params[4]) / 10),
               isAsk: false,
               type: 'limit',
               timeInForce: 'post-only',
@@ -29302,6 +29399,9 @@ describe('Lighter bounded Chase provider probe', () => {
       expect((await built.provider.getChaseOrders())[0].repricings).toBe(1);
       await jest.advanceTimersByTimeAsync(1000);
       expect((await built.provider.getChaseOrders())[0].status).toBe(
+        'canceled',
+      );
+      expect((await built.provider.getNativeChaseRecords())[0].stopReason).toBe(
         'repricing_limit_reached',
       );
     } finally {
@@ -29340,13 +29440,2463 @@ describe('Lighter bounded Chase provider probe', () => {
     const creates = built.calls.filter(
       (call) => call.function === '_signCreateOrder',
     ).length;
-    expect((await built.provider.getChaseOrders())[0].status).not.toBe(
-      'active',
+    expect((await built.provider.getChaseOrders())[0]).toMatchObject({
+      status: 'canceled',
+      restingOrderId: null,
+    });
+    expect((await built.provider.getNativeChaseRecords())[0].stopReason).toBe(
+      'backgrounded',
     );
     expect(
       built.calls.filter((call) => call.function === '_signCreateOrder'),
     ).toHaveLength(creates);
     await built.provider.disconnect();
+  });
+  const diskDependencies = (): ReturnType<typeof createMockInfrastructure> => {
+    const deps = createMockInfrastructure();
+    const disk = new Map<string, string>();
+    jest
+      .spyOn(deps.diskCache, 'getItem')
+      .mockImplementation(async (key: string) => disk.get(key) ?? null);
+    jest
+      .spyOn(deps.diskCache, 'setItem')
+      .mockImplementation(async (key: string, value: string) => {
+        disk.set(key, value);
+      });
+    return deps;
+  };
+  describe('public Chase ownership', () => {
+    const journalKey = `lighterChase:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28])}`;
+    const accountsKey = `lighterRecoveryAccounts:testnet:${ACCOUNT.l1Address.toLowerCase()}`;
+    const route = (handle: string): GetChaseOrderOwnershipParams => ({
+      handle,
+      providerId: 'lighter' as const,
+    });
+    const stored = async (
+      deps: ReturnType<typeof diskDependencies>,
+    ): Promise<{ version: 1; records: LighterChaseRecord[] }> => {
+      const raw = await deps.diskCache.getItem(journalKey);
+      if (!raw) {
+        throw new Error('Missing test journal');
+      }
+      return JSON.parse(raw) as { version: 1; records: LighterChaseRecord[] };
+    };
+    type BoundarySnapshot = {
+      wasm: LighterWasmCall[];
+      bridge: number[];
+      client: number[];
+      writes: number;
+      removes: number;
+      timers: number;
+    };
+    const boundaries = (
+      built: BuiltProvider,
+      deps: ReturnType<typeof diskDependencies>,
+    ): BoundarySnapshot => ({
+      wasm: [...built.calls],
+      bridge: Object.values(built.bridge)
+        .filter((value) => jest.isMockFunction(value))
+        .map((mock) => mock.mock.calls.length),
+      client: Object.values(built.clientInstance)
+        .filter((value) => jest.isMockFunction(value))
+        .map((mock) => mock.mock.calls.length),
+      writes: jest.spyOn(deps.diskCache, 'setItem').mock.calls.length,
+      removes: jest.spyOn(deps.diskCache, 'removeItem').mock.calls.length,
+      timers: jest.getTimerCount(),
+    });
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it('retains every exact child after multiple reprices and current-child replacement through the public messenger', async () => {
+      const deps = diskDependencies();
+      const built = setup({ platformDependencies: deps });
+      const { controller, host } = ownershipController(built.provider);
+      try {
+        await controller.init();
+        const book =
+          (await built.clientInstance.getOrderBookOrders()) as Awaited<
+            ReturnType<LighterClientService['getOrderBookOrders']>
+          >;
+        built.clientInstance.getOrderBookOrders.mockResolvedValue({
+          ...book,
+          bids: [{ ...book.bids[0], price: '99999.6' }],
+        });
+        const placed = await built.provider.placeOrder({
+          ...intent,
+          chaseMaxRepricings: 3,
+        });
+        expect(placed.success).toBe(true);
+        const handle = placed.orderId as string;
+        for (const price of ['99999.7', '99999.8']) {
+          built.clientInstance.getOrderBookOrders.mockResolvedValue({
+            ...book,
+            bids: [{ ...book.bids[0], price }],
+          });
+          await jest.advanceTimersByTimeAsync(1000);
+        }
+        const journal = await stored(deps);
+        expect(journal.records[0].children).toHaveLength(3);
+        const before = boundaries(built, deps);
+
+        const snapshot = await host.messenger.call(
+          'PerpsController:getChaseOrderOwnership',
+          route(handle),
+        );
+
+        expect(snapshot.status).toBe('available');
+        if (snapshot.status !== 'available') {
+          throw new Error('Missing ownership');
+        }
+        expect(snapshot.owner).toStrictEqual({
+          providerId: 'lighter',
+          walletAddress: ACCOUNT.l1Address.toLowerCase(),
+          network: 'testnet',
+          accountIndex: 28,
+          apiKeyIndex: 7,
+        });
+        expect(snapshot.handle).toBe(handle);
+        expect(snapshot.order).toMatchObject({
+          handle,
+          restingOrderId: '9003',
+          repricings: 2,
+        });
+        expect(
+          snapshot.children.map((child) => child.clientOrderId),
+        ).toStrictEqual(
+          journal.records[0].children.map((child) => child.clientOrderId),
+        );
+        expect(
+          snapshot.children.map((child) => child.observation),
+        ).toStrictEqual(
+          journal.records[0].children.map((child) => child.observation),
+        );
+        expect(
+          snapshot.children.map((child) => child.observation?.orderId),
+        ).toStrictEqual(['9001', '9002', '9003']);
+        expect(
+          snapshot.children.map((child) => child.observation?.terminal),
+        ).toStrictEqual([true, true, false]);
+        expect(boundaries(built, deps)).toStrictEqual(before);
+        expect(keyringCalls(host.call)).toStrictEqual([]);
+        expect(await stored(deps)).toStrictEqual(journal);
+        expect(
+          await controller.getChaseOrderOwnership({
+            ...route(handle),
+            owner: snapshot.owner,
+          }),
+        ).toStrictEqual(snapshot);
+      } finally {
+        await built.provider.disconnect();
+      }
+    });
+
+    it('preserves response loss and unknown child ownership after a signerless absent-authority restart', async () => {
+      const deps = diskDependencies();
+      const original = setup({ platformDependencies: deps });
+      original.clientInstance.sendTx.mockRejectedValueOnce(
+        new Error('response lost'),
+      );
+      const placed = await original.provider.placeOrder(intent);
+      expect(placed.success).toBe(false);
+      expect(placed.orderId).toStrictEqual(expect.any(String));
+      await original.provider.disconnect();
+      const restarted = buildProvider({
+        platformDependencies: deps,
+        withBridge: false,
+        apiKeyIndex: 8,
+        configuredAccountIndex: null,
+      });
+      restarted.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        subAccounts: [],
+      });
+      const { controller, host } = ownershipController(restarted.provider);
+      try {
+        const journal = await stored(deps);
+        const before = boundaries(restarted, deps);
+
+        const snapshot = await controller.getChaseOrderOwnership(
+          route(placed.orderId as string),
+        );
+
+        expect(snapshot).toMatchObject({
+          status: 'available',
+          owner: { apiKeyIndex: 7, accountIndex: 28 },
+          order: { status: 'termination_pending', restingOrderId: null },
+          children: [{ placement: { phase: 'attempted' } }],
+        });
+        if (snapshot.status !== 'available') {
+          throw new Error('Missing ownership');
+        }
+        expect(snapshot.children[0].observation).toBeUndefined();
+        expect(snapshot.children[0].clientOrderId).toBe(
+          journal.records[0].children[0].clientOrderId,
+        );
+        expect(snapshot.children[0].placement).toStrictEqual(
+          journal.records[0].children[0].placement,
+        );
+        expect(boundaries(restarted, deps)).toStrictEqual(before);
+        expect(keyringCalls(host.call)).toStrictEqual([]);
+        expect(await stored(deps)).toStrictEqual(journal);
+        await jest.advanceTimersByTimeAsync(60000);
+        expect(boundaries(restarted, deps)).toStrictEqual({
+          ...before,
+          timers: 0,
+        });
+        expect(
+          await controller.getChaseOrderOwnership({
+            ...route(placed.orderId as string),
+            owner: { ...snapshot.owner, apiKeyIndex: 8 },
+          }),
+        ).toMatchObject({ status: 'unavailable', reason: 'owner_mismatch' });
+      } finally {
+        await restarted.provider.disconnect();
+      }
+    });
+
+    it('preserves exact observed quantities and excludes private journal extensions', async () => {
+      const deps = diskDependencies();
+      const original = setup({ platformDependencies: deps });
+      const placed = await original.provider.placeOrder(intent);
+      await original.provider.disconnect();
+      const journal = await stored(deps);
+      const child = journal.records[0].children[0];
+      journal.records[0].error = 'secret-error-auth';
+      child.observation = {
+        orderId: '9001',
+        terminal: false,
+        filledSize: '0.000010',
+        filledNotional: '0.9999900',
+        remainingSize: '0.000190',
+      };
+      Object.assign(child, {
+        privateKey: 'secret-private-key',
+        authToken: 'secret-auth',
+        signedPayload: 'secret-payload',
+      });
+      Object.assign(child.placement, {
+        txInfo: 'secret-transaction',
+        signature: 'secret-signature',
+      });
+      await deps.diskCache.setItem(journalKey, JSON.stringify(journal));
+      const restarted = buildProvider({
+        platformDependencies: deps,
+        withBridge: false,
+      });
+      const { controller } = ownershipController(restarted.provider);
+      const before = boundaries(restarted, deps);
+      try {
+        const snapshot = await controller.getChaseOrderOwnership(
+          route(placed.orderId as string),
+        );
+        expect(snapshot.status).toBe('available');
+        if (snapshot.status !== 'available') {
+          throw new Error('Missing ownership');
+        }
+        expect(snapshot.children[0].observation).toStrictEqual(
+          child.observation,
+        );
+        expect(snapshot.executedSize).toBe('0.00001');
+        expect(snapshot.executedNotional).toBe('0.99999');
+        expect(JSON.stringify(snapshot)).not.toContain('secret-');
+        expect(boundaries(restarted, deps)).toStrictEqual(before);
+        expect(await stored(deps)).toStrictEqual(journal);
+      } finally {
+        await restarted.provider.disconnect();
+      }
+    });
+
+    it.each(['wallet', 'network', 'account', 'key', 'provider'] as const)(
+      'fences a mismatched expected %s owner without acquiring cleanup authority',
+      async (field) => {
+        const deps = diskDependencies();
+        const original = setup({ platformDependencies: deps });
+        const placed = await original.provider.placeOrder(intent);
+        await original.provider.disconnect();
+        const restarted = buildProvider({
+          platformDependencies: deps,
+          apiKeyIndex: 8,
+        });
+        const { controller } = ownershipController(restarted.provider);
+        try {
+          const snapshot = await controller.getChaseOrderOwnership(
+            route(placed.orderId as string),
+          );
+          if (snapshot.status !== 'available') {
+            throw new Error('Missing ownership');
+          }
+          const owner = { ...snapshot.owner };
+          if (field === 'wallet') {
+            owner.walletAddress = '0xforeign';
+          } else if (field === 'network') {
+            owner.network = 'mainnet';
+          } else if (field === 'account') {
+            owner.accountIndex = 29;
+          } else if (field === 'key') {
+            owner.apiKeyIndex = 8;
+          } else {
+            owner.providerId = 'hyperliquid';
+          }
+          const before = boundaries(restarted, deps);
+          expect(
+            await controller.getChaseOrderOwnership({
+              ...route(placed.orderId as string),
+              owner,
+            }),
+          ).toMatchObject({ status: 'unavailable', reason: 'owner_mismatch' });
+          expect(boundaries(restarted, deps)).toStrictEqual(before);
+          const canceled = await restarted.provider.cancelOrder({
+            orderId: snapshot.handle,
+            symbol: 'BTC',
+            orderType: 'chase',
+            providerId: 'lighter',
+          });
+          expect(canceled.success).toBe(false);
+          expect(
+            restarted.calls.filter(
+              (call) => call.function === '_signCancelOrder',
+            ),
+          ).toHaveLength(0);
+          expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+        } finally {
+          await restarted.provider.disconnect();
+        }
+      },
+    );
+
+    it.each(['prepared', 'signed', 'acknowledged', 'failed'] as const)(
+      'observes %s durable children without retiring or replaying them',
+      async (phase) => {
+        const deps = diskDependencies();
+        const original = setup({ platformDependencies: deps });
+        const placed = await original.provider.placeOrder(intent);
+        await original.provider.disconnect();
+        const journal = await stored(deps);
+        const child = journal.records[0].children[0];
+        child.placement.phase = phase;
+        delete child.observation;
+        await deps.diskCache.setItem(journalKey, JSON.stringify(journal));
+        const restarted = buildProvider({
+          platformDependencies: deps,
+          withBridge: false,
+        });
+        const { controller } = ownershipController(restarted.provider);
+        const before = boundaries(restarted, deps);
+        try {
+          const snapshot = await controller.getChaseOrderOwnership(
+            route(placed.orderId as string),
+          );
+          expect(snapshot).toMatchObject({
+            status: 'available',
+            children: [{ placement: { phase } }],
+          });
+          expect(boundaries(restarted, deps)).toStrictEqual(before);
+          expect(await stored(deps)).toStrictEqual(journal);
+        } finally {
+          await restarted.provider.disconnect();
+        }
+      },
+    );
+
+    it.each([
+      'foreign handle',
+      'missing journal',
+      'empty journal',
+      'missing account index',
+      'foreign wallet',
+      'foreign network',
+    ] as const)(
+      'returns unavailable for %s without claiming an empty complete inventory',
+      async (condition) => {
+        const deps = diskDependencies();
+        const original = setup({ platformDependencies: deps });
+        const placed = await original.provider.placeOrder(intent);
+        await original.provider.disconnect();
+        if (condition === 'missing journal') {
+          const read = jest
+            .spyOn(deps.diskCache, 'getItem')
+            .getMockImplementation();
+          if (!read) {
+            throw new Error('Missing test read');
+          }
+          jest
+            .spyOn(deps.diskCache, 'getItem')
+            .mockImplementation(async (key) =>
+              key === journalKey ? null : await read(key),
+            );
+        } else if (condition === 'empty journal') {
+          await deps.diskCache.setItem(
+            journalKey,
+            JSON.stringify({ version: 1, records: [] }),
+          );
+        } else if (condition === 'missing account index') {
+          await deps.diskCache.setItem(accountsKey, '[]');
+        }
+        const restarted = buildProvider({
+          platformDependencies: deps,
+          withBridge: false,
+          isTestnet: condition !== 'foreign network',
+        });
+        const { controller, host } = ownershipController(restarted.provider);
+        if (condition === 'foreign wallet') {
+          restarted.getUserAddressMock.mockReturnValue('0xother');
+          host.selectAccount('0xother');
+        } else if (condition === 'foreign network') {
+          controller.changeContext({ isTestnet: false });
+        }
+        try {
+          const before = boundaries(restarted, deps);
+          const snapshot = await controller.getChaseOrderOwnership(
+            route(
+              condition === 'foreign handle'
+                ? 'foreign:opaque'
+                : (placed.orderId as string),
+            ),
+          );
+          expect(snapshot).toMatchObject({
+            status: 'unavailable',
+            reason: 'not_found',
+          });
+          expect(snapshot).not.toHaveProperty('children');
+          expect(boundaries(restarted, deps)).toStrictEqual(before);
+        } finally {
+          await restarted.provider.disconnect();
+        }
+      },
+    );
+
+    it.each([
+      'invalid JSON',
+      'dangling child',
+      'corrupt account index',
+      'foreign journal owner',
+      'ambiguous handle',
+    ] as const)(
+      'rejects %s through the public controller without side effects',
+      async (condition) => {
+        const deps = diskDependencies();
+        const original = setup({ platformDependencies: deps });
+        const placed = await original.provider.placeOrder(intent);
+        await original.provider.disconnect();
+        const journal = await stored(deps);
+        if (condition === 'invalid JSON') {
+          await deps.diskCache.setItem(journalKey, '{broken');
+        } else if (condition === 'corrupt account index') {
+          await deps.diskCache.setItem(accountsKey, '[28,28]');
+        } else {
+          if (condition === 'dangling child') {
+            journal.records[0].children[0].clientOrderId = 'not-an-id';
+          } else if (condition === 'foreign journal owner') {
+            journal.records[0].intent.owner.wallet = '0xforeign';
+          } else {
+            await deps.diskCache.setItem(accountsKey, '[28,29]');
+            const duplicate = structuredClone(journal);
+            duplicate.records[0].intent.owner.accountIndex = 29;
+            await deps.diskCache.setItem(
+              `lighterChase:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 29])}`,
+              JSON.stringify(duplicate),
+            );
+          }
+          await deps.diskCache.setItem(journalKey, JSON.stringify(journal));
+        }
+        const restarted = buildProvider({
+          platformDependencies: deps,
+          withBridge: false,
+        });
+        const { controller } = ownershipController(restarted.provider);
+        const before = boundaries(restarted, deps);
+        try {
+          await expect(
+            controller.getChaseOrderOwnership(route(placed.orderId as string)),
+          ).rejects.toThrow(
+            {
+              'invalid JSON': /JSON/u,
+              'dangling child': /persisted child identity/u,
+              'corrupt account index': /account index is corrupt/u,
+              'foreign journal owner': /persisted ownership/u,
+              'ambiguous handle': /ambiguous durable ownership/u,
+            }[condition],
+          );
+          expect(boundaries(restarted, deps)).toStrictEqual(before);
+        } finally {
+          await restarted.provider.disconnect();
+        }
+      },
+    );
+
+    it.each(['account', 'network', 'provider', 'instance'] as const)(
+      'rejects %s changes at controller readiness before calling the provider',
+      async (condition) => {
+        const deps = diskDependencies();
+        const built = buildProvider({
+          platformDependencies: deps,
+          withBridge: false,
+        });
+        const { controller, host } = ownershipController(built.provider);
+        const inspect = jest.spyOn(built.provider, 'getChaseOrderOwnership');
+        const before = boundaries(built, deps);
+        const result = controller.getChaseOrderOwnership(
+          route('opaque-handle'),
+        );
+        if (condition === 'account') {
+          host.selectAccount('0xother');
+        } else if (condition === 'network') {
+          controller.changeContext({ isTestnet: false });
+        } else if (condition === 'provider') {
+          controller.changeContext({ activeProvider: 'hyperliquid' });
+        } else {
+          controller.activate(buildProvider().provider);
+        }
+        try {
+          await expect(result).rejects.toThrow(
+            PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          );
+          expect(inspect).not.toHaveBeenCalled();
+          expect(boundaries(built, deps)).toStrictEqual(before);
+        } finally {
+          await built.provider.disconnect();
+        }
+      },
+    );
+
+    it('refuses foreign provider routes before any storage or authority work', async () => {
+      const deps = diskDependencies();
+      const built = buildProvider({
+        platformDependencies: deps,
+        withBridge: false,
+      });
+      const { controller } = ownershipController(built.provider);
+      const before = boundaries(built, deps);
+      const reads = jest.spyOn(deps.diskCache, 'getItem').mock.calls.length;
+      try {
+        await expect(
+          controller.getChaseOrderOwnership({
+            handle: 'opaque',
+            providerId: 'hyperliquid',
+          }),
+        ).rejects.toThrow('provider does not match');
+        await expect(
+          built.provider.getChaseOrderOwnership({
+            handle: 'opaque',
+            providerId: 'hyperliquid',
+          }),
+        ).rejects.toThrow('matching provider');
+        expect(jest.spyOn(deps.diskCache, 'getItem').mock.calls).toHaveLength(
+          reads,
+        );
+        expect(boundaries(built, deps)).toStrictEqual(before);
+      } finally {
+        await built.provider.disconnect();
+      }
+    });
+
+    it.each([
+      'account',
+      'account round trip',
+      'network',
+      'provider',
+      'instance',
+      'signer reset',
+      'disconnect',
+    ] as const)(
+      'fences %s changes while durable storage awaits',
+      async (condition) => {
+        const deps = diskDependencies();
+        const original = setup({ platformDependencies: deps });
+        const placed = await original.provider.placeOrder(intent);
+        await original.provider.disconnect();
+        const restarted = buildProvider({ platformDependencies: deps });
+        const { controller, host } = ownershipController(restarted.provider);
+        const entered = createDeferred<void>();
+        const pending = createDeferred<void>();
+        const read = jest
+          .spyOn(deps.diskCache, 'getItem')
+          .getMockImplementation();
+        if (!read) {
+          throw new Error('Missing storage read');
+        }
+        jest
+          .spyOn(deps.diskCache, 'getItem')
+          .mockImplementation(async (key) => {
+            if (key === journalKey) {
+              entered.resolve();
+              await pending.promise;
+            }
+            return await read(key);
+          });
+        const before = boundaries(restarted, deps);
+        const result = controller.getChaseOrderOwnership(
+          route(placed.orderId as string),
+        );
+        const settled = result.then(
+          () => undefined,
+          (error: unknown) => error,
+        );
+        await entered.promise;
+        if (condition === 'account') {
+          host.selectAccount('0xother');
+          restarted.getUserAddressMock.mockReturnValue('0xother');
+        } else if (condition === 'account round trip') {
+          host.selectAccount('0xother');
+          restarted.getUserAddressMock.mockReturnValue('0xother');
+          host.rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            host.rootMessenger.call('AccountsController:getSelectedAccount'),
+          );
+          host.selectAccount(ACCOUNT.l1Address as `0x${string}`);
+          restarted.getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
+          host.rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            host.rootMessenger.call('AccountsController:getSelectedAccount'),
+          );
+        } else if (condition === 'network') {
+          controller.changeContext({ isTestnet: false });
+        } else if (condition === 'provider') {
+          controller.changeContext({ activeProvider: 'hyperliquid' });
+        } else if (condition === 'instance') {
+          controller.activate(buildProvider().provider);
+        } else if (condition === 'signer reset') {
+          restarted.fireReset();
+        } else {
+          await controller.disconnect();
+        }
+        const afterChange = boundaries(restarted, deps);
+        pending.resolve();
+        try {
+          expect(await settled).toBeInstanceOf(Error);
+          expect(boundaries(restarted, deps)).toStrictEqual(afterChange);
+          expect(afterChange.writes).toBe(before.writes);
+          expect(keyringCalls(host.call)).toStrictEqual([]);
+        } finally {
+          pending.resolve();
+          await restarted.provider.disconnect();
+        }
+      },
+    );
+
+    it('rejects an aggregate route replaced during a real Lighter storage read', async () => {
+      const deps = diskDependencies();
+      const original = setup({ platformDependencies: deps });
+      const placed = await original.provider.placeOrder(intent);
+      await original.provider.disconnect();
+      const restarted = buildProvider({
+        platformDependencies: deps,
+        withBridge: false,
+      });
+      const providers = new Map<PerpsProviderType, PerpsProvider>([
+        ['lighter', restarted.provider],
+      ]);
+      const aggregate = new AggregatedPerpsProvider({
+        providers,
+        defaultProvider: 'lighter',
+        infrastructure: deps,
+      });
+      const { controller } = ownershipController(aggregate, 'aggregated');
+      const entered = createDeferred<void>();
+      const pending = createDeferred<void>();
+      const read = jest
+        .spyOn(deps.diskCache, 'getItem')
+        .getMockImplementation();
+      if (!read) {
+        throw new Error('Missing test read');
+      }
+      jest.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) => {
+        if (key === journalKey) {
+          entered.resolve();
+          await pending.promise;
+        }
+        return await read(key);
+      });
+      const before = boundaries(restarted, deps);
+      const result = controller.getChaseOrderOwnership(
+        route(placed.orderId as string),
+      );
+      const settled = result.then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      await entered.promise;
+      const replacement = buildProvider({ withBridge: false });
+      const replacementRead = jest.spyOn(
+        replacement.provider,
+        'getChaseOrderOwnership',
+      );
+      providers.set('lighter', replacement.provider);
+      pending.resolve();
+      try {
+        expect(await settled).toStrictEqual(
+          new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
+        );
+        expect(replacementRead).not.toHaveBeenCalled();
+        expect(boundaries(restarted, deps)).toStrictEqual(before);
+      } finally {
+        pending.resolve();
+        await restarted.provider.disconnect();
+        await aggregate.disconnect();
+      }
+    });
+
+    it('routes the public aggregate read only to Lighter and reports HyperLiquid unsupported without reading Chase sessions', async () => {
+      const deps = diskDependencies();
+      const built = setup({ platformDependencies: deps });
+      const placed = await built.provider.placeOrder(intent);
+      const hyperliquid = new HyperLiquidProvider({
+        platformDependencies: createMockInfrastructure(),
+        isTestnet: true,
+        messenger: createKeyringlessMessenger().messenger,
+      });
+      const legacyRead = jest.spyOn(hyperliquid, 'getChaseOrders');
+      const aggregate = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          ['lighter', built.provider],
+          ['hyperliquid', hyperliquid],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: deps,
+      });
+      const { controller } = ownershipController(aggregate, 'aggregated');
+      try {
+        const before = boundaries(built, deps);
+        expect(
+          await controller.getChaseOrderOwnership(
+            route(placed.orderId as string),
+          ),
+        ).toMatchObject({ status: 'available', providerId: 'lighter' });
+        expect(
+          await controller.getChaseOrderOwnership({
+            providerId: 'hyperliquid',
+            handle: 'opaque-hl-handle',
+          }),
+        ).toMatchObject({ status: 'unsupported', providerId: 'hyperliquid' });
+        expect(legacyRead).not.toHaveBeenCalled();
+        expect(boundaries(built, deps)).toStrictEqual(before);
+        await deps.diskCache.setItem(journalKey, '{broken');
+        const afterCorruption = boundaries(built, deps);
+        await expect(
+          controller.getChaseOrderOwnership(route(placed.orderId as string)),
+        ).rejects.toThrow(/JSON/u);
+        expect(boundaries(built, deps)).toStrictEqual(afterCorruption);
+      } finally {
+        await aggregate.disconnect();
+      }
+    });
+  });
+  const cancelParams = (
+    orderId: string,
+  ): {
+    symbol: string;
+    orderId: string;
+    orderType: 'chase';
+    providerId: 'lighter';
+  } => ({ symbol: 'BTC', orderId, orderType: 'chase', providerId: 'lighter' });
+  it.each(['preparation', 'readiness', 'account exclusion'] as const)(
+    'rejects a Chase start suspended during deferred %s before service registration',
+    async (boundary) => {
+      const deps = diskDependencies();
+      const built = setup({ platformDependencies: deps });
+      const entered = createDeferred<void>();
+      const pending = createDeferred<void>();
+      if (boundary === 'preparation') {
+        const original =
+          built.clientInstance.getOrderBookOrders.getMockImplementation() as
+            | LighterClientService['getOrderBookOrders']
+            | undefined;
+        if (!original) {
+          throw new Error('Missing book implementation');
+        }
+        built.clientInstance.getOrderBookOrders.mockImplementationOnce(
+          async (
+            ...args: Parameters<LighterClientService['getOrderBookOrders']>
+          ) => {
+            entered.resolve();
+            await pending.promise;
+            return await original(...args);
+          },
+        );
+      } else if (boundary === 'readiness') {
+        const original = jest
+          .spyOn(built.bridge, 'createClient')
+          .getMockImplementation();
+        if (!original) {
+          throw new Error('Missing signer readiness implementation');
+        }
+        jest
+          .spyOn(built.bridge, 'createClient')
+          .mockImplementationOnce(async (params) => {
+            entered.resolve();
+            await pending.promise;
+            return await original(params);
+          });
+      } else {
+        const original = jest
+          .spyOn(deps.diskCache, 'getItem')
+          .getMockImplementation();
+        if (!original) {
+          throw new Error('Missing disk read implementation');
+        }
+        jest
+          .spyOn(deps.diskCache, 'getItem')
+          .mockImplementation(async (key) => {
+            if (key.startsWith('lighterNativeTwap:')) {
+              entered.resolve();
+              await pending.promise;
+            }
+            return await original(key);
+          });
+      }
+      try {
+        const starting = built.provider.placeOrder(intent);
+        await entered.promise;
+        expect(await built.provider.suspendChaseOrders()).toStrictEqual([]);
+        pending.resolve();
+
+        const result = await starting;
+
+        expect(result).toMatchObject({
+          success: false,
+          error: expect.stringContaining('interrupted') as string,
+        });
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(0);
+        expect(await built.provider.getChaseOrders()).toStrictEqual([]);
+        expect((await built.provider.placeOrder(intent)).success).toBe(true);
+      } finally {
+        pending.resolve();
+        await built.provider.disconnect();
+      }
+    },
+  );
+  it('keeps a wrong-symbol Chase cancellation under its original duration owner', async () => {
+    jest.useFakeTimers();
+    const built = setup();
+    try {
+      const result = await built.provider.placeOrder({
+        ...intent,
+        chaseIntervalMs: 120000,
+        chaseMaxDurationMs: 180000,
+      });
+      if (!result.orderId) {
+        throw new Error('Missing Chase handle');
+      }
+
+      const refusal = await built.provider.cancelOrder({
+        ...cancelParams(result.orderId),
+        symbol: 'ETH',
+      });
+
+      expect(refusal.success).toBe(false);
+      expect((await built.provider.getChaseOrders())[0]).toMatchObject({
+        status: 'active',
+        restingOrderId: '9001',
+      });
+      expect(
+        built.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      await jest.advanceTimersByTimeAsync(179999);
+      expect(
+        built.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(
+        built.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(1);
+      expect(
+        built.calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(1);
+      expect((await built.provider.getNativeChaseRecords())[0]).toMatchObject({
+        status: 'canceled',
+        stopReason: 'duration_reached',
+      });
+    } finally {
+      await built.provider.disconnect();
+      jest.useRealTimers();
+    }
+  });
+  const restartAbsentChase = async (
+    state: 'empty' | 'retained' | 'other-wallet' | 'other-network',
+  ): Promise<BuiltProvider> => {
+    const deps = diskDependencies();
+    if (state !== 'empty') {
+      const original = setup({
+        platformDependencies: deps,
+        configuredAccountIndex: null,
+      });
+      const result = await original.provider.placeOrder(intent);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      await original.provider.disconnect();
+    }
+    const restarted = buildProvider({
+      platformDependencies: deps,
+      configuredAccountIndex: null,
+      isTestnet: state !== 'other-network',
+    });
+    if (state === 'other-wallet') {
+      restarted.getUserAddressMock.mockReturnValue('0xother');
+    }
+    restarted.clientInstance.getAccountsByL1Address.mockResolvedValue({
+      code: 200,
+      l1Address: ACCOUNT.l1Address,
+      subAccounts: [],
+    });
+    return restarted;
+  };
+  it('preserves remembered Chase ownership after absent-account restart: retained', async () => {
+    const restarted = await restartAbsentChase('retained');
+    try {
+      const orders = await restarted.provider.getChaseOrders();
+      const suspended = await restarted.provider.suspendChaseOrders();
+
+      expect(orders).toHaveLength(1);
+      expect(orders[0]).toMatchObject({
+        status: 'termination_pending',
+        restingOrderId: '9001',
+      });
+      expect(suspended).toHaveLength(1);
+      expect(suspended[0]).toMatchObject({
+        handle: orders[0].handle,
+        status: 'termination_pending',
+        restingOrderId: '9001',
+      });
+      const cancellation = await restarted.provider.cancelOrder(
+        cancelParams(orders[0].handle),
+      );
+      expect(cancellation).toMatchObject({
+        success: false,
+        error: expect.any(String) as string,
+      });
+      expect(
+        (await restarted.provider.getNativeChaseRecords())[0].stopReason,
+      ).toBe('backgrounded');
+      expect(restarted.calls).toHaveLength(0);
+      expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(restarted.clientInstance.getApiKeys).not.toHaveBeenCalled();
+    } finally {
+      await restarted.provider.disconnect();
+    }
+  });
+  const absentChase = (
+    deps: ReturnType<typeof createMockInfrastructure>,
+  ): BuiltProvider => {
+    const built = buildProvider({
+      platformDependencies: deps,
+      configuredAccountIndex: null,
+    });
+    built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+      code: 200,
+      l1Address: ACCOUNT.l1Address,
+      subAccounts: [],
+    });
+    return built;
+  };
+  const bindRetainedChaseLookup = (
+    built: BuiltProvider,
+    record: LighterChaseRecord,
+    terminal: () => boolean = () =>
+      built.calls.some(
+        (call) =>
+          call.function === '_signCancelOrder' &&
+          String(call.params[2]) === record.children[0].observation?.orderId,
+      ),
+  ): void => {
+    const child = record.children[0];
+    built.clientInstance.getOrdersByClientIds.mockImplementation(
+      async (_account: number, _token: string, ids: string[]) => ({
+        code: 200,
+        orders: ids.includes(child.clientOrderId)
+          ? [
+              {
+                orderIndex: Number(child.observation?.orderId),
+                orderId: child.observation?.orderId ?? '',
+                clientOrderIndex: Number(child.clientOrderId),
+                clientOrderId: child.clientOrderId,
+                marketIndex: record.intent.marketId,
+                ownerAccountIndex: record.intent.owner.accountIndex,
+                initialBaseAmount: child.size,
+                remainingBaseAmount: child.size,
+                filledBaseAmount: '0',
+                filledQuoteAmount: '0',
+                price: child.price,
+                isAsk: !record.intent.isBuy,
+                type: 'limit',
+                timeInForce: 'post-only',
+                reduceOnly: 0,
+                status: terminal() ? 'canceled' : 'open',
+                orderExpiry: Date.now() + 100000,
+                timestamp: 1,
+                nonce: child.placement.nonce,
+              },
+            ]
+          : [],
+      }),
+    );
+  };
+  type AbsentChaseStops = {
+    deps: ReturnType<typeof createMockInfrastructure>;
+    orderId: string;
+    retained: LighterChaseRecord;
+    local: LighterChaseRecord;
+  };
+  const repeatAbsentChaseStops = async (
+    first: 'suspension' | 'cancellation',
+  ): Promise<AbsentChaseStops> => {
+    const deps = diskDependencies();
+    const original = setup({
+      platformDependencies: deps,
+      configuredAccountIndex: null,
+    });
+    const placed = await original.provider.placeOrder(intent);
+    if (!placed.orderId || !placed.success) {
+      throw new Error(placed.error ?? 'Missing Chase placement');
+    }
+    const retained = (await original.provider.getNativeChaseRecords())[0];
+    await original.provider.disconnect();
+    let local = retained;
+    for (let restart = 0; restart < 2; restart += 1) {
+      const absent = absentChase(deps);
+      try {
+        for (
+          let stop = 0;
+          stop <= LIGHTER_NATIVE_PROBE_CANCEL_LIMIT;
+          stop += 1
+        ) {
+          const suspension = (stop % 2 === 0) === (first === 'suspension');
+          const result = suspension
+            ? (await absent.provider.suspendChaseOrders())[0]
+            : await absent.provider.cancelOrder(cancelParams(placed.orderId));
+          const expected = suspension
+            ? {
+                handle: placed.orderId,
+                status: 'termination_pending',
+                restingOrderId: '9001',
+              }
+            : { success: false, error: expect.any(String) as string };
+          expect(result).toMatchObject(expected);
+        }
+        local = (await absent.provider.getNativeChaseRecords())[0];
+        expect(absent.calls).toStrictEqual([]);
+        expect(absent.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(absent.clientInstance.getApiKeys).not.toHaveBeenCalled();
+        expect(
+          absent.clientInstance.getOrdersByClientIds,
+        ).not.toHaveBeenCalled();
+        expect(local.stopReason).toBe(
+          first === 'suspension' ? 'backgrounded' : 'canceled',
+        );
+      } finally {
+        await absent.provider.disconnect();
+      }
+    }
+    return { deps, orderId: placed.orderId, retained, local };
+  };
+  const assertRestoredChaseCleanup = async ({
+    deps,
+    orderId,
+    retained,
+    local,
+  }: AbsentChaseStops): Promise<void> => {
+    const restored = setup({
+      platformDependencies: deps,
+      configuredAccountIndex: null,
+    });
+    bindRetainedChaseLookup(restored, retained);
+    try {
+      const cleanup = await restored.provider.cancelOrder(
+        cancelParams(orderId),
+      );
+      if (!cleanup.success) {
+        throw new Error(cleanup.error);
+      }
+      expect(cleanup.success).toBe(true);
+      expect(local.children).toStrictEqual(retained.children);
+      expect(local.error).toContain('authority is unavailable');
+      const cancel = restored.calls.filter(
+        (call) => call.function === '_signCancelOrder',
+      );
+      expect(cancel).toHaveLength(1);
+      expect(cancel[0].params.slice(0, 3)).toStrictEqual([28, 1, '9001']);
+      expect(
+        restored.calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(0);
+      expect(
+        restored.clientInstance.sendTx.mock.calls.filter(
+          ([kind]) => kind === LIGHTER_TX_TYPE_CANCEL_ORDER,
+        ),
+      ).toHaveLength(1);
+      expect(
+        (await restored.provider.getNativeChaseRecords())[0],
+      ).toMatchObject({
+        intent: retained.intent,
+        status: 'canceled',
+        stopReason: local.stopReason,
+      });
+      expect(
+        (await restored.provider.getChaseOrders())[0].restingOrderId,
+      ).toBeNull();
+    } finally {
+      await restored.provider.disconnect();
+    }
+  };
+  it('preserves cancellation capacity after repeated local suspension across restart', async () => {
+    const stopped = await repeatAbsentChaseStops('suspension');
+
+    expect(stopped.local.children).toStrictEqual(stopped.retained.children);
+    await assertRestoredChaseCleanup(stopped);
+  });
+  it('restores exact cleanup after repeated local cancellation across restart', async () => {
+    const stopped = await repeatAbsentChaseStops('cancellation');
+
+    await assertRestoredChaseCleanup(stopped);
+    expect(stopped.local.children).toStrictEqual(stopped.retained.children);
+  });
+  it('preserves a real attempted cancellation through absent stops and refuses an unknown duplicate after restart', async () => {
+    const deps = diskDependencies();
+    const original = setup({
+      platformDependencies: deps,
+      configuredAccountIndex: null,
+    });
+    const placed = await original.provider.placeOrder(intent);
+    if (!placed.orderId || !placed.success) {
+      throw new Error(placed.error ?? 'Missing Chase placement');
+    }
+    const retained = (await original.provider.getNativeChaseRecords())[0];
+    bindRetainedChaseLookup(original, retained, () => false);
+    original.clientInstance.sendTx.mockRejectedValueOnce(
+      new Error('cancel response lost'),
+    );
+    expect(
+      (await original.provider.cancelOrder(cancelParams(placed.orderId)))
+        .success,
+    ).toBe(false);
+    const attempted = (await original.provider.getNativeChaseRecords())[0];
+    expect(attempted.children[0].cancellations[0]).toMatchObject({
+      phase: 'attempted',
+      txHash: expect.any(String) as string,
+    });
+    expect(
+      original.calls.filter((call) => call.function === '_signCancelOrder'),
+    ).toHaveLength(1);
+    expect(
+      original.clientInstance.sendTx.mock.calls.filter(
+        ([kind]) => kind === LIGHTER_TX_TYPE_CANCEL_ORDER,
+      ),
+    ).toHaveLength(1);
+    await original.provider.disconnect();
+    for (let restart = 0; restart < 2; restart += 1) {
+      const absent = absentChase(deps);
+      try {
+        for (
+          let stop = 0;
+          stop <= LIGHTER_NATIVE_PROBE_CANCEL_LIMIT;
+          stop += 1
+        ) {
+          await absent.provider.suspendChaseOrders();
+          await absent.provider.cancelOrder(cancelParams(placed.orderId));
+        }
+        expect(
+          (await absent.provider.getNativeChaseRecords())[0].children,
+        ).toStrictEqual(attempted.children);
+        expect(absent.calls).toStrictEqual([]);
+        expect(absent.clientInstance.sendTx).not.toHaveBeenCalled();
+      } finally {
+        await absent.provider.disconnect();
+      }
+    }
+    const restored = setup({
+      platformDependencies: deps,
+      configuredAccountIndex: null,
+    });
+    let terminal = false;
+    bindRetainedChaseLookup(restored, attempted, () => terminal);
+    const dispatch = attempted.children[0].cancellations[0];
+    restored.clientInstance.getTx.mockImplementation(async (hash: string) => ({
+      code: 200,
+      hash,
+      accountIndex: 28,
+      apiKeyIndex: 7,
+      nonce: dispatch.nonce,
+      status: terminal ? 2 : 1,
+    }));
+    try {
+      expect(
+        (await restored.provider.cancelOrder(cancelParams(placed.orderId)))
+          .success,
+      ).toBe(false);
+      expect(
+        (await restored.provider.getNativeChaseRecords())[0].children[0]
+          .cancellations,
+      ).toStrictEqual(attempted.children[0].cancellations);
+      terminal = true;
+      expect(
+        (await restored.provider.cancelOrder(cancelParams(placed.orderId)))
+          .success,
+      ).toBe(true);
+      expect(
+        restored.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      expect(restored.clientInstance.sendTx).not.toHaveBeenCalled();
+    } finally {
+      await restored.provider.disconnect();
+    }
+  });
+  it.each(['empty', 'other-wallet', 'other-network'] as const)(
+    'isolates remembered Chase ownership after absent-account restart: %s',
+    async (state) => {
+      const restarted = await restartAbsentChase(state);
+      try {
+        const orders = await restarted.provider.getChaseOrders();
+        const suspended = await restarted.provider.suspendChaseOrders();
+
+        expect(orders).toStrictEqual([]);
+        expect(suspended).toStrictEqual([]);
+        expect(restarted.calls).toHaveLength(0);
+        expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(restarted.clientInstance.getApiKeys).not.toHaveBeenCalled();
+      } finally {
+        await restarted.provider.disconnect();
+      }
+    },
+  );
+  it.each(['malformed JSON', 'duplicate identity', 'unreadable'] as const)(
+    'refuses a %s remembered Chase identity after absent-account restart',
+    async (state) => {
+      const deps = diskDependencies();
+      const key = `lighterRecoveryAccounts:testnet:${ACCOUNT.l1Address.toLowerCase()}`;
+      await deps.diskCache.setItem(
+        key,
+        state === 'malformed JSON' ? '{' : JSON.stringify([28, 28]),
+      );
+      if (state === 'unreadable') {
+        const original = jest
+          .spyOn(deps.diskCache, 'getItem')
+          .getMockImplementation();
+        if (!original) {
+          throw new Error('Missing disk read implementation');
+        }
+        jest
+          .spyOn(deps.diskCache, 'getItem')
+          .mockImplementation(async (name) => {
+            if (name === key) {
+              throw new Error('remembered Chase identity storage unavailable');
+            }
+            return await original(name);
+          });
+      }
+      const built = buildProvider({
+        platformDependencies: deps,
+        configuredAccountIndex: null,
+      });
+      built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [],
+      });
+      const expected = {
+        'malformed JSON': /JSON|property|position/u,
+        'duplicate identity': 'recovery account index is corrupt',
+        unreadable: 'remembered Chase identity storage unavailable',
+      }[state];
+      try {
+        await expect(built.provider.getChaseOrders()).rejects.toThrow(expected);
+        await expect(built.provider.suspendChaseOrders()).rejects.toThrow(
+          expected,
+        );
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(built.clientInstance.getApiKeys).not.toHaveBeenCalled();
+      } finally {
+        await built.provider.disconnect();
+      }
+    },
+  );
+  it.each(['settled', 'later-settled', 'unresolved'] as const)(
+    'reports the requested Chase cleanup independently of its earlier failure: %s',
+    async (state) => {
+      jest.useFakeTimers();
+      const built = setup();
+      const original =
+        built.clientInstance.getOrdersByClientIds.getMockImplementation() as
+          | ExactLookup
+          | undefined;
+      if (!original) {
+        throw new Error('Missing exact child implementation');
+      }
+      let terminal = state === 'settled';
+      built.clientInstance.getOrdersByClientIds.mockImplementation(
+        async (...args: Parameters<ExactLookup>) => {
+          const response = await original(...args);
+          return terminal
+            ? response
+            : {
+                ...response,
+                orders: response.orders.map((order) => ({
+                  ...order,
+                  status: 'open',
+                })),
+              };
+        },
+      );
+      try {
+        const placed = await built.provider.placeOrder(intent);
+        if (!placed.orderId) {
+          throw new Error('Missing handle');
+        }
+        built.clientInstance.getOrderBookOrders.mockRejectedValue(
+          new Error('quote unavailable'),
+        );
+        await jest.advanceTimersByTimeAsync(1000);
+        const before = (await built.provider.getNativeChaseRecords())[0];
+        expect(before.stopReason).toBe('failed');
+        if (state === 'later-settled') {
+          terminal = true;
+        }
+
+        const receipt = await built.provider.cancelOrder(
+          cancelParams(placed.orderId),
+        );
+
+        const after = (await built.provider.getNativeChaseRecords())[0];
+        expect(after.stopReason).toBe('failed');
+        const pendingError =
+          'Lighter Chase exact cancellation remains unresolved';
+        expect(receipt).toStrictEqual({
+          success: state !== 'unresolved',
+          orderId: placed.orderId,
+          providerId: 'lighter',
+          ...(state === 'unresolved' ? { error: pendingError } : {}),
+        });
+        expect(after.status).toBe(
+          state === 'unresolved' ? 'termination_pending' : 'failed',
+        );
+        expect(after.error).toBe(
+          state === 'unresolved' ? pendingError : before.error,
+        );
+        expect((await built.provider.getChaseOrders())[0].restingOrderId).toBe(
+          state === 'unresolved' ? '9001' : null,
+        );
+        expect(
+          built.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(1);
+      } finally {
+        await built.provider.disconnect();
+        jest.useRealTimers();
+      }
+    },
+  );
+  it.each(['absent', 'unbound'] as const)(
+    'returns empty default-off Chase management for an %s wallet',
+    async (state) => {
+      const built = buildProvider({ configuredAccountIndex: null });
+      if (state === 'absent') {
+        built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          l1Address: ACCOUNT.l1Address,
+          subAccounts: [],
+        });
+      } else {
+        built.getUserAddressMock.mockImplementation(() => {
+          throw new Error('No selected wallet');
+        });
+      }
+      expect(await built.provider.getChaseOrders()).toStrictEqual([]);
+      expect(await built.provider.suspendChaseOrders()).toStrictEqual([]);
+      expect(
+        await built.provider.cancelOrder(cancelParams('lighter-chase:unknown')),
+      ).toMatchObject({ success: false });
+      expect(built.calls).toHaveLength(0);
+      await built.provider.disconnect();
+    },
+  );
+  it('retains an accepted placement through exact-row indexer lag and observes it on the next tick', async () => {
+    jest.useFakeTimers();
+    const built = setup();
+    const exact =
+      built.clientInstance.getOrdersByClientIds.getMockImplementation() as
+        | ExactLookup
+        | undefined;
+    if (!exact) {
+      throw new Error('Missing exact lookup');
+    }
+    let visible = false;
+    built.clientInstance.getOrdersByClientIds.mockImplementation(
+      async (...args: Parameters<ExactLookup>) =>
+        visible ? await exact(...args) : { code: 200, orders: [] },
+    );
+    built.clientInstance.getTx.mockResolvedValue(null);
+    try {
+      const result = await built.provider.placeOrder(intent);
+      expect(result.success).toBe(true);
+      expect((await built.provider.getChaseOrders())[0].status).toBe('active');
+      visible = true;
+      await jest.advanceTimersByTimeAsync(1000);
+      expect((await built.provider.getChaseOrders())[0]).toMatchObject({
+        status: 'active',
+        restingOrderId: '9001',
+      });
+      expect(
+        built.calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(1);
+    } finally {
+      await built.provider.disconnect();
+      jest.useRealTimers();
+    }
+  });
+  it.each(['failed', 'expired'] as const)(
+    'settles a %s never-landed Chase placement across restart',
+    async (outcome) => {
+      jest.useFakeTimers();
+      const deps = diskDependencies();
+      const built = setup({ platformDependencies: deps });
+      built.clientInstance.sendTx.mockImplementation(async (kind: number) => {
+        if (kind === LIGHTER_TX_TYPE_CREATE_ORDER) {
+          throw new Error('response lost');
+        }
+        return { code: 200, txHash: 'registered' };
+      });
+      try {
+        const result = await built.provider.placeOrder(intent);
+        expect(result.success).toBe(false);
+        await built.provider.disconnect();
+        const restarted = setup({ platformDependencies: deps });
+        const restartedExact =
+          restarted.clientInstance.getOrdersByClientIds.getMockImplementation() as
+            | ExactLookup
+            | undefined;
+        restarted.clientInstance.getOrdersByClientIds.mockResolvedValue({
+          code: 200,
+          orders: [],
+        });
+        const record = (await restarted.provider.getNativeChaseRecords())[0];
+        const dispatch = record.children[0].placement;
+        restarted.clientInstance.getTx.mockImplementation(
+          async (hash: string) =>
+            hash === dispatch.txHash && outcome === 'failed'
+              ? {
+                  code: 200,
+                  hash,
+                  accountIndex: 28,
+                  apiKeyIndex: 7,
+                  nonce: dispatch.nonce,
+                  status: 0,
+                }
+              : null,
+        );
+        if (outcome === 'expired') {
+          jest.setSystemTime((dispatch.expiresAt ?? 0) + 30001);
+        }
+        expect(
+          await restarted.provider.cancelOrder(
+            cancelParams(result.orderId ?? ''),
+          ),
+        ).toMatchObject({ success: true });
+        expect(
+          (await restarted.provider.getNativeChaseRecords())[0],
+        ).toMatchObject({
+          status: 'canceled',
+          children: [{ placement: { phase: 'failed' }, cancellations: [] }],
+        });
+        expect(
+          restarted.calls.filter(
+            (call) => call.function === '_signCancelOrder',
+          ),
+        ).toHaveLength(0);
+        if (!restartedExact) {
+          throw new Error('Missing exact lookup');
+        }
+        restarted.clientInstance.getOrdersByClientIds.mockImplementation(
+          restartedExact,
+        );
+        expect(await restarted.provider.placeOrder(intent)).toMatchObject({
+          success: true,
+        });
+        await restarted.provider.disconnect();
+      } finally {
+        await built.provider.disconnect();
+        jest.useRealTimers();
+      }
+    },
+  );
+  it.each([0, 3, null] as const)(
+    'settles a terminal child independently of cancellation outcome %s',
+    async (outcome) => {
+      jest.useFakeTimers();
+      const built = setup();
+      try {
+        const result = await built.provider.placeOrder(intent);
+        const tx = built.clientInstance.getTx.getMockImplementation() as
+          | TxLookup
+          | undefined;
+        if (!tx) {
+          throw new Error('Missing transaction lookup');
+        }
+        built.clientInstance.getTx.mockImplementation(async (hash: string) =>
+          outcome === null ? null : { ...(await tx(hash)), status: outcome },
+        );
+        if (outcome === null) {
+          built.clientInstance.sendTx.mockImplementation(
+            async (kind: number) => {
+              if (kind === LIGHTER_TX_TYPE_CANCEL_ORDER) {
+                throw new Error('rejected cancel');
+              }
+              return { code: 200, txHash: 'registered' };
+            },
+          );
+        }
+        const canceled = await built.provider.cancelOrder(
+          cancelParams(result.orderId ?? ''),
+        );
+        expect(canceled.success).toBe(true);
+        expect((await built.provider.getChaseOrders())[0]).toMatchObject({
+          status: 'canceled',
+          restingOrderId: null,
+        });
+        if (outcome === null) {
+          const cancel = (await built.provider.getNativeChaseRecords())[0]
+            .children[0].cancellations[0];
+          jest.setSystemTime((cancel.expiresAt ?? 0) + 30001);
+        }
+        expect(await built.provider.placeOrder(intent)).toMatchObject({
+          success: true,
+        });
+      } finally {
+        await built.provider.disconnect();
+        jest.useRealTimers();
+      }
+    },
+  );
+  it.each(['failed', 'unknown'] as const)(
+    'allows cleanup retry only for a definitively %s cancellation despite unavailable fills',
+    async (outcome) => {
+      const deps = diskDependencies();
+      const built = setup({ platformDependencies: deps });
+      const exact =
+        built.clientInstance.getOrdersByClientIds.getMockImplementation() as
+          | ExactLookup
+          | undefined;
+      if (!exact) {
+        throw new Error('Missing exact lookup');
+      }
+      built.clientInstance.getOrdersByClientIds.mockImplementation(
+        async (...args: Parameters<ExactLookup>) => {
+          const result = (await exact(...args)) as {
+            code: number;
+            orders: LighterApiOrder[];
+          };
+          return {
+            ...result,
+            orders: result.orders.map((row) => ({ ...row, status: 'open' })),
+          };
+        },
+      );
+      const placed = await built.provider.placeOrder(intent);
+      expect(
+        (await built.provider.cancelOrder(cancelParams(placed.orderId ?? '')))
+          .success,
+      ).toBe(false);
+      const original = (await built.provider.getNativeChaseRecords())[0];
+      await built.provider.disconnect();
+      const restarted = setup({ platformDependencies: deps });
+      restarted.clientInstance.getOrdersByClientIds.mockImplementation(
+        async (_account: number, _token: string, ids: string[]) => ({
+          code: 200,
+          orders: [
+            {
+              orderIndex: 9001,
+              orderId: '9001',
+              clientOrderIndex: Number(ids[0]),
+              clientOrderId: ids[0],
+              marketIndex: 1,
+              ownerAccountIndex: 28,
+              initialBaseAmount: original.children[0].size,
+              remainingBaseAmount: original.children[0].size,
+              filledBaseAmount: '0',
+              filledQuoteAmount: '0',
+              price: original.children[0].price,
+              isAsk: false,
+              type: 'limit',
+              timeInForce: 'post-only',
+              reduceOnly: 0,
+              status: 'open',
+              orderExpiry: Date.now() + 100000,
+              timestamp: 1,
+              nonce: original.children[0].placement.nonce,
+            },
+          ],
+        }),
+      );
+      restarted.clientInstance.getTrades.mockRejectedValue(
+        new Error('fills unavailable'),
+      );
+      const previous = original.children[0].cancellations[0];
+      restarted.clientInstance.getTx.mockImplementation(async (hash: string) =>
+        hash === previous.txHash
+          ? {
+              code: 200,
+              hash,
+              accountIndex: 28,
+              apiKeyIndex: 7,
+              nonce: previous.nonce,
+              status: outcome === 'failed' ? 0 : 1,
+            }
+          : null,
+      );
+      await restarted.provider.cancelOrder(cancelParams(placed.orderId ?? ''));
+      expect(
+        restarted.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(outcome === 'failed' ? 1 : 0);
+      const updated = (await restarted.provider.getNativeChaseRecords())[0];
+      expect(updated.children[0].cancellations).toHaveLength(
+        outcome === 'failed' ? 2 : 1,
+      );
+      expect(updated.status).toBe('termination_pending');
+      await restarted.provider.cancelOrder(cancelParams(placed.orderId ?? ''));
+      expect(
+        restarted.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(outcome === 'failed' ? 1 : 0);
+      await restarted.provider.disconnect();
+    },
+  );
+  it('cleans up at an absolute non-divisible deadline', async () => {
+    jest.useFakeTimers();
+    const built = setup();
+    try {
+      await built.provider.placeOrder({
+        ...intent,
+        chaseIntervalMs: 120000,
+        chaseMaxDurationMs: 180000,
+        chaseMaxRepricings: 5,
+      });
+      await jest.advanceTimersByTimeAsync(179999);
+      expect(
+        built.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(
+        built.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(1);
+      expect((await built.provider.getChaseOrders())[0]).toMatchObject({
+        status: 'canceled',
+        restingOrderId: null,
+      });
+      expect((await built.provider.getNativeChaseRecords())[0].stopReason).toBe(
+        'duration_reached',
+      );
+    } finally {
+      await built.provider.disconnect();
+      jest.useRealTimers();
+    }
+  });
+  it.each(['quote', 'sign'] as const)(
+    'invalidates a replacement before queued discovery while %s is pending',
+    async (phase) => {
+      jest.useFakeTimers();
+      const built = setup();
+      const pending = createDeferred<void>();
+      const entered = createDeferred<void>();
+      try {
+        const placed = await built.provider.placeOrder(intent);
+        const book =
+          built.clientInstance.getOrderBookOrders.getMockImplementation();
+        const snapshot = (await built.clientInstance.getOrderBookOrders(1)) as {
+          code: number;
+          totalBids: number;
+          totalAsks: number;
+          bids: { price: string }[];
+          asks: { price: string }[];
+        };
+        built.clientInstance.getOrderBookOrders.mockImplementation(async () => {
+          if (phase === 'quote') {
+            entered.resolve();
+            await pending.promise;
+          }
+          return {
+            ...snapshot,
+            bids: snapshot.bids.map((row) => ({ ...row, price: '99999.9' })),
+          };
+        });
+        if (phase === 'sign') {
+          const executeSpy = jest.spyOn(built.bridge, 'execute');
+          const execute = executeSpy.getMockImplementation();
+          if (!execute) {
+            throw new Error('Missing signer implementation');
+          }
+          jest
+            .spyOn(built.bridge, 'execute')
+            .mockImplementation(async (call) => {
+              if (call.function === '_signCreateOrder') {
+                entered.resolve();
+                await pending.promise;
+              }
+              return await execute(call);
+            });
+        }
+        const ticking = jest.advanceTimersByTimeAsync(1000);
+        await entered.promise;
+        const canceling = built.provider.cancelOrder(
+          cancelParams(placed.orderId ?? ''),
+        );
+        pending.resolve();
+        await ticking;
+        await canceling;
+        expect(
+          built.clientInstance.sendTx.mock.calls.filter(
+            ([kind]) => kind === LIGHTER_TX_TYPE_CREATE_ORDER,
+          ),
+        ).toHaveLength(1);
+        expect((await built.provider.getChaseOrders())[0]).toMatchObject({
+          status: 'canceled',
+          restingOrderId: null,
+        });
+        expect(
+          (await built.provider.getNativeChaseRecords())[0].children[0]
+            .cancellations,
+        ).toHaveLength(1);
+        if (book) {
+          built.clientInstance.getOrderBookOrders.mockImplementation(book);
+        }
+      } finally {
+        pending.resolve();
+        await built.provider.disconnect();
+        jest.useRealTimers();
+      }
+    },
+  );
+  it.each(['chase', 'twap'] as const)(
+    'serializes concurrent opposite-strategy starts across live instances with %s first',
+    async (first) => {
+      const deps = diskDependencies();
+      const a = setup({ platformDependencies: deps });
+      const b = setup({ platformDependencies: deps });
+      for (const built of [a, b]) {
+        built.clientInstance.getOrderBookDetails.mockResolvedValue({
+          code: 200,
+          orderBookDetails: [
+            {
+              ...BTC_MARKET,
+              lastTradePrice: 90000,
+              defaultInitialMarginFraction: 100,
+              minInitialMarginFraction: 100,
+              maintenanceMarginFraction: 50,
+            },
+          ],
+        });
+      }
+      const twap: OrderParams = {
+        symbol: 'BTC',
+        orderType: 'twap',
+        isBuy: true,
+        size: '0.00020',
+        leverage: 1,
+        twapDuration: 1,
+      };
+      try {
+        const results = await Promise.all([
+          a.provider.placeOrder(first === 'chase' ? intent : twap),
+          b.provider.placeOrder(first === 'chase' ? twap : intent),
+        ]);
+        const aCreates = a.clientInstance.sendTx.mock.calls.filter(
+          ([kind]) => kind === LIGHTER_TX_TYPE_CREATE_ORDER,
+        ).length;
+        const bCreates = b.clientInstance.sendTx.mock.calls.filter(
+          ([kind]) => kind === LIGHTER_TX_TYPE_CREATE_ORDER,
+        ).length;
+        expect(aCreates + bCreates).toBe(1);
+        expect(results).toStrictEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              success: false,
+              error: expect.stringContaining(
+                'native probe remains unresolved',
+              ) as string,
+            }),
+          ]),
+        );
+      } finally {
+        await a.provider.disconnect();
+        await b.provider.disconnect();
+      }
+    },
+  );
+  it.each([0, 3, null] as const)(
+    'settles fill-wins-cancel race with %s transaction outcome and unequal trades across pages',
+    async (outcome) => {
+      const built = setup();
+      const original =
+        built.clientInstance.getOrdersByClientIds.getMockImplementation() as
+          | ExactLookup
+          | undefined;
+      if (!original) {
+        throw new Error('Missing exact lookup');
+      }
+      let filled = false;
+      built.clientInstance.getOrdersByClientIds.mockImplementation(
+        async (...args: Parameters<ExactLookup>) => {
+          const result = (await original(...args)) as {
+            code: number;
+            orders: LighterApiOrder[];
+          };
+          return {
+            ...result,
+            orders: result.orders.map((row) =>
+              filled
+                ? {
+                    ...row,
+                    status: 'filled',
+                    filledBaseAmount: '0.0002',
+                    filledQuoteAmount: '19.99998',
+                    remainingBaseAmount: '0',
+                  }
+                : row,
+            ),
+          };
+        },
+      );
+      built.clientInstance.getTrades.mockImplementation(
+        async (
+          _account: number,
+          _token: string,
+          options: { cursor?: string },
+        ) =>
+          filled
+            ? {
+                code: 200,
+                trades: [
+                  {
+                    tradeId: options.cursor ? 2 : 1,
+                    txHash: options.cursor ? 'cdefcdef' : 'abcdabcd',
+                    marketId: 1,
+                    size: options.cursor ? '0.00015' : '0.00005',
+                    price: '99999.9',
+                    usdAmount: options.cursor ? '14.999985' : '4.999995',
+                    bidId: 9001,
+                    askId: 9002,
+                    bidAccountId: 28,
+                    askAccountId: 99,
+                    isMakerAsk: false,
+                    timestamp: 100001,
+                    type: 'trade',
+                    takerPositionSizeBefore: '0',
+                    makerPositionSizeBefore: '0',
+                  },
+                ],
+                ...(options.cursor ? {} : { nextCursor: 'fill-page-2' }),
+              }
+            : { code: 200, trades: [] },
+      );
+      built.clientInstance.sendTx.mockImplementation(async (kind: number) => {
+        if (kind === LIGHTER_TX_TYPE_CANCEL_ORDER) {
+          filled = true;
+          if (outcome === null) {
+            throw new Error('response lost after fill');
+          }
+        }
+        return { code: 200, txHash: 'accepted' };
+      });
+      const tx = built.clientInstance.getTx.getMockImplementation() as
+        | TxLookup
+        | undefined;
+      if (!tx) {
+        throw new Error('Missing transaction lookup');
+      }
+      built.clientInstance.getTx.mockImplementation(async (hash: string) =>
+        outcome === null ? null : { ...(await tx(hash)), status: outcome },
+      );
+      try {
+        const result = await built.provider.placeOrder(intent);
+        const canceled = await built.provider.cancelOrder(
+          cancelParams(result.orderId ?? ''),
+        );
+        if (!canceled.success) {
+          throw new Error(canceled.error);
+        }
+        expect(canceled.success).toBe(true);
+        expect((await built.provider.getNativeChaseRecords())[0]).toMatchObject(
+          {
+            status: 'filled',
+            executedSize: '0.0002',
+            executedNotional: '19.99998',
+          },
+        );
+        expect((await built.provider.getChaseOrders())[0]).toMatchObject({
+          status: 'filled',
+          restingOrderId: null,
+          remainingSize: '0',
+        });
+        const tradeCalls = built.clientInstance.getTrades.mock
+          .calls as Parameters<LighterClientService['getTrades']>[];
+        expect(
+          tradeCalls.some((args) => args[2].cursor === 'fill-page-2'),
+        ).toBe(true);
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+      } finally {
+        await built.provider.disconnect();
+      }
+    },
+  );
+  it.each(['repeat', 'capacity'] as const)(
+    'keeps incomplete %s Chase trade pagination pending',
+    async (mode) => {
+      const built = setup();
+      const placed = await built.provider.placeOrder(intent);
+      let page = 0;
+      built.clientInstance.getTrades.mockImplementation(async () => {
+        page += 1;
+        return {
+          code: 200,
+          trades: [{ tradeId: page }],
+          nextCursor: mode === 'repeat' ? 'repeat' : String(page),
+        };
+      });
+      expect(
+        (await built.provider.cancelOrder(cancelParams(placed.orderId ?? '')))
+          .success,
+      ).toBe(false);
+      expect((await built.provider.getNativeChaseRecords())[0]).toMatchObject({
+        status: 'termination_pending',
+        error: expect.stringContaining(
+          mode === 'repeat' ? 'pagination is incomplete' : 'bounded collector',
+        ) as string,
+      });
+      expect(
+        built.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(1);
+      expect(
+        built.calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(1);
+      await built.provider.disconnect();
+    },
+  );
+  it.each(['owner', 'reread'] as const)(
+    'refuses a changed %s snapshot without settling or replacing',
+    async (mode) => {
+      const built = setup();
+      const placed = await built.provider.placeOrder(intent);
+      const exact =
+        built.clientInstance.getOrdersByClientIds.getMockImplementation() as
+          | ExactLookup
+          | undefined;
+      if (!exact) {
+        throw new Error('Missing exact lookup');
+      }
+      let reads = 0;
+      built.clientInstance.getOrdersByClientIds.mockImplementation(
+        async (...args: Parameters<ExactLookup>) => {
+          reads += 1;
+          const result = (await exact(...args)) as {
+            code: number;
+            orders: LighterApiOrder[];
+          };
+          return {
+            ...result,
+            orders: result.orders.map((row) =>
+              mode === 'owner'
+                ? { ...row, ownerAccountIndex: 29 }
+                : {
+                    ...row,
+                    timestamp: row.timestamp + Number(reads % 2 === 0),
+                  },
+            ),
+          };
+        },
+      );
+      expect(
+        (await built.provider.cancelOrder(cancelParams(placed.orderId ?? '')))
+          .success,
+      ).toBe(false);
+      expect((await built.provider.getNativeChaseRecords())[0].status).toBe(
+        'termination_pending',
+      );
+      expect(
+        built.clientInstance.sendTx.mock.calls.filter(
+          ([kind]) => kind === LIGHTER_TX_TYPE_CREATE_ORDER,
+        ),
+      ).toHaveLength(1);
+      expect(
+        built.clientInstance.sendTx.mock.calls.filter(
+          ([kind]) => kind === LIGHTER_TX_TYPE_CANCEL_ORDER,
+        ),
+      ).toHaveLength(mode === 'owner' ? 0 : 1);
+      await built.provider.disconnect();
+    },
+  );
+  it.each(['sign', 'dispatch'] as const)(
+    'fences exact Chase cancellation against signer session movement at %s',
+    async (phase) => {
+      const deps = diskDependencies();
+      const built = setup({ platformDependencies: deps });
+      const placed = await built.provider.placeOrder(intent);
+      const pending = createDeferred<void>();
+      const entered = createDeferred<void>();
+      if (phase === 'sign') {
+        const executeSpy = jest.spyOn(built.bridge, 'execute');
+        const execute = executeSpy.getMockImplementation();
+        if (!execute) {
+          throw new Error('Missing signer implementation');
+        }
+        jest.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+          const result = await execute(call);
+          if (call.function === '_signCancelOrder') {
+            entered.resolve();
+            await pending.promise;
+          }
+          return result;
+        });
+      } else {
+        const writeSpy = jest.spyOn(deps.diskCache, 'setItem');
+        const write = writeSpy.getMockImplementation();
+        if (!write) {
+          throw new Error('Missing disk implementation');
+        }
+        jest
+          .spyOn(deps.diskCache, 'setItem')
+          .mockImplementation(async (key, value) => {
+            await write(key, value);
+            if (
+              key.startsWith('lighterChase:') &&
+              value.includes('"cancellations":[{"phase":"attempted"')
+            ) {
+              entered.resolve();
+              await pending.promise;
+            }
+          });
+      }
+      try {
+        const canceling = built.provider.cancelOrder(
+          cancelParams(placed.orderId ?? ''),
+        );
+        await entered.promise;
+        built.fireReset();
+        pending.resolve();
+        expect((await canceling).success).toBe(false);
+        expect(
+          built.clientInstance.sendTx.mock.calls.filter(
+            ([kind]) => kind === LIGHTER_TX_TYPE_CANCEL_ORDER,
+          ),
+        ).toHaveLength(0);
+        expect(
+          built.clientInstance.sendTx.mock.calls.filter(
+            ([kind]) => kind === LIGHTER_TX_TYPE_CREATE_ORDER,
+          ),
+        ).toHaveLength(1);
+      } finally {
+        pending.resolve();
+        await built.provider.disconnect();
+      }
+    },
+  );
+  it.each(['initial', 'tick'] as const)(
+    'uses the absolute deadline with delayed %s observation',
+    async (phase) => {
+      jest.useFakeTimers();
+      const built = setup();
+      const exact =
+        built.clientInstance.getOrdersByClientIds.getMockImplementation() as
+          | ExactLookup
+          | undefined;
+      if (!exact) {
+        throw new Error('Missing exact lookup');
+      }
+      const started = Date.now();
+      let delayed = false;
+      built.clientInstance.getOrdersByClientIds.mockImplementation(
+        async (...args: Parameters<ExactLookup>) => {
+          if (
+            !delayed &&
+            (phase === 'initial' || Date.now() >= started + 120000)
+          ) {
+            delayed = true;
+            jest.setSystemTime(
+              started + (phase === 'initial' ? 150000 : 181000),
+            );
+          }
+          return await exact(...args);
+        },
+      );
+      try {
+        const result = await built.provider.placeOrder({
+          ...intent,
+          chaseIntervalMs: 120000,
+          chaseMaxDurationMs: 180000,
+          chaseMaxRepricings: 5,
+        });
+        expect(result.success).toBe(true);
+        await jest.advanceTimersByTimeAsync(
+          phase === 'initial' ? 30000 : 120000,
+        );
+        expect(
+          built.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(1);
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+        expect((await built.provider.getNativeChaseRecords())[0]).toMatchObject(
+          { status: 'canceled', stopReason: 'duration_reached' },
+        );
+      } finally {
+        await built.provider.disconnect();
+        jest.useRealTimers();
+      }
+    },
+  );
+  it('prepares Chase reference and duration after slow signer readiness', async () => {
+    jest.useFakeTimers();
+    const built = setup();
+    const create = jest
+      .spyOn(built.bridge, 'createClient')
+      .getMockImplementation();
+    if (!create) {
+      throw new Error('Missing client creation');
+    }
+    const readyAt = Date.now() + 70000;
+    jest
+      .spyOn(built.bridge, 'createClient')
+      .mockImplementation(async (params) => {
+        jest.setSystemTime(readyAt);
+        return await create(params);
+      });
+    try {
+      const result = await built.provider.placeOrder(intent);
+      expect(result.success).toBe(true);
+      expect(
+        (await built.provider.getNativeChaseRecords())[0].intent.startedAt,
+      ).toBe(readyAt);
+      expect(
+        built.calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(1);
+    } finally {
+      await built.provider.disconnect();
+      jest.useRealTimers();
+    }
+  });
+  it('keeps original-slot Chase cleanup pending when only another signing slot is available', async () => {
+    const deps = diskDependencies();
+    const original = setup({ platformDependencies: deps });
+    const placed = await original.provider.placeOrder(intent);
+    const exact =
+      original.clientInstance.getOrdersByClientIds.getMockImplementation() as
+        | ExactLookup
+        | undefined;
+    if (!exact) {
+      throw new Error('Missing exact lookup');
+    }
+    await original.provider.disconnect();
+    const moved = setup({ platformDependencies: deps, apiKeyIndex: 2 });
+    moved.clientInstance.getApiKeys.mockResolvedValue({
+      code: 200,
+      apiKeys: [
+        {
+          accountIndex: 28,
+          apiKeyIndex: 2,
+          nonce: 1,
+          publicKey: '9c'.repeat(40),
+        },
+      ],
+    });
+    moved.clientInstance.getOrdersByClientIds.mockImplementation(exact);
+    try {
+      expect(
+        (await moved.provider.cancelOrder(cancelParams(placed.orderId ?? '')))
+          .success,
+      ).toBe(false);
+      expect((await moved.provider.getNativeChaseRecords())[0]).toMatchObject({
+        intent: { owner: { apiKeyIndex: 7 } },
+        status: 'termination_pending',
+      });
+      expect(
+        moved.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      expect(moved.clientInstance.sendTx).not.toHaveBeenCalled();
+    } finally {
+      await moved.provider.disconnect();
+    }
+  });
+  it.each(['active', 'history'] as const)(
+    'keeps expired TWAP exclusion across restart and both strategies after incomplete %s reads',
+    async (failure) => {
+      jest.useFakeTimers();
+      const deps = diskDependencies();
+      const built = setup({ platformDependencies: deps });
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 90000,
+            defaultInitialMarginFraction: 100,
+            minInitialMarginFraction: 100,
+            maintenanceMarginFraction: 50,
+          },
+        ],
+      });
+      const exact =
+        built.clientInstance.getOrdersByClientIds.getMockImplementation() as
+          | ExactLookup
+          | undefined;
+      if (!exact) {
+        throw new Error('Missing exact lookup');
+      }
+      built.clientInstance.getOrdersByClientIds.mockImplementation(
+        async (...args: Parameters<ExactLookup>) => {
+          const result = await exact(...args);
+          return {
+            ...result,
+            orders: result.orders.map((row) => ({
+              ...row,
+              type: 'twap',
+              timeInForce: 'good-till-time',
+              status: 'in-progress',
+            })),
+          };
+        },
+      );
+      const twap: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        orderType: 'twap',
+        size: '0.00020',
+        leverage: 1,
+        twapDuration: 1,
+      };
+      try {
+        await built.provider.placeOrder(twap);
+        const [record] = await built.provider.getNativeTwapObservations();
+        jest.setSystemTime((record.record.placement.expiresAt ?? 0) + 30001);
+        built.clientInstance.getTx.mockResolvedValue(null);
+        if (failure === 'active') {
+          built.clientInstance.getActiveOrders.mockRejectedValue(
+            new Error('active read unavailable'),
+          );
+        } else {
+          built.clientInstance.getInactiveOrders.mockResolvedValue({
+            code: 200,
+            orders: [],
+            nextCursor: 'incomplete',
+          });
+        }
+        const [uncertain] = await built.provider.getNativeTwapObservations();
+        expect(uncertain.record.placement.phase).not.toBe('failed');
+        await built.provider.disconnect();
+        const restarted = setup({ platformDependencies: deps });
+        restarted.clientInstance.getOrderBookDetails.mockResolvedValue({
+          code: 200,
+          orderBookDetails: [
+            {
+              ...BTC_MARKET,
+              lastTradePrice: 90000,
+              defaultInitialMarginFraction: 100,
+              minInitialMarginFraction: 100,
+              maintenanceMarginFraction: 50,
+            },
+          ],
+        });
+        const chase = await restarted.provider.placeOrder(intent);
+        const another = await restarted.provider.placeOrder(twap);
+        expect(chase).toMatchObject({
+          success: false,
+          error: expect.stringContaining(
+            'native probe remains unresolved',
+          ) as string,
+        });
+        expect(another).toMatchObject({
+          success: false,
+          error: expect.stringContaining('unresolved') as string,
+        });
+        expect(
+          restarted.calls.filter(
+            (call) => call.function === '_signCreateOrder',
+          ),
+        ).toHaveLength(0);
+        await restarted.provider.disconnect();
+      } finally {
+        await built.provider.disconnect();
+        jest.useRealTimers();
+      }
+    },
+  );
+
+  it.each(['sign', 'dispatch'] as const)(
+    'fences TWAP cancellation with unavailable history across original-session %s movement',
+    async (phase) => {
+      const deps = diskDependencies();
+      const built = setup({ platformDependencies: deps });
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 90000,
+            defaultInitialMarginFraction: 100,
+            minInitialMarginFraction: 100,
+            maintenanceMarginFraction: 50,
+          },
+        ],
+      });
+      const parentRows = (): LighterApiOrder[] => {
+        const create = built.calls.find(
+          (call) => call.function === '_signCreateOrder',
+        );
+        if (!create) {
+          return [];
+        }
+        return [
+          {
+            orderIndex: 9001,
+            orderId: '9001',
+            clientOrderIndex: Number(create.params[2]),
+            clientOrderId: String(create.params[2]),
+            marketIndex: 1,
+            ownerAccountIndex: 28,
+            initialBaseAmount: '0.00020',
+            remainingBaseAmount: '0.00020',
+            filledBaseAmount: '0',
+            filledQuoteAmount: '0',
+            price: String(Number(create.params[4]) / 10),
+            isAsk: false,
+            type: 'twap',
+            timeInForce: 'good-till-time',
+            reduceOnly: false,
+            status: 'in-progress',
+            orderExpiry: Number(create.params[10]),
+            timestamp: Math.floor((Number(create.params[10]) - 60000) / 1000),
+            nonce: Number(create.params[11]),
+          },
+        ];
+      };
+      built.clientInstance.getOrdersByClientIds.mockImplementation(
+        async () => ({ code: 200, orders: parentRows() }),
+      );
+      built.clientInstance.getActiveOrders.mockImplementation(async () => ({
+        code: 200,
+        orders: parentRows(),
+      }));
+      built.clientInstance.getInactiveOrders.mockResolvedValue({
+        code: 200,
+        orders: [],
+      });
+      built.clientInstance.getTx.mockImplementation(async (hash: string) => ({
+        code: 200,
+        hash,
+        accountIndex: 28,
+        apiKeyIndex: 7,
+        nonce: hash.startsWith('aaaa') ? 42 : 43,
+        status: 2,
+      }));
+      const placed = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        orderType: 'twap',
+        size: '0.00020',
+        leverage: 1,
+        twapDuration: 1,
+      });
+      expect(placed).toMatchObject({ success: true, orderId: '9001' });
+      built.clientInstance.getInactiveOrders.mockRejectedValue(
+        new Error('history unavailable'),
+      );
+      const pending = createDeferred<void>();
+      const entered = createDeferred<void>();
+      if (phase === 'sign') {
+        const executeSpy = jest.spyOn(built.bridge, 'execute');
+        const execute = executeSpy.getMockImplementation();
+        if (!execute) {
+          throw new Error('Missing signer implementation');
+        }
+        executeSpy.mockImplementation(async (call) => {
+          const result = await execute(call);
+          if (call.function === '_signCancelOrder') {
+            entered.resolve();
+            await pending.promise;
+          }
+          return result;
+        });
+      } else {
+        const writeSpy = jest.spyOn(deps.diskCache, 'setItem');
+        const write = writeSpy.getMockImplementation();
+        if (!write) {
+          throw new Error('Missing disk implementation');
+        }
+        writeSpy.mockImplementation(async (key, value) => {
+          await write(key, value);
+          if (
+            key.startsWith('lighterNativeTwap:') &&
+            value.includes('"cancellations":[{"phase":"attempted"')
+          ) {
+            entered.resolve();
+            await pending.promise;
+          }
+        });
+      }
+      try {
+        const cancellation = built.provider.cancelOrder({
+          symbol: 'BTC',
+          orderType: 'twap',
+          orderId: '9001',
+        });
+        await entered.promise;
+        built.fireReset();
+        pending.resolve();
+        expect((await cancellation).success).toBe(false);
+        expect(
+          built.clientInstance.sendTx.mock.calls.filter(
+            ([kind]) => kind === LIGHTER_TX_TYPE_CANCEL_ORDER,
+          ),
+        ).toHaveLength(0);
+        const [observation] = await built.provider.getNativeTwapObservations();
+        expect(observation.record.intent.owner.apiKeyIndex).toBe(7);
+        expect(observation.record.terminalConfirmed).toBe(false);
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+      } finally {
+        pending.resolve();
+        await built.provider.disconnect();
+      }
+    },
+  );
+  it('logs and persists a scheduler journal read failure without continuing', async () => {
+    jest.useFakeTimers();
+    const deps = diskDependencies();
+    const built = setup({ platformDependencies: deps });
+    try {
+      expect(await built.provider.placeOrder(intent)).toMatchObject({
+        success: true,
+      });
+      const readSpy = jest.spyOn(deps.diskCache, 'getItem');
+      const read = readSpy.getMockImplementation();
+      if (!read) {
+        throw new Error('Missing disk read');
+      }
+      let failNext = true;
+      readSpy.mockImplementation(async (key) => {
+        if (failNext && key.startsWith('lighterChase:')) {
+          failNext = false;
+          throw new Error('journal read failed');
+        }
+        return await read(key);
+      });
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(jest.spyOn(deps.debugLogger, 'log')).toHaveBeenCalledWith(
+        '[LighterProvider] Chase tick failed',
+        expect.objectContaining({ error: 'journal read failed' }),
+      );
+      expect((await built.provider.getNativeChaseRecords())[0]).toMatchObject({
+        status: 'termination_pending',
+        error: 'journal read failed',
+      });
+      expect(
+        built.calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(1);
+      expect(
+        built.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+    } finally {
+      await built.provider.disconnect();
+      jest.useRealTimers();
+    }
   });
 });
 

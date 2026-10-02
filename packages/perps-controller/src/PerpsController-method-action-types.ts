@@ -181,8 +181,24 @@ export type PerpsControllerGetChaseOrdersAction = {
 };
 
 /**
- * Stop Chase repricing for app backgrounding without cancelling the current
- * resting children.
+ * Observe durable ownership for an exact Chase handle through one provider.
+ * Starts no signing, transport, continuation, cancellation or durable writes.
+ * Original owner/child IDs are observations, never permission for cleanup in
+ * a different context. Providers without durable history report unsupported.
+ *
+ * @param input - Opaque handle, explicit route and optional original owner.
+ * @returns Complete local child history, unsupported, or explicit absence.
+ * @throws On corrupt storage or account/network/provider/lifetime changes.
+ */
+export type PerpsControllerGetChaseOrderOwnershipAction = {
+  type: `PerpsController:getChaseOrderOwnership`;
+  handler: PerpsController['getChaseOrderOwnership'];
+};
+
+/**
+ * Stop Chase repricing for app backgrounding. HyperLiquid leaves current
+ * children resting. The bounded Lighter probe attempts exact cancellation and
+ * reports canceled or termination_pending rather than a resting status.
  *
  * @returns Chase snapshots after suspension.
  * @throws If an aggregated provider cannot suspend every active venue. Other
@@ -1570,6 +1586,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerCancelOrderAction
   | PerpsControllerGetTwapOrdersAction
   | PerpsControllerGetChaseOrdersAction
+  | PerpsControllerGetChaseOrderOwnershipAction
   | PerpsControllerSuspendChaseOrdersAction
   | PerpsControllerCancelOrdersAction
   | PerpsControllerClosePositionAction

@@ -32,6 +32,8 @@ import type {
   CancelOrderResult,
   CancelOrdersResult,
   ChaseOrder,
+  GetChaseOrderOwnershipParams,
+  PerpsChaseOrderOwnership,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
@@ -683,6 +685,39 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     );
 
     return this.#extractSuccessfulResults(results, 'getChaseOrders').flat();
+  }
+
+  /**
+   * Route a strict local ownership read once, without aggregating partial inventories.
+   *
+   * @param input - Exact stable handle and explicit provider route.
+   * @returns That provider's durable history or an explicit unsupported result.
+   */
+  async getChaseOrderOwnership(
+    input: GetChaseOrderOwnershipParams,
+  ): Promise<PerpsChaseOrderOwnership> {
+    const params = {
+      ...input,
+      owner: input.owner ? { ...input.owner } : undefined,
+    };
+    if (!params.providerId || !params.handle) {
+      throw new Error(
+        'Chase ownership requires an exact handle and explicit provider',
+      );
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    const ownership: PerpsChaseOrderOwnership = provider.getChaseOrderOwnership
+      ? await provider.getChaseOrderOwnership(params)
+      : {
+          status: 'unsupported',
+          providerId: params.providerId,
+          handle: params.handle,
+          reason: 'Durable Chase ownership is unavailable for this provider',
+        };
+    if (this.#providers.get(params.providerId) !== provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return ownership;
   }
 
   /**

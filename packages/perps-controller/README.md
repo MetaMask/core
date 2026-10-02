@@ -493,10 +493,10 @@ This transport support does not advertise Chase or establish its venue proof.
 ## Bounded Lighter Chase lifecycle
 
 Normal Chase capability remains unavailable. A constructor-only
-`chaseTestnetProbe: true` enables the reviewed source path on testnet; mainnet
+`chaseTestnetProbe: true` enables bounded Chase transport on testnet; mainnet
 construction rejects it. The controller factory does not pass this option.
-This is a bounded implementation awaiting independent approval and Mobile/venue
-proof, not production strategy support.
+The option defaults to false. Production Chase capability remains unavailable;
+client integration and live venue acceptance are required before enabling it.
 
 The probe uses the existing `orderType: 'chase'` contract with exact base size,
 explicit existing 1x leverage, a 20 USD aggregate notional ceiling, an interval
@@ -526,17 +526,65 @@ A durable journal binds wallet, network, account, original key slot, market,
 immutable budget and session handle. Each exact child is persisted before
 signing, its hash/nonce/expiry before dispatch, and attempted state before send.
 A serial tick cannot replace a child until exact terminal order state, exhaustive
-unaggregated fill history and a stable reread agree. Local cancellation also
-requires its exact executed transaction. Fills observed during cancellation
-reduce the next size. Acknowledgments and missing rows never prove termination.
+unaggregated fill history and a stable reread agree. Exact terminal child state
+settles cleanup even when a fill beats its cancel transaction. Cancel transaction
+outcomes provide attribution and retire definitively failed attempts for explicit
+retry. Fills observed during cancellation reduce the next size. Acknowledgments
+and missing rows never prove termination. An attempted placement absent after
+signed expiry plus clock slack can settle only with definitive transaction and
+exact-order evidence; acknowledged or previously visible placements remain owned.
 There are at most 64 retained sessions, 21 children per session and 16 cancel
 attempts per child; records are never silently pruned.
 
-`getChaseOrders()` returns provider-bound public state.
+`getChaseOrders()` returns provider-bound public state, or an empty list for an
+unbound or recordless wallet, including with the probe off. If current venue
+discovery reports no account, previously verified wallet/network journals remain
+visible. Suspension retains their pending cleanup locally without enabling venue
+reads, signing or registration. Repeated local suspension and cancellation preserve
+the child's cancellation capacity and existing dispatch identities, including across
+provider restart. Cleanup remains `termination_pending` with an explanatory native
+record error until the original account and key authority can reconcile it.
+`PerpsController:getChaseOrderOwnership({handle, providerId, owner?})` reads one
+exact stable handle from validated local storage. `available` includes its original
+wallet, provider, network, account and trading-key slot, every durable child in order,
+placement/cancellation phases and public transaction identities, and each child's
+last exact persisted venue ID, terminal flag and decimal fill quantities. Superseded
+children remain included. An absent observation leaves attempted or acknowledged
+placement unresolved. These observations are not a fresh venue reconciliation.
+The optional `owner` binds a repeat read to the full original identity.
+
+This read works with the probe off, without a signer and after venue authority
+has disappeared. It does not bind/rebuild transport, allocate keys, sign, resume,
+cancel or write storage. Prepared/signed attempts retain their recorded phases.
+Account, network, provider, key/session or controller lifetime changes across awaits
+reject the read. Missing handles return `unavailable` with `not_found`; a mismatched
+expected owner returns `owner_mismatch`. Missing storage never becomes an available
+empty inventory, and malformed/ambiguous records reject. Returned IDs grant no
+cleanup authority under another wallet, account, network or key.
+
+Pass the exact `OrderResult.orderId` as `handle`, preserve all opaque IDs and
+reconcile each returned child independently before explicit cleanup for that handle.
+Aggregated mode routes only the requested `providerId`. HyperLiquid reports
+`unsupported` for this durable read and retains its existing `getChaseOrders()`
+behavior. Full Lighter Chase readiness still requires client integration and venue
+proof; the default-off/testnet gates remain unchanged. TWAP remains separate:
+Lighter's public TWAP lifecycle read refuses support until authoritative parent fills
+and terminal semantics are established. Local children do not establish a complete
+TWAP schedule.
+
 `getNativeChaseRecords()` exposes exact local cleanup identities for diagnostics.
 `cancelOrder({orderType: 'chase', orderId: handle, symbol, providerId: 'lighter'})`
-explicitly terminates an owned handle. `suspendChaseOrders()` interrupts in-flight
-and scheduled continuation before attempting exact cleanup. Account changes and
+explicitly terminates an owned handle. A wrong-symbol request leaves its active
+duration cleanup intact. Confirmed explicit cleanup succeeds even when the
+record retains an earlier failure cause and terminal status.
+`suspendChaseOrders()` interrupts starts waiting on setup as well as in-flight
+and scheduled continuation before attempting exact cleanup. This Lighter probe
+cancels the last child on backgrounding and duration, repricing or distance limits.
+Confirmed cleanup reports `canceled` with no resting order ID; the native record
+retains the first cause in `stopReason`. Unknown cleanup reports
+`termination_pending`. HyperLiquid suspension leaves its child resting. The
+Lighter timer uses the absolute duration deadline; network latency and suspended
+execution can delay venue cleanup. Account changes and
 provider teardown interrupt synchronously. Reconnect exposes interrupted records
 as `termination_pending` and never restarts the financial loop. Unknown cancel or
 lost-response ownership remains visible, including across process restart and
@@ -547,7 +595,7 @@ Exact order lookup has the venue's limited retention window. Missing retained
 history or unsafe numeric IDs fail closed and may require separate manual
 recovery; they do not authorize a replacement. All lifecycle checks above are
 source behavior. Live post-only crossing, fill/cancel races and bounded reprice
-proof remain separate acceptance evidence.
+behavior require venue acceptance checks.
 
 `utils/lighterTwapReconciliation.reconcileLighterTwapObservation` reconciles
 complete native parent/child rows and unaggregated trades against persisted
@@ -565,5 +613,4 @@ must supply a development integration; these are not enabled product features.
 
 ## Contributing
 
-This package is part of a monorepo. Instructions for contributing can be found
-in the [monorepo README](https://github.com/MetaMask/core#readme).
+This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).

@@ -14,6 +14,7 @@ import { BigNumber } from 'bignumber.js';
 import {
   LIGHTER_MAX_MARKET_ID,
   LIGHTER_MAX_BASE_AMOUNT,
+  LIGHTER_MAX_CLIENT_ORDER_INDEX,
   LIGHTER_MAX_ORDER_PRICE,
   LIGHTER_MAX_DECIMALS,
   LIGHTER_MINUTE_MS,
@@ -21,8 +22,6 @@ import {
   LIGHTER_NATIVE_PROBE_CANCEL_LIMIT,
   LIGHTER_NATIVE_PROBE_PAGE_LIMIT,
   LIGHTER_NATIVE_PROBE_PAGE_SIZE,
-} from '../constants/lighterConfig.js';
-import {
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
   LIGHTER_MAX_TRADING_API_KEY_INDEX,
   LIGHTER_TX_EXPIRY_SLACK_MS,
@@ -162,7 +161,7 @@ function validateIntent(intent: LighterTwapIntent): void {
     intent.marketId < 0 ||
     intent.marketId > LIGHTER_MAX_MARKET_ID ||
     !/^[1-9]\d*$/u.test(intent.clientOrderId) ||
-    BigInt(intent.clientOrderId) > BigInt(LIGHTER_MAX_BASE_AMOUNT) ||
+    BigInt(intent.clientOrderId) > BigInt(LIGHTER_MAX_CLIENT_ORDER_INDEX) ||
     !intent.symbol ||
     !Number.isSafeInteger(intent.startedAt) ||
     intent.startedAt <= 0 ||
@@ -718,15 +717,10 @@ export class LighterTwapService {
           this.#assertCurrent(owner);
           // An inconsistent/incomplete snapshot must not release an obligation
           // based on only the earlier transaction half of the observation.
-          if (
-            record.placement.phase === 'succeeded' ||
-            result.orders.some(
-              (row) =>
-                String(row.clientOrderIndex) === record.intent.clientOrderId,
-            )
-          ) {
-            record.placement = previousPlacement;
-          }
+          // Required order reads did not complete consistently. Transaction
+          // failure alone cannot release placement while a parent may exist.
+          // Cancellation outcomes remain independent and are preserved.
+          record.placement = previousPlacement;
           result.issue = error instanceof Error ? error.message : String(error);
         }
       }

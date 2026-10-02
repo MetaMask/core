@@ -1,9 +1,38 @@
+/**
+ * LighterProvider
+ *
+ * Provider implementation for the zkLighter protocol (POC).
+ * Implements the PerpsProvider interface with live REST reads and a real
+ * write path (place/cancel limit orders) driven through the Lighter Go/WASM
+ * signer behind the transport-agnostic {@link LighterSignerBridge} seam.
+ *
+ * Key differences from HyperLiquid:
+ * - Venue-specific key (Schnorr over ECgFp5) registered per API-key slot via
+ *   a ChangePubKey L2 transaction carrying an EIP-191 personal_sign L1Sig.
+ * - Order prices/sizes are integers scaled by per-market decimals.
+ * - REST reads plus WebSocket market, account, position, order, fill,
+ *   order-book, and candle streams, with price polling as a fallback.
+ */
+
 import type { CaipAccountId } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import type { CandlePeriod } from '../constants/chartConfig.js';
 import {
   computeLighterMinOrderSize,
+  LIGHTER_MAX_BASE_AMOUNT,
+  LIGHTER_NATIVE_PROBE_MAX_NOTIONAL,
+  LIGHTER_NATIVE_PROBE_PAGE_LIMIT,
+  LIGHTER_NATIVE_PROBE_PAGE_SIZE,
+  LIGHTER_CHASE_DEFAULT_INTERVAL_MS,
+  LIGHTER_CHASE_DEFAULT_DURATION_MS,
+  LIGHTER_CHASE_DEFAULT_REPRICINGS,
+  LIGHTER_CHASE_DEFAULT_DISTANCE_BPS,
+  LIGHTER_CHASE_MIN_INTERVAL_MS,
+  LIGHTER_CHASE_MAX_DURATION_MS,
+  LIGHTER_CHASE_MAX_REPRICINGS,
+  LIGHTER_CHASE_MAX_DISTANCE_BPS,
+  LIGHTER_CHASE_QUOTE_MAX_AGE_MS,
   fromLighterInteger,
   getLighterChainId,
   getLighterTransactionOutcome,
@@ -53,27 +82,13 @@ import {
   parseLighterStrictDecimal,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
-/**
- * LighterProvider
- *
- * Provider implementation for the zkLighter protocol (POC).
- * Implements the PerpsProvider interface with live REST reads and a real
- * write path (place/cancel limit orders) driven through the Lighter Go/WASM
- * signer behind the transport-agnostic {@link LighterSignerBridge} seam.
- *
- * Key differences from HyperLiquid:
- * - Venue-specific key (Schnorr over ECgFp5) registered per API-key slot via
- *   a ChangePubKey L2 transaction carrying an EIP-191 personal_sign L1Sig.
- * - Order prices/sizes are integers scaled by per-market decimals.
- * - REST reads plus WebSocket market, account, position, order, fill,
- *   order-book, and candle streams, with price polling as a fallback.
- */
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { hasErrorInCauseChain } from '../services/causeChain.js';
 import {
   LighterChaseService,
+  LighterChaseObservationPendingError,
   toLighterChaseOrder,
 } from '../services/LighterChaseService.js';
 import type {
@@ -81,6 +96,7 @@ import type {
   LighterChaseOwner,
   LighterChaseIo,
   LighterChaseRecord,
+  LighterChaseDispatch,
 } from '../services/LighterChaseService.js';
 import {
   convertKeysToCamelCase,
@@ -98,8 +114,12 @@ import type {
   ScaleOrderGroup,
   GetScalePriceLadderParams,
   PerpsScalePriceLadder,
+  ChaseOrder,
+  ChaseOrderStatus,
+  GetChaseOrderOwnershipParams,
+  PerpsChaseOrderOwnership,
+  PerpsChaseOrderDispatch,
 } from '../types/index.js';
-import type { ChaseOrder } from '../types/index.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
@@ -224,8 +244,8 @@ import {
   toAttachedOrderGroup,
 } from '../utils/lighterAttachedOrders.js';
 import type { LighterAttachedGroup } from '../utils/lighterAttachedOrders.js';
-import { identifyLighterChaseChild } from '../utils/lighterChase.js';
 import {
+  identifyLighterChaseChild,
   readLighterChaseQuote,
   reconcileLighterChaseChild,
 } from '../utils/lighterChase.js';
@@ -812,8 +832,6 @@ type TpslManualRecovery = {
 const LIGHTER_RECOVERED_DISPATCH_LIMIT = 32;
 /** Bounded native testnet probes retain a one-percent slippage default. */
 const LIGHTER_NATIVE_PROBE_DEFAULT_SLIPPAGE = 0.01;
-/** Maximum notional for a bounded native testnet probe. */
-const LIGHTER_NATIVE_PROBE_MAX_NOTIONAL = 20;
 /** Maximum durable TP/SL manual-recovery obligations retained per network. */
 const LIGHTER_TPSL_MANUAL_RECOVERY_LIMIT = 64;
 
@@ -1623,6 +1641,7 @@ export class LighterProvider implements PerpsProvider {
   readonly #chaseService: LighterChaseService;
   readonly #chaseTestnetProbe: boolean;
   readonly #chaseTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  #chaseGeneration = 0;
 
   readonly #walletService: LighterWalletService;
 
@@ -2365,12 +2384,15 @@ export class LighterProvider implements PerpsProvider {
     `lighterRecoveryAccounts:${this.#isTestnet ? 'testnet' : 'mainnet'}:${this.#boundAddress}`;
 
   /**
+   * @param key - Captured wallet/network storage key, or the bound session key.
    * @returns Wallet-scoped previously verified venue accounts.
    */
-  readonly #readRememberedRecoveryAccounts = async (): Promise<number[]> => {
+  readonly #readRememberedRecoveryAccounts = async (
+    key = this.#recoveryAccountsKey(),
+  ): Promise<number[]> => {
     let raw: string | null;
     try {
-      raw = await this.#deps.diskCache.getItem(this.#recoveryAccountsKey());
+      raw = await this.#deps.diskCache.getItem(key);
     } catch (error) {
       throw new Error(
         `Lighter recovery account index read failed: ${ensureError(error, 'LighterProvider.#readRememberedRecoveryAccounts').message}`,
@@ -11435,8 +11457,9 @@ export class LighterProvider implements PerpsProvider {
     };
   }
 
-  #interruptChase(): void {
-    this.#chaseService.interrupt();
+  #interruptChase(reason?: ChaseOrderStatus): void {
+    this.#chaseGeneration += 1;
+    this.#chaseService.interrupt(reason);
     for (const timer of this.#chaseTimers.values()) {
       clearTimeout(timer);
     }
@@ -11495,22 +11518,26 @@ export class LighterProvider implements PerpsProvider {
         'Lighter Chase probe requires exact opening size, existing 1x leverage and no unsupported fields',
       );
     }
-    const intervalMs = params.chaseIntervalMs ?? 15000;
-    const maxDurationMs = params.chaseMaxDurationMs ?? 60000;
-    const maxRepricings = params.chaseMaxRepricings ?? 1;
-    const maxDistanceBps = params.chaseMaxDistanceBps ?? 100;
+    const intervalMs =
+      params.chaseIntervalMs ?? LIGHTER_CHASE_DEFAULT_INTERVAL_MS;
+    const maxDurationMs =
+      params.chaseMaxDurationMs ?? LIGHTER_CHASE_DEFAULT_DURATION_MS;
+    const maxRepricings =
+      params.chaseMaxRepricings ?? LIGHTER_CHASE_DEFAULT_REPRICINGS;
+    const maxDistanceBps =
+      params.chaseMaxDistanceBps ?? LIGHTER_CHASE_DEFAULT_DISTANCE_BPS;
     if (
       !Number.isSafeInteger(intervalMs) ||
-      intervalMs < 1000 ||
+      intervalMs < LIGHTER_CHASE_MIN_INTERVAL_MS ||
       !Number.isSafeInteger(maxDurationMs) ||
       maxDurationMs < intervalMs ||
-      maxDurationMs > 300000 ||
+      maxDurationMs > LIGHTER_CHASE_MAX_DURATION_MS ||
       !Number.isSafeInteger(maxRepricings) ||
       maxRepricings < 0 ||
-      maxRepricings > 20 ||
+      maxRepricings > LIGHTER_CHASE_MAX_REPRICINGS ||
       !Number.isFinite(maxDistanceBps) ||
       maxDistanceBps <= 0 ||
-      maxDistanceBps >= 10000
+      maxDistanceBps >= LIGHTER_CHASE_MAX_DISTANCE_BPS
     ) {
       throw new Error(
         'Lighter Chase probe requires bounded interval, duration, repricing and distance',
@@ -11526,7 +11553,11 @@ export class LighterProvider implements PerpsProvider {
     }
     const size = new BigNumber(params.size);
     const units = size.shiftedBy(market.supportedSizeDecimals);
-    if (!units.isInteger() || units.lt(1) || units.gt('281474976710655')) {
+    if (
+      !units.isInteger() ||
+      units.lt(1) ||
+      units.gt(LIGHTER_MAX_BASE_AMOUNT)
+    ) {
       throw new Error('Lighter Chase size is outside the native grid');
     }
     const accountIndex = await this.#ensureAccountIndex();
@@ -11534,7 +11565,10 @@ export class LighterProvider implements PerpsProvider {
     const startedAt = Date.now();
     const book = await this.#clientService.getOrderBookOrders(market.marketId);
     this.#assertSession(generation);
-    if (Date.now() < startedAt || Date.now() - startedAt > 5000) {
+    if (
+      Date.now() < startedAt ||
+      Date.now() - startedAt > LIGHTER_CHASE_QUOTE_MAX_AGE_MS
+    ) {
       throw new Error('Lighter Chase book is stale');
     }
     const arrivalPrice = readLighterChaseQuote(book, {
@@ -11543,7 +11577,7 @@ export class LighterProvider implements PerpsProvider {
       priceDecimals: market.supportedPriceDecimals,
     });
     if (
-      size.times(arrivalPrice).gt(20) ||
+      size.times(arrivalPrice).gt(LIGHTER_NATIVE_PROBE_MAX_NOTIONAL) ||
       size.times(arrivalPrice).lt(market.minQuoteAmount) ||
       size.lt(market.minBaseAmount)
     ) {
@@ -11567,7 +11601,7 @@ export class LighterProvider implements PerpsProvider {
       maxDurationMs,
       maxRepricings,
       maxDistanceBps,
-      maxNotional: '20',
+      maxNotional: String(LIGHTER_NATIVE_PROBE_MAX_NOTIONAL),
       minBaseAmount: market.minBaseAmount,
       minQuoteAmount: market.minQuoteAmount,
     };
@@ -11623,7 +11657,11 @@ export class LighterProvider implements PerpsProvider {
       }
       exposure = exposure.plus(value.abs());
     }
-    if (exposure.plus(new BigNumber(remainingSize).times(price)).gt(20)) {
+    if (
+      exposure
+        .plus(new BigNumber(remainingSize).times(price))
+        .gt(LIGHTER_NATIVE_PROBE_MAX_NOTIONAL)
+    ) {
       throw new Error(
         'Lighter Chase aggregate existing-plus-remaining exposure exceeds 20 USD',
       );
@@ -11667,6 +11705,37 @@ export class LighterProvider implements PerpsProvider {
         );
       }
     };
+    const reconcileDispatch = async (
+      dispatch: LighterChaseDispatch,
+    ): Promise<void> => {
+      if (!dispatch.txHash || dispatch.phase === 'failed') {
+        return;
+      }
+      const transaction = await this.#clientService.getTx(dispatch.txHash);
+      assertCurrent();
+      if (!transaction) {
+        if (
+          dispatch.phase === 'attempted' &&
+          dispatch.expiresAt !== undefined &&
+          Date.now() > dispatch.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS
+        ) {
+          dispatch.phase = 'failed';
+        }
+        return;
+      }
+      if (
+        transaction.hash.toLowerCase().replace(/^0x/u, '') !==
+          dispatch.txHash.toLowerCase().replace(/^0x/u, '') ||
+        transaction.accountIndex !== intent.owner.accountIndex ||
+        transaction.apiKeyIndex !== intent.owner.apiKeyIndex ||
+        transaction.nonce !== dispatch.nonce
+      ) {
+        throw new Error('Lighter Chase transaction identity mismatch');
+      }
+      if (getLighterTransactionOutcome(transaction.status) === 'failed') {
+        dispatch.phase = 'failed';
+      }
+    };
     return {
       assertCurrent,
       now: () => Date.now(),
@@ -11678,7 +11747,10 @@ export class LighterProvider implements PerpsProvider {
           intent.marketId,
         );
         assertCurrent();
-        if (Date.now() < started || Date.now() - started > 5000) {
+        if (
+          Date.now() < started ||
+          Date.now() - started > LIGHTER_CHASE_QUOTE_MAX_AGE_MS
+        ) {
           throw new Error('Lighter Chase book is stale');
         }
         return readLighterChaseQuote(book, {
@@ -11851,7 +11923,11 @@ export class LighterProvider implements PerpsProvider {
                 ...identity,
                 intent: `chaseCancel:${intent.symbol}:${child.clientOrderId}`,
                 owner: intent.handle,
-                beforeDispatch: hooks.beforeDispatch,
+                beforeDispatch: async () => {
+                  assertSigning();
+                  await hooks.beforeDispatch();
+                  assertSigning();
+                },
                 onNotDispatched: hooks.notDispatched,
               },
             );
@@ -11861,6 +11937,11 @@ export class LighterProvider implements PerpsProvider {
       },
       observe: async (child) => {
         assertCurrent();
+        const cancel = child.cancellations.at(-1);
+        if (cancel) {
+          await reconcileDispatch(cancel);
+        }
+
         const { token } = await this.#getNativeProbeReadToken(
           intent.owner.accountIndex,
           generation,
@@ -11872,9 +11953,25 @@ export class LighterProvider implements PerpsProvider {
           [child.clientOrderId],
         );
         assertCurrent();
+        if (exact.orders.length === 0) {
+          if (!child.observation) {
+            await reconcileDispatch(child.placement);
+            if (child.placement.phase === 'failed') {
+              return null;
+            }
+          }
+          throw new LighterChaseObservationPendingError(
+            'Lighter Chase exact child visibility remains pending',
+          );
+        }
         if (exact.orders.length !== 1) {
           throw new Error('Lighter Chase exact child visibility is uncertain');
         }
+        identifyLighterChaseChild(
+          intent,
+          { ...child, nonce: child.placement.nonce },
+          exact.orders[0],
+        );
         const order = exact.orders[0];
         if (!Number.isSafeInteger(order.orderIndex) || order.orderIndex <= 0) {
           throw new Error('Lighter Chase exact order identity is unavailable');
@@ -11883,13 +11980,13 @@ export class LighterProvider implements PerpsProvider {
         const cursors = new Set<string>();
         let cursor: string | undefined;
         let complete = false;
-        for (let page = 0; page < 100; page += 1) {
+        for (let page = 0; page < LIGHTER_NATIVE_PROBE_PAGE_LIMIT; page += 1) {
           const result = await this.#clientService.getTrades(
             intent.owner.accountIndex,
             token,
             {
               marketId: intent.marketId,
-              limit: 100,
+              limit: LIGHTER_NATIVE_PROBE_PAGE_SIZE,
               orderIndex: String(order.orderIndex),
               aggregate: false,
               cursor,
@@ -11930,27 +12027,6 @@ export class LighterProvider implements PerpsProvider {
           order,
           trades,
         );
-        const cancel = child.cancellations.at(-1);
-        if (observation.terminal && cancel && cancel.phase !== 'failed') {
-          if (!cancel.txHash) {
-            throw new Error('Lighter Chase cancel identity is missing');
-          }
-          const transaction = await this.#clientService.getTx(cancel.txHash);
-          assertCurrent();
-          if (
-            !transaction ||
-            transaction.hash.toLowerCase().replace(/^0x/u, '') !==
-              cancel.txHash.toLowerCase().replace(/^0x/u, '') ||
-            transaction.accountIndex !== intent.owner.accountIndex ||
-            transaction.apiKeyIndex !== intent.owner.apiKeyIndex ||
-            transaction.nonce !== cancel.nonce ||
-            getLighterTransactionOutcome(transaction.status) !== 'executed'
-          ) {
-            throw new Error(
-              'Lighter Chase exact cancel execution remains unverified',
-            );
-          }
-        }
         return observation;
       },
     };
@@ -11965,28 +12041,69 @@ export class LighterProvider implements PerpsProvider {
       return;
     }
     const { handle } = record.intent;
-    const timer = setTimeout(() => {
-      this.#chaseTimers.delete(handle);
-      this.#chaseService
-        .tick(record.intent.owner, handle, io)
-        .then((updated) => {
-          this.#assertSession(generation);
-          this.#scheduleChase(updated, io, generation);
-        })
-        .catch(() => {
-          this.#interruptChase();
-        });
-    }, record.intent.intervalMs);
+    const timer = setTimeout(
+      () => {
+        this.#chaseTimers.delete(handle);
+        this.#chaseService
+          .tick(record.intent.owner, handle, io)
+          .then((updated) => {
+            this.#assertSession(generation);
+            this.#scheduleChase(updated, io, generation);
+          })
+          .catch(async (error: unknown) => {
+            this.#deps.debugLogger.log('[LighterProvider] Chase tick failed', {
+              handle,
+              error: ensureError(error, 'LighterProvider.chaseTick').message,
+            });
+            this.#interruptChase();
+            try {
+              await this.#chaseService.recordError(
+                record.intent.owner,
+                handle,
+                io,
+                ensureError(error, 'LighterProvider.chaseTick').message,
+              );
+            } catch (recordError) {
+              this.#deps.debugLogger.log(
+                '[LighterProvider] Chase failure persistence unavailable',
+                { handle, error: String(recordError) },
+              );
+            }
+          });
+      },
+      Math.max(
+        0,
+        Math.min(
+          record.intent.startedAt + record.intent.maxDurationMs,
+          record.lastTickAt + record.intent.intervalMs,
+        ) - Date.now(),
+      ),
+    );
     this.#chaseTimers.set(handle, timer);
   }
 
-  async #placeChaseProbe(params: OrderParams): Promise<OrderResult> {
+  async #placeChaseProbe(input: OrderParams): Promise<OrderResult> {
+    const params = { ...input };
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
+    const chaseGeneration = this.#chaseGeneration;
+    const assertStartCurrent = (): void => {
+      this.#assertSession(generation);
+      if (chaseGeneration !== this.#chaseGeneration) {
+        throw new Error('Lighter Chase start interrupted during preparation');
+      }
+    };
     const intent = await this.#prepareChaseIntent({ ...params }, generation);
-    this.#assertSession(generation);
+    assertStartCurrent();
     await this.#ensureSignerReady();
-    this.#assertSession(generation);
+    assertStartCurrent();
+    // Read the reference, clock and exposure only after signing readiness.
+    const freshIntent = await this.#prepareChaseIntent(
+      { ...params },
+      generation,
+    );
+    assertStartCurrent();
+    Object.assign(intent, freshIntent);
     intent.owner = this.#chaseOwner(intent.owner.accountIndex);
     intent.handle = `lighter-chase:${this.#allocateClientOrderIndexes(1)[0]}`;
     const io = this.#chaseIo(intent, generation);
@@ -11995,9 +12112,12 @@ export class LighterProvider implements PerpsProvider {
         intent.owner,
         'chase',
         generation,
-        async () => await this.#chaseService.start(intent, io),
+        async () => {
+          assertStartCurrent();
+          return await this.#chaseService.start(intent, io);
+        },
       );
-      this.#assertSession(generation);
+      assertStartCurrent();
       this.#scheduleChase(record, io, generation);
       const current = record.children.at(-1);
       const filled = new BigNumber(record.executedSize);
@@ -12037,18 +12157,249 @@ export class LighterProvider implements PerpsProvider {
   }
 
   /**
+   * Read every durable child for one exact handle without acquiring venue authority.
+   * Does not bind a session, initialize signing, use transport or alter storage.
+   * Original account/key identities remain visible after authority disappears.
+   *
+   * @param input - Explicit handle/route and optional original owner.
+   * @returns Validated local history, or explicit absence. Corrupt storage rejects.
+   */
+  async getChaseOrderOwnership(
+    input: GetChaseOrderOwnershipParams,
+  ): Promise<PerpsChaseOrderOwnership> {
+    const params = {
+      ...input,
+      owner: input.owner ? { ...input.owner } : undefined,
+    };
+    if (params.providerId !== 'lighter' || !params.handle) {
+      throw new Error(
+        'Chase ownership requires an exact handle and matching provider',
+      );
+    }
+    const wallet = this.#walletService.getUserAddress().toLowerCase();
+    const network = this.#isTestnet ? 'testnet' : 'mainnet';
+    const generation = this.#sessionGeneration;
+    const accountIndex = this.#accountIndex;
+    const apiKeyIndex = this.#apiKeyIndex;
+    const assertCurrent = (): void => {
+      // The usual session fence may rebind streams. This observation must only
+      // reject stale context, including a switch no other operation has noticed.
+      if (
+        this.#isDisconnected ||
+        generation !== this.#sessionGeneration ||
+        wallet !== this.#walletService.getUserAddress().toLowerCase() ||
+        network !== (this.#isTestnet ? 'testnet' : 'mainnet') ||
+        accountIndex !== this.#accountIndex ||
+        apiKeyIndex !== this.#apiKeyIndex
+      ) {
+        throw new Error('Lighter Chase ownership context changed during read');
+      }
+    };
+    assertCurrent();
+    const unavailable = (
+      reason: 'not_found' | 'owner_mismatch',
+    ): PerpsChaseOrderOwnership => ({
+      status: 'unavailable',
+      providerId: 'lighter',
+      handle: params.handle,
+      reason,
+    });
+    if (
+      params.owner &&
+      (params.owner.providerId !== 'lighter' ||
+        params.owner.walletAddress.toLowerCase() !== wallet ||
+        params.owner.network !== network)
+    ) {
+      return unavailable('owner_mismatch');
+    }
+    const accounts = await this.#readRememberedRecoveryAccounts(
+      `lighterRecoveryAccounts:${network}:${wallet}`,
+    );
+    assertCurrent();
+    let found: LighterChaseRecord | undefined;
+    for (const index of accounts) {
+      const record = await this.#chaseService.inspect(
+        { wallet, network, accountIndex: index, apiKeyIndex },
+        params.handle,
+        { assertCurrent },
+      );
+      assertCurrent();
+      if (record) {
+        if (found) {
+          throw new Error(
+            'Lighter Chase handle has ambiguous durable ownership',
+          );
+        }
+        found = record;
+      }
+    }
+    if (!found) {
+      return unavailable('not_found');
+    }
+    const { intent } = found;
+    if (
+      params.owner &&
+      (params.owner.accountIndex !== intent.owner.accountIndex ||
+        params.owner.apiKeyIndex !== intent.owner.apiKeyIndex)
+    ) {
+      return unavailable('owner_mismatch');
+    }
+    // Explicit projections prevent private journal extensions from leaking into
+    // the public contract. Transaction identity is public; signed payloads and
+    // raw signer/transport error messages are not.
+    const dispatch = (
+      value: LighterChaseDispatch,
+    ): PerpsChaseOrderDispatch => ({
+      phase: value.phase,
+      ...(value.nonce === undefined ? {} : { nonce: value.nonce }),
+      ...(value.txHash === undefined ? {} : { txHash: value.txHash }),
+      ...(value.expiresAt === undefined ? {} : { expiresAt: value.expiresAt }),
+    });
+    return {
+      status: 'available',
+      providerId: 'lighter',
+      handle: intent.handle,
+      owner: {
+        providerId: 'lighter',
+        walletAddress: intent.owner.wallet,
+        network: intent.owner.network,
+        accountIndex: intent.owner.accountIndex,
+        apiKeyIndex: intent.owner.apiKeyIndex,
+      },
+      order: toLighterChaseOrder(found),
+      executedSize: found.executedSize,
+      executedNotional: found.executedNotional,
+      lastTickAt: found.lastTickAt,
+      ...(found.stopReason ? { stopReason: found.stopReason } : {}),
+      children: found.children.map((child) => ({
+        clientOrderId: child.clientOrderId,
+        size: child.size,
+        price: child.price,
+        quotedAt: child.quotedAt,
+        placement: dispatch(child.placement),
+        cancellations: child.cancellations.map(dispatch),
+        ...(child.observation
+          ? {
+              observation: {
+                orderId: child.observation.orderId,
+                terminal: child.observation.terminal,
+                filledSize: child.observation.filledSize,
+                filledNotional: child.observation.filledNotional,
+                remainingSize: child.observation.remainingSize,
+              },
+            }
+          : {}),
+      })),
+    };
+  }
+
+  /**
    * Read durable local Chase ownership without resuming a financial loop.
    *
    * @returns Exact recorded cleanup identities and public observation state.
    */
   async getNativeChaseRecords(): Promise<LighterChaseRecord[]> {
+    return (await this.#chaseInventory()).records;
+  }
+
+  /**
+   * Keep remembered local obligations visible when current venue authority is absent.
+   *
+   * @returns Wallet/network-scoped records and availability of current venue authority.
+   */
+  async #chaseInventory(): Promise<{
+    records: LighterChaseRecord[];
+    canReconcile: boolean;
+  }> {
     this.#ensureSessionBinding();
+    if (!this.#boundAddress) {
+      return { records: [], canReconcile: false };
+    }
     const generation = this.#sessionGeneration;
-    const account = await this.#ensureAccountIndex();
+    let account: number;
+    try {
+      account = await this.#ensureAccountIndex();
+    } catch (error) {
+      if (error instanceof LighterAccountNotFoundError) {
+        this.#assertSession(generation);
+        const remembered = await this.#readRememberedRecoveryAccounts();
+        this.#assertSession(generation);
+        const records: LighterChaseRecord[] = [];
+        for (const index of remembered) {
+          if (
+            this.#configuredAccountIndex !== undefined &&
+            index !== this.#configuredAccountIndex
+          ) {
+            continue;
+          }
+          records.push(
+            ...(await this.#chaseService.list(this.#chaseOwner(index), {
+              assertCurrent: () => this.#assertSession(generation),
+            })),
+          );
+          this.#assertSession(generation);
+        }
+        return { records, canReconcile: false };
+      }
+      throw error;
+    }
     this.#assertSession(generation);
-    return await this.#chaseService.list(this.#chaseOwner(account), {
+    const records = await this.#chaseService.list(this.#chaseOwner(account), {
       assertCurrent: () => this.#assertSession(generation),
     });
+    return { records, canReconcile: true };
+  }
+
+  /**
+   * Persist local stop intent without inventing venue authority or signing access.
+   *
+   * @param intent - Exact validated remembered record.
+   * @param generation - Issuing wallet/network session.
+   * @returns Current local storage authority without venue operations.
+   */
+  #chaseManagementIo(
+    intent: LighterChaseIntent,
+    generation: number,
+  ): Pick<LighterChaseIo, 'assertCurrent'> {
+    const assertCurrent = (): void => {
+      this.#assertSession(generation);
+      if (
+        this.#boundAddress !== intent.owner.wallet ||
+        (this.#isTestnet ? 'testnet' : 'mainnet') !== intent.owner.network
+      ) {
+        throw new Error('Lighter Chase remembered owner changed');
+      }
+    };
+    return { assertCurrent };
+  }
+
+  /**
+   * @param intent - Exact validated owned record.
+   * @param generation - Issuing wallet/network session.
+   * @param canReconcile - Whether current venue account authority is available.
+   * @param reason - Requested stop cause.
+   * @returns Confirmed settlement or explicit unresolved cleanup.
+   */
+  async #stopChase(
+    intent: LighterChaseIntent,
+    generation: number,
+    canReconcile: boolean,
+    reason: ChaseOrderStatus,
+  ): Promise<LighterChaseRecord> {
+    return canReconcile
+      ? await this.#chaseService.stop(
+          intent.owner,
+          intent.handle,
+          this.#chaseIo(intent, generation),
+          reason,
+        )
+      : await this.#chaseService.stopLocally(
+          intent.owner,
+          intent.handle,
+          this.#chaseManagementIo(intent, generation),
+          reason,
+          'Lighter Chase current venue authority is unavailable; remembered cleanup remains pending',
+        );
   }
 
   /** @returns Provider-bound management state, including interrupted ownership. */
@@ -12058,8 +12409,8 @@ export class LighterProvider implements PerpsProvider {
 
   /** @returns Backgrounded sessions, or visible pending cleanup when uncertain. */
   async suspendChaseOrders(): Promise<ChaseOrder[]> {
-    this.#interruptChase();
-    const records = await this.getNativeChaseRecords();
+    this.#interruptChase('backgrounded');
+    const { records, canReconcile } = await this.#chaseInventory();
     const generation = this.#sessionGeneration;
     const result: ChaseOrder[] = [];
     for (const record of records) {
@@ -12069,10 +12420,10 @@ export class LighterProvider implements PerpsProvider {
       ) {
         result.push(
           toLighterChaseOrder(
-            await this.#chaseService.stop(
-              record.intent.owner,
-              record.intent.handle,
-              this.#chaseIo(record.intent, generation),
+            await this.#stopChase(
+              record.intent,
+              generation,
+              canReconcile,
               'backgrounded',
             ),
           ),
@@ -12088,7 +12439,13 @@ export class LighterProvider implements PerpsProvider {
     if (params.providerId !== undefined && params.providerId !== 'lighter') {
       throw new Error('Lighter Chase provider route mismatch');
     }
-    const records = await this.getNativeChaseRecords();
+    this.#chaseService.interruptHandle(params.orderId, params.symbol);
+    const timer = this.#chaseTimers.get(params.orderId);
+    if (timer) {
+      clearTimeout(timer);
+      this.#chaseTimers.delete(params.orderId);
+    }
+    const { records, canReconcile } = await this.#chaseInventory();
     const record = records.find(
       (entry) =>
         entry.intent.handle === params.orderId &&
@@ -12097,24 +12454,23 @@ export class LighterProvider implements PerpsProvider {
     if (!record) {
       throw new Error('Unknown owned Lighter Chase handle');
     }
-    const timer = this.#chaseTimers.get(record.intent.handle);
-    if (timer) {
-      clearTimeout(timer);
-      this.#chaseTimers.delete(record.intent.handle);
-    }
-    const result = await this.#chaseService.stop(
-      record.intent.owner,
-      record.intent.handle,
-      this.#chaseIo(record.intent, this.#sessionGeneration),
+    const result = await this.#stopChase(
+      record.intent,
+      this.#sessionGeneration,
+      canReconcile,
       'canceled',
     );
+    const settled =
+      result.status !== 'active' &&
+      result.status !== 'termination_pending' &&
+      toLighterChaseOrder(result).restingOrderId === null;
     return {
-      success: result.status === 'canceled' || result.status === 'filled',
+      success: settled,
       orderId: record.intent.handle,
       providerId: 'lighter',
-      ...(result.status === 'termination_pending'
-        ? { error: result.error ?? 'Lighter Chase cleanup remains pending' }
-        : {}),
+      ...(settled
+        ? {}
+        : { error: result.error ?? 'Lighter Chase cleanup remains pending' }),
     };
   }
 
