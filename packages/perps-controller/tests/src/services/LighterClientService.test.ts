@@ -77,6 +77,63 @@ describe('LighterClientService', () => {
     global.fetch = fetchMock;
   });
 
+  describe('post-only book reads', () => {
+    it('requests a bounded fresh public book and validates its full order identities', async () => {
+      const row = {
+        order_index: 5,
+        order_id: '5',
+        owner_account_index: 28,
+        initial_base_amount: '1',
+        remaining_base_amount: '1',
+        price: '100',
+        order_expiry: 0,
+        transaction_time: 1,
+      };
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          total_bids: 1,
+          total_asks: 0,
+          bids: [row],
+          asks: [],
+        }),
+      );
+      expect(await buildService().getOrderBookOrders(1)).toMatchObject({
+        totalBids: 1,
+        bids: [{ orderId: '5', ownerAccountIndex: 28 }],
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '/api/v1/orderBookOrders?market_id=1&limit=250',
+        ),
+        expect.anything(),
+      );
+    });
+    it.each([-1, 32768, 1.5])(
+      'refuses invalid market %s without transport',
+      async (id) => {
+        await expect(buildService().getOrderBookOrders(id)).rejects.toThrow(
+          'market',
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
+    it('rejects malformed public book levels', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          total_bids: 1,
+          total_asks: 0,
+          bids: [{ price: 'garbage' }],
+          asks: [],
+        }),
+      );
+      await expect(buildService().getOrderBookOrders(1)).rejects.toThrow(
+        'Lighter',
+      );
+    });
+  });
+
   describe('network resolution', () => {
     it('uses the testnet base URL in testnet mode', () => {
       expect(buildService(true).baseUrl).toBe(
@@ -402,6 +459,52 @@ describe('LighterClientService', () => {
         ).rejects.toThrow('Invalid Lighter venue data');
       },
     );
+  });
+
+  describe('native TWAP exact reads', () => {
+    it('queries exact client IDs with explicit account and authorization', async () => {
+      fetchMock.mockResolvedValue(mockJsonResponse({ code: 200, orders: [] }));
+      await buildService().getOrdersByClientIds(28, 'auth-token', ['12', '34']);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://testnet.zklighter.elliot.ai/api/v1/accountOrders?account_index=28&client_order_indexes=12%2C34',
+        expect.objectContaining({ headers: { authorization: 'auth-token' } }),
+      );
+    });
+
+    it.each(
+      [
+        [],
+        ['1tail'],
+        ['281474976710656'],
+        ['01'],
+        ['1', '1'],
+        Array.from({ length: 21 }, (_, index) => String(index + 1)),
+      ].map((ids) => [ids]),
+    )(
+      'rejects invalid exact client ID lists %j before transport',
+      async (ids) => {
+        await expect(
+          buildService().getOrdersByClientIds(28, 'auth-token', ids),
+        ).rejects.toThrow('client order');
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it('queries unaggregated trades by exact order ID', async () => {
+      fetchMock.mockResolvedValue(mockJsonResponse({ code: 200, trades: [] }));
+      await buildService().getTrades(28, 'auth-token', {
+        limit: 100,
+        marketId: 4097,
+        orderIndex: '1152921504606846975',
+        aggregate: false,
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '&order_index=1152921504606846975&aggregate=false',
+        ),
+        expect.anything(),
+      );
+    });
   });
 
   describe('getTrades', () => {

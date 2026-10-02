@@ -1,4 +1,14 @@
-import type { ScaleOrderGroup, PerpsProvider, ScaleOrderChild, GetScalePriceLadderParams, PerpsScalePriceLadder, PerpsControllerGetScalePriceLadderAction, PerpsControllerGetScaleOrderGroupsAction, PerpsControllerReviewScaleOrderGroupsAction } from '@metamask/perps-controller';
+import type { ChaseOrder } from '@metamask/perps-controller';
+import type {
+  ScaleOrderGroup,
+  PerpsProvider,
+  ScaleOrderChild,
+  GetScalePriceLadderParams,
+  PerpsScalePriceLadder,
+  PerpsControllerGetScalePriceLadderAction,
+  PerpsControllerGetScaleOrderGroupsAction,
+  PerpsControllerReviewScaleOrderGroupsAction,
+} from '@metamask/perps-controller';
 import type {
   DirectProviderOrderCapabilities,
   LighterWasmCall,
@@ -18,6 +28,16 @@ import type {
   PerpsControllerAcknowledgeRecoveredDispatchAction,
 } from '@metamask/perps-controller';
 import type { LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT } from '@metamask/perps-controller/constants/lighterConfig';
+import type {
+  readLighterChaseQuote,
+  reconcileLighterChaseChild,
+  identifyLighterChaseChild,
+} from '@metamask/perps-controller/utils/lighterChase';
+import type { prepareLighterTwapOrder } from '@metamask/perps-controller/utils/lighterTwap';
+import {
+  reconcileLighterTwapObservation,
+  identifyLighterTwapParent,
+} from '@metamask/perps-controller/utils/lighterTwapReconciliation';
 
 // Compile-time consumer contracts. These are not runtime fixture assertions.
 type AssertCompatible<Expected, Actual extends Expected> = Actual;
@@ -356,5 +376,55 @@ export type ScaleSizingConsumerContracts = [
         : false,
       false
     >
+  >,
+];
+
+export type LighterTwapWireConsumerContract = AssertCompatible<
+  {
+    readonly baseAmount: string;
+    readonly price: string;
+    readonly orderExpiry: number;
+  },
+  ReturnType<typeof prepareLighterTwapOrder>
+>;
+
+export type LighterChaseConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Awaited<ReturnType<NonNullable<PerpsProvider['getChaseOrders']>>>,
+      ChaseOrder[]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Awaited<ReturnType<NonNullable<PerpsProvider['suspendChaseOrders']>>>,
+      ChaseOrder[]
+    >
+  >,
+  AssertTrue<IsExact<ReturnType<typeof readLighterChaseQuote>, string>>,
+];
+
+export type LighterTwapObservationConsumerContracts = [
+  AssertTrue<IsExact<ReturnType<typeof identifyLighterTwapParent>, string>>,
+  AssertTrue<
+    IsExact<
+      Parameters<
+        typeof reconcileLighterTwapObservation
+      >[0]['intent']['clientOrderId'],
+      string
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<typeof reconcileLighterTwapObservation>['terminalObserved'],
+      boolean
+    >
+  >,
+];
+
+export type LighterChaseIdentityConsumerContracts = [
+  AssertTrue<IsExact<ReturnType<typeof identifyLighterChaseChild>, string>>,
+  AssertTrue<
+    IsExact<ReturnType<typeof reconcileLighterChaseChild>['filledSize'], string>
   >,
 ];

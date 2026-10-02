@@ -404,8 +404,10 @@ export type OrderResult = {
    * together with the matching `orderType` and `providerId`. Hyperliquid Scale handles
    * are encoded in venue client-order IDs and recovered from open-order reads.
    * Lighter Scale handles and unresolved rungs persist in account-scoped local
-   * storage. Chase handles are session-local and cannot be
+   * storage. Hyperliquid Chase handles are session-local and cannot be
    * recovered because every replacement receives a new exchange order ID.
+   * Lighter retains local durable Chase handles for explicit cleanup but
+   * never automatically resumes a loop after reconnect.
    * The individual exchange IDs a strategy expanded into are in
    * `childOrderIds`.
    */
@@ -1067,8 +1069,9 @@ export type CancelOrderResult = {
    * What was cancelled, named the same way it was placed: an exchange order ID
    * for an ordinary cancel, and the strategy handle — TWAP id, scale group, or
    * chase session — when `CancelOrderParams.orderType` named one. Scale and
-   * chase handles can only be cancelled during the provider session that
-   * created them; TWAP IDs are venue-owned.
+   * Hyperliquid chase handles can only be cancelled during the provider session
+   * that created them. Lighter durable chase handles remain available for
+   * explicit owned cleanup after reconnect; TWAP IDs are venue-owned.
    */
   orderId?: string;
   error?: string;

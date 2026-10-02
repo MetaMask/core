@@ -1,3 +1,4 @@
+import type { Struct } from '@metamask/superstruct';
 /**
  * Lighter Client Service
  *
@@ -15,8 +16,6 @@
  * - GET  /api/v1/accountActiveOrders  open orders (auth token header)
  * - POST /api/v1/sendTx               submit signed L2 transaction
  */
-
-import type { Struct } from '@metamask/superstruct';
 import {
   array,
   assert,
@@ -30,6 +29,11 @@ import {
   union,
 } from '@metamask/superstruct';
 
+import {
+  LIGHTER_MAX_BASE_AMOUNT,
+  LIGHTER_MAX_ORDER_ID,
+  LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT,
+} from '../constants/lighterConfig.js';
 import {
   getLighterHttpEndpoint,
   LIGHTER_DATA_INTEGRITY_PREFIX,
@@ -45,6 +49,7 @@ import type {
   LighterNextNonceResponse,
   LighterTxLookupResponse,
   LighterOrderBookMeta,
+  LighterOrderBookOrdersResponse,
   LighterOrderBookDetailsResponse,
   LighterOrderBooksResponse,
   LighterCandlesResponse,
@@ -240,6 +245,12 @@ const OrderStruct = refine(
     initialBaseAmount: NonNegativeDecimalStringStruct,
     remainingBaseAmount: NonNegativeDecimalStringStruct,
     filledBaseAmount: optional(NonNegativeDecimalStringStruct),
+    filledQuoteAmount: optional(NonNegativeDecimalStringStruct),
+    clientOrderId: optional(string()),
+    nonce: optional(SafeIntegerStruct),
+    createdAt: optional(NonNegativeIntegerStruct),
+    updatedAt: optional(NonNegativeIntegerStruct),
+    transactionTime: optional(NonNegativeIntegerStruct),
     price: PositiveDecimalStringStruct,
     isAsk: boolean(),
     type: string(),
@@ -279,6 +290,9 @@ const OrderStruct = refine(
   },
 );
 const TradeStruct = type({
+  tradeIdStr: optional(string()),
+  bidIdStr: optional(string()),
+  askIdStr: optional(string()),
   tradeId: NonNegativeIntegerStruct,
   txHash: string(),
   type: string(),
@@ -302,7 +316,25 @@ const TradeStruct = type({
   makerPositionSignChanged: optional(boolean()),
 });
 
+const BookOrderStruct = type({
+  orderIndex: NonNegativeIntegerStruct,
+  orderId: string(),
+  ownerAccountIndex: NonNegativeIntegerStruct,
+  initialBaseAmount: PositiveDecimalStringStruct,
+  remainingBaseAmount: PositiveDecimalStringStruct,
+  price: PositiveDecimalStringStruct,
+  orderExpiry: NonNegativeIntegerStruct,
+  transactionTime: NonNegativeIntegerStruct,
+});
+
 const ResponseStructs = {
+  orderBookOrders: type({
+    code: SafeIntegerStruct,
+    totalBids: NonNegativeIntegerStruct,
+    totalAsks: NonNegativeIntegerStruct,
+    bids: array(BookOrderStruct),
+    asks: array(BookOrderStruct),
+  }),
   orderBooks: type({
     ...BaseResponseStruct.schema,
     orderBooks: array(MarketStruct),
@@ -555,6 +587,24 @@ export class LighterClientService {
   }
 
   /**
+   * Read a new public native order book snapshot without a local cache.
+   *
+   * @param marketId - Native signed int16 market ID.
+   * @returns Up to 250 individual orders on each side.
+   */
+  async getOrderBookOrders(
+    marketId: number,
+  ): Promise<LighterOrderBookOrdersResponse> {
+    if (!Number.isSafeInteger(marketId) || marketId < 0 || marketId > 32767) {
+      throw new Error('Invalid Lighter market ID');
+    }
+    return await this.#get<LighterOrderBookOrdersResponse>(
+      `/api/v1/orderBookOrders?market_id=${marketId}&limit=250`,
+      ResponseStructs.orderBookOrders,
+    );
+  }
+
+  /**
    * Fetch market stats for all markets.
    *
    * @returns Order book details entries.
@@ -678,6 +728,43 @@ export class LighterClientService {
   }
 
   /**
+   * Fetch exact client IDs. Venue retention is the last 10K active orders or
+   * last 1K inactive orders within 24 hours; omission is not absence proof.
+   *
+   * @param accountIndex - Explicit verified account owner.
+   * @param authToken - Matching account read authority.
+   * @param clientOrderIds - Unique canonical 48-bit client IDs, at most twenty.
+   * @returns Matching rows, subject to venue retention limits.
+   */
+  async getOrdersByClientIds(
+    accountIndex: number,
+    authToken: string,
+    clientOrderIds: readonly string[],
+  ): Promise<LighterActiveOrdersResponse> {
+    if (!Number.isSafeInteger(accountIndex) || accountIndex < 0) {
+      throw new Error('Invalid Lighter account index');
+    }
+    if (
+      clientOrderIds.length === 0 ||
+      clientOrderIds.length > LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT ||
+      new Set(clientOrderIds).size !== clientOrderIds.length ||
+      clientOrderIds.some(
+        (id) =>
+          typeof id !== 'string' ||
+          !/^[1-9]\d*$/u.test(id) ||
+          BigInt(id) > BigInt(LIGHTER_MAX_BASE_AMOUNT),
+      )
+    ) {
+      throw new Error('Invalid Lighter client order IDs');
+    }
+    return await this.#get<LighterActiveOrdersResponse>(
+      `/api/v1/accountOrders?account_index=${accountIndex}&client_order_indexes=${encodeURIComponent(clientOrderIds.join(','))}`,
+      ResponseStructs.activeOrders,
+      { authorization: authToken },
+    );
+  }
+
+  /**
    * Fetch historical (inactive) orders: filled and canceled lifecycle
    * states, newest first (auth token required).
    *
@@ -775,12 +862,22 @@ export class LighterClientService {
     authToken: string,
     query: LighterTradesQuery,
   ): Promise<LighterTradesResponse> {
-    const { limit, cursor, from, marketId } = query;
+    const { limit, cursor, from, marketId, orderIndex, aggregate } = query;
+    if (
+      orderIndex !== undefined &&
+      (typeof orderIndex !== 'string' ||
+        !/^[1-9]\d*$/u.test(orderIndex) ||
+        BigInt(orderIndex) > BigInt(LIGHTER_MAX_ORDER_ID))
+    ) {
+      throw new Error('Invalid Lighter exact trade order index');
+    }
     return await this.#get<LighterTradesResponse>(
       `/api/v1/trades?sort_by=timestamp&sort_dir=desc&limit=${limit}&account_index=${accountIndex}&market_type=perp${
         cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`
       }${from === undefined ? '' : `&from=${from}`}${
         marketId === undefined ? '' : `&market_id=${marketId}`
+      }${orderIndex === undefined ? '' : `&order_index=${orderIndex}`}${
+        aggregate === undefined ? '' : `&aggregate=${String(aggregate)}`
       }`,
       ResponseStructs.trades,
       { authorization: authToken },

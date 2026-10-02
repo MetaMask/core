@@ -1,19 +1,3 @@
-/**
- * LighterProvider
- *
- * Provider implementation for the zkLighter protocol (POC).
- * Implements the PerpsProvider interface with live REST reads and a real
- * write path (place/cancel limit orders) driven through the Lighter Go/WASM
- * signer behind the transport-agnostic {@link LighterSignerBridge} seam.
- *
- * Key differences from HyperLiquid:
- * - Venue-specific key (Schnorr over ECgFp5) registered per API-key slot via
- *   a ChangePubKey L2 transaction carrying an EIP-191 personal_sign L1Sig.
- * - Order prices/sizes are integers scaled by per-market decimals.
- * - REST reads plus WebSocket market, account, position, order, fill,
- *   order-book, and candle streams, with price polling as a fallback.
- */
-
 import type { CaipAccountId } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -29,6 +13,7 @@ import {
   LIGHTER_SUPPORTED_RESOLUTIONS,
   LIGHTER_DEFAULT_API_KEY_INDEX,
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
+  LIGHTER_TX_EXPIRY_SLACK_MS,
   LIGHTER_MAX_TRADING_API_KEY_INDEX,
   LIGHTER_TRADING_API_KEY_COUNT,
   LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS,
@@ -40,6 +25,7 @@ import {
   LIGHTER_ORDER_TYPE_LIMIT,
   LIGHTER_ORDER_TYPE_MARKET,
   LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME,
+  LIGHTER_TIME_IN_FORCE_POST_ONLY,
   getLighterWsEndpoint,
   LIGHTER_PRICE_POLLING_INTERVAL_MS,
   LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
@@ -67,24 +53,57 @@ import {
   parseLighterStrictDecimal,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
+/**
+ * LighterProvider
+ *
+ * Provider implementation for the zkLighter protocol (POC).
+ * Implements the PerpsProvider interface with live REST reads and a real
+ * write path (place/cancel limit orders) driven through the Lighter Go/WASM
+ * signer behind the transport-agnostic {@link LighterSignerBridge} seam.
+ *
+ * Key differences from HyperLiquid:
+ * - Venue-specific key (Schnorr over ECgFp5) registered per API-key slot via
+ *   a ChangePubKey L2 transaction carrying an EIP-191 personal_sign L1Sig.
+ * - Order prices/sizes are integers scaled by per-market decimals.
+ * - REST reads plus WebSocket market, account, position, order, fill,
+ *   order-book, and candle streams, with price polling as a fallback.
+ */
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { hasErrorInCauseChain } from '../services/causeChain.js';
 import {
+  LighterChaseService,
+  toLighterChaseOrder,
+} from '../services/LighterChaseService.js';
+import type {
+  LighterChaseIntent,
+  LighterChaseOwner,
+  LighterChaseIo,
+  LighterChaseRecord,
+} from '../services/LighterChaseService.js';
+import {
   convertKeysToCamelCase,
   LighterApiError,
   LighterClientService,
 } from '../services/LighterClientService.js';
+import { requireSignedTxIdentity } from '../services/lighterDispatchIdentity.js';
+import { LighterTwapService } from '../services/LighterTwapService.js';
+import type {
+  LighterTwapOwner,
+  LighterTwapReadObservation,
+} from '../services/LighterTwapService.js';
 import { LighterWalletService } from '../services/LighterWalletService.js';
 import type {
   ScaleOrderGroup,
   GetScalePriceLadderParams,
   PerpsScalePriceLadder,
 } from '../types/index.js';
+import type { ChaseOrder } from '../types/index.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
+  TwapOrder,
   AssetRoute,
   CandleData,
   CandleStick,
@@ -158,6 +177,7 @@ import type {
 } from '../types/index.js';
 import type {
   LighterApiOrder,
+  LighterRestTrade,
   LighterApiPosition,
   LighterAccountsByL1AddressResponse,
   LighterAccountSummary,
@@ -204,6 +224,11 @@ import {
   toAttachedOrderGroup,
 } from '../utils/lighterAttachedOrders.js';
 import type { LighterAttachedGroup } from '../utils/lighterAttachedOrders.js';
+import { identifyLighterChaseChild } from '../utils/lighterChase.js';
+import {
+  readLighterChaseQuote,
+  reconcileLighterChaseChild,
+} from '../utils/lighterChase.js';
 import {
   buildLighterScaleLadder,
   normalizeLighterScalePrices,
@@ -218,6 +243,8 @@ import type {
   LighterScaleGroup,
   LighterScaleRung,
 } from '../utils/lighterScaleOrders.js';
+import { prepareLighterTwapOrder } from '../utils/lighterTwap.js';
+import { identifyLighterTwapParent } from '../utils/lighterTwapReconciliation.js';
 import {
   isLimitExecutionOrderType,
   isTriggerOrderType,
@@ -755,57 +782,14 @@ type TpslManualRecovery = {
   recordedAt: number;
 };
 
-/**
- * Clock slack added to a signed payload's ExpiredAt before a not-found
- * transaction hash is declared never-landed.
- */
-const LIGHTER_TX_EXPIRY_SLACK_MS = 30_000;
 /** Maximum durable recovered-dispatch outcomes retained per nonce ledger. */
 const LIGHTER_RECOVERED_DISPATCH_LIMIT = 32;
+/** Bounded native testnet probes retain a one-percent slippage default. */
+const LIGHTER_NATIVE_PROBE_DEFAULT_SLIPPAGE = 0.01;
+/** Maximum notional for a bounded native testnet probe. */
+const LIGHTER_NATIVE_PROBE_MAX_NOTIONAL = 20;
 /** Maximum durable TP/SL manual-recovery obligations retained per network. */
 const LIGHTER_TPSL_MANUAL_RECOVERY_LIMIT = 64;
-
-/**
- * Extract the signed txHash and ExpiredAt from a bridge signing result,
- * failing CLOSED: without them the settlement journal cannot resolve a
- * lost response authoritatively, so the mutation must not be submitted.
- *
- * @param signed - Bridge signing result.
- * @param signed.txHash - Signed transaction hash (hex).
- * @param signed.txInfo - Signed wire payload JSON (carries ExpiredAt).
- * @returns The transaction hash and expiry (ms).
- */
-const requireSignedTxIdentity = (signed: {
-  txHash?: string;
-  txInfo?: string;
-}): { txHash: string; expiresAt: number } => {
-  const { txHash } = signed;
-  if (
-    typeof txHash !== 'string' ||
-    !/^(0x)?[0-9a-fA-F]{8,128}$/u.test(txHash)
-  ) {
-    throw new Error(
-      'Lighter signing result carries no usable txHash; refusing to submit an unreconcilable mutation',
-    );
-  }
-  let expiresAt: unknown;
-  try {
-    expiresAt = (JSON.parse(signed.txInfo ?? '') as Record<string, unknown>)
-      .ExpiredAt;
-  } catch {
-    expiresAt = undefined;
-  }
-  if (
-    typeof expiresAt !== 'number' ||
-    !Number.isSafeInteger(expiresAt) ||
-    expiresAt <= 0
-  ) {
-    throw new Error(
-      'Lighter signing result carries no usable ExpiredAt; refusing to submit an unreconcilable mutation',
-    );
-  }
-  return { txHash, expiresAt };
-};
 
 /**
  * Capture each exact client's signed absolute order expiry. Transaction expiry
@@ -1257,6 +1241,44 @@ const LIGHTER_TRIGGER_WIRE_TYPES: Readonly<Record<TriggerOrderType, number>> =
   });
 
 /**
+ * Keep unsupported post-only fields from silently changing caller intent.
+ *
+ * @param params - Caller order intent.
+ * @returns An unsupported field error, or null for ordinary ALO intent.
+ */
+const getLighterPostOnlyIntentError = (params: OrderParams): string | null => {
+  if (params.timeInForce !== 'ALO') {
+    return null;
+  }
+  if (params.orderType !== 'limit') {
+    return 'Lighter post-only requires an ordinary limit order';
+  }
+  const fields: (keyof OrderParams)[] = [
+    'twapDuration',
+    'twapRandomize',
+    'scaleMinPrice',
+    'scaleMaxPrice',
+    'scaleNumOrders',
+    'scaleSkew',
+    'chaseIntervalMs',
+    'chaseMaxDurationMs',
+    'chaseMaxRepricings',
+    'chaseMaxDistanceBps',
+    'takeProfitPrice',
+    'stopLossPrice',
+    'takeProfitSize',
+    'stopLossSize',
+    'clientOrderId',
+    'tpslLinkage',
+    'grouping',
+  ];
+  const unsupported = fields.find((field) => params[field] !== undefined);
+  return unsupported
+    ? `Lighter post-only does not support ${unsupported}`
+    : null;
+};
+
+/**
  * Refuse trigger fields that the native standalone transaction cannot carry.
  *
  * @param params - Caller order intent.
@@ -1572,6 +1594,10 @@ export class LighterProvider implements PerpsProvider {
 
   readonly #clientService: LighterClientService;
 
+  readonly #chaseService: LighterChaseService;
+  readonly #chaseTestnetProbe: boolean;
+  readonly #chaseTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
   readonly #walletService: LighterWalletService;
 
   readonly #messenger: PerpsControllerMessenger | null;
@@ -1704,7 +1730,13 @@ export class LighterProvider implements PerpsProvider {
   /** Cached auth token (deadline-managed). */
   #authToken: { token: string; deadline: number } | null = null;
 
+  readonly #nativeTwapTestnetProbe: boolean;
+  readonly #nativeTwapService: LighterTwapService;
+
   constructor(options: {
+    /** Explicit bounded testnet research path; never enables product capability. */
+    chaseTestnetProbe?: boolean;
+    nativeTwapTestnetProbe?: boolean;
     isTestnet?: boolean;
     platformDependencies: PerpsPlatformDependencies;
     messenger?: PerpsControllerMessenger;
@@ -1713,7 +1745,18 @@ export class LighterProvider implements PerpsProvider {
     webSocketCtor?: LighterWebSocketCtor | null;
   }) {
     this.#deps = options.platformDependencies;
+    this.#chaseService = new LighterChaseService({
+      storage: this.#deps.diskCache,
+    });
+    this.#chaseTestnetProbe = options.chaseTestnetProbe ?? false;
+    if (this.#chaseTestnetProbe && options.isTestnet === false) {
+      throw new Error('Lighter Chase probe is testnet-only');
+    }
     this.#isTestnet = options.isTestnet ?? true;
+    if (options.nativeTwapTestnetProbe && !this.#isTestnet) {
+      throw new Error('Native TWAP probe mode is testnet-only');
+    }
+    this.#nativeTwapTestnetProbe = options.nativeTwapTestnetProbe ?? false;
     this.#messenger = options.messenger ?? null;
     this.#signerBridge = options.signerBridge ?? null;
     this.#ensureSignerResetListener();
@@ -1737,6 +1780,21 @@ export class LighterProvider implements PerpsProvider {
     this.#walletService = new LighterWalletService(this.#deps, {
       isTestnet: this.#isTestnet,
       messenger: options.messenger,
+    });
+
+    this.#nativeTwapService = new LighterTwapService({
+      storage: this.#deps.diskCache,
+      assertCurrent: (owner): void => {
+        this.#ensureSessionBinding();
+        if (
+          owner.wallet !== this.#boundAddress ||
+          owner.network !== (this.#isTestnet ? 'testnet' : 'mainnet') ||
+          owner.accountIndex !== this.#accountIndex ||
+          this.#isDisconnected
+        ) {
+          throw new Error('Lighter TWAP ownership changed during operation');
+        }
+      },
     });
 
     this.#deps.debugLogger.log('[LighterProvider] Constructor complete', {
@@ -1812,6 +1870,7 @@ export class LighterProvider implements PerpsProvider {
     // A disconnect (provider switch, shutdown) invalidates the whole
     // session: an in-flight write paused inside the lock must fail its
     // fences instead of submitting after the provider was torn down.
+    this.#interruptChase();
     this.#isDisconnected = true;
     this.#invalidateSessionState();
     this.#removeSignerResetListener();
@@ -2102,6 +2161,7 @@ export class LighterProvider implements PerpsProvider {
     // Invalidate in-flight async resolutions started under the previous
     // binding: they compare this generation after their awaits and retry
     // instead of caching results for the wrong account.
+    this.#interruptChase();
     this.#sessionGeneration += 1;
     this.#accountIndex = null;
     this.#apiKeyIndex = this.#preferredApiKeyIndex;
@@ -3085,7 +3145,8 @@ export class LighterProvider implements PerpsProvider {
             }
             if (
               transactionOutcome === 'failed' &&
-              (!(await settleAttached(entry, 'failed')) || !(await settleScale(entry, 'failed')))
+              (!(await settleAttached(entry, 'failed')) ||
+                !(await settleScale(entry, 'failed')))
             ) {
               remaining.push(entry);
               continue;
@@ -3119,7 +3180,10 @@ export class LighterProvider implements PerpsProvider {
           // absent: another dispatch (e.g. a second device) consumed it.
           // Our payload can never land now — retry-safe never-landed,
           // no quarantine; the floor advances with the venue.
-          if (!(await settleAttached(entry, 'nonce-consumed')) || !(await settleScale(entry, 'nonce-consumed'))) {
+          if (
+            !(await settleAttached(entry, 'nonce-consumed')) ||
+            !(await settleScale(entry, 'nonce-consumed'))
+          ) {
             remaining.push(entry);
             continue;
           }
@@ -3133,7 +3197,10 @@ export class LighterProvider implements PerpsProvider {
           // Venue-confirmed absent after the signed validity: PROVEN
           // never landed — the venue still expects this nonce (unless a
           // later dispatch already consumed it: consumedFloor guards).
-          if (!(await settleAttached(entry, 'expired')) || !(await settleScale(entry, 'expired'))) {
+          if (
+            !(await settleAttached(entry, 'expired')) ||
+            !(await settleScale(entry, 'expired'))
+          ) {
             remaining.push(entry);
             continue;
           }
@@ -6588,6 +6655,7 @@ export class LighterProvider implements PerpsProvider {
 
   /** Drop every cache derived from the previously bound account. */
   readonly #invalidateSessionState = (): void => {
+    this.#interruptChase();
     this.#sessionGeneration += 1;
     this.#boundAddress = null;
     this.#accountIndex = null;
@@ -9964,20 +10032,70 @@ export class LighterProvider implements PerpsProvider {
     );
   };
 
+  /**
+   * Reject a crossing post-only intent using a bounded fresh public read.
+   * TIF2 remains the venue-side crossing guard if the book moves after this read.
+   *
+   * @param marketId - Exact native market.
+   * @param isBuy - Intent side.
+   * @param price - Integerized wire price projected onto the native tick grid.
+   * @param generation - Optional financial intent fence.
+   */
+  async #assertPostOnlyBook(
+    marketId: number,
+    isBuy: boolean,
+    price: number,
+    generation?: number,
+  ): Promise<void> {
+    const startedAt = Date.now();
+    const book = await this.#clientService.getOrderBookOrders(marketId);
+    if (generation !== undefined) {
+      this.#assertSession(generation);
+    }
+    if (Date.now() < startedAt || Date.now() - startedAt > 5000) {
+      throw new Error('Lighter post-only book is stale');
+    }
+    const opposing = isBuy ? book.asks : book.bids;
+    const total = isBuy ? book.totalAsks : book.totalBids;
+    if (total < opposing.length || (total > 0 && opposing.length === 0)) {
+      throw new Error('Lighter post-only book is incomplete');
+    }
+    for (const row of opposing) {
+      const restingPrice = parseFinitePositive(row.price);
+      if (
+        restingPrice === null ||
+        parseFinitePositive(row.remainingBaseAmount) === null
+      ) {
+        throw new Error('Lighter post-only book is malformed');
+      }
+      if (isBuy ? price >= restingPrice : price <= restingPrice) {
+        throw new Error('Lighter post-only order would cross the book');
+      }
+    }
+  }
+
   async placeOrder(
-    params: OrderParams,
+    input: OrderParams,
     inheritedGeneration?: number,
   ): Promise<OrderResult> {
     // Tracks a COMMITTED leverage change so an order failing afterwards
     // reports the partial venue state explicitly instead of implying no
     // mutation happened.
     let leverageCommitted = false;
+    let postOnlyClientOrderId: string | undefined;
+    const params = { ...input };
     let attachedGroup: LighterAttachedGroup | undefined;
     let attachedGroupPersisted = false;
     if (params.orderType === 'scale') {
       return this.#placeScaleOrder(params, inheritedGeneration);
     }
     try {
+      if (params.orderType === 'chase' && this.#chaseTestnetProbe) {
+        return await this.#placeChaseProbe(params);
+      }
+      if (params.orderType === 'twap' && this.#nativeTwapTestnetProbe) {
+        return await this.#placeNativeTwapProbe(params);
+      }
       if (params.marginMode !== undefined) {
         return {
           success: false,
@@ -10004,11 +10122,9 @@ export class LighterProvider implements PerpsProvider {
       const hasAttached =
         params.takeProfitPrice !== undefined ||
         params.stopLossPrice !== undefined;
-      if (params.timeInForce === 'ALO') {
-        return {
-          success: false,
-          error: 'Lighter placement does not support post-only (ALO) yet',
-        };
+      const postOnlyError = getLighterPostOnlyIntentError(params);
+      if (postOnlyError) {
+        return { success: false, error: postOnlyError };
       }
       const leverageError = lighterLeverageError(params.leverage);
       if (leverageError) {
@@ -10026,13 +10142,24 @@ export class LighterProvider implements PerpsProvider {
       // causes zero bridge calls (no client creation or key registration
       // side effects).
       const markets = await this.#ensureMarkets(
-        isTriggerOrderType(params.orderType) || hasAttached,
+        isTriggerOrderType(params.orderType) ||
+          hasAttached ||
+          params.timeInForce === 'ALO',
       );
       const market = markets.get(params.symbol);
       if (!market) {
         return {
           success: false,
           error: `Unknown Lighter market: ${params.symbol}`,
+        };
+      }
+      if (
+        params.timeInForce === 'ALO' &&
+        (market.status !== 'active' || market.marketType !== 'perp')
+      ) {
+        return {
+          success: false,
+          error: 'Lighter post-only requires an active perpetual market',
         };
       }
       if (
@@ -10207,6 +10334,10 @@ export class LighterProvider implements PerpsProvider {
         market.supportedPriceDecimals,
       );
       const sizeInt = toSignerWireInteger(size, market.supportedSizeDecimals);
+      const timeInForce =
+        params.timeInForce === 'ALO'
+          ? LIGHTER_TIME_IN_FORCE_POST_ONLY
+          : LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME;
       let orderTypeInt = LIGHTER_ORDER_TYPE_MARKET;
       if (isTriggerOrderType(params.orderType)) {
         orderTypeInt = LIGHTER_TRIGGER_WIRE_TYPES[params.orderType];
@@ -10219,6 +10350,14 @@ export class LighterProvider implements PerpsProvider {
         market,
         referencePrice,
       );
+      if (params.timeInForce === 'ALO') {
+        await this.#assertPostOnlyBook(
+          market.marketId,
+          params.isBuy,
+          fromLighterInteger(priceInt, market.supportedPriceDecimals),
+          generationAtIntent,
+        );
+      }
       const leverageImfHundredths = await this.#resolveLeverageIntent(params);
       // Margin mode is sent only with an explicit leverage update. An
       // omitted leverage leaves both leverage and margin mode unchanged;
@@ -10262,6 +10401,9 @@ export class LighterProvider implements PerpsProvider {
       }
       const [clientOrderIndex, ...attachedClientIds] =
         this.#allocateClientOrderIndexes(1 + attachedChildren.length);
+      if (params.timeInForce === 'ALO') {
+        postOnlyClientOrderId = String(clientOrderIndex);
+      }
 
       // Leverage update and order placement share ONE lock acquisition so a
       // concurrent write can never interleave between the caller's leverage
@@ -10296,6 +10438,14 @@ export class LighterProvider implements PerpsProvider {
                 'Lighter attached client identity was allocated concurrently; refresh and retry',
               );
             }
+          }
+          if (params.timeInForce === 'ALO') {
+            await this.#assertPostOnlyBook(
+              market.marketId,
+              params.isBuy,
+              fromLighterInteger(priceInt, market.supportedPriceDecimals),
+              generationAtIntent,
+            );
           }
           if (leverageImfHundredths !== null && leverageMarginMode !== null) {
             const signedLeverage = await this.#getSignerBridge().execute({
@@ -10334,7 +10484,7 @@ export class LighterProvider implements PerpsProvider {
             params.isBuy ? 0 : 1,
             orderTypeInt,
             isLighterMakerOrder(params)
-              ? LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME
+              ? timeInForce
               : LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
             params.reduceOnly ? 1 : 0,
             String(triggerPrices?.triggerPriceInt ?? LIGHTER_NO_TRIGGER_PRICE),
@@ -10508,6 +10658,9 @@ export class LighterProvider implements PerpsProvider {
         ...(attachedGroup && attachedGroupPersisted
           ? { attachedOrderGroup: toAttachedOrderGroup(attachedGroup) }
           : {}),
+        ...(postOnlyClientOrderId
+          ? { orderId: postOnlyClientOrderId, providerId: 'lighter' as const }
+          : {}),
         ...(leverageCommitted
           ? { partialState: { leverageUpdated: Number(params.leverage) } }
           : {}),
@@ -10515,10 +10668,1192 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
+  /**
+   * Collect owned native schedules without registering keys or financial writes.
+   * Raw observations preserve mapping uncertainty for the bounded runtime probe.
+   *
+   * @returns Exact owned records and parent/child execution observations.
+   */
+  async getNativeTwapObservations(): Promise<LighterTwapReadObservation[]> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    const owner = this.#nativeTwapOwner(accountIndex);
+    const records = await this.#nativeTwapService.list(owner);
+    this.#assertSession(generation);
+    if (records.length === 0) {
+      return [];
+    }
+    const authority = await this.#getNativeProbeReadToken(
+      accountIndex,
+      generation,
+    );
+    this.#assertSession(generation);
+    return await this.#nativeTwapService.observe(
+      owner,
+      this.#clientService,
+      authority.token,
+    );
+  }
+
+  async #withNativeProbeStart<Result>(
+    owner: LighterTwapOwner,
+    strategy: 'twap' | 'chase',
+    generation: number,
+    start: () => Promise<Result>,
+  ): Promise<Result> {
+    return await withProcessMutex(
+      `lighterNativeProbe:${owner.network}:${owner.accountIndex}`,
+      async () => {
+        this.#assertSession(generation);
+        if (strategy === 'chase') {
+          const records = await this.#nativeTwapService.list(owner);
+          this.#assertSession(generation);
+          if (records.some((record) => record.placement.phase !== 'failed')) {
+            throw new Error(
+              'An earlier Lighter native probe remains unresolved for this account',
+            );
+          }
+        } else {
+          const records = await this.#chaseService.list(owner, {
+            assertCurrent: () => this.#assertSession(generation),
+          });
+          this.#assertSession(generation);
+          if (
+            records.some(
+              (record) =>
+                record.status === 'active' ||
+                record.status === 'termination_pending',
+            )
+          ) {
+            throw new Error(
+              'An earlier Lighter native probe remains unresolved for this account',
+            );
+          }
+        }
+        return await start();
+      },
+    );
+  }
+
+  async #getNativeProbeReadToken(
+    accountIndex: number,
+    generation: number,
+  ): Promise<{ token: string; apiKeyIndex: number; publicKey: string }> {
+    return await withProcessMutex(
+      `lighterVenueWrite:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}`,
+      async () => await this.#getRecoveryReadToken(accountIndex, generation),
+    );
+  }
+
+  #nativeTwapOwner(accountIndex: number): LighterTwapOwner {
+    if (!this.#boundAddress) {
+      throw new Error('Lighter TWAP wallet is unbound');
+    }
+    return {
+      wallet: this.#boundAddress,
+      network: this.#isTestnet ? 'testnet' : 'mainnet',
+      accountIndex,
+      apiKeyIndex: this.#apiKeyIndex,
+    };
+  }
+
+  #interruptChase(): void {
+    this.#chaseService.interrupt();
+    for (const timer of this.#chaseTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.#chaseTimers.clear();
+  }
+
+  #chaseOwner(accountIndex: number): LighterChaseOwner {
+    if (!this.#boundAddress) {
+      throw new Error('Lighter Chase wallet is unbound');
+    }
+    return {
+      wallet: this.#boundAddress,
+      network: this.#isTestnet ? 'testnet' : 'mainnet',
+      accountIndex,
+      apiKeyIndex: this.#apiKeyIndex,
+    };
+  }
+
+  async #prepareChaseIntent(
+    params: OrderParams,
+    generation: number,
+  ): Promise<LighterChaseIntent> {
+    if (params.providerId !== undefined && params.providerId !== 'lighter') {
+      throw new Error('Lighter Chase provider route mismatch');
+    }
+    if (!this.#chaseTestnetProbe || !this.#isTestnet) {
+      throw new Error('Lighter Chase probe is unavailable');
+    }
+    const unsupported: (keyof OrderParams)[] = [
+      'usdAmount',
+      'price',
+      'triggerPrice',
+      'timeInForce',
+      'takeProfitPrice',
+      'stopLossPrice',
+      'takeProfitSize',
+      'stopLossSize',
+      'clientOrderId',
+      'marginMode',
+      'tpslLinkage',
+      'grouping',
+      'twapDuration',
+      'twapRandomize',
+      'scaleMinPrice',
+      'scaleMaxPrice',
+      'scaleNumOrders',
+      'scaleSkew',
+      'isFullClose',
+    ];
+    if (
+      params.leverage !== 1 ||
+      params.reduceOnly === true ||
+      unsupported.some((key) => params[key] !== undefined)
+    ) {
+      throw new Error(
+        'Lighter Chase probe requires exact opening size, existing 1x leverage and no unsupported fields',
+      );
+    }
+    const intervalMs = params.chaseIntervalMs ?? 15000;
+    const maxDurationMs = params.chaseMaxDurationMs ?? 60000;
+    const maxRepricings = params.chaseMaxRepricings ?? 1;
+    const maxDistanceBps = params.chaseMaxDistanceBps ?? 100;
+    if (
+      !Number.isSafeInteger(intervalMs) ||
+      intervalMs < 1000 ||
+      !Number.isSafeInteger(maxDurationMs) ||
+      maxDurationMs < intervalMs ||
+      maxDurationMs > 300000 ||
+      !Number.isSafeInteger(maxRepricings) ||
+      maxRepricings < 0 ||
+      maxRepricings > 20 ||
+      !Number.isFinite(maxDistanceBps) ||
+      maxDistanceBps <= 0 ||
+      maxDistanceBps >= 10000
+    ) {
+      throw new Error(
+        'Lighter Chase probe requires bounded interval, duration, repricing and distance',
+      );
+    }
+    const market = (await this.#ensureMarkets(true)).get(params.symbol);
+    this.#assertSession(generation);
+    if (market?.status !== 'active' || market.marketType !== 'perp') {
+      throw new Error('Lighter Chase requires an active perpetual market');
+    }
+    if (!/^\d+(?:\.\d+)?$/u.test(params.size)) {
+      throw new Error('Lighter Chase requires exact positive size');
+    }
+    const size = new BigNumber(params.size);
+    const units = size.shiftedBy(market.supportedSizeDecimals);
+    if (!units.isInteger() || units.lt(1) || units.gt('281474976710655')) {
+      throw new Error('Lighter Chase size is outside the native grid');
+    }
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    const startedAt = Date.now();
+    const book = await this.#clientService.getOrderBookOrders(market.marketId);
+    this.#assertSession(generation);
+    if (Date.now() < startedAt || Date.now() - startedAt > 5000) {
+      throw new Error('Lighter Chase book is stale');
+    }
+    const arrivalPrice = readLighterChaseQuote(book, {
+      isBuy: params.isBuy,
+      accountIndex,
+      priceDecimals: market.supportedPriceDecimals,
+    });
+    if (
+      size.times(arrivalPrice).gt(20) ||
+      size.times(arrivalPrice).lt(market.minQuoteAmount) ||
+      size.lt(market.minBaseAmount)
+    ) {
+      throw new Error(
+        'Lighter Chase must fit native minimums and the aggregate 20 USD cap',
+      );
+    }
+    const intent: LighterChaseIntent = {
+      owner: this.#chaseOwner(accountIndex),
+      handle: 'preflight',
+      symbol: params.symbol,
+      marketId: market.marketId,
+      isBuy: params.isBuy,
+      reduceOnly: false,
+      originalSize: params.size,
+      arrivalPrice,
+      sizeDecimals: market.supportedSizeDecimals,
+      priceDecimals: market.supportedPriceDecimals,
+      startedAt: Date.now(),
+      intervalMs,
+      maxDurationMs,
+      maxRepricings,
+      maxDistanceBps,
+      maxNotional: '20',
+      minBaseAmount: market.minBaseAmount,
+      minQuoteAmount: market.minQuoteAmount,
+    };
+    await this.#assertChaseProbeExposure(intent, params.size, generation);
+    return intent;
+  }
+
+  async #assertChaseProbeExposure(
+    intent: LighterChaseIntent,
+    remainingSize: string,
+    generation: number,
+    price = intent.arrivalPrice,
+    token?: string,
+  ): Promise<void> {
+    const response = await this.#clientService.getAccountByIndex(
+      intent.owner.accountIndex,
+    );
+    this.#assertSession(generation);
+    if (response.accounts.length !== 1) {
+      throw new Error('Lighter Chase account is ambiguous');
+    }
+    const account = response.accounts[0];
+    this.#assertAccountOwnership(account);
+    this.#assertStandardAccount(account.accountType);
+    const rows = (account.positions ?? []).filter(
+      (position) => position.marketId === intent.marketId,
+    );
+    const expectedFilled = new BigNumber(intent.originalSize).minus(
+      remainingSize,
+    );
+    if (
+      rows.length !== 1 ||
+      !new BigNumber(rows[0].initialMarginFraction).eq(100) ||
+      !new BigNumber(rows[0].position).abs().eq(expectedFilled) ||
+      (!expectedFilled.isZero() && (rows[0].sign === 1) !== intent.isBuy) ||
+      account.pendingOrderCount !== 0 ||
+      (account.positions ?? []).some(
+        (position) =>
+          position.openOrderCount !== 0 ||
+          (position.marketId !== intent.marketId &&
+            !new BigNumber(position.position).isZero()),
+      )
+    ) {
+      throw new Error(
+        'Lighter Chase requires independently confirmed 1x and no unrelated exposure or orders',
+      );
+    }
+    let exposure = new BigNumber(0);
+    for (const position of account.positions ?? []) {
+      const value = new BigNumber(position.positionValue);
+      if (!value.isFinite()) {
+        throw new Error('Lighter Chase account exposure is unavailable');
+      }
+      exposure = exposure.plus(value.abs());
+    }
+    if (exposure.plus(new BigNumber(remainingSize).times(price)).gt(20)) {
+      throw new Error(
+        'Lighter Chase aggregate existing-plus-remaining exposure exceeds 20 USD',
+      );
+    }
+    if (token === undefined) {
+      return;
+    }
+    const active = await this.#clientService.getActiveOrders(
+      intent.owner.accountIndex,
+      token,
+      intent.marketId,
+    );
+    this.#assertSession(generation);
+    if (active.orders.length !== 0) {
+      throw new Error(
+        'Lighter Chase requires all prior children terminal before placement',
+      );
+    }
+  }
+
+  #chaseIo(intent: LighterChaseIntent, generation: number): LighterChaseIo {
+    const assertCurrent = (): void => {
+      this.#assertSession(generation);
+      if (
+        this.#boundAddress !== intent.owner.wallet ||
+        this.#accountIndex !== intent.owner.accountIndex ||
+        (this.#isTestnet ? 'testnet' : 'mainnet') !== intent.owner.network
+      ) {
+        throw new Error('Lighter Chase owner changed');
+      }
+    };
+    const assertSigning = (): void => {
+      assertCurrent();
+      if (
+        !this.#chaseTestnetProbe ||
+        !this.#isTestnet ||
+        this.#apiKeyIndex !== intent.owner.apiKeyIndex
+      ) {
+        throw new Error(
+          'Lighter Chase original signing authority is unavailable',
+        );
+      }
+    };
+    return {
+      assertCurrent,
+      now: () => Date.now(),
+      allocateClientId: () => String(this.#allocateClientOrderIndexes(1)[0]),
+      quote: async () => {
+        assertCurrent();
+        const started = Date.now();
+        const book = await this.#clientService.getOrderBookOrders(
+          intent.marketId,
+        );
+        assertCurrent();
+        if (Date.now() < started || Date.now() - started > 5000) {
+          throw new Error('Lighter Chase book is stale');
+        }
+        return readLighterChaseQuote(book, {
+          isBuy: intent.isBuy,
+          accountIndex: intent.owner.accountIndex,
+          priceDecimals: intent.priceDecimals,
+        });
+      },
+      place: async (child, hooks) => {
+        assertSigning();
+        const market = (await this.#ensureMarkets(true)).get(intent.symbol);
+        assertSigning();
+        if (
+          market?.status !== 'active' ||
+          market.marketType !== 'perp' ||
+          market.marketId !== intent.marketId ||
+          market.supportedPriceDecimals !== intent.priceDecimals ||
+          market.supportedSizeDecimals !== intent.sizeDecimals ||
+          !new BigNumber(market.minBaseAmount).eq(intent.minBaseAmount) ||
+          !new BigNumber(market.minQuoteAmount).eq(intent.minQuoteAmount)
+        ) {
+          throw new Error('Lighter Chase native market constraints changed');
+        }
+        const { token } = await this.#getNativeProbeReadToken(
+          intent.owner.accountIndex,
+          generation,
+        );
+        assertSigning();
+        await this.#assertChaseProbeExposure(
+          intent,
+          child.size,
+          generation,
+          child.price,
+          token,
+        );
+        assertSigning();
+        await this.#withVenueNonce(
+          intent.owner.accountIndex,
+          async (nonce, submit) => {
+            assertSigning();
+            await this.#assertPostOnlyBook(
+              intent.marketId,
+              intent.isBuy,
+              Number(child.price),
+              generation,
+            );
+            assertSigning();
+            const signed = await this.#getSignerBridge().execute({
+              function: '_signCreateOrder',
+              params: [
+                intent.owner.accountIndex,
+                intent.marketId,
+                Number(child.clientOrderId),
+                new BigNumber(child.size)
+                  .shiftedBy(intent.sizeDecimals)
+                  .toFixed(0),
+                new BigNumber(child.price)
+                  .shiftedBy(intent.priceDecimals)
+                  .toFixed(0),
+                intent.isBuy ? 0 : 1,
+                LIGHTER_ORDER_TYPE_LIMIT,
+                LIGHTER_TIME_IN_FORCE_POST_ONLY,
+                intent.reduceOnly ? 1 : 0,
+                '0',
+                LIGHTER_ORDER_EXPIRY_NONE,
+                nonce,
+              ],
+            });
+            assertSigning();
+            if (signed.error) {
+              throw new Error(
+                `Lighter Chase create signing failed: ${signed.error}`,
+              );
+            }
+            const identity = requireSignedTxIdentity(signed);
+            await hooks.signed({
+              nonce,
+              txHash: identity.txHash,
+              expiresAt: identity.expiresAt,
+            });
+            assertSigning();
+            await submit(
+              LIGHTER_TX_TYPE_CREATE_ORDER,
+              signed.txInfo,
+              undefined,
+              {
+                ...identity,
+                intent: `chaseCreate:${intent.symbol}:${child.clientOrderId}`,
+                owner: intent.handle,
+                beforeDispatch: async () => {
+                  assertSigning();
+                  await this.#assertChaseProbeExposure(
+                    intent,
+                    child.size,
+                    generation,
+                    child.price,
+                    token,
+                  );
+                  assertSigning();
+                  await hooks.beforeDispatch();
+                },
+                onNotDispatched: hooks.notDispatched,
+              },
+            );
+          },
+          generation,
+        );
+      },
+      cancel: async (child, hooks) => {
+        assertSigning();
+        const { token } = await this.#getNativeProbeReadToken(
+          intent.owner.accountIndex,
+          generation,
+        );
+        assertSigning();
+        const exact = await this.#clientService.getOrdersByClientIds(
+          intent.owner.accountIndex,
+          token,
+          [child.clientOrderId],
+        );
+        assertSigning();
+        if (exact.orders.length !== 1) {
+          throw new Error(
+            'Lighter Chase exact child is not visible for cancellation',
+          );
+        }
+        const orderId = identifyLighterChaseChild(
+          intent,
+          { ...child, nonce: child.placement.nonce },
+          exact.orders[0],
+        );
+        if (child.observation && child.observation.orderId !== orderId) {
+          throw new Error(
+            'Lighter Chase child identity changed before cancellation',
+          );
+        }
+        await this.#ensureSignerReady();
+        assertSigning();
+        await this.#withVenueNonce(
+          intent.owner.accountIndex,
+          async (nonce, submit) => {
+            assertSigning();
+            const signed = await this.#getSignerBridge().execute({
+              function: '_signCancelOrder',
+              params: [
+                intent.owner.accountIndex,
+                intent.marketId,
+                orderId,
+                nonce,
+              ],
+            });
+            assertSigning();
+            if (signed.error) {
+              throw new Error(
+                `Lighter Chase cancel signing failed: ${signed.error}`,
+              );
+            }
+            const identity = requireSignedTxIdentity(signed);
+            await hooks.signed({
+              nonce,
+              txHash: identity.txHash,
+              expiresAt: identity.expiresAt,
+            });
+            assertSigning();
+            await submit(
+              LIGHTER_TX_TYPE_CANCEL_ORDER,
+              signed.txInfo,
+              undefined,
+              {
+                ...identity,
+                intent: `chaseCancel:${intent.symbol}:${child.clientOrderId}`,
+                owner: intent.handle,
+                beforeDispatch: hooks.beforeDispatch,
+                onNotDispatched: hooks.notDispatched,
+              },
+            );
+          },
+          generation,
+        );
+      },
+      observe: async (child) => {
+        assertCurrent();
+        const { token } = await this.#getNativeProbeReadToken(
+          intent.owner.accountIndex,
+          generation,
+        );
+        assertCurrent();
+        const exact = await this.#clientService.getOrdersByClientIds(
+          intent.owner.accountIndex,
+          token,
+          [child.clientOrderId],
+        );
+        assertCurrent();
+        if (exact.orders.length !== 1) {
+          throw new Error('Lighter Chase exact child visibility is uncertain');
+        }
+        const order = exact.orders[0];
+        if (!Number.isSafeInteger(order.orderIndex) || order.orderIndex <= 0) {
+          throw new Error('Lighter Chase exact order identity is unavailable');
+        }
+        const trades: LighterRestTrade[] = [];
+        const cursors = new Set<string>();
+        let cursor: string | undefined;
+        let complete = false;
+        for (let page = 0; page < 100; page += 1) {
+          const result = await this.#clientService.getTrades(
+            intent.owner.accountIndex,
+            token,
+            {
+              marketId: intent.marketId,
+              limit: 100,
+              orderIndex: String(order.orderIndex),
+              aggregate: false,
+              cursor,
+            },
+          );
+          assertCurrent();
+          trades.push(...result.trades);
+          if (!result.nextCursor) {
+            complete = true;
+            break;
+          }
+          if (result.trades.length === 0 || cursors.has(result.nextCursor)) {
+            throw new Error('Lighter Chase trade pagination is incomplete');
+          }
+          cursors.add(result.nextCursor);
+          cursor = result.nextCursor;
+        }
+        if (!complete) {
+          throw new Error(
+            'Lighter Chase trade history exceeds the bounded collector',
+          );
+        }
+        const final = await this.#clientService.getOrdersByClientIds(
+          intent.owner.accountIndex,
+          token,
+          [child.clientOrderId],
+        );
+        assertCurrent();
+        if (
+          final.orders.length !== 1 ||
+          JSON.stringify(final.orders[0]) !== JSON.stringify(order)
+        ) {
+          throw new Error('Lighter Chase child changed during fill collection');
+        }
+        const observation = reconcileLighterChaseChild(
+          intent,
+          { ...child, nonce: child.placement.nonce },
+          order,
+          trades,
+        );
+        const cancel = child.cancellations.at(-1);
+        if (observation.terminal && cancel && cancel.phase !== 'failed') {
+          if (!cancel.txHash) {
+            throw new Error('Lighter Chase cancel identity is missing');
+          }
+          const transaction = await this.#clientService.getTx(cancel.txHash);
+          assertCurrent();
+          if (
+            !transaction ||
+            transaction.hash.toLowerCase().replace(/^0x/u, '') !==
+              cancel.txHash.toLowerCase().replace(/^0x/u, '') ||
+            transaction.accountIndex !== intent.owner.accountIndex ||
+            transaction.apiKeyIndex !== intent.owner.apiKeyIndex ||
+            transaction.nonce !== cancel.nonce ||
+            getLighterTransactionOutcome(transaction.status) !== 'executed'
+          ) {
+            throw new Error(
+              'Lighter Chase exact cancel execution remains unverified',
+            );
+          }
+        }
+        return observation;
+      },
+    };
+  }
+
+  #scheduleChase(
+    record: LighterChaseRecord,
+    io: LighterChaseIo,
+    generation: number,
+  ): void {
+    if (record.status !== 'active') {
+      return;
+    }
+    const { handle } = record.intent;
+    const timer = setTimeout(() => {
+      this.#chaseTimers.delete(handle);
+      this.#chaseService
+        .tick(record.intent.owner, handle, io)
+        .then((updated) => {
+          this.#assertSession(generation);
+          this.#scheduleChase(updated, io, generation);
+        })
+        .catch(() => {
+          this.#interruptChase();
+        });
+    }, record.intent.intervalMs);
+    this.#chaseTimers.set(handle, timer);
+  }
+
+  async #placeChaseProbe(params: OrderParams): Promise<OrderResult> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const intent = await this.#prepareChaseIntent({ ...params }, generation);
+    this.#assertSession(generation);
+    await this.#ensureSignerReady();
+    this.#assertSession(generation);
+    intent.owner = this.#chaseOwner(intent.owner.accountIndex);
+    intent.handle = `lighter-chase:${this.#allocateClientOrderIndexes(1)[0]}`;
+    const io = this.#chaseIo(intent, generation);
+    try {
+      const record = await this.#withNativeProbeStart(
+        intent.owner,
+        'chase',
+        generation,
+        async () => await this.#chaseService.start(intent, io),
+      );
+      this.#assertSession(generation);
+      this.#scheduleChase(record, io, generation);
+      const current = record.children.at(-1);
+      const filled = new BigNumber(record.executedSize);
+      return {
+        success: record.status === 'active' || record.status === 'filled',
+        orderId: intent.handle,
+        providerId: 'lighter',
+        submittedSize: current ? intent.originalSize : undefined,
+        childOrderIds:
+          current?.observation && !current.observation.terminal
+            ? [current.observation.orderId]
+            : [],
+        ...(filled.gt(0)
+          ? {
+              filledSize: filled.toFixed(),
+              averagePrice: new BigNumber(record.executedNotional)
+                .div(filled)
+                .toFixed(),
+            }
+          : {}),
+        ...(record.status !== 'active' && record.status !== 'filled'
+          ? {
+              error:
+                record.error ??
+                'Lighter Chase is interrupted; reconcile its exact handle, never replay placement',
+            }
+          : {}),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        orderId: intent.handle,
+        providerId: 'lighter',
+        error: ensureError(error, 'LighterProvider.placeChase').message,
+      };
+    }
+  }
+
+  /**
+   * Read durable local Chase ownership without resuming a financial loop.
+   *
+   * @returns Exact recorded cleanup identities and public observation state.
+   */
+  async getNativeChaseRecords(): Promise<LighterChaseRecord[]> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const account = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    return await this.#chaseService.list(this.#chaseOwner(account), {
+      assertCurrent: () => this.#assertSession(generation),
+    });
+  }
+
+  /** @returns Provider-bound management state, including interrupted ownership. */
+  async getChaseOrders(): Promise<ChaseOrder[]> {
+    return (await this.getNativeChaseRecords()).map(toLighterChaseOrder);
+  }
+
+  /** @returns Backgrounded sessions, or visible pending cleanup when uncertain. */
+  async suspendChaseOrders(): Promise<ChaseOrder[]> {
+    this.#interruptChase();
+    const records = await this.getNativeChaseRecords();
+    const generation = this.#sessionGeneration;
+    const result: ChaseOrder[] = [];
+    for (const record of records) {
+      if (
+        record.status === 'active' ||
+        record.status === 'termination_pending'
+      ) {
+        result.push(
+          toLighterChaseOrder(
+            await this.#chaseService.stop(
+              record.intent.owner,
+              record.intent.handle,
+              this.#chaseIo(record.intent, generation),
+              'backgrounded',
+            ),
+          ),
+        );
+      } else {
+        result.push(toLighterChaseOrder(record));
+      }
+    }
+    return result;
+  }
+
+  async #cancelChase(params: CancelOrderParams): Promise<CancelOrderResult> {
+    if (params.providerId !== undefined && params.providerId !== 'lighter') {
+      throw new Error('Lighter Chase provider route mismatch');
+    }
+    const records = await this.getNativeChaseRecords();
+    const record = records.find(
+      (entry) =>
+        entry.intent.handle === params.orderId &&
+        entry.intent.symbol === params.symbol,
+    );
+    if (!record) {
+      throw new Error('Unknown owned Lighter Chase handle');
+    }
+    const timer = this.#chaseTimers.get(record.intent.handle);
+    if (timer) {
+      clearTimeout(timer);
+      this.#chaseTimers.delete(record.intent.handle);
+    }
+    const result = await this.#chaseService.stop(
+      record.intent.owner,
+      record.intent.handle,
+      this.#chaseIo(record.intent, this.#sessionGeneration),
+      'canceled',
+    );
+    return {
+      success: result.status === 'canceled' || result.status === 'filled',
+      orderId: record.intent.handle,
+      providerId: 'lighter',
+      ...(result.status === 'termination_pending'
+        ? { error: result.error ?? 'Lighter Chase cleanup remains pending' }
+        : {}),
+    };
+  }
+
+  async #placeNativeTwapProbe(input: OrderParams): Promise<OrderResult> {
+    const params = { ...input };
+    if (!this.#isTestnet || !this.#nativeTwapTestnetProbe) {
+      throw new Error('Lighter native TWAP lifecycle is unavailable');
+    }
+    const unsupportedFields = [
+      'scaleMinPrice',
+      'scaleMaxPrice',
+      'scaleNumOrders',
+      'scaleSkew',
+      'chaseIntervalMs',
+      'chaseMaxDurationMs',
+      'chaseMaxRepricings',
+      'chaseMaxDistanceBps',
+      'takeProfitSize',
+      'stopLossSize',
+      'clientOrderId',
+      'tpslLinkage',
+      'grouping',
+      'isFullClose',
+    ] as const;
+    if (
+      unsupportedFields.some((field) => params[field] !== undefined) ||
+      params.leverage !== 1 ||
+      params.marginMode !== undefined ||
+      params.usdAmount !== undefined ||
+      params.price !== undefined ||
+      params.triggerPrice !== undefined ||
+      params.timeInForce !== undefined ||
+      params.takeProfitPrice !== undefined ||
+      params.stopLossPrice !== undefined
+    ) {
+      throw new Error(
+        'Native TWAP probe requires exact size, existing 1x leverage and no unsupported order fields',
+      );
+    }
+    if (
+      params.twapDuration === undefined ||
+      !Number.isSafeInteger(params.twapDuration) ||
+      params.twapDuration <= 0
+    ) {
+      throw new Error('Native TWAP probe requires a positive integer duration');
+    }
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const market = (await this.#ensureMarkets(true)).get(params.symbol);
+    this.#assertSession(generation);
+    if (market?.status !== 'active' || market.marketType !== 'perp') {
+      throw new Error('Native TWAP probe requires an active perpetual market');
+    }
+    const slippage =
+      params.maxSlippageBps === undefined
+        ? (params.slippage ?? LIGHTER_NATIVE_PROBE_DEFAULT_SLIPPAGE)
+        : params.maxSlippageBps / 10_000;
+    const resolved = await this.#resolveMarketReferencePrice(
+      params.symbol,
+      slippage,
+      params.priceAtCalculation,
+    );
+    if (resolved.error !== null) {
+      throw new Error(resolved.error);
+    }
+    const durationMinutes = params.twapDuration;
+    const prepare = (
+      referencePrice: number,
+      nowMilliseconds: number,
+    ): ReturnType<typeof prepareLighterTwapOrder> => {
+      const maximumNotional = new BigNumber(params.size)
+        .times(referencePrice)
+        .times(new BigNumber(1).plus(slippage));
+      if (
+        maximumNotional.gt(LIGHTER_NATIVE_PROBE_MAX_NOTIONAL) ||
+        new BigNumber(params.size)
+          .times(referencePrice)
+          .times(new BigNumber(1).minus(slippage))
+          .lt(market.minQuoteAmount) ||
+        new BigNumber(params.size).lt(market.minBaseAmount)
+      ) {
+        throw new Error(
+          'Native TWAP probe must fit venue parent minimums and the 20 USD limit',
+        );
+      }
+      return prepareLighterTwapOrder({
+        size: params.size,
+        referencePrice: String(referencePrice),
+        sizeDecimals: market.supportedSizeDecimals,
+        priceDecimals: market.supportedPriceDecimals,
+        isBuy: params.isBuy,
+        slippage: String(slippage),
+        durationMinutes,
+        nowMilliseconds,
+        randomize: params.twapRandomize ?? false,
+        reduceOnly: params.reduceOnly ?? false,
+      });
+    };
+    prepare(resolved.referencePrice, Date.now());
+    const accountIndex = await this.#ensureAccountIndex();
+    const response = await this.#clientService.getAccountByIndex(accountIndex);
+    this.#assertSession(generation);
+    if (response.accounts.length !== 1) {
+      throw new Error('Native TWAP probe account is ambiguous');
+    }
+    const account = response.accounts[0];
+    this.#assertAccountOwnership(account);
+    this.#assertStandardAccount(account.accountType);
+    const positions = (account.positions ?? []).filter(
+      (position) => position.marketId === market.marketId,
+    );
+    if (
+      positions.length !== 1 ||
+      !new BigNumber(positions[0].initialMarginFraction).eq(100)
+    ) {
+      throw new Error(
+        'Native TWAP probe requires independently confirmed existing 1x leverage',
+      );
+    }
+    this.#assertSession(generation);
+    await this.#ensureSignerReady();
+    this.#assertSession(generation);
+    const refreshed = await this.#resolveMarketReferencePrice(
+      params.symbol,
+      slippage,
+      params.priceAtCalculation,
+    );
+    this.#assertSession(generation);
+    if (refreshed.error !== null) {
+      throw new Error(refreshed.error);
+    }
+    const startedAt = Date.now();
+    const prepared = prepare(refreshed.referencePrice, startedAt);
+    const owner = this.#nativeTwapOwner(accountIndex);
+    const [clientId] = this.#allocateClientOrderIndexes(1);
+    const intent = {
+      owner,
+      symbol: params.symbol,
+      marketId: market.marketId,
+      clientOrderId: String(clientId),
+      size: params.size,
+      price: new BigNumber(prepared.price)
+        .shiftedBy(-market.supportedPriceDecimals)
+        .toFixed(),
+      isBuy: params.isBuy,
+      reduceOnly: params.reduceOnly ?? false,
+      sizeDecimals: market.supportedSizeDecimals,
+      priceDecimals: market.supportedPriceDecimals,
+      durationMinutes: params.twapDuration,
+      startedAt,
+      orderExpiry: prepared.orderExpiry,
+    };
+    try {
+      await this.#withNativeProbeStart(
+        owner,
+        'twap',
+        generation,
+        async () =>
+          await this.#nativeTwapService.place(intent, async (hooks) => {
+            await this.#withVenueNonce(
+              accountIndex,
+              async (nonce, submit) => {
+                this.#assertSession(generation);
+                if (
+                  this.#apiKeyIndex !== owner.apiKeyIndex ||
+                  Date.now() >= intent.orderExpiry
+                ) {
+                  throw new Error('Native TWAP intent became stale');
+                }
+                const signed = await this.#getSignerBridge().execute({
+                  function: '_signCreateOrder',
+                  params: [
+                    accountIndex,
+                    market.marketId,
+                    clientId,
+                    prepared.baseAmount,
+                    prepared.price,
+                    prepared.isAsk,
+                    prepared.orderType,
+                    prepared.timeInForce,
+                    prepared.reduceOnly,
+                    prepared.triggerPrice,
+                    prepared.orderExpiry,
+                    nonce,
+                  ],
+                });
+                if (signed.error) {
+                  throw new Error('Native TWAP signer refused the placement');
+                }
+                const identity = requireSignedTxIdentity(signed);
+                await hooks.signed({
+                  nonce,
+                  txHash: identity.txHash,
+                  expiresAt: identity.expiresAt,
+                });
+                await submit(
+                  LIGHTER_TX_TYPE_CREATE_ORDER,
+                  signed.txInfo,
+                  undefined,
+                  {
+                    ...identity,
+                    intent: `nativeTwap:${params.symbol}:${clientId}`,
+                    beforeDispatch: hooks.beforeDispatch,
+                    onNotDispatched: hooks.notDispatched,
+                  },
+                );
+              },
+              generation,
+            );
+          }),
+      );
+    } catch (error) {
+      return {
+        success: false,
+        orderId: String(clientId),
+        providerId: 'lighter',
+        error: `Native TWAP placement did not complete; reconcile this client order before retrying: ${ensureError(error, 'LighterProvider.nativeTwap').message}`,
+      };
+    }
+    let observations: LighterTwapReadObservation[];
+    try {
+      observations = await this.getNativeTwapObservations();
+    } catch (error) {
+      return {
+        success: false,
+        orderId: String(clientId),
+        providerId: 'lighter',
+        error: `Native TWAP submitted; parent observation failed. Do not replay: ${ensureError(error, 'LighterProvider.nativeTwapRead').message}`,
+      };
+    }
+    const observed = observations.find(
+      (entry) => entry.record.intent.clientOrderId === String(clientId),
+    );
+    if (!observed?.observation) {
+      return {
+        success: false,
+        orderId: String(clientId),
+        providerId: 'lighter',
+        error:
+          'Native TWAP submitted; exact parent or fill mapping remains unresolved. Do not replay.',
+      };
+    }
+    return {
+      success: true,
+      orderId: observed.observation.parentOrderId,
+      submittedSize: params.size,
+      providerId: 'lighter',
+    };
+  }
+
+  async #cancelNativeTwapProbe(
+    input: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    const params = { ...input };
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    const records = await this.#nativeTwapService.list(
+      this.#nativeTwapOwner(accountIndex),
+    );
+    this.#assertSession(generation);
+    const owned = records.filter(
+      (record) =>
+        record.intent.symbol === params.symbol &&
+        (record.intent.clientOrderId === params.orderId ||
+          record.parentOrderId === params.orderId),
+    );
+    if (owned.length !== 1) {
+      throw new Error(
+        'Native TWAP cancellation requires an exact owned visible parent',
+      );
+    }
+    const record = owned[0];
+    const authority = await this.#getNativeProbeReadToken(
+      accountIndex,
+      generation,
+    );
+    this.#assertSession(generation);
+    const exact = await this.#clientService.getOrdersByClientIds(
+      accountIndex,
+      authority.token,
+      [record.intent.clientOrderId],
+    );
+    this.#assertSession(generation);
+    if (exact.orders.length !== 1) {
+      throw new Error(
+        'Native TWAP cancellation requires an exact owned visible parent',
+      );
+    }
+    const parentOrderId = identifyLighterTwapParent(record, exact.orders[0]);
+    await this.#ensureSignerReady();
+    this.#assertSession(generation);
+    if (this.#apiKeyIndex !== record.intent.owner.apiKeyIndex) {
+      throw new Error(
+        'Native TWAP cancellation requires the original signing slot',
+      );
+    }
+    await this.#nativeTwapService.cancel(
+      record.intent.owner,
+      record.intent.clientOrderId,
+      async (hooks) => {
+        await this.#withVenueNonce(
+          record.intent.owner.accountIndex,
+          async (nonce, submit) => {
+            this.#assertSession(generation);
+            if (this.#apiKeyIndex !== record.intent.owner.apiKeyIndex) {
+              throw new Error(
+                'Native TWAP cancellation requires the original signing slot',
+              );
+            }
+            const signed = await this.#getSignerBridge().execute({
+              function: '_signCancelOrder',
+              params: [
+                record.intent.owner.accountIndex,
+                record.intent.marketId,
+                parentOrderId,
+                nonce,
+              ],
+            });
+            if (signed.error) {
+              throw new Error('Native TWAP signer refused cancellation');
+            }
+            const identity = requireSignedTxIdentity(signed);
+            await hooks.signed({
+              nonce,
+              txHash: identity.txHash,
+              expiresAt: identity.expiresAt,
+            });
+            await submit(
+              LIGHTER_TX_TYPE_CANCEL_ORDER,
+              signed.txInfo,
+              undefined,
+              {
+                ...identity,
+                intent: `cancelNativeTwap:${record.intent.symbol}:${record.intent.clientOrderId}`,
+                beforeDispatch: async () => {
+                  this.#assertSession(generation);
+                  if (this.#apiKeyIndex !== record.intent.owner.apiKeyIndex) {
+                    throw new Error(
+                      'Native TWAP cancellation requires the original signing slot',
+                    );
+                  }
+                  await hooks.beforeDispatch();
+                },
+                onNotDispatched: hooks.notDispatched,
+              },
+            );
+          },
+          generation,
+        );
+      },
+    );
+    let readIssue = '';
+    try {
+      await this.getNativeTwapObservations();
+    } catch (error) {
+      readIssue = `; observation failed: ${ensureError(error, 'LighterProvider.nativeTwapCancelRead').message}`;
+    }
+    return {
+      success: false,
+      orderId: parentOrderId,
+      providerId: 'lighter',
+      error: `Native TWAP cancellation submitted; authoritative schedule termination remains unverified${readIssue}`,
+    };
+  }
+
+  /**
+   * Refuse a management read until native parent execution totals and terminal
+   * schedule semantics can be established from authoritative venue evidence.
+   * An empty result would incorrectly imply that no native schedules exist.
+   *
+   * @returns No schedule snapshot while the lifecycle contract is unavailable.
+   */
+  async getTwapOrders(): Promise<TwapOrder[]> {
+    throw new Error(
+      'Lighter native TWAP lifecycle is unavailable: authoritative parent fills and termination are not established',
+    );
+  }
+
   async cancelOrder(
     params: CancelOrderParams,
     inheritedGeneration?: number,
   ): Promise<CancelOrderResult> {
+    if (params.orderType === 'chase') {
+      try {
+        return await this.#cancelChase(params);
+      } catch (error) {
+        return {
+          success: false,
+          orderId: params.orderId,
+          providerId: 'lighter',
+          error: ensureError(error, 'LighterProvider.cancelChase').message,
+        };
+      }
+    }
+    // A generic cancel acknowledgment does not establish that a native
+    // schedule is terminal or that no further slices can execute.
+    if (params.orderType === 'twap' && this.#nativeTwapTestnetProbe) {
+      try {
+        return await this.#cancelNativeTwapProbe(params);
+      } catch (error) {
+        return {
+          success: false,
+          error: ensureError(error, 'LighterProvider.cancelNativeTwap').message,
+        };
+      }
+    }
+    if (params.orderType === 'twap') {
+      return {
+        success: false,
+        error:
+          'Lighter native TWAP lifecycle is unavailable: authoritative schedule termination is not established',
+      };
+    }
     try {
       this.#ensureSessionBinding();
       const generationAtIntent = inheritedGeneration ?? this.#sessionGeneration;
@@ -13028,12 +14363,13 @@ export class LighterProvider implements PerpsProvider {
     // whichever awaited venue read fails (markets, margin metadata, fresh
     // price, live positions, data integrity).
     try {
-      if (params.orderType === 'scale') {
+      const intent = { ...params };
+      if (intent.orderType === 'scale') {
         this.#ensureSessionBinding();
-        await this.#prepareScaleOrder(params, this.#sessionGeneration);
+        await this.#prepareScaleOrder(intent, this.#sessionGeneration);
         return { isValid: true };
       }
-      return await this.#validateOrderChecks(params);
+      return await this.#validateOrderChecks(intent);
     } catch (error) {
       return {
         isValid: false,
@@ -13045,6 +14381,13 @@ export class LighterProvider implements PerpsProvider {
   readonly #validateOrderChecks = async (
     params: OrderParams,
   ): Promise<{ isValid: boolean; error?: string }> => {
+    if (params.orderType === 'chase' && this.#chaseTestnetProbe) {
+      this.#ensureSessionBinding();
+      const generation = this.#sessionGeneration;
+      await this.#prepareChaseIntent(params, generation);
+      this.#assertSession(generation);
+      return { isValid: true };
+    }
     if (params.marginMode !== undefined) {
       return {
         isValid: false,
@@ -13071,11 +14414,9 @@ export class LighterProvider implements PerpsProvider {
     const hasAttached =
       params.takeProfitPrice !== undefined ||
       params.stopLossPrice !== undefined;
-    if (params.timeInForce === 'ALO') {
-      return {
-        isValid: false,
-        error: 'Lighter placement does not support post-only (ALO) yet',
-      };
+    const postOnlyError = getLighterPostOnlyIntentError(params);
+    if (postOnlyError) {
+      return { isValid: false, error: postOnlyError };
     }
     if (isLimitExecutionOrderType(params.orderType) && !params.price) {
       return { isValid: false, error: 'Limit order requires a price' };
@@ -13116,13 +14457,24 @@ export class LighterProvider implements PerpsProvider {
       return { isValid: false, error: 'Order size must be positive' };
     }
     const markets = await this.#ensureMarkets(
-      isTriggerOrderType(params.orderType) || hasAttached,
+      isTriggerOrderType(params.orderType) ||
+        hasAttached ||
+        params.timeInForce === 'ALO',
     );
     const market = markets.get(params.symbol);
     if (!market) {
       return {
         isValid: false,
         error: `Unknown Lighter market: ${params.symbol}`,
+      };
+    }
+    if (
+      params.timeInForce === 'ALO' &&
+      (market.status !== 'active' || market.marketType !== 'perp')
+    ) {
+      return {
+        isValid: false,
+        error: 'Lighter post-only requires an active perpetual market',
       };
     }
     if (
@@ -13280,6 +14632,19 @@ export class LighterProvider implements PerpsProvider {
           error: ensureError(error, 'LighterProvider.validateOrder').message,
         };
       }
+    }
+    if (params.timeInForce === 'ALO') {
+      await this.#assertPostOnlyBook(
+        market.marketId,
+        params.isBuy,
+        fromLighterInteger(
+          toSignerWirePriceInteger(
+            executionPrice,
+            market.supportedPriceDecimals,
+          ),
+          market.supportedPriceDecimals,
+        ),
+      );
     }
     return { isValid: true };
   };

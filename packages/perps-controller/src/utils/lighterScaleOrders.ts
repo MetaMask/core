@@ -187,7 +187,11 @@ export function buildLighterScaleLadder(
   if (field) {
     throw new Error(`Lighter Scale does not support ${field}`);
   }
-  if (market.status !== 'active' || market.marketType !== 'perp' || params.orderType !== 'scale') {
+  if (
+    market.status !== 'active' ||
+    market.marketType !== 'perp' ||
+    params.orderType !== 'scale'
+  ) {
     throw new Error('Lighter Scale requires an active perpetual market');
   }
   const {

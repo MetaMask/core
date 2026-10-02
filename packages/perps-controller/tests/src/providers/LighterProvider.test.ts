@@ -1,6 +1,9 @@
-import { parseLighterScaleGroups } from '../../../src/utils/lighterScaleOrders.js';
 import { webcrypto } from 'crypto';
 
+import {
+  LIGHTER_TX_TYPE_CREATE_ORDER,
+  LIGHTER_TX_TYPE_CANCEL_ORDER,
+} from '../../../src/constants/lighterConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterProvider } from '../../../src/providers/LighterProvider.js';
 import {
@@ -27,6 +30,7 @@ import type {
   LighterWebSocketLike,
 } from '../../../src/types/lighter-types.js';
 import type { LighterAttachedGroup } from '../../../src/utils/lighterAttachedOrders.js';
+import { parseLighterScaleGroups } from '../../../src/utils/lighterScaleOrders.js';
 import {
   createMockInfrastructure,
   createMockServiceContext,
@@ -34,7 +38,9 @@ import {
 } from '../../helpers/serviceMocks.js';
 
 jest.mock('../../../src/services/LighterClientService', () => ({
-  ...jest.requireActual<typeof import('../../../src/services/LighterClientService')>('../../../src/services/LighterClientService'),
+  ...jest.requireActual<
+    typeof import('../../../src/services/LighterClientService')
+  >('../../../src/services/LighterClientService'),
   // Only the service class is doubled; convertKeysToCamelCase stays real so
   // the WebSocket message router operates on faithfully camelized payloads.
   LighterClientService: jest.fn(),
@@ -326,6 +332,7 @@ function createMockBridge(): MockBridgeBundle {
 type MockClientInstance = {
   network: string;
   getCandles: jest.Mock;
+  getOrderBookOrders: jest.Mock;
   getOrderBooks: jest.Mock;
   getOrderBookDetails: jest.Mock;
   getAccountsByL1Address: jest.Mock;
@@ -333,6 +340,7 @@ type MockClientInstance = {
   getApiKeys: jest.Mock;
   getNextNonce: jest.Mock;
   getActiveOrders: jest.Mock;
+  getOrdersByClientIds: jest.Mock;
   getInactiveOrders: jest.Mock;
   getTx: jest.Mock;
   getDepositHistory: jest.Mock;
@@ -370,6 +378,8 @@ type BuiltProvider = {
  */
 function buildProvider(
   options: {
+    chaseTestnetProbe?: boolean;
+    nativeTwapTestnetProbe?: boolean;
     withBridge?: boolean;
     registeredKey?: string;
     webSocketCtor?: LighterWebSocketCtor | null;
@@ -398,8 +408,40 @@ function buildProvider(
     sharedBridge,
   } = options;
   const clientInstance = {
+    getOrdersByClientIds: jest
+      .fn()
+      .mockResolvedValue({ code: 200, orders: [] }),
     network: 'testnet',
     getCandles: jest.fn().mockResolvedValue({ code: 200, c: [] }),
+    getOrderBookOrders: jest.fn().mockResolvedValue({
+      code: 200,
+      totalBids: 1,
+      totalAsks: 1,
+      bids: [
+        {
+          orderId: '101',
+          orderIndex: 101,
+          ownerAccountIndex: 99,
+          initialBaseAmount: '1',
+          remainingBaseAmount: '1',
+          price: '99999',
+          orderExpiry: 0,
+          transactionTime: 1,
+        },
+      ],
+      asks: [
+        {
+          orderId: '102',
+          orderIndex: 102,
+          ownerAccountIndex: 99,
+          initialBaseAmount: '1',
+          remainingBaseAmount: '1',
+          price: '100001',
+          orderExpiry: 0,
+          transactionTime: 1,
+        },
+      ],
+    }),
     getOrderBooks: jest.fn().mockResolvedValue([BTC_MARKET]),
     getOrderBookDetails: jest.fn().mockResolvedValue({
       code: 200,
@@ -563,6 +605,8 @@ function buildProvider(
   const { bridge, calls, fireReset, resetListenerCount, resetUnsubscribe } =
     bridgeBundle;
   const provider = new LighterProvider({
+    nativeTwapTestnetProbe: options.nativeTwapTestnetProbe,
+    chaseTestnetProbe: options.chaseTestnetProbe,
     isTestnet,
     platformDependencies,
     lighterAuthConfig: {
@@ -6040,7 +6084,7 @@ describe('LighterProvider', () => {
         expect.objectContaining({ symbol: 'BTC', maxLeverage: 50 }),
         expect.objectContaining({
           symbol: 'MKR',
-          leverage: expect.objectContaining({ value: 10 }),
+          leverage: expect.objectContaining({ value: 10 }) as { value: number },
           maxLeverage: 10,
         }),
       ]);
@@ -6259,26 +6303,63 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
-    it.each(['market', 'limit'] as const)('integration refuses attached %s protection on active spot metadata before setup', async (orderType) => {
-      const { provider, clientInstance, calls } = buildProvider();
-      clientInstance.getOrderBooks.mockResolvedValue([spotMarket]);
-      const params: OrderParams = { symbol: spotMarket.symbol, isBuy: true, size: '0.001', orderType, ...(orderType === 'limit' ? { price: '95100' } : {}), takeProfitPrice: '110000' };
-      const validation = await provider.validateOrder(params);
-      const placement = await provider.placeOrder(params);
-      expect(validation).toMatchObject({ isValid: false, error: expect.stringContaining('active perpetual market') });
-      expect(placement).toMatchObject({ success: false, error: expect.stringContaining('active perpetual market') });
-      expect(calls).toStrictEqual([]);
-      expect(clientInstance.sendTx).not.toHaveBeenCalled();
-      await provider.disconnect();
-    });
+    it.each(['market', 'limit'] as const)(
+      'integration refuses attached %s protection on active spot metadata before setup',
+      async (orderType) => {
+        const { provider, clientInstance, calls } = buildProvider();
+        clientInstance.getOrderBooks.mockResolvedValue([spotMarket]);
+        const params: OrderParams = {
+          symbol: spotMarket.symbol,
+          isBuy: true,
+          size: '0.001',
+          orderType,
+          ...(orderType === 'limit' ? { price: '95100' } : {}),
+          takeProfitPrice: '110000',
+        };
+        const validation = await provider.validateOrder(params);
+        const placement = await provider.placeOrder(params);
+        expect(validation).toMatchObject({
+          isValid: false,
+          error: expect.stringContaining('active perpetual market') as string,
+        });
+        expect(placement).toMatchObject({
+          success: false,
+          error: expect.stringContaining('active perpetual market') as string,
+        });
+        expect(calls).toStrictEqual([]);
+        expect(clientInstance.sendTx).not.toHaveBeenCalled();
+        await provider.disconnect();
+      },
+    );
 
     it('integration rejects spot Scale transport consistently with its unavailable sizing preview', async () => {
       const { provider, clientInstance, calls } = buildProvider();
       clientInstance.getOrderBooks.mockResolvedValue([spotMarket]);
-      const params: OrderParams = { symbol: spotMarket.symbol, isBuy: true, size: '0.001', orderType: 'scale', scaleMinPrice: '90000', scaleMaxPrice: '100000', scaleNumOrders: 2 };
-      expect(await provider.getScalePriceLadder({ symbol: spotMarket.symbol, minPrice: 90000, maxPrice: 100000, count: 2 })).toMatchObject({ status: 'unavailable' });
-      expect(await provider.validateOrder(params)).toMatchObject({ isValid: false, error: expect.stringContaining('active perpetual market') });
-      expect(await provider.placeOrder(params)).toMatchObject({ success: false, error: expect.stringContaining('active perpetual market') });
+      const params: OrderParams = {
+        symbol: spotMarket.symbol,
+        isBuy: true,
+        size: '0.001',
+        orderType: 'scale',
+        scaleMinPrice: '90000',
+        scaleMaxPrice: '100000',
+        scaleNumOrders: 2,
+      };
+      expect(
+        await provider.getScalePriceLadder({
+          symbol: spotMarket.symbol,
+          minPrice: 90000,
+          maxPrice: 100000,
+          count: 2,
+        }),
+      ).toMatchObject({ status: 'unavailable' });
+      expect(await provider.validateOrder(params)).toMatchObject({
+        isValid: false,
+        error: expect.stringContaining('active perpetual market') as string,
+      });
+      expect(await provider.placeOrder(params)).toMatchObject({
+        success: false,
+        error: expect.stringContaining('active perpetual market') as string,
+      });
       expect(calls).toStrictEqual([]);
       expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
       expect(clientInstance.sendTx).not.toHaveBeenCalled();
@@ -7172,7 +7253,524 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('bounded native TWAP lifecycle probe', () => {
+    it('refuses enabling probe transport on mainnet', () => {
+      expect(() =>
+        buildProvider({ nativeTwapTestnetProbe: true, isTestnet: false }),
+      ).toThrow('testnet-only');
+    });
+
+    it('rejects missing native TWAP duration before market or account reads', async () => {
+      const { provider, calls, clientInstance } = buildProvider({
+        nativeTwapTestnetProbe: true,
+      });
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        orderType: 'twap',
+        isBuy: true,
+        size: '0.00020',
+        leverage: 1,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('duration');
+      expect(clientInstance.getOrderBookDetails).not.toHaveBeenCalled();
+      expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+      expect(calls).toHaveLength(0);
+    });
+
+    it('checks native TWAP minimum notional against the lower protected bound before signing', async () => {
+      const { provider, calls, clientInstance } = buildProvider({
+        nativeTwapTestnetProbe: true,
+      });
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, minQuoteAmount: '18' },
+      ]);
+      clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          { ...BTC_MARKET, lastTradePrice: 90000, minQuoteAmount: '18' },
+        ],
+      });
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        orderType: 'twap',
+        isBuy: false,
+        size: '0.00020',
+        leverage: 1,
+        twapDuration: 1,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('parent minimums');
+      expect(calls).toHaveLength(0);
+    });
+
+    it.each([
+      { slippage: undefined, priceAtCalculation: undefined },
+      { slippage: 0.005, priceAtCalculation: undefined },
+      { slippage: 0.01, priceAtCalculation: 90000 },
+    ])(
+      'prepares fresh native TWAP reference and duration after readiness with slippage %s',
+      async ({ slippage, priceAtCalculation }) => {
+        let clock = Date.now();
+        let reference = 90000;
+        const now = jest.spyOn(Date, 'now').mockImplementation(() => clock);
+        const { provider, calls, clientInstance } = buildProvider({
+          nativeTwapTestnetProbe: true,
+          registeredKey: '9c'.repeat(40),
+        });
+        clientInstance.getOrderBookDetails.mockImplementation(async () => ({
+          code: 200,
+          orderBookDetails: [
+            {
+              ...BTC_MARKET,
+              lastTradePrice: reference,
+              defaultInitialMarginFraction: 100,
+              minInitialMarginFraction: 100,
+              maintenanceMarginFraction: 50,
+            },
+          ],
+        }));
+        clientInstance.getAccountByIndex.mockImplementation(async () => {
+          clock += 20000;
+          reference = 88000;
+          return {
+            code: 200,
+            accounts: [
+              {
+                ...ACCOUNT,
+                positions: ACCOUNT.positions.map((position) => ({
+                  ...position,
+                  initialMarginFraction: '100',
+                })),
+              },
+            ],
+          };
+        });
+        try {
+          await provider.placeOrder({
+            symbol: 'BTC',
+            orderType: 'twap',
+            isBuy: true,
+            size: '0.00020',
+            leverage: 1,
+            twapDuration: 1,
+            ...(slippage === undefined ? {} : { slippage }),
+            ...(priceAtCalculation === undefined ? {} : { priceAtCalculation }),
+          });
+          const native = calls.find(
+            (call) => call.function === '_signCreateOrder',
+          );
+          expect(native?.params[10]).toBe(
+            priceAtCalculation === undefined ? clock + 60000 : undefined,
+          );
+          expect(native?.params[4]).toBe(
+            priceAtCalculation === undefined
+              ? String(Math.round(88000 * (1 + (slippage ?? 0.01)) * 10))
+              : undefined,
+          );
+        } finally {
+          now.mockRestore();
+        }
+      },
+    );
+
+    it('rejects over-budget intent before signer setup', async () => {
+      const { provider, calls } = buildProvider({
+        nativeTwapTestnetProbe: true,
+      });
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        orderType: 'twap',
+        isBuy: true,
+        size: '0.001',
+        leverage: 1,
+        twapDuration: 1,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('20 USD');
+      expect(calls).toHaveLength(0);
+    });
+
+    it('retains schedule ownership across disconnect and reads it after restart without financial replay', async () => {
+      const disk = new Map<string, string>();
+      const dependencies = createMockInfrastructure();
+      jest
+        .spyOn(dependencies.diskCache, 'getItem')
+        .mockImplementation(async (key: string) => disk.get(key) ?? null);
+      jest
+        .spyOn(dependencies.diskCache, 'setItem')
+        .mockImplementation(async (key: string, value: string) => {
+          disk.set(key, value);
+        });
+      const first = buildProvider({
+        nativeTwapTestnetProbe: true,
+        platformDependencies: dependencies,
+        registeredKey: '9c'.repeat(40),
+      });
+      first.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 90000,
+            defaultInitialMarginFraction: 100,
+            minInitialMarginFraction: 100,
+            maintenanceMarginFraction: 50,
+          },
+        ],
+      });
+      first.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: ACCOUNT.positions.map((position) => ({
+              ...position,
+              initialMarginFraction: '100',
+            })),
+          },
+        ],
+      });
+      await first.provider.placeOrder({
+        symbol: 'BTC',
+        orderType: 'twap',
+        isBuy: true,
+        size: '0.00020',
+        leverage: 1,
+        twapDuration: 1,
+      });
+      const before = [...disk.entries()].filter(([key]) =>
+        key.startsWith('lighterNativeTwap:'),
+      );
+      await first.provider.disconnect();
+      expect(
+        [...disk.entries()].filter(([key]) =>
+          key.startsWith('lighterNativeTwap:'),
+        ),
+      ).toStrictEqual(before);
+      const restarted = buildProvider({
+        platformDependencies: dependencies,
+        registeredKey: '9c'.repeat(40),
+      });
+      const observations = await restarted.provider.getNativeTwapObservations();
+      expect(observations).toHaveLength(1);
+      expect(observations[0].record.terminalConfirmed).toBe(false);
+      expect(
+        restarted.calls.filter(
+          (call) =>
+            call.function === '_signCreateOrder' ||
+            call.function === '_signCancelOrder' ||
+            call.function === '_signChangePubKey',
+        ),
+      ).toHaveLength(0);
+    });
+
+    it('requires observed existing 1x leverage before signer setup', async () => {
+      const { provider, calls, clientInstance } = buildProvider({
+        nativeTwapTestnetProbe: true,
+      });
+      clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 90000,
+            defaultInitialMarginFraction: 100,
+            minInitialMarginFraction: 100,
+            maintenanceMarginFraction: 50,
+          },
+        ],
+      });
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        orderType: 'twap',
+        isBuy: true,
+        size: '0.00020',
+        leverage: 1,
+        twapDuration: 1,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('existing 1x');
+      expect(calls).toHaveLength(0);
+    });
+
+    it('persists the exact schedule before native type6 send and retains unresolved parent visibility', async () => {
+      const disk = new Map<string, string>();
+      const dependencies = createMockInfrastructure();
+      jest
+        .spyOn(dependencies.diskCache, 'getItem')
+        .mockImplementation(async (key: string) => disk.get(key) ?? null);
+      jest
+        .spyOn(dependencies.diskCache, 'setItem')
+        .mockImplementation(async (key: string, value: string) => {
+          disk.set(key, value);
+        });
+      const { provider, calls, clientInstance } = buildProvider({
+        nativeTwapTestnetProbe: true,
+        platformDependencies: dependencies,
+        registeredKey: '9c'.repeat(40),
+      });
+      clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 90000,
+            defaultInitialMarginFraction: 100,
+            minInitialMarginFraction: 100,
+            maintenanceMarginFraction: 50,
+          },
+        ],
+      });
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: ACCOUNT.positions.map((position) => ({
+              ...position,
+              initialMarginFraction: '100',
+            })),
+          },
+        ],
+      });
+      const persistedAtSend: boolean[] = [];
+      clientInstance.sendTx.mockImplementation(async (kind: number) => {
+        if (kind === LIGHTER_TX_TYPE_CREATE_ORDER) {
+          persistedAtSend.push(
+            [...disk.keys()].some((key) =>
+              key.startsWith('lighterNativeTwap:'),
+            ),
+          );
+        }
+        return { code: 200, txHash: 'accepted' };
+      });
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        orderType: 'twap',
+        isBuy: true,
+        size: '0.00020',
+        leverage: 1,
+        twapDuration: 1,
+      });
+      const native = calls.find((call) => call.function === '_signCreateOrder');
+      expect(persistedAtSend).toStrictEqual([true]);
+      expect(native?.params[6]).toBe(6);
+      expect(native?.params[7]).toBe(1);
+      expect(native?.params[9]).toBe('0');
+      expect(result.success).toBe(false);
+      expect(
+        [...disk.keys()].some((key) => key.startsWith('lighterNativeTwap:')),
+      ).toBe(true);
+      const observations = await provider.getNativeTwapObservations();
+      expect(observations).toHaveLength(1);
+      expect(observations[0].record.terminalConfirmed).toBe(false);
+      expect(observations[0].issue).toContain('parent unavailable');
+    });
+  });
+
+  describe('native TWAP exact-parent provider lifecycle', () => {
+    it.each([
+      { historyUnavailable: false, trailingFailure: false },
+      { historyUnavailable: true, trailingFailure: false },
+      { historyUnavailable: false, trailingFailure: true },
+    ])(
+      'returns the exact parent receipt and cancels with history unavailable=%s without duplicate dispatch',
+      async ({ historyUnavailable, trailingFailure }) => {
+        const { provider, calls, clientInstance } = buildProvider({
+          nativeTwapTestnetProbe: true,
+          registeredKey: '9c'.repeat(40),
+        });
+        clientInstance.getOrderBookDetails.mockResolvedValue({
+          code: 200,
+          orderBookDetails: [
+            {
+              ...BTC_MARKET,
+              lastTradePrice: 90000,
+              defaultInitialMarginFraction: 100,
+              minInitialMarginFraction: 100,
+              maintenanceMarginFraction: 50,
+            },
+          ],
+        });
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [
+            {
+              ...ACCOUNT,
+              positions: ACCOUNT.positions.map((position) => ({
+                ...position,
+                initialMarginFraction: '100',
+              })),
+            },
+          ],
+        });
+        let status = 'in-progress';
+        const parentRows = (): LighterApiOrder[] => {
+          const call = calls.find(
+            (entry) => entry.function === '_signCreateOrder',
+          );
+          if (!call) {
+            return [];
+          }
+          const values = call.params;
+          return [
+            {
+              orderIndex: 9001,
+              orderId: '9001',
+              clientOrderIndex: values[2],
+              clientOrderId: String(values[2]),
+              marketIndex: 1,
+              ownerAccountIndex: 28,
+              initialBaseAmount: '0.00020',
+              remainingBaseAmount: '0.00020',
+              filledBaseAmount: '0',
+              filledQuoteAmount: '0',
+              price: String(Number(values[4]) / 10),
+              isAsk: false,
+              type: 'twap',
+              timeInForce: 'good-till-time',
+              reduceOnly: false,
+              status,
+              orderExpiry: values[10],
+              timestamp: Math.floor((values[10] - 60_000) / 1000),
+              nonce: values[11],
+            },
+          ];
+        };
+        clientInstance.getOrdersByClientIds.mockImplementation(async () => ({
+          code: 200,
+          orders: parentRows(),
+        }));
+        clientInstance.getActiveOrders.mockImplementation(async () => ({
+          code: 200,
+          orders: status === 'in-progress' ? parentRows() : [],
+        }));
+        clientInstance.getInactiveOrders.mockImplementation(async () => ({
+          code: 200,
+          orders: status === 'canceled' ? parentRows() : [],
+        }));
+        clientInstance.getTx.mockImplementation(async (hash: string) => ({
+          code: 200,
+          hash,
+          accountIndex: 28,
+          apiKeyIndex: 7,
+          nonce: hash.startsWith('aaaa') ? 42 : 43,
+          status: 2,
+        }));
+        clientInstance.sendTx.mockImplementation(async (kind: number) => {
+          if (kind === LIGHTER_TX_TYPE_CANCEL_ORDER) {
+            status = 'canceled';
+          }
+          return { code: 200, txHash: 'accepted' };
+        });
+        const placed = await provider.placeOrder({
+          symbol: 'BTC',
+          orderType: 'twap',
+          isBuy: true,
+          size: '0.00020',
+          leverage: 1,
+          twapDuration: 1,
+        });
+        expect(placed).toMatchObject({ success: true, orderId: '9001' });
+        if (historyUnavailable) {
+          clientInstance.getInactiveOrders.mockRejectedValue(
+            new Error('history unavailable'),
+          );
+        }
+        if (trailingFailure) {
+          jest
+            .spyOn(provider, 'getNativeTwapObservations')
+            .mockRejectedValueOnce(new Error('after cancel read failed'));
+        }
+        const cancellation = await provider.cancelOrder({
+          symbol: 'BTC',
+          orderType: 'twap',
+          orderId: '9001',
+        });
+        expect(cancellation.success).toBe(false);
+        expect(cancellation.error).toContain(
+          trailingFailure
+            ? 'observation failed: after cancel read failed'
+            : 'termination remains unverified',
+        );
+        const observations = await provider.getNativeTwapObservations();
+        expect(observations[0]).toMatchObject(
+          historyUnavailable
+            ? { issue: 'history unavailable' }
+            : { observation: { terminalObserved: true } },
+        );
+        expect(observations[0].record.terminalConfirmed).toBe(false);
+        const secondCancellation = await provider.cancelOrder({
+          symbol: 'BTC',
+          orderType: 'twap',
+          orderId: '9001',
+        });
+        expect(secondCancellation).toMatchObject({
+          success: false,
+          error: 'Lighter TWAP cancellation remains unresolved',
+        });
+        expect(
+          calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(1);
+        expect(
+          calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+      },
+    );
+  });
+
+  describe('native TWAP unavailable lifecycle', () => {
+    it('does not report an empty schedule inventory without authoritative reads', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      await expect(provider.getTwapOrders()).rejects.toThrow(
+        'TWAP lifecycle is unavailable',
+      );
+      expect(calls).toHaveLength(0);
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('keeps native TWAP absent from advertised strategies', async () => {
+      const { provider } = buildProvider();
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'BTC',
+      });
+      expect(capabilities).toMatchObject({
+        status: 'ready',
+        supportedStrategies: ['scale'],
+      });
+    });
+
+    it('rejects native placement before signer setup or submission', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'twap',
+        twapDuration: 5,
+        twapRandomize: false,
+      });
+      expect(result.success).toBe(false);
+      expect(calls).toHaveLength(0);
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+  });
+
   describe('cancelOrder', () => {
+    it('refuses native TWAP cancellation before signer setup or submission', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      const result = await provider.cancelOrder({
+        orderId: '555',
+        symbol: 'BTC',
+        orderType: 'twap',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('TWAP lifecycle is unavailable');
+      expect(calls).toHaveLength(0);
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
     it('signs and submits a cancel', async () => {
       const { provider, clientInstance, calls } = buildProvider();
       const result = await provider.cancelOrder({
@@ -8379,7 +8977,9 @@ describe('LighterProvider', () => {
       expect(infra.debugLogger.log).toHaveBeenCalledWith(
         '[LighterProvider] dropped malformed WebSocket frame',
         expect.objectContaining({
-          error: expect.stringContaining('Invalid Lighter venue data'),
+          error: expect.stringContaining(
+            'Invalid Lighter venue data',
+          ) as string,
         }),
       );
 
@@ -9460,7 +10060,7 @@ describe('LighterProvider', () => {
       async (
         _accountIndex: number,
         _authToken: string,
-        limit = 50,
+        limit: number = 50,
         cursor?: string,
       ) => {
         const newestFirst = [...rawInactive].reverse();
@@ -18499,7 +19099,9 @@ describe('LighterProvider', () => {
         expect.stringContaining('journal entry recovery failed'),
         expect.objectContaining({
           settlementKey,
-          error: expect.stringContaining('manual-recovery index is full'),
+          error: expect.stringContaining(
+            'manual-recovery index is full',
+          ) as string,
         }),
       );
       expect(
@@ -25871,4 +26473,654 @@ describe('LighterProvider', () => {
       },
     );
   });
+});
+
+describe('Lighter post-only placement', () => {
+  const intent: OrderParams = {
+    symbol: 'BTC',
+    isBuy: true,
+    orderType: 'limit',
+    timeInForce: 'ALO',
+    size: '0.001',
+    price: '100000',
+  };
+  it('validates and signs ALO as native limit TIF2 with resting expiry', async () => {
+    const built = buildProvider();
+    expect(await built.provider.validateOrder(intent)).toStrictEqual({
+      isValid: true,
+    });
+    expect(built.calls).toHaveLength(0);
+    const result = await built.provider.placeOrder(intent);
+    expect(result.success).toBe(true);
+    const create = built.calls.find(
+      (call) => call.function === '_signCreateOrder',
+    );
+    expect(create?.params.slice(3, 11)).toStrictEqual([
+      '100',
+      '1000000',
+      0,
+      0,
+      2,
+      0,
+      '0',
+      -1,
+    ]);
+    expect(built.clientInstance.getOrderBookOrders).toHaveBeenCalledTimes(3);
+  });
+  it.each([
+    { isBuy: true, price: '100001' },
+    { isBuy: false, price: '99999' },
+  ])('refuses crossing $isBuy before signer setup', async (side) => {
+    const built = buildProvider();
+    const params = { ...intent, ...side };
+    expect(await built.provider.validateOrder(params)).toMatchObject({
+      isValid: false,
+      error: expect.stringContaining('cross') as string,
+    });
+    expect(await built.provider.placeOrder(params)).toMatchObject({
+      success: false,
+      error: expect.stringContaining('cross') as string,
+    });
+    expect(built.calls).toHaveLength(0);
+    expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+  });
+  it('refuses market ALO and inactive markets without signer setup', async () => {
+    const built = buildProvider();
+    expect(
+      await built.provider.placeOrder({ ...intent, orderType: 'market' }),
+    ).toMatchObject({
+      success: false,
+      error: expect.stringContaining('limit') as string,
+    });
+    built.clientInstance.getOrderBooks.mockResolvedValue([
+      { ...BTC_MARKET, status: 'inactive' },
+    ]);
+    expect(await built.provider.placeOrder(intent)).toMatchObject({
+      success: false,
+      error: expect.stringContaining('active') as string,
+    });
+    expect(built.calls).toHaveLength(0);
+  });
+  it.each([{ size: '0.00001' }, { size: '0.001001' }, { price: '0.01' }])(
+    'refuses invalid size/price/minimum %s without signer setup',
+    async (override) => {
+      const built = buildProvider();
+      expect(
+        (await built.provider.validateOrder({ ...intent, ...override }))
+          .isValid,
+      ).toBe(false);
+      expect(
+        (await built.provider.placeOrder({ ...intent, ...override })).success,
+      ).toBe(false);
+      expect(built.calls).toHaveLength(0);
+    },
+  );
+  it('refuses a delayed or failed book before signer setup', async () => {
+    const built = buildProvider();
+    const now = jest.spyOn(Date, 'now');
+    const started = Date.now();
+    built.clientInstance.getOrderBookOrders.mockImplementation(async () => {
+      now.mockReturnValue(started + 6000);
+      return { code: 200, totalBids: 0, totalAsks: 0, bids: [], asks: [] };
+    });
+    expect(await built.provider.placeOrder(intent)).toMatchObject({
+      success: false,
+      error: expect.stringContaining('stale') as string,
+    });
+    expect(built.calls).toHaveLength(0);
+    now.mockRestore();
+    built.clientInstance.getOrderBookOrders.mockRejectedValue(
+      new Error('book unavailable'),
+    );
+    expect(await built.provider.placeOrder(intent)).toMatchObject({
+      success: false,
+      error: 'book unavailable',
+    });
+  });
+  it('fences an account switch during book preflight', async () => {
+    const built = buildProvider();
+    built.clientInstance.getOrderBookOrders.mockImplementation(async () => {
+      built.getUserAddressMock.mockReturnValue('0xother');
+      return { code: 200, totalBids: 0, totalAsks: 0, bids: [], asks: [] };
+    });
+    expect((await built.provider.placeOrder(intent)).success).toBe(false);
+    expect(built.calls).toHaveLength(0);
+  });
+  it('rechecks crossing before signing after setup', async () => {
+    const built = buildProvider();
+    built.clientInstance.getOrderBookOrders
+      .mockResolvedValueOnce({
+        code: 200,
+        totalBids: 0,
+        totalAsks: 0,
+        bids: [],
+        asks: [],
+      })
+      .mockResolvedValue({
+        code: 200,
+        totalBids: 0,
+        totalAsks: 1,
+        bids: [],
+        asks: [
+          {
+            orderId: '2',
+            orderIndex: 2,
+            ownerAccountIndex: 99,
+            initialBaseAmount: '1',
+            remainingBaseAmount: '1',
+            price: '100000',
+            orderExpiry: 0,
+            transactionTime: 1,
+          },
+        ],
+      });
+    expect(await built.provider.placeOrder(intent)).toMatchObject({
+      success: false,
+      error: expect.stringContaining('cross') as string,
+    });
+    expect(
+      built.calls.some((call) => call.function === '_signCreateOrder'),
+    ).toBe(false);
+  });
+  it.each(['disconnect', 'account switch'] as const)(
+    'fences %s during ALO signing before send',
+    async (change) => {
+      const built = buildProvider();
+      const execute = jest
+        .spyOn(built.bridge, 'execute')
+        .getMockImplementation();
+      if (!execute) {
+        throw new Error('Missing bridge implementation');
+      }
+      jest.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+        const result = await execute(call);
+        if (call.function === '_signCreateOrder') {
+          if (change === 'disconnect') {
+            await built.provider.disconnect();
+          } else {
+            built.getUserAddressMock.mockReturnValue('0xother');
+          }
+        }
+        return result;
+      });
+      expect((await built.provider.placeOrder(intent)).success).toBe(false);
+      expect(
+        built.clientInstance.sendTx.mock.calls.filter(([kind]) => kind === 14),
+      ).toHaveLength(0);
+    },
+  );
+  it('snapshots caller intent before the asynchronous book read', async () => {
+    const built = buildProvider();
+    const params = { ...intent };
+    built.clientInstance.getOrderBookOrders.mockImplementation(async () => {
+      params.isBuy = false;
+      params.price = '90000';
+      params.size = '0.1';
+      return { code: 200, totalBids: 0, totalAsks: 0, bids: [], asks: [] };
+    });
+    expect((await built.provider.placeOrder(params)).success).toBe(true);
+    expect(
+      built.calls
+        .find((call) => call.function === '_signCreateOrder')
+        ?.params.slice(3, 8),
+    ).toStrictEqual(['100', '1000000', 0, 0, 2]);
+  });
+  it.each([
+    { chaseIntervalMs: 1000 },
+    { clientOrderId: '123' },
+    { takeProfitSize: '0.001' },
+  ])('refuses unsupported ALO intent %s before setup', async (field) => {
+    const built = buildProvider();
+    expect(
+      (await built.provider.validateOrder({ ...intent, ...field })).isValid,
+    ).toBe(false);
+    expect(
+      (await built.provider.placeOrder({ ...intent, ...field })).success,
+    ).toBe(false);
+    expect(built.calls).toHaveLength(0);
+  });
+  it('preserves the exact client handle and quarantines response loss across restart', async () => {
+    const deps = createMockInfrastructure();
+    const disk = new Map<string, string>();
+    jest
+      .spyOn(deps.diskCache, 'getItem')
+      .mockImplementation(async (key: string) => disk.get(key) ?? null);
+    jest
+      .spyOn(deps.diskCache, 'setItem')
+      .mockImplementation(async (key: string, value: string) => {
+        disk.set(key, value);
+      });
+    const built = buildProvider({ platformDependencies: deps });
+    built.clientInstance.sendTx.mockImplementation(async (kind: number) => {
+      if (kind === LIGHTER_TX_TYPE_CREATE_ORDER) {
+        throw new Error('response lost');
+      }
+      return { code: 200, txHash: 'registered' };
+    });
+    const result = await built.provider.placeOrder(intent);
+    expect(result).toMatchObject({
+      success: false,
+      orderId: expect.any(String) as string,
+      providerId: 'lighter',
+      error: expect.stringContaining('response lost') as string,
+    });
+    expect([...disk.values()].join(' ')).toContain(
+      `placeOrder:BTC:${result.orderId}`,
+    );
+    const restarted = buildProvider({ platformDependencies: deps });
+    expect((await restarted.provider.placeOrder(intent)).success).toBe(false);
+    expect(
+      restarted.calls.some((call) => call.function === '_signCreateOrder'),
+    ).toBe(false);
+  });
+});
+
+describe('Lighter bounded Chase provider probe', () => {
+  const intent: OrderParams = {
+    symbol: 'BTC',
+    isBuy: true,
+    orderType: 'chase',
+    size: '0.0002',
+    leverage: 1,
+    chaseIntervalMs: 1000,
+    chaseMaxDurationMs: 60000,
+    chaseMaxRepricings: 1,
+    chaseMaxDistanceBps: 100,
+  };
+  const setup = (): BuiltProvider => {
+    const built = buildProvider({
+      chaseTestnetProbe: true,
+      nativeTwapTestnetProbe: true,
+      registeredKey: '9c'.repeat(40),
+    });
+    const expiry = Date.now() + 100000;
+    built.clientInstance.getAccountByIndex.mockResolvedValue({
+      code: 200,
+      accounts: [
+        {
+          ...ACCOUNT,
+          positions: [
+            {
+              ...ACCOUNT.positions[0],
+              position: '0',
+              positionValue: '0',
+              initialMarginFraction: '100',
+            },
+          ],
+        },
+      ],
+    });
+    built.clientInstance.getActiveOrders.mockResolvedValue({
+      code: 200,
+      orders: [],
+    });
+    built.clientInstance.getOrderBookOrders.mockResolvedValue({
+      code: 200,
+      totalBids: 1,
+      totalAsks: 1,
+      bids: [
+        {
+          orderIndex: 10,
+          orderId: '10',
+          ownerAccountIndex: 99,
+          initialBaseAmount: '1',
+          remainingBaseAmount: '1',
+          price: '99999.8',
+          orderExpiry: 0,
+          transactionTime: 1,
+        },
+      ],
+      asks: [
+        {
+          orderIndex: 11,
+          orderId: '11',
+          ownerAccountIndex: 99,
+          initialBaseAmount: '1',
+          remainingBaseAmount: '1',
+          price: '100001',
+          orderExpiry: 0,
+          transactionTime: 1,
+        },
+      ],
+    });
+    built.clientInstance.getTrades.mockResolvedValue({ code: 200, trades: [] });
+    built.clientInstance.getTx.mockImplementation(async (hash: string) => ({
+      code: 200,
+      hash,
+      accountIndex: 28,
+      apiKeyIndex: 7,
+      nonce: Number(
+        [...built.calls]
+          .reverse()
+          .find((call) => call.function === '_signCancelOrder')?.params[3],
+      ),
+      status: 2,
+    }));
+    built.clientInstance.getOrdersByClientIds.mockImplementation(
+      async (_account: number, _token: string, ids: string[]) => {
+        const create = built.calls.find(
+          (call) =>
+            call.function === '_signCreateOrder' &&
+            String(call.params[2]) === ids[0],
+        );
+        if (!create) {
+          return { code: 200, orders: [] };
+        }
+        const canceled = built.calls.some(
+          (call) => call.function === '_signCancelOrder',
+        );
+        return {
+          code: 200,
+          orders: [
+            {
+              orderIndex: 9001,
+              orderId: '9001',
+              clientOrderIndex: Number(ids[0]),
+              clientOrderId: ids[0],
+              marketIndex: 1,
+              ownerAccountIndex: 28,
+              initialBaseAmount: '0.0002',
+              remainingBaseAmount: '0.0002',
+              filledBaseAmount: '0',
+              filledQuoteAmount: '0',
+              price: '99999.9',
+              isAsk: false,
+              type: 'limit',
+              timeInForce: 'post-only',
+              reduceOnly: 0,
+              status: canceled ? 'canceled' : 'open',
+              orderExpiry: expiry,
+              timestamp: 1,
+              nonce: Number(create.params[11]),
+            },
+          ],
+        };
+      },
+    );
+    return built;
+  };
+  it.each(['chase', 'twap'] as const)(
+    'excludes a second native probe across strategies after %s dispatch',
+    async (first) => {
+      jest.useFakeTimers();
+      const built = setup();
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 90000,
+            defaultInitialMarginFraction: 100,
+            minInitialMarginFraction: 100,
+            maintenanceMarginFraction: 50,
+          },
+        ],
+      });
+      const twap: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        orderType: 'twap',
+        size: '0.00020',
+        leverage: 1,
+        twapDuration: 1,
+      };
+      try {
+        await built.provider.placeOrder(first === 'chase' ? intent : twap);
+        const creates = built.calls.filter(
+          (call) => call.function === '_signCreateOrder',
+        ).length;
+        expect(creates).toBe(1);
+        const result = await built.provider.placeOrder(
+          first === 'chase' ? twap : intent,
+        );
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('native probe remains unresolved');
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(creates);
+      } finally {
+        await built.provider.disconnect();
+        jest.useRealTimers();
+      }
+    },
+  );
+  it('keeps TWAP and Chase advertisement unavailable and rejects mainnet probe construction', async () => {
+    expect(() =>
+      buildProvider({ chaseTestnetProbe: true, isTestnet: false }),
+    ).toThrow('testnet-only');
+    const built = setup();
+    expect(
+      await built.provider.getOrderCapabilities({ symbol: 'BTC' }),
+    ).toMatchObject({ supportedStrategies: ['scale'] });
+    expect((await buildProvider().provider.placeOrder(intent)).success).toBe(
+      false,
+    );
+  });
+  it('rejects over-budget, leverage and unbounded options before signer setup', async () => {
+    const built = setup();
+    for (const override of [
+      { size: '0.001' },
+      { leverage: 2 },
+      { chaseMaxRepricings: 21 },
+      { chaseMaxDurationMs: 301000 },
+    ]) {
+      expect(
+        (await built.provider.placeOrder({ ...intent, ...override })).success,
+      ).toBe(false);
+    }
+    expect(built.calls).toHaveLength(0);
+  });
+  it('refuses a mismatched provider route before any signer setup', async () => {
+    const built = setup();
+    expect(
+      (
+        await built.provider.placeOrder({
+          ...intent,
+          providerId: 'hyperliquid',
+        })
+      ).success,
+    ).toBe(false);
+    expect(built.calls).toHaveLength(0);
+  });
+  it('serializes one native cancel/reprice and then terminates at its count bound', async () => {
+    jest.useFakeTimers();
+    const built = setup();
+    try {
+      built.clientInstance.getOrdersByClientIds.mockImplementation(
+        async (_account: number, _token: string, ids: string[]) => {
+          const creates = built.calls.filter(
+            (call) => call.function === '_signCreateOrder',
+          );
+          const index = creates.findIndex(
+            (call) => String(call.params[2]) === ids[0],
+          );
+          const create = creates[index];
+          if (!create) {
+            return { code: 200, orders: [] };
+          }
+          const orderId = String(9001 + index);
+          const canceled = built.calls.some(
+            (call) =>
+              call.function === '_signCancelOrder' &&
+              String(call.params[2]) === orderId,
+          );
+          return {
+            code: 200,
+            orders: [
+              {
+                orderIndex: Number(orderId),
+                orderId,
+                clientOrderIndex: Number(ids[0]),
+                clientOrderId: ids[0],
+                marketIndex: 1,
+                ownerAccountIndex: 28,
+                initialBaseAmount: '0.0002',
+                remainingBaseAmount: '0.0002',
+                filledBaseAmount: '0',
+                filledQuoteAmount: '0',
+                price: String(Number(create.params[4]) / 10),
+                isAsk: false,
+                type: 'limit',
+                timeInForce: 'post-only',
+                reduceOnly: 0,
+                status: canceled ? 'canceled' : 'open',
+                orderExpiry: 9999999999999,
+                timestamp: 1,
+                nonce: Number(create.params[11]),
+              },
+            ],
+          };
+        },
+      );
+      const first = await built.provider.placeOrder(intent);
+      expect(first.success).toBe(true);
+      built.clientInstance.getOrderBookOrders.mockResolvedValue({
+        code: 200,
+        totalBids: 1,
+        totalAsks: 1,
+        bids: [
+          {
+            orderIndex: 10,
+            orderId: '10',
+            ownerAccountIndex: 99,
+            initialBaseAmount: '1',
+            remainingBaseAmount: '1',
+            price: '99999.9',
+            orderExpiry: 0,
+            transactionTime: 1,
+          },
+        ],
+        asks: [
+          {
+            orderIndex: 11,
+            orderId: '11',
+            ownerAccountIndex: 99,
+            initialBaseAmount: '1',
+            remainingBaseAmount: '1',
+            price: '100001',
+            orderExpiry: 0,
+            transactionTime: 1,
+          },
+        ],
+      });
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(
+        built.calls
+          .filter((call) =>
+            ['_signCreateOrder', '_signCancelOrder'].includes(call.function),
+          )
+          .map((call) => call.function),
+      ).toStrictEqual([
+        '_signCreateOrder',
+        '_signCancelOrder',
+        '_signCreateOrder',
+      ]);
+      expect((await built.provider.getChaseOrders())[0].repricings).toBe(1);
+      await jest.advanceTimersByTimeAsync(1000);
+      expect((await built.provider.getChaseOrders())[0].status).toBe(
+        'repricing_limit_reached',
+      );
+    } finally {
+      await built.provider.disconnect();
+      jest.useRealTimers();
+    }
+  });
+  it('places an exact owned native ALO child and exposes its public management handle', async () => {
+    const built = setup();
+    const result = await built.provider.placeOrder(intent);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    expect(result.success).toBe(true);
+    expect(result.providerId).toBe('lighter');
+    expect(result.orderId).toMatch(/^lighter-chase:/u);
+    expect(result.childOrderIds).toStrictEqual(['9001']);
+    expect(
+      built.calls
+        .find((call) => call.function === '_signCreateOrder')
+        ?.params.slice(6, 8),
+    ).toStrictEqual([0, 2]);
+    const orders = await built.provider.getChaseOrders();
+    expect(orders[0].handle).toBe(result.orderId);
+    expect(orders[0].status).toBe('active');
+    await built.provider.disconnect();
+  });
+  it('suspends in-flight work and never repeats placement after disconnect', async () => {
+    const built = setup();
+    const result = await built.provider.placeOrder(intent);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    expect(result.success).toBe(true);
+    await built.provider.suspendChaseOrders();
+    const creates = built.calls.filter(
+      (call) => call.function === '_signCreateOrder',
+    ).length;
+    expect((await built.provider.getChaseOrders())[0].status).not.toBe(
+      'active',
+    );
+    expect(
+      built.calls.filter((call) => call.function === '_signCreateOrder'),
+    ).toHaveLength(creates);
+    await built.provider.disconnect();
+  });
+});
+
+describe('integrated advanced perpetual market boundary', () => {
+  it.each(['validate', 'place'] as const)(
+    'refuses post-only active spot before account or signer setup during %s',
+    async (operation) => {
+      const built = buildProvider();
+      built.clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, marketType: 'spot' },
+      ]);
+      const intent: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        orderType: 'limit',
+        timeInForce: 'ALO',
+        size: '0.001',
+        price: '100000',
+      };
+      const result =
+        operation === 'validate'
+          ? await built.provider.validateOrder(intent)
+          : await built.provider.placeOrder(intent);
+      expect(result.error).toContain('active perpetual market');
+      expect(built.clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+      expect(built.calls).toHaveLength(0);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    },
+  );
+  it.each(['twap', 'chase'] as const)(
+    'refuses %s probe on active spot before account or signer setup',
+    async (orderType) => {
+      const built = buildProvider({
+        nativeTwapTestnetProbe: true,
+        chaseTestnetProbe: true,
+      });
+      built.clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, marketType: 'spot' },
+      ]);
+      const result = await built.provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        orderType,
+        size: '0.0002',
+        leverage: 1,
+        ...(orderType === 'twap'
+          ? { twapDuration: 1 }
+          : {
+              chaseIntervalMs: 1000,
+              chaseMaxDurationMs: 60000,
+              chaseMaxRepricings: 1,
+              chaseMaxDistanceBps: 100,
+            }),
+      });
+      expect(result.error).toContain('active perpetual market');
+      expect(built.clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+      expect(built.calls).toHaveLength(0);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    },
+  );
 });

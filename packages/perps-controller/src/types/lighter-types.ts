@@ -683,6 +683,9 @@ export type LighterWsTradesMessage = {
  * One trade from `GET /api/v1/trades` (post-camelization).
  */
 export type LighterRestTrade = {
+  tradeIdStr?: string;
+  bidIdStr?: string;
+  askIdStr?: string;
   tradeId: number;
   txHash: string;
   type: string;
@@ -727,6 +730,10 @@ export type LighterTradesResponse = {
 
 /** Query parameters supported by the Lighter trades endpoint. */
 export type LighterTradesQuery = {
+  /** Exact uint60 order ID; a number would lose precision for large IDs. */
+  orderIndex?: string;
+  /** False preserves individual trade identities for reconciliation. */
+  aggregate?: boolean;
   limit: number;
   cursor?: string;
   from?: number;
@@ -812,6 +819,12 @@ export type LighterApiOrder = {
   remainingBaseAmount: string;
   /** Executed base amount; zero remaining does not imply a fill on cancellation. */
   filledBaseAmount?: string;
+  filledQuoteAmount?: string;
+  clientOrderId?: string;
+  nonce?: number;
+  createdAt?: number;
+  updatedAt?: number;
+  transactionTime?: number;
   price: string;
   isAsk: boolean;
   type: string;
@@ -929,4 +942,24 @@ export type LighterTransferHistoryResponse = {
   message?: string;
   transfers: LighterTransferHistoryItem[];
   cursor?: string;
+};
+
+/** Public native book rows; individual orders permit exact own-order subtraction. */
+export type LighterBookOrder = {
+  orderIndex: number;
+  orderId: string;
+  ownerAccountIndex: number;
+  initialBaseAmount: string;
+  remainingBaseAmount: string;
+  price: string;
+  orderExpiry: number;
+  transactionTime: number;
+};
+
+export type LighterOrderBookOrdersResponse = {
+  code: number;
+  totalBids: number;
+  totalAsks: number;
+  bids: LighterBookOrder[];
+  asks: LighterBookOrder[];
 };

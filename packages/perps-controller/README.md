@@ -325,6 +325,7 @@ activation, partial-parent-fill coverage, and automatic parent/child
 cancellation guarantees require venue execution evidence. The current
 capability only describes the implemented grouped submission, read review and
 explicit exact-ID cancellation.
+
 ## Durable Lighter Scale groups
 
 Lighter advertises Scale as a provider source capability for active markets.
@@ -383,6 +384,163 @@ consumers must preserve the configured durable storage.
 Clients must gate availability on `getOrderCapabilities` and route review and
 cancellation to the owning provider. An HTTP acknowledgment or group ID never
 proves a fill or successful cancellation.
+
+## Lighter native TWAP preparation
+
+Lighter TWAP remains unavailable in `getOrderCapabilities`. Default placement refuses
+before signer setup. `getTwapOrders` rejects rather than reporting an empty
+inventory, and `cancelOrder` with `orderType: 'twap'` refuses before signing.
+A generic cancel transaction acknowledgment cannot establish that a native
+schedule has terminated or that no later slices will execute.
+
+The `utils/lighterTwap` preparation primitive validates exact amount and price
+bounds, rounds price protection inward by side, converts whole minutes to a
+future millisecond expiry, and rejects randomization. It does not sign, submit,
+persist an operation, or expose a supported strategy. It does not impose the
+Hyperliquid duration rules or claim that the venue accepts every prepared value.
+The caller must supply a millisecond clock and current authoritative market
+precision and reference price before any future lifecycle integration.
+
+Enabling TWAP requires authoritative cumulative parent-fill semantics, complete
+child-fill attribution and terminal cancellation evidence. Persisted ownership,
+restart reconciliation and uncertain-dispatch recovery must then be integrated
+and validated before enabling placement. Reducing a position to zero is not
+termination: Lighter documents that reduce-only schedules keep attempting slices
+until expiry.
+
+## Gated Lighter native TWAP lifecycle
+
+The provider's default-off `nativeTwapTestnetProbe` constructor option enables
+bounded source-validation placement and cancellation on testnet. It rejects
+mainnet construction, requires explicit and independently observed 1x leverage,
+exact size within the venue's parent minimums and a maximum 20 USD initial
+protected notional, and refuses unsupported strategy fields. Normal controller
+construction does not enable this option. `getOrderCapabilities` and product
+`getTwapOrders` remain unavailable pending native mapping proof.
+
+Before signing a native schedule, a separate durable journal records immutable
+wallet, network, account, original key slot, market, exact intent and client ID.
+Signed nonce, hash and transaction expiry are recorded separately from schedule
+expiry, and dispatch attempt is persisted before transport. Lost responses and
+restarts retain obligations without replaying CreateOrder. An unresolved owned
+schedule prevents another on the same market. The journal is bounded to 64
+records and 16 cancellation attempts per record; it does not silently prune
+unresolved or historical records.
+
+`getNativeTwapObservations()` uses existing registered read authority, never key
+registration or financial dispatch. It reports exact parent and child rows,
+unaggregated child trades, matching transaction outcomes, candidate normalized
+fills and explicit mapping issues. Parent identity includes account, market,
+client ID, side, size, price, expiry and nonce. Pagination must exhaust, repeated
+cursors fail, snapshots must remain stable, and parent/child/trade quantities
+must agree. A failed read or an omitted parent is uncertainty, not an empty
+schedule inventory or a completed order. Unrelated orders are excluded from
+parent-child reconciliation.
+
+`accountOrders` has a documented retention window: last 10K active orders or
+last 1K inactive orders within 24 hours. History scans retain raw evidence when
+an exact row is absent, but canonical projection still requires a stable exact
+parent reread. Missing retained history therefore remains an explicit obligation.
+The current native mapping gate prevents terminal observations from releasing
+cleanup obligations. The settlement code additionally requires a matching
+executed cancellation for canceled parents and elapsed expiry for expired
+parents. Disconnecting the provider never completes or deletes schedules.
+
+Native slice minimums, cumulative parent/child semantics, terminal timestamps
+and cancellation race ordering still require testnet evidence.
+Candidate observations and unit fixtures are not venue proof. The constructor
+probe option is not exposed as a production feature flag or controller action.
+
+## Lighter post-only limits
+
+Ordinary `limit` orders accept `timeInForce: 'ALO'`. Validation and placement
+require active market metadata, native price/size grids and maker minimums.
+Unsupported strategy, attached protection and caller client-ID fields are
+rejected before signer setup. Fresh public native book reads reject a crossing
+price before setup and again inside the serialized write section. A book read
+older than five seconds fails closed. Native TIF 2 is the final venue guard if
+the book changes after local validation; GTT and IOC behavior is unchanged.
+
+A successful ordinary placement receipt means the transaction was submitted;
+it does not assert that a post-only order rested or filled. A racing book can
+still produce native `canceled-post-only` history. Reconcile exact order state
+through ordinary venue reads. Response loss retains the exact client handle in
+the failure receipt and the inherited durable nonce/transaction journal blocks
+replay across restart until authoritative recovery. No automatic retry is added.
+This transport support does not advertise Chase or establish its venue proof.
+
+## Bounded Lighter Chase lifecycle
+
+Normal Chase capability remains unavailable. A constructor-only
+`chaseTestnetProbe: true` enables the reviewed source path on testnet; mainnet
+construction rejects it. The controller factory does not pass this option.
+This is a bounded implementation awaiting independent approval and Mobile/venue
+proof, not production strategy support.
+
+The probe uses the existing `orderType: 'chase'` contract with exact base size,
+explicit existing 1x leverage, a 20 USD aggregate notional ceiling, an interval
+of at least 1,000 ms, duration from one interval through 300,000 ms, at most 20
+reprices, and an adverse distance strictly between 0 and 10,000 bps. Defaults are
+15,000 ms interval, 60,000 ms duration, one reprice and 100 bps distance. It starts
+from a flat account with no unrelated open orders or exposure. Every replacement
+requires account position quantity to match the exact cumulative owned fills,
+plus no outstanding prior child. Existing position value plus replacement
+notional must still fit the same ceiling. Native minimums apply to each remaining
+child; a remainder below minimum stops rather than enlarging the order.
+
+Probe transport currently supports opening orders only; reduce-only, USD sizing,
+attached protection and other strategy fields remain refused at the probe
+boundary. The dedicated coordinator retains reduce-only intent in its internal
+contract, but no product or probe support is claimed for that route. No automatic
+leverage change, new slot allocation policy, key replacement, fee or PnL invention
+is introduced.
+
+The native public order book supplies individual owner-tagged orders. Quotes
+remove every same-side account order, preserve opposing liquidity, and use the
+market's fixed price tick. Missing external liquidity, stale responses, malformed
+identity or a crossed book stop financial continuation. Each replacement uses
+newly read quotes and native post-only TIF 2.
+
+A durable journal binds wallet, network, account, original key slot, market,
+immutable budget and session handle. Each exact child is persisted before
+signing, its hash/nonce/expiry before dispatch, and attempted state before send.
+A serial tick cannot replace a child until exact terminal order state, exhaustive
+unaggregated fill history and a stable reread agree. Local cancellation also
+requires its exact executed transaction. Fills observed during cancellation
+reduce the next size. Acknowledgments and missing rows never prove termination.
+There are at most 64 retained sessions, 21 children per session and 16 cancel
+attempts per child; records are never silently pruned.
+
+`getChaseOrders()` returns provider-bound public state.
+`getNativeChaseRecords()` exposes exact local cleanup identities for diagnostics.
+`cancelOrder({orderType: 'chase', orderId: handle, symbol, providerId: 'lighter'})`
+explicitly terminates an owned handle. `suspendChaseOrders()` interrupts in-flight
+and scheduled continuation before attempting exact cleanup. Account changes and
+provider teardown interrupt synchronously. Reconnect exposes interrupted records
+as `termination_pending` and never restarts the financial loop. Unknown cancel or
+lost-response ownership remains visible, including across process restart and
+original-slot changes; cleanup requires the original available authority and
+existing recovery-ledger conditions.
+
+Exact order lookup has the venue's limited retention window. Missing retained
+history or unsafe numeric IDs fail closed and may require separate manual
+recovery; they do not authorize a replacement. All lifecycle checks above are
+source behavior. Live post-only crossing, fill/cancel races and bounded reprice
+proof remain separate acceptance evidence.
+
+`utils/lighterTwapReconciliation.reconcileLighterTwapObservation` reconciles
+complete native parent/child rows and unaggregated trades against persisted
+signed intent. `identifyLighterTwapParent` validates immutable parent ownership
+without requiring fill reconciliation, so incomplete history does not block
+exact cancellation. Neither utility proves venue termination. Numeric and
+string trade IDs must agree; trade provenance allows 30 seconds of clock skew.
+
+Native TWAP and Chase probes share one unresolved-account exclusion, including
+across provider instances and restarts. Unverified TWAP terminal observations
+retain that exclusion. The provider class is not a package export, controller
+registration omits probe constructor options, and observation collection needs
+a direct Lighter provider rather than the aggregated provider. Probe callers
+must supply a development integration; these are not enabled product features.
 
 ## Contributing
 

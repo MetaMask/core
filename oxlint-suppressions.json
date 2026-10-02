@@ -4762,12 +4762,6 @@
     }
   },
   "packages/perps-controller/tests/src/providers/LighterProvider.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 4
-    },
     "typescript/unbound-method": {
       "count": 5
     }

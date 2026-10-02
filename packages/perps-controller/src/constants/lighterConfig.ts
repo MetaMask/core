@@ -411,3 +411,18 @@ export const LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX =
 /** Maximum verified venue accounts remembered per wallet/network for recovery inventory. */
 export const LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT = 64;
 
+/** Clock slack for signed transaction expiry and venue trade provenance. */
+export const LIGHTER_TX_EXPIRY_SLACK_MS = 30_000;
+
+/** Fixed native wire bounds and bounded probe inventory limits. */
+export const LIGHTER_MAX_MARKET_ID = 65535;
+export const LIGHTER_MAX_BASE_AMOUNT = '281474976710655';
+export const LIGHTER_MAX_ORDER_PRICE = '4294967295';
+export const LIGHTER_MAX_ORDER_ID = '1152921504606846975';
+export const LIGHTER_MAX_DECIMALS = 255;
+export const LIGHTER_MINUTE_MS = 60_000;
+export const LIGHTER_NATIVE_PROBE_RECORD_LIMIT = 64;
+export const LIGHTER_NATIVE_PROBE_CANCEL_LIMIT = 16;
+export const LIGHTER_NATIVE_PROBE_PAGE_LIMIT = 100;
+export const LIGHTER_NATIVE_PROBE_PAGE_SIZE = 100;
+export const LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT = 20;
