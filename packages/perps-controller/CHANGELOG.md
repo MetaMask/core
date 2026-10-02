@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Persist guarded Lighter protection removals as non-resumable before dispatch. Recovery reconciles earlier cancellations and preserves surviving protection even when saving a later position refusal fails.
+
 - Park interrupted Lighter protection removals when a later position guard refuses dispatch, reconcile already accepted attempts and retain surviving orders for an explicit refreshed protection update ([#10644](https://github.com/MetaMask/core/pull/10644))
 - Recheck HyperLiquid position protection after SDK signing and correlate partial SDK acknowledgments by exact signed child IDs. Preserve uncertain outcomes and restore only exact pre-call reduce-only protection when replacement becomes stale after cancellation; report protection loss if restoration fails ([#10644](https://github.com/MetaMask/core/pull/10644))
 - Release only proven-unsent Lighter TP/SL attempts, ownership and nonce reservations after final position rejection, allowing a refreshed update or close while retaining older uncertain attempts ([#10644](https://github.com/MetaMask/core/pull/10644))

@@ -533,11 +533,15 @@ type LighterNonceLedgerDoc = {
   recovered: LighterRecoveredDispatch[];
 };
 
+const TPSL_GUARDED_REMOVAL_REVIEW_REASON =
+  'Protection removal requires review because its position precondition failed or the guarded session ended; review surviving orders before changing protection';
+
 /**
  * Durable transition state: 'creating' means the old protection is still
  * untouched (a failed replacement needs at most a rollback of surviving
  * legs); 'cancelling' means old cancels are underway/done; 'manual'
- * parks the obligation for explicit user re-establishment.
+ * parks failed replacements or guarded removals for explicit user action.
+ * A guarded removal is non-resumable from its first durable attempt.
  */
 type TpslJournalState = {
   attempts: TpslAttempt[];
@@ -570,7 +574,9 @@ type TpslJournalState = {
    * fully-failed replacement after old cancels is NEVER auto-restored —
    * the journal parks durably in this state, is surfaced to callers via
    * `getPendingManualRecoveries`, and only an explicit NEW protection
-   * intent from the user resolves it.
+   * intent from the user resolves it. Guarded removals start in this state
+   * before dispatch: only the foreground session may cancel further orders;
+   * recovery reconciles attempted cancels and preserves surviving protection.
    */
   phase: 'creating' | 'cancelling' | 'manual';
   /**
@@ -2613,8 +2619,8 @@ export class LighterProvider implements PerpsProvider {
         });
       }
     }
-    // Legacy: journals parked 'manual' in the journal slot by an earlier
-    // version (migrated to the doc on the next settle pass).
+    // Manual journals, including guarded removals, remain in their slot
+    // until reconciliation can move them into the durable warning document.
     const journalIndex = await this.#readTpslJournalIndex();
     for (const settlementKey of journalIndex) {
       if (
@@ -2634,7 +2640,9 @@ export class LighterProvider implements PerpsProvider {
           'An unfinished TP/SL update from a previous trading key requires reconciliation';
         if (journal.phase === 'manual') {
           reason =
-            'TP/SL protection could not be safely re-established automatically (parked by an earlier session)';
+            journal.intent === 'remove'
+              ? TPSL_GUARDED_REMOVAL_REVIEW_REASON
+              : 'TP/SL protection could not be safely re-established automatically (parked by an earlier session)';
         } else if (currentSlotPrefix === null) {
           reason = 'An unfinished TP/SL update requires startup reconciliation';
         }
@@ -4601,7 +4609,7 @@ export class LighterProvider implements PerpsProvider {
       // Keep surviving protection in the durable warning for explicit action.
       return await parkManual(
         journalEntry.intent === 'remove'
-          ? 'Protection removal stopped after its position precondition failed; review surviving orders before changing protection'
+          ? TPSL_GUARDED_REMOVAL_REVIEW_REASON
           : 'TP/SL protection could not be safely re-established automatically (parked by an earlier session)',
       );
     }
@@ -7611,7 +7619,13 @@ export class LighterProvider implements PerpsProvider {
             createdAt: lifecycleBoundary,
             nextAttemptId: 1,
             intent: wantsReplacement ? 'replace' : 'remove',
-            phase: 'creating',
+            // A guard belongs only to this foreground session. Persist its
+            // non-resumable authority before the first dispatch, so a failed
+            // refusal write cannot reauthorize later recovery cancellations.
+            phase:
+              !wantsReplacement && expectedPosition !== undefined
+                ? 'manual'
+                : 'creating',
             priorGrouping,
             priorTriggers,
           };
