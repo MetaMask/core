@@ -958,7 +958,7 @@ describe('LighterProvider', () => {
       // A direct lookup of an unused slot returns venue error 21109
       // (`api key not found`); querying all slots returns an empty list.
       expect(clientInstance.getApiKeys).toHaveBeenCalledWith(28);
-      expect(jest.mocked(bridge).createClient).toHaveBeenCalledWith({
+      expect(bridge.createClient).toHaveBeenCalledWith({
         chainId: 300,
         accountIndex: 28,
         nonce: 42,
@@ -2003,7 +2003,7 @@ describe('LighterProvider', () => {
         market_stats: { '1': wsStat('BTC', 1, '63001.5') },
       });
 
-      expect(jest.mocked(infra.debugLogger).log).not.toHaveBeenCalledWith(
+      expect(infra.debugLogger.log).not.toHaveBeenCalledWith(
         expect.stringContaining('[LighterProvider] price stream cycle='),
       );
       unsubscribe();
@@ -3045,7 +3045,7 @@ describe('LighterProvider', () => {
         }),
       ).not.toThrow();
       expect(accountCallback).not.toHaveBeenCalled();
-      expect(jest.mocked(infra.debugLogger).log).toHaveBeenCalledWith(
+      expect(infra.debugLogger.log).toHaveBeenCalledWith(
         '[LighterProvider] dropped malformed WebSocket frame',
         expect.objectContaining({
           error: expect.stringContaining('Invalid Lighter venue data'),
@@ -8815,9 +8815,7 @@ describe('LighterProvider', () => {
       });
       expect(corruptResult.success).toBe(false);
       expect(corruptResult.error).toContain('corrupt');
-      expect(
-        jest.mocked(infraCorrupt.diskCache).removeItem,
-      ).not.toHaveBeenCalled();
+      expect(infraCorrupt.diskCache.removeItem).not.toHaveBeenCalled();
       expect(corruptVenue.rawTriggers).toHaveLength(0);
       // Early schema version 1: REMEDIATION policy — converts to durable
       // manual state, resolved by the explicit new intent (never a
@@ -9343,7 +9341,7 @@ describe('LighterProvider', () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
 
-      expect(jest.mocked(infra.debugLogger).log).toHaveBeenCalledWith(
+      expect(infra.debugLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('journal entry recovery failed'),
         expect.objectContaining({
           settlementKey,
@@ -12921,8 +12919,8 @@ describe('LighterProvider', () => {
         migratedVenue.primeLag([], 100);
         expect((await migrated.provider.isReadyToTrade()).ready).toBe(true);
         expect(
-          jest.mocked(migrated.bridge).createClient,
-        ).toHaveBeenLastCalledWith(expect.objectContaining({ apiKeyIndex: 7 }));
+          jest.mocked(migrated.bridge).createClient.mock.lastCall,
+        ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 7 })]);
         expect(await migrated.provider.getRecoveredDispatches()).toStrictEqual(
           [],
         );
@@ -12975,10 +12973,8 @@ describe('LighterProvider', () => {
         });
         expect(removed).toMatchObject({ success: true });
         expect(
-          jest.mocked(restored.bridge).createClient,
-        ).toHaveBeenLastCalledWith(
-          expect.objectContaining({ apiKeyIndex: 19 }),
-        );
+          jest.mocked(restored.bridge).createClient.mock.lastCall,
+        ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 19 })]);
         expect(restoredVenue.rawTriggers).toStrictEqual([]);
         expect(restored.clientInstance.sendTx).toHaveBeenCalledTimes(1);
         expect(restored.clientInstance.sendTx).toHaveBeenCalledWith(
