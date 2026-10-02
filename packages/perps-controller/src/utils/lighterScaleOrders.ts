@@ -8,6 +8,7 @@ import {
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
   OrderParams,
+  ExpectedScaleLadder,
   OrderResult,
   ScaleOrderGroup,
 } from '../types/index.js';
@@ -150,6 +151,89 @@ export function normalizeLighterScalePrices(
   return prices.map((price) => price.toFixed());
 }
 
+/** Capture a preview constraint before the first asynchronous operation.
+ * @param expected - Caller-supplied normalized intent.
+ * @returns An independent snapshot, or an explicit malformed-preview refusal.
+ */
+export function captureExpectedScaleLadder(
+  expected: ExpectedScaleLadder | undefined,
+): ExpectedScaleLadder | undefined {
+  if (expected === undefined) {
+    return undefined;
+  }
+  if (expected === null || typeof expected !== 'object') {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE);
+  }
+  const { prices, sizes } = expected;
+  if (
+    !Array.isArray(expected.prices) ||
+    !Array.isArray(expected.sizes) ||
+    Object.keys(expected).some(
+      (key) =>
+        ![
+          'prices',
+          'sizes',
+          'totalSize',
+          'totalNotional',
+          'minimumBaseSize',
+          'minimumQuoteAmount',
+          'sizeDecimals',
+        ].includes(key),
+    )
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE);
+  }
+  return {
+    ...expected,
+    prices: [...prices],
+    sizes: [...sizes],
+  };
+}
+
+/** Own financial request values before routing or fee resolution can yield.
+ * @param params - Caller-owned order request.
+ * @returns An independent request preserving legacy preview omission.
+ */
+export function captureScaleOrderParams(params: OrderParams): OrderParams {
+  const captured = { ...params };
+  if (captured.expectedScaleLadder !== undefined) {
+    captured.expectedScaleLadder = captureExpectedScaleLadder(
+      captured.expectedScaleLadder,
+    );
+  }
+  return captured;
+}
+
+/** Refuse any change to the approved normalized financial intent.
+ * @param expected - Optional caller constraint; omission is legacy unbound placement.
+ * @param ladder - Fresh normalized placement quantities and prices.
+ * @param market - Fresh venue minimums and quantity grid.
+ */
+export function assertExpectedScaleLadder(
+  expected: ExpectedScaleLadder | undefined,
+  ladder: { prices: string[]; sizes: string[]; size: string; notional: string },
+  market: LighterOrderBookMeta,
+): void {
+  if (expected === undefined) {
+    return;
+  }
+  const captured = captureExpectedScaleLadder(expected);
+  if (
+    !captured ||
+    captured.prices.length !== ladder.prices.length ||
+    captured.sizes.length !== ladder.sizes.length ||
+    ladder.prices.some((price, index) => price !== captured.prices[index]) ||
+    ladder.sizes.some((size, index) => size !== captured.sizes[index]) ||
+    captured.totalSize !== ladder.size ||
+    captured.totalNotional !== ladder.notional ||
+    captured.minimumBaseSize !== market.minBaseAmount ||
+    captured.minimumQuoteAmount !== market.minQuoteAmount ||
+    captured.sizeDecimals !== market.supportedSizeDecimals
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE);
+  }
+}
+
 /** Build all rungs and prove exact base and quote bounds before any write.
  * @param params - Scale intent.
  * @param market - Active venue metadata.
@@ -219,13 +303,23 @@ export function buildLighterScaleLadder(
   ) {
     throw new Error('Invalid Lighter Scale precision');
   }
-  const budget =
-    params.usdAmount === undefined
-      ? undefined
-      : parseScaleDecimal(params.usdAmount);
-  const rawSize = budget
-    ? budget.div(prices[0])
-    : parseScaleDecimal(params.size);
+  if (
+    params.scaleSkew !== undefined &&
+    (!Number.isFinite(params.scaleSkew) || params.scaleSkew <= 0)
+  ) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+  }
+  let budget: BigNumber | undefined;
+  let rawSize: BigNumber;
+  try {
+    budget =
+      params.usdAmount === undefined
+        ? undefined
+        : parseScaleDecimal(params.usdAmount);
+    rawSize = budget ? budget.div(prices[0]) : parseScaleDecimal(params.size);
+  } catch {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+  }
   const units = rawSize.shiftedBy(decimals).integerValue(BigNumber.ROUND_DOWN);
   if (units.gt(Number.MAX_SAFE_INTEGER) || units.lt(count)) {
     throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
@@ -285,11 +379,11 @@ export function buildLighterScaleLadder(
   const minimumBase = parseScaleDecimal(market.minBaseAmount);
   const minimumQuote = parseScaleDecimal(market.minQuoteAmount);
   for (const [index, size] of sizes.entries()) {
-    if (
-      new BigNumber(size).lt(minimumBase) ||
-      new BigNumber(size).times(prices[index]).lt(minimumQuote)
-    ) {
+    if (new BigNumber(size).lt(minimumBase)) {
       throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL);
+    }
+    if (new BigNumber(size).times(prices[index]).lt(minimumQuote)) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL);
     }
   }
   const normalized = new BigNumber(total).shiftedBy(-decimals);

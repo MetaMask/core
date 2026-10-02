@@ -406,9 +406,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   /**
    * Normalize a Scale price ladder through the selected provider route.
    *
-   * @param params - Market, ladder bounds, count, and optional explicit route.
-   * @returns Provider-normalized prices or a typed unavailable result.
-   * @throws When the selected provider cannot normalize the requested ladder.
+   * @param params - Market, ladder bounds, count, optional sizing and explicit route.
+   * @returns Provider-normalized prices with sizingPreview when supported, or a typed unavailable result.
+   * @throws When bounds or sizing violate the provider's venue rules.
    */
   async getScalePriceLadder(
     params: GetScalePriceLadderParams,

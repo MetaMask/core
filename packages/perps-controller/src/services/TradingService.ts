@@ -35,6 +35,7 @@ import type {
   PerpsFeeResolution,
 } from '../types/index.js';
 import { ensureError } from '../utils/errorUtils.js';
+import { captureScaleOrderParams } from '../utils/lighterScaleOrders.js';
 import {
   isLimitExecutionOrderType,
   SCALE_ORDER_COUNT,
@@ -570,7 +571,22 @@ export class TradingService {
       tpPrice?: number;
     }) => Promise<{ success: boolean; error?: string }>;
   }): Promise<OrderResult> {
-    const { provider, params, context, reportOrderToDataLake } = options;
+    const { provider, context, reportOrderToDataLake } = options;
+    let params = { ...options.params };
+    try {
+      params = captureScaleOrderParams(params);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE
+      ) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
+        };
+      }
+      throw error;
+    }
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     let traceData:

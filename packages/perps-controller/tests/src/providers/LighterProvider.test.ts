@@ -744,9 +744,9 @@ describe('LighterProvider', () => {
 
     it.each([
       ['1', PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL],
-      ['0', 'Lighter Scale values must be positive'],
-      ['NaN', 'Invalid Lighter Scale decimal'],
-      ['60usd', 'Invalid Lighter Scale decimal'],
+      ['0', PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE],
+      ['NaN', PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE],
+      ['60usd', PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE],
     ])(
       'rejects a quote intent %s that cannot produce valid maker rungs',
       async (usdAmount, message) => {
@@ -761,6 +761,57 @@ describe('LighterProvider', () => {
         expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
       },
     );
+
+    it.each(['0', 'NaN', '60usd'])(
+      'reports a positive-size error for base intent %s',
+      async (size) => {
+        const built = buildProvider();
+
+        await expect(
+          built.provider.getScalePriceLadder({
+            ...previewIntent,
+            sizing: { size },
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      { usdAmount: '60', skew: 0 },
+      { size: '0.0006', skew: Number.NaN },
+    ])(
+      'preserves the range error for nonpositive or nonfinite skew %j',
+      async (sizing) => {
+        const built = buildProvider();
+
+        await expect(
+          built.provider.getScalePriceLadder({ ...previewIntent, sizing }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it('reports the quote minimum when every rung satisfies the base minimum', async () => {
+      const built = buildProvider();
+      built.clientInstance.getOrderBooks.mockResolvedValueOnce([
+        { ...BTC_MARKET, minQuoteAmount: '100' },
+      ]);
+
+      await expect(
+        built.provider.getScalePriceLadder({
+          ...previewIntent,
+          sizing: { size: '0.0006' },
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL);
+
+      expect(built.calls).toStrictEqual([]);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
 
     it('captures the sizing intent before deferred market metadata arrives', async () => {
       const built = buildProvider();
@@ -909,6 +960,372 @@ describe('LighterProvider', () => {
       );
       return venue;
     }
+
+    it.each([
+      'nonce',
+      'signer',
+      'accepted-child',
+      'leverage-nonce',
+      'leverage-signer',
+      'account',
+      'accepted-reduce-only',
+    ] as const)(
+      'refuses Scale metadata drift during %s and preserves exact accepted receipts',
+      async (boundary) => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const venue = scaleVenue(built);
+        const drift = (): void => {
+          built.clientInstance.getOrderBooks.mockResolvedValue([
+            { ...BTC_MARKET, supportedPriceDecimals: 2 },
+          ]);
+        };
+        if (boundary === 'nonce' || boundary === 'leverage-nonce') {
+          const loadNonce =
+            built.clientInstance.getNextNonce.getMockImplementation() as
+              | LighterClientService['getNextNonce']
+              | undefined;
+          if (!loadNonce) {
+            throw new Error('Missing nonce fixture');
+          }
+          built.clientInstance.getNextNonce.mockImplementation(
+            async (
+              ...args: Parameters<LighterClientService['getNextNonce']>
+            ) => {
+              const result = await loadNonce(...args);
+              drift();
+              return result;
+            },
+          );
+        } else if (boundary === 'signer' || boundary === 'leverage-signer') {
+          const execute = jest.spyOn(built.bridge, 'execute');
+          const sign = execute.getMockImplementation();
+          if (!sign) {
+            throw new Error('Missing signer fixture');
+          }
+          execute.mockImplementation(async (call: LighterWasmCall) => {
+            const result = await sign(call);
+            if (
+              call.function === '_signCreateOrder' ||
+              call.function === '_signUpdateLeverage'
+            ) {
+              drift();
+            }
+            return result;
+          });
+        } else if (boundary === 'account') {
+          const read =
+            built.clientInstance.getAccountByIndex.getMockImplementation() as
+              | LighterClientService['getAccountByIndex']
+              | undefined;
+          if (!read) {
+            throw new Error('Missing account fixture');
+          }
+          let reads = 0;
+          built.clientInstance.getAccountByIndex.mockImplementation(
+            async (
+              ...args: Parameters<LighterClientService['getAccountByIndex']>
+            ) => {
+              const result = await read(...args);
+              reads += 1;
+              if (reads >= 2) {
+                drift();
+              }
+              return result;
+            },
+          );
+        } else {
+          const send = built.clientInstance.sendTx.getMockImplementation() as
+            | LighterClientService['sendTx']
+            | undefined;
+          if (!send) {
+            throw new Error('Missing venue fixture');
+          }
+          built.clientInstance.sendTx.mockImplementation(
+            async (...args: Parameters<LighterClientService['sendTx']>) => {
+              const result = await send(...args);
+              drift();
+              return result;
+            },
+          );
+        }
+        const result = await built.provider.placeOrder({
+          ...intent,
+          ...(boundary.startsWith('leverage') ? { leverage: 4 } : {}),
+          ...(boundary === 'accepted-reduce-only'
+            ? { isBuy: false, reduceOnly: true }
+            : {}),
+          expectedScaleLadder: {
+            prices: ['90000', '100000'],
+            sizes: ['0.0005', '0.0005'],
+            totalSize: '0.001',
+            totalNotional: '95',
+            minimumBaseSize: BTC_MARKET.minBaseAmount,
+            minimumQuoteAmount: BTC_MARKET.minQuoteAmount,
+            sizeDecimals: 5,
+          },
+        });
+        expect(result).toMatchObject({
+          success: false,
+          error: 'ORDER_SCALE_PREVIEW_STALE',
+        });
+        expect(venue.active).toHaveLength(
+          boundary.startsWith('accepted') ? 1 : 0,
+        );
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(
+          boundary.startsWith('accepted') ? 1 : 0,
+        );
+        expect(result.childOrderIds ?? []).toStrictEqual(
+          boundary.startsWith('accepted') ? ['800'] : [],
+        );
+        const groups = await built.provider.getScaleOrderGroups();
+        expect(
+          groups.flatMap((group) => group.childOrderIds ?? []),
+        ).toStrictEqual(boundary.startsWith('accepted') ? ['800'] : []);
+      },
+    );
+
+    it('keeps the displayed constraint when deleted during service fees and refuses real metadata drift', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: infra,
+      });
+      scaleVenue(built);
+      const service = new TradingService(infra);
+      const release = createDeferred<void>();
+      service.setControllerDependencies({
+        rewardsIntegrationService: {
+          resolveFee: async () => {
+            await release.promise;
+            return {
+              feeBips: 10,
+              source: 'default',
+              subscription: { eligible: false, reason: 'no-source' },
+            };
+          },
+        } as never,
+      });
+      const params: OrderParams = {
+        ...intent,
+        expectedScaleLadder: {
+          prices: ['90000', '100000'],
+          sizes: ['0.0005', '0.0005'],
+          totalSize: '0.001',
+          totalNotional: '95',
+          minimumBaseSize: BTC_MARKET.minBaseAmount,
+          minimumQuoteAmount: BTC_MARKET.minQuoteAmount,
+          sizeDecimals: 5,
+        },
+      };
+      const pending = service.placeOrder({
+        provider: built.provider,
+        params,
+        context: createMockServiceContext(),
+        reportOrderToDataLake: jest.fn().mockResolvedValue({ success: true }),
+      });
+      delete params.expectedScaleLadder;
+      built.clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, minBaseAmount: '0.0003' },
+      ]);
+      release.resolve();
+      expect(await pending).toMatchObject({
+        success: false,
+        error: 'ORDER_SCALE_PREVIEW_STALE',
+      });
+      expect(built.calls).toStrictEqual([]);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['size-grid', { supportedSizeDecimals: 4 }],
+      ['base-minimum', { minBaseAmount: '0.0003' }],
+      ['quote-minimum', { minQuoteAmount: '20' }],
+    ])(
+      'refuses displayed Scale preview drift in %s before signer or financial writes',
+      async (_name, changes) => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        scaleVenue(built);
+        const preview = await built.provider.getScalePriceLadder({
+          symbol: 'BTC',
+          minPrice: 90000,
+          maxPrice: 100000,
+          count: 2,
+          sizing: { size: '0.00123' },
+        });
+        if (preview.status !== 'ready' || !preview.sizingPreview) {
+          throw new Error('Expected a sized fixture preview');
+        }
+        const params = { ...intent, size: '0.00123', leverage: 4 };
+        Object.assign(params, {
+          expectedScaleLadder: {
+            prices: preview.prices,
+            ...preview.sizingPreview,
+          },
+        });
+        built.clientInstance.getOrderBooks.mockResolvedValue([
+          { ...BTC_MARKET, ...changes },
+        ]);
+
+        const result = await built.provider.placeOrder(params);
+
+        expect(result).toMatchObject({
+          success: false,
+          error: 'ORDER_SCALE_PREVIEW_STALE',
+        });
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it('places the exact displayed Scale preview when fresh metadata agrees', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      const venue = scaleVenue(built);
+      const preview = await built.provider.getScalePriceLadder({
+        symbol: 'BTC',
+        minPrice: 90000,
+        maxPrice: 100000,
+        count: 2,
+        sizing: { size: '0.00123' },
+      });
+      if (preview.status !== 'ready' || !preview.sizingPreview) {
+        throw new Error('Expected a sized fixture preview');
+      }
+      const params = { ...intent, size: '0.00123' };
+      Object.assign(params, {
+        expectedScaleLadder: {
+          prices: preview.prices,
+          ...preview.sizingPreview,
+        },
+      });
+
+      const result = await built.provider.placeOrder(params);
+
+      expect(result.success).toBe(true);
+      expect(venue.active.map((row) => row.price)).toStrictEqual(
+        preview.prices,
+      );
+      expect(venue.active.map((row) => row.initialBaseAmount)).toStrictEqual(
+        preview.sizingPreview.sizes,
+      );
+      expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      { prices: ['90000', '99999'] },
+      { sizes: ['0.0006', '0.0004'] },
+      { prices: ['90000'] },
+      { sizes: new Array<string>(2) },
+      { totalSize: '0.002' },
+      { totalNotional: '96' },
+      { sizeDecimals: 4 },
+      { minimumBaseSize: '0.0001' },
+      { minimumQuoteAmount: '1' },
+      { integratorFee: '0' },
+    ])(
+      'refuses altered expected Scale constraints %j before writes',
+      async (change) => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        scaleVenue(built);
+        const params = { ...intent };
+        Object.assign(params, {
+          expectedScaleLadder: {
+            prices: ['90000', '100000'],
+            sizes: ['0.0005', '0.0005'],
+            totalSize: '0.001',
+            totalNotional: '95',
+            minimumBaseSize: BTC_MARKET.minBaseAmount,
+            minimumQuoteAmount: BTC_MARKET.minQuoteAmount,
+            sizeDecimals: 5,
+            ...change,
+          },
+        });
+        expect(await built.provider.placeOrder(params)).toMatchObject({
+          success: false,
+          error: 'ORDER_SCALE_PREVIEW_STALE',
+        });
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it('captures the approved Scale ladder before asynchronous placement reads', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      const venue = scaleVenue(built);
+      const metadata = createDeferred<(typeof BTC_MARKET)[]>();
+      built.clientInstance.getOrderBooks.mockReturnValueOnce(metadata.promise);
+      const params = {
+        ...intent,
+        expectedScaleLadder: {
+          prices: ['90000', '100000'],
+          sizes: ['0.0005', '0.0005'],
+          totalSize: '0.001',
+          totalNotional: '95',
+          minimumBaseSize: BTC_MARKET.minBaseAmount,
+          minimumQuoteAmount: BTC_MARKET.minQuoteAmount,
+          sizeDecimals: 5,
+        },
+      };
+      const pending = built.provider.placeOrder(params);
+      params.expectedScaleLadder.prices[0] = '1';
+      params.expectedScaleLadder.sizes[0] = '1';
+      params.size = '1';
+      metadata.resolve([BTC_MARKET]);
+      expect((await pending).success).toBe(true);
+      expect(venue.active.map((row) => row.price)).toStrictEqual([
+        '90000',
+        '100000',
+      ]);
+      expect(venue.active.map((row) => row.initialBaseAmount)).toStrictEqual([
+        '0.0005',
+        '0.0005',
+      ]);
+    });
+
+    it('rechecks the expected Scale ladder inside the write lock before leverage or order signing', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      scaleVenue(built);
+      built.clientInstance.getOrderBooks.mockResolvedValueOnce([BTC_MARKET]);
+      built.clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, minBaseAmount: '0.0003' },
+      ]);
+      const result = await built.provider.placeOrder({
+        ...intent,
+        leverage: 4,
+        expectedScaleLadder: {
+          prices: ['90000', '100000'],
+          sizes: ['0.0005', '0.0005'],
+          totalSize: '0.001',
+          totalNotional: '95',
+          minimumBaseSize: BTC_MARKET.minBaseAmount,
+          minimumQuoteAmount: BTC_MARKET.minQuoteAmount,
+          sizeDecimals: 5,
+        },
+      });
+      expect(result).toMatchObject({
+        success: false,
+        error: 'ORDER_SCALE_PREVIEW_STALE',
+      });
+      expect(
+        built.calls.filter((call) => call.function.startsWith('_sign')),
+      ).toStrictEqual([]);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('does not allow a Scale preview constraint on a basic order', async () => {
+      const built = buildProvider();
+      const params = { ...intent, orderType: 'market' as const };
+      Object.assign(params, { expectedScaleLadder: {} });
+      expect(await built.provider.placeOrder(params)).toMatchObject({
+        success: false,
+        error: 'ORDER_SCALE_PREVIEW_STALE',
+      });
+      expect(await built.provider.validateOrder(params)).toStrictEqual({
+        isValid: false,
+        error: 'ORDER_SCALE_PREVIEW_STALE',
+      });
+      expect(built.calls).toStrictEqual([]);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
 
     it('preserves executed Scale acceptance when later lookups disappear after expiry', async () => {
       const infra = createMockInfrastructure();

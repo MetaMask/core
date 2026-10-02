@@ -239,6 +239,17 @@ export type TPSLTrackingData = {
 /** Collateral mode requested for a new order. */
 export type MarginMode = 'isolated' | 'cross';
 
+/** Exact approved Lighter Scale preview. Other providers reject this constraint. */
+export type ExpectedScaleLadder = Readonly<{
+  prices: readonly string[];
+  sizes: readonly string[];
+  totalSize: string;
+  totalNotional: string;
+  minimumBaseSize: string;
+  minimumQuoteAmount: string;
+  sizeDecimals: number;
+}>;
+
 // MetaMask Perps API order parameters for PerpsController
 export type OrderParams = {
   symbol: string; // Asset identifier (e.g., 'ETH', 'BTC', 'xyz:TSLA')
@@ -284,6 +295,12 @@ export type OrderParams = {
    * `splitScaleSizes` for how the sizes are allocated.
    */
   scaleSkew?: number;
+  /**
+   * Bind Lighter placement to the displayed normalized ladder and minimums.
+   * Omission retains legacy placement-time normalization with no displayed-preview guarantee.
+   * This is intent evidence, not accepted-order or fill evidence.
+   */
+  expectedScaleLadder?: ExpectedScaleLadder;
   chaseIntervalMs?: number; // How often the chase re-reads the touch (default 15000, min 1000)
   chaseMaxDurationMs?: number; // Optional hard stop for the chase window (unbounded by default)
   chaseMaxRepricings?: number; // Optional cap on cancel/replace cycles (unbounded by default)
@@ -2265,9 +2282,9 @@ export type PerpsProvider = {
   /**
    * Normalize a Scale ladder using the selected provider's venue rules.
    *
-   * @param params - Market, ladder bounds, count, and optional provider route.
-   * @returns Provider-normalized prices or a typed unavailable result.
-   * @throws When the provider cannot normalize the requested ladder.
+   * @param params - Market, ladder bounds, count, optional sizing and provider route.
+   * @returns Provider-normalized prices with sizingPreview when supported, or a typed unavailable result.
+   * @throws When bounds or sizing violate the provider's venue rules.
    */
   getScalePriceLadder?(
     params: GetScalePriceLadderParams,

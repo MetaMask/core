@@ -231,6 +231,8 @@ import {
 } from '../utils/lighterChase.js';
 import {
   buildLighterScaleLadder,
+  captureExpectedScaleLadder,
+  assertExpectedScaleLadder,
   normalizeLighterScalePrices,
   parseLighterScaleGroups,
   toLighterScaleGroup,
@@ -8152,13 +8154,13 @@ export class LighterProvider implements PerpsProvider {
         capability.reason === 'strategy_market_unsupported'
           ? 'market_not_found'
           : capability.reason;
-      return { status: 'unavailable', providerId: 'lighter', reason };
+      return { status: 'unavailable', providerId: this.protocolId, reason };
     }
     const market = this.#marketsBySymbol.get(intent.symbol);
     if (!market) {
       return {
         status: 'unavailable',
-        providerId: 'lighter',
+        providerId: this.protocolId,
         reason: 'market_not_found',
       };
     }
@@ -8198,7 +8200,7 @@ export class LighterProvider implements PerpsProvider {
     }
     return {
       status: 'ready',
-      providerId: 'lighter',
+      providerId: this.protocolId,
       prices: normalizeLighterScalePrices(
         String(intent.minPrice),
         String(intent.maxPrice),
@@ -8336,7 +8338,16 @@ export class LighterProvider implements PerpsProvider {
     if (!market) {
       throw new Error('Unknown Lighter Scale market');
     }
-    const ladder = buildLighterScaleLadder(params, market);
+    let ladder: ReturnType<typeof buildLighterScaleLadder>;
+    try {
+      ladder = buildLighterScaleLadder(params, market);
+    } catch (error) {
+      if (params.expectedScaleLadder !== undefined) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE);
+      }
+      throw error;
+    }
+    assertExpectedScaleLadder(params.expectedScaleLadder, ladder, market);
     const accountIndex = await this.#ensureAccountIndex();
     this.#assertSession(generation);
     const response = await this.#clientService.getAccountByIndex(accountIndex);
@@ -8978,19 +8989,70 @@ export class LighterProvider implements PerpsProvider {
   }
 
   readonly #placeScaleOrder = async (
-    params: OrderParams,
+    input: OrderParams,
     inheritedGeneration?: number,
   ): Promise<OrderResult> => {
+    let params = { ...input };
     let group: LighterScaleGroup | undefined;
     let key: string | undefined;
     let generation: number | undefined;
     let leverageCommitted = false;
     try {
+      params = {
+        ...params,
+        expectedScaleLadder: captureExpectedScaleLadder(
+          params.expectedScaleLadder,
+        ),
+      };
       this.#ensureSessionBinding();
       generation = inheritedGeneration ?? this.#sessionGeneration;
       this.#assertSession(generation);
       const prepared = await this.#prepareScaleOrder(params, generation);
       const { market, ladder, accountIndex } = prepared;
+      // Compare metadata only here. Accepted reduce-only children may already
+      // have reduced the position; remaining exposure is checked separately.
+      const metadataIntent = (
+        currentMarket: LighterOrderBookMeta,
+        currentLadder: ReturnType<typeof buildLighterScaleLadder>,
+      ): string =>
+        JSON.stringify({
+          ladder: currentLadder,
+          marketId: currentMarket.marketId,
+          priceDecimals: currentMarket.supportedPriceDecimals,
+          sizeDecimals: currentMarket.supportedSizeDecimals,
+          minimumBaseSize: currentMarket.minBaseAmount,
+          minimumQuoteAmount: currentMarket.minQuoteAmount,
+        });
+      const originalMetadataIntent = metadataIntent(market, ladder);
+      const metadataGeneration = generation;
+      const assertFreshMetadata = async (): Promise<void> => {
+        const markets = await this.#ensureMarkets(true);
+        this.#assertSession(metadataGeneration);
+        const currentMarket = markets.get(params.symbol);
+        try {
+          if (!currentMarket) {
+            throw new Error('Unknown Lighter Scale market');
+          }
+          const currentLadder = buildLighterScaleLadder(params, currentMarket);
+          assertExpectedScaleLadder(
+            params.expectedScaleLadder,
+            currentLadder,
+            currentMarket,
+          );
+          if (
+            metadataIntent(currentMarket, currentLadder) !==
+            originalMetadataIntent
+          ) {
+            throw new Error('Lighter Scale grid changed before dispatch');
+          }
+        } catch (error) {
+          if (params.expectedScaleLadder !== undefined) {
+            throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE);
+          }
+          throw error;
+        }
+      };
+
       key = this.#scaleKey(accountIndex);
       const prior = await this.#readScaleGroups(key, accountIndex);
       this.#assertSession(generation);
@@ -9102,6 +9164,8 @@ export class LighterProvider implements PerpsProvider {
             ownedGroup.rungs[0].clientOrderId,
           );
           if (leverage !== null && marginMode !== null) {
+            const nonce = await nextNonce();
+            await assertFreshMetadata();
             const signed = await this.#getSignerBridge().execute({
               function: '_signUpdateLeverage',
               params: [
@@ -9109,7 +9173,7 @@ export class LighterProvider implements PerpsProvider {
                 market.marketId,
                 leverage,
                 marginMode,
-                await nextNonce(),
+                nonce,
               ],
             });
             if (signed.error) {
@@ -9124,6 +9188,7 @@ export class LighterProvider implements PerpsProvider {
               {
                 ...extractDispatchIdentity(signed),
                 intent: `updateLeverage:${params.symbol}:${String(params.leverage)}`,
+                beforeDispatch: assertFreshMetadata,
               },
             );
           }
@@ -9131,6 +9196,7 @@ export class LighterProvider implements PerpsProvider {
             this.#assertSession(capturedGeneration);
             // Recheck aggregate remaining exposure after each accepted child.
             const nonce = await nextNonce();
+            await assertFreshMetadata();
             const signed = await this.#getSignerBridge().execute({
               function: '_signCreateOrder',
               params: [
@@ -9200,6 +9266,7 @@ export class LighterProvider implements PerpsProvider {
                     capturedGeneration,
                     rung.clientOrderId,
                   );
+                  await assertFreshMetadata();
                 },
                 onNotDispatched: async () => {
                   rung.state = 'prepared';
@@ -9661,7 +9728,7 @@ export class LighterProvider implements PerpsProvider {
           group.rungs.some(
             (rung) =>
               rung.clientOrderId === row.clientOrderIndex &&
-              (rung.state !== 'rejected' || row.status === 'rejected') &&
+              rung.state !== 'rejected' &&
               (rung.orderId === undefined ||
                 rung.orderId === String(row.orderIndex)) &&
               new BigNumber(rung.size).eq(row.initialBaseAmount) &&
@@ -10633,12 +10700,21 @@ export class LighterProvider implements PerpsProvider {
     input: OrderParams,
     inheritedGeneration?: number,
   ): Promise<OrderResult> {
+    const params = { ...input };
+    if (
+      params.expectedScaleLadder !== undefined &&
+      params.orderType !== 'scale'
+    ) {
+      return {
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
+      };
+    }
     // Tracks a COMMITTED leverage change so an order failing afterwards
     // reports the partial venue state explicitly instead of implying no
     // mutation happened.
     let leverageCommitted = false;
     let postOnlyClientOrderId: string | undefined;
-    const params = { ...input };
     let attachedGroup: LighterAttachedGroup | undefined;
     let attachedGroupPersisted = false;
     if (params.orderType === 'scale') {
@@ -15133,7 +15209,21 @@ export class LighterProvider implements PerpsProvider {
     // price, live positions, data integrity).
     try {
       this.#ensureSessionBinding();
-      const intent = { ...params };
+      if (
+        params.expectedScaleLadder !== undefined &&
+        params.orderType !== 'scale'
+      ) {
+        return {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
+        };
+      }
+      const intent = {
+        ...params,
+        expectedScaleLadder: captureExpectedScaleLadder(
+          params.expectedScaleLadder,
+        ),
+      };
       if (intent.orderType === 'scale') {
         this.#ensureSessionBinding();
         await this.#prepareScaleOrder(intent, this.#sessionGeneration);

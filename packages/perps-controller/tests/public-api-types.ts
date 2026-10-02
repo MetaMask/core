@@ -1,5 +1,8 @@
 import type { ChaseOrder } from '@metamask/perps-controller';
 import type {
+  DirectProviderOrderCapabilities,
+  ExpectedScaleLadder,
+  OrderParams,
   ScaleOrderGroup,
   PerpsProvider,
   ScaleOrderChild,
@@ -428,3 +431,12 @@ export type LighterChaseIdentityConsumerContracts = [
     IsExact<ReturnType<typeof reconcileLighterChaseChild>['filledSize'], string>
   >,
 ];
+export type ExpectedScalePreviewConsumer = AssertTrue<
+  IsExact<OrderParams['expectedScaleLadder'], ExpectedScaleLadder | undefined>
+>;
+export type PreviewFieldsSatisfyPlacement = AssertCompatible<
+  ExpectedScaleLadder,
+  { prices: readonly string[] } & NonNullable<
+    Extract<PerpsScalePriceLadder, { status: 'ready' }>['sizingPreview']
+  >
+>;

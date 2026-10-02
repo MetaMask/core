@@ -730,6 +730,36 @@ describe('HyperLiquidProvider - strategy order types', () => {
     },
   });
 
+  it('refuses a Lighter expected Scale ladder without silently dropping its constraint', async () => {
+    const params: OrderParams = {
+      symbol: 'BTC',
+      isBuy: true,
+      size: '0.001',
+      orderType: 'scale',
+      scaleMinPrice: '90000',
+      scaleMaxPrice: '100000',
+      scaleNumOrders: 2,
+      expectedScaleLadder: {
+        prices: ['90000', '100000'],
+        sizes: ['0.0005', '0.0005'],
+        totalSize: '0.001',
+        totalNotional: '95',
+        minimumBaseSize: '0.0002',
+        minimumQuoteAmount: '10',
+        sizeDecimals: 5,
+      },
+    };
+    expect(await provider.placeOrder(params)).toStrictEqual({
+      success: false,
+      error: 'ORDER_SCALE_PREVIEW_STALE',
+    });
+    expect(await provider.validateOrder(params)).toStrictEqual({
+      isValid: false,
+      error: 'ORDER_SCALE_PREVIEW_STALE',
+    });
+    expect(mockClientService.getExchangeClient.mock.calls).toHaveLength(0);
+  });
+
   describe('native TWAP margin-mode occupancy', () => {
     const order: OrderParams = {
       ...baseOrder,
@@ -9482,6 +9512,21 @@ describe('HyperLiquidProvider - strategy order types', () => {
       maxPrice: 1234.767,
       count: 3,
     };
+
+    it('leaves optional sizing absent while preserving normalized prices', async () => {
+      useStrategyClients();
+
+      const result = await provider.getScalePriceLadder({
+        ...params,
+        sizing: { usdAmount: '60' },
+      });
+
+      expect(result).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        prices: ['1234.6', '1234.7', '1234.8'],
+      });
+    });
 
     it('normalizes every rung with provider-owned market precision', async () => {
       const { infoClient } = useStrategyClients();

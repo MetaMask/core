@@ -184,6 +184,7 @@ import {
 import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
 import { ensureError } from './utils/errorUtils.js';
 import { parseAssetName } from './utils/hyperLiquidAdapter.js';
+import { captureScaleOrderParams } from './utils/lighterScaleOrders.js';
 import {
   clonePerpsMarketData,
   compileMarketPattern,
@@ -2986,13 +2987,17 @@ export class PerpsController extends BaseController<
   /**
    * Build a Scale price ladder using the active provider's venue rules.
    *
-   * @param params - Market, ladder bounds, count, and optional explicit route.
-   * @returns Provider-normalized prices or a typed unavailable result.
-   * @throws When the provider cannot normalize the requested ladder.
+   * @param params - Market, ladder bounds, count, optional sizing and explicit route.
+   * @returns Provider-normalized prices with sizingPreview when supported, or a typed unavailable result.
+   * @throws When bounds or sizing violate the provider's venue rules.
    */
   async getScalePriceLadder(
     params: GetScalePriceLadderParams,
   ): Promise<PerpsScalePriceLadder> {
+    const intent = {
+      ...params,
+      sizing: params.sizing === undefined ? undefined : { ...params.sizing },
+    };
     let activeProvider: PerpsProvider;
     try {
       activeProvider = await this.#getActiveProviderWhenReady();
@@ -3003,13 +3008,13 @@ export class PerpsController extends BaseController<
       });
       return this.#getUnavailableScalePriceLadder(
         'provider_unavailable',
-        params.providerId,
+        intent.providerId,
       );
     }
 
     const resolvedProviderId =
-      params.providerId ?? this.#getDirectProviderId(activeProvider);
-    if (this.#hasConflictingProviderRoute(params.providerId, activeProvider)) {
+      intent.providerId ?? this.#getDirectProviderId(activeProvider);
+    if (this.#hasConflictingProviderRoute(intent.providerId, activeProvider)) {
       return this.#getUnavailableScalePriceLadder(
         'provider_not_routable',
         resolvedProviderId,
@@ -3022,7 +3027,7 @@ export class PerpsController extends BaseController<
       );
     }
 
-    const result = await activeProvider.getScalePriceLadder(params);
+    const result = await activeProvider.getScalePriceLadder(intent);
     if (
       result.status === 'unavailable' &&
       result.providerId === undefined &&
@@ -3125,15 +3130,25 @@ export class PerpsController extends BaseController<
    * @returns The order result with order ID and status.
    */
   async placeOrder(params: OrderParams): Promise<OrderResult> {
+    let capturedParams: OrderParams;
+    try {
+      capturedParams = captureScaleOrderParams(params);
+    } catch (error) {
+      return {
+        success: false,
+        error: ensureError(error, 'PerpsController.captureScaleOrderParams')
+          .message,
+      };
+    }
     const provider = await this.#resolveRoutedOrderProvider({
-      orderType: params.orderType,
-      providerId: params.providerId,
+      orderType: capturedParams.orderType,
+      providerId: capturedParams.providerId,
     });
     this.#ensureTradingServiceDeps();
 
     const result = await this.#tradingService.placeOrder({
       provider,
-      params,
+      params: capturedParams,
       context: this.#createServiceContext('placeOrder', {
         saveTradeConfiguration: (symbol: string, leverage: number) =>
           this.saveTradeConfiguration(symbol, leverage),
@@ -3143,7 +3158,7 @@ export class PerpsController extends BaseController<
     });
 
     if (result.success) {
-      this.clearPendingTradeConfiguration(params.symbol);
+      this.clearPendingTradeConfiguration(capturedParams.symbol);
     }
 
     return result;
@@ -5473,12 +5488,26 @@ export class PerpsController extends BaseController<
   async validateOrder(
     params: OrderParams,
   ): Promise<{ isValid: boolean; error?: string }> {
+    let capturedParams: OrderParams;
+    try {
+      capturedParams = captureScaleOrderParams(params);
+    } catch (error) {
+      return {
+        isValid: false,
+        error: ensureError(error, 'PerpsController.captureScaleOrderParams')
+          .message,
+      };
+    }
     const provider = await this.#resolveRoutedOrderProvider({
-      orderType: params.orderType,
-      providerId: params.providerId,
+      orderType: capturedParams.orderType,
+      providerId: capturedParams.providerId,
     });
     const context = this.#createServiceContext('validateOrder');
-    return this.#marketDataService.validateOrder({ provider, params, context });
+    return this.#marketDataService.validateOrder({
+      provider,
+      params: capturedParams,
+      context,
+    });
   }
 
   /**

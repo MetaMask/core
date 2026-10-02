@@ -31,7 +31,9 @@ import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProv
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import type {
+  OrderParams,
   GetAvailableDexsParams,
+  GetScalePriceLadderParams,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
@@ -1460,6 +1462,86 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('Scale submission snapshots', () => {
+    it.each(['placeOrder', 'validateOrder'] as const)(
+      'returns a malformed preview refusal from %s without readiness',
+      async (method) => {
+        const result = await controller[method]({
+          symbol: 'BTC',
+          orderType: 'scale',
+          isBuy: true,
+          size: '2',
+          expectedScaleLadder: {} as OrderParams['expectedScaleLadder'],
+        });
+        expect(result).toEqual({
+          [method === 'placeOrder' ? 'success' : 'isValid']: false,
+          error: 'ORDER_SCALE_PREVIEW_STALE',
+        });
+        expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+        expect(
+          mockMarketDataServiceInstance.validateOrder,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['placeOrder', 'validateOrder'] as const)(
+      'owns %s intent during readiness despite mutation, replacement and deletion',
+      async (method) => {
+        const release = createDeferred<void>();
+        const started = createDeferred<void>();
+        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => {
+          throw new Error('Transient initialization failure');
+        });
+        jest.mocked(mockWait).mockImplementationOnce(() => {
+          started.resolve();
+          return release.promise;
+        });
+        const initialization = controller.init();
+        await started.promise;
+        const expectation = {
+          prices: ['100', '200'],
+          sizes: ['1', '1'],
+          totalSize: '2',
+          totalNotional: '300',
+          minimumBaseSize: '0.1',
+          minimumQuoteAmount: '1',
+          sizeDecimals: 1,
+        };
+        const request: OrderParams = {
+          symbol: 'BTC',
+          orderType: 'scale',
+          isBuy: true,
+          size: '2',
+          providerId: 'hyperliquid',
+          expectedScaleLadder: expectation,
+        };
+        const original = JSON.parse(JSON.stringify(request)) as OrderParams;
+        mockTradingServiceInstance.placeOrder.mockResolvedValue({
+          success: true,
+        });
+        mockMarketDataServiceInstance.validateOrder.mockResolvedValue({
+          isValid: true,
+        });
+        const pending = controller[method](request);
+        request.size = '200';
+        expectation.prices[0] = '1';
+        expectation.sizes[0] = '100';
+        request.expectedScaleLadder = { ...expectation, totalSize: '200' };
+        delete request.expectedScaleLadder;
+        release.resolve();
+        await initialization;
+        await pending;
+        const service =
+          method === 'placeOrder'
+            ? mockTradingServiceInstance.placeOrder
+            : mockMarketDataServiceInstance.validateOrder;
+        expect(service).toHaveBeenCalledWith(
+          expect.objectContaining({ params: original }),
+        );
+      },
+    );
+  });
+
   describe('Scale price ladder', () => {
     const params = {
       symbol: 'BTC',
@@ -1467,6 +1549,56 @@ describe('PerpsController', () => {
       maxPrice: 200,
       count: 3,
     };
+
+    it.each(['ready', 'initializing'] as const)(
+      'captures outer and nested inputs before %s provider readiness',
+      async (readiness) => {
+        const release = createDeferred<void>();
+        let initialization: Promise<void> | undefined;
+        if (readiness === 'initializing') {
+          const started = createDeferred<void>();
+          jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => {
+            throw new Error('Transient initialization failure');
+          });
+          jest.mocked(mockWait).mockImplementationOnce(() => {
+            started.resolve();
+            return release.promise;
+          });
+          initialization = controller.init();
+          await started.promise;
+          expect(controller.state.initializationState).toBe(
+            InitializationState.Initializing,
+          );
+        } else {
+          markControllerAsInitialized();
+          controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        }
+        const sizing = { usdAmount: '60', skew: 1 };
+        const request: GetScalePriceLadderParams = {
+          ...params,
+          providerId: 'hyperliquid',
+          sizing,
+        };
+        const expected = { ...request, sizing: { ...sizing } };
+
+        const pending = controller.getScalePriceLadder(request);
+        request.symbol = 'SOL';
+        request.minPrice = 1;
+        request.maxPrice = 2;
+        request.count = 2;
+        request.providerId = 'lighter';
+        sizing.usdAmount = '600';
+        sizing.skew = 2;
+        release.resolve();
+        await initialization;
+
+        await expect(pending).resolves.toMatchObject({
+          status: 'ready',
+          providerId: 'hyperliquid',
+        });
+        expect(mockProvider.getScalePriceLadder).toHaveBeenCalledWith(expected);
+      },
+    );
 
     it('uses the active provider when providerId is omitted', async () => {
       markControllerAsInitialized();
