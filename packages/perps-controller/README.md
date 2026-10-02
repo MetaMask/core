@@ -325,7 +325,66 @@ activation, partial-parent-fill coverage, and automatic parent/child
 cancellation guarantees require venue execution evidence. The current
 capability only describes the implemented grouped submission, read review and
 explicit exact-ID cancellation.
+## Durable Lighter Scale groups
+
+Lighter advertises Scale as a provider source capability for active markets.
+Preview, validation and placement share fixed-grid ladder normalization and
+reject collapsed price ticks, underfunded rungs and unsupported execution
+fields. Sizes conserve whole base lots; USD sizing bounds the sum of every
+rung's limit notional. Margin and reduce-only reservations are checked before
+placement and again before each send. Caller-supplied slippage, trigger,
+attached-protection, time-in-force, full-close and other strategy fields are
+rejected rather than ignored.
+
+`getScalePriceLadder` accepts optional `sizing` with either an exact base `size`
+or a maximum quote `usdAmount`, plus optional `skew`. Lighter returns
+`sizingPreview` with exact per-rung sizes, totals, size precision and the venue's
+maker minimums. Preview uses the placement builder without account reads,
+key setup or signing. It rounds base size down and never exceeds the quote
+budget; account collateral and reservations still require placement validation.
+Omitting `sizing` preserves the price-only result. Providers without sizing
+support leave `sizingPreview` absent, so clients must check before using it.
+
+Each group persists wallet, network, account, trading slot, immutable rung
+intent and signed dispatch identity before transport. Placement polls through
+bounded venue visibility lag and stops after unresolved acceptance;
+reconnection never resumes or replays it. `getScaleOrderGroups()` lists local
+ownership, including groups without any venue order ID.
+`reviewScaleOrderGroups({ providerId })` reconciles with registered read
+authority and may sign authentication, but does not register a trading key or
+send financial transactions. Aggregated review requires an explicit provider.
+Controller calls reject changes to the issuing account, network or provider
+while awaiting readiness or results.
+
+`OrderResult.submittedSize` includes attempted children whose acceptance is
+unknown. `acceptedSize` and `weightedAverageLimitPrice` are omitted while any
+attempted child remains uncertain. `acceptedChildren` retains confirmed
+accepted children, including canceled children; `childOrderIds` contains
+resting children only. Filled quantities require authoritative venue data;
+limit prices never stand in for execution prices. Wholly unknown groups never
+create synthetic `Order` rows. Real venue rows that match the persisted intent
+carry `strategyGroupId`. A live row that contradicts a durably rejected child
+remains an ordinary order without that group's attribution.
+
+Cancel with `{ orderType: 'scale', orderId: groupId, symbol }`. Only exact
+group children are canceled, using the currently registered trading slot even
+when placement belonged to a previous slot. Unknown dispatches remain protected
+until exact terminal transaction proof, or durable expiry proof followed by
+fresh absent transaction and order history, allows settlement. Explicit group
+review can retire expired absent children without canceling accepted siblings.
+Fresh exact rows can recover a pending child's receipt; recovered outcomes
+still require explicit acknowledgment before another financial write. Proven
+terminal cancellation never initializes a trading signer. Order history
+traversal is bounded and incomplete or inconsistent history fails closed. The
+local journal retains at most 64 groups and only reclaims proven-terminal
+groups. Local disk loss cannot reconstruct an unknown group's identity;
+consumers must preserve the configured durable storage.
+
+Clients must gate availability on `getOrderCapabilities` and route review and
+cancellation to the owning provider. An HTTP acknowledgment or group ID never
+proves a fill or successful cancellation.
 
 ## Contributing
 
-This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
+This package is part of a monorepo. Instructions for contributing can be found
+in the [monorepo README](https://github.com/MetaMask/core#readme).

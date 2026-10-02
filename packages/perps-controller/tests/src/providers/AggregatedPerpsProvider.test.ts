@@ -216,6 +216,40 @@ describe('AggregatedPerpsProvider', () => {
     routedProvider = aggregatedProvider;
   });
 
+  it('lists optional Scale inventory and reviews only the explicit owning provider', async () => {
+    const groups = [
+      {
+        groupId: 'opaque-scale',
+        symbol: 'BTC',
+        state: 'unknown',
+        accountIndex: 28,
+        apiKeyIndex: 7,
+        walletAddress: '0xabc',
+        network: 'testnet',
+        providerId: 'lighter',
+      },
+    ];
+    const reviewScaleOrderGroups = jest.fn().mockResolvedValue(groups);
+    Object.assign(mockLighterProvider, {
+      getScaleOrderGroups: jest.fn().mockResolvedValue(groups),
+      reviewScaleOrderGroups,
+    });
+    expect(await aggregatedProvider.getScaleOrderGroups()).toEqual(groups);
+    await expect(aggregatedProvider.reviewScaleOrderGroups()).rejects.toThrow(
+      PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+    );
+    await expect(
+      aggregatedProvider.reviewScaleOrderGroups({ providerId: 'hyperliquid' }),
+    ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    expect(reviewScaleOrderGroups).not.toHaveBeenCalled();
+    expect(
+      await aggregatedProvider.reviewScaleOrderGroups({
+        providerId: 'lighter',
+      }),
+    ).toEqual(groups);
+    expect(reviewScaleOrderGroups).toHaveBeenCalledTimes(1);
+  });
+
   describe('durable-settlement surfacing', () => {
     it.each(['getAttachedOrderGroups', 'reviewAttachedOrderGroups'] as const)(
       'routes attached %s to the implementing provider and retains its identity',

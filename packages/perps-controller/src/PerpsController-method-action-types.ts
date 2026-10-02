@@ -470,6 +470,26 @@ export type PerpsControllerResolveRecoveryProtectionAction = {
 };
 
 /**
+ * Read durable Scale groups without placing or replaying any child.
+ * @returns Groups belonging to the issuing controller context.
+ */
+export type PerpsControllerGetScaleOrderGroupsAction = {
+  type: `PerpsController:getScaleOrderGroups`;
+  handler: PerpsController['getScaleOrderGroups'];
+};
+
+/**
+ * Reconcile durable Scale groups for an explicitly selected provider.
+ * @param params - Issuing provider route.
+ * @param params.providerId - Provider to review.
+ * @returns Fresh durable groups; never replays placement.
+ */
+export type PerpsControllerReviewScaleOrderGroupsAction = {
+  type: `PerpsController:reviewScaleOrderGroups`;
+  handler: PerpsController['reviewScaleOrderGroups'];
+};
+
+/**
  * Review fresh venue positions and orders for one issuing provider context.
  * Auth signing may be required; registration and financial writes are forbidden.
  *
@@ -1573,6 +1593,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetAttachedOrderGroupsAction
   | PerpsControllerGetRecoveredDispatchesAction
   | PerpsControllerResolveRecoveryProtectionAction
+  | PerpsControllerGetScaleOrderGroupsAction
+  | PerpsControllerReviewScaleOrderGroupsAction
   | PerpsControllerReviewRecoveryVenueAction
   | PerpsControllerReconcileRecoveredDispatchesAction
   | PerpsControllerAcknowledgeRecoveredDispatchAction

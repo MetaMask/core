@@ -24,12 +24,12 @@ import {
   getLighterChainId,
   getLighterTransactionOutcome,
   LIGHTER_RESOLUTION_MS,
+  LIGHTER_MAX_WIRE_PRICE,
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
   LIGHTER_SUPPORTED_RESOLUTIONS,
   LIGHTER_DEFAULT_API_KEY_INDEX,
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
   LIGHTER_MAX_TRADING_API_KEY_INDEX,
-  LIGHTER_MAX_WIRE_PRICE,
   LIGHTER_TRADING_API_KEY_COUNT,
   LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS,
   LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS,
@@ -77,6 +77,11 @@ import {
   LighterClientService,
 } from '../services/LighterClientService.js';
 import { LighterWalletService } from '../services/LighterWalletService.js';
+import type {
+  ScaleOrderGroup,
+  GetScalePriceLadderParams,
+  PerpsScalePriceLadder,
+} from '../types/index.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
@@ -200,6 +205,20 @@ import {
 } from '../utils/lighterAttachedOrders.js';
 import type { LighterAttachedGroup } from '../utils/lighterAttachedOrders.js';
 import {
+  buildLighterScaleLadder,
+  normalizeLighterScalePrices,
+  parseLighterScaleGroups,
+  toLighterScaleGroup,
+  isLighterScaleTerminal,
+  LIGHTER_SCALE_PREFIX,
+  LIGHTER_SCALE_JOURNAL_PREFIX,
+  LIGHTER_SCALE_MAX_GROUPS,
+} from '../utils/lighterScaleOrders.js';
+import type {
+  LighterScaleGroup,
+  LighterScaleRung,
+} from '../utils/lighterScaleOrders.js';
+import {
   isLimitExecutionOrderType,
   isTriggerOrderType,
   TRIGGER_ORDER_TYPES,
@@ -213,6 +232,7 @@ type LighterFillQuery = GetOrderFillsParams & {
 type LighterMarginMetadata = {
   marketId: number;
   minInitial?: number;
+  defaultInitial?: number;
   maintenance?: number;
   lastTradePrice?: number;
 };
@@ -1056,6 +1076,22 @@ const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
 /** Bounded attempts for TP/SL settlement visibility. */
 const LIGHTER_TPSL_SETTLE_ATTEMPTS = 10;
 
+/** Convert authoritative position percentage or default basis points to leverage.
+ * @param positionMargin - Position margin percentage, when a position exists.
+ * @param defaultInitial - Market initial margin in basis points.
+ * @returns Leverage, or NaN when unavailable.
+ */
+const scaleLeverageFromMargin = (
+  positionMargin: string | undefined,
+  defaultInitial: number | undefined,
+): number => {
+  let margin = defaultInitial === undefined ? null : defaultInitial / 100;
+  if (positionMargin !== undefined) {
+    margin = parseStrictDecimal(positionMargin);
+  }
+  return margin !== null && margin > 0 ? 100 / margin : Number.NaN;
+};
+
 /**
  * Integerize a signer-bound PRICE (order price / trigger price): the
  * pinned lighter-go signer casts these to uint32 (web-wasm/main.go), so a
@@ -1458,6 +1494,13 @@ const resolveLighterAttachedChildren = (
   }
   return children;
 };
+/** No retained local key matches a current venue registration. */
+class LighterRecoveryReadAuthorityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LighterRecoveryReadAuthorityError';
+  }
+}
 
 /** A definitive venue response that the selected wallet has no account. */
 class LighterAccountNotFoundError extends Error {
@@ -2910,6 +2953,77 @@ export class LighterProvider implements PerpsProvider {
       await this.#writeAttachedGroup(key, group, generation);
       return true;
     };
+    const settleScale = async (
+      entry: LighterNonceLedgerDoc['entries'][number],
+      proof: NonNullable<LighterScaleRung['nonAcceptance']>,
+    ): Promise<boolean> => {
+      if (!entry.intent.startsWith('placeScale:')) {
+        return true;
+      }
+      if (entry.kind !== LIGHTER_TX_TYPE_CREATE_ORDER || entry.owner !== null) {
+        return false;
+      }
+      const key = this.#scaleKey(accountIndex);
+      const groups = await this.#readScaleGroups(key, accountIndex);
+      this.#assertSession(generation);
+      const group = groups.find((candidate) =>
+        candidate.rungs.some(
+          (rung) =>
+            entry.intent ===
+            `placeScale:${candidate.groupId}:${rung.clientOrderId}`,
+        ),
+      );
+      const rung = group?.rungs.find(
+        (candidate) =>
+          entry.intent ===
+          `placeScale:${group.groupId}:${candidate.clientOrderId}`,
+      );
+      // Transport is ordered after the durable unknown transition. A prepared
+      // rung therefore proves that this intent never reached transport, even
+      // if the process stopped after appending its generic nonce ledger entry.
+      if (
+        group &&
+        rung &&
+        group.accountIndex === accountIndex &&
+        group.apiKeyIndex === apiKeyIndex &&
+        rung.state === 'prepared' &&
+        rung.orderId === undefined &&
+        ((rung.nonce === null &&
+          rung.txHash === null &&
+          rung.expiresAt === null) ||
+          (rung.nonce === entry.nonce &&
+            rung.txHash === entry.txHash &&
+            rung.expiresAt === entry.expiresAt))
+      ) {
+        return true;
+      }
+      if (
+        !group ||
+        !rung ||
+        group.accountIndex !== accountIndex ||
+        group.apiKeyIndex !== apiKeyIndex ||
+        rung.nonce !== entry.nonce ||
+        rung.txHash === null ||
+        rung.txHash !== entry.txHash ||
+        rung.expiresAt !== entry.expiresAt ||
+        rung.orderId !== undefined ||
+        (rung.state !== 'unknown' &&
+          rung.state !== 'submitted' &&
+          !(rung.state === 'rejected' && rung.nonAcceptance !== undefined)) ||
+        (proof === 'nonce-consumed' &&
+          (entry.expiresAt === null ||
+            Date.now() <= entry.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS))
+      ) {
+        return false;
+      }
+      if (rung.state !== 'rejected') {
+        rung.state = 'unknown';
+      }
+      rung.nonAcceptance = proof;
+      group.placementStopped = true;
+      await this.#writeScaleGroup(key, group, generation);
+      return true;
+    };
     const nonceResponse = await this.#clientService.getNextNonce(
       accountIndex,
       apiKeyIndex,
@@ -2971,7 +3085,7 @@ export class LighterProvider implements PerpsProvider {
             }
             if (
               transactionOutcome === 'failed' &&
-              !(await settleAttached(entry, 'failed'))
+              (!(await settleAttached(entry, 'failed')) || !(await settleScale(entry, 'failed')))
             ) {
               remaining.push(entry);
               continue;
@@ -3005,7 +3119,7 @@ export class LighterProvider implements PerpsProvider {
           // absent: another dispatch (e.g. a second device) consumed it.
           // Our payload can never land now — retry-safe never-landed,
           // no quarantine; the floor advances with the venue.
-          if (!(await settleAttached(entry, 'nonce-consumed'))) {
+          if (!(await settleAttached(entry, 'nonce-consumed')) || !(await settleScale(entry, 'nonce-consumed'))) {
             remaining.push(entry);
             continue;
           }
@@ -3019,7 +3133,7 @@ export class LighterProvider implements PerpsProvider {
           // Venue-confirmed absent after the signed validity: PROVEN
           // never landed — the venue still expects this nonce (unless a
           // later dispatch already consumed it: consumedFloor guards).
-          if (!(await settleAttached(entry, 'expired'))) {
+          if (!(await settleAttached(entry, 'expired')) || !(await settleScale(entry, 'expired'))) {
             remaining.push(entry);
             continue;
           }
@@ -3790,7 +3904,7 @@ export class LighterProvider implements PerpsProvider {
               publicKey: created.pk,
             };
           }
-          throw new Error(
+          throw new LighterRecoveryReadAuthorityError(
             'Lighter recovery review requires a matching locally retained registered key; reconnect without replacing venue keys',
           );
         } finally {
@@ -7362,7 +7476,7 @@ export class LighterProvider implements PerpsProvider {
     return Object.freeze({
       status: 'ready',
       providerId: this.protocolId,
-      supportedStrategies: Object.freeze([]),
+      supportedStrategies: Object.freeze(['scale'] as const),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
       attachedTpsl: Object.freeze({
         submission: 'native-oto-otoco',
@@ -7386,6 +7500,1271 @@ export class LighterProvider implements PerpsProvider {
       }),
     });
   }
+
+  /** Normalize a Scale preview without account or signer setup.
+   * @param params - Market, price range and optional sizing intent.
+   * @returns Fixed-grid prices and requested sizing, or unavailable scope.
+   */
+  async getScalePriceLadder(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder> {
+    const intent = {
+      ...params,
+      sizing: params.sizing === undefined ? undefined : { ...params.sizing },
+    };
+    if (
+      intent.providerId !== undefined &&
+      intent.providerId !== this.protocolId
+    ) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_not_routable',
+      };
+    }
+    const capability = await this.getOrderCapabilities(intent);
+    if (capability.status !== 'ready') {
+      const reason =
+        capability.reason === 'order_market_unsupported' ||
+        capability.reason === 'strategy_market_unsupported'
+          ? 'market_not_found'
+          : capability.reason;
+      return { status: 'unavailable', providerId: 'lighter', reason };
+    }
+    const market = this.#marketsBySymbol.get(intent.symbol);
+    if (!market) {
+      return {
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'market_not_found',
+      };
+    }
+    if (intent.sizing !== undefined) {
+      const { sizing } = intent;
+      if ((sizing.size !== undefined) === (sizing.usdAmount !== undefined)) {
+        throw new Error(
+          'Lighter Scale sizing requires exactly one exposure intent',
+        );
+      }
+      const ladder = buildLighterScaleLadder(
+        {
+          symbol: intent.symbol,
+          orderType: 'scale',
+          scaleMinPrice: String(intent.minPrice),
+          scaleMaxPrice: String(intent.maxPrice),
+          scaleNumOrders: intent.count,
+          size: sizing.size,
+          usdAmount: sizing.usdAmount,
+          scaleSkew: sizing.skew,
+        },
+        market,
+      );
+      return {
+        status: 'ready',
+        providerId: this.protocolId,
+        prices: ladder.prices,
+        sizingPreview: {
+          sizes: ladder.sizes,
+          totalSize: ladder.size,
+          totalNotional: ladder.notional,
+          minimumBaseSize: market.minBaseAmount,
+          minimumQuoteAmount: market.minQuoteAmount,
+          sizeDecimals: market.supportedSizeDecimals,
+        },
+      };
+    }
+    return {
+      status: 'ready',
+      providerId: 'lighter',
+      prices: normalizeLighterScalePrices(
+        String(intent.minPrice),
+        String(intent.maxPrice),
+        intent.count,
+        market.supportedPriceDecimals,
+      ),
+    };
+  }
+
+  readonly #scaleKey = (accountIndex: number): string =>
+    `${LIGHTER_SCALE_JOURNAL_PREFIX}${this.#isTestnet ? 'testnet' : 'mainnet'}:${this.#boundAddress}:${accountIndex}`;
+
+  readonly #readScaleGroups = async (
+    key: string,
+    accountIndex: number,
+  ): Promise<LighterScaleGroup[]> => {
+    let groups: LighterScaleGroup[];
+    try {
+      groups = parseLighterScaleGroups(await this.#deps.diskCache.getItem(key));
+    } catch {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} Lighter Scale journal is unavailable or invalid`,
+      );
+    }
+    const scope = `${LIGHTER_SCALE_PREFIX}${key.slice(LIGHTER_SCALE_JOURNAL_PREFIX.length)}:`;
+    for (const group of groups) {
+      if (
+        group.accountIndex !== accountIndex ||
+        group.walletAddress !== this.#boundAddress ||
+        group.network !== (this.#isTestnet ? 'testnet' : 'mainnet') ||
+        group.groupId !== `${scope}${group.rungs[0].clientOrderId}`
+      ) {
+        throw new Error(
+          `${LIGHTER_DATA_INTEGRITY_PREFIX} Lighter Scale ownership belongs to another account`,
+        );
+      }
+      group.rungs.forEach((rung) =>
+        this.#issuedClientOrderIds.add(rung.clientOrderId),
+      );
+    }
+    return groups;
+  };
+
+  readonly #writeScaleGroup = async (
+    key: string,
+    group: LighterScaleGroup,
+    generation: number,
+  ): Promise<void> => {
+    await withStorageMutex(key, async () => {
+      this.#assertSession(generation);
+      const groups = await this.#readScaleGroups(key, group.accountIndex);
+      this.#assertSession(generation);
+      const index = groups.findIndex((item) => item.groupId === group.groupId);
+      if (index < 0) {
+        if (groups.length >= LIGHTER_SCALE_MAX_GROUPS) {
+          const terminal = groups.findIndex(isLighterScaleTerminal);
+          if (terminal < 0) {
+            throw new Error('Lighter Scale ownership is full');
+          }
+          groups.splice(terminal, 1);
+        }
+        groups.push(group);
+      } else {
+        if (JSON.stringify(groups[index]) === JSON.stringify(group)) {
+          return;
+        }
+        groups[index] = group;
+      }
+      const serialized = JSON.stringify(groups);
+      parseLighterScaleGroups(serialized);
+      await this.#deps.diskCache.setItem(key, serialized);
+      this.#assertSession(generation);
+    });
+  };
+
+  readonly #readScaleReservations = async (
+    accountIndex: number,
+    marketId: number,
+    isBuy: boolean,
+    token: string,
+    generation: number,
+  ): Promise<{ reserved: BigNumber; identities: Set<string> }> => {
+    const active = await this.#clientService.getActiveOrders(
+      accountIndex,
+      token,
+      marketId,
+    );
+    this.#assertSession(generation);
+    if (!Array.isArray(active.orders)) {
+      throw new Error('Lighter Scale active reservations are unavailable');
+    }
+    let reserved = new BigNumber(0);
+    const identities = new Set<string>();
+    for (const row of active.orders) {
+      if (
+        row.ownerAccountIndex !== accountIndex ||
+        row.marketIndex !== marketId ||
+        ![0, 1, false, true].includes(row.reduceOnly)
+      ) {
+        throw new Error('Invalid Lighter Scale active reservation scope');
+      }
+      const identity = String(row.orderIndex);
+      if (identities.has(identity)) {
+        throw new Error('Duplicate Lighter Scale active reservation');
+      }
+      identities.add(identity);
+      if (!row.reduceOnly) {
+        continue;
+      }
+      const quantity = parseStrictDecimal(row.remainingBaseAmount);
+      if (quantity === null || quantity < 0 || row.isAsk !== !isBuy) {
+        throw new Error('Invalid Lighter Scale reduce-only reservation');
+      }
+      reserved = reserved.plus(row.remainingBaseAmount);
+    }
+    return { reserved, identities };
+  };
+
+  readonly #prepareScaleOrder = async (
+    params: OrderParams,
+    generation: number,
+    readToken?: string,
+  ): Promise<{
+    market: LighterOrderBookMeta;
+    ladder: ReturnType<typeof buildLighterScaleLadder>;
+    accountIndex: number;
+  }> => {
+    const leverageError = lighterLeverageError(params.leverage);
+    if (leverageError) {
+      throw new Error(leverageError);
+    }
+    const markets = await this.#ensureMarkets(true);
+    this.#assertSession(generation);
+    const market = markets.get(params.symbol);
+    if (!market) {
+      throw new Error('Unknown Lighter Scale market');
+    }
+    const ladder = buildLighterScaleLadder(params, market);
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    const response = await this.#clientService.getAccountByIndex(accountIndex);
+    this.#assertSession(generation);
+    const account = response.accounts?.[0];
+    if (
+      !Array.isArray(response.accounts) ||
+      response.accounts.length !== 1 ||
+      !account ||
+      account.index !== accountIndex ||
+      account.l1Address.toLowerCase() !== this.#boundAddress ||
+      account.accountType !== 0 ||
+      !Array.isArray(account.positions)
+    ) {
+      throw new Error('Lighter Scale account state is not authoritative');
+    }
+    const matches = account.positions.filter(
+      (position) => position.marketId === market.marketId,
+    );
+    if (matches.length > 1) {
+      throw new Error('Ambiguous Lighter Scale position');
+    }
+    const held = matches[0];
+    const maximum = await this.#requireMarketMaxLeverage(params.symbol);
+    this.#assertSession(generation);
+    if (
+      maximum === null ||
+      (params.leverage !== undefined && params.leverage > maximum)
+    ) {
+      throw new Error(
+        'Lighter Scale leverage metadata is unavailable or exceeded',
+      );
+    }
+    if (params.reduceOnly) {
+      if (
+        !held ||
+        (held.sign !== 1 && held.sign !== -1) ||
+        (held.sign === 1) === params.isBuy ||
+        parseFinitePositive(held.position) === null ||
+        new BigNumber(ladder.size).gt(held.position)
+      ) {
+        throw new Error(
+          'Lighter Scale reduce-only size or side exceeds the live position',
+        );
+      }
+      const token =
+        readToken ??
+        (await this.#getRecoveryReadToken(accountIndex, generation)).token;
+      const { reserved } = await this.#readScaleReservations(
+        accountIndex,
+        market.marketId,
+        params.isBuy,
+        token,
+        generation,
+      );
+      if (reserved.plus(ladder.size).gt(held.position)) {
+        throw new Error(
+          'Lighter Scale aggregate reduce-only reservation exceeds live position',
+        );
+      }
+    } else {
+      const leverage =
+        params.leverage ??
+        scaleLeverageFromMargin(
+          held?.initialMarginFraction,
+          this.#marginBySymbol.get(params.symbol)?.defaultInitial,
+        );
+      if (
+        !Number.isFinite(leverage) ||
+        leverage < 1 ||
+        leverage > maximum ||
+        parseStrictDecimal(account.availableBalance) === null ||
+        new BigNumber(account.availableBalance).lt(0)
+      ) {
+        throw new Error('Invalid Lighter Scale margin state');
+      }
+      if (
+        new BigNumber(ladder.notional)
+          .div(leverage)
+          .gt(account.availableBalance)
+      ) {
+        throw new Error('Insufficient aggregate Lighter Scale margin');
+      }
+    }
+    return { market, ladder, accountIndex };
+  };
+
+  /** Revalidate the unsubmitted ladder against fresh, scoped venue state.
+   * @param group - Durable ladder intent.
+   * @param requestedLeverage - Explicit leverage, when supplied.
+   * @param token - Account-bound read token.
+   * @param generation - Source session generation.
+   * @param pendingClientId - Child being guarded before transport.
+   */
+  readonly #assertScaleRemaining = async (
+    group: LighterScaleGroup,
+    requestedLeverage: number | undefined,
+    token: string,
+    generation: number,
+    pendingClientId: number,
+  ): Promise<void> => {
+    // Refresh prior children before reading the position: filled reduce-only
+    // children may have left active orders and already reduced the position.
+    if (
+      group.reduceOnly &&
+      group.rungs.some(
+        (rung) => rung.state === 'resting' || rung.state === 'accepted',
+      )
+    ) {
+      await this.#refreshScaleGroup(
+        group,
+        this.#scaleKey(group.accountIndex),
+        token,
+        generation,
+      );
+    }
+    const maximum = await this.#requireMarketMaxLeverage(group.symbol);
+    this.#assertSession(generation);
+    if (
+      maximum === null ||
+      (requestedLeverage !== undefined && requestedLeverage > maximum)
+    ) {
+      throw new Error(
+        'Lighter Scale leverage metadata is unavailable or exceeded',
+      );
+    }
+    const response = await this.#clientService.getAccountByIndex(
+      group.accountIndex,
+    );
+    this.#assertSession(generation);
+    const account = response.accounts?.[0];
+    if (
+      !Array.isArray(response.accounts) ||
+      response.accounts.length !== 1 ||
+      !account ||
+      account.index !== group.accountIndex ||
+      account.l1Address.toLowerCase() !== group.walletAddress ||
+      group.walletAddress !== this.#boundAddress ||
+      group.network !== (this.#isTestnet ? 'testnet' : 'mainnet') ||
+      account.accountType !== 0 ||
+      !Array.isArray(account.positions)
+    ) {
+      throw new Error('Lighter Scale account changed before dispatch');
+    }
+    const positions = account.positions.filter(
+      (position) => position.marketId === group.marketId,
+    );
+    if (positions.length > 1) {
+      throw new Error('Ambiguous Lighter Scale position');
+    }
+    const held = positions[0];
+    const remaining = group.rungs.filter(
+      (rung) =>
+        rung.state === 'prepared' || rung.clientOrderId === pendingClientId,
+    );
+    if (group.reduceOnly) {
+      if (
+        !held ||
+        (held.sign !== 1 && held.sign !== -1) ||
+        (held.sign === 1) === group.isBuy ||
+        parseFinitePositive(held.position) === null
+      ) {
+        throw new Error(
+          'Lighter Scale reduce-only position changed before dispatch',
+        );
+      }
+      const { reserved, identities } = await this.#readScaleReservations(
+        group.accountIndex,
+        group.marketId,
+        group.isBuy,
+        token,
+        generation,
+      );
+      for (const rung of group.rungs) {
+        if (rung.clientOrderId === pendingClientId) {
+          continue;
+        }
+        if (
+          rung.state === 'accepted' ||
+          rung.state === 'unknown' ||
+          rung.state === 'submitted' ||
+          (rung.state === 'resting' &&
+            (rung.orderId === undefined || !identities.has(rung.orderId)))
+        ) {
+          throw new Error(
+            'Lighter Scale previous child reservation is unresolved',
+          );
+        }
+      }
+      const unsubmitted = remaining.reduce(
+        (total, rung) => total.plus(rung.size),
+        new BigNumber(0),
+      );
+      if (reserved.plus(unsubmitted).gt(held.position)) {
+        throw new Error(
+          'Lighter Scale aggregate reduce-only reservation exceeds live position',
+        );
+      }
+      return;
+    }
+    const leverage =
+      requestedLeverage ??
+      scaleLeverageFromMargin(
+        held?.initialMarginFraction,
+        this.#marginBySymbol.get(group.symbol)?.defaultInitial,
+      );
+    const balance = parseStrictDecimal(account.availableBalance);
+    if (
+      maximum === null ||
+      !Number.isFinite(leverage) ||
+      leverage < 1 ||
+      leverage > maximum ||
+      balance === null ||
+      balance < 0
+    ) {
+      throw new Error('Invalid Lighter Scale remaining margin');
+    }
+    const notional = remaining.reduce(
+      (total, rung) => total.plus(new BigNumber(rung.price).times(rung.size)),
+      new BigNumber(0),
+    );
+    if (notional.div(leverage).gt(account.availableBalance)) {
+      throw new Error('Insufficient aggregate Lighter Scale remaining margin');
+    }
+  };
+
+  /** List account-owned Scale groups without replay or signer setup.
+   * @returns Durable groups including wholly unknown placement.
+   */
+  async getScaleOrderGroups(): Promise<ScaleOrderGroup[]> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    await this.#signerReadyPromise?.catch(() => undefined);
+    this.#assertSession(generation);
+    const inventory = await this.#resolveRecoveryInventory(generation);
+    const groups = await Promise.all(
+      inventory.accounts.map(async (account) =>
+        this.#readScaleGroups(this.#scaleKey(account), account),
+      ),
+    );
+    this.#assertSession(generation);
+    return groups.flat().map(toLighterScaleGroup);
+  }
+
+  readonly #settleObservedScaleAcceptance = async (
+    group: LighterScaleGroup,
+    observed: LighterScaleRung[],
+    generation: number,
+  ): Promise<void> => {
+    for (const rung of observed) {
+      if (
+        rung.txHash === null ||
+        rung.nonce === null ||
+        rung.expiresAt === null
+      ) {
+        continue;
+      }
+      const transaction = await this.#clientService.getTx(rung.txHash);
+      this.#assertSession(generation);
+      if (transaction !== null) {
+        continue;
+      }
+      const nonce = await this.#clientService.getNextNonce(
+        group.accountIndex,
+        group.apiKeyIndex,
+      );
+      this.#assertSession(generation);
+      if (!Number.isSafeInteger(nonce.nonce) || nonce.nonce <= rung.nonce) {
+        continue;
+      }
+      await this.#withLedgerLock(
+        group.accountIndex,
+        async () => {
+          const doc = await this.#readNonceLedger(
+            group.accountIndex,
+            group.apiKeyIndex,
+          );
+          this.#assertSession(generation);
+          const entry = doc.entries.find(
+            (candidate) =>
+              candidate.owner === null &&
+              candidate.intent ===
+                `placeScale:${group.groupId}:${rung.clientOrderId}` &&
+              candidate.kind === LIGHTER_TX_TYPE_CREATE_ORDER &&
+              candidate.nonce === rung.nonce &&
+              candidate.txHash === rung.txHash &&
+              candidate.expiresAt === rung.expiresAt,
+          );
+          if (!entry) {
+            return;
+          }
+          this.#appendRecoveredDispatch(doc, {
+            recoveryId: `${entry.nonce}:${entry.txHash}`,
+            kind: entry.kind,
+            intent: entry.intent,
+            txHash: entry.txHash,
+            outcome: rung.state === 'rejected' ? 'failed' : 'succeeded',
+            evidence: 'fresh-exact-scale-child',
+          });
+          doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
+          doc.entries = doc.entries.filter((candidate) => candidate !== entry);
+          await this.#writeNonceLedger(
+            group.accountIndex,
+            doc,
+            group.apiKeyIndex,
+          );
+          this.#assertSession(generation);
+          const reservationKey = `${group.accountIndex}:${group.apiKeyIndex}`;
+          this.#nonceReservations.set(
+            reservationKey,
+            Math.max(
+              this.#nonceReservations.get(reservationKey) ?? 0,
+              entry.nonce + 1,
+            ),
+          );
+        },
+        group.apiKeyIndex,
+      );
+    }
+  };
+
+  readonly #refreshScaleGroup = async (
+    group: LighterScaleGroup,
+    key: string,
+    token: string,
+    generation: number,
+    abandon = false,
+    settleLedger = false,
+  ): Promise<void> => {
+    const pending = settleLedger
+      ? (await this.#readNonceLedger(group.accountIndex, group.apiKeyIndex))
+          .entries
+      : [];
+    this.#assertSession(generation);
+    if (
+      isLighterScaleTerminal(group) &&
+      !pending.some((entry) =>
+        entry.intent.startsWith(`placeScale:${group.groupId}:`),
+      )
+    ) {
+      return;
+    }
+    const observed: LighterScaleRung[] = [];
+    const active = await this.#clientService.getActiveOrders(
+      group.accountIndex,
+      token,
+      group.marketId,
+    );
+    this.#assertSession(generation);
+    if (
+      !Array.isArray(active.orders) ||
+      active.orders.some(
+        (row) =>
+          row.ownerAccountIndex !== group.accountIndex ||
+          row.marketIndex !== group.marketId,
+      )
+    ) {
+      throw new Error(
+        'Lighter Scale active orders are unavailable or unscoped',
+      );
+    }
+    const rows = [...active.orders];
+    const missing = (): boolean =>
+      group.rungs.some(
+        (rung) =>
+          rung.state !== 'prepared' &&
+          (!['filled', 'canceled', 'rejected'].includes(rung.state) ||
+            pending.some(
+              (entry) =>
+                entry.intent ===
+                `placeScale:${group.groupId}:${rung.clientOrderId}`,
+            )) &&
+          !rows.some(
+            (row) =>
+              row.ownerAccountIndex === group.accountIndex &&
+              row.marketIndex === group.marketId &&
+              row.clientOrderIndex === rung.clientOrderId,
+          ),
+      );
+    let cursor: string | undefined;
+    let historyRows = 0;
+    const cursors = new Set<string>();
+    while (missing()) {
+      const page = await this.#clientService.getInactiveOrders(
+        group.accountIndex,
+        token,
+        LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE,
+        cursor,
+        group.marketId,
+      );
+      this.#assertSession(generation);
+      if (
+        !Array.isArray(page.orders) ||
+        page.orders.length > LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE ||
+        (page.orders.length === 0 && page.nextCursor !== undefined)
+      ) {
+        throw new Error(
+          'Lighter Scale requires bounded authoritative order history',
+        );
+      }
+      historyRows += page.orders.length;
+      if (historyRows > LIGHTER_INACTIVE_HISTORY_ROW_LIMIT) {
+        throw new Error('Lighter Scale order history limit exceeded');
+      }
+      if (
+        page.orders.some(
+          (row) =>
+            row.ownerAccountIndex !== group.accountIndex ||
+            row.marketIndex !== group.marketId,
+        )
+      ) {
+        throw new Error('Lighter Scale history scope is invalid');
+      }
+      rows.push(...page.orders);
+      cursor = page.nextCursor;
+      if (cursor !== undefined) {
+        if (
+          typeof cursor !== 'string' ||
+          cursor.length === 0 ||
+          cursors.has(cursor)
+        ) {
+          throw new Error(
+            'Lighter Scale history cursor is invalid or repeated',
+          );
+        }
+        cursors.add(cursor);
+      }
+      if (cursor === undefined) {
+        break;
+      }
+    }
+    for (const rung of group.rungs) {
+      if (rung.state === 'prepared') {
+        continue;
+      }
+      const matches = rows.filter(
+        (row) =>
+          row.ownerAccountIndex === group.accountIndex &&
+          row.marketIndex === group.marketId &&
+          row.clientOrderIndex === rung.clientOrderId,
+      );
+      if (matches.length > 1) {
+        throw new Error('Ambiguous Lighter Scale order identity');
+      }
+      const row = matches[0];
+      if (row) {
+        const orderId = String(row.orderIndex);
+        if (
+          !/^\d{1,20}$/u.test(orderId) ||
+          (rung.orderId !== undefined && rung.orderId !== orderId) ||
+          row.isAsk !== !group.isBuy ||
+          ![0, 1, false, true].includes(row.reduceOnly) ||
+          Boolean(row.reduceOnly) !== group.reduceOnly ||
+          row.type !== 'limit' ||
+          !new BigNumber(row.price).eq(rung.price) ||
+          !new BigNumber(row.initialBaseAmount).eq(rung.size)
+        ) {
+          throw new Error('Lighter Scale order does not match signed intent');
+        }
+        if (rung.state === 'rejected' && row.status !== 'rejected') {
+          throw new Error('Lighter Scale rejection conflicts with venue order');
+        }
+        const adapted =
+          row.status === 'rejected'
+            ? undefined
+            : adaptOrderFromLighter(row, group.symbol);
+        if (row.filledBaseAmount !== undefined) {
+          const filled = parseStrictDecimal(row.filledBaseAmount);
+          if (
+            filled === null ||
+            filled < 0 ||
+            new BigNumber(row.filledBaseAmount).gt(rung.size)
+          ) {
+            throw new Error('Invalid Lighter Scale fill quantity');
+          }
+          if (
+            rung.filledSize !== undefined &&
+            new BigNumber(row.filledBaseAmount).lt(rung.filledSize)
+          ) {
+            // Indexer lag cannot erase cumulative execution evidence.
+            continue;
+          }
+        }
+        // Limit price is not execution price. No average fill price is inferred.
+        let nextState: LighterScaleRung['state'];
+        if (row.status === 'rejected') {
+          nextState = 'rejected';
+        } else if (adapted?.status === 'canceled') {
+          nextState = 'canceled';
+        } else if (
+          adapted?.status === 'filled' &&
+          parseStrictDecimal(row.remainingBaseAmount) === 0
+        ) {
+          nextState = 'filled';
+        } else if (adapted?.status === 'open') {
+          nextState = 'resting';
+        } else {
+          nextState = 'accepted';
+        }
+        if (
+          ['filled', 'canceled', 'rejected'].includes(rung.state) &&
+          nextState !== rung.state
+        ) {
+          // Keep terminal proof when an older active row reappears. Fresh
+          // matching terminal rows still settle any pending nonce ledger.
+          continue;
+        }
+        delete rung.nonAcceptance;
+        rung.orderId = orderId;
+        if (row.filledBaseAmount !== undefined) {
+          rung.filledSize = row.filledBaseAmount;
+        }
+        rung.state = nextState;
+        observed.push(rung);
+      } else if (rung.txHash !== null && rung.orderId === undefined) {
+        const transaction = await this.#clientService.getTx(rung.txHash);
+        this.#assertSession(generation);
+        if (
+          transaction &&
+          typeof transaction.hash === 'string' &&
+          transaction.hash.replace(/^0x/u, '').toLowerCase() ===
+            rung.txHash.replace(/^0x/u, '').toLowerCase() &&
+          transaction.accountIndex === group.accountIndex &&
+          transaction.apiKeyIndex === group.apiKeyIndex &&
+          transaction.nonce === rung.nonce
+        ) {
+          const outcome = getLighterTransactionOutcome(transaction.status);
+          if (outcome === 'executed') {
+            delete rung.nonAcceptance;
+            rung.state = 'accepted';
+          } else if (outcome === 'failed') {
+            rung.nonAcceptance = 'failed';
+            rung.state = 'rejected';
+          }
+        } else if (
+          abandon &&
+          (rung.state === 'unknown' || rung.state === 'submitted') &&
+          transaction === null &&
+          cursor === undefined &&
+          rung.expiresAt !== null &&
+          Date.now() > rung.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS
+        ) {
+          // Complete fresh absence and the exact signed expiry also cover an
+          // acknowledged dispatch whose nonce ledger has already retired.
+          rung.nonAcceptance = 'expired';
+          rung.state = 'rejected';
+        }
+      }
+    }
+    await this.#writeScaleGroup(key, group, generation);
+    if (settleLedger) {
+      await this.#settleObservedScaleAcceptance(group, observed, generation);
+    }
+  };
+
+  readonly #awaitScaleVisibility = async (
+    group: LighterScaleGroup,
+    key: string,
+    token: string,
+    generation: number,
+    settled: () => boolean,
+  ): Promise<void> => {
+    for (let poll = 0; poll < LIGHTER_TPSL_SETTLE_ATTEMPTS; poll += 1) {
+      await this.#refreshScaleGroup(group, key, token, generation, true);
+      if (settled()) {
+        return;
+      }
+      if (poll + 1 < LIGHTER_TPSL_SETTLE_ATTEMPTS) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, LIGHTER_TPSL_SETTLE_POLL_MS),
+        );
+        this.#assertSession(generation);
+      }
+    }
+  };
+
+  /** Reconcile exact Scale children without signing financial transactions.
+   * @returns Latest durable observations without replaying placement.
+   */
+  async reviewScaleOrderGroups(): Promise<ScaleOrderGroup[]> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    const key = this.#scaleKey(accountIndex);
+    return await withProcessMutex(
+      `lighterVenueWrite:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}`,
+      async () => {
+        const groups = await this.#readScaleGroups(key, accountIndex);
+        this.#assertSession(generation);
+        const pending = await Promise.all(
+          groups.map(async (group) =>
+            (
+              await this.#readNonceLedger(accountIndex, group.apiKeyIndex)
+            ).entries.some((entry) =>
+              entry.intent.startsWith(`placeScale:${group.groupId}:`),
+            ),
+          ),
+        );
+        this.#assertSession(generation);
+        if (
+          groups.every(isLighterScaleTerminal) &&
+          pending.every((value) => !value)
+        ) {
+          return groups.map(toLighterScaleGroup);
+        }
+        const { token } = await this.#getRecoveryReadToken(
+          accountIndex,
+          generation,
+        );
+        for (const group of groups) {
+          // A restart stops the coordinator permanently; it never resumes rungs.
+          group.placementStopped = true;
+          await this.#refreshScaleGroup(
+            group,
+            key,
+            token,
+            generation,
+            true,
+            true,
+          );
+          await this.#writeScaleGroup(key, group, generation);
+          await this.#withLedgerLock(
+            accountIndex,
+            async () => {
+              await this.#resolveNonceLedgerLocked(
+                accountIndex,
+                group.apiKeyIndex,
+                { generation },
+              );
+            },
+            group.apiKeyIndex,
+          );
+        }
+        this.#assertSession(generation);
+        return groups.map(toLighterScaleGroup);
+      },
+    );
+  }
+
+  readonly #placeScaleOrder = async (
+    params: OrderParams,
+    inheritedGeneration?: number,
+  ): Promise<OrderResult> => {
+    let group: LighterScaleGroup | undefined;
+    let key: string | undefined;
+    let generation: number | undefined;
+    let leverageCommitted = false;
+    try {
+      this.#ensureSessionBinding();
+      generation = inheritedGeneration ?? this.#sessionGeneration;
+      this.#assertSession(generation);
+      const prepared = await this.#prepareScaleOrder(params, generation);
+      const { market, ladder, accountIndex } = prepared;
+      key = this.#scaleKey(accountIndex);
+      const prior = await this.#readScaleGroups(key, accountIndex);
+      this.#assertSession(generation);
+      if (
+        prior.some(
+          (entry) =>
+            entry.rungs.some(
+              (rung) => rung.state === 'unknown' || rung.state === 'submitted',
+            ) || !entry.placementStopped,
+        )
+      ) {
+        throw new Error(
+          'Lighter Scale has unresolved placement; review its group before new exposure',
+        );
+      }
+      if (
+        prior.length >= LIGHTER_SCALE_MAX_GROUPS &&
+        !prior.some(isLighterScaleTerminal)
+      ) {
+        throw new Error('Lighter Scale ownership is full');
+      }
+      const leverage = await this.#resolveLeverageIntent(params);
+      const marginMode =
+        leverage === null
+          ? null
+          : await this.#resolveMarginModeForSymbol(params.symbol);
+      this.#assertSession(generation);
+      await this.#ensureSignerReady();
+      this.#assertSession(generation);
+      const token = await this.#getAuthToken();
+      this.#assertSession(generation);
+      const capturedGeneration = generation;
+      const capturedKey = key;
+      return await this.#withVenueWriteLock(
+        accountIndex,
+        async (nextNonce, submit) => {
+          const fresh = await this.#prepareScaleOrder(
+            params,
+            capturedGeneration,
+            token,
+          );
+          if (
+            JSON.stringify(fresh.ladder) !== JSON.stringify(ladder) ||
+            fresh.market.marketId !== market.marketId
+          ) {
+            throw new Error('Lighter Scale grid changed before dispatch');
+          }
+          const groups = await this.#readScaleGroups(capturedKey, accountIndex);
+          this.#assertSession(capturedGeneration);
+          if (
+            groups.some(
+              (entry) =>
+                !entry.placementStopped ||
+                entry.rungs.some(
+                  (rung) =>
+                    rung.state === 'unknown' || rung.state === 'submitted',
+                ),
+            )
+          ) {
+            throw new Error('Lighter Scale has unresolved placement');
+          }
+          const ids = this.#allocateClientOrderIndexes(ladder.prices.length);
+          if (this.#boundAddress === null) {
+            throw new Error('Lighter Scale account binding is unavailable');
+          }
+          const ownedGroup: LighterScaleGroup = {
+            version: 1,
+            groupId: `${LIGHTER_SCALE_PREFIX}${capturedKey.slice(LIGHTER_SCALE_JOURNAL_PREFIX.length)}:${ids[0]}`,
+            symbol: params.symbol,
+            accountIndex,
+            apiKeyIndex: this.#apiKeyIndex,
+            marketId: market.marketId,
+            isBuy: params.isBuy,
+            reduceOnly: params.reduceOnly ?? false,
+            createdAt: Date.now(),
+            walletAddress: this.#boundAddress,
+            network: this.#isTestnet ? 'testnet' : 'mainnet',
+            sizeDecimals: market.supportedSizeDecimals,
+            priceDecimals: market.supportedPriceDecimals,
+            placementStopped: false,
+            rungs: ladder.prices.map((price, index) => ({
+              clientOrderId: ids[index],
+              price,
+              size: ladder.sizes[index],
+              priceInt: new BigNumber(price)
+                .shiftedBy(market.supportedPriceDecimals)
+                .toNumber(),
+              sizeInt: new BigNumber(ladder.sizes[index])
+                .shiftedBy(market.supportedSizeDecimals)
+                .toNumber(),
+              state: 'prepared',
+              nonce: null,
+              txHash: null,
+              expiresAt: null,
+              orderExpiry: null,
+            })),
+          };
+          group = ownedGroup;
+          await this.#writeScaleGroup(
+            capturedKey,
+            ownedGroup,
+            capturedGeneration,
+          );
+          await this.#assertScaleRemaining(
+            ownedGroup,
+            params.leverage,
+            token,
+            capturedGeneration,
+            ownedGroup.rungs[0].clientOrderId,
+          );
+          if (leverage !== null && marginMode !== null) {
+            const signed = await this.#getSignerBridge().execute({
+              function: '_signUpdateLeverage',
+              params: [
+                accountIndex,
+                market.marketId,
+                leverage,
+                marginMode,
+                await nextNonce(),
+              ],
+            });
+            if (signed.error) {
+              throw new Error(signed.error);
+            }
+            await submit(
+              LIGHTER_TX_TYPE_UPDATE_LEVERAGE,
+              signed.txInfo,
+              () => {
+                leverageCommitted = true;
+              },
+              {
+                ...extractDispatchIdentity(signed),
+                intent: `updateLeverage:${params.symbol}:${String(params.leverage)}`,
+              },
+            );
+          }
+          for (const rung of ownedGroup.rungs) {
+            this.#assertSession(capturedGeneration);
+            // Recheck aggregate remaining exposure after each accepted child.
+            const nonce = await nextNonce();
+            const signed = await this.#getSignerBridge().execute({
+              function: '_signCreateOrder',
+              params: [
+                accountIndex,
+                market.marketId,
+                rung.clientOrderId,
+                String(rung.sizeInt),
+                String(rung.priceInt),
+                params.isBuy ? 0 : 1,
+                LIGHTER_ORDER_TYPE_LIMIT,
+                LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME,
+                params.reduceOnly ? 1 : 0,
+                String(LIGHTER_NO_TRIGGER_PRICE),
+                LIGHTER_ORDER_EXPIRY_NONE,
+                nonce,
+              ],
+            });
+            this.#assertSession(capturedGeneration);
+            if (signed.error) {
+              throw new Error(signed.error);
+            }
+            const identity = extractDispatchIdentity(signed);
+            if (identity.txHash === null || identity.expiresAt === null) {
+              throw new Error(
+                'Lighter Scale signing omitted dispatch identity',
+              );
+            }
+            const wire: unknown = JSON.parse(signed.txInfo);
+            if (
+              typeof wire !== 'object' ||
+              wire === null ||
+              !('Nonce' in wire) ||
+              wire.Nonce !== nonce ||
+              !('OrderExpiry' in wire) ||
+              typeof wire.OrderExpiry !== 'number' ||
+              !Number.isSafeInteger(wire.OrderExpiry) ||
+              wire.OrderExpiry <= Date.now()
+            ) {
+              throw new Error(
+                'Invalid Lighter Scale signed nonce or order expiry',
+              );
+            }
+            rung.nonce = nonce;
+            rung.txHash = identity.txHash;
+            rung.expiresAt = identity.expiresAt;
+            rung.orderExpiry = wire.OrderExpiry;
+            await submit(
+              LIGHTER_TX_TYPE_CREATE_ORDER,
+              signed.txInfo,
+              () => {
+                rung.state = 'submitted';
+              },
+              {
+                ...identity,
+                intent: `placeScale:${ownedGroup.groupId}:${rung.clientOrderId}`,
+                beforeDispatch: async () => {
+                  rung.state = 'unknown';
+                  await this.#writeScaleGroup(
+                    capturedKey,
+                    ownedGroup,
+                    capturedGeneration,
+                  );
+                  await this.#assertScaleRemaining(
+                    ownedGroup,
+                    params.leverage,
+                    token,
+                    capturedGeneration,
+                    rung.clientOrderId,
+                  );
+                },
+                onNotDispatched: async () => {
+                  rung.state = 'prepared';
+                  rung.nonce = null;
+                  rung.txHash = null;
+                  rung.expiresAt = null;
+                  rung.orderExpiry = null;
+                  await this.#writeScaleGroup(
+                    capturedKey,
+                    ownedGroup,
+                    capturedGeneration,
+                  );
+                },
+              },
+            );
+            await this.#writeScaleGroup(
+              capturedKey,
+              ownedGroup,
+              capturedGeneration,
+            );
+            await this.#awaitScaleVisibility(
+              ownedGroup,
+              capturedKey,
+              token,
+              capturedGeneration,
+              () => !['unknown', 'submitted'].includes(rung.state),
+            );
+            if (
+              rung.state === 'unknown' ||
+              rung.state === 'submitted' ||
+              rung.state === 'rejected'
+            ) {
+              throw new Error(
+                'Lighter Scale child acceptance is not confirmed; remaining rungs stopped',
+              );
+            }
+          }
+          ownedGroup.placementStopped = true;
+          await this.#writeScaleGroup(
+            capturedKey,
+            ownedGroup,
+            capturedGeneration,
+          );
+          return { ...toLighterScaleGroup(ownedGroup), success: true };
+        },
+        capturedGeneration,
+      );
+    } catch (error) {
+      if (group && key !== undefined && generation !== undefined) {
+        group.placementStopped = true;
+        try {
+          await this.#writeScaleGroup(key, group, generation);
+        } catch {
+          /* Prior durable dispatch ownership remains. */
+        }
+      }
+      return {
+        ...(group ? toLighterScaleGroup(group) : {}),
+        success: false,
+        error: ensureError(error, 'LighterProvider.placeScaleOrder').message,
+        ...(leverageCommitted
+          ? { partialState: { leverageUpdated: Number(params.leverage) } }
+          : {}),
+      };
+    }
+  };
+
+  readonly #cancelScaleOrder = async (
+    params: CancelOrderParams,
+    generation: number,
+  ): Promise<CancelOrderResult> => {
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    const key = this.#scaleKey(accountIndex);
+    const lookup = async (): Promise<LighterScaleGroup> => {
+      const groups = await this.#readScaleGroups(key, accountIndex);
+      this.#assertSession(generation);
+      const group = groups.find(
+        (entry) =>
+          entry.groupId === params.orderId && entry.symbol === params.symbol,
+      );
+      if (!group) {
+        throw new Error('Unknown Lighter Scale group for this account');
+      }
+      return group;
+    };
+    const terminal = await withProcessMutex(
+      `lighterVenueWrite:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}`,
+      async () => {
+        const current = await lookup();
+        current.placementStopped = true;
+        if (!isLighterScaleTerminal(current)) {
+          try {
+            const { token: readToken } = await this.#getRecoveryReadToken(
+              accountIndex,
+              generation,
+            );
+            await this.#refreshScaleGroup(
+              current,
+              key,
+              readToken,
+              generation,
+              true,
+            );
+          } catch (error) {
+            if (!(error instanceof LighterRecoveryReadAuthorityError)) {
+              throw error;
+            }
+            // A live owned group can acquire signing authority below even
+            // after local key loss. Registration and transport errors cannot.
+            this.#assertSession(generation);
+          }
+        }
+        await this.#writeScaleGroup(key, current, generation);
+        if (!isLighterScaleTerminal(current)) {
+          return false;
+        }
+        await this.#withLedgerLock(
+          accountIndex,
+          async () => {
+            await this.#resolveNonceLedgerLocked(
+              accountIndex,
+              current.apiKeyIndex,
+              { generation },
+            );
+          },
+          current.apiKeyIndex,
+        );
+        return true;
+      },
+    );
+    this.#assertSession(generation);
+    if (terminal) {
+      return { success: true, orderId: params.orderId, providerId: 'lighter' };
+    }
+    await this.#ensureSignerReady();
+    const token = await this.#getAuthToken();
+    this.#assertSession(generation);
+    return await this.#withVenueWriteLock(
+      accountIndex,
+      async (nextNonce, submit) => {
+        const group = await lookup();
+        group.placementStopped = true;
+        await this.#writeScaleGroup(key, group, generation);
+        await this.#refreshScaleGroup(group, key, token, generation, true);
+        for (const rung of group.rungs) {
+          if (
+            ['prepared', 'filled', 'canceled', 'rejected'].includes(rung.state)
+          ) {
+            continue;
+          }
+          if (rung.state !== 'resting' || rung.orderId === undefined) {
+            continue;
+          }
+          const signed = await this.#getSignerBridge().execute({
+            function: '_signCancelOrder',
+            params: [
+              accountIndex,
+              group.marketId,
+              rung.orderId,
+              await nextNonce(),
+            ],
+          });
+          if (signed.error) {
+            throw new Error(signed.error);
+          }
+          await submit(LIGHTER_TX_TYPE_CANCEL_ORDER, signed.txInfo, undefined, {
+            ...extractDispatchIdentity(signed),
+            intent: `cancelScale:${group.groupId}:${rung.clientOrderId}`,
+          });
+          await this.#awaitScaleVisibility(
+            group,
+            key,
+            token,
+            generation,
+            () => rung.state !== 'resting',
+          );
+        }
+        await this.#refreshScaleGroup(group, key, token, generation, true);
+        if (!isLighterScaleTerminal(group)) {
+          throw new Error('Lighter Scale cancellation remains unresolved');
+        }
+        await this.#writeScaleGroup(key, group, generation);
+        return { success: true, orderId: group.groupId, providerId: 'lighter' };
+      },
+      generation,
+    );
+  };
 
   async getMarkets(_params?: GetMarketsParams): Promise<MarketInfo[]> {
     try {
@@ -7625,6 +9004,59 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
+  /** Decorate real venue rows only when they match durable Scale intent.
+   * @param rows - Authoritative venue rows.
+   * @param accountIndex - Bound account.
+   * @param generation - Issuing session.
+   * @returns Adapted orders, with exact durable group ownership when present.
+   */
+  readonly #adaptScaleOrders = async (
+    rows: LighterApiOrder[],
+    accountIndex: number,
+    generation: number,
+  ): Promise<Order[]> => {
+    let groups: LighterScaleGroup[] = [];
+    try {
+      groups = await this.#readScaleGroups(
+        this.#scaleKey(accountIndex),
+        accountIndex,
+      );
+    } catch {
+      // Attribution is optional; group inventory still exposes integrity errors.
+    }
+    this.#assertSession(generation);
+    return rows.map((row) => {
+      const order = adaptOrderFromLighter(
+        row,
+        this.#marketsById.get(row.marketIndex)?.symbol ??
+          String(row.marketIndex),
+      );
+      const matches = groups.filter(
+        (group) =>
+          group.accountIndex === row.ownerAccountIndex &&
+          group.marketId === row.marketIndex &&
+          group.rungs.some(
+            (rung) =>
+              rung.clientOrderId === row.clientOrderIndex &&
+              (rung.state !== 'rejected' || row.status === 'rejected') &&
+              (rung.orderId === undefined ||
+                rung.orderId === String(row.orderIndex)) &&
+              new BigNumber(rung.size).eq(row.initialBaseAmount) &&
+              new BigNumber(rung.price).eq(row.price),
+          ) &&
+          row.isAsk === !group.isBuy &&
+          Boolean(row.reduceOnly) === group.reduceOnly &&
+          row.type === 'limit',
+      );
+      if (matches.length > 1) {
+        throw new Error('Ambiguous Lighter Scale ownership');
+      }
+      return matches.length === 1
+        ? { ...order, strategyGroupId: matches[0].groupId }
+        : order;
+    });
+  };
+
   /**
    * STRICT active-orders read: any REST/auth failure THROWS. Mutation
    * flows (TP/SL replacement/removal) must use this — treating a swallowed
@@ -7645,13 +9077,7 @@ export class LighterProvider implements PerpsProvider {
       authToken,
     );
     this.#assertSession(generation);
-    return response.orders.map((order) =>
-      adaptOrderFromLighter(
-        order,
-        this.#marketsById.get(order.marketIndex)?.symbol ??
-          String(order.marketIndex),
-      ),
-    );
+    return this.#adaptScaleOrders(response.orders, accountIndex, generation);
   };
 
   async getOpenOrders(_params?: GetOrdersParams): Promise<Order[]> {
@@ -7697,12 +9123,10 @@ export class LighterProvider implements PerpsProvider {
       // Both legs (historical + open) must come from one session — a
       // switch mid-way would merge account A's history with B's orders.
       this.#assertSession(generation);
-      const historical = (response.orders ?? []).map((order) =>
-        adaptOrderFromLighter(
-          order,
-          this.#marketsById.get(order.marketIndex)?.symbol ??
-            String(order.marketIndex),
-        ),
+      const historical = await this.#adaptScaleOrders(
+        response.orders ?? [],
+        accountIndex,
+        generation,
       );
       // Full lifecycle: open orders first, then the historical states.
       const open = await this.getOpenOrders(params);
@@ -8550,6 +9974,9 @@ export class LighterProvider implements PerpsProvider {
     let leverageCommitted = false;
     let attachedGroup: LighterAttachedGroup | undefined;
     let attachedGroupPersisted = false;
+    if (params.orderType === 'scale') {
+      return this.#placeScaleOrder(params, inheritedGeneration);
+    }
     try {
       if (params.marginMode !== undefined) {
         return {
@@ -9098,6 +10525,12 @@ export class LighterProvider implements PerpsProvider {
       this.#assertSession(generationAtIntent);
       if (params.orderId.startsWith(LIGHTER_ATTACHED_HANDLE_PREFIX)) {
         return await this.#cancelAttachedGroup(params, generationAtIntent);
+      }
+      if (
+        params.orderType === 'scale' ||
+        params.orderId.startsWith(LIGHTER_SCALE_PREFIX)
+      ) {
+        return await this.#cancelScaleOrder(params, generationAtIntent);
       }
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
@@ -11595,6 +13028,11 @@ export class LighterProvider implements PerpsProvider {
     // whichever awaited venue read fails (markets, margin metadata, fresh
     // price, live positions, data integrity).
     try {
+      if (params.orderType === 'scale') {
+        this.#ensureSessionBinding();
+        await this.#prepareScaleOrder(params, this.#sessionGeneration);
+        return { isValid: true };
+      }
       return await this.#validateOrderChecks(params);
     } catch (error) {
       return {
@@ -12260,6 +13698,7 @@ export class LighterProvider implements PerpsProvider {
             fresh.set(detail.symbol, {
               marketId: detail.marketId,
               minInitial: detail.minInitialMarginFraction,
+              defaultInitial: detail.defaultInitialMarginFraction,
               maintenance: detail.maintenanceMarginFraction,
               lastTradePrice: detail.lastTradePrice,
             });

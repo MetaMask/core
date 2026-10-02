@@ -1,3 +1,4 @@
+import type { ScaleOrderGroup, PerpsProvider, ScaleOrderChild, GetScalePriceLadderParams, PerpsScalePriceLadder, PerpsControllerGetScalePriceLadderAction, PerpsControllerGetScaleOrderGroupsAction, PerpsControllerReviewScaleOrderGroupsAction } from '@metamask/perps-controller';
 import type {
   DirectProviderOrderCapabilities,
   LighterWasmCall,
@@ -259,3 +260,101 @@ export type AttachedHistoryConsumerContract = AssertTrue<
     'complete' | 'bounded' | undefined
   >
 >;
+
+export type ScaleInventoryConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Extract<
+        keyof ScaleOrderGroup,
+        'success' | 'error' | 'partialState' | 'averagePrice'
+      >,
+      never
+    >
+  >,
+  AssertTrue<
+    IsExact<Parameters<NonNullable<PerpsProvider['getScaleOrderGroups']>>, []>
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerGetScaleOrderGroupsAction['handler']>,
+      Promise<ScaleOrderGroup[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerReviewScaleOrderGroupsAction['handler']>,
+      Promise<ScaleOrderGroup[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<
+        ScaleOrderChild,
+        { state: 'resting' | 'filled' | 'canceled' }
+      >['orderId'],
+      string
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ScaleOrderGroup['state'],
+      'placing' | 'stopped' | 'unknown' | 'terminal'
+    >
+  >,
+];
+
+export type ScaleSizingConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerGetScalePriceLadderAction['handler']>,
+      [params: GetScalePriceLadderParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      NonNullable<GetScalePriceLadderParams['sizing']>,
+      Readonly<
+        (
+          | { size: string; usdAmount?: never }
+          | { usdAmount: string; size?: never }
+        ) & {
+          skew?: number;
+        }
+      >
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<PerpsScalePriceLadder, { status: 'ready' }>['sizingPreview'],
+      | Readonly<{
+          sizes: readonly string[];
+          totalSize: string;
+          totalNotional: string;
+          minimumBaseSize: string;
+          minimumQuoteAmount: string;
+          sizeDecimals: number;
+        }>
+      | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      { size: string; usdAmount: string } extends NonNullable<
+        GetScalePriceLadderParams['sizing']
+      >
+        ? true
+        : false,
+      false
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Record<string, never> extends NonNullable<
+        GetScalePriceLadderParams['sizing']
+      >
+        ? true
+        : false,
+      false
+    >
+  >,
+];

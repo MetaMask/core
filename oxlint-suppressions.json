@@ -4768,9 +4768,6 @@
     "typescript/no-unsafe-assignment": {
       "count": 4
     },
-    "typescript/no-unsafe-return": {
-      "count": 2
-    },
     "typescript/unbound-method": {
       "count": 5
     }
