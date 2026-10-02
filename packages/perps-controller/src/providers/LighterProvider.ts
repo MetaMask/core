@@ -77,6 +77,7 @@ import { LighterWalletService } from '../services/LighterWalletService.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
+  TwapOrder,
   AssetRoute,
   CandleData,
   CandleStick,
@@ -7957,10 +7958,32 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
+  /**
+   * Refuse a management read until native parent execution totals and terminal
+   * schedule semantics can be established from authoritative venue evidence.
+   * An empty result would incorrectly imply that no native schedules exist.
+   *
+   * @returns No schedule snapshot while the lifecycle contract is unavailable.
+   */
+  async getTwapOrders(): Promise<TwapOrder[]> {
+    throw new Error(
+      'Lighter native TWAP lifecycle is unavailable: authoritative parent fills and termination are not established',
+    );
+  }
+
   async cancelOrder(
     params: CancelOrderParams,
     inheritedGeneration?: number,
   ): Promise<CancelOrderResult> {
+    // A generic cancel acknowledgment does not establish that a native
+    // schedule is terminal or that no further slices can execute.
+    if (params.orderType === 'twap') {
+      return {
+        success: false,
+        error:
+          'Lighter native TWAP lifecycle is unavailable: authoritative schedule termination is not established',
+      };
+    }
     try {
       this.#ensureSessionBinding();
       const generationAtIntent = inheritedGeneration ?? this.#sessionGeneration;

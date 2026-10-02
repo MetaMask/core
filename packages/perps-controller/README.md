@@ -256,6 +256,29 @@ reports this boundary, snapshot coverage, and equal-quantity OCO linkage.
 Hyperliquid continues to report independent fixed partial triggers and dynamic
 whole-position coverage through its existing implementation.
 
+## Lighter native TWAP preparation
+
+Lighter TWAP remains unavailable in `getOrderCapabilities`. Placement refuses
+before signer setup. `getTwapOrders` rejects rather than reporting an empty
+inventory, and `cancelOrder` with `orderType: 'twap'` refuses before signing.
+A generic cancel transaction acknowledgment cannot establish that a native
+schedule has terminated or that no later slices will execute.
+
+The `utils/lighterTwap` preparation primitive validates exact amount and price
+bounds, rounds price protection inward by side, converts whole minutes to a
+future millisecond expiry, and rejects randomization. It does not sign, submit,
+persist an operation, or expose a supported strategy. It does not impose the
+Hyperliquid duration rules or claim that the venue accepts every prepared value.
+The caller must supply a millisecond clock and current authoritative market
+precision and reference price before any future lifecycle integration.
+
+Enabling TWAP requires authoritative cumulative parent-fill semantics, complete
+child-fill attribution and terminal cancellation evidence. Persisted ownership,
+restart reconciliation and uncertain-dispatch recovery must then be integrated
+and validated before enabling placement. Reducing a position to zero is not
+termination: Lighter documents that reduce-only schedules keep attempting slices
+until expiry.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).

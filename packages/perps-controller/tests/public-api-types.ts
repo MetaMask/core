@@ -13,6 +13,7 @@ import type {
   PerpsControllerAcknowledgeRecoveredDispatchAction,
 } from '@metamask/perps-controller';
 import type { LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT } from '@metamask/perps-controller/constants/lighterConfig';
+import type { prepareLighterTwapOrder } from '@metamask/perps-controller/utils/lighterTwap';
 
 // Compile-time consumer contracts. These are not runtime fixture assertions.
 type AssertCompatible<Expected, Actual extends Expected> = Actual;
@@ -176,4 +177,13 @@ export type PartialRecoveryConsumerContract = AssertTrue<
 
 export type RecoveryAccountCapacityConsumerContract = AssertTrue<
   IsExact<typeof LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT, 64>
+>;
+
+export type LighterTwapWireConsumerContract = AssertCompatible<
+  {
+    readonly baseAmount: string;
+    readonly price: string;
+    readonly orderExpiry: number;
+  },
+  ReturnType<typeof prepareLighterTwapOrder>
 >;

@@ -2377,7 +2377,57 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('native TWAP unavailable lifecycle', () => {
+    it('does not report an empty schedule inventory without authoritative reads', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      await expect(provider.getTwapOrders()).rejects.toThrow(
+        'TWAP lifecycle is unavailable',
+      );
+      expect(calls).toHaveLength(0);
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('keeps native TWAP absent from advertised strategies', async () => {
+      const { provider } = buildProvider();
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'BTC',
+      });
+      expect(capabilities).toMatchObject({
+        status: 'ready',
+        supportedStrategies: [],
+      });
+    });
+
+    it('rejects native placement before signer setup or submission', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'twap',
+        twapDuration: 5,
+        twapRandomize: false,
+      });
+      expect(result.success).toBe(false);
+      expect(calls).toHaveLength(0);
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+  });
+
   describe('cancelOrder', () => {
+    it('refuses native TWAP cancellation before signer setup or submission', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      const result = await provider.cancelOrder({
+        orderId: '555',
+        symbol: 'BTC',
+        orderType: 'twap',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('TWAP lifecycle is unavailable');
+      expect(calls).toHaveLength(0);
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
     it('signs and submits a cancel', async () => {
       const { provider, clientInstance, calls } = buildProvider();
       const result = await provider.cancelOrder({
