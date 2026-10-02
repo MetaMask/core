@@ -7173,6 +7173,85 @@ describe('LighterProvider', () => {
       expect(result.error).toContain('requires a price');
     });
 
+    describe('explicit Lighter margin selection', () => {
+      const request: OrderParams = {
+        symbol: 'BTC', isBuy: true, size: '0.001', orderType: 'limit',
+        price: '90000', leverage: 10, marginMode: 'cross',
+      };
+
+      it('reports both native modes for an active perpetual market', async () => {
+        const { provider } = buildProvider();
+        expect(await provider.getOrderCapabilities({ symbol: 'BTC' })).toMatchObject({
+          supportedMarginModes: ['cross', 'isolated'],
+        });
+      });
+
+      it.each(['cross', 'isolated'] as const)('validates a flat %s selection without signer calls', async (marginMode) => {
+        const { provider, clientInstance, calls } = buildProvider();
+        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, positions: [] }] });
+        expect(await provider.validateOrder({ ...request, marginMode })).toEqual({ isValid: true });
+        expect(calls).toHaveLength(0);
+      });
+
+      it('refuses changing the authoritative open position mode before signing', async () => {
+        const { provider, calls } = buildProvider();
+        const result = await provider.placeOrder({ ...request, marginMode: 'isolated' });
+        expect(result).toMatchObject({ success: false, error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN });
+        expect(calls).toHaveLength(0);
+      });
+
+      it('refuses changing the authoritative resting order mode before signing', async () => {
+        const { provider, clientInstance, calls } = buildProvider();
+        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, totalOrderCount: 1, positions: [{ ...ACCOUNT.positions[0], position: '0', openOrderCount: 1, marginMode: 1 }] }] });
+        expect(await provider.placeOrder(request)).toMatchObject({ success: false, error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN });
+        expect(calls).toHaveLength(0);
+      });
+
+      it('keeps an accepted mode update from placing exposure before exact execution proof', async () => {
+        const { provider, calls, clientInstance } = buildProvider({ registeredKey: '9c'.repeat(40) });
+        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, positions: [] }] });
+        const result = await provider.placeOrder(request);
+        expect(result).toMatchObject({ success: false });
+        expect(result.error).toContain('margin mode update remains unresolved');
+        expect(calls.filter((call) => call.function === '_signUpdateLeverage')).toHaveLength(1);
+        expect(calls.filter((call) => call.function === '_signCreateOrder')).toHaveLength(0);
+      });
+
+      it.each(['cross', 'isolated'] as const)('submits %s only after its exact mode transaction executes', async (marginMode) => {
+        const { provider, clientInstance, calls } = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const mode = marginMode === 'cross' ? 0 : 1;
+        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, positions: [{ ...ACCOUNT.positions[0], position: '0', marginMode: mode }] }] });
+        clientInstance.getTx.mockImplementation(async (hash: string) => {
+          const call = calls.find((entry) => entry.function === '_signUpdateLeverage');
+          return { code: 200, hash, accountIndex: 28, apiKeyIndex: 7, nonce: call?.params.at(-1), status: 2 };
+        });
+        expect(await provider.placeOrder({ ...request, marginMode })).toMatchObject({ success: true });
+        expect(calls.find((call) => call.function === '_signUpdateLeverage')?.params[3]).toBe(mode);
+        expect(clientInstance.getTx).toHaveBeenCalledTimes(1);
+        expect(calls.filter((call) => call.function === '_signCreateOrder')).toHaveLength(1);
+      });
+
+      it('locks native pending orders even before a child rests', async () => {
+        const { provider, clientInstance, calls } = buildProvider();
+        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, pendingOrderCount: 1, positions: [{ ...ACCOUNT.positions[0], position: '0', pendingOrderCount: 1, marginMode: 1 }] }] });
+        expect(await provider.placeOrder(request)).toMatchObject({ success: false, error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN });
+        expect(calls).toHaveLength(0);
+      });
+
+      it('requires explicit leverage rather than inventing the mode update IMF', async () => {
+        const { provider, calls } = buildProvider();
+        expect(await provider.validateOrder({ ...request, leverage: undefined })).toMatchObject({ isValid: false, error: PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID });
+        expect(calls).toHaveLength(0);
+      });
+
+      it('does not treat unavailable positions as a flat account', async () => {
+        const { provider, clientInstance, calls } = buildProvider();
+        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, positions: undefined }] });
+        expect(await provider.placeOrder(request)).toMatchObject({ success: false, error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE });
+        expect(calls).toHaveLength(0);
+      });
+    });
+
     it('opens a FLAT market with ISOLATED margin mode; an existing position keeps its venue mode', async () => {
       // The app manages isolated positions only (no cross-margin UI): a
       // flat market opens isolated — which also makes the venue report a
@@ -19913,6 +19992,31 @@ describe('LighterProvider', () => {
         expect(execution.success).toBe(false);
       }
       expect(calls).toHaveLength(0);
+    });
+
+    describe('isolated margin settlement', () => {
+      it('rejects cross-position margin adjustment before signing', async () => {
+        const { provider, calls } = buildProvider();
+        expect(await provider.updateMargin({ symbol: 'BTC', amount: '5' })).toMatchObject({ success: false, error: 'Lighter margin adjustment requires an open isolated position' });
+        expect(calls).toHaveLength(0);
+      });
+
+      it('keeps accepted additive margin unresolved across another request', async () => {
+        const { provider, clientInstance, calls } = buildProvider({ registeredKey: '9c'.repeat(40) });
+        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, positions: [{ ...ACCOUNT.positions[0], marginMode: 1, allocatedMargin: '2000' }] }] });
+        const first = await provider.updateMargin({ symbol: 'BTC', amount: '5' });
+        expect(first.success).toBe(false);
+        expect(first.error).toContain('pending');
+        expect((await provider.updateMargin({ symbol: 'BTC', amount: '5' })).success).toBe(false);
+        expect(calls.filter((call) => call.function === '_signUpdateMargin')).toHaveLength(1);
+      });
+
+      it('refuses removal larger than authoritative allocated margin', async () => {
+        const { provider, clientInstance, calls } = buildProvider();
+        clientInstance.getAccountByIndex.mockResolvedValue({ code: 200, accounts: [{ ...ACCOUNT, positions: [{ ...ACCOUNT.positions[0], marginMode: 1, allocatedMargin: '2' }] }] });
+        expect((await provider.updateMargin({ symbol: 'BTC', amount: '-5' })).success).toBe(false);
+        expect(calls).toHaveLength(0);
+      });
     });
 
     it('updateMargin fails closed on wire-integer overflow before any signer call', async () => {

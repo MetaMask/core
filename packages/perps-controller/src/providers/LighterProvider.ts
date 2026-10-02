@@ -7141,6 +7141,7 @@ export class LighterProvider implements PerpsProvider {
           owner?: string | null;
           beforeDispatch?: () => Promise<void>;
           onNotDispatched?: () => Promise<void>;
+          requireExecution?: boolean;
         },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
@@ -7239,6 +7240,7 @@ export class LighterProvider implements PerpsProvider {
           owner?: string | null;
           beforeDispatch?: () => Promise<void>;
           onNotDispatched?: () => Promise<void>;
+          requireExecution?: boolean;
         },
       ): Promise<LighterSendTxResponse> => {
         // Last fence before anything reaches the venue: a switch that
@@ -7367,6 +7369,24 @@ export class LighterProvider implements PerpsProvider {
         }
         const response: LighterSendTxResponse =
           await this.#clientService.sendTx(txType, txInfo);
+        if (identity?.requireExecution) {
+          // Accepted transport is not execution. Keep the original durable
+          // attempt until exact transaction identity proves terminal success;
+          // unresolved additive margin must never become retryable on restart.
+          this.#assertSession(generationAtIntent);
+          const transaction = ledgerEntry?.txHash
+            ? await this.#clientService.getTx(ledgerEntry.txHash)
+            : null;
+          this.#assertSession(generationAtIntent);
+          if (!ledgerEntry || !transaction ||
+              transaction.hash.toLowerCase().replace(/^0x/u, '') !== ledgerEntry.txHash?.toLowerCase().replace(/^0x/u, '') ||
+              transaction.accountIndex !== accountIndex || transaction.apiKeyIndex !== apiKeyIndex ||
+              transaction.nonce !== ledgerEntry.nonce || getLighterTransactionOutcome(transaction.status) !== 'executed') {
+            throw new Error(
+              'Lighter margin mode update remains unresolved or margin adjustment is pending; review its exact transaction before retrying',
+            );
+          }
+        }
         // Acceptance bookkeeping runs SYNCHRONOUSLY before anything can
         // fail: a switch during network submission must cancel the
         // operation, never the record of an accepted venue mutation.
@@ -7439,6 +7459,7 @@ export class LighterProvider implements PerpsProvider {
           owner?: string | null;
           beforeDispatch?: () => Promise<void>;
           onNotDispatched?: () => Promise<void>;
+          requireExecution?: boolean;
         },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
@@ -7600,6 +7621,7 @@ export class LighterProvider implements PerpsProvider {
       status: 'ready',
       providerId: this.protocolId,
       supportedStrategies: Object.freeze(['scale'] as const),
+      supportedMarginModes: Object.freeze(['cross', 'isolated'] as const),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
       attachedTpsl: Object.freeze({
         submission: 'native-oto-otoco',
@@ -10151,12 +10173,6 @@ export class LighterProvider implements PerpsProvider {
       if (params.orderType === 'twap' && this.#nativeTwapTestnetProbe) {
         return await this.#placeNativeTwapProbe(params);
       }
-      if (params.marginMode !== undefined) {
-        return {
-          success: false,
-          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
-        };
-      }
       if (
         params.orderType !== 'limit' &&
         params.orderType !== 'market' &&
@@ -10199,7 +10215,7 @@ export class LighterProvider implements PerpsProvider {
       const markets = await this.#ensureMarkets(
         isTriggerOrderType(params.orderType) ||
           hasAttached ||
-          params.timeInForce === 'ALO',
+          params.timeInForce === 'ALO' || params.marginMode !== undefined,
       );
       const market = markets.get(params.symbol);
       if (!market) {
@@ -10413,7 +10429,12 @@ export class LighterProvider implements PerpsProvider {
           generationAtIntent,
         );
       }
-      const leverageImfHundredths = await this.#resolveLeverageIntent(params);
+      const explicitMarginMode = await this.#validateExplicitMarginMode(
+        params, market, generationAtIntent,
+      );
+      const leverageImfHundredths = explicitMarginMode === null
+        ? await this.#resolveLeverageIntent(params)
+        : Math.round(10_000 / (params.leverage as number));
       // Margin mode is sent only with an explicit leverage update. An
       // omitted leverage leaves both leverage and margin mode unchanged;
       // an explicit update preserves an existing position's venue mode and
@@ -10421,7 +10442,7 @@ export class LighterProvider implements PerpsProvider {
       const leverageMarginMode =
         leverageImfHundredths === null
           ? null
-          : await this.#resolveMarginModeForSymbol(params.symbol);
+          : explicitMarginMode ?? await this.#resolveMarginModeForSymbol(params.symbol);
 
       // Intent validated — only now do signer and account setup run.
       // Re-fence FIRST: the preflight awaited public/account reads during
@@ -10502,6 +10523,7 @@ export class LighterProvider implements PerpsProvider {
               generationAtIntent,
             );
           }
+          await this.#validateExplicitMarginMode(params, market, generationAtIntent);
           if (leverageImfHundredths !== null && leverageMarginMode !== null) {
             const signedLeverage = await this.#getSignerBridge().execute({
               function: '_signUpdateLeverage',
@@ -10527,6 +10549,10 @@ export class LighterProvider implements PerpsProvider {
               {
                 ...extractDispatchIdentity(signedLeverage),
                 intent: `updateLeverage:${params.symbol}:${String(params.leverage)}`,
+                requireExecution: explicitMarginMode !== null,
+                beforeDispatch: async () => {
+                  await this.#validateExplicitMarginMode(params, market, generationAtIntent);
+                },
               },
             );
             leverageCommitted = true;
@@ -10662,6 +10688,9 @@ export class LighterProvider implements PerpsProvider {
               intent: attachedGroup
                 ? `placeAttached:${attachedGroup.groupId}`
                 : `placeOrder:${params.symbol}:${clientOrderIndex}`,
+              beforeDispatch: async () => {
+                await this.#validateExplicitMarginMode(params, market, generationAtIntent);
+              },
             },
           );
           if (attachedGroup) {
@@ -14441,6 +14470,7 @@ export class LighterProvider implements PerpsProvider {
     // whichever awaited venue read fails (markets, margin metadata, fresh
     // price, live positions, data integrity).
     try {
+      this.#ensureSessionBinding();
       const intent = { ...params };
       if (intent.orderType === 'scale') {
         this.#ensureSessionBinding();
@@ -14465,12 +14495,6 @@ export class LighterProvider implements PerpsProvider {
       await this.#prepareChaseIntent(params, generation);
       this.#assertSession(generation);
       return { isValid: true };
-    }
-    if (params.marginMode !== undefined) {
-      return {
-        isValid: false,
-        error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
-      };
     }
     // Mirrors placeOrder's own rejections so validation never approves an
     // order shape the placement path would refuse.
@@ -14537,7 +14561,7 @@ export class LighterProvider implements PerpsProvider {
     const markets = await this.#ensureMarkets(
       isTriggerOrderType(params.orderType) ||
         hasAttached ||
-        params.timeInForce === 'ALO',
+        params.timeInForce === 'ALO' || params.marginMode !== undefined,
     );
     const market = markets.get(params.symbol);
     if (!market) {
@@ -14564,6 +14588,7 @@ export class LighterProvider implements PerpsProvider {
         error: 'Lighter trigger orders require an active perpetual market',
       };
     }
+    await this.#validateExplicitMarginMode(params, market, this.#sessionGeneration);
     if (params.leverage !== undefined) {
       // Same authoritative-metadata requirement as placement.
       const maxLeverage = await this.#requireMarketMaxLeverage(params.symbol);
@@ -14965,6 +14990,68 @@ export class LighterProvider implements PerpsProvider {
       `${LIGHTER_DATA_INTEGRITY_PREFIX} maintenance margin metadata unavailable for ${params.asset || 'unknown market'}`,
     );
   }
+
+  /**
+   * Validate an explicit collateral mode from authoritative account rows.
+   * No signer setup or default-mode fallback is permitted for this request.
+   * @param params - Requested order intent; explicit mode requires leverage.
+   * @param market - Refreshed public market metadata.
+   * @param generation - Session captured before the reads.
+   * @returns Wire mode, or null for the unchanged omitted-mode behavior.
+   */
+  readonly #validateExplicitMarginMode = async (
+    params: OrderParams,
+    market: LighterOrderBookMeta,
+    generation: number,
+  ): Promise<number | null> => {
+    if (params.marginMode === undefined) {
+      return null;
+    }
+    if (params.marginMode !== 'cross' && params.marginMode !== 'isolated') {
+      throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_INVALID);
+    }
+    if (!Number.isInteger(params.leverage) || (params.leverage ?? 0) < 1) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID);
+    }
+    if (market.status !== 'active' || market.marketType !== 'perp') {
+      throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED);
+    }
+    this.#assertSession(generation);
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    const response = await this.#clientService.getAccountByIndex(accountIndex);
+    this.#assertSession(generation);
+    const accounts = response.accounts.filter((account) => account.index === accountIndex);
+    const account = accounts.length === 1 ? accounts[0] : undefined;
+    if (!account || account.l1Address.toLowerCase() !== this.#boundAddress || !Array.isArray(account.positions)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    const rows = account.positions.filter((row) => row.marketId === market.marketId || row.symbol === params.symbol);
+    const row = rows.length === 1 ? rows[0] : undefined;
+    if (rows.length > 1 || (row && (row.marketId !== market.marketId || row.symbol !== params.symbol))) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    // Counts are the account endpoint's authoritative resting/pending order
+    // inventory. Without a target row, any order makes its mode unprovable.
+    if (!Number.isSafeInteger(account.totalOrderCount) || account.totalOrderCount < 0 ||
+        !Number.isSafeInteger(account.pendingOrderCount) || account.pendingOrderCount < 0 ||
+        (!row && (account.totalOrderCount > 0 || account.pendingOrderCount > 0))) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    const requested = params.marginMode === 'cross' ? LIGHTER_MARGIN_MODE_CROSS : LIGHTER_MARGIN_MODE_ISOLATED;
+    if (row) {
+      const size = parseStrictDecimal(row.position);
+      const mode = row.marginMode ?? LIGHTER_MARGIN_MODE_CROSS;
+      if (size === null || !Number.isSafeInteger(row.openOrderCount) || row.openOrderCount < 0 ||
+          (mode !== LIGHTER_MARGIN_MODE_CROSS && mode !== LIGHTER_MARGIN_MODE_ISOLATED)) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
+      if (mode !== requested && (size !== 0 || row.openOrderCount > 0)) {
+        throw new Error(size !== 0 ? PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN : PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN);
+      }
+    }
+    return requested;
+  };
 
   /**
    * Margin mode the venue will accept for a leverage update on this
