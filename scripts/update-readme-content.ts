@@ -3,11 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import yargs from 'yargs';
 
-type Workspace = {
-  location: string;
-  name: string;
-  workspaceDependencies: string[];
-};
+import type { Workspace } from './lib/dependency-graph.ts';
+import { generateDependencyGraph } from './lib/dependency-graph.ts';
 
 const DEPENDENCY_GRAPH_START_MARKER = '<!-- start dependency graph -->';
 const DEPENDENCY_GRAPH_END_MARKER = '<!-- end dependency graph -->';
@@ -99,85 +96,6 @@ function generatePackageList(workspaces: Workspace[]): string {
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((workspace) => `- [\`${workspace.name}\`](${workspace.location})`)
     .join('\n');
-}
-
-/**
- * Generates the Markdown fragment that represents a Mermaid graph of the
- * dependencies between the workspace packages in this project.
- *
- * @param workspaces - The Yarn workspaces inside of this project.
- * @returns The new dependency graph Markdown fragment.
- */
-function generateDependencyGraph(workspaces: Workspace[]): string {
-  const nodeLines = buildMermaidNodeLines(workspaces);
-  const connectionLines = buildMermaidConnectionLines(workspaces);
-  return assembleMermaidMarkdownFragment(nodeLines, connectionLines);
-}
-
-/**
- * Builds a piece of the Mermaid graph by defining a node for each workspace
- * package within this project.
- *
- * @param workspaces - The Yarn workspaces inside of this project.
- * @returns A set of lines that will go into the final Mermaid graph.
- */
-function buildMermaidNodeLines(workspaces: Workspace[]): string[] {
-  return workspaces.map((workspace) => {
-    const fullPackageName = workspace.name;
-    const shortPackageName = fullPackageName
-      .replace(/^@metamask\//u, '')
-      .replace(/-/gu, '_');
-    return `${shortPackageName}(["${fullPackageName}"]);`;
-  });
-}
-
-/**
- * Builds a piece of the Mermaid graph by defining connections between nodes
- * that correspond to dependencies between workspace packages within this
- * project.
- *
- * @param workspaces - The Yarn workspaces inside of this project.
- * @returns A set of lines that will go into the final Mermaid graph.
- */
-function buildMermaidConnectionLines(workspaces: Workspace[]): string[] {
-  const connections: string[] = [];
-  workspaces.forEach((workspace) => {
-    const fullPackageName = workspace.name;
-    const shortPackageName = fullPackageName
-      .replace(/^@metamask\//u, '')
-      .replace(/-/gu, '_');
-    workspace.workspaceDependencies.forEach((dependency) => {
-      const shortDependencyName = dependency
-        .replace(/^packages\//u, '')
-        .replace(/-/gu, '_');
-      connections.push(`${shortPackageName} --> ${shortDependencyName};`);
-    });
-  });
-  return connections;
-}
-
-/**
- * Creates the Mermaid graph from the given node lines and connection lines,
- * wrapping it in a triple-backtick directive so that it can be embedded within
- * a Markdown document.
- *
- * @param nodeLines - The set of nodes in the graph as lines.
- * @param connectionLines - The set of connections in the graph as lines.
- * @returns The graph in string format.
- */
-function assembleMermaidMarkdownFragment(
-  nodeLines: string[],
-  connectionLines: string[],
-): string {
-  return [
-    '```mermaid',
-    "%%{ init: { 'flowchart': { 'curve': 'bumpX' } } }%%",
-    'graph LR;',
-    'linkStyle default opacity:0.5',
-    ...nodeLines.map((line) => `  ${line}`),
-    ...connectionLines.map((line) => `  ${line}`),
-    '```',
-  ].join('\n');
 }
 
 /**
