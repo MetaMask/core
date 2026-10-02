@@ -437,7 +437,10 @@ describe('SRP MFA methods', () => {
 
   it('completes both enrollment proof types', async () => {
     const auth = createAuth();
-    mockMfaEnrollComplete.mockResolvedValue(undefined);
+    mockMfaEnrollComplete.mockResolvedValue({
+      token: 'assertion-jwt',
+      expiresIn: 900,
+    });
     const attestation = {
       id: 'id',
       rawId: 'raw-id',
