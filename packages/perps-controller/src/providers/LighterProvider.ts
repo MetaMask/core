@@ -607,6 +607,18 @@ type LighterNonceLedgerDoc = {
 const TPSL_GUARDED_REMOVAL_REVIEW_REASON =
   'Protection removal requires review because its position precondition failed or the guarded session ended; review surviving orders before changing protection';
 
+/** Durable identity of a key registration that must settle before allocation. */
+type LighterPendingKeyRegistration = {
+  version: 1;
+  accountIndex: number;
+  apiKeyIndex: number;
+  publicKey: string;
+  txHash: string;
+  nonce: number;
+  expiresAt: number;
+  accepted: boolean;
+};
+
 /**
  * Validate persisted replacement groups retained across signer changes.
  *
@@ -1020,9 +1032,9 @@ const parseTpslJournalPointer = (
  * Best-effort dispatch identity from a bridge signing result. The pinned
  * WASM contract (web-wasm light_client.go) returns `{txHash, txInfo}`
  * where txInfo is the marshaled wire payload — it carries Nonce and
- * ExpiredAt but NEVER the hash. Non-throwing: ops whose signers omit a
- * field dispatch with a partial identity (resolvable only by REST
- * advance, never by expiry).
+ * ExpiredAt but NEVER the hash. Missing fields return null without throwing.
+ * Dispatch validation separately requires complete identities; extraction
+ * alone does not authorize submitting a partial signing result.
  *
  * @param signed - Bridge signing result.
  * @param signed.txHash - Signed transaction hash from the RESULT.
@@ -2721,6 +2733,7 @@ export class LighterProvider implements PerpsProvider {
               kind?: number;
               intent?: string;
               owner?: string | null;
+              onDispatch?: () => void;
             }[]
           ).map((entry) => ({
             ...entry,
@@ -3266,6 +3279,8 @@ export class LighterProvider implements PerpsProvider {
    * safely re-established automatically. Surfaced to callers/UI; each
    * current-key entry resolves after a successful explicit TP/SL update.
    * Selected obligations can be resolved through an explicitly linked successor.
+   * Previous-key transactions settle read-only using their original identity;
+   * an explicit current-key update clears warnings after recorded orders settle.
    *
    * @returns Parked manual-recovery entries.
    */
@@ -3326,14 +3341,22 @@ export class LighterProvider implements PerpsProvider {
         : undefined;
     const partialAction =
       'Review the current position and resolve this exact recovery ID with a fresh explicit protection intent; saved partial quantities will not be replayed';
-    const actionNeeded = (settlementKey: string): string => {
+    const actionNeeded = (
+      settlementKey: string,
+      intent: 'replace' | 'remove',
+      unsettled = false,
+    ): string => {
       if (currentSlotPrefix === null) {
         return 'Initialize the wallet trading key and review the position and recorded TP/SL orders. Select the obligation to reconcile its original submissions before requesting new protection';
       }
       if (settlementKey.startsWith(currentSlotPrefix)) {
-        return 'Review the position and submit a new explicit TP/SL update for this symbol to re-establish protection';
+        return intent === 'remove'
+          ? 'Review surviving orders and submit a new explicit TP/SL removal if you still want to remove protection'
+          : 'Review the position and submit a new explicit TP/SL update for this symbol to re-establish protection';
       }
-      return 'Review the position and recorded orders from the previous trading key in Lighter. An ordinary current-key TP/SL update does not clear this obligation; select its recovery action to reconcile the original submissions and request new protection';
+      return unsettled
+        ? 'Recorded TP/SL transactions are still settling under a previous trading key. Retry after the venue shows their outcome'
+        : 'Review surviving orders with the current trading key and submit an explicit TP/SL update or removal. This warning clears once its recorded transactions and orders are settled';
     };
     // Storage errors PROPAGATE — a corrupt index degrading to "nothing
     // pending" would hide a naked position.
@@ -3344,6 +3367,8 @@ export class LighterProvider implements PerpsProvider {
       }
       const doc = await this.#loadTpslManualRecovery(settlementKey);
       if (doc) {
+        const unsettled = await this.#loadTpslJournal(settlementKey);
+        this.#assertSession(generation);
         pending.push({
           providerId: 'lighter',
           walletAddress: this.#boundAddress ?? undefined,
@@ -3363,7 +3388,7 @@ export class LighterProvider implements PerpsProvider {
             : {}),
           actionNeeded: doc.partialIntent
             ? partialAction
-            : actionNeeded(settlementKey),
+            : actionNeeded(settlementKey, doc.priorIntent, unsettled !== null),
         });
       }
     }
@@ -3434,7 +3459,7 @@ export class LighterProvider implements PerpsProvider {
             : {}),
           actionNeeded: journal.partialIntent
             ? partialAction
-            : actionNeeded(settlementKey),
+            : actionNeeded(settlementKey, journal.intent, true),
         });
       }
     }
@@ -5009,17 +5034,19 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
-   * Clear a manual-recovery record — called ONLY after a successor
-   * protection intent has authoritatively succeeded.
+   * Clear an obsolete manual-recovery record after an explicit protection
+   * intent succeeds, including a guarded removal settled during recovery.
    *
    * @param settlementKey - Settlement identity.
    * @param expectedOperationId - Exact source to clear, when explicitly selected.
    * @param generation - Issuing wallet session.
+   * @param requireSettledJournal - Keep previous-slot warnings while a journal survives.
    */
   readonly #clearTpslManualRecovery = async (
     settlementKey: string,
     expectedOperationId?: string,
     generation = this.#sessionGeneration,
+    requireSettledJournal = false,
   ): Promise<void> => {
     await withStorageMutex(this.#tpslManualIndexKey(), async () => {
       this.#assertSession(generation);
@@ -5036,6 +5063,20 @@ export class LighterProvider implements PerpsProvider {
       }
       const index = await this.#readTpslManualIndex();
       this.#assertSession(generation);
+      if (expectedOperationId !== undefined) {
+        const latest = await this.#loadTpslManualRecovery(settlementKey);
+        this.#assertSession(generation);
+        if (latest && latest.operationId !== expectedOperationId) {
+          return;
+        }
+      }
+      if (requireSettledJournal) {
+        const journal = await this.#loadTpslJournal(settlementKey);
+        this.#assertSession(generation);
+        if (journal) {
+          return;
+        }
+      }
       await this.#deps.diskCache.removeItem(this.#tpslManualKey(settlementKey));
       this.#assertSession(generation);
       if (index.includes(settlementKey)) {
@@ -5046,6 +5087,126 @@ export class LighterProvider implements PerpsProvider {
         this.#assertSession(generation);
       }
     });
+  };
+
+  /**
+   * Retire other-slot warnings only after an explicit current-key intent
+   * succeeds. Reads alone never acknowledge surviving protection.
+   * @param settlementKey - Current wallet/account/slot/symbol identity.
+   * @param accountIndex - Captured venue account.
+   * @param symbol - Symbol changed by the successful explicit intent.
+   * @param generation - Captured wallet session.
+   * @param readActiveRaw - Strict account-wide active book reader.
+   */
+  readonly #clearSettledPreviousSlotWarnings = async (
+    settlementKey: string,
+    accountIndex: number,
+    symbol: string,
+    generation: number,
+    readActiveRaw: () => Promise<LighterApiOrder[]>,
+  ): Promise<void> => {
+    const index = await this.#readTpslManualIndex();
+    this.#assertSession(generation);
+    for (const key of index) {
+      const [address, account, , ...keySymbol] = key.split(':');
+      if (
+        key === settlementKey ||
+        address !== this.#boundAddress ||
+        account !== String(accountIndex) ||
+        keySymbol.join(':') !== symbol
+      ) {
+        continue;
+      }
+      // A manual document can coexist with an unresolved journal after a
+      // failed cleanup. Preserve that obligation regardless of book absence.
+      if (await this.#loadTpslJournal(key)) {
+        this.#assertSession(generation);
+        continue;
+      }
+      this.#assertSession(generation);
+      const doc = await this.#loadTpslManualRecovery(key);
+      this.#assertSession(generation);
+      if (!doc) {
+        // A document removal may have landed before its index write failed.
+        // Recheck under the writer mutex so a newly parked warning survives.
+        await withStorageMutex(this.#tpslManualIndexKey(), async () => {
+          const currentIndex = await this.#readTpslManualIndex();
+          const currentDoc = await this.#loadTpslManualRecovery(key);
+          const currentJournal = await this.#loadTpslJournal(key);
+          this.#assertSession(generation);
+          if (!currentDoc && !currentJournal && currentIndex.includes(key)) {
+            await this.#deps.diskCache.setItem(
+              this.#tpslManualIndexKey(),
+              JSON.stringify(currentIndex.filter((entry) => entry !== key)),
+            );
+            this.#assertSession(generation);
+          }
+        });
+        continue;
+      }
+      if (doc.settlementKey !== key || doc.symbol !== symbol) {
+        throw new Error(
+          'Lighter previous-slot protection warning identity is invalid',
+        );
+      }
+      // Partial recovery requires its exact explicit successor; an ordinary
+      // protection update must not retire saved partial intent.
+      if (doc.partialIntent) {
+        continue;
+      }
+      const ids = [
+        ...doc.survivingOrderIds,
+        ...doc.priorTriggers.map((prior) => prior.orderId),
+      ];
+      if (
+        ids.some(
+          (id) =>
+            typeof id !== 'string' ||
+            !/^[1-9]\d*$/u.test(id) ||
+            !Number.isSafeInteger(Number(id)),
+        )
+      ) {
+        throw new Error(
+          'Lighter previous-slot protection warning order identity is invalid',
+        );
+      }
+      const readSurvivors = async (): Promise<boolean> => {
+        const active = await readActiveRaw();
+        this.#assertSession(generation);
+        if (
+          !Array.isArray(active) ||
+          active.some(
+            (row) =>
+              !row ||
+              row.ownerAccountIndex !== accountIndex ||
+              !Number.isSafeInteger(row.orderIndex) ||
+              row.orderIndex <= 0 ||
+              !Number.isSafeInteger(row.marketIndex) ||
+              row.marketIndex < 0,
+          )
+        ) {
+          throw new Error(
+            'Lighter previous-slot protection review requires a complete account order response',
+          );
+        }
+        return active.some((row) => ids.includes(String(row.orderIndex)));
+      };
+      if ((await readSurvivors()) || (await readSurvivors())) {
+        continue;
+      }
+      if (await this.#loadTpslJournal(key)) {
+        this.#assertSession(generation);
+        continue;
+      }
+      this.#assertSession(generation);
+      await this.#clearTpslManualRecovery(
+        key,
+        doc.operationId,
+        generation,
+        true,
+      );
+      this.#assertSession(generation);
+    }
   };
 
   /**
@@ -5735,6 +5896,7 @@ export class LighterProvider implements PerpsProvider {
         intent?: string;
         owner?: string | null;
         beforeDispatch?: () => Promise<void>;
+        onDispatch?: () => void;
       },
     ) => Promise<LighterSendTxResponse>;
   }): Promise<boolean> => {
@@ -5797,6 +5959,7 @@ export class LighterProvider implements PerpsProvider {
         intent?: string;
         owner?: string | null;
         beforeDispatch?: () => Promise<void>;
+        onDispatch?: () => void;
       },
     ) => Promise<LighterSendTxResponse>;
   }): Promise<boolean> => {
@@ -6174,6 +6337,32 @@ export class LighterProvider implements PerpsProvider {
       }
     }
     if (journalEntry.phase === 'manual') {
+      if (
+        journalEntry.intent === 'remove' &&
+        !journalEntry.priorTriggers.some(priorActive)
+      ) {
+        // Reconciliation above settled every actual attempt. Confirm the
+        // removed targets remain absent in a fresh complete book before
+        // retiring their obligation, without authorizing another cancel.
+        const settledActive = await readActiveRaw();
+        if (
+          journalEntry.priorTriggers.some((prior) =>
+            settledActive.some(
+              (order) => String(order.orderIndex) === prior.orderId,
+            ),
+          )
+        ) {
+          return false;
+        }
+        // Clear the obsolete warning first: if storage fails, the journal
+        // survives so a later read/restart can finish this same cleanup.
+        await this.#clearTpslManualRecovery(settlementKey);
+        return await this.#clearTpslJournal(
+          settlementKey,
+          journalEntry.operationId,
+          settledActive,
+        );
+      }
       // Reconciled manual journals release only their settlement slot.
       // Keep surviving protection in the durable warning for explicit action.
       return await parkManual(
@@ -6765,6 +6954,148 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
+   * Account-scoped storage is independent of whichever slot setup selects.
+   * @param accountIndex - Venue account that owns the pending registration.
+   * @returns Wallet/network/account-scoped storage key.
+   */
+  readonly #pendingKeyRegistrationKey = (accountIndex: number): string =>
+    `lighterKeyRegistration:${this.#isTestnet ? 'testnet' : 'mainnet'}:${this.#boundAddress}:${accountIndex}`;
+
+  /**
+   * Load the outstanding registration before choosing any unused slot.
+   * @param accountIndex - Captured venue account.
+   * @returns Valid durable identity, or null when no registration is pending.
+   */
+  readonly #loadPendingKeyRegistration = async (
+    accountIndex: number,
+  ): Promise<LighterPendingKeyRegistration | null> => {
+    let raw: string | null;
+    try {
+      raw = await this.#deps.diskCache.getItem(
+        this.#pendingKeyRegistrationKey(accountIndex),
+      );
+    } catch (error) {
+      throw new Error(
+        `Lighter pending key registration read failed: ${ensureError(error, 'LighterProvider.#loadPendingKeyRegistration').message}`,
+      );
+    }
+    if (raw === null) {
+      return null;
+    }
+    let value: unknown;
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      throw new Error(
+        'Lighter pending key registration is corrupt; resolve storage before reconnecting',
+      );
+    }
+    if (typeof value === 'object' && value !== null) {
+      const doc = value as Record<string, unknown>;
+      if (
+        doc.version === 1 &&
+        doc.accountIndex === accountIndex &&
+        typeof doc.apiKeyIndex === 'number' &&
+        Number.isSafeInteger(doc.apiKeyIndex) &&
+        doc.apiKeyIndex >= LIGHTER_MIN_TRADING_API_KEY_INDEX &&
+        doc.apiKeyIndex <= LIGHTER_MAX_TRADING_API_KEY_INDEX &&
+        typeof doc.publicKey === 'string' &&
+        /^[0-9a-f]{80}$/u.test(doc.publicKey) &&
+        typeof doc.txHash === 'string' &&
+        /^(0x)?[0-9a-fA-F]{8,128}$/u.test(doc.txHash) &&
+        typeof doc.nonce === 'number' &&
+        Number.isSafeInteger(doc.nonce) &&
+        doc.nonce >= 0 &&
+        typeof doc.expiresAt === 'number' &&
+        Number.isSafeInteger(doc.expiresAt) &&
+        doc.expiresAt > 0 &&
+        typeof doc.accepted === 'boolean'
+      ) {
+        return {
+          version: 1,
+          accountIndex,
+          apiKeyIndex: doc.apiKeyIndex,
+          publicKey: doc.publicKey,
+          txHash: doc.txHash,
+          nonce: doc.nonce,
+          expiresAt: doc.expiresAt,
+          accepted: doc.accepted,
+        };
+      }
+    }
+    throw new Error(
+      'Lighter pending key registration is corrupt; resolve storage before reconnecting',
+    );
+  };
+
+  /**
+   * Reconcile an invisible registration without signing or changing slots.
+   * Caller holds the account write mutex. Accepted registrations never become
+   * retryable merely because a later transaction lookup cannot find them.
+   * @param pending - Exact durable registration identity.
+   * @param generation - Captured wallet session.
+   */
+  readonly #reconcilePendingKeyRegistration = async (
+    pending: LighterPendingKeyRegistration,
+    generation: number,
+  ): Promise<void> => {
+    const tx = await this.#clientService.getTx(pending.txHash);
+    this.#assertSession(generation);
+    const matches =
+      tx !== null &&
+      tx.hash?.toLowerCase().replace(/^0x/u, '') ===
+        pending.txHash.toLowerCase().replace(/^0x/u, '') &&
+      tx.accountIndex === pending.accountIndex &&
+      tx.apiKeyIndex === pending.apiKeyIndex &&
+      tx.nonce === pending.nonce;
+    const failed =
+      matches && getLighterTransactionOutcome(tx.status) === 'failed';
+    if (
+      matches &&
+      getLighterTransactionOutcome(tx.status) === 'executed' &&
+      !pending.accepted
+    ) {
+      // Retain the strongest observed outcome before another reconnect can
+      // mistake expired index absence for proof that this registration failed.
+      pending.accepted = true;
+      await this.#deps.diskCache.setItem(
+        this.#pendingKeyRegistrationKey(pending.accountIndex),
+        JSON.stringify(pending),
+      );
+      this.#assertSession(generation);
+    }
+
+    let expiredUnsent = false;
+    if (
+      !pending.accepted &&
+      tx === null &&
+      Date.now() > pending.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS
+    ) {
+      const ledger = await this.#readNonceLedger(
+        pending.accountIndex,
+        pending.apiKeyIndex,
+      );
+      this.#assertSession(generation);
+      expiredUnsent =
+        ledger.consumedFloor <= pending.nonce &&
+        !ledger.recovered.some(
+          (entry) =>
+            entry.txHash === pending.txHash && entry.outcome !== 'failed',
+        );
+    }
+    if (failed || expiredUnsent) {
+      await this.#deps.diskCache.removeItem(
+        this.#pendingKeyRegistrationKey(pending.accountIndex),
+      );
+      this.#assertSession(generation);
+      return;
+    }
+    throw new Error(
+      'Lighter trading key registration is still pending; reconnect to check its status',
+    );
+  };
+
+  /**
    * Find local keys first, then unused slots. Never replace a venue key.
    *
    * @param accountIndex - Venue account whose local keys may be reused.
@@ -6775,6 +7106,11 @@ export class LighterProvider implements PerpsProvider {
     accountIndex: number,
     generation: number,
   ): Promise<number[]> => {
+    const pending = await this.#loadPendingKeyRegistration(accountIndex);
+    this.#assertSession(generation);
+    if (pending) {
+      return [pending.apiKeyIndex];
+    }
     const bridge = this.#getSignerBridge();
     const discoverKeys =
       bridge.getRecoverableKeyIndices?.bind(bridge) ??
@@ -6836,9 +7172,27 @@ export class LighterProvider implements PerpsProvider {
   };
 
   readonly #setupSigner = async (generation: number): Promise<void> => {
-    const bridge = this.#getSignerBridge();
     const accountIndex = await this.#ensureAccountIndex();
     this.#assertSession(generation);
+    // Keep discovery and allocation together across provider lifetimes. The
+    // inner venue lock separately protects each candidate's financial writes.
+    await withProcessMutex(
+      `lighterKeySetup:${this.#clientService.network}:${accountIndex}`,
+      async () => this.#setupSignerForAccount(accountIndex, generation),
+    );
+  };
+
+  /**
+   * Select and settle a key while holding the account setup mutex.
+   * @param accountIndex - Venue account bound to this setup.
+   * @param generation - Wallet session captured before waiting for the mutex.
+   */
+  readonly #setupSignerForAccount = async (
+    accountIndex: number,
+    generation: number,
+  ): Promise<void> => {
+    this.#assertSession(generation);
+    const bridge = this.#getSignerBridge();
     const chainId = getLighterChainId(this.#clientService.network);
     const candidates = await this.#signerCandidates(accountIndex, generation);
     for (const apiKeyIndex of candidates) {
@@ -6891,6 +7245,15 @@ export class LighterProvider implements PerpsProvider {
         generation,
         apiKeyIndex,
         async () => {
+          // Candidate selection can race a second provider's completed setup.
+          // Recheck under the account mutex before creating or registering a key.
+          const pending = await this.#loadPendingKeyRegistration(accountIndex);
+          this.#assertSession(generation);
+          if (pending && pending.apiKeyIndex !== apiKeyIndex) {
+            throw new Error(
+              'Lighter trading key registration is still pending; reconnect to check its status',
+            );
+          }
           const nonceResponse = await this.#clientService.getNextNonce(
             accountIndex,
             apiKeyIndex,
@@ -6910,6 +7273,14 @@ export class LighterProvider implements PerpsProvider {
             );
           }
           this.#assertSession(generation);
+          if (
+            pending &&
+            created.pk.replace(/^0x/u, '').toLowerCase() !== pending.publicKey
+          ) {
+            throw new Error(
+              'Lighter pending registration belongs to a different local key; restore the original signer before reconnecting',
+            );
+          }
           this.#venuePublicKey = created.pk;
           this.#signerIdentity = `${this.#clientService.network}:${accountIndex}:${apiKeyIndex}`;
           this.#signerRecreateParams = { chainId, accountIndex };
@@ -6917,6 +7288,20 @@ export class LighterProvider implements PerpsProvider {
           changePubKeyBody = created.body;
           const status = await this.#venueKeyStatus(accountIndex);
           this.#assertSession(generation);
+          if (pending) {
+            if (status === 'matching') {
+              await this.#deps.diskCache.removeItem(
+                this.#pendingKeyRegistrationKey(accountIndex),
+              );
+              this.#assertSession(generation);
+            } else if (status === 'available') {
+              await this.#reconcilePendingKeyRegistration(pending, generation);
+            } else {
+              throw new Error(
+                'Lighter trading key changed during pending registration; reconcile the original slot before reconnecting',
+              );
+            }
+          }
           if (status === 'occupied') {
             this.#clearBridgeOwnership();
             if (
@@ -6997,6 +7382,10 @@ export class LighterProvider implements PerpsProvider {
         break;
       }
       if (status === 'matching') {
+        await this.#deps.diskCache.removeItem(
+          this.#pendingKeyRegistrationKey(accountIndex),
+        );
+        this.#assertSession(generation);
         return;
       }
       if (status === 'occupied') {
@@ -7025,6 +7414,7 @@ export class LighterProvider implements PerpsProvider {
         expiresAt: number | null;
         intent?: string;
         owner?: string | null;
+        onDispatch?: () => void;
       },
     ) => Promise<LighterSendTxResponse>,
   ): Promise<void> => {
@@ -7046,12 +7436,73 @@ export class LighterProvider implements PerpsProvider {
       throw new Error(`Lighter ChangePubKey signing failed: ${signed.error}`);
     }
     this.#assertSession(generation);
-    const result = await submit(
-      LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
-      signed.txInfo,
-      undefined,
-      extractDispatchIdentity(signed),
-    );
+    const identity = extractDispatchIdentity(signed);
+    let result: LighterSendTxResponse;
+    if (!bridge.getRecoverableKeyIndices && !bridge.getStoredKeyIndices) {
+      // Legacy bridges use only their explicitly configured slot. Preserve
+      // that contract; durable allocation tracking applies to discovery.
+      result = await submit(
+        LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
+        signed.txInfo,
+        undefined,
+        identity,
+      );
+    } else {
+      if (identity.txHash === null || identity.expiresAt === null) {
+        throw new Error(
+          'Lighter registration signing result has no complete transaction identity',
+        );
+      }
+      const registrationKey = this.#pendingKeyRegistrationKey(accountIndex);
+      const pending: LighterPendingKeyRegistration = {
+        version: 1,
+        accountIndex,
+        apiKeyIndex: this.#apiKeyIndex,
+        publicKey: (this.#venuePublicKey ?? '')
+          .replace(/^0x/u, '')
+          .toLowerCase(),
+        txHash: identity.txHash,
+        nonce,
+        expiresAt: identity.expiresAt,
+        accepted: false,
+      };
+      await this.#deps.diskCache.setItem(
+        registrationKey,
+        JSON.stringify(pending),
+      );
+      let dispatched = false;
+      try {
+        this.#assertSession(generation);
+        result = await submit(
+          LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
+          signed.txInfo,
+          () => {
+            pending.accepted = true;
+          },
+          {
+            ...identity,
+            onDispatch: () => {
+              dispatched = true;
+            },
+          },
+        );
+      } catch (error) {
+        if (!dispatched) {
+          await this.#deps.diskCache.removeItem(registrationKey);
+        } else if (pending.accepted) {
+          await this.#deps.diskCache.setItem(
+            registrationKey,
+            JSON.stringify(pending),
+          );
+        }
+        throw error;
+      }
+      await this.#deps.diskCache.setItem(
+        registrationKey,
+        JSON.stringify(pending),
+      );
+      this.#assertSession(generation);
+    }
     this.#deps.debugLogger.log('[LighterProvider] Venue key registered', {
       accountIndex,
       apiKeyIndex: this.#apiKeyIndex,
@@ -7152,6 +7603,7 @@ export class LighterProvider implements PerpsProvider {
           beforeDispatch?: () => Promise<void>;
           onNotDispatched?: () => Promise<void>;
           requireExecution?: boolean;
+          onDispatch?: () => void;
         },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
@@ -7251,6 +7703,7 @@ export class LighterProvider implements PerpsProvider {
           beforeDispatch?: () => Promise<void>;
           onNotDispatched?: () => Promise<void>;
           requireExecution?: boolean;
+          onDispatch?: () => void;
         },
       ): Promise<LighterSendTxResponse> => {
         // Last fence before anything reaches the venue: a switch that
@@ -7377,6 +7830,7 @@ export class LighterProvider implements PerpsProvider {
           }
           throw error;
         }
+        identity?.onDispatch?.();
         const response: LighterSendTxResponse =
           await this.#clientService.sendTx(txType, txInfo);
         if (identity?.requireExecution) {
@@ -7483,6 +7937,7 @@ export class LighterProvider implements PerpsProvider {
           beforeDispatch?: () => Promise<void>;
           onNotDispatched?: () => Promise<void>;
           requireExecution?: boolean;
+          onDispatch?: () => void;
         },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
@@ -13261,7 +13716,7 @@ export class LighterProvider implements PerpsProvider {
               }))
             ) {
               throw new Error(
-                `Lighter TP/SL settlement for ${params.symbol} is unresolved under its original API key slot ${String(slot)}; reconcile that slot before changing protection with the selected key`,
+                `Lighter TP/SL settlement for ${params.symbol} is still settling under its original API key slot ${String(slot)}; retry after the venue shows its outcome`,
               );
             }
           }
@@ -14078,6 +14533,24 @@ export class LighterProvider implements PerpsProvider {
             }
             throw error;
           }
+          try {
+            await this.#clearSettledPreviousSlotWarnings(
+              settlementKey,
+              accountIndex,
+              params.symbol,
+              generationAtIntent,
+              readActiveRaw,
+            );
+          } catch (error) {
+            if (error instanceof LighterSessionCancelledError) {
+              throw error;
+            }
+            this.#deps.debugLogger.log(
+              '[LighterProvider] Previous-slot warning cleanup remains pending',
+              { error: String(error), symbol: params.symbol },
+            );
+          }
+          this.#assertSession(generationAtIntent);
         },
         generationAtIntent,
         successorSlot,
