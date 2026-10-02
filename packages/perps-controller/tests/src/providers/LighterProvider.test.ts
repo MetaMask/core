@@ -7064,6 +7064,185 @@ describe('LighterProvider', () => {
       }
     });
 
+    it.each(['read', 'restart'] as const)(
+      'parks a partially dispatched removal after position resize during the second signature, then %s recovery',
+      async (recoveryMode) => {
+        const infra = createMockInfrastructure();
+        const original = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = setupTriggerVenue(
+          original.clientInstance,
+          original.bridge,
+        );
+        const firstId = venue.seedTrigger('take-profit', '110000');
+        const survivingId = venue.seedTrigger('stop-loss', '80000');
+        const initialOrders = venue.rawTriggers.map((row) => ({ ...row }));
+        const managedKey = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+        await infra.diskCache.setItem(
+          managedKey,
+          JSON.stringify({
+            version: 1,
+            orders: initialOrders.map((row) => ({
+              clientId: String(row.clientOrderIndex),
+              orderId: String(row.orderIndex),
+            })),
+          }),
+        );
+        const livePosition = { ...ACCOUNT.positions[0], position: '0.2' };
+        const execute = jest.spyOn(original.bridge, 'execute');
+        const implementation = execute.getMockImplementation();
+        if (!implementation) {
+          throw new Error('Expected configured Lighter signer bridge');
+        }
+        let cancellationSignatures = 0;
+        execute.mockImplementation(async (call: LighterWasmCall) => {
+          const signed = await implementation(call);
+          if (call.function === '_signCancelOrder') {
+            cancellationSignatures += 1;
+            if (cancellationSignatures === 2) {
+              original.clientInstance.getAccountByIndex.mockResolvedValue({
+                code: 200,
+                accounts: [{ ...ACCOUNT, positions: [livePosition] }],
+              });
+            }
+          }
+          return signed;
+        });
+        venue.setRestLag(100);
+        const result = await original.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          expectedPosition: {
+            size: ACCOUNT.positions[0].position,
+            entryPrice: ACCOUNT.positions[0].avgEntryPrice,
+          },
+        });
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        });
+        expect(cancellationSignatures).toBe(2);
+        expect(original.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        expect(venue.rawTriggers.map((row) => row.orderIndex)).toStrictEqual([
+          survivingId,
+        ]);
+        const settlementKey = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+        const journalKey = `lighterTpslJournal:testnet:${settlementKey}`;
+        const pointer = JSON.parse(
+          (await infra.diskCache.getItem(journalKey)) ?? '',
+        ) as { operationId: string };
+        const payloadKey = `lighterTpslJournalOp:testnet:${settlementKey}:${pointer.operationId}`;
+        const payload = JSON.parse(
+          (await infra.diskCache.getItem(payloadKey)) ?? '',
+        ) as { attempts: { kind: string; orderId: string; outcome: string }[] };
+        expect(payload.attempts).toStrictEqual([
+          expect.objectContaining({
+            kind: 'cancel',
+            orderId: String(firstId),
+            outcome: 'accepted',
+          }),
+        ]);
+
+        let recovering = original;
+        let recoveryVenue = venue;
+        if (recoveryMode === 'restart') {
+          await original.provider.disconnect();
+          recovering = buildProvider({
+            platformDependencies: infra,
+            registeredKey: '9c'.repeat(40),
+          });
+          recoveryVenue = setupTriggerVenue(
+            recovering.clientInstance,
+            recovering.bridge,
+          );
+          recoveryVenue.rawTriggers.push(...venue.rawTriggers);
+          recoveryVenue.setVenueNonce(venue.getVenueNonce());
+          for (const [hash, transaction] of venue.landedTxs) {
+            recoveryVenue.landedTxs.set(hash, transaction);
+          }
+          recoveryVenue.primeLag(initialOrders, 100);
+          recovering.clientInstance.getAccountByIndex.mockResolvedValue({
+            code: 200,
+            accounts: [{ ...ACCOUNT, positions: [livePosition] }],
+          });
+        }
+        const submissionsBefore =
+          recovering.clientInstance.sendTx.mock.calls.length;
+        const lookupFinished = createDeferred<void>();
+        const lookup =
+          recovering.clientInstance.getTx.getMockImplementation() as
+            | ((hash: string) => Promise<unknown>)
+            | undefined;
+        if (!lookup) {
+          throw new Error('Expected configured transaction lookup');
+        }
+        recovering.clientInstance.getTx.mockImplementation(
+          async (hash: string) => {
+            const transaction = await lookup(hash);
+            lookupFinished.resolve();
+            return transaction;
+          },
+        );
+        await recovering.provider.getOpenOrders();
+        await lookupFinished.promise;
+        await new Promise((resolve) => setImmediate(resolve));
+        // Accepted first cancellation is still hidden by the book snapshot.
+        // Its obligation must remain durable while later cancellation stays
+        // refused, including across a fresh provider lifetime.
+        expect(await infra.diskCache.getItem(journalKey)).not.toBeNull();
+        expect(recovering.clientInstance.sendTx).toHaveBeenCalledTimes(
+          submissionsBefore,
+        );
+        expect(
+          recoveryVenue.rawTriggers.map((row) => row.orderIndex),
+        ).toStrictEqual([survivingId]);
+
+        recoveryVenue.setRestLag(0);
+        recoveryVenue.primeLag([], 0);
+        for (let attempt = 0; attempt < 40; attempt += 1) {
+          await recovering.provider.getOpenOrders();
+          if ((await infra.diskCache.getItem(journalKey)) === null) {
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        expect(recovering.clientInstance.sendTx).toHaveBeenCalledTimes(
+          submissionsBefore,
+        );
+        expect(
+          recoveryVenue.rawTriggers.map((row) => row.orderIndex),
+        ).toStrictEqual([survivingId]);
+        expect(await infra.diskCache.getItem(journalKey)).toBeNull();
+        expect(
+          await recovering.provider.getPendingManualRecoveries(),
+        ).toStrictEqual([
+          expect.objectContaining({
+            symbol: 'BTC',
+            settlementKey,
+            priorIntent: 'remove',
+            survivingOrderIds: [String(survivingId)],
+          }),
+        ]);
+        const refreshed = await recovering.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          expectedPosition: {
+            size: livePosition.position,
+            entryPrice: livePosition.avgEntryPrice,
+          },
+        });
+        expect(refreshed.success).toBe(true);
+        expect(recoveryVenue.rawTriggers).toStrictEqual([]);
+        expect(recovering.clientInstance.sendTx).toHaveBeenCalledTimes(
+          submissionsBefore + 1,
+        );
+        expect(
+          await recovering.provider.getPendingManualRecoveries(),
+        ).toStrictEqual([]);
+        await recovering.provider.disconnect();
+      },
+    );
+
     it.each(['resize', 'entry-drift'])(
       'releases an unsent removal after position %s during cancel signing',
       async (change) => {

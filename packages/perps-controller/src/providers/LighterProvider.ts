@@ -4597,10 +4597,12 @@ export class LighterProvider implements PerpsProvider {
       return true;
     };
     if (journalEntry.phase === 'manual') {
-      // Journal parked 'manual' by an earlier version: migrate the
-      // warning into the dedicated durable doc.
+      // Reconciled manual journals release only their settlement slot.
+      // Keep surviving protection in the durable warning for explicit action.
       return await parkManual(
-        'TP/SL protection could not be safely re-established automatically (parked by an earlier session)',
+        journalEntry.intent === 'remove'
+          ? 'Protection removal stopped after its position precondition failed; review surviving orders before changing protection'
+          : 'TP/SL protection could not be safely re-established automatically (parked by an earlier session)',
       );
     }
     if (journalEntry.intent === 'remove') {
@@ -7634,6 +7636,12 @@ export class LighterProvider implements PerpsProvider {
             if (remaining.length === 0) {
               await this.#clearTpslJournal(settlementKey, journal.operationId);
             } else {
+              // Dispatched attempts still require reconciliation, but a
+              // refused removal no longer authorizes recovery to cancel
+              // the surviving protection against a changed position.
+              if (journal.intent === 'remove') {
+                journal.phase = 'manual';
+              }
               await this.#persistTpslJournal(settlementKey, {
                 ...journal,
                 attempts: remaining,
