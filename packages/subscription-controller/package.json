@@ -1,6 +1,6 @@
 {
   "name": "@metamask/subscription-controller",
-  "version": "11.0.0",
+  "version": "12.0.1",
   "description": "Handle user subscription",
   "keywords": [
     "Ethereum",
@@ -65,10 +65,11 @@
     "@metamask/money-account-upgrade-controller": "^5.1.0",
     "@metamask/money-account-utils": "^2.1.0",
     "@metamask/polling-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^33.0.0",
+    "@metamask/profile-sync-controller": "^34.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
+    "@metamask/seedless-onboarding-controller": "^11.0.1",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^72.0.1",
+    "@metamask/transaction-controller": "^72.1.0",
     "@metamask/utils": "^12.0.0",
     "@tanstack/query-core": "^5.103.2",
     "bignumber.js": "^9.1.2",
