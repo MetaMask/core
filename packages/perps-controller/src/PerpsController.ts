@@ -3123,13 +3123,13 @@ export class PerpsController extends BaseController<
    * Place a new order
    * Thin delegation to TradingService
    *
-   * @param input - The operation parameters.
+   * @param params - The operation parameters.
    * @returns The order result with order ID and status.
    */
-  async placeOrder(input: OrderParams): Promise<OrderResult> {
-    let params: OrderParams;
+  async placeOrder(params: OrderParams): Promise<OrderResult> {
+    let capturedParams: OrderParams;
     try {
-      params = captureScaleOrderParams(input);
+      capturedParams = captureScaleOrderParams(params);
     } catch (error) {
       return {
         success: false,
@@ -3138,14 +3138,14 @@ export class PerpsController extends BaseController<
       };
     }
     const provider = await this.#resolveRoutedOrderProvider({
-      orderType: params.orderType,
-      providerId: params.providerId,
+      orderType: capturedParams.orderType,
+      providerId: capturedParams.providerId,
     });
     this.#ensureTradingServiceDeps();
 
     const result = await this.#tradingService.placeOrder({
       provider,
-      params,
+      params: capturedParams,
       context: this.#createServiceContext('placeOrder', {
         saveTradeConfiguration: (symbol: string, leverage: number) =>
           this.saveTradeConfiguration(symbol, leverage),
@@ -3155,7 +3155,7 @@ export class PerpsController extends BaseController<
     });
 
     if (result.success) {
-      this.clearPendingTradeConfiguration(params.symbol);
+      this.clearPendingTradeConfiguration(capturedParams.symbol);
     }
 
     return result;
@@ -5443,15 +5443,15 @@ export class PerpsController extends BaseController<
   /**
    * Validate order parameters according to protocol-specific rules
    *
-   * @param input - The operation parameters.
+   * @param params - The operation parameters.
    * @returns True if the condition is met.
    */
   async validateOrder(
-    input: OrderParams,
+    params: OrderParams,
   ): Promise<{ isValid: boolean; error?: string }> {
-    let params: OrderParams;
+    let capturedParams: OrderParams;
     try {
-      params = captureScaleOrderParams(input);
+      capturedParams = captureScaleOrderParams(params);
     } catch (error) {
       return {
         isValid: false,
@@ -5460,11 +5460,15 @@ export class PerpsController extends BaseController<
       };
     }
     const provider = await this.#resolveRoutedOrderProvider({
-      orderType: params.orderType,
-      providerId: params.providerId,
+      orderType: capturedParams.orderType,
+      providerId: capturedParams.providerId,
     });
     const context = this.#createServiceContext('validateOrder');
-    return this.#marketDataService.validateOrder({ provider, params, context });
+    return this.#marketDataService.validateOrder({
+      provider,
+      params: capturedParams,
+      context,
+    });
   }
 
   /**
