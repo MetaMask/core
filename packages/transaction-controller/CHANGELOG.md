@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@ethersproject/wallet` from `^5.7.0` to `^5.8.0` ([#10484](https://github.com/MetaMask/core/pull/10484))
 - Bump `@metamask/core-backend` from `^11.0.0` to `^12.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
 
+### Fixed
+
+- Exclude the unused gas refund from `nativeBalanceChange` when the simulation credits the sender without debiting the gas cost ([#10614](https://github.com/MetaMask/core/pull/10614))
+  - On Arc the simulated state diff credits the fee recipient and, when the gas limit exceeds the gas used, refunds the sender's unused gas, but never debits the upfront gas, so a value-0 call was reported as an incoming native balance and a native send under-reported its decrease.
+
 ## [72.0.1]
 
 ### Fixed
