@@ -119,6 +119,7 @@ type BuiltProvider = {
     getAccountsByL1Address: jest.Mock;
     getApiKeys: jest.Mock;
     getNextNonce: jest.Mock;
+    getTx: jest.Mock;
   };
   accountSigner: { signPersonalMessage: jest.Mock };
   call: jest.SpyInstance;
@@ -138,6 +139,7 @@ type BuildOptions = {
   findAccountByAddress?: boolean;
   withoutBridge?: boolean;
   storedKeyIndices?: number[];
+  infrastructure?: ReturnType<typeof createMockInfrastructure>;
 };
 
 function buildProvider({
@@ -147,6 +149,7 @@ function buildProvider({
   findAccountByAddress = false,
   withoutBridge = false,
   storedKeyIndices,
+  infrastructure,
 }: BuildOptions = {}): BuiltProvider {
   const { address } = createMockEvmAccount();
   const account = {
@@ -207,9 +210,10 @@ function buildProvider({
       return { code: 200, txHash: '0xsent' };
     });
   }
+  const baseInfrastructure = infrastructure ?? createMockInfrastructure();
   const deps = keyring
-    ? createMockInfrastructure()
-    : { ...createMockInfrastructure(), accountSigner };
+    ? baseInfrastructure
+    : { ...baseInfrastructure, accountSigner };
   const provider = new LighterProvider({
     isTestnet: true,
     platformDependencies: deps,
@@ -867,6 +871,243 @@ describe('LighterProvider with accountSigner', () => {
     expect(creates[0].params[3]).toBe(7);
     expect(creates[1].params[3]).not.toBe(7);
     expect(client.sendTx).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps an invisible accepted registration on its original slot after provider restart', async () => {
+    jest.useFakeTimers();
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    const first = buildProvider({ storedKeyIndices: [7] });
+    const occupied = [{ apiKeyIndex: 7, publicKey: 'ab'.repeat(40) }];
+    first.client.getApiKeys.mockResolvedValue({ code: 200, apiKeys: occupied });
+    first.client.sendTx.mockResolvedValue({ code: 200, txHash: '0xsent' });
+    const original = first.provider.prepareTradingWallet();
+    await jest.advanceTimersByTimeAsync(11000);
+    const pendingResult1 = await original;
+    expect(pendingResult1.ready).toBe(false);
+    expect(pendingResult1.error).toContain('registration is still pending');
+    const registration = first.calls.find(
+      (call) => call.function === '_signChangePubKey',
+    );
+    if (!registration) {
+      throw new Error('Expected accepted registration');
+    }
+    const originalSlot = Number(registration.params[3]);
+    expect(originalSlot).not.toBe(7);
+    expect(first.client.sendTx).toHaveBeenCalledTimes(1);
+    const pendingKey = `lighterKeyRegistration:testnet:${first.address.toLowerCase()}:28`;
+    const pendingBytes = await first.deps.diskCache.getItem(pendingKey);
+    expect(JSON.parse(pendingBytes ?? '')).toMatchObject({
+      apiKeyIndex: originalSlot,
+      accepted: true,
+      txHash: 'dddd000000000001',
+      nonce: 42,
+    });
+    await first.provider.disconnect();
+
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const restarted = buildProvider({
+      storedKeyIndices: [7],
+      infrastructure: first.deps,
+    });
+    Object.assign(restarted.bridge, {
+      getStoredKeyIndices: jest.fn(
+        async ({ apiKeyIndices }: { apiKeyIndices: number[] }) =>
+          [7, originalSlot].filter((slot) => apiKeyIndices.includes(slot)),
+      ),
+    });
+    restarted.client.getApiKeys.mockResolvedValue({
+      code: 200,
+      apiKeys: occupied,
+    });
+    restarted.client.sendTx.mockResolvedValue({ code: 200, txHash: '0xsent' });
+    const retry = restarted.provider.prepareTradingWallet();
+    await jest.advanceTimersByTimeAsync(11000);
+    const pendingResult2 = await retry;
+    expect(pendingResult2.ready).toBe(false);
+    expect(pendingResult2.error).toContain('registration is still pending');
+    expect(restarted.client.sendTx).not.toHaveBeenCalled();
+    expect(
+      restarted.calls.filter((call) => call.function === '_signChangePubKey'),
+    ).toStrictEqual([]);
+
+    jest.spyOn(Date, 'now').mockReturnValue(NOW + TX_EXPIRY_MS + 30001);
+    const pendingResult3 = await restarted.provider.prepareTradingWallet();
+    expect(pendingResult3.ready).toBe(false);
+    expect(pendingResult3.error).toContain('registration is still pending');
+    expect(await first.deps.diskCache.getItem(pendingKey)).toBe(pendingBytes);
+    expect(restarted.client.sendTx).not.toHaveBeenCalled();
+
+    restarted.client.getApiKeys.mockResolvedValue({
+      code: 200,
+      apiKeys: [
+        ...occupied,
+        { apiKeyIndex: originalSlot, publicKey: '9c'.repeat(40) },
+      ],
+    });
+    expect(await restarted.provider.prepareTradingWallet()).toStrictEqual({
+      ready: true,
+    });
+    expect(
+      jest.mocked(restarted.bridge).createClient.mock.lastCall,
+    ).toStrictEqual([expect.objectContaining({ apiKeyIndex: originalSlot })]);
+    expect(restarted.client.sendTx).not.toHaveBeenCalled();
+    expect(restarted.accountSigner.signPersonalMessage).not.toHaveBeenCalled();
+    expect(await first.deps.diskCache.getItem(pendingKey)).toBeNull();
+    await restarted.provider.disconnect();
+  });
+
+  it.each(['pending-storage', 'ledger-storage'] as const)(
+    'does not dispatch a registration when %s fails',
+    async (failure) => {
+      const built = buildProvider({ storedKeyIndices: [] });
+      const setItem = jest
+        .spyOn(built.deps.diskCache, 'setItem')
+        .getMockImplementation();
+      if (!setItem) {
+        throw new Error('Missing storage writer');
+      }
+      jest
+        .spyOn(built.deps.diskCache, 'setItem')
+        .mockImplementation(async (key, value) => {
+          if (
+            key.startsWith(
+              failure === 'pending-storage'
+                ? 'lighterKeyRegistration:'
+                : 'lighterNonceLedger:',
+            )
+          ) {
+            throw new Error('Storage unavailable');
+          }
+          return setItem(key, value);
+        });
+      expect(await built.provider.prepareTradingWallet()).toMatchObject({
+        ready: false,
+      });
+      expect(built.client.sendTx).not.toHaveBeenCalled();
+      expect(
+        await built.deps.diskCache.getItem(
+          `lighterKeyRegistration:testnet:${built.address.toLowerCase()}:28`,
+        ),
+      ).toBeNull();
+      await built.provider.disconnect();
+    },
+  );
+
+  it.each([
+    'failed',
+    'expired-absent',
+    'pending',
+    'executed',
+    'foreign',
+  ] as const)(
+    'reconciles an uncertain registration through exact %s evidence before retry',
+    async (outcome) => {
+      const first = buildProvider({ storedKeyIndices: [] });
+      first.client.sendTx.mockRejectedValue(new Error('Response lost'));
+      expect(await first.provider.prepareTradingWallet()).toMatchObject({
+        ready: false,
+      });
+      const pendingKey = `lighterKeyRegistration:testnet:${first.address.toLowerCase()}:28`;
+      const before = await first.deps.diskCache.getItem(pendingKey);
+      expect(JSON.parse(before ?? '')).toMatchObject({
+        accepted: false,
+        apiKeyIndex: 7,
+      });
+      await first.provider.disconnect();
+      const restarted = buildProvider({
+        storedKeyIndices: [7],
+        infrastructure: first.deps,
+      });
+      restarted.client.getTx.mockResolvedValue(
+        outcome === 'expired-absent'
+          ? null
+          : {
+              code: 200,
+              hash: 'dddd000000000001',
+              accountIndex: outcome === 'foreign' ? 29 : 28,
+              apiKeyIndex: 7,
+              nonce: 42,
+              status: {
+                failed: 0,
+                executed: 2,
+                pending: 1,
+                foreign: 1,
+                'expired-absent': 1,
+              }[outcome],
+            },
+      );
+      jest.spyOn(Date, 'now').mockReturnValue(NOW + TX_EXPIRY_MS + 30001);
+      const retry = await restarted.provider.prepareTradingWallet();
+      const canRetry = outcome === 'failed' || outcome === 'expired-absent';
+      expect(retry.ready).toBe(canRetry);
+      expect(restarted.client.sendTx).toHaveBeenCalledTimes(canRetry ? 1 : 0);
+      expect(await first.deps.diskCache.getItem(pendingKey)).toBe(
+        canRetry ? null : before,
+      );
+      expect(
+        restarted.calls.filter((call) => call.function === '_signChangePubKey'),
+      ).toHaveLength(canRetry ? 1 : 0);
+      await restarted.provider.disconnect();
+    },
+  );
+
+  it('preserves pending registration bytes when its local signer key changes', async () => {
+    jest.useFakeTimers();
+    const first = buildProvider({ storedKeyIndices: [] });
+    first.client.sendTx.mockResolvedValue({ code: 200, txHash: '0xsent' });
+    const setup = first.provider.prepareTradingWallet();
+    await jest.advanceTimersByTimeAsync(11000);
+    expect(await setup).toMatchObject({ ready: false });
+    const key = `lighterKeyRegistration:testnet:${first.address.toLowerCase()}:28`;
+    const before = await first.deps.diskCache.getItem(key);
+    await first.provider.disconnect();
+    const restarted = buildProvider({
+      storedKeyIndices: [7],
+      infrastructure: first.deps,
+    });
+    jest.spyOn(restarted.bridge, 'createClient').mockResolvedValue({
+      success: true,
+      pk: 'ab'.repeat(40),
+      pubKeySuccess: true,
+      body: CHANGE_PUB_KEY_BODY,
+    });
+    const pendingResult4 = await restarted.provider.prepareTradingWallet();
+    expect(pendingResult4.ready).toBe(false);
+    expect(pendingResult4.error).toContain('different local key');
+    expect(await first.deps.diskCache.getItem(key)).toBe(before);
+    expect(restarted.client.sendTx).not.toHaveBeenCalled();
+    await restarted.provider.disconnect();
+  });
+
+  it('serializes concurrent provider setup around an invisible accepted registration', async () => {
+    jest.useFakeTimers();
+    const first = buildProvider({ storedKeyIndices: [] });
+    first.client.sendTx.mockResolvedValue({ code: 200, txHash: '0xsent' });
+    const second = buildProvider({
+      storedKeyIndices: [],
+      infrastructure: first.deps,
+    });
+    second.client.sendTx.mockResolvedValue({ code: 200, txHash: '0xsent' });
+    const a = first.provider.prepareTradingWallet();
+    const b = second.provider.prepareTradingWallet();
+    await jest.advanceTimersByTimeAsync(11000);
+    const pendingResult5 = await a;
+    expect(pendingResult5.ready).toBe(false);
+    expect(pendingResult5.error).toContain('registration is still pending');
+    const pendingResult6 = await b;
+    expect(pendingResult6.ready).toBe(false);
+    expect(pendingResult6.error).toContain('registration is still pending');
+    expect(
+      first.client.sendTx.mock.calls.length +
+        second.client.sendTx.mock.calls.length,
+    ).toBe(1);
+    expect(
+      [...first.calls, ...second.calls].filter(
+        (call) => call.function === '_signChangePubKey',
+      ),
+    ).toHaveLength(1);
+    await first.provider.disconnect();
+    await second.provider.disconnect();
   });
 
   it('stops waiting when accepted key registration remains invisible', async () => {
