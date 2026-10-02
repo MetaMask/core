@@ -24,15 +24,18 @@ resolve_branch_name() {
 #
 # Exits non-zero when the base branch history isn't available, so a misconfigured
 # checkout fails loudly rather than silently skipping validation. CI must check
-# out with enough history for the merge base to resolve (see `fetch-depth` on the
-# "Validate changelog" workflow job).
+# out with enough history for the merge base to resolve, or set
+# `CHANGELOG_MERGE_BASE` to an already-known merge base commit, in which case
+# only that commit needs to be available.
 resolve_base_version() {
-  local base_ref="${CHANGELOG_BASE_REF:-origin/main}"
+  local base_commit="${CHANGELOG_MERGE_BASE:-}"
 
-  local base_commit
-  if ! base_commit="$(git merge-base "${base_ref}" HEAD 2>/dev/null)"; then
-    echo "Could not find a common ancestor between HEAD and \"${base_ref}\". Make sure \"${base_ref}\" is available with enough history." >&2
-    return 1
+  if [[ -z "${base_commit}" ]]; then
+    local base_ref="${CHANGELOG_BASE_REF:-origin/main}"
+    if ! base_commit="$(git merge-base "${base_ref}" HEAD 2>/dev/null)"; then
+      echo "Could not find a common ancestor between HEAD and \"${base_ref}\". Make sure \"${base_ref}\" is available with enough history." >&2
+      return 1
+    fi
   fi
 
   # A newly added package won't exist at the base commit; that just means there
