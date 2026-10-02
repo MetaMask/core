@@ -1558,6 +1558,91 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('active spot trigger rejection', () => {
+    const spotMarket = {
+      ...BTC_MARKET,
+      symbol: 'UNI/USDC',
+      marketId: 2048,
+      marketType: 'spot',
+      status: 'active',
+    };
+
+    it('withholds native trigger capabilities for active spot metadata', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      clientInstance.getOrderBooks.mockResolvedValue([spotMarket]);
+      expect(
+        await provider.getOrderCapabilities({ symbol: spotMarket.symbol }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'order_market_unsupported',
+      });
+      expect(calls).toStrictEqual([]);
+      expect(clientInstance.sendTx).not.toHaveBeenCalled();
+      await provider.disconnect();
+    });
+
+    describe.each([
+      'stop_market',
+      'stop_limit',
+      'take_profit_market',
+      'take_profit_limit',
+    ] as const)('%s', (orderType) => {
+      const params: OrderParams = {
+        symbol: spotMarket.symbol,
+        isBuy: true,
+        size: '0.001',
+        orderType,
+        triggerPrice: '95000',
+        price: '95100',
+      };
+
+      it('rejects validation before signer setup for active spot metadata', async () => {
+        const { provider, clientInstance, calls } = buildProvider();
+        clientInstance.getOrderBooks.mockResolvedValue([spotMarket]);
+        clientInstance.getOrderBookDetails.mockResolvedValue({
+          code: 200,
+          orderBookDetails: [
+            {
+              ...spotMarket,
+              lastTradePrice: 100000,
+              minInitialMarginFraction: 200,
+              maintenanceMarginFraction: 120,
+            },
+          ],
+        });
+        const validation = await provider.validateOrder(params);
+        expect(validation.isValid).toBe(false);
+        expect(validation.error).toContain('active perpetual market');
+        expect(calls).toStrictEqual([]);
+        expect(clientInstance.sendTx).not.toHaveBeenCalled();
+        await provider.disconnect();
+      });
+
+      it('rejects placement before signer setup for active spot metadata', async () => {
+        const { provider, clientInstance, calls } = buildProvider();
+        clientInstance.getOrderBooks.mockResolvedValue([spotMarket]);
+        clientInstance.getOrderBookDetails.mockResolvedValue({
+          code: 200,
+          orderBookDetails: [
+            {
+              ...spotMarket,
+              lastTradePrice: 100000,
+              minInitialMarginFraction: 200,
+              maintenanceMarginFraction: 120,
+            },
+          ],
+        });
+        const result = await provider.placeOrder(params);
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('active perpetual market');
+        expect(calls).toStrictEqual([]);
+        expect(clientInstance.sendTx).not.toHaveBeenCalled();
+        await provider.disconnect();
+      });
+    });
+  });
+
   describe('standalone trigger orders', () => {
     describe.each([
       ['stop_market', 2, false],

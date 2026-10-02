@@ -5878,7 +5878,7 @@ export class LighterProvider implements PerpsProvider {
     if (!market) {
       return unavailable('market_not_found');
     }
-    if (market.status !== 'active') {
+    if (market.status !== 'active' || market.marketType !== 'perp') {
       return unavailable('order_market_unsupported');
     }
     return Object.freeze({
@@ -6337,10 +6337,14 @@ export class LighterProvider implements PerpsProvider {
           error: `Unknown Lighter market: ${params.symbol}`,
         };
       }
-      if (isTriggerOrderType(params.orderType) && market.status !== 'active') {
+      if (
+        isTriggerOrderType(params.orderType) &&
+        (market.status !== 'active' || market.marketType !== 'perp')
+      ) {
         return {
           success: false,
-          error: 'Lighter standalone triggers require an active market',
+          error:
+            'Lighter standalone triggers require an active perpetual market',
         };
       }
       if (isLimitExecutionOrderType(params.orderType) && !params.price) {
@@ -8290,10 +8294,13 @@ export class LighterProvider implements PerpsProvider {
         error: `Unknown Lighter market: ${params.symbol}`,
       };
     }
-    if (isTriggerOrderType(params.orderType) && market.status !== 'active') {
+    if (
+      isTriggerOrderType(params.orderType) &&
+      (market.status !== 'active' || market.marketType !== 'perp')
+    ) {
       return {
         isValid: false,
-        error: 'Lighter standalone triggers require an active market',
+        error: 'Lighter standalone triggers require an active perpetual market',
       };
     }
     if (params.leverage !== undefined) {
