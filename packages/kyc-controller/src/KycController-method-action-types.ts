@@ -12,6 +12,9 @@ import type { KycController } from './KycController.js';
  * @param params - The session parameters.
  * @param params.vendor - Identity vendor for the session.
  * @param params.email - Account email associated with the session.
+ * @param params.aal2Token - AAL2 authentication token. Required only when a
+ * UKYC session must be created, where it is sent as the Authorization bearer
+ * value. Omit it when reusing an existing session.
  * @returns The current or newly created session status.
  */
 export type KycControllerStartSessionAction = {

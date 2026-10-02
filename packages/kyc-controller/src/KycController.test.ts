@@ -69,6 +69,8 @@ const MOCK_SUMSUB_DISCLAIMERS_ACCEPTED: KycConsentRecord[] =
     version,
   }));
 
+const AAL2_TOKEN = 'aal2-token';
+
 describe('KycController', () => {
   describe('constructor', () => {
     it('accepts initial state merged over defaults', async () => {
@@ -98,6 +100,7 @@ describe('KycController', () => {
         const result = await controller.startSession({
           vendor: 'iron',
           email: 'a@b.co',
+          aal2Token: AAL2_TOKEN,
         });
 
         expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
@@ -108,6 +111,7 @@ describe('KycController', () => {
           expect.objectContaining({
             residenceCountry: 'USA',
             vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
           }),
         );
         expect(
@@ -159,7 +163,10 @@ describe('KycController', () => {
           handlers.getGeoCountry.mockResolvedValue('USA');
 
           expect(
-            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            await controller.startSession({
+              vendor: 'iron',
+              email: 'a@b.co',
+            }),
           ).toStrictEqual(sessionStatus('pending'));
           expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
@@ -173,7 +180,10 @@ describe('KycController', () => {
         { options: { state: { email: 'a@b.co' } } },
         async ({ controller }) => {
           await expect(
-            controller.startSession({ vendor: 'iron', email: 'other@b.co' }),
+            controller.startSession({
+              vendor: 'iron',
+              email: 'other@b.co',
+            }),
           ).rejects.toThrow(
             'KycController already initialized with a different email',
           );
@@ -186,7 +196,10 @@ describe('KycController', () => {
         { options: { state: { vendor: 'moonpay' } } },
         async ({ controller }) => {
           await expect(
-            controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            controller.startSession({
+              vendor: 'iron',
+              email: 'a@b.co',
+            }),
           ).rejects.toThrow(
             'KycController already initialized with a different vendor',
           );
@@ -201,13 +214,33 @@ describe('KycController', () => {
           handlers.getGeoCountry.mockResolvedValue('DEU');
 
           await expect(
-            controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            controller.startSession({
+              vendor: 'iron',
+              email: 'a@b.co',
+            }),
           ).rejects.toThrow(
             'KycController already initialized with a different geoCountry',
           );
           expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
         },
       );
+    });
+
+    it('does not create a session when aal2Token is missing', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+          }),
+        ).rejects.toThrow(/aal2Token is required to create a KYC session/u);
+        expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
     });
 
     it('does not create a UKYC session when creating the vendor customer fails', async () => {
@@ -218,7 +251,11 @@ describe('KycController', () => {
         );
 
         await expect(
-          controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
         ).rejects.toThrow('customer failed');
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
         expect(controller.state.sessionStatus).toBeNull();
