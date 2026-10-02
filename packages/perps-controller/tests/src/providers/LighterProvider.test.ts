@@ -7817,17 +7817,19 @@ describe('LighterProvider', () => {
     it('an index read failure during clear is AMBIGUITY: the settlement stays unresolved and the index is retained', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      // Allow the persist-time index read; fail from the SECOND index
-      // read on (the clear-time RMW).
+      // Inject the failure at clear-time RMW, after the journal payload
+      // and pointer are removed, rather than counting earlier safety reads.
+      const journalKey = `lighterTpslJournal:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
       let failIndexReads = false;
-      let indexReads = 0;
       (infra.diskCache.getItem as jest.Mock).mockImplementation(
         async (key: string) => {
-          if (key.startsWith('lighterTpslJournalIndex:')) {
-            indexReads += 1;
-            if (failIndexReads && indexReads > 1) {
-              throw new Error('index storage read failed');
-            }
+          if (
+            key.startsWith('lighterTpslJournalIndex:') &&
+            failIndexReads &&
+            disk.has(key) &&
+            !disk.has(journalKey)
+          ) {
+            throw new Error('index storage read failed');
           }
           return disk.get(key) ?? null;
         },
@@ -12835,6 +12837,277 @@ describe('LighterProvider', () => {
           eviction.mockRestore();
           await built.provider.disconnect();
         }
+      },
+    );
+  });
+
+  // Focused public-provider regression: the venue double controls acceptance
+  // and book visibility independently; the real provider owns slot discovery,
+  // durable nonce completion, journal recovery and protection serialization.
+  describe('protection journals across migrated key slots', () => {
+    it.each([false, true])(
+      'blocks replacement=%s after an accepted old-slot create leaves the nonce ledger',
+      async (replacement) => {
+        const infra = createMockInfrastructure();
+        const original = buildProvider({
+          platformDependencies: infra,
+          apiKeyIndex: 19,
+        });
+        Object.assign(original.bridge, {
+          getRecoverableKeyIndices: async (): Promise<number[]> => [19],
+        });
+        original.clientInstance.getApiKeys.mockResolvedValue({
+          code: 200,
+          apiKeys: [{ apiKeyIndex: 19, publicKey: '9c'.repeat(40) }],
+        });
+        const originalVenue = setupTriggerVenue(
+          original.clientInstance,
+          original.bridge,
+          { apiKeyIndex: 19 },
+        );
+        originalVenue.setRestLag(100);
+        const created = await original.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '80000',
+        });
+        expect(created.success).toBe(false);
+        expect(created.error).toContain('settlement is not yet visible');
+        expect(originalVenue.rawTriggers).toHaveLength(1);
+        expect(original.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        const sourceKey = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        const journalKey = `lighterTpslJournal:testnet:${sourceKey}`;
+        const journalBefore = await infra.diskCache.getItem(journalKey);
+        expect(journalBefore).not.toBeNull();
+        const pointer = JSON.parse(journalBefore ?? '') as {
+          operationId: string;
+        };
+        const payloadKey = `lighterTpslJournalOp:testnet:${sourceKey}:${pointer.operationId}`;
+        const payloadBefore = await infra.diskCache.getItem(payloadKey);
+        expect(JSON.parse(payloadBefore ?? '')).toMatchObject({
+          apiKeyIndex: 19,
+          intent: 'replace',
+          phase: 'creating',
+          attempts: [expect.objectContaining({ kind: 'create' })],
+        });
+        const ledgerBefore = await infra.diskCache.getItem(
+          'lighterNonceLedger:testnet:28:19',
+        );
+        expect(JSON.parse(ledgerBefore ?? '')).toMatchObject({
+          entries: [],
+          recovered: [],
+        });
+        await original.provider.disconnect();
+
+        const migrated = buildProvider({ platformDependencies: infra });
+        Object.assign(migrated.bridge, {
+          getRecoverableKeyIndices: async (): Promise<number[]> => [19, 7],
+        });
+        migrated.clientInstance.getApiKeys.mockResolvedValue({
+          code: 200,
+          apiKeys: [
+            { apiKeyIndex: 19, publicKey: 'ab'.repeat(40) },
+            { apiKeyIndex: 7, publicKey: '9c'.repeat(40) },
+          ],
+        });
+        const migratedVenue = setupTriggerVenue(
+          migrated.clientInstance,
+          migrated.bridge,
+        );
+        migratedVenue.rawTriggers.push(...originalVenue.rawTriggers);
+        migratedVenue.setVenueNonce(originalVenue.getVenueNonce());
+        migratedVenue.setNextIndex(originalVenue.getNextIndex());
+        migratedVenue.primeLag([], 100);
+        expect((await migrated.provider.isReadyToTrade()).ready).toBe(true);
+        expect(
+          jest.mocked(migrated.bridge).createClient.mock.lastCall,
+        ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 7 })]);
+        expect(await migrated.provider.getRecoveredDispatches()).toStrictEqual(
+          [],
+        );
+        const result = await migrated.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: replacement ? '85000' : undefined,
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('original API key slot 19');
+        expect(migrated.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(
+          migrated.calls.filter((call) => call.function.startsWith('_sign')),
+        ).toStrictEqual([]);
+        expect(await infra.diskCache.getItem(journalKey)).toBe(journalBefore);
+        expect(await infra.diskCache.getItem(payloadKey)).toBe(payloadBefore);
+        expect(
+          await infra.diskCache.getItem('lighterNonceLedger:testnet:28:19'),
+        ).toBe(ledgerBefore);
+        expect(migratedVenue.rawTriggers).toStrictEqual(
+          originalVenue.rawTriggers,
+        );
+        await migrated.provider.disconnect();
+
+        // The original key can still reconcile the same journal and remove
+        // the now-visible trigger. No slot-7 signature may consume slot-19
+        // transaction identity or clear its settlement obligation.
+        const restored = buildProvider({
+          platformDependencies: infra,
+          apiKeyIndex: 19,
+        });
+        Object.assign(restored.bridge, {
+          getRecoverableKeyIndices: async (): Promise<number[]> => [19],
+        });
+        restored.clientInstance.getApiKeys.mockResolvedValue({
+          code: 200,
+          apiKeys: [{ apiKeyIndex: 19, publicKey: '9c'.repeat(40) }],
+        });
+        const restoredVenue = setupTriggerVenue(
+          restored.clientInstance,
+          restored.bridge,
+          { apiKeyIndex: 19 },
+        );
+        restoredVenue.rawTriggers.push(...originalVenue.rawTriggers);
+        restoredVenue.setVenueNonce(originalVenue.getVenueNonce());
+        for (const [hash, transaction] of originalVenue.landedTxs) {
+          restoredVenue.landedTxs.set(hash, transaction);
+        }
+        const removed = await restored.provider.updatePositionTPSL({
+          symbol: 'BTC',
+        });
+        expect(removed).toMatchObject({ success: true });
+        expect(
+          jest.mocked(restored.bridge).createClient.mock.lastCall,
+        ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 19 })]);
+        expect(restoredVenue.rawTriggers).toStrictEqual([]);
+        expect(restored.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        expect(restored.clientInstance.sendTx).toHaveBeenCalledWith(
+          15,
+          expect.any(String),
+        );
+        expect(await infra.diskCache.getItem(journalKey)).toBeNull();
+        await restored.provider.disconnect();
+
+        const afterRecovery = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        const afterVenue = setupTriggerVenue(
+          afterRecovery.clientInstance,
+          afterRecovery.bridge,
+        );
+        const changed = await afterRecovery.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: replacement ? '85000' : undefined,
+        });
+        expect(changed).toMatchObject({ success: true });
+        expect(afterVenue.rawTriggers).toHaveLength(replacement ? 1 : 0);
+        expect(afterRecovery.clientInstance.sendTx).toHaveBeenCalledTimes(
+          replacement ? 1 : 0,
+        );
+        await afterRecovery.provider.disconnect();
+      },
+    );
+
+    it.each(['wallet', 'account', 'network', 'symbol', 'absent'] as const)(
+      'allows protection changes when the old-slot journal belongs to an unrelated %s',
+      async (context) => {
+        const infra = createMockInfrastructure();
+        const address =
+          context === 'wallet'
+            ? '0x9999999999999999999999999999999999999999'
+            : ACCOUNT.l1Address.toLowerCase();
+        const sourceKey = `${address}:${context === 'account' ? 29 : 28}:19:${context === 'symbol' ? 'ETH' : 'BTC'}`;
+        const network = context === 'network' ? 'mainnet' : 'testnet';
+        const journalKey = `lighterTpslJournal:${network}:${sourceKey}`;
+        await infra.diskCache.setItem(
+          `lighterTpslJournalIndex:${network}`,
+          JSON.stringify([sourceKey]),
+        );
+        if (context !== 'absent') {
+          // Unrelated bytes must never be loaded, interpreted or discarded.
+          await infra.diskCache.setItem(journalKey, 'unrelated journal');
+        }
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+        const result = await built.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        expect(result).toMatchObject({ success: true });
+        expect(venue.rawTriggers).toHaveLength(1);
+        expect(await infra.diskCache.getItem(journalKey)).toBe(
+          context === 'absent' ? null : 'unrelated journal',
+        );
+        expect(
+          await infra.diskCache.getItem(`lighterTpslJournalIndex:${network}`),
+        ).toContain(sourceKey);
+        await built.provider.disconnect();
+      },
+    );
+
+    it.each(['corrupt', 'wrong-slot'] as const)(
+      'preserves and blocks an old-slot %s journal before any protection signature',
+      async (invalid) => {
+        const infra = createMockInfrastructure();
+        const sourceKey = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        const bytes =
+          invalid === 'corrupt'
+            ? '{'
+            : JSON.stringify({
+                version: 4,
+                recordedAt: 5,
+                operationId: 'wrong-slot-create',
+                createdAt: 5,
+                nextAttemptId: 2,
+                apiKeyIndex: 7,
+                intent: 'replace',
+                phase: 'creating',
+                priorGrouping: 'independent',
+                priorTriggers: [],
+                attempts: [
+                  {
+                    kind: 'create',
+                    attemptId: 1,
+                    nonce: 42,
+                    outcome: 'accepted',
+                    clientIds: [12345],
+                    txHash: 'ffff00000001',
+                    expiresAt: 9_999_999_999_999,
+                    role: 'replacement',
+                  },
+                ],
+              });
+        await infra.diskCache.setItem(
+          'lighterTpslJournalIndex:testnet',
+          JSON.stringify([sourceKey]),
+        );
+        await infra.diskCache.setItem(
+          `lighterTpslJournal:testnet:${sourceKey}`,
+          bytes,
+        );
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        const result = await built.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '85000',
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain(
+          invalid === 'corrupt' ? 'corrupt' : 'malformed',
+        );
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(
+          built.calls.filter((call) => call.function.startsWith('_sign')),
+        ).toStrictEqual([]);
+        expect(
+          await infra.diskCache.getItem(
+            `lighterTpslJournal:testnet:${sourceKey}`,
+          ),
+        ).toBe(bytes);
+        await built.provider.disconnect();
       },
     );
   });

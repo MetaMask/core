@@ -25,6 +25,19 @@ const nistCiphertext15 = hexToBytes(
   '0x522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015adb094dac5d93471bdec1a502270e3cc6c',
 );
 
+// Test Case 4: 128-bit key with associated data
+const nistKey4 = hexToBytes('0xfeffe9928665731c6d6a8f9467308308');
+const nistIv4 = hexToBytes('0xcafebabefacedbaddecaf888');
+const nistPlaintext4 = hexToBytes(
+  '0xd9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39',
+);
+const nistAdditionalData4 = hexToBytes(
+  '0xfeedfacedeadbeeffeedfacedeadbeefabaddad2',
+);
+const nistCiphertext4 = hexToBytes(
+  '0x42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e21d514b25466931c7d8f6a5aac84aa051ba30b396a0aac973d58e0915bc94fbc3221a5db94fae95ae7121a47',
+);
+
 describe('encrypt', () => {
   it('matches test case 2', async () => {
     const result = await encrypt(nistKey2, nistPlaintext2, {
@@ -96,6 +109,30 @@ describe('encrypt', () => {
       'Unsafe IV length: IV must be exactly 12 bytes for AES-GCM. To bypass this check, set the `unsafeIvLength` option to `true`.',
     );
   });
+
+  it('matches test case 4 with associated data', async () => {
+    const result = await encrypt(nistKey4, nistPlaintext4, {
+      unsafeIv: nistIv4,
+      additionalData: nistAdditionalData4,
+    });
+    expect(bytesToHex(result.ciphertext)).toBe(bytesToHex(nistCiphertext4));
+  });
+
+  it('accepts an ArrayBuffer of associated data', async () => {
+    const result = await encrypt(nistKey4, nistPlaintext4, {
+      unsafeIv: nistIv4,
+      additionalData: nistAdditionalData4.buffer,
+    });
+    expect(bytesToHex(result.ciphertext)).toBe(bytesToHex(nistCiphertext4));
+  });
+
+  it('accepts a DataView of associated data', async () => {
+    const result = await encrypt(nistKey4, nistPlaintext4, {
+      unsafeIv: nistIv4,
+      additionalData: new DataView(nistAdditionalData4.buffer),
+    });
+    expect(bytesToHex(result.ciphertext)).toBe(bytesToHex(nistCiphertext4));
+  });
 });
 
 describe('decrypt', () => {
@@ -149,5 +186,34 @@ describe('decrypt', () => {
     ).rejects.toThrow(
       'Unsafe IV length: IV must be exactly 12 bytes for AES-GCM. To bypass this check, set the `unsafeIvLength` option to `true`.',
     );
+  });
+
+  it('matches test case 4 with associated data', async () => {
+    const result = await decrypt(nistKey4, nistIv4, nistCiphertext4, {
+      additionalData: nistAdditionalData4,
+    });
+    expect(bytesToHex(result)).toBe(bytesToHex(nistPlaintext4));
+  });
+
+  it('accepts an ArrayBuffer of associated data', async () => {
+    const result = await decrypt(nistKey4, nistIv4, nistCiphertext4, {
+      additionalData: nistAdditionalData4.buffer,
+    });
+    expect(bytesToHex(result)).toBe(bytesToHex(nistPlaintext4));
+  });
+
+  it('accepts a DataView of associated data', async () => {
+    const result = await decrypt(nistKey4, nistIv4, nistCiphertext4, {
+      additionalData: new DataView(nistAdditionalData4.buffer),
+    });
+    expect(bytesToHex(result)).toBe(bytesToHex(nistPlaintext4));
+  });
+
+  it('rejects ciphertext authenticated with different associated data', async () => {
+    await expect(
+      decrypt(nistKey4, nistIv4, nistCiphertext4, {
+        additionalData: new Uint8Array(nistAdditionalData4.length),
+      }),
+    ).rejects.toThrow(DOMException);
   });
 });

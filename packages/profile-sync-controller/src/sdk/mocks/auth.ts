@@ -79,10 +79,6 @@ export const MOCK_MFA_ENROLL_EMAIL_RESPONSE = {
   expires_at: '2099-09-07T14:30:00Z',
 };
 
-export const MOCK_MFA_ENROLL_COMPLETE_RESPONSE = {
-  status: 'enrolled',
-};
-
 export const MOCK_MFA_VERIFY_PASSKEY_RESPONSE = {
   flow_id: 'verify-passkey-flow-id',
   expires_at: '2099-09-07T14:30:00Z',
@@ -108,6 +104,9 @@ export const MOCK_MFA_VERIFY_COMPLETE_RESPONSE = {
   },
   profile_aliases: [],
 };
+
+export const MOCK_MFA_ENROLL_COMPLETE_RESPONSE =
+  MOCK_MFA_VERIFY_COMPLETE_RESPONSE;
 
 export const MOCK_MFA_CREDENTIALS_RESPONSE = {
   credentials: [

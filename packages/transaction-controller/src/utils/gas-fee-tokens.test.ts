@@ -263,14 +263,12 @@ describe('Gas Fee Tokens Utils', () => {
 
       await getGasFeeTokens(REQUEST_MOCK);
 
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(
-        CHAIN_ID_MOCK,
-        expect.objectContaining({
-          suggestFees: expect.objectContaining({
-            with7702: true,
-          }),
-        }),
-      );
+      expect(
+        simulateTransactionsMock.mock.calls[0][1].suggestFees,
+      ).toMatchObject({
+        with7702: true,
+        withRedeemerEnforcer: true,
+      });
     });
 
     it('without 7702 if isEIP7702GasFeeTokensEnabled but chain does not support EIP-7702', async () => {
@@ -290,14 +288,12 @@ describe('Gas Fee Tokens Utils', () => {
 
       await getGasFeeTokens(REQUEST_MOCK);
 
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(
-        CHAIN_ID_MOCK,
-        expect.objectContaining({
-          suggestFees: expect.objectContaining({
-            with7702: false,
-          }),
-        }),
-      );
+      expect(
+        simulateTransactionsMock.mock.calls[0][1].suggestFees,
+      ).toMatchObject({
+        with7702: false,
+        withRedeemerEnforcer: false,
+      });
     });
 
     it('with authorizationList if isEIP7702GasFeeTokensEnabled and chain supports EIP-7702 and no delegation address', async () => {

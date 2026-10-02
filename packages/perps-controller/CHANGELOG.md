@@ -23,12 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block Lighter protection changes after trading-key migration while a journal for the same wallet, network, account and symbol remains unfinished under its original key slot ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Reject recovered-dispatch acknowledgment when the selected wallet, network, provider or provider lifetime changes during readiness or acknowledgment, including failed provider/network switch rollbacks and legacy recovery IDs. A stale-context rejection after provider success does not undo acknowledgment in the issuing account; callers must re-list outcomes before acting again ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Refuse stale signer readiness after a wallet switch or bridge reset while setup finishes, preserving unfinished TP/SL recovery visibility ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Fence Lighter financial writes across every local account key slot so migration cannot bypass a pending or quarantined dispatch. Reconcile exact transaction identities under an account-wide write mutex; discovery and key registration share this mutex but bypass other-slot financial obligations. Nonterminal or mismatched transactions stay unresolved and cannot be acknowledged ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Reuse matching Lighter trading keys before allocating a free slot, preserve occupied device keys and wait for new registration visibility ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Deliver Lighter signer setup failures to the current wallet's subscribers. Replay confirmed empty orders and validated newest-first fill history to late subscribers in the same authenticated session; malformed order/trade containers, null order/trade rows and rejected order rows never authorize empty replay; omitted orders or trades containers leave the last snapshot unchanged; throwing error listeners cannot suppress sibling delivery or prevent setup retries ([#10618](https://github.com/MetaMask/core/pull/10618))
 - Accept Lighter trades that omit position-sign flags and preserve omitted account PnL, including closing and flipping fill PnL, as unknown for Activity and late-subscriber replay. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605), [#10618](https://github.com/MetaMask/core/pull/10618))
+- Stop reporting HyperLiquid WebSocket transport failures (a closed or terminated socket, request timeout or abort) during the unified-account setup as errors ([#10651](https://github.com/MetaMask/core/pull/10651))
+  - After such a failure, provider entry waits one minute before running the setup again instead of retrying every time; `reconnect()` or `disconnect()` ends the wait, and trading and withdraw still run the setup
+  - Venue rejections, signing failures and other setup errors are still reported
 
 ## [19.0.0]
 

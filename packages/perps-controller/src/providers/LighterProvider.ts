@@ -6512,6 +6512,31 @@ export class LighterProvider implements PerpsProvider {
           // journal. DISK IS AUTHORITATIVE: absence means the obligation
           // was resolved (possibly by another provider) — a stale
           // in-memory copy is dropped, never resurrected.
+          // Acceptance can clear a dispatch from the nonce ledger before
+          // its protection appears in the order book. That journal still
+          // owns settlement, even after discovery selects another key. Keep
+          // the original slot identity: its nonce proof and any recovery
+          // signatures must never run through the newly selected signer.
+          const journalIndex = await this.#readTpslJournalIndex();
+          this.#assertSession(generationAtIntent);
+          for (const previousKey of journalIndex) {
+            const [address, account, slot, ...symbol] = previousKey.split(':');
+            if (
+              previousKey === settlementKey ||
+              address !== this.#boundAddress ||
+              account !== String(accountIndex) ||
+              symbol.join(':') !== params.symbol
+            ) {
+              continue;
+            }
+            const previousJournal = await this.#loadTpslJournal(previousKey);
+            this.#assertSession(generationAtIntent);
+            if (previousJournal) {
+              throw new Error(
+                `Lighter TP/SL settlement for ${params.symbol} is unresolved under its original API key slot ${String(slot)}; reconcile that slot before changing protection with the selected key`,
+              );
+            }
+          }
           const unsettled = await this.#loadTpslJournal(settlementKey);
           if (unsettled === null) {
             this.#tpslUnsettled.delete(settlementKey);
