@@ -4,6 +4,9 @@ import {
   LIGHTER_TX_TYPE_CREATE_ORDER,
   LIGHTER_TX_TYPE_CANCEL_ORDER,
   LIGHTER_NATIVE_PROBE_CANCEL_LIMIT,
+  LIGHTER_ORDER_TYPE_STOP_LOSS,
+  LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+  LIGHTER_ORDER_EXPIRY_NONE,
 } from '../../../src/constants/lighterConfig.js';
 import {
   PerpsController,
@@ -24511,6 +24514,79 @@ describe('LighterProvider', () => {
         await restarted.provider.disconnect();
       },
     );
+
+    it('preserves a late partial recovery obligation during ordinary migrated-slot cleanup', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infra,
+        registeredKey: '9c'.repeat(40),
+      });
+      const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+      const key = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+      const docKey = `lighterTpslManual:testnet:${key}`;
+      const indexKey = 'lighterTpslManualIndex:testnet';
+      const bytes = JSON.stringify({
+        version: 1,
+        settlementKey: key,
+        symbol: 'BTC',
+        reason: 'Partial protection needs an explicit successor',
+        priorIntent: 'replace',
+        priorTriggers: [],
+        survivingOrderIds: [],
+        operationId: 'old-partial-operation',
+        recordedAt: 5,
+        partialIntent: {
+          version: 1,
+          positionSign: 1,
+          positionWireSize: 10000,
+          sizeDecimals: 5,
+          linkage: 'single',
+          orders: [
+            [
+              1,
+              987,
+              '3000',
+              '8000000',
+              1,
+              LIGHTER_ORDER_TYPE_STOP_LOSS,
+              LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+              1,
+              '8000000',
+              LIGHTER_ORDER_EXPIRY_NONE,
+            ],
+          ],
+        },
+      });
+      const send = built.clientInstance.sendTx.getMockImplementation();
+      if (!send) {
+        throw new Error('Missing venue sender');
+      }
+      built.clientInstance.sendTx.mockImplementation(async (...args) => {
+        const receipt = await send(...args);
+        // Earlier-key reconciliation publishes its durable manual obligation
+        // after this operation has already passed its explicit-intent preflight.
+        await infra.diskCache.setItem(indexKey, JSON.stringify([key]));
+        await infra.diskCache.setItem(docKey, bytes);
+        return receipt;
+      });
+
+      const result = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        stopLossPrice: '85000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(venue.rawTriggers).toHaveLength(1);
+      expect(await infra.diskCache.getItem(docKey)).toBe(bytes);
+      expect(await infra.diskCache.getItem(indexKey)).toBe(
+        JSON.stringify([key]),
+      );
+      const rows = await built.provider.getPendingManualRecoveries();
+      expect(rows).toHaveLength(1);
+      expect(rows[0].partialIntent?.legs[0].size).toBe('0.03');
+      expect(rows[0].actionNeeded).toContain('exact recovery ID');
+      await built.provider.disconnect();
+    });
 
     it.each(['wallet', 'account', 'network', 'symbol'] as const)(
       'preserves unrelated previous-slot manual warning bytes for another %s after an explicit update',
