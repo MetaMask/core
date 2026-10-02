@@ -1,4 +1,13 @@
 import {
+  LIGHTER_ORDER_TYPE_LIMIT,
+  LIGHTER_ORDER_TYPE_MARKET,
+  LIGHTER_ORDER_TYPE_STOP_LOSS,
+  LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT,
+  LIGHTER_ORDER_TYPE_TAKE_PROFIT,
+  LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT,
+  LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+  LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME,
+  LIGHTER_ORDER_EXPIRY_NONE,
   LIGHTER_MAX_WIRE_PRICE,
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
   LIGHTER_MAX_TRADING_API_KEY_INDEX,
@@ -29,11 +38,22 @@ export type LighterAttachedGroup = {
   orderExpiries?: number[];
   expiresAt: number | null;
   venueIds: (string | null)[];
+  /** Exact nonce-ledger settlement persisted before its evidence is retired. */
+  nonAcceptance?: 'failed' | 'expired' | 'nonce-consumed';
 };
 
 /** Bounded local history; unresolved groups are never evicted. */
 export const LIGHTER_ATTACHED_MAX_GROUPS = 64;
 export const LIGHTER_ATTACHED_HANDLE_PREFIX = 'lighter-attached:';
+
+const venueOrderTypes: Record<number, string> = {
+  [LIGHTER_ORDER_TYPE_LIMIT]: 'limit',
+  [LIGHTER_ORDER_TYPE_MARKET]: 'market',
+  [LIGHTER_ORDER_TYPE_STOP_LOSS]: 'stop-loss',
+  [LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT]: 'stop-loss-limit',
+  [LIGHTER_ORDER_TYPE_TAKE_PROFIT]: 'take-profit',
+  [LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT]: 'take-profit-limit',
+};
 
 const isInteger = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
@@ -55,12 +75,13 @@ const isWireOrder = (value: unknown): value is LighterCreateOrderWireParams =>
   Number(value[3]) <= LIGHTER_MAX_WIRE_PRICE &&
   (value[4] === 0 || value[4] === 1) &&
   isInteger(value[5]) &&
-  value[5] <= 5 &&
-  (value[6] === 0 || value[6] === 1) &&
+  Object.hasOwn(venueOrderTypes, value[5]) &&
+  (value[6] === LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL ||
+    value[6] === LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME) &&
   (value[7] === 0 || value[7] === 1) &&
   isWireDecimal(value[8]) &&
   Number(value[8]) <= LIGHTER_MAX_WIRE_PRICE &&
-  (value[9] === -1 || isInteger(value[9]));
+  (value[9] === LIGHTER_ORDER_EXPIRY_NONE || isInteger(value[9]));
 
 /**
  * Parse local ownership without treating corrupt storage as an empty account.
@@ -95,7 +116,7 @@ export function parseLighterAttachedGroups(
       !isInteger(group.apiKeyIndex) ||
       group.apiKeyIndex < LIGHTER_MIN_TRADING_API_KEY_INDEX ||
       group.apiKeyIndex > LIGHTER_MAX_TRADING_API_KEY_INDEX ||
-      !['prepared', 'unknown', 'accepted', 'canceled'].includes(
+      !['prepared', 'unknown', 'accepted', 'canceled', 'completed'].includes(
         group.submission ?? '',
       ) ||
       !Array.isArray(group.orders) ||
@@ -119,8 +140,20 @@ export function parseLighterAttachedGroups(
       throw new Error('Invalid Lighter attached-order journal');
     }
     if (
+      group.nonAcceptance !== undefined &&
+      (!['failed', 'expired', 'nonce-consumed'].includes(group.nonAcceptance) ||
+        !['unknown', 'canceled'].includes(group.submission ?? '') ||
+        group.txHash === null ||
+        group.nonce === null ||
+        group.expiresAt === null)
+    ) {
+      throw new Error('Invalid Lighter attached non-acceptance proof');
+    }
+    if (
       !(group.nonce === null || isInteger(group.nonce)) ||
-      ((group.submission === 'unknown' || group.submission === 'accepted') &&
+      ((group.submission === 'unknown' ||
+        group.submission === 'accepted' ||
+        group.submission === 'completed') &&
         (group.txHash === null ||
           group.expiresAt === null ||
           group.nonce === null))
@@ -136,7 +169,9 @@ export function parseLighterAttachedGroups(
       throw new Error('Invalid Lighter attached order expiries');
     }
     if (
-      (group.submission === 'unknown' || group.submission === 'accepted') &&
+      (group.submission === 'unknown' ||
+        group.submission === 'accepted' ||
+        group.submission === 'completed') &&
       (group.orderExpiries === undefined ||
         group.orderExpiries.some((expiry, index) =>
           group.orders?.[index][9] === 0 ? expiry !== 0 : expiry <= 0,
@@ -144,11 +179,19 @@ export function parseLighterAttachedGroups(
     ) {
       throw new Error('Invalid Lighter attached signed expiries');
     }
+    if (
+      group.submission === 'completed' &&
+      group.venueIds.some((id) => id === null)
+    ) {
+      throw new Error('Invalid Lighter attached completed identity');
+    }
     const [parent, ...children] = group.orders;
     if (
       !parent ||
       Number(parent[2]) <= 0 ||
-      parent[5] > 1 ||
+      ![LIGHTER_ORDER_TYPE_LIMIT, LIGHTER_ORDER_TYPE_MARKET].includes(
+        parent[5],
+      ) ||
       parent[7] !== 0 ||
       parent[8] !== '0' ||
       children.some(
@@ -157,10 +200,13 @@ export function parseLighterAttachedGroups(
           child[2] !== '0' ||
           child[4] === parent[4] ||
           child[7] !== 1 ||
-          ![2, 4].includes(child[5]) ||
-          child[6] !== 0 ||
+          ![
+            LIGHTER_ORDER_TYPE_STOP_LOSS,
+            LIGHTER_ORDER_TYPE_TAKE_PROFIT,
+          ].includes(child[5]) ||
+          child[6] !== LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL ||
           Number(child[8]) <= 0 ||
-          child[9] !== -1,
+          child[9] !== LIGHTER_ORDER_EXPIRY_NONE,
       ) ||
       new Set(group.orders.map((order) => order[1])).size !==
         group.orders.length ||
@@ -216,14 +262,6 @@ export function correlateLighterAttachedOrders(
   group: LighterAttachedGroup,
   rows: LighterApiOrder[],
 ): (LighterApiOrder | null)[] {
-  const types = [
-    'limit',
-    'market',
-    'stop-loss',
-    'stop-loss-limit',
-    'take-profit',
-    'take-profit-limit',
-  ];
   return group.orders.map((wire, index) => {
     const matches = rows.filter(
       (row) =>
@@ -243,7 +281,7 @@ export function correlateLighterAttachedOrders(
       row.isAsk !== (wire[4] === 1) ||
       ![0, 1, false, true].includes(row.reduceOnly) ||
       Boolean(row.reduceOnly) !== (wire[7] === 1) ||
-      row.type !== types[wire[5]]
+      row.type !== venueOrderTypes[wire[5]]
     ) {
       throw new Error(
         'Lighter attached-order identity does not match signed intent',

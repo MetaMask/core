@@ -248,7 +248,7 @@ export type AttachedGroupConsumerContracts = [
   AssertTrue<
     IsExact<
       AttachedOrderGroup['submission'],
-      'prepared' | 'unknown' | 'accepted' | 'canceled'
+      'prepared' | 'unknown' | 'accepted' | 'canceled' | 'completed'
     >
   >,
 ];

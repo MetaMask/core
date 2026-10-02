@@ -23,6 +23,60 @@ const group = (): LighterAttachedGroup => ({
 });
 
 describe('Lighter attached journal', () => {
+  it.each([
+    'missing-dispatch',
+    'invalid-proof',
+    'accepted-proof',
+    'missing-terminal-ids',
+  ] as const)('rejects invalid durable settlement: %s', (invalid) => {
+    const value = {
+      ...group(),
+      submission: 'unknown',
+      txHash: 'aabbcc',
+      nonce: 42,
+      expiresAt: 1000,
+      orderExpiries: [1000, 1000, 1000],
+      nonAcceptance: 'expired',
+    };
+    if (invalid === 'missing-dispatch') {
+      value.txHash = '';
+    }
+    if (invalid === 'invalid-proof') {
+      value.nonAcceptance = 'absent';
+    }
+    if (invalid === 'accepted-proof') {
+      value.submission = 'accepted';
+    }
+    if (invalid === 'missing-terminal-ids') {
+      value.submission = 'completed';
+      Reflect.deleteProperty(value, 'nonAcceptance');
+    }
+    expect(() => parseLighterAttachedGroups(JSON.stringify([value]))).toThrow(
+      'Invalid Lighter',
+    );
+  });
+
+  it('retains exact non-acceptance and terminal ownership states', () => {
+    const value: LighterAttachedGroup = {
+      ...group(),
+      submission: 'unknown',
+      txHash: 'aabbcc',
+      nonce: 42,
+      expiresAt: 1000,
+      orderExpiries: [1000, 1000, 1000],
+      nonAcceptance: 'expired',
+    };
+    expect(parseLighterAttachedGroups(JSON.stringify([value]))).toStrictEqual([
+      value,
+    ]);
+    delete value.nonAcceptance;
+    value.submission = 'completed';
+    value.venueIds = ['500', '501', '502'];
+    expect(parseLighterAttachedGroups(JSON.stringify([value]))).toStrictEqual([
+      value,
+    ]);
+  });
+
   it('retains both exact native tuple shapes', () => {
     const pair = group();
     pair.orders = [pair.orders[0], pair.orders[1]];

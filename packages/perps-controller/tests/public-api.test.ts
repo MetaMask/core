@@ -1,4 +1,7 @@
 import {
+  LIGHTER_MAX_WIRE_PRICE,
+  LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER,
+  LIGHTER_GROUPING_ONE_TRIGGERS_OCO,
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
   LIGHTER_MAX_TRADING_API_KEY_INDEX,
   LIGHTER_TRADING_API_KEY_COUNT,
@@ -31,11 +34,30 @@ import type {
   PerpsTypedDataPayload,
 } from '../src/index.js';
 import { createGuardedHyperLiquidClient } from '../src/utils/guardedHyperLiquidClient.js';
+import {
+  LIGHTER_ATTACHED_MAX_GROUPS,
+  LIGHTER_ATTACHED_HANDLE_PREFIX,
+  parseLighterAttachedGroups,
+  correlateLighterAttachedOrders,
+  toAttachedOrderGroup,
+} from '../src/utils/lighterAttachedOrders.js';
 import { assertExpectedPosition } from '../src/utils/positionProtection.js';
 
 describe('@metamask/perps-controller public API', () => {
   it('exports the durable recovery account capacity', () => {
     expect(LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT).toBe(64);
+  });
+  it('exports attached constants and utility subpath helpers', () => {
+    expect([
+      LIGHTER_MAX_WIRE_PRICE,
+      LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER,
+      LIGHTER_GROUPING_ONE_TRIGGERS_OCO,
+    ]).toStrictEqual([4294967295, 1, 3]);
+    expect(LIGHTER_ATTACHED_MAX_GROUPS).toBe(64);
+    expect(LIGHTER_ATTACHED_HANDLE_PREFIX).toBe('lighter-attached:');
+    expect(parseLighterAttachedGroups(null)).toStrictEqual([]);
+    expect(typeof correlateLighterAttachedOrders).toBe('function');
+    expect(typeof toAttachedOrderGroup).toBe('function');
   });
   it('exports durable attached-order inventory and explicit venue review', () => {
     expect(typeof PerpsController.prototype.getAttachedOrderGroups).toBe(

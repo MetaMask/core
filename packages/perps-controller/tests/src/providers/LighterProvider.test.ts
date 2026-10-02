@@ -23,6 +23,7 @@ import type {
   LighterWebSocketCtor,
   LighterWebSocketLike,
 } from '../../../src/types/lighter-types.js';
+import type { LighterAttachedGroup } from '../../../src/utils/lighterAttachedOrders.js';
 import {
   createMockInfrastructure,
   createDeferred,
@@ -737,6 +738,524 @@ describe('LighterProvider', () => {
       });
       return { active, inactive };
     };
+
+    const storedAttached = (
+      disk: Map<string, string>,
+    ): { key: string; groups: LighterAttachedGroup[] } => {
+      const entry = [...disk.entries()].find(([key]) =>
+        key.startsWith('lighterAttachedOrders:'),
+      );
+      if (!entry) {
+        throw new Error('Missing attached storage');
+      }
+      return {
+        key: entry[0],
+        groups: JSON.parse(entry[1]) as LighterAttachedGroup[],
+      };
+    };
+
+    it.each(['expired', 'nonce-consumed', 'venue-refusal'] as const)(
+      'transfers exact %s attached non-acceptance before ledger retirement and permits explicit abandonment',
+      async (proof) => {
+        const { disk, infrastructure } = durableInfrastructure();
+        const first = buildProvider({
+          platformDependencies: infrastructure,
+          registeredKey: '9c'.repeat(40),
+        });
+        first.clientInstance.sendTx.mockRejectedValue(
+          proof === 'venue-refusal'
+            ? new LighterApiError('order refused', 21000)
+            : new Error('transport before acceptance'),
+        );
+        expect((await first.provider.placeOrder(attachedIntent)).success).toBe(
+          false,
+        );
+        const {
+          groups: [group],
+        } = storedAttached(disk);
+        if (group.expiresAt === null || group.nonce === null) {
+          throw new Error('Missing dispatch identity');
+        }
+        const clock = jest
+          .spyOn(Date, 'now')
+          .mockReturnValue(
+            proof === 'nonce-consumed'
+              ? group.expiresAt - 1
+              : group.expiresAt + 700000,
+          );
+        try {
+          first.clientInstance.getTx.mockResolvedValue(null);
+          first.clientInstance.getNextNonce.mockResolvedValue({
+            code: 200,
+            nonce: group.nonce + (proof === 'nonce-consumed' ? 1 : 0),
+          });
+          expect(
+            await first.provider.reconcileRecoveredDispatches(),
+          ).toStrictEqual([]);
+          const restarted = buildProvider({
+            apiKeyIndex: 19,
+            platformDependencies: infrastructure,
+            registeredKey: '9c'.repeat(40),
+          });
+          restarted.clientInstance.getApiKeys.mockResolvedValue({
+            code: 200,
+            apiKeys: [
+              {
+                accountIndex: 28,
+                apiKeyIndex: 19,
+                nonce: 1,
+                publicKey: '9c'.repeat(40),
+              },
+            ],
+          });
+          expect(
+            (await restarted.provider.getAttachedOrderGroups())[0].groupId,
+          ).toBe(group.groupId);
+          const canceled = await restarted.provider.cancelOrder({
+            symbol: 'BTC',
+            orderId: group.groupId,
+          });
+          expect(canceled.error).toBeUndefined();
+          expect(canceled.success).toBe(true);
+          expect(
+            restarted.calls.filter(
+              (call) =>
+                call.function === '_signCancelOrder' ||
+                call.function === '_signCreateGroupedOrders',
+            ),
+          ).toStrictEqual([]);
+          expect(
+            (await restarted.provider.placeOrder(attachedIntent)).success,
+          ).toBe(true);
+          expect(
+            restarted.calls.filter(
+              (call) => call.function === '_signCreateGroupedOrders',
+            ),
+          ).toHaveLength(1);
+        } finally {
+          clock.mockRestore();
+        }
+      },
+    );
+
+    it.each(
+      (['accepted', 'failed'] as const).flatMap((outcome) =>
+        (['matching', 'account', 'slot', 'nonce', 'hash'] as const).map(
+          (identity) => ({ outcome, identity }),
+        ),
+      ),
+    )(
+      'settles attached $outcome only for exact $identity identity',
+      async ({ outcome, identity }) => {
+        const { disk, infrastructure } = durableInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infrastructure,
+          registeredKey: '9c'.repeat(40),
+        });
+        built.clientInstance.sendTx.mockRejectedValue(
+          new Error('lost response'),
+        );
+        await built.provider.placeOrder(attachedIntent);
+        const {
+          groups: [group],
+        } = storedAttached(disk);
+        built.clientInstance.getTx.mockResolvedValue({
+          code: 200,
+          hash: identity === 'hash' ? 'deadbeef' : group.txHash,
+          accountIndex: identity === 'account' ? 29 : 28,
+          apiKeyIndex: identity === 'slot' ? 19 : 7,
+          nonce: identity === 'nonce' ? 999 : group.nonce,
+          status: outcome === 'accepted' ? 2 : 0,
+        });
+        let cancellationSuccess: boolean | undefined;
+        if (outcome === 'accepted') {
+          await built.provider.reviewAttachedOrderGroups();
+        } else {
+          const result = await built.provider.cancelOrder({
+            symbol: 'BTC',
+            orderId: group.groupId,
+          });
+          cancellationSuccess = result.success;
+        }
+        expect(cancellationSuccess).toBe(
+          outcome === 'accepted' ? undefined : identity === 'matching',
+        );
+        const terminal = outcome === 'accepted' ? 'accepted' : 'canceled';
+        expect(
+          (await built.provider.getAttachedOrderGroups())[0].submission,
+        ).toBe(identity === 'matching' ? terminal : 'unknown');
+        expect(
+          built.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toStrictEqual([]);
+      },
+    );
+
+    it('persists exact terminal attached completion and skips subsequent venue reads and unchanged writes', async () => {
+      const { disk, infrastructure } = durableInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const venue = attachedVenue(built);
+      await built.provider.placeOrder(attachedIntent);
+      venue.inactive.push(
+        ...venue.active
+          .splice(0)
+          .map((row) => ({ ...row, status: 'canceled' })),
+      );
+      expect(
+        (await built.provider.reviewAttachedOrderGroups())[0].submission,
+      ).toBe('completed');
+      expect(storedAttached(disk).groups[0].submission).toBe('completed');
+      built.clientInstance.getActiveOrders.mockClear();
+      built.clientInstance.getInactiveOrders.mockClear();
+      jest.mocked(infrastructure.diskCache).setItem.mockClear();
+      expect(
+        (await built.provider.reviewAttachedOrderGroups())[0].submission,
+      ).toBe('completed');
+      expect(built.clientInstance.getActiveOrders).not.toHaveBeenCalled();
+      expect(built.clientInstance.getInactiveOrders).not.toHaveBeenCalled();
+      expect(
+        jest.mocked(infrastructure.diskCache).setItem.mock.calls,
+      ).toStrictEqual([]);
+    });
+
+    it('rejects oversized inactive containers before attached cancellation signs', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      const venue = attachedVenue(built);
+      const placed = await built.provider.placeOrder(attachedIntent);
+      const unrelated = {
+        ...venue.active[0],
+        clientOrderIndex: 7,
+        orderIndex: 7,
+      };
+      built.clientInstance.getInactiveOrders.mockResolvedValue({
+        code: 200,
+        orders: Array.from({ length: 101 }, () => unrelated),
+      });
+      const result = await built.provider.cancelOrder({
+        symbol: 'BTC',
+        orderId: placed.attachedOrderGroup?.groupId ?? '',
+      });
+      expect(result.success).toBe(false);
+      expect(
+        built.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toStrictEqual([]);
+    });
+
+    it.each(['terminal', 'unproven', 'one-unknown'] as const)(
+      'reclaims full attached capacity only with exact terminal proof: %s',
+      async (scenario) => {
+        const { disk, infrastructure } = durableInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infrastructure,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = attachedVenue(built);
+        await built.provider.placeOrder(attachedIntent);
+        const {
+          key,
+          groups: [original],
+        } = storedAttached(disk);
+        const groups = Array.from({ length: 64 }, (_, index) => {
+          const copy = JSON.parse(
+            JSON.stringify(original),
+          ) as LighterAttachedGroup;
+          const marketIndex = index < 32 ? 1 : 2;
+          for (const [leg, wire] of copy.orders.entries()) {
+            wire[0] = marketIndex;
+            wire[1] = 10000 + index * 10 + leg;
+          }
+          copy.groupId = original.groupId.replace(
+            /:\d+:\d+$/u,
+            `:${marketIndex}:${copy.orders[0][1]}`,
+          );
+          copy.venueIds = [null, null, null];
+          return copy;
+        });
+        if (scenario === 'one-unknown') {
+          groups[63].submission = 'unknown';
+        }
+        disk.set(key, JSON.stringify(groups));
+        const terminalRows = groups.flatMap((group, index) =>
+          venue.active.map((row, leg) => ({
+            ...row,
+            clientOrderIndex: group.orders[leg][1],
+            marketIndex: group.orders[leg][0],
+            orderIndex: 1000 + index * 10 + leg,
+            status: 'canceled',
+            remainingBaseAmount: '0',
+            parentOrderIndex: undefined,
+            toTriggerOrderId0: undefined,
+            toTriggerOrderId1: undefined,
+          })),
+        );
+        built.clientInstance.getActiveOrders.mockResolvedValue({
+          code: 200,
+          orders: [],
+        });
+        built.clientInstance.getInactiveOrders.mockImplementation(
+          async (_account, _token, _limit, _cursor, market) => ({
+            code: 200,
+            orders:
+              scenario === 'unproven'
+                ? []
+                : terminalRows.filter(
+                    (row) =>
+                      row.marketIndex === market &&
+                      (scenario !== 'one-unknown' ||
+                        row.clientOrderIndex < 10630),
+                  ),
+          }),
+        );
+        built.clientInstance.getTx.mockResolvedValue(null);
+        await built.provider.reviewAttachedOrderGroups();
+        expect(built.clientInstance.getActiveOrders).toHaveBeenCalledTimes(2);
+        expect(built.clientInstance.getInactiveOrders).toHaveBeenCalledTimes(2);
+        const result = await built.provider.placeOrder(attachedIntent);
+        expect(result.success).toBe(scenario === 'terminal');
+        const retained = storedAttached(disk).groups;
+        expect(retained).toHaveLength(64);
+        expect(
+          retained.some((group) => group.groupId === groups[63].groupId),
+        ).toBe(true);
+        expect(
+          retained.some((group) => group.groupId === groups[0].groupId),
+        ).toBe(scenario !== 'terminal');
+      },
+    );
+
+    it.each(['active', 'inactive'] as const)(
+      'rejects attached review session drift during the shared %s read',
+      async (boundary) => {
+        const { disk, infrastructure } = durableInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infrastructure,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = attachedVenue(built);
+        await built.provider.placeOrder(attachedIntent);
+        const before = storedAttached(disk);
+        const drift = async (): Promise<{
+          code: number;
+          orders: LighterApiOrder[];
+        }> => {
+          await built.provider.disconnect();
+          return { code: 200, orders: [...venue.active] };
+        };
+        if (boundary === 'active') {
+          built.clientInstance.getActiveOrders.mockImplementationOnce(drift);
+        } else {
+          built.clientInstance.getInactiveOrders.mockImplementationOnce(drift);
+        }
+        await expect(
+          built.provider.reviewAttachedOrderGroups(),
+        ).rejects.toThrow('cancelled');
+        expect(storedAttached(disk)).toStrictEqual(before);
+      },
+    );
+
+    it.each(['oversized', 'contradictory'] as const)(
+      'rejects shared attached review containers with %s evidence',
+      async (evidence) => {
+        const { disk, infrastructure } = durableInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infrastructure,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = attachedVenue(built);
+        await built.provider.placeOrder(attachedIntent);
+        const before = storedAttached(disk);
+        if (evidence === 'oversized') {
+          built.clientInstance.getInactiveOrders.mockResolvedValue({
+            code: 200,
+            orders: Array.from({ length: 101 }, () => venue.active[0]),
+          });
+        } else {
+          venue.active[1].isAsk = !venue.active[1].isAsk;
+        }
+        await expect(
+          built.provider.reviewAttachedOrderGroups(),
+        ).rejects.toThrow(
+          evidence === 'oversized'
+            ? 'bounded authoritative'
+            : 'does not match signed intent',
+        );
+        expect(storedAttached(disk)).toStrictEqual(before);
+      },
+    );
+
+    it('does not rewrite unchanged accepted observations', async () => {
+      const { infrastructure } = durableInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      attachedVenue(built);
+      await built.provider.placeOrder(attachedIntent);
+      await built.provider.reviewAttachedOrderGroups();
+      jest.mocked(infrastructure.diskCache).setItem.mockClear();
+      await built.provider.reviewAttachedOrderGroups();
+      expect(
+        jest
+          .mocked(infrastructure.diskCache)
+          .setItem.mock.calls.filter(([key]) =>
+            key.startsWith('lighterAttachedOrders:'),
+          ),
+      ).toStrictEqual([]);
+    });
+
+    it.each(['absent-unexpired', 'pending', 'lookup-failure'] as const)(
+      'quarantines attached non-acceptance ambiguity: %s',
+      async (ambiguity) => {
+        const { disk, infrastructure } = durableInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infrastructure,
+          registeredKey: '9c'.repeat(40),
+        });
+        built.clientInstance.sendTx.mockRejectedValue(
+          new Error('lost response'),
+        );
+        await built.provider.placeOrder(attachedIntent);
+        const {
+          groups: [group],
+        } = storedAttached(disk);
+        if (group.nonce === null) {
+          throw new Error('Missing nonce');
+        }
+        built.clientInstance.getNextNonce.mockResolvedValue({
+          code: 200,
+          nonce: group.nonce,
+        });
+        built.clientInstance.getTx.mockResolvedValue(
+          ambiguity === 'pending'
+            ? {
+                code: 200,
+                hash: group.txHash,
+                accountIndex: 28,
+                apiKeyIndex: 7,
+                nonce: group.nonce,
+                status: 1,
+              }
+            : null,
+        );
+        if (ambiguity === 'lookup-failure') {
+          built.clientInstance.getTx.mockRejectedValue(
+            new Error('lookup unavailable'),
+          );
+        }
+        await built.provider.reconcileRecoveredDispatches();
+        expect(
+          (
+            await built.provider.cancelOrder({
+              symbol: 'BTC',
+              orderId: group.groupId,
+            })
+          ).success,
+        ).toBe(false);
+        expect(storedAttached(disk).groups[0].nonAcceptance).toBeUndefined();
+        expect(storedAttached(disk).groups[0].submission).toBe('unknown');
+        expect(
+          built.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toStrictEqual([]);
+      },
+    );
+
+    it('preserves nonce evidence when attached settlement persistence fails', async () => {
+      const { disk, infrastructure } = durableInfrastructure();
+      const built = buildProvider({
+        platformDependencies: infrastructure,
+        registeredKey: '9c'.repeat(40),
+      });
+      built.clientInstance.sendTx.mockRejectedValue(new Error('lost response'));
+      await built.provider.placeOrder(attachedIntent);
+      const before = new Map(disk);
+      const {
+        key,
+        groups: [group],
+      } = storedAttached(disk);
+      if (group.nonce === null) {
+        throw new Error('Missing nonce');
+      }
+      built.clientInstance.getTx.mockResolvedValue(null);
+      built.clientInstance.getNextNonce.mockResolvedValue({
+        code: 200,
+        nonce: group.nonce + 1,
+      });
+      jest
+        .mocked(infrastructure.diskCache)
+        .setItem.mockImplementation(async (storageKey, value) => {
+          if (storageKey === key) {
+            throw new Error('disk full');
+          }
+          disk.set(storageKey, value);
+        });
+      await expect(
+        built.provider.reconcileRecoveredDispatches(),
+      ).rejects.toThrow('disk full');
+      expect(disk).toStrictEqual(before);
+      expect(storedAttached(disk).groups[0].nonAcceptance).toBeUndefined();
+    });
+
+    it.each(['account', 'slot', 'nonce', 'hash', 'group'] as const)(
+      'retains attached nonce evidence when the durable %s identity mismatches',
+      async (identity) => {
+        const { disk, infrastructure } = durableInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infrastructure,
+          registeredKey: '9c'.repeat(40),
+        });
+        built.clientInstance.sendTx.mockRejectedValue(
+          new Error('lost response'),
+        );
+        await built.provider.placeOrder(attachedIntent);
+        const {
+          key,
+          groups: [group],
+        } = storedAttached(disk);
+        if (group.nonce === null) {
+          throw new Error('Missing nonce');
+        }
+        const { nonce } = group;
+        if (identity === 'account') {
+          group.accountIndex = 29;
+        }
+        if (identity === 'slot') {
+          group.apiKeyIndex = 19;
+        }
+        if (identity === 'nonce') {
+          group.nonce += 1;
+        }
+        if (identity === 'hash') {
+          group.txHash = 'deadbeef';
+        }
+        if (identity === 'group') {
+          group.orders.forEach((wire) => {
+            wire[1] += 10;
+          });
+          group.groupId = group.groupId.replace(
+            /:\d+$/u,
+            `:${group.orders[0][1]}`,
+          );
+        }
+        disk.set(key, JSON.stringify([group]));
+        const before = new Map(disk);
+        built.clientInstance.getTx.mockResolvedValue(null);
+        built.clientInstance.getNextNonce.mockResolvedValue({
+          code: 200,
+          nonce: nonce + 1,
+        });
+        await built.provider
+          .reconcileRecoveredDispatches()
+          .catch(() => undefined);
+        expect(disk).toStrictEqual(before);
+        expect(storedAttached(disk).groups[0].nonAcceptance).toBeUndefined();
+      },
+    );
 
     it('persists unsigned parent and child identities before signing, then lists them after restart in another slot', async () => {
       const { infrastructure, disk } = durableInfrastructure();

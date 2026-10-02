@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Expose `OrderResult.attachedOrderGroup`, `AttachedOrderGroup`, `ReadyPerpsOrderCapabilities.attachedTpsl`, optional provider `getAttachedOrderGroups`/`reviewAttachedOrderGroups`, and controller messenger actions `PerpsControllerGetAttachedOrderGroupsAction`/`PerpsControllerReviewAttachedOrderGroupsAction`. The group submission union includes `completed` for exactly correlated terminal legs.
+- Export `LIGHTER_MAX_WIRE_PRICE`, `LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER` and `LIGHTER_GROUPING_ONE_TRIGGERS_OCO` through `constants` and `constants/lighterConfig`. The public `utils/lighterAttachedOrders` subpath exposes `LighterAttachedGroup`, `parseLighterAttachedGroups`, `correlateLighterAttachedOrders`, `toAttachedOrderGroup`, `LIGHTER_ATTACHED_MAX_GROUPS` and `LIGHTER_ATTACHED_HANDLE_PREFIX`.
+
 - Support fixed partial Lighter position protection with single triggers or equal-quantity OCO pairs, exact downward quantity normalization and cancellation-first replacement. Expose optional `positionTpsl.defaultCoverage`, `positionTpsl.partialCoverage` and `PerpsPendingManualRecovery.partialIntent`. Lighter reports snapshot defaults, equal-quantity OCO and explicit current-position recovery; `HYPERLIQUID_ORDER_CAPABILITIES` reports dynamic defaults, independent partial pairs and provider-default recovery. Release proven-unsent partial attempts without removing prior protection or unresolved dispatched obligations.
 - Expose `LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT` through `constants` and `constants/lighterConfig` to bound the durable wallet/network recovery account index. Record verified account identity before venue mutation so pending dispatches remain discoverable after account absence.
 - Add native Lighter parent orders with attached TP/SL through OTO and OTOCO groups, durable parent/child identities, local `getAttachedOrderGroups`, explicit read-only `reviewAttachedOrderGroups`, and exact group cancellation. Preserve local groups for confirmed absent and known Premium accounts. Explicit partial child sizes and position linkage remain unsupported; activation, partial-fill coverage and automatic cancellation guarantees remain unverified.
@@ -27,8 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Grouped Lighter signer calls require grouping/count `1/2` or `2/2` with two orders, or `3/3` with three orders. Each order retains its ten-field wire tuple; attached placement remains a separate provider capability.
+- **BREAKING:** Lighter `placeOrder` and `validateOrder` now accept supported native attached TP/SL instead of refusing all attachments; omitted `tpslLinkage` defaults to `order`. Mobile and Extension must gate forwarding on `attachedTpsl` and their rollout policy. Native lifecycle verification remains pending; client adoption is not included.
 
+- **BREAKING:** Grouped Lighter signer calls require grouping/count `1/2` or `2/2` with two orders, or `3/3` with three orders. Update `LighterSignCreateGroupedOrdersWireParams` and `LighterWasmCall<'_signCreateGroupedOrders'>` callers to these tuple unions; each order retains its ten-field wire tuple.
 - **BREAKING:** Add `order_market_unsupported` to `DirectProviderOrderCapabilitiesUnavailableReason` and `OrderCapabilitiesUnavailableReason` for known inactive markets that cannot accept native triggers. Consumers exhaustively matching these unions must include the new reason; Scale price-ladder reasons are unchanged ([#10638](https://github.com/MetaMask/core/pull/10638))
 - **BREAKING:** Refuse stray `triggerPrice` on Lighter basic market and limit orders with `ORDER_TRIGGER_PRICE_NOT_SUPPORTED` rather than silently ignoring it. Omit the field or select an explicit trigger order type ([#10638](https://github.com/MetaMask/core/pull/10638))
 - **BREAKING:** Lighter position TP/SL replacement and removal preserve independent partial triggers and trigger limits. Legacy unrecorded trigger-market orders count as protection only on the closing side with exactly the in-lock position quantity and a known restorable time-in-force. Cancel independent orders and pre-upgrade protection whose quantity no longer matches explicitly ([#10638](https://github.com/MetaMask/core/pull/10638))
@@ -38,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wait for in-flight key selection in recovery readers and retain unfinished TP/SL journals after failed signer initialization ([#10618](https://github.com/MetaMask/core/pull/10618))
 
 ### Fixed
+
+- Persist exact attached non-acceptance before nonce evidence retirement, allowing explicit abandonment after expiry or nonce consumption across restart and trading-key changes. Retain ambiguous groups, batch bounded review reads per market, skip unchanged writes, and reclaim capacity only for canceled or exactly proven terminal groups.
 
 - Treat confirmed absent and known Premium Lighter accounts as local-only recovery inventories without acknowledgment. Verify account ownership and index before caching or recording recovery authority. Preserve durable obligations and refuse transport, storage, ownership or unverified account-type failures; Premium trading remains unsupported.
 - Recheck HyperLiquid position protection after SDK signing and correlate partial SDK acknowledgments by exact signed child IDs. Preserve uncertain outcomes and restore only exact pre-call reduce-only protection when replacement becomes stale after cancellation; report protection loss if restoration fails ([#10644](https://github.com/MetaMask/core/pull/10644))

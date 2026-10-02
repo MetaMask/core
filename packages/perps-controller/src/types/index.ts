@@ -343,7 +343,7 @@ export type AttachedOrderGroup = {
   providerId: PerpsProviderType;
   symbol: string;
   /** Acceptance never proves activation or the quantity protected after a partial fill. */
-  submission: 'prepared' | 'unknown' | 'accepted' | 'canceled';
+  submission: 'prepared' | 'unknown' | 'accepted' | 'canceled' | 'completed';
   parentClientOrderId: string;
   childClientOrderIds: string[];
   /** Exact venue IDs, when observed. Unknown identities remain absent. */

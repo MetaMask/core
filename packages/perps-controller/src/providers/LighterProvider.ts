@@ -2868,6 +2868,37 @@ export class LighterProvider implements PerpsProvider {
         evidence,
       });
     };
+    // Persist attached ownership settlement before retiring its nonce evidence.
+    const settleAttached = async (
+      entry: LighterNonceLedgerDoc['entries'][number],
+      proof: NonNullable<LighterAttachedGroup['nonAcceptance']>,
+    ): Promise<boolean> => {
+      if (!entry.intent.startsWith('placeAttached:')) {
+        return true;
+      }
+      const key = this.#attachedKey(accountIndex);
+      const groups = await this.#readAttachedGroups(key);
+      this.#assertSession(generation);
+      const group = groups.find(
+        (candidate) => `placeAttached:${candidate.groupId}` === entry.intent,
+      );
+      if (
+        !group ||
+        group.accountIndex !== accountIndex ||
+        group.apiKeyIndex !== apiKeyIndex ||
+        group.nonce !== entry.nonce ||
+        group.txHash === null ||
+        group.txHash !== entry.txHash ||
+        group.expiresAt !== entry.expiresAt ||
+        (group.submission !== 'unknown' &&
+          !(group.submission === 'canceled' && group.nonAcceptance))
+      ) {
+        return false;
+      }
+      group.nonAcceptance = proof;
+      await this.#writeAttachedGroup(key, group, generation);
+      return true;
+    };
     const nonceResponse = await this.#clientService.getNextNonce(
       accountIndex,
       apiKeyIndex,
@@ -2927,6 +2958,13 @@ export class LighterProvider implements PerpsProvider {
               remaining.push(entry);
               continue;
             }
+            if (
+              transactionOutcome === 'failed' &&
+              !(await settleAttached(entry, 'failed'))
+            ) {
+              remaining.push(entry);
+              continue;
+            }
             doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
             // The EXACT tx status decides the intent's fate: executed →
             // succeeded (blocking until acknowledged); failed/rejected →
@@ -2956,6 +2994,10 @@ export class LighterProvider implements PerpsProvider {
           // absent: another dispatch (e.g. a second device) consumed it.
           // Our payload can never land now — retry-safe never-landed,
           // no quarantine; the floor advances with the venue.
+          if (!(await settleAttached(entry, 'nonce-consumed'))) {
+            remaining.push(entry);
+            continue;
+          }
           doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
           continue;
         }
@@ -2966,6 +3008,10 @@ export class LighterProvider implements PerpsProvider {
           // Venue-confirmed absent after the signed validity: PROVEN
           // never landed — the venue still expects this nonce (unless a
           // later dispatch already consumed it: consumedFloor guards).
+          if (!(await settleAttached(entry, 'expired'))) {
+            remaining.push(entry);
+            continue;
+          }
           releasedNonces.push(entry.nonce);
           continue;
         }
@@ -7789,7 +7835,9 @@ export class LighterProvider implements PerpsProvider {
       if (index < 0) {
         if (groups.length >= LIGHTER_ATTACHED_MAX_GROUPS) {
           const canceled = groups.findIndex(
-            (entry) => entry.submission === 'canceled',
+            (entry) =>
+              entry.submission === 'canceled' ||
+              entry.submission === 'completed',
           );
           if (canceled < 0) {
             throw new Error('Lighter attached-order ownership is full');
@@ -7798,6 +7846,9 @@ export class LighterProvider implements PerpsProvider {
         }
         groups.push(group);
       } else {
+        if (JSON.stringify(groups[index]) === JSON.stringify(group)) {
+          return;
+        }
         groups[index] = group;
       }
       const serialized = JSON.stringify(groups);
@@ -7828,6 +7879,69 @@ export class LighterProvider implements PerpsProvider {
   }
 
   /**
+   * Read one bounded market snapshot under the caller's session.
+   *
+   * @param accountIndex - Venue account.
+   * @param token - Registered read authority.
+   * @param marketIndex - Signed market identity.
+   * @param generation - Caller session.
+   * @returns Authoritative active and bounded inactive rows.
+   */
+  readonly #readAttachedOrders = async (
+    accountIndex: number,
+    token: string,
+    marketIndex: number,
+    generation: number,
+  ): Promise<LighterApiOrder[]> => {
+    const active = await this.#clientService.getActiveOrders(
+      accountIndex,
+      token,
+      marketIndex,
+    );
+    this.#assertSession(generation);
+    const inactive = await this.#clientService.getInactiveOrders(
+      accountIndex,
+      token,
+      LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE,
+      undefined,
+      marketIndex,
+    );
+    this.#assertSession(generation);
+    if (
+      !Array.isArray(active.orders) ||
+      !Array.isArray(inactive.orders) ||
+      inactive.orders.length > LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE
+    ) {
+      throw new Error(
+        'Lighter attached review requires bounded authoritative order containers',
+      );
+    }
+    return [...active.orders, ...inactive.orders];
+  };
+
+  /**
+   * Check terminal status only on an exactly correlated owned leg.
+   *
+   * @param row - Exact venue leg.
+   * @param symbol - Group symbol.
+   * @returns Whether the leg cannot execute again.
+   */
+  readonly #isAttachedOrderTerminal = (
+    row: LighterApiOrder,
+    symbol: string,
+  ): boolean => {
+    if (row.status === 'rejected') {
+      return true;
+    }
+    const order = adaptOrderFromLighter(row, symbol);
+    return (
+      order.status === 'canceled' ||
+      (order.status === 'filled' &&
+        parseStrictDecimal(row.remainingBaseAmount) === 0)
+    );
+  };
+
+  /**
    * Review exact signed identities using registered local read authority.
    *
    * @returns Venue observations; missing rows and linkage remain unknown.
@@ -7844,8 +7958,14 @@ export class LighterProvider implements PerpsProvider {
         this.#assertSession(generation);
         const groups = await this.#readAttachedGroups(key);
         this.#assertSession(generation);
-        if (groups.length === 0) {
-          return [];
+        if (
+          groups.every(
+            (group) =>
+              group.submission === 'canceled' ||
+              group.submission === 'completed',
+          )
+        ) {
+          return groups.map(toAttachedOrderGroup);
         }
         const { token } = await this.#getRecoveryReadToken(
           accountIndex,
@@ -7853,34 +7973,27 @@ export class LighterProvider implements PerpsProvider {
         );
         this.#assertSession(generation);
         const results: AttachedOrderGroup[] = [];
+        const snapshots = new Map<number, LighterApiOrder[]>();
         for (const group of groups) {
-          const active = await this.#clientService.getActiveOrders(
-            accountIndex,
-            token,
-            group.orders[0][0],
-          );
-          this.#assertSession(generation);
-          const inactive = await this.#clientService.getInactiveOrders(
-            accountIndex,
-            token,
-            LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE,
-            undefined,
-            group.orders[0][0],
-          );
-          this.#assertSession(generation);
           if (
-            !Array.isArray(active.orders) ||
-            !Array.isArray(inactive.orders) ||
-            inactive.orders.length > LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE
+            group.submission === 'canceled' ||
+            group.submission === 'completed'
           ) {
-            throw new Error(
-              'Lighter attached review requires bounded authoritative order containers',
-            );
+            results.push(toAttachedOrderGroup(group));
+            continue;
           }
-          const rows = correlateLighterAttachedOrders(group, [
-            ...active.orders,
-            ...inactive.orders,
-          ]);
+          const marketIndex = group.orders[0][0];
+          let snapshot = snapshots.get(marketIndex);
+          if (!snapshot) {
+            snapshot = await this.#readAttachedOrders(
+              accountIndex,
+              token,
+              marketIndex,
+              generation,
+            );
+            snapshots.set(marketIndex, snapshot);
+          }
+          const rows = correlateLighterAttachedOrders(group, snapshot);
           for (let index = 0; index < rows.length; index += 1) {
             const row = rows[index];
             if (row) {
@@ -7991,6 +8104,15 @@ export class LighterProvider implements PerpsProvider {
               };
             },
           );
+          if (
+            rows.every(
+              (row) =>
+                row !== null &&
+                this.#isAttachedOrderTerminal(row, group.symbol),
+            )
+          ) {
+            group.submission = 'completed';
+          }
           await this.#writeAttachedGroup(key, group, generation);
           results.push({
             ...toAttachedOrderGroup(group),
@@ -8043,15 +8165,21 @@ export class LighterProvider implements PerpsProvider {
       accountIndex,
       async (nextNonce, submit) => {
         const group = await lookup();
-        if (group.submission === 'canceled') {
+        if (
+          group.submission === 'canceled' ||
+          group.submission === 'completed'
+        ) {
           return {
             success: true,
             orderId: params.orderId,
             providerId: 'lighter',
           };
         }
-        // No transaction identity was ever persisted, so dispatch was impossible.
-        if (group.submission === 'prepared' && group.txHash === null) {
+        // Abandon only undispatched intent or durably proven non-acceptance.
+        if (
+          (group.submission === 'prepared' && group.txHash === null) ||
+          (group.submission === 'unknown' && group.nonAcceptance !== undefined)
+        ) {
           group.submission = 'canceled';
           await this.#writeAttachedGroup(key, group, generation);
           return {
@@ -8085,30 +8213,15 @@ export class LighterProvider implements PerpsProvider {
           }
         }
         const read = async (): Promise<LighterApiOrder[]> => {
-          const active = await this.#clientService.getActiveOrders(
-            accountIndex,
-            authToken,
-            group.orders[0][0],
+          const rows = correlateLighterAttachedOrders(
+            group,
+            await this.#readAttachedOrders(
+              accountIndex,
+              authToken,
+              group.orders[0][0],
+              generation,
+            ),
           );
-          this.#assertSession(generation);
-          const inactive = await this.#clientService.getInactiveOrders(
-            accountIndex,
-            authToken,
-            LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE,
-            undefined,
-            group.orders[0][0],
-          );
-          this.#assertSession(generation);
-          if (
-            !Array.isArray(active.orders) ||
-            !Array.isArray(inactive.orders)
-          ) {
-            throw new Error('Lighter attached-order lifecycle is unavailable');
-          }
-          const rows = correlateLighterAttachedOrders(group, [
-            ...active.orders,
-            ...inactive.orders,
-          ]);
           if (rows.some((row) => row === null)) {
             throw new Error(
               'Lighter attached-order identity is unresolved; no cancellation guarantee',
@@ -8116,17 +8229,8 @@ export class LighterProvider implements PerpsProvider {
           }
           return rows.filter((row): row is LighterApiOrder => row !== null);
         };
-        const terminal = (row: LighterApiOrder): boolean => {
-          if (row.status === 'rejected') {
-            return true;
-          }
-          const order = adaptOrderFromLighter(row, group.symbol);
-          return (
-            order.status === 'canceled' ||
-            (order.status === 'filled' &&
-              parseStrictDecimal(row.remainingBaseAmount) === 0)
-          );
-        };
+        const terminal = (row: LighterApiOrder): boolean =>
+          this.#isAttachedOrderTerminal(row, group.symbol);
         const rows = await read();
         group.venueIds = rows.map((row) => String(row.orderIndex));
         await this.#writeAttachedGroup(key, group, generation);

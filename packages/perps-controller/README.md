@@ -259,7 +259,7 @@ whole-position coverage through its existing implementation.
 ## Native Lighter attached orders
 
 `placeOrder` accepts a market or limit parent with `takeProfitPrice`,
-`stopLossPrice`, or both. Omit attached child sizes and use `tpslLinkage: 'order'`.
+`stopLossPrice`, or both. Omit attached child sizes. `tpslLinkage` defaults to `order`.
 The native OTO or OTOCO transaction contains the opening parent and zero-size,
 opposite-side, reduce-only trigger-market children. An explicit child quantity,
 position linkage, reduce-only parent, caller-supplied client ID, or invalid price
@@ -288,9 +288,16 @@ dispatch. Ambiguous acceptance remains quarantined across restart and key
 migration. There is no automatic financial replay or attachment to a later
 position. Explicitly cancel a prepared group before submitting fresh intent;
 uncertain dispatches also require the existing exact-transaction reconciliation
-and acknowledgment flow. Up to 64 groups are retained per account; only explicitly
-closed groups can be evicted when making room.
+and acknowledgment flow. Reconciliation persists exact failed, expired or
+nonce-consumed non-acceptance before retiring the nonce evidence; explicit group
+cancellation can then abandon that intent without signing. Missing history alone
+never proves non-acceptance. Up to 64 groups are retained per account. Only canceled
+groups or `completed` groups with all legs exactly correlated as terminal can be
+evicted. Review reads one bounded snapshot per market and skips terminal groups
+and unchanged persistence.
 
+Mobile and Extension must gate attached forwarding on `attachedTpsl` plus their
+own rollout policy. This package change does not adopt the feature in either client.
 `attachedTpsl.lifecycleVerification` remains `pending`. Native activation,
 partial-parent-fill coverage, and automatic parent/child cancellation guarantees
 require venue execution evidence. The current capability only describes the
