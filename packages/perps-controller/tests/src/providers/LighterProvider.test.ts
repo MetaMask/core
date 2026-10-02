@@ -12515,6 +12515,16 @@ describe('LighterProvider', () => {
           recoveryVenue.rawTriggers.map((row) => row.orderIndex),
         ).toStrictEqual([survivingId]);
 
+        expect(
+          await recovering.provider.getPendingManualRecoveries(),
+        ).toStrictEqual([
+          expect.objectContaining({
+            priorIntent: 'remove',
+            reason: expect.stringContaining(
+              'position precondition failed',
+            ) as string,
+          }),
+        ]);
         recoveryVenue.setRestLag(0);
         recoveryVenue.primeLag([], 0);
         for (let attempt = 0; attempt < 40; attempt += 1) {
@@ -12538,6 +12548,9 @@ describe('LighterProvider', () => {
             symbol: 'BTC',
             settlementKey,
             priorIntent: 'remove',
+            reason: expect.stringContaining(
+              'position precondition failed',
+            ) as string,
             survivingOrderIds: [String(survivingId)],
           }),
         ]);
@@ -12557,6 +12570,238 @@ describe('LighterProvider', () => {
           await recovering.provider.getPendingManualRecoveries(),
         ).toStrictEqual([]);
         await recovering.provider.disconnect();
+      },
+    );
+
+    it.each(['read', 'restart'] as const)(
+      'never resumes guarded removal after refused-phase storage failure, signed expiry and %s recovery',
+      async (recoveryMode) => {
+        const infra = createMockInfrastructure();
+        const write = jest.spyOn(infra.diskCache, 'setItem');
+        const originalWrite = write.getMockImplementation();
+        if (!originalWrite) {
+          throw new Error('Expected disk fixture');
+        }
+        let failManualWrite = false;
+        let rejectedWrites = 0;
+        write.mockImplementation(async (key: string, value: string) => {
+          if (failManualWrite && key.startsWith('lighterTpslJournalOp:')) {
+            const payload = JSON.parse(value) as {
+              phase: string;
+              attempts: { outcome: string }[];
+            };
+            if (
+              payload.phase === 'manual' &&
+              payload.attempts.length === 1 &&
+              payload.attempts[0].outcome === 'accepted'
+            ) {
+              rejectedWrites += 1;
+              throw new Error('manual refusal payload write failed');
+            }
+          }
+          return await originalWrite(key, value);
+        });
+        const original = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = setupTriggerVenue(
+          original.clientInstance,
+          original.bridge,
+        );
+        const firstId = venue.seedTrigger('take-profit', '110000');
+        const survivingId = venue.seedTrigger('stop-loss', '80000');
+        const initialOrders = venue.rawTriggers.map((row) => ({ ...row }));
+        const managedKey = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
+        await infra.diskCache.setItem(
+          managedKey,
+          JSON.stringify({
+            version: 1,
+            orders: initialOrders.map((row) => ({
+              clientId: String(row.clientOrderIndex),
+              orderId: String(row.orderIndex),
+            })),
+          }),
+        );
+        const livePosition = { ...ACCOUNT.positions[0], position: '0.2' };
+        const execute = jest.spyOn(original.bridge, 'execute');
+        const implementation = execute.getMockImplementation();
+        if (!implementation) {
+          throw new Error('Expected configured Lighter signer bridge');
+        }
+        let cancellationSignatures = 0;
+        execute.mockImplementation(async (call: LighterWasmCall) => {
+          const signed = await implementation(call);
+          if (call.function === '_signCancelOrder') {
+            cancellationSignatures += 1;
+            if (cancellationSignatures === 2) {
+              failManualWrite = true;
+              original.clientInstance.getAccountByIndex.mockResolvedValue({
+                code: 200,
+                accounts: [{ ...ACCOUNT, positions: [livePosition] }],
+              });
+            }
+          }
+          return signed;
+        });
+        venue.setRestLag(100);
+        const result = await original.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          expectedPosition: {
+            size: ACCOUNT.positions[0].position,
+            entryPrice: ACCOUNT.positions[0].avgEntryPrice,
+          },
+        });
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        });
+        expect(cancellationSignatures).toBe(2);
+        expect(rejectedWrites).toBeGreaterThan(0);
+        failManualWrite = false;
+        expect(original.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        expect(venue.rawTriggers.map((row) => row.orderIndex)).toStrictEqual([
+          survivingId,
+        ]);
+        const settlementKey = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+        const journalKey = `lighterTpslJournal:testnet:${settlementKey}`;
+        const pointer = JSON.parse(
+          (await infra.diskCache.getItem(journalKey)) ?? '',
+        ) as { operationId: string };
+        const payloadKey = `lighterTpslJournalOp:testnet:${settlementKey}:${pointer.operationId}`;
+        const payload = JSON.parse(
+          (await infra.diskCache.getItem(payloadKey)) ?? '',
+        ) as { attempts: { kind: string; orderId: string; outcome: string }[] };
+        expect(payload.attempts).toStrictEqual([
+          expect.objectContaining({
+            kind: 'cancel',
+            orderId: String(firstId),
+            outcome: 'accepted',
+          }),
+          expect.objectContaining({
+            kind: 'cancel',
+            orderId: String(survivingId),
+            outcome: 'unknown',
+          }),
+        ]);
+
+        const originalNow = Date.now.bind(Date);
+        const clock = jest
+          .spyOn(Date, 'now')
+          .mockImplementation(() => originalNow() + 700_000);
+        try {
+          let recovering = original;
+          let recoveryVenue = venue;
+          if (recoveryMode === 'restart') {
+            await original.provider.disconnect();
+            recovering = buildProvider({
+              platformDependencies: infra,
+              registeredKey: '9c'.repeat(40),
+            });
+            recoveryVenue = setupTriggerVenue(
+              recovering.clientInstance,
+              recovering.bridge,
+            );
+            recoveryVenue.rawTriggers.push(...venue.rawTriggers);
+            recoveryVenue.setVenueNonce(venue.getVenueNonce());
+            for (const [hash, transaction] of venue.landedTxs) {
+              recoveryVenue.landedTxs.set(hash, transaction);
+            }
+            recoveryVenue.primeLag(initialOrders, 100);
+            recovering.clientInstance.getAccountByIndex.mockResolvedValue({
+              code: 200,
+              accounts: [{ ...ACCOUNT, positions: [livePosition] }],
+            });
+          }
+          const submissionsBefore =
+            recovering.clientInstance.sendTx.mock.calls.length;
+          const lookupFinished = createDeferred<void>();
+          const lookup =
+            recovering.clientInstance.getTx.getMockImplementation() as
+              | ((hash: string) => Promise<unknown>)
+              | undefined;
+          if (!lookup) {
+            throw new Error('Expected configured transaction lookup');
+          }
+          recovering.clientInstance.getTx.mockImplementation(
+            async (hash: string) => {
+              const transaction = await lookup(hash);
+              lookupFinished.resolve();
+              return transaction;
+            },
+          );
+          await recovering.provider.getOpenOrders();
+          await lookupFinished.promise;
+          await new Promise((resolve) => setImmediate(resolve));
+          // Accepted first cancellation is still hidden by the book snapshot.
+          // Its obligation must remain durable while later cancellation stays
+          // refused, including across a fresh provider lifetime.
+          expect(await infra.diskCache.getItem(journalKey)).not.toBeNull();
+          expect(recovering.clientInstance.sendTx).toHaveBeenCalledTimes(
+            submissionsBefore,
+          );
+          expect(
+            recoveryVenue.rawTriggers.map((row) => row.orderIndex),
+          ).toStrictEqual([survivingId]);
+
+          expect(
+            await recovering.provider.getPendingManualRecoveries(),
+          ).toStrictEqual([
+            expect.objectContaining({
+              priorIntent: 'remove',
+              reason: expect.stringContaining(
+                'position precondition failed',
+              ) as string,
+            }),
+          ]);
+          recoveryVenue.setRestLag(0);
+          recoveryVenue.primeLag([], 0);
+          for (let attempt = 0; attempt < 80; attempt += 1) {
+            await recovering.provider.getOpenOrders();
+            if ((await infra.diskCache.getItem(journalKey)) === null) {
+              break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          expect(recovering.clientInstance.sendTx).toHaveBeenCalledTimes(
+            submissionsBefore,
+          );
+          expect(
+            recoveryVenue.rawTriggers.map((row) => row.orderIndex),
+          ).toStrictEqual([survivingId]);
+          expect(await infra.diskCache.getItem(journalKey)).toBeNull();
+          expect(
+            await recovering.provider.getPendingManualRecoveries(),
+          ).toStrictEqual([
+            expect.objectContaining({
+              symbol: 'BTC',
+              settlementKey,
+              priorIntent: 'remove',
+              reason: expect.stringContaining(
+                'position precondition failed',
+              ) as string,
+              survivingOrderIds: [String(survivingId)],
+            }),
+          ]);
+          const refreshed = await recovering.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            expectedPosition: {
+              size: livePosition.position,
+              entryPrice: livePosition.avgEntryPrice,
+            },
+          });
+          expect(refreshed.success).toBe(true);
+          expect(recoveryVenue.rawTriggers).toStrictEqual([]);
+          expect(recovering.clientInstance.sendTx).toHaveBeenCalledTimes(
+            submissionsBefore + 1,
+          );
+          expect(
+            await recovering.provider.getPendingManualRecoveries(),
+          ).toStrictEqual([]);
+          await recovering.provider.disconnect();
+        } finally {
+          clock.mockRestore();
+        }
       },
     );
 
@@ -22761,9 +23006,232 @@ describe('LighterProvider', () => {
       },
     );
 
-    it.each(['wallet', 'account', 'network', 'symbol', 'absent'] as const)(
-      'allows protection changes when the old-slot journal belongs to an unrelated %s',
-      async (context) => {
+    it.each([
+      [false, 'foreground', false],
+      [true, 'foreground', false],
+      [false, 'read', false],
+      [true, 'read', false],
+      [false, 'read', true],
+    ] as const)(
+      'settles a visible old-slot create read-only while its signing key stays foreign, replacement=%s via %s prior-survivor=%s',
+      async (replacement, recoveryMode, hasPrior) => {
+        const infra = createMockInfrastructure();
+        const original = buildProvider({
+          platformDependencies: infra,
+          apiKeyIndex: 19,
+        });
+        Object.assign(original.bridge, {
+          getRecoverableKeyIndices: async (): Promise<number[]> => [19],
+        });
+        original.clientInstance.getApiKeys.mockResolvedValue({
+          code: 200,
+          apiKeys: [{ apiKeyIndex: 19, publicKey: '9c'.repeat(40) }],
+        });
+        const originalVenue = setupTriggerVenue(
+          original.clientInstance,
+          original.bridge,
+          { apiKeyIndex: 19 },
+        );
+        if (hasPrior) {
+          originalVenue.seedTrigger('take-profit', '110000');
+        }
+        originalVenue.setRestLag(100);
+        const created = await original.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '80000',
+        });
+        expect(created.success).toBe(false);
+        expect(created.error).toContain('settlement is not yet visible');
+        expect(originalVenue.rawTriggers).toHaveLength(hasPrior ? 2 : 1);
+        expect(original.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        const sourceKey = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        const journalKey = `lighterTpslJournal:testnet:${sourceKey}`;
+        const journalBefore = await infra.diskCache.getItem(journalKey);
+        expect(journalBefore).not.toBeNull();
+        const pointer = JSON.parse(journalBefore ?? '') as {
+          operationId: string;
+        };
+        const payloadKey = `lighterTpslJournalOp:testnet:${sourceKey}:${pointer.operationId}`;
+        const payloadBefore = await infra.diskCache.getItem(payloadKey);
+        expect(JSON.parse(payloadBefore ?? '')).toMatchObject({
+          apiKeyIndex: 19,
+          intent: 'replace',
+          phase: 'creating',
+          attempts: [expect.objectContaining({ kind: 'create' })],
+        });
+        const ledgerBefore = await infra.diskCache.getItem(
+          'lighterNonceLedger:testnet:28:19',
+        );
+        expect(JSON.parse(ledgerBefore ?? '')).toMatchObject({
+          entries: [],
+          recovered: [],
+        });
+        await original.provider.disconnect();
+
+        const migrated = buildProvider({ platformDependencies: infra });
+        Object.assign(migrated.bridge, {
+          getRecoverableKeyIndices: async (): Promise<number[]> => [19, 7],
+        });
+        migrated.clientInstance.getApiKeys.mockResolvedValue({
+          code: 200,
+          apiKeys: [
+            { apiKeyIndex: 19, publicKey: 'ab'.repeat(40) },
+            { apiKeyIndex: 7, publicKey: '9c'.repeat(40) },
+          ],
+        });
+        const migratedVenue = setupTriggerVenue(
+          migrated.clientInstance,
+          migrated.bridge,
+        );
+        migratedVenue.rawTriggers.push(...originalVenue.rawTriggers);
+        migratedVenue.setVenueNonce(originalVenue.getVenueNonce());
+        migratedVenue.setNextIndex(originalVenue.getNextIndex());
+        migratedVenue.primeLag([], 100);
+        expect((await migrated.provider.isReadyToTrade()).ready).toBe(true);
+        expect(
+          jest.mocked(migrated.bridge).createClient.mock.lastCall,
+        ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 7 })]);
+        expect(await migrated.provider.getRecoveredDispatches()).toStrictEqual(
+          [],
+        );
+        const result = await migrated.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: replacement ? '85000' : undefined,
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('original API key slot 19');
+        expect(migrated.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(
+          migrated.calls.filter((call) => call.function.startsWith('_sign')),
+        ).toStrictEqual([]);
+        expect(await infra.diskCache.getItem(journalKey)).toBe(journalBefore);
+        expect(await infra.diskCache.getItem(payloadKey)).toBe(payloadBefore);
+        expect(
+          await infra.diskCache.getItem('lighterNonceLedger:testnet:28:19'),
+        ).toBe(ledgerBefore);
+        expect(migratedVenue.rawTriggers).toStrictEqual(
+          originalVenue.rawTriggers,
+        );
+        const clientCreationsAtReady = jest.mocked(migrated.bridge).createClient
+          .mock.calls.length;
+        // Slot 19 stays foreign permanently. Only its own exact hash/nonce
+        // identity may discharge the old obligation; the selected key signs
+        // only the fresh user intent after read-only settlement.
+        migratedVenue.setRestLag(0);
+        migratedVenue.primeLag([], 0);
+        migrated.clientInstance.getTx.mockImplementation(
+          async (hash: string) => {
+            const old = originalVenue.landedTxs.get(hash);
+            return old
+              ? { code: 200, hash, accountIndex: 28, apiKeyIndex: 19, ...old }
+              : null;
+          },
+        );
+        let readProof:
+          | {
+              journal: string | null;
+              submissions: number;
+              signatures: string[];
+              manual: {
+                settlementKey: string;
+                priorIntent: string;
+                survivingOrderIds: string[];
+              }[];
+            }
+          | undefined;
+        if (recoveryMode === 'read') {
+          for (let attempt = 0; attempt < 80; attempt += 1) {
+            await migrated.provider.getOpenOrders();
+            if ((await infra.diskCache.getItem(journalKey)) === null) {
+              break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          readProof = {
+            journal: await infra.diskCache.getItem(journalKey),
+            submissions: migrated.clientInstance.sendTx.mock.calls.length,
+            signatures: migrated.calls
+              .filter((call) => call.function.startsWith('_sign'))
+              .map((call) => call.function),
+            manual: (await migrated.provider.getPendingManualRecoveries()).map(
+              ({ settlementKey, priorIntent, survivingOrderIds }) => ({
+                settlementKey,
+                priorIntent,
+                survivingOrderIds,
+              }),
+            ),
+          };
+        }
+        expect(readProof).toStrictEqual(
+          recoveryMode === 'read'
+            ? {
+                journal: null,
+                submissions: 0,
+                signatures: [],
+                manual: hasPrior
+                  ? [
+                      {
+                        settlementKey: sourceKey,
+                        priorIntent: 'replace',
+                        survivingOrderIds: originalVenue.rawTriggers.map(
+                          (row) => String(row.orderIndex),
+                        ),
+                      },
+                    ]
+                  : [],
+              }
+            : undefined,
+        );
+        expect(migratedVenue.rawTriggers).toStrictEqual(
+          originalVenue.rawTriggers,
+        );
+        const cleared = await migrated.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: replacement ? '85000' : undefined,
+        });
+        expect(cleared).toMatchObject({ success: true });
+        expect(await infra.diskCache.getItem(journalKey)).toBeNull();
+        expect(migratedVenue.rawTriggers).toHaveLength(replacement ? 1 : 0);
+        expect(migrated.clientInstance.sendTx).toHaveBeenCalledTimes(
+          (replacement ? 2 : 1) + (hasPrior ? 1 : 0),
+        );
+        expect(
+          jest
+            .mocked(migrated.bridge)
+            .createClient.mock.calls.slice(clientCreationsAtReady)
+            .every(([call]) => call.apiKeyIndex === 7),
+        ).toBe(true);
+        expect(
+          await infra.diskCache.getItem('lighterNonceLedger:testnet:28:19'),
+        ).toBe(ledgerBefore);
+        await migrated.provider.disconnect();
+      },
+    );
+
+    it.each([
+      {
+        context: 'wallet',
+        title: 'the old-slot journal belongs to another wallet',
+      },
+      {
+        context: 'account',
+        title: 'the old-slot journal belongs to another account',
+      },
+      {
+        context: 'network',
+        title: 'the old-slot journal belongs to another network',
+      },
+      {
+        context: 'symbol',
+        title: 'the old-slot journal belongs to another symbol',
+      },
+      {
+        context: 'absent',
+        title: 'a matching old-slot index entry has no journal',
+      },
+    ] as const)(
+      'allows protection changes when $title',
+      async ({ context }) => {
         const infra = createMockInfrastructure();
         const address =
           context === 'wallet'

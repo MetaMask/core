@@ -163,7 +163,7 @@ operation. Unrecorded legacy protection still requires a valid live quantity and
 side for classification; replacement retains its size and side checks. A supplied
 `expectedPosition` must still match for managed removal, including after signing.
 
-`getOrderCapabilities` reports these types only for active, known markets.
+`getOrderCapabilities` reports these types only for active, known perpetual markets.
 Capabilities and trigger preflight refresh public metadata and fail closed on
 read errors instead of relying on a session's old active-market snapshot.
 `MarketInfo.priceDecimals` exposes Lighter's fixed price grid for callers
