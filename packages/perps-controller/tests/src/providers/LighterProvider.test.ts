@@ -13587,13 +13587,24 @@ describe('LighterProvider', () => {
           recordedAt: 5,
           operationId: 'incoming-operation',
           createdAt: 5,
-          nextAttemptId: 1,
+          nextAttemptId: 2,
           apiKeyIndex: 19,
           intent: 'remove',
           phase: 'cancelling',
           priorGrouping: 'independent',
           priorTriggers: [],
-          attempts: [],
+          attempts: [
+            {
+              kind: 'cancel',
+              attemptId: 1,
+              nonce: 42,
+              outcome: 'unknown',
+              orderId: '777',
+              txHash: 'ffff00000001',
+              expiresAt: 9_999_999_999_999,
+              role: 'stale',
+            },
+          ],
         });
         const getItem = jest
           .spyOn(infra.diskCache, 'getItem')
@@ -13633,6 +13644,10 @@ describe('LighterProvider', () => {
         );
         expect(await getItem(payloadKey)).toBe(
           change === 'journal' ? payload : null,
+        );
+        expect(infra.debugLogger.log).not.toHaveBeenCalledWith(
+          '[LighterProvider] Previous-slot warning cleanup remains pending',
+          expect.anything(),
         );
         expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
         await built.provider.disconnect();
@@ -13725,13 +13740,24 @@ describe('LighterProvider', () => {
           recordedAt: 5,
           operationId: 'incoming-operation',
           createdAt: 5,
-          nextAttemptId: 1,
+          nextAttemptId: 2,
           apiKeyIndex: 19,
           intent: 'remove',
           phase: 'cancelling',
           priorGrouping: 'independent',
           priorTriggers: [],
-          attempts: [],
+          attempts: [
+            {
+              kind: 'cancel',
+              attemptId: 1,
+              nonce: 42,
+              outcome: 'unknown',
+              orderId: '777',
+              txHash: 'ffff00000001',
+              expiresAt: 9_999_999_999_999,
+              role: 'stale',
+            },
+          ],
         });
         let reads = 0;
         built.clientInstance.getActiveOrders.mockImplementation(async () => {
@@ -13761,6 +13787,10 @@ describe('LighterProvider', () => {
         );
         expect(await infra.diskCache.getItem(journalKey)).toBe(
           change === 'new-journal' ? pointer : null,
+        );
+        expect(infra.debugLogger.log).not.toHaveBeenCalledWith(
+          '[LighterProvider] Previous-slot warning cleanup remains pending',
+          expect.anything(),
         );
         expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
         await built.provider.disconnect();
