@@ -190,6 +190,20 @@ export function captureExpectedScaleLadder(
   };
 }
 
+/** Own financial request values before routing or fee resolution can yield.
+ * @param params - Caller-owned order request.
+ * @returns An independent request preserving legacy preview omission.
+ */
+export function captureScaleOrderParams(params: OrderParams): OrderParams {
+  const captured = { ...params };
+  if (captured.expectedScaleLadder !== undefined) {
+    captured.expectedScaleLadder = captureExpectedScaleLadder(
+      captured.expectedScaleLadder,
+    );
+  }
+  return captured;
+}
+
 /** Refuse any change to the approved normalized financial intent.
  * @param expected - Optional caller constraint; omission is legacy unbound placement.
  * @param ladder - Fresh normalized placement quantities and prices.

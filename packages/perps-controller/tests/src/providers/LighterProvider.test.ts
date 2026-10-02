@@ -922,6 +922,181 @@ describe('LighterProvider', () => {
     }
 
     it.each([
+      'nonce',
+      'signer',
+      'accepted-child',
+      'leverage-nonce',
+      'leverage-signer',
+      'account',
+      'accepted-reduce-only',
+    ] as const)(
+      'refuses Scale metadata drift during %s and preserves exact accepted receipts',
+      async (boundary) => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const venue = scaleVenue(built);
+        const drift = (): void => {
+          built.clientInstance.getOrderBooks.mockResolvedValue([
+            { ...BTC_MARKET, supportedPriceDecimals: 2 },
+          ]);
+        };
+        if (boundary === 'nonce' || boundary === 'leverage-nonce') {
+          const loadNonce =
+            built.clientInstance.getNextNonce.getMockImplementation() as
+              | LighterClientService['getNextNonce']
+              | undefined;
+          if (!loadNonce) {
+            throw new Error('Missing nonce fixture');
+          }
+          built.clientInstance.getNextNonce.mockImplementation(
+            async (
+              ...args: Parameters<LighterClientService['getNextNonce']>
+            ) => {
+              const result = await loadNonce(...args);
+              drift();
+              return result;
+            },
+          );
+        } else if (boundary === 'signer' || boundary === 'leverage-signer') {
+          const execute = jest.spyOn(built.bridge, 'execute');
+          const sign = execute.getMockImplementation();
+          if (!sign) {
+            throw new Error('Missing signer fixture');
+          }
+          execute.mockImplementation(async (call: LighterWasmCall) => {
+            const result = await sign(call);
+            if (
+              call.function === '_signCreateOrder' ||
+              call.function === '_signUpdateLeverage'
+            ) {
+              drift();
+            }
+            return result;
+          });
+        } else if (boundary === 'account') {
+          const read =
+            built.clientInstance.getAccountByIndex.getMockImplementation() as
+              | LighterClientService['getAccountByIndex']
+              | undefined;
+          if (!read) {
+            throw new Error('Missing account fixture');
+          }
+          let reads = 0;
+          built.clientInstance.getAccountByIndex.mockImplementation(
+            async (
+              ...args: Parameters<LighterClientService['getAccountByIndex']>
+            ) => {
+              const result = await read(...args);
+              reads += 1;
+              if (reads >= 2) {
+                drift();
+              }
+              return result;
+            },
+          );
+        } else {
+          const send = built.clientInstance.sendTx.getMockImplementation() as
+            | LighterClientService['sendTx']
+            | undefined;
+          if (!send) {
+            throw new Error('Missing venue fixture');
+          }
+          built.clientInstance.sendTx.mockImplementation(
+            async (...args: Parameters<LighterClientService['sendTx']>) => {
+              const result = await send(...args);
+              drift();
+              return result;
+            },
+          );
+        }
+        const result = await built.provider.placeOrder({
+          ...intent,
+          ...(boundary.startsWith('leverage') ? { leverage: 4 } : {}),
+          ...(boundary === 'accepted-reduce-only'
+            ? { isBuy: false, reduceOnly: true }
+            : {}),
+          expectedScaleLadder: {
+            prices: ['90000', '100000'],
+            sizes: ['0.0005', '0.0005'],
+            totalSize: '0.001',
+            totalNotional: '95',
+            minimumBaseSize: BTC_MARKET.minBaseAmount,
+            minimumQuoteAmount: BTC_MARKET.minQuoteAmount,
+            sizeDecimals: 5,
+          },
+        });
+        expect(result).toMatchObject({
+          success: false,
+          error: 'ORDER_SCALE_PREVIEW_STALE',
+        });
+        expect(venue.active).toHaveLength(
+          boundary.startsWith('accepted') ? 1 : 0,
+        );
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(
+          boundary.startsWith('accepted') ? 1 : 0,
+        );
+        expect(result.childOrderIds ?? []).toStrictEqual(
+          boundary.startsWith('accepted') ? ['800'] : [],
+        );
+        const groups = await built.provider.getScaleOrderGroups();
+        expect(
+          groups.flatMap((group) => group.childOrderIds ?? []),
+        ).toStrictEqual(boundary.startsWith('accepted') ? ['800'] : []);
+      },
+    );
+
+    it('keeps the displayed constraint when deleted during service fees and refuses real metadata drift', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: infra,
+      });
+      scaleVenue(built);
+      const service = new TradingService(infra);
+      const release = createDeferred<void>();
+      service.setControllerDependencies({
+        rewardsIntegrationService: {
+          resolveFee: async () => {
+            await release.promise;
+            return {
+              feeBips: 10,
+              source: 'default',
+              subscription: { eligible: false, reason: 'no-source' },
+            };
+          },
+        } as never,
+      });
+      const params: OrderParams = {
+        ...intent,
+        expectedScaleLadder: {
+          prices: ['90000', '100000'],
+          sizes: ['0.0005', '0.0005'],
+          totalSize: '0.001',
+          totalNotional: '95',
+          minimumBaseSize: BTC_MARKET.minBaseAmount,
+          minimumQuoteAmount: BTC_MARKET.minQuoteAmount,
+          sizeDecimals: 5,
+        },
+      };
+      const pending = service.placeOrder({
+        provider: built.provider,
+        params,
+        context: createMockServiceContext(),
+        reportOrderToDataLake: jest.fn().mockResolvedValue({ success: true }),
+      });
+      delete params.expectedScaleLadder;
+      built.clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, minBaseAmount: '0.0003' },
+      ]);
+      release.resolve();
+      expect(await pending).toMatchObject({
+        success: false,
+        error: 'ORDER_SCALE_PREVIEW_STALE',
+      });
+      expect(built.calls).toStrictEqual([]);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it.each([
       ['size-grid', { supportedSizeDecimals: 4 }],
       ['base-minimum', { minBaseAmount: '0.0003' }],
       ['quote-minimum', { minQuoteAmount: '20' }],

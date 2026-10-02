@@ -8193,6 +8193,50 @@ export class LighterProvider implements PerpsProvider {
       this.#assertSession(generation);
       const prepared = await this.#prepareScaleOrder(params, generation);
       const { market, ladder, accountIndex } = prepared;
+      // Compare metadata only here. Accepted reduce-only children may already
+      // have reduced the position; remaining exposure is checked separately.
+      const metadataIntent = (
+        currentMarket: LighterOrderBookMeta,
+        currentLadder: ReturnType<typeof buildLighterScaleLadder>,
+      ): string =>
+        JSON.stringify({
+          ladder: currentLadder,
+          marketId: currentMarket.marketId,
+          priceDecimals: currentMarket.supportedPriceDecimals,
+          sizeDecimals: currentMarket.supportedSizeDecimals,
+          minimumBaseSize: currentMarket.minBaseAmount,
+          minimumQuoteAmount: currentMarket.minQuoteAmount,
+        });
+      const originalMetadataIntent = metadataIntent(market, ladder);
+      const metadataGeneration = generation;
+      const assertFreshMetadata = async (): Promise<void> => {
+        const markets = await this.#ensureMarkets(true);
+        this.#assertSession(metadataGeneration);
+        const currentMarket = markets.get(params.symbol);
+        try {
+          if (!currentMarket) {
+            throw new Error('Unknown Lighter Scale market');
+          }
+          const currentLadder = buildLighterScaleLadder(params, currentMarket);
+          assertExpectedScaleLadder(
+            params.expectedScaleLadder,
+            currentLadder,
+            currentMarket,
+          );
+          if (
+            metadataIntent(currentMarket, currentLadder) !==
+            originalMetadataIntent
+          ) {
+            throw new Error('Lighter Scale grid changed before dispatch');
+          }
+        } catch (error) {
+          if (params.expectedScaleLadder !== undefined) {
+            throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE);
+          }
+          throw error;
+        }
+      };
+
       key = this.#scaleKey(accountIndex);
       const prior = await this.#readScaleGroups(key, accountIndex);
       this.#assertSession(generation);
@@ -8304,6 +8348,8 @@ export class LighterProvider implements PerpsProvider {
             ownedGroup.rungs[0].clientOrderId,
           );
           if (leverage !== null && marginMode !== null) {
+            const nonce = await nextNonce();
+            await assertFreshMetadata();
             const signed = await this.#getSignerBridge().execute({
               function: '_signUpdateLeverage',
               params: [
@@ -8311,7 +8357,7 @@ export class LighterProvider implements PerpsProvider {
                 market.marketId,
                 leverage,
                 marginMode,
-                await nextNonce(),
+                nonce,
               ],
             });
             if (signed.error) {
@@ -8326,6 +8372,7 @@ export class LighterProvider implements PerpsProvider {
               {
                 ...extractDispatchIdentity(signed),
                 intent: `updateLeverage:${params.symbol}:${String(params.leverage)}`,
+                beforeDispatch: assertFreshMetadata,
               },
             );
           }
@@ -8333,6 +8380,7 @@ export class LighterProvider implements PerpsProvider {
             this.#assertSession(capturedGeneration);
             // Recheck aggregate remaining exposure after each accepted child.
             const nonce = await nextNonce();
+            await assertFreshMetadata();
             const signed = await this.#getSignerBridge().execute({
               function: '_signCreateOrder',
               params: [
@@ -8402,6 +8450,7 @@ export class LighterProvider implements PerpsProvider {
                     capturedGeneration,
                     rung.clientOrderId,
                   );
+                  await assertFreshMetadata();
                 },
                 onNotDispatched: async () => {
                   rung.state = 'prepared';

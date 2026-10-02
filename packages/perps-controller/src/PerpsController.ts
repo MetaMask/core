@@ -183,6 +183,7 @@ import {
 import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
 import { ensureError } from './utils/errorUtils.js';
 import { parseAssetName } from './utils/hyperLiquidAdapter.js';
+import { captureScaleOrderParams } from './utils/lighterScaleOrders.js';
 import {
   clonePerpsMarketData,
   compileMarketPattern,
@@ -3122,10 +3123,20 @@ export class PerpsController extends BaseController<
    * Place a new order
    * Thin delegation to TradingService
    *
-   * @param params - The operation parameters.
+   * @param input - The operation parameters.
    * @returns The order result with order ID and status.
    */
-  async placeOrder(params: OrderParams): Promise<OrderResult> {
+  async placeOrder(input: OrderParams): Promise<OrderResult> {
+    let params: OrderParams;
+    try {
+      params = captureScaleOrderParams(input);
+    } catch (error) {
+      return {
+        success: false,
+        error: ensureError(error, 'PerpsController.captureScaleOrderParams')
+          .message,
+      };
+    }
     const provider = await this.#resolveRoutedOrderProvider({
       orderType: params.orderType,
       providerId: params.providerId,
@@ -5432,12 +5443,22 @@ export class PerpsController extends BaseController<
   /**
    * Validate order parameters according to protocol-specific rules
    *
-   * @param params - The operation parameters.
+   * @param input - The operation parameters.
    * @returns True if the condition is met.
    */
   async validateOrder(
-    params: OrderParams,
+    input: OrderParams,
   ): Promise<{ isValid: boolean; error?: string }> {
+    let params: OrderParams;
+    try {
+      params = captureScaleOrderParams(input);
+    } catch (error) {
+      return {
+        isValid: false,
+        error: ensureError(error, 'PerpsController.captureScaleOrderParams')
+          .message,
+      };
+    }
     const provider = await this.#resolveRoutedOrderProvider({
       orderType: params.orderType,
       providerId: params.providerId,
