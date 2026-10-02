@@ -6142,6 +6142,10 @@ export class PerpsController extends BaseController<
    * - `NO_ACCOUNT_SELECTED` when no account is selected;
    * - `PROVIDER_LIFECYCLE_STALE` when the provider disconnected or the account
    * changed during setup;
+   * - the venue's message when HyperLiquid refused the builder fee approval
+   * for a reason signing again cannot fix (for example "Builder has
+   * insufficient balance to be approved"); it is not logged, and the
+   * approval is not asked for again until the provider disconnects;
    * - otherwise the message of the error that stopped setup, which is logged.
    * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
    * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
