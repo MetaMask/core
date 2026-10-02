@@ -13189,6 +13189,23 @@ describe('LighterProvider', () => {
         expect(migratedVenue.rawTriggers).toStrictEqual(
           originalVenue.rawTriggers,
         );
+        const manualKey = `lighterTpslManual:testnet:${sourceKey}`;
+        const manualIndexKey = 'lighterTpslManualIndex:testnet';
+        if (recoveryMode === 'read' && hasPrior) {
+          const warningBefore = await infra.diskCache.getItem(manualKey);
+          const indexBefore = await infra.diskCache.getItem(manualIndexKey);
+          expect(warningBefore).not.toBeNull();
+          expect(JSON.parse(indexBefore ?? '[]')).toContain(sourceKey);
+          const failed = await migrated.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '-1',
+          });
+          expect(failed.success).toBe(false);
+          expect(await infra.diskCache.getItem(manualKey)).toBe(warningBefore);
+          expect(await infra.diskCache.getItem(manualIndexKey)).toBe(
+            indexBefore,
+          );
+        }
         const cleared = await migrated.provider.updatePositionTPSL({
           symbol: 'BTC',
           stopLossPrice: replacement ? '85000' : undefined,
@@ -13212,6 +13229,36 @@ describe('LighterProvider', () => {
           await infra.diskCache.getItem('lighterNonceLedger:testnet:28:19'),
         ).toBe(ledgerBefore);
         await migrated.provider.disconnect();
+        expect(await infra.diskCache.getItem(manualKey)).toBeNull();
+        expect(
+          JSON.parse((await infra.diskCache.getItem(manualIndexKey)) ?? '[]'),
+        ).not.toContain(sourceKey);
+        const restarted = buildProvider({ platformDependencies: infra });
+        Object.assign(restarted.bridge, {
+          getRecoverableKeyIndices: async (): Promise<number[]> => [19, 7],
+        });
+        restarted.clientInstance.getApiKeys.mockResolvedValue({
+          code: 200,
+          apiKeys: [
+            { apiKeyIndex: 19, publicKey: 'ab'.repeat(40) },
+            { apiKeyIndex: 7, publicKey: '9c'.repeat(40) },
+          ],
+        });
+        const restartedVenue = setupTriggerVenue(
+          restarted.clientInstance,
+          restarted.bridge,
+        );
+        restartedVenue.rawTriggers.push(...migratedVenue.rawTriggers);
+        restartedVenue.setVenueNonce(migratedVenue.getVenueNonce());
+        expect((await restarted.provider.isReadyToTrade()).ready).toBe(true);
+        expect(
+          jest.mocked(restarted.bridge).createClient.mock.lastCall,
+        ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 7 })]);
+        expect(
+          await restarted.provider.getPendingManualRecoveries(),
+        ).toStrictEqual([]);
+        expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+        await restarted.provider.disconnect();
       },
     );
 
