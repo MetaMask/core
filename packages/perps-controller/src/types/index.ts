@@ -1131,8 +1131,13 @@ export type HyperLiquidCredentials = {
     account: PerpsAgentAccount,
   ) => Promise<PerpsAgentSigner | null>;
   /**
-   * Called when the venue rejects an agent as unknown (revoked or expired,
-   * for example after the user approved another unnamed agent). The provider
+   * Called when the venue rejects an agent (revoked or expired, for example
+   * after the user approved another agent under its name). The venue either
+   * names the agent as an unknown wallet or answers the request it signed
+   * with "Must deposit before performing actions"; the latter counts only
+   * when `extraAgents` no longer lists the agent, or lists it past its
+   * `validUntil` by this device's clock. That list holds named agents, so
+   * approve the agent with a name. The provider
    * has dropped it, with a `setAgentSigner` binding to it, and the next L1
    * action asks `getAgentSigner` again, so re-check the approval before
    * answering. The rejected action failed with `KEYRING_LOCKED`. It gets the
@@ -2697,10 +2702,10 @@ export type PerpsAccountSigner = {
    * Sign EIP-712 typed data as `address`, exactly as given. HyperLiquid's
    * `domain.chainId` is not the wallet's connected chain: L1 actions signed
    * without an agent use 1337, and user-signed actions (builder fee,
-   * withdraw, ...) use 1. A wallet that only signs for its connected chain
-   * (many EIP-1193 wallets) must route L1 actions through an agent (see
-   * `providerCredentials.hyperliquid.getAgentSigner`) and still has to sign
-   * user-signed actions with chain ID 1.
+   * withdraw, ...) use 1 unless `getChainId` is set. A wallet that only signs
+   * for its connected chain (many EIP-1193 wallets) must route L1 actions
+   * through an agent (see `providerCredentials.hyperliquid.getAgentSigner`)
+   * and set `getChainId`.
    *
    * @param address - The account that signs.
    * @param payload - The typed data to sign.
@@ -2732,6 +2737,16 @@ export type PerpsAccountSigner = {
    * omitted, the selected account's keyring type decides.
    */
   requiresSignatureConfirmation?(): boolean;
+
+  /**
+   * The chain the signer signs for, such as a browser wallet's connected
+   * chain. HyperLiquid user-signed actions are then signed for it instead of
+   * chain 1, so the wallet does not switch chains to sign them. Read at
+   * every user-signed action.
+   *
+   * @returns The chain ID.
+   */
+  getChainId?(): Promise<number>;
 };
 
 /**
