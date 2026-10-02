@@ -1005,7 +1005,7 @@ describe('LighterProvider', () => {
     );
 
     it.each(['nonce', 'hash', 'expiry', 'kind', 'owner'] as const)(
-      'attached06 refuses fresh complete acceptance against a same-intent ledger with different %s',
+      'refuses fresh complete acceptance against a same-intent ledger with different %s',
       async (mismatch) => {
         const { disk, infrastructure } = durableInfrastructure();
         const built = buildProvider({
@@ -1094,7 +1094,7 @@ describe('LighterProvider', () => {
     );
 
     it.each(['bounded-history', 'recorded-id', 'partial-leg'] as const)(
-      'attached06 refuses exact failed retirement with %s',
+      'refuses exact failed retirement with %s',
       async (evidence) => {
         const { disk, infrastructure } = durableInfrastructure();
         const built = buildProvider({
@@ -1168,7 +1168,7 @@ describe('LighterProvider', () => {
       },
     );
 
-    it('attached06 keeps a local terminal group unchanged while reviewing another group', async () => {
+    it('keeps a local terminal group unchanged while reviewing another group', async () => {
       const { disk, infrastructure } = durableInfrastructure();
       const built = buildProvider({
         platformDependencies: infrastructure,
@@ -1203,7 +1203,7 @@ describe('LighterProvider', () => {
       );
     });
 
-    it('attached06 clears retained nonacceptance when only one exact leg appears', async () => {
+    it('clears retained nonacceptance when only one exact leg appears', async () => {
       const { disk, infrastructure } = durableInfrastructure();
       const built = buildProvider({
         platformDependencies: infrastructure,

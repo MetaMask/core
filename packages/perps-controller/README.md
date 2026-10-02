@@ -282,8 +282,8 @@ explicit budget. Missing orders or linkage stay unknown. A successful
 submission reports acceptance, not activation, a fill, or protected quantity.
 If a pending `placeAttached:` dispatch blocks writes, call
 `reviewAttachedOrderGroups` to refresh exact venue evidence, then
-`reconcileRecoveredDispatches` and acknowledge only a resolved outcome. A pending,
-non-acknowledgeable dispatch cannot be cleared by acknowledgment alone.
+`reconcileRecoveredDispatches` and acknowledge only a resolved outcome. A
+pending, non-acknowledgeable dispatch cannot be cleared by acknowledgment alone.
 
 Pass the exact `groupId` as `cancelOrder.orderId`, with its symbol and
 provider, to cancel the owned parent and children. Cancellation rereads exact
