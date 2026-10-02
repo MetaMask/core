@@ -86,7 +86,10 @@ export type ProfileServiceCheckUsernameAvailabilityAction = {
 
 /**
  * Fetches the X OAuth PKCE authorization URL and its associated state parameter.
+ * The profile is resolved server-side from the verified bearer token.
  *
+ * @param linkedAddress - Optional CAIP-10 account ID to link to the profile
+ * when it does not exist yet; sent as the `linked_address` query parameter.
  * @returns An object containing the authorization URL and the state token.
  * @throws {HttpError} If the API returns a non-2xx response.
  * @throws {StructError} If the response does not match the expected shape.
@@ -98,9 +101,12 @@ export type ProfileServiceGetXAuthUrlAction = {
 
 /**
  * Completes the X OAuth PKCE flow and links the X account to the profile.
+ * The backend creates the profile if it does not exist yet (username derived
+ * from the X handle) and reports that via `profile_created`.
  *
  * @param params - The OAuth callback code and state from the X redirect.
- * @returns The linked X account data.
+ * @returns The linked X account data, plus `profile_created` when the
+ * backend created the profile during the connect.
  * @throws {HttpError} If the API returns a non-2xx response.
  * @throws {StructError} If the response does not match the expected shape.
  */
@@ -111,6 +117,7 @@ export type ProfileServiceConnectXAction = {
 
 /**
  * Fetches the X account currently linked to the authenticated profile.
+ * The profile is resolved server-side from the verified bearer token.
  *
  * @returns The linked X account data.
  * @throws {HttpError} If the API returns a non-2xx response.
@@ -119,6 +126,18 @@ export type ProfileServiceConnectXAction = {
 export type ProfileServiceGetXAccountAction = {
   type: `ProfileService:getXAccount`;
   handler: ProfileService['getXAccount'];
+};
+
+/**
+ * Disconnects the X account linked to the given profile.
+ *
+ * @param profileId - The ID of the profile to disconnect the linked X account from.
+ * @returns The result of the mutation.
+ * @throws {HttpError} If the API returns a non-2xx response.
+ */
+export type ProfileServiceDisconnectXAction = {
+  type: `ProfileService:disconnectX`;
+  handler: ProfileService['disconnectX'];
 };
 
 /**
@@ -133,4 +152,5 @@ export type ProfileServiceMethodActions =
   | ProfileServiceCheckUsernameAvailabilityAction
   | ProfileServiceGetXAuthUrlAction
   | ProfileServiceConnectXAction
-  | ProfileServiceGetXAccountAction;
+  | ProfileServiceGetXAccountAction
+  | ProfileServiceDisconnectXAction;

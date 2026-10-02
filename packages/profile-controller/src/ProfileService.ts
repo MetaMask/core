@@ -22,6 +22,7 @@ import {
 import type { Infer } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
 import { CaipAccountIdStruct } from '@metamask/utils';
+import type { CaipAccountId } from '@metamask/utils';
 
 import type { ProfileServiceMethodActions } from './ProfileService-method-action-types.js';
 
@@ -43,6 +44,7 @@ export const ProfileServiceErrorMessage = {
   GET_X_AUTH_URL_FAILED: 'ProfileService: failed to get X authentication URL',
   CONNECT_X_FAILED: 'ProfileService: failed to connect X account',
   GET_X_ACCOUNT_FAILED: 'ProfileService: failed to get X account',
+  DISCONNECT_X_FAILED: 'ProfileService: failed to disconnect X account',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -91,6 +93,17 @@ const XConnectResponseStruct = structType({
   created_at: string(),
   updated_at: string(),
 });
+
+/**
+ * Response shape for POST /v1/profiles/x/connect: the linked X account plus
+ * `profile_created`, indicating whether the backend created the MetaMask
+ * profile during the connect. Optional so older backends that do not send
+ * the field still validate.
+ */
+const ConnectXResponseStruct = intersection([
+  XConnectResponseStruct,
+  structType({ profile_created: optional(boolean()) }),
+]);
 
 const CreateProfileResponseStruct = intersection([
   ProfileApiResponseStruct,
@@ -144,6 +157,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getXAuthUrl',
   'connectX',
   'getXAccount',
+  'disconnectX',
 ] as const;
 
 /** The shape of a profile returned by the MetaMask Profile API. */
@@ -159,6 +173,9 @@ export type UsernameAvailabilityResponse = Infer<
 
 /** The response shape returned when connecting or fetching an X account. */
 export type XConnectResponse = Infer<typeof XConnectResponseStruct>;
+
+/** The response shape returned when completing the X connect flow. */
+export type ConnectXResponse = Infer<typeof ConnectXResponseStruct>;
 
 /** The response shape returned when requesting the X OAuth authentication URL. */
 export type XAuthUrlResponse = Infer<typeof XAuthUrlResponseStruct>;
@@ -478,36 +495,45 @@ export class ProfileService extends BaseDataService<
 
   /**
    * Fetches the X OAuth PKCE authorization URL and its associated state parameter.
+   * The profile is resolved server-side from the verified bearer token.
    *
+   * @param linkedAddress - Optional CAIP-10 account ID to link to the profile
+   * when it does not exist yet; sent as the `linked_address` query parameter.
    * @returns An object containing the authorization URL and the state token.
    * @throws {HttpError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
-  async getXAuthUrl(): Promise<XAuthUrlResponse> {
+  async getXAuthUrl(linkedAddress?: CaipAccountId): Promise<XAuthUrlResponse> {
     return this.executeMutation({
       mutationKey: [`${this.name}:getXAuthUrl`],
       responseStruct: XAuthUrlResponseStruct,
       mutationFn: async () =>
         this.#fetch<XAuthUrlResponse>('profiles/x/authentication-url', {
           error: ProfileServiceErrorMessage.GET_X_AUTH_URL_FAILED,
+          ...(linkedAddress === undefined
+            ? {}
+            : { searchParams: { linked_address: linkedAddress } }),
         }),
     });
   }
 
   /**
    * Completes the X OAuth PKCE flow and links the X account to the profile.
+   * The backend creates the profile if it does not exist yet (username derived
+   * from the X handle) and reports that via `profile_created`.
    *
    * @param params - The OAuth callback code and state from the X redirect.
-   * @returns The linked X account data.
+   * @returns The linked X account data, plus `profile_created` when the
+   * backend created the profile during the connect.
    * @throws {HttpError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
-  async connectX(params: ConnectXParams): Promise<XConnectResponse> {
+  async connectX(params: ConnectXParams): Promise<ConnectXResponse> {
     return this.executeMutation({
       mutationKey: [`${this.name}:connectX`],
-      responseStruct: XConnectResponseStruct,
+      responseStruct: ConnectXResponseStruct,
       mutationFn: async () =>
-        this.#fetch<XConnectResponse>('profiles/x/connect', {
+        this.#fetch<ConnectXResponse>('profiles/x/connect', {
           method: 'POST',
           error: ProfileServiceErrorMessage.CONNECT_X_FAILED,
           json: params,
@@ -517,6 +543,7 @@ export class ProfileService extends BaseDataService<
 
   /**
    * Fetches the X account currently linked to the authenticated profile.
+   * The profile is resolved server-side from the verified bearer token.
    *
    * @returns The linked X account data.
    * @throws {HttpError} If the API returns a non-2xx response.
@@ -530,6 +557,24 @@ export class ProfileService extends BaseDataService<
       queryFn: async () =>
         this.#fetch<XConnectResponse>('profiles/x/account', {
           error: ProfileServiceErrorMessage.GET_X_ACCOUNT_FAILED,
+        }),
+    });
+  }
+
+  /**
+   * Disconnects the X account linked to the given profile.
+   *
+   * @param profileId - The ID of the profile to disconnect the linked X account from.
+   * @returns The result of the mutation.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   */
+  async disconnectX(profileId: string): Promise<void> {
+    return this.executeMutation({
+      mutationKey: [`${this.name}:disconnectX`, profileId],
+      mutationFn: async () =>
+        this.#fetch(`profiles/${encodeURIComponent(profileId)}/x`, {
+          method: 'DELETE',
+          error: ProfileServiceErrorMessage.DISCONNECT_X_FAILED,
         }),
     });
   }
