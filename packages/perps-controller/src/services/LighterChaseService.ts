@@ -11,6 +11,7 @@ import {
 import type { Infer } from '@metamask/superstruct';
 import { BigNumber } from 'bignumber.js';
 
+import { BASIS_POINTS_DIVISOR } from '../constants/hyperLiquidConfig.js';
 import {
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
   LIGHTER_MAX_MARKET_ID,
@@ -256,7 +257,7 @@ export class LighterChaseService {
     PerpsPlatformDependencies['diskCache'],
     'getItem' | 'setItem'
   >;
-  readonly #active = new Map<string, number>();
+  readonly #active = new Map<string, { epoch: number; symbol: string }>();
   #epoch = 0;
   readonly #stopRequests = new Map<string, ChaseOrderStatus>();
 
@@ -290,8 +291,13 @@ export class LighterChaseService {
    * Disable this handle's continuation before queued discovery or cleanup.
    *
    * @param handle - Requested exact handle; ownership is validated by stop.
+   * @param symbol - Optional requested symbol, checked against active metadata before interruption.
    */
-  interruptHandle(handle: string): void {
+  interruptHandle(handle: string, symbol?: string): void {
+    const active = this.#active.get(handle);
+    if (active && symbol !== undefined && active.symbol !== symbol) {
+      throw new Error('Lighter Chase active handle symbol mismatch');
+    }
     if (this.#active.has(handle) && !this.#stopRequests.has(handle)) {
       this.#stopRequests.set(handle, 'canceled');
     }
@@ -407,7 +413,7 @@ export class LighterChaseService {
   #running(record: LighterChaseRecord): void {
     if (
       record.status !== 'active' ||
-      this.#active.get(record.intent.handle) !== this.#epoch
+      this.#active.get(record.intent.handle)?.epoch !== this.#epoch
     ) {
       throw new Error(
         'Lighter Chase session was interrupted; never resume automatically',
@@ -581,7 +587,7 @@ export class LighterChaseService {
       : original.minus(quote);
     if (
       adverse
-        .times(LIGHTER_CHASE_MAX_DISTANCE_BPS)
+        .times(BASIS_POINTS_DIVISOR)
         .gt(original.times(record.intent.maxDistanceBps))
     ) {
       throw new Error('Lighter Chase maximum distance reached');
@@ -813,7 +819,7 @@ export class LighterChaseService {
       };
       journal.records.push(record);
       await this.#write(captured.owner, journal, io);
-      this.#active.set(captured.handle, epoch);
+      this.#active.set(captured.handle, { epoch, symbol: captured.symbol });
       try {
         const price = await io.quote();
         io.assertCurrent();
@@ -855,7 +861,7 @@ export class LighterChaseService {
       }
       if (
         record.status !== 'active' ||
-        this.#active.get(handle) !== this.#epoch
+        this.#active.get(handle)?.epoch !== this.#epoch
       ) {
         this.#active.delete(handle);
         return this.#visible(record);
@@ -918,7 +924,7 @@ export class LighterChaseService {
           : arrival.minus(amount(price));
         if (
           adverse
-            .times(LIGHTER_CHASE_MAX_DISTANCE_BPS)
+            .times(BASIS_POINTS_DIVISOR)
             .gt(arrival.times(record.intent.maxDistanceBps))
         ) {
           await this.#stop(record, journal, io, 'max_distance_reached');
@@ -944,7 +950,7 @@ export class LighterChaseService {
         record.error = error instanceof Error ? error.message : String(error);
         if (
           error instanceof LighterChaseObservationPendingError &&
-          this.#active.get(handle) === this.#epoch &&
+          this.#active.get(handle)?.epoch === this.#epoch &&
           !expired()
         ) {
           await this.#write(owner, journal, io);
@@ -1026,7 +1032,7 @@ export class LighterChaseService {
   #visible(record: LighterChaseRecord): LighterChaseRecord {
     if (
       record.status === 'active' &&
-      this.#active.get(record.intent.handle) !== this.#epoch
+      this.#active.get(record.intent.handle)?.epoch !== this.#epoch
     ) {
       record.status = 'termination_pending';
     }
@@ -1107,7 +1113,7 @@ export function toLighterChaseOrder(record: LighterChaseRecord): ChaseOrder {
       : (child?.observation?.orderId ?? null),
     distanceChasedBps: BigNumber.maximum(
       0,
-      adverse.div(arrival).times(LIGHTER_CHASE_MAX_DISTANCE_BPS),
+      adverse.div(arrival).times(BASIS_POINTS_DIVISOR),
     )
       .integerValue(BigNumber.ROUND_HALF_UP)
       .toNumber(),

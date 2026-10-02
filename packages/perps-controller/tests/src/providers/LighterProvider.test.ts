@@ -21782,6 +21782,338 @@ describe('Lighter bounded Chase provider probe', () => {
     orderType: 'chase';
     providerId: 'lighter';
   } => ({ symbol: 'BTC', orderId, orderType: 'chase', providerId: 'lighter' });
+  it.each(['preparation', 'readiness', 'account exclusion'] as const)(
+    'rejects a Chase start suspended during deferred %s before service registration',
+    async (boundary) => {
+      const deps = diskDependencies();
+      const built = setup({ platformDependencies: deps });
+      const entered = createDeferred<void>();
+      const pending = createDeferred<void>();
+      if (boundary === 'preparation') {
+        const original =
+          built.clientInstance.getOrderBookOrders.getMockImplementation() as
+            | LighterClientService['getOrderBookOrders']
+            | undefined;
+        if (!original) {
+          throw new Error('Missing book implementation');
+        }
+        built.clientInstance.getOrderBookOrders.mockImplementationOnce(
+          async (
+            ...args: Parameters<LighterClientService['getOrderBookOrders']>
+          ) => {
+            entered.resolve();
+            await pending.promise;
+            return await original(...args);
+          },
+        );
+      } else if (boundary === 'readiness') {
+        const original = jest
+          .spyOn(built.bridge, 'createClient')
+          .getMockImplementation();
+        if (!original) {
+          throw new Error('Missing signer readiness implementation');
+        }
+        jest
+          .spyOn(built.bridge, 'createClient')
+          .mockImplementationOnce(async (params) => {
+            entered.resolve();
+            await pending.promise;
+            return await original(params);
+          });
+      } else {
+        const original = jest
+          .spyOn(deps.diskCache, 'getItem')
+          .getMockImplementation();
+        if (!original) {
+          throw new Error('Missing disk read implementation');
+        }
+        jest
+          .spyOn(deps.diskCache, 'getItem')
+          .mockImplementation(async (key) => {
+            if (key.startsWith('lighterNativeTwap:')) {
+              entered.resolve();
+              await pending.promise;
+            }
+            return await original(key);
+          });
+      }
+      try {
+        const starting = built.provider.placeOrder(intent);
+        await entered.promise;
+        expect(await built.provider.suspendChaseOrders()).toStrictEqual([]);
+        pending.resolve();
+
+        const result = await starting;
+
+        expect(result).toMatchObject({
+          success: false,
+          error: expect.stringContaining('interrupted') as string,
+        });
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(0);
+        expect(await built.provider.getChaseOrders()).toStrictEqual([]);
+        expect((await built.provider.placeOrder(intent)).success).toBe(true);
+      } finally {
+        pending.resolve();
+        await built.provider.disconnect();
+      }
+    },
+  );
+  it('keeps a wrong-symbol Chase cancellation under its original duration owner', async () => {
+    jest.useFakeTimers();
+    const built = setup();
+    try {
+      const result = await built.provider.placeOrder({
+        ...intent,
+        chaseIntervalMs: 120000,
+        chaseMaxDurationMs: 180000,
+      });
+      if (!result.orderId) {
+        throw new Error('Missing Chase handle');
+      }
+
+      const refusal = await built.provider.cancelOrder({
+        ...cancelParams(result.orderId),
+        symbol: 'ETH',
+      });
+
+      expect(refusal.success).toBe(false);
+      expect((await built.provider.getChaseOrders())[0]).toMatchObject({
+        status: 'active',
+        restingOrderId: '9001',
+      });
+      expect(
+        built.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      await jest.advanceTimersByTimeAsync(179999);
+      expect(
+        built.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(
+        built.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(1);
+      expect(
+        built.calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(1);
+      expect((await built.provider.getNativeChaseRecords())[0]).toMatchObject({
+        status: 'canceled',
+        stopReason: 'duration_reached',
+      });
+    } finally {
+      await built.provider.disconnect();
+      jest.useRealTimers();
+    }
+  });
+  const restartAbsentChase = async (
+    state: 'empty' | 'retained' | 'other-wallet' | 'other-network',
+  ): Promise<BuiltProvider> => {
+    const deps = diskDependencies();
+    if (state !== 'empty') {
+      const original = setup({
+        platformDependencies: deps,
+        configuredAccountIndex: null,
+      });
+      const result = await original.provider.placeOrder(intent);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      await original.provider.disconnect();
+    }
+    const restarted = buildProvider({
+      platformDependencies: deps,
+      configuredAccountIndex: null,
+      isTestnet: state !== 'other-network',
+    });
+    if (state === 'other-wallet') {
+      restarted.getUserAddressMock.mockReturnValue('0xother');
+    }
+    restarted.clientInstance.getAccountsByL1Address.mockResolvedValue({
+      code: 200,
+      l1Address: ACCOUNT.l1Address,
+      subAccounts: [],
+    });
+    return restarted;
+  };
+  it('preserves remembered Chase ownership after absent-account restart: retained', async () => {
+    const restarted = await restartAbsentChase('retained');
+    try {
+      const orders = await restarted.provider.getChaseOrders();
+      const suspended = await restarted.provider.suspendChaseOrders();
+
+      expect(orders).toHaveLength(1);
+      expect(orders[0]).toMatchObject({
+        status: 'termination_pending',
+        restingOrderId: '9001',
+      });
+      expect(suspended).toHaveLength(1);
+      expect(suspended[0]).toMatchObject({
+        handle: orders[0].handle,
+        status: 'termination_pending',
+        restingOrderId: '9001',
+      });
+      const cancellation = await restarted.provider.cancelOrder(
+        cancelParams(orders[0].handle),
+      );
+      expect(cancellation).toMatchObject({
+        success: false,
+        error: expect.any(String) as string,
+      });
+      expect(
+        (await restarted.provider.getNativeChaseRecords())[0].stopReason,
+      ).toBe('backgrounded');
+      expect(restarted.calls).toHaveLength(0);
+      expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(restarted.clientInstance.getApiKeys).not.toHaveBeenCalled();
+    } finally {
+      await restarted.provider.disconnect();
+    }
+  });
+  it.each(['empty', 'other-wallet', 'other-network'] as const)(
+    'isolates remembered Chase ownership after absent-account restart: %s',
+    async (state) => {
+      const restarted = await restartAbsentChase(state);
+      try {
+        const orders = await restarted.provider.getChaseOrders();
+        const suspended = await restarted.provider.suspendChaseOrders();
+
+        expect(orders).toStrictEqual([]);
+        expect(suspended).toStrictEqual([]);
+        expect(restarted.calls).toHaveLength(0);
+        expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(restarted.clientInstance.getApiKeys).not.toHaveBeenCalled();
+      } finally {
+        await restarted.provider.disconnect();
+      }
+    },
+  );
+  it.each(['malformed JSON', 'duplicate identity', 'unreadable'] as const)(
+    'refuses a %s remembered Chase identity after absent-account restart',
+    async (state) => {
+      const deps = diskDependencies();
+      const key = `lighterRecoveryAccounts:testnet:${ACCOUNT.l1Address.toLowerCase()}`;
+      await deps.diskCache.setItem(
+        key,
+        state === 'malformed JSON' ? '{' : JSON.stringify([28, 28]),
+      );
+      if (state === 'unreadable') {
+        const original = jest
+          .spyOn(deps.diskCache, 'getItem')
+          .getMockImplementation();
+        if (!original) {
+          throw new Error('Missing disk read implementation');
+        }
+        jest
+          .spyOn(deps.diskCache, 'getItem')
+          .mockImplementation(async (name) => {
+            if (name === key) {
+              throw new Error('remembered Chase identity storage unavailable');
+            }
+            return await original(name);
+          });
+      }
+      const built = buildProvider({
+        platformDependencies: deps,
+        configuredAccountIndex: null,
+      });
+      built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [],
+      });
+      const expected = {
+        'malformed JSON': /JSON|property|position/u,
+        'duplicate identity': 'recovery account index is corrupt',
+        unreadable: 'remembered Chase identity storage unavailable',
+      }[state];
+      try {
+        await expect(built.provider.getChaseOrders()).rejects.toThrow(expected);
+        await expect(built.provider.suspendChaseOrders()).rejects.toThrow(
+          expected,
+        );
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(built.clientInstance.getApiKeys).not.toHaveBeenCalled();
+      } finally {
+        await built.provider.disconnect();
+      }
+    },
+  );
+  it.each(['settled', 'later-settled', 'unresolved'] as const)(
+    'reports the requested Chase cleanup independently of its earlier failure: %s',
+    async (state) => {
+      jest.useFakeTimers();
+      const built = setup();
+      const original =
+        built.clientInstance.getOrdersByClientIds.getMockImplementation() as
+          | ExactLookup
+          | undefined;
+      if (!original) {
+        throw new Error('Missing exact child implementation');
+      }
+      let terminal = state === 'settled';
+      built.clientInstance.getOrdersByClientIds.mockImplementation(
+        async (...args: Parameters<ExactLookup>) => {
+          const response = await original(...args);
+          return terminal
+            ? response
+            : {
+                ...response,
+                orders: response.orders.map((order) => ({
+                  ...order,
+                  status: 'open',
+                })),
+              };
+        },
+      );
+      try {
+        const placed = await built.provider.placeOrder(intent);
+        if (!placed.orderId) {
+          throw new Error('Missing handle');
+        }
+        built.clientInstance.getOrderBookOrders.mockRejectedValue(
+          new Error('quote unavailable'),
+        );
+        await jest.advanceTimersByTimeAsync(1000);
+        const before = (await built.provider.getNativeChaseRecords())[0];
+        expect(before.stopReason).toBe('failed');
+        if (state === 'later-settled') {
+          terminal = true;
+        }
+
+        const receipt = await built.provider.cancelOrder(
+          cancelParams(placed.orderId),
+        );
+
+        const after = (await built.provider.getNativeChaseRecords())[0];
+        expect(after.stopReason).toBe('failed');
+        const pendingError =
+          'Lighter Chase exact cancellation remains unresolved';
+        expect(receipt).toStrictEqual({
+          success: state !== 'unresolved',
+          orderId: placed.orderId,
+          providerId: 'lighter',
+          ...(state === 'unresolved' ? { error: pendingError } : {}),
+        });
+        expect(after.status).toBe(
+          state === 'unresolved' ? 'termination_pending' : 'failed',
+        );
+        expect(after.error).toBe(
+          state === 'unresolved' ? pendingError : before.error,
+        );
+        expect((await built.provider.getChaseOrders())[0].restingOrderId).toBe(
+          state === 'unresolved' ? '9001' : null,
+        );
+        expect(
+          built.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(1);
+      } finally {
+        await built.provider.disconnect();
+        jest.useRealTimers();
+      }
+    },
+  );
   it.each(['absent', 'unbound'] as const)(
     'returns empty default-off Chase management for an %s wallet',
     async (state) => {

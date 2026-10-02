@@ -1420,6 +1420,7 @@ export class LighterProvider implements PerpsProvider {
   readonly #chaseService: LighterChaseService;
   readonly #chaseTestnetProbe: boolean;
   readonly #chaseTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  #chaseGeneration = 0;
 
   readonly #walletService: LighterWalletService;
 
@@ -8204,6 +8205,7 @@ export class LighterProvider implements PerpsProvider {
   }
 
   #interruptChase(reason?: ChaseOrderStatus): void {
+    this.#chaseGeneration += 1;
     this.#chaseService.interrupt(reason);
     for (const timer of this.#chaseTimers.values()) {
       clearTimeout(timer);
@@ -8830,16 +8832,23 @@ export class LighterProvider implements PerpsProvider {
     const params = { ...input };
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
+    const chaseGeneration = this.#chaseGeneration;
+    const assertStartCurrent = (): void => {
+      this.#assertSession(generation);
+      if (chaseGeneration !== this.#chaseGeneration) {
+        throw new Error('Lighter Chase start interrupted during preparation');
+      }
+    };
     const intent = await this.#prepareChaseIntent({ ...params }, generation);
-    this.#assertSession(generation);
+    assertStartCurrent();
     await this.#ensureSignerReady();
-    this.#assertSession(generation);
+    assertStartCurrent();
     // Read the reference, clock and exposure only after signing readiness.
     const freshIntent = await this.#prepareChaseIntent(
       { ...params },
       generation,
     );
-    this.#assertSession(generation);
+    assertStartCurrent();
     Object.assign(intent, freshIntent);
     intent.owner = this.#chaseOwner(intent.owner.accountIndex);
     intent.handle = `lighter-chase:${this.#allocateClientOrderIndexes(1)[0]}`;
@@ -8849,9 +8858,12 @@ export class LighterProvider implements PerpsProvider {
         intent.owner,
         'chase',
         generation,
-        async () => await this.#chaseService.start(intent, io),
+        async () => {
+          assertStartCurrent();
+          return await this.#chaseService.start(intent, io);
+        },
       );
-      this.#assertSession(generation);
+      assertStartCurrent();
       this.#scheduleChase(record, io, generation);
       const current = record.children.at(-1);
       const filled = new BigNumber(record.executedSize);
@@ -8896,9 +8908,21 @@ export class LighterProvider implements PerpsProvider {
    * @returns Exact recorded cleanup identities and public observation state.
    */
   async getNativeChaseRecords(): Promise<LighterChaseRecord[]> {
+    return (await this.#chaseInventory()).records;
+  }
+
+  /**
+   * Keep remembered local obligations visible when current venue authority is absent.
+   *
+   * @returns Wallet/network-scoped records and availability of current venue authority.
+   */
+  async #chaseInventory(): Promise<{
+    records: LighterChaseRecord[];
+    canReconcile: boolean;
+  }> {
     this.#ensureSessionBinding();
     if (!this.#boundAddress) {
-      return [];
+      return { records: [], canReconcile: false };
     }
     const generation = this.#sessionGeneration;
     let account: number;
@@ -8906,14 +8930,75 @@ export class LighterProvider implements PerpsProvider {
       account = await this.#ensureAccountIndex();
     } catch (error) {
       if (error instanceof LighterAccountNotFoundError) {
-        return [];
+        this.#assertSession(generation);
+        const remembered = await this.#readRememberedRecoveryAccounts();
+        this.#assertSession(generation);
+        const records: LighterChaseRecord[] = [];
+        for (const index of remembered) {
+          if (
+            this.#configuredAccountIndex !== undefined &&
+            index !== this.#configuredAccountIndex
+          ) {
+            continue;
+          }
+          records.push(
+            ...(await this.#chaseService.list(this.#chaseOwner(index), {
+              assertCurrent: () => this.#assertSession(generation),
+            })),
+          );
+          this.#assertSession(generation);
+        }
+        return { records, canReconcile: false };
       }
       throw error;
     }
     this.#assertSession(generation);
-    return await this.#chaseService.list(this.#chaseOwner(account), {
+    const records = await this.#chaseService.list(this.#chaseOwner(account), {
       assertCurrent: () => this.#assertSession(generation),
     });
+    return { records, canReconcile: true };
+  }
+
+  /**
+   * Persist local stop intent without inventing venue authority or signing access.
+   *
+   * @param intent - Exact validated remembered record.
+   * @param generation - Issuing wallet/network session.
+   * @param canReconcile - Whether current venue account ownership is available.
+   * @returns Current provider I/O, or local-only I/O that refuses venue operations.
+   */
+  #chaseManagementIo(
+    intent: LighterChaseIntent,
+    generation: number,
+    canReconcile: boolean,
+  ): LighterChaseIo {
+    if (canReconcile) {
+      return this.#chaseIo(intent, generation);
+    }
+    const assertCurrent = (): void => {
+      this.#assertSession(generation);
+      if (
+        this.#boundAddress !== intent.owner.wallet ||
+        (this.#isTestnet ? 'testnet' : 'mainnet') !== intent.owner.network
+      ) {
+        throw new Error('Lighter Chase remembered owner changed');
+      }
+    };
+    const unavailable = (): never => {
+      assertCurrent();
+      throw new Error(
+        'Lighter Chase current venue authority is unavailable; remembered cleanup remains pending',
+      );
+    };
+    return {
+      assertCurrent,
+      now: () => Date.now(),
+      allocateClientId: unavailable,
+      quote: async () => unavailable(),
+      place: async () => unavailable(),
+      cancel: async () => unavailable(),
+      observe: async () => unavailable(),
+    };
   }
 
   /** @returns Provider-bound management state, including interrupted ownership. */
@@ -8924,7 +9009,7 @@ export class LighterProvider implements PerpsProvider {
   /** @returns Backgrounded sessions, or visible pending cleanup when uncertain. */
   async suspendChaseOrders(): Promise<ChaseOrder[]> {
     this.#interruptChase('backgrounded');
-    const records = await this.getNativeChaseRecords();
+    const { records, canReconcile } = await this.#chaseInventory();
     const generation = this.#sessionGeneration;
     const result: ChaseOrder[] = [];
     for (const record of records) {
@@ -8937,7 +9022,7 @@ export class LighterProvider implements PerpsProvider {
             await this.#chaseService.stop(
               record.intent.owner,
               record.intent.handle,
-              this.#chaseIo(record.intent, generation),
+              this.#chaseManagementIo(record.intent, generation, canReconcile),
               'backgrounded',
             ),
           ),
@@ -8953,13 +9038,13 @@ export class LighterProvider implements PerpsProvider {
     if (params.providerId !== undefined && params.providerId !== 'lighter') {
       throw new Error('Lighter Chase provider route mismatch');
     }
+    this.#chaseService.interruptHandle(params.orderId, params.symbol);
     const timer = this.#chaseTimers.get(params.orderId);
     if (timer) {
       clearTimeout(timer);
       this.#chaseTimers.delete(params.orderId);
     }
-    this.#chaseService.interruptHandle(params.orderId);
-    const records = await this.getNativeChaseRecords();
+    const { records, canReconcile } = await this.#chaseInventory();
     const record = records.find(
       (entry) =>
         entry.intent.handle === params.orderId &&
@@ -8971,16 +9056,24 @@ export class LighterProvider implements PerpsProvider {
     const result = await this.#chaseService.stop(
       record.intent.owner,
       record.intent.handle,
-      this.#chaseIo(record.intent, this.#sessionGeneration),
+      this.#chaseManagementIo(
+        record.intent,
+        this.#sessionGeneration,
+        canReconcile,
+      ),
       'canceled',
     );
+    const settled =
+      result.status !== 'active' &&
+      result.status !== 'termination_pending' &&
+      toLighterChaseOrder(result).restingOrderId === null;
     return {
-      success: result.status === 'canceled' || result.status === 'filled',
+      success: settled,
       orderId: record.intent.handle,
       providerId: 'lighter',
-      ...(result.status === 'termination_pending'
-        ? { error: result.error ?? 'Lighter Chase cleanup remains pending' }
-        : {}),
+      ...(settled
+        ? {}
+        : { error: result.error ?? 'Lighter Chase cleanup remains pending' }),
     };
   }
 

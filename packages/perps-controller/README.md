@@ -387,10 +387,16 @@ There are at most 64 retained sessions, 21 children per session and 16 cancel
 attempts per child; records are never silently pruned.
 
 `getChaseOrders()` returns provider-bound public state, or an empty list for an
-unbound wallet or a wallet without a Lighter account, including with the probe off.
+unbound or recordless wallet, including with the probe off. If current venue
+discovery reports no account, previously verified wallet/network journals remain
+visible. Suspension retains their pending cleanup locally without enabling venue
+reads, signing or registration.
 `getNativeChaseRecords()` exposes exact local cleanup identities for diagnostics.
 `cancelOrder({orderType: 'chase', orderId: handle, symbol, providerId: 'lighter'})`
-explicitly terminates an owned handle. `suspendChaseOrders()` interrupts in-flight
+explicitly terminates an owned handle. A wrong-symbol request leaves its active
+duration cleanup intact. Confirmed explicit cleanup succeeds even when the
+record retains an earlier failure cause and terminal status.
+`suspendChaseOrders()` interrupts starts waiting on setup as well as in-flight
 and scheduled continuation before attempting exact cleanup. This Lighter probe
 cancels the last child on backgrounding and duration, repricing or distance limits.
 Confirmed cleanup reports `canceled` with no resting order ID; the native record

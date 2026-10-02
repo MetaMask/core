@@ -10,10 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add the default-off testnet-only `chaseTestnetProbe` constructor option to `LighterProvider` for bounded, durable native Chase cancel/replace. Production strategy capabilities remain unavailable.
-- Implement Lighter `getChaseOrders`, `suspendChaseOrders` and `cancelOrder` with `orderType: 'chase'`. Unbound or absent accounts return empty management state. Confirmed cancel-on-stop reports `canceled`; native records retain the first `stopReason` and uncertain cleanup remains `termination_pending`.
+- Implement Lighter `getChaseOrders`, `suspendChaseOrders` and `cancelOrder` with `orderType: 'chase'`. Unbound or recordless absent accounts return empty management state; absent venue discovery retains remembered wallet/network cleanup obligations without signing authority. Confirmed cancel-on-stop reports `canceled`; native records retain the first `stopReason` and uncertain cleanup remains `termination_pending`.
 - Expose `LIGHTER_MAX_CLIENT_ORDER_INDEX`, `LIGHTER_NATIVE_PROBE_MAX_NOTIONAL` and `LIGHTER_CHASE_*` bounds/defaults through `constants/lighterConfig` for shared native identity and Chase policy validation.
 - Expose `utils/lighterChase.readLighterChaseQuote`, `reconcileLighterChaseChild` and `identifyLighterChaseChild` for native quotes, exact fill accounting and immutable child validation.
-- Reconcile failed or expired never-landed Chase transactions without releasing uncertain ownership. Keep accepted orders active through indexer lag, use absolute duration deadlines, and interrupt replacements synchronously when cancellation is requested. Retain TWAP exclusion when expired-placement order evidence is incomplete.
+- Reconcile failed or expired never-landed Chase transactions without releasing uncertain ownership. Keep accepted orders active through indexer lag, use absolute duration deadlines, and interrupt replacements synchronously when cancellation is requested. Retain TWAP exclusion when expired-placement order evidence is incomplete. Fence starts waiting on preparation, signer readiness or the account mutex when suspension occurs; preserve duration cleanup after a wrong-symbol cancellation. Report confirmed explicit cleanup independently of an earlier failed stop cause, and keep basis-point conversion independent of policy limits.
 
 - Support ordinary Lighter post-only limit placement with native TIF 2, fresh crossing checks and durable dispatch recovery; strategy capabilities remain unavailable
 
