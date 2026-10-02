@@ -2590,12 +2590,17 @@ export class LighterProvider implements PerpsProvider {
       survivingOrderIds: string[];
       actionNeeded: string;
     }[] = [];
-    const actionNeeded = (settlementKey: string): string => {
+    const actionNeeded = (
+      settlementKey: string,
+      intent: 'replace' | 'remove',
+    ): string => {
       if (currentSlotPrefix === null) {
         return 'Initialize the wallet trading key and review the position and recorded TP/SL orders. Reconcile each obligation under its original key before changing protection';
       }
       if (settlementKey.startsWith(currentSlotPrefix)) {
-        return 'Review the position and submit a new explicit TP/SL update for this symbol to re-establish protection';
+        return intent === 'remove'
+          ? 'Review surviving orders and submit a new explicit TP/SL removal if you still want to remove protection'
+          : 'Review the position and submit a new explicit TP/SL update for this symbol to re-establish protection';
       }
       return 'Review the position and recorded orders from the previous trading key in Lighter. A current-key TP/SL update does not clear this obligation; initialize the wallet trading key and reconcile the recorded orders before changing protection';
     };
@@ -2615,7 +2620,7 @@ export class LighterProvider implements PerpsProvider {
           reason: doc.reason,
           priorIntent: doc.priorIntent,
           survivingOrderIds: doc.survivingOrderIds,
-          actionNeeded: actionNeeded(settlementKey),
+          actionNeeded: actionNeeded(settlementKey, doc.priorIntent),
         });
       }
     }
@@ -2653,7 +2658,7 @@ export class LighterProvider implements PerpsProvider {
           reason,
           priorIntent: journal.intent,
           survivingOrderIds: [],
-          actionNeeded: actionNeeded(settlementKey),
+          actionNeeded: actionNeeded(settlementKey, journal.intent),
         });
       }
     }
@@ -3586,8 +3591,8 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
-   * Clear a manual-recovery record — called ONLY after a successor
-   * protection intent has authoritatively succeeded.
+   * Clear an obsolete manual-recovery record after an explicit protection
+   * intent succeeds, including a guarded removal settled during recovery.
    *
    * @param settlementKey - Settlement identity.
    */
@@ -4646,6 +4651,32 @@ export class LighterProvider implements PerpsProvider {
       }
     }
     if (journalEntry.phase === 'manual') {
+      if (
+        journalEntry.intent === 'remove' &&
+        !journalEntry.priorTriggers.some(priorActive)
+      ) {
+        // Reconciliation above settled every actual attempt. Confirm the
+        // removed targets remain absent in a fresh complete book before
+        // retiring their obligation, without authorizing another cancel.
+        const settledActive = await readActiveRaw();
+        if (
+          journalEntry.priorTriggers.some((prior) =>
+            settledActive.some(
+              (order) => String(order.orderIndex) === prior.orderId,
+            ),
+          )
+        ) {
+          return false;
+        }
+        // Clear the obsolete warning first: if storage fails, the journal
+        // survives so a later read/restart can finish this same cleanup.
+        await this.#clearTpslManualRecovery(settlementKey);
+        return await this.#clearTpslJournal(
+          settlementKey,
+          journalEntry.operationId,
+          settledActive,
+        );
+      }
       // Reconciled manual journals release only their settlement slot.
       // Keep surviving protection in the durable warning for explicit action.
       return await parkManual(

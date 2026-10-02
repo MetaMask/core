@@ -7065,8 +7065,91 @@ describe('LighterProvider', () => {
     });
 
     it.each(['read', 'restart'] as const)(
-      'parks a partially dispatched removal after position resize during the second signature, then %s recovery',
+      'clears fully dispatched guarded removal after foreground book timeout and %s recovery',
       async (recoveryMode) => {
+        const infra = createMockInfrastructure();
+        const original = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = setupTriggerVenue(
+          original.clientInstance,
+          original.bridge,
+        );
+        venue.seedTrigger('take-profit', '110000');
+        venue.seedTrigger('stop-loss', '80000');
+        const initialOrders = venue.rawTriggers.map((row) => ({ ...row }));
+        venue.setRestLag(100);
+        const result = await original.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          expectedPosition: {
+            size: ACCOUNT.positions[0].position,
+            entryPrice: ACCOUNT.positions[0].avgEntryPrice,
+          },
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('settlement is not yet visible');
+        expect(original.clientInstance.sendTx).toHaveBeenCalledTimes(2);
+        expect(venue.rawTriggers).toStrictEqual([]);
+        const settlementKey = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
+        const journalKey = `lighterTpslJournal:testnet:${settlementKey}`;
+        expect(await infra.diskCache.getItem(journalKey)).not.toBeNull();
+        let recovering = original;
+        let recoveryVenue = venue;
+        if (recoveryMode === 'restart') {
+          await original.provider.disconnect();
+          recovering = buildProvider({
+            platformDependencies: infra,
+            registeredKey: '9c'.repeat(40),
+          });
+          recoveryVenue = setupTriggerVenue(
+            recovering.clientInstance,
+            recovering.bridge,
+          );
+          recoveryVenue.setVenueNonce(venue.getVenueNonce());
+          for (const [hash, transaction] of venue.landedTxs) {
+            recoveryVenue.landedTxs.set(hash, transaction);
+          }
+        }
+        recoveryVenue.primeLag(initialOrders, 100);
+        const submissions = recovering.clientInstance.sendTx.mock.calls.length;
+        await recovering.provider.getOpenOrders();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(await infra.diskCache.getItem(journalKey)).not.toBeNull();
+        expect(recovering.clientInstance.sendTx).toHaveBeenCalledTimes(
+          submissions,
+        );
+        // All attempts have landed, but recovery must retain ownership while
+        // their target orders are still visible in the lagging venue read.
+        recoveryVenue.setRestLag(0);
+        recoveryVenue.primeLag([], 0);
+        for (let attempt = 0; attempt < 40; attempt += 1) {
+          await recovering.provider.getOpenOrders();
+          if ((await infra.diskCache.getItem(journalKey)) === null) {
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        expect(await infra.diskCache.getItem(journalKey)).toBeNull();
+        expect(
+          await recovering.provider.getPendingManualRecoveries(),
+        ).toStrictEqual([]);
+        expect(recovering.clientInstance.sendTx).toHaveBeenCalledTimes(
+          submissions,
+        );
+        expect(recoveryVenue.rawTriggers).toStrictEqual([]);
+        await recovering.provider.disconnect();
+      },
+    );
+
+    it.each([
+      ['read', 'resize'],
+      ['restart', 'resize'],
+      ['read', 'entry-drift'],
+      ['restart', 'entry-drift'],
+    ] as const)(
+      'parks a partially dispatched removal with %s recovery after %s during the second signature',
+      async (recoveryMode, change) => {
         const infra = createMockInfrastructure();
         const original = buildProvider({
           platformDependencies: infra,
@@ -7090,7 +7173,12 @@ describe('LighterProvider', () => {
             })),
           }),
         );
-        const livePosition = { ...ACCOUNT.positions[0], position: '0.2' };
+        const livePosition = {
+          ...ACCOUNT.positions[0],
+          ...(change === 'resize'
+            ? { position: '0.2' }
+            : { avgEntryPrice: '100001' }),
+        };
         const execute = jest.spyOn(original.bridge, 'execute');
         const implementation = execute.getMockImplementation();
         if (!implementation) {
@@ -7235,6 +7323,9 @@ describe('LighterProvider', () => {
               'position precondition failed',
             ) as string,
             survivingOrderIds: [String(survivingId)],
+            actionNeeded: expect.stringContaining(
+              'new explicit TP/SL removal',
+            ) as string,
           }),
         ]);
         const refreshed = await recovering.provider.updatePositionTPSL({
