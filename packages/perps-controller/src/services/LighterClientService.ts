@@ -1,4 +1,3 @@
-import type { Struct } from '@metamask/superstruct';
 /**
  * Lighter Client Service
  *
@@ -16,6 +15,8 @@ import type { Struct } from '@metamask/superstruct';
  * - GET  /api/v1/accountActiveOrders  open orders (auth token header)
  * - POST /api/v1/sendTx               submit signed L2 transaction
  */
+
+import type { Struct } from '@metamask/superstruct';
 import {
   array,
   assert,
@@ -30,7 +31,7 @@ import {
 } from '@metamask/superstruct';
 
 import {
-  LIGHTER_MAX_BASE_AMOUNT,
+  LIGHTER_MAX_CLIENT_ORDER_INDEX,
   LIGHTER_MAX_ORDER_ID,
   LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT,
 } from '../constants/lighterConfig.js';
@@ -729,7 +730,7 @@ export class LighterClientService {
         (id) =>
           typeof id !== 'string' ||
           !/^[1-9]\d*$/u.test(id) ||
-          BigInt(id) > BigInt(LIGHTER_MAX_BASE_AMOUNT),
+          BigInt(id) > BigInt(LIGHTER_MAX_CLIENT_ORDER_INDEX),
       )
     ) {
       throw new Error('Invalid Lighter client order IDs');

@@ -13,6 +13,20 @@ import { BigNumber } from 'bignumber.js';
 
 import {
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
+  LIGHTER_MAX_MARKET_ID,
+  LIGHTER_MAX_DECIMALS,
+  LIGHTER_MAX_BASE_AMOUNT,
+  LIGHTER_MAX_ORDER_PRICE,
+  LIGHTER_MAX_CLIENT_ORDER_INDEX,
+  LIGHTER_NATIVE_PROBE_RECORD_LIMIT,
+  LIGHTER_NATIVE_PROBE_CANCEL_LIMIT,
+  LIGHTER_NATIVE_PROBE_MAX_NOTIONAL,
+  LIGHTER_CHASE_MIN_INTERVAL_MS,
+  LIGHTER_CHASE_MAX_DURATION_MS,
+  LIGHTER_CHASE_MAX_REPRICINGS,
+  LIGHTER_CHASE_MAX_DISTANCE_BPS,
+  LIGHTER_CHASE_QUOTE_MAX_AGE_MS,
+  LIGHTER_CHASE_HANDLE_MAX_LENGTH,
   LIGHTER_MAX_TRADING_API_KEY_INDEX,
 } from '../constants/lighterConfig.js';
 import type {
@@ -129,8 +143,13 @@ export type LighterChaseIo = {
     child: LighterChaseChild,
     hooks: LighterChaseDispatchHooks,
   ) => Promise<void>;
-  observe: (child: LighterChaseChild) => Promise<LighterChaseChildObservation>;
+  observe: (
+    child: LighterChaseChild,
+  ) => Promise<LighterChaseChildObservation | null>;
 };
+/** Accepted dispatches may precede their exact order snapshot. */
+export class LighterChaseObservationPendingError extends Error {}
+
 const queues = new Map<string, Promise<unknown>>();
 
 /**
@@ -166,7 +185,7 @@ function validateWire(value: string, decimals: number, maximum: string): void {
   if (
     !Number.isSafeInteger(decimals) ||
     decimals < 0 ||
-    decimals > 18 ||
+    decimals > LIGHTER_MAX_DECIMALS ||
     !units.isInteger() ||
     units.lt(1) ||
     units.gt(maximum)
@@ -190,31 +209,39 @@ function validateIntent(intent: LighterChaseIntent): void {
     owner.apiKeyIndex < LIGHTER_MIN_TRADING_API_KEY_INDEX ||
     owner.apiKeyIndex > LIGHTER_MAX_TRADING_API_KEY_INDEX ||
     !intent.handle ||
-    intent.handle.length > 128 ||
+    intent.handle.length > LIGHTER_CHASE_HANDLE_MAX_LENGTH ||
     !intent.symbol ||
     !Number.isSafeInteger(intent.marketId) ||
     intent.marketId < 0 ||
-    intent.marketId > 32767 ||
+    intent.marketId > LIGHTER_MAX_MARKET_ID ||
     !Number.isSafeInteger(intent.startedAt) ||
     intent.startedAt <= 0 ||
     !Number.isSafeInteger(intent.intervalMs) ||
-    intent.intervalMs < 1000 ||
+    intent.intervalMs < LIGHTER_CHASE_MIN_INTERVAL_MS ||
     !Number.isSafeInteger(intent.maxDurationMs) ||
     intent.maxDurationMs < intent.intervalMs ||
-    intent.maxDurationMs > 300000 ||
+    intent.maxDurationMs > LIGHTER_CHASE_MAX_DURATION_MS ||
     !Number.isSafeInteger(intent.maxRepricings) ||
     intent.maxRepricings < 0 ||
-    intent.maxRepricings > 20 ||
+    intent.maxRepricings > LIGHTER_CHASE_MAX_REPRICINGS ||
     !Number.isFinite(intent.maxDistanceBps) ||
     intent.maxDistanceBps <= 0 ||
-    intent.maxDistanceBps >= 10000 ||
+    intent.maxDistanceBps >= LIGHTER_CHASE_MAX_DISTANCE_BPS ||
     amount(intent.maxNotional).lte(0) ||
-    amount(intent.maxNotional).gt(20)
+    amount(intent.maxNotional).gt(LIGHTER_NATIVE_PROBE_MAX_NOTIONAL)
   ) {
     throw new Error('Invalid bounded Lighter Chase ownership or intent');
   }
-  validateWire(intent.originalSize, intent.sizeDecimals, '281474976710655');
-  validateWire(intent.arrivalPrice, intent.priceDecimals, '4294967295');
+  validateWire(
+    intent.originalSize,
+    intent.sizeDecimals,
+    LIGHTER_MAX_BASE_AMOUNT,
+  );
+  validateWire(
+    intent.arrivalPrice,
+    intent.priceDecimals,
+    LIGHTER_MAX_ORDER_PRICE,
+  );
   if (
     amount(intent.minBaseAmount).lte(0) ||
     amount(intent.minQuoteAmount).lte(0)
@@ -231,6 +258,7 @@ export class LighterChaseService {
   >;
   readonly #active = new Map<string, number>();
   #epoch = 0;
+  readonly #stopRequests = new Map<string, ChaseOrderStatus>();
 
   constructor(options: {
     storage: Pick<
@@ -241,10 +269,33 @@ export class LighterChaseService {
     this.#storage = options.storage;
   }
 
-  /** Stop all financial continuation synchronously, including in-flight starts. */
-  interrupt(): void {
+  /**
+   * Stop all financial continuation synchronously, including in-flight starts.
+   *
+   * @param reason - Optional explicit suspension cause for active handles.
+   */
+  interrupt(reason?: ChaseOrderStatus): void {
+    if (reason) {
+      for (const handle of this.#active.keys()) {
+        if (!this.#stopRequests.has(handle)) {
+          this.#stopRequests.set(handle, reason);
+        }
+      }
+    }
     this.#epoch += 1;
     this.#active.clear();
+  }
+
+  /**
+   * Disable this handle's continuation before queued discovery or cleanup.
+   *
+   * @param handle - Requested exact handle; ownership is validated by stop.
+   */
+  interruptHandle(handle: string): void {
+    if (this.#active.has(handle) && !this.#stopRequests.has(handle)) {
+      this.#stopRequests.set(handle, 'canceled');
+    }
+    this.#active.delete(handle);
   }
 
   async #locked<Result>(
@@ -276,7 +327,7 @@ export class LighterChaseService {
     }
     const parsed: unknown = JSON.parse(raw);
     assert(parsed, JournalStruct);
-    if (parsed.records.length > 64) {
+    if (parsed.records.length > LIGHTER_NATIVE_PROBE_RECORD_LIMIT) {
       throw new Error('Lighter Chase journal capacity exceeded');
     }
     const handles = new Set<string>();
@@ -298,17 +349,26 @@ export class LighterChaseService {
       for (const child of record.children) {
         if (
           !/^[1-9]\d*$/u.test(child.clientOrderId) ||
-          BigInt(child.clientOrderId) > 281474976710655n ||
+          BigInt(child.clientOrderId) >
+            BigInt(LIGHTER_MAX_CLIENT_ORDER_INDEX) ||
           ids.has(child.clientOrderId) ||
-          child.cancellations.length > 16 ||
+          child.cancellations.length > LIGHTER_NATIVE_PROBE_CANCEL_LIMIT ||
           !Number.isSafeInteger(child.quotedAt) ||
           child.quotedAt < record.intent.startedAt
         ) {
           throw new Error('Lighter Chase persisted child identity is invalid');
         }
         ids.add(child.clientOrderId);
-        validateWire(child.size, record.intent.sizeDecimals, '281474976710655');
-        validateWire(child.price, record.intent.priceDecimals, '4294967295');
+        validateWire(
+          child.size,
+          record.intent.sizeDecimals,
+          LIGHTER_MAX_BASE_AMOUNT,
+        );
+        validateWire(
+          child.price,
+          record.intent.priceDecimals,
+          LIGHTER_MAX_ORDER_PRICE,
+        );
         for (const dispatch of [child.placement, ...child.cancellations]) {
           if (dispatch.phase !== 'prepared' && dispatch.phase !== 'failed') {
             if (
@@ -405,6 +465,14 @@ export class LighterChaseService {
   ): Promise<void> {
     const observed = await io.observe(child);
     io.assertCurrent();
+    if (!observed) {
+      if (child.placement.phase !== 'failed' || child.observation) {
+        throw new Error(
+          'Lighter Chase absent observation lacks definitive placement failure',
+        );
+      }
+      return;
+    }
     const previous = child.observation;
     if (
       previous &&
@@ -437,7 +505,7 @@ export class LighterChaseService {
         if (
           quotedAt === undefined ||
           io.now() < quotedAt ||
-          io.now() - quotedAt > 5000
+          io.now() - quotedAt > LIGHTER_CHASE_QUOTE_MAX_AGE_MS
         ) {
           throw new Error('Lighter Chase quote is stale before dispatch');
         }
@@ -504,14 +572,18 @@ export class LighterChaseService {
   }
 
   #checkQuote(record: LighterChaseRecord, price: string, size: string): void {
-    validateWire(price, record.intent.priceDecimals, '4294967295');
-    validateWire(size, record.intent.sizeDecimals, '281474976710655');
+    validateWire(price, record.intent.priceDecimals, LIGHTER_MAX_ORDER_PRICE);
+    validateWire(size, record.intent.sizeDecimals, LIGHTER_MAX_BASE_AMOUNT);
     const original = amount(record.intent.arrivalPrice);
     const quote = amount(price);
     const adverse = record.intent.isBuy
       ? quote.minus(original)
       : original.minus(quote);
-    if (adverse.times(10000).gt(original.times(record.intent.maxDistanceBps))) {
+    if (
+      adverse
+        .times(LIGHTER_CHASE_MAX_DISTANCE_BPS)
+        .gt(original.times(record.intent.maxDistanceBps))
+    ) {
       throw new Error('Lighter Chase maximum distance reached');
     }
     const notional = quote.times(size);
@@ -549,7 +621,7 @@ export class LighterChaseService {
     const clientOrderId = io.allocateClientId();
     if (
       !/^[1-9]\d*$/u.test(clientOrderId) ||
-      BigInt(clientOrderId) > 281474976710655n ||
+      BigInt(clientOrderId) > BigInt(LIGHTER_MAX_CLIENT_ORDER_INDEX) ||
       journal.records.some((entry) =>
         entry.children.some((child) => child.clientOrderId === clientOrderId),
       )
@@ -575,9 +647,19 @@ export class LighterChaseService {
       true,
       async (hooks) => await io.place(child, hooks),
     );
-    await this.#observe(record, child, io);
+    try {
+      await this.#observe(record, child, io);
+    } catch (error) {
+      if (!(error instanceof LighterChaseObservationPendingError)) {
+        throw error;
+      }
+      record.error = error.message;
+    }
     await this.#write(record.intent.owner, journal, io);
-    if (child.observation?.terminal) {
+    if (child.placement.phase === 'failed') {
+      this.#active.delete(record.intent.handle);
+      record.status = 'failed';
+    } else if (child.observation?.terminal) {
       this.#active.delete(record.intent.handle);
       record.status = amount(record.executedSize).eq(record.intent.originalSize)
         ? 'filled'
@@ -594,40 +676,60 @@ export class LighterChaseService {
     if (!child || child.placement.phase === 'failed') {
       return;
     }
+    let visibilityPending = false;
     try {
       await this.#observe(record, child, io);
     } catch (error) {
       io.assertCurrent();
+      visibilityPending = error instanceof LighterChaseObservationPendingError;
       // Mutable fill reads must not prevent exact immutable-child cleanup.
       // The provider cancel path independently validates the owned child.
       record.error = error instanceof Error ? error.message : String(error);
     }
     await this.#write(record.intent.owner, journal, io);
-    if (child.observation?.terminal) {
+    if (this.#settled(record) || child.observation?.terminal) {
       return;
+    }
+    if (!child.observation && visibilityPending) {
+      throw new LighterChaseObservationPendingError(
+        'Lighter Chase placement visibility remains pending',
+      );
     }
     const previous = child.cancellations.at(-1);
     if (previous && previous.phase !== 'failed') {
-      throw new Error('Lighter Chase exact cancellation remains unresolved');
+      throw new LighterChaseObservationPendingError(
+        'Lighter Chase exact cancellation remains unresolved',
+      );
     }
-    if (child.cancellations.length >= 16) {
+    if (child.cancellations.length >= LIGHTER_NATIVE_PROBE_CANCEL_LIMIT) {
       throw new Error('Lighter Chase cancellation attempt limit reached');
     }
     const dispatch: LighterChaseDispatch = { phase: 'prepared' };
     child.cancellations.push(dispatch);
     await this.#write(record.intent.owner, journal, io);
-    await this.#dispatch(
-      record,
-      journal,
-      dispatch,
-      io,
-      false,
-      async (hooks) => await io.cancel(child, hooks),
-    );
+    let dispatchError: Error | undefined;
+    try {
+      await this.#dispatch(
+        record,
+        journal,
+        dispatch,
+        io,
+        false,
+        async (hooks) => await io.cancel(child, hooks),
+      );
+    } catch (error) {
+      io.assertCurrent();
+      dispatchError = error instanceof Error ? error : new Error(String(error));
+    }
+    // A fill can win even when the cancellation transport rejects or loses
+    // its response. Always reread the exact child before deciding cleanup.
     await this.#observe(record, child, io);
     await this.#write(record.intent.owner, journal, io);
+    if (dispatchError && !child.observation?.terminal) {
+      throw dispatchError;
+    }
     if (!child.observation?.terminal) {
-      throw new Error(
+      throw new LighterChaseObservationPendingError(
         'Lighter Chase cancellation acknowledged but child is not terminal',
       );
     }
@@ -640,17 +742,26 @@ export class LighterChaseService {
     reason: ChaseOrderStatus,
   ): Promise<void> {
     this.#active.delete(record.intent.handle);
-    record.stopReason = reason;
+    if (
+      record.status !== 'active' &&
+      record.status !== 'termination_pending' &&
+      this.#settled(record)
+    ) {
+      this.#stopRequests.delete(record.intent.handle);
+      return;
+    }
+    record.stopReason ??=
+      this.#stopRequests.get(record.intent.handle) ?? reason;
+    this.#stopRequests.delete(record.intent.handle);
     record.status = 'termination_pending';
     await this.#write(record.intent.owner, journal, io);
     try {
       await this.#cancel(record, journal, io);
       if (this.#settled(record)) {
-        record.status = amount(record.executedSize).eq(
-          record.intent.originalSize,
-        )
-          ? 'filled'
-          : reason;
+        record.status = record.stopReason === 'failed' ? 'failed' : 'canceled';
+        if (amount(record.executedSize).eq(record.intent.originalSize)) {
+          record.status = 'filled';
+        }
       }
     } catch (error) {
       io.assertCurrent();
@@ -684,7 +795,7 @@ export class LighterChaseService {
         throw new Error('An earlier Lighter Chase remains unresolved');
       }
       if (
-        journal.records.length >= 64 ||
+        journal.records.length >= LIGHTER_NATIVE_PROBE_RECORD_LIMIT ||
         journal.records.some(
           (record) => record.intent.handle === captured.handle,
         )
@@ -749,6 +860,12 @@ export class LighterChaseService {
         this.#active.delete(handle);
         return this.#visible(record);
       }
+      const expired = (): boolean =>
+        io.now() >= record.intent.startedAt + record.intent.maxDurationMs;
+      if (expired()) {
+        await this.#stop(record, journal, io, 'duration_reached');
+        return record;
+      }
       if (
         io.now() < record.lastTickAt ||
         io.now() - record.lastTickAt < record.intent.intervalMs
@@ -756,14 +873,8 @@ export class LighterChaseService {
         return record;
       }
       record.lastTickAt = io.now();
-      let reason: ChaseOrderStatus | undefined;
-      if (io.now() >= record.intent.startedAt + record.intent.maxDurationMs) {
-        reason = 'duration_reached';
-      } else if (record.repricings >= record.intent.maxRepricings) {
-        reason = 'repricing_limit_reached';
-      }
-      if (reason) {
-        await this.#stop(record, journal, io, reason);
+      if (record.repricings >= record.intent.maxRepricings) {
+        await this.#stop(record, journal, io, 'repricing_limit_reached');
         return record;
       }
       try {
@@ -773,6 +884,13 @@ export class LighterChaseService {
         }
         await this.#observe(record, child, io);
         this.#running(record);
+        if (child.placement.phase === 'failed') {
+          this.#active.delete(handle);
+          record.status = 'failed';
+          record.stopReason ??= 'failed';
+          await this.#write(owner, journal, io);
+          return record;
+        }
         await this.#write(owner, journal, io);
         if (
           amount(record.executedSize).eq(record.intent.originalSize) &&
@@ -783,15 +901,25 @@ export class LighterChaseService {
           await this.#write(owner, journal, io);
           return record;
         }
+        if (expired()) {
+          await this.#stop(record, journal, io, 'duration_reached');
+          return record;
+        }
         const price = await io.quote();
         io.assertCurrent();
         this.#running(record);
+        if (expired()) {
+          await this.#stop(record, journal, io, 'duration_reached');
+          return record;
+        }
         const arrival = amount(record.intent.arrivalPrice);
         const adverse = record.intent.isBuy
           ? amount(price).minus(arrival)
           : arrival.minus(amount(price));
         if (
-          adverse.times(10000).gt(arrival.times(record.intent.maxDistanceBps))
+          adverse
+            .times(LIGHTER_CHASE_MAX_DISTANCE_BPS)
+            .gt(arrival.times(record.intent.maxDistanceBps))
         ) {
           await this.#stop(record, journal, io, 'max_distance_reached');
           return record;
@@ -814,7 +942,20 @@ export class LighterChaseService {
       } catch (error) {
         io.assertCurrent();
         record.error = error instanceof Error ? error.message : String(error);
-        await this.#stop(record, journal, io, 'failed');
+        if (
+          error instanceof LighterChaseObservationPendingError &&
+          this.#active.get(handle) === this.#epoch &&
+          !expired()
+        ) {
+          await this.#write(owner, journal, io);
+        } else {
+          await this.#stop(
+            record,
+            journal,
+            io,
+            expired() ? 'duration_reached' : 'failed',
+          );
+        }
       }
       return record;
     });
@@ -833,6 +974,9 @@ export class LighterChaseService {
     io: LighterChaseIo,
     reason: ChaseOrderStatus,
   ): Promise<LighterChaseRecord> {
+    if (this.#active.has(handle) && !this.#stopRequests.has(handle)) {
+      this.#stopRequests.set(handle, reason);
+    }
     this.#active.delete(handle);
     return await this.#locked(owner, async () => {
       const journal = await this.#read(owner, io);
@@ -844,6 +988,38 @@ export class LighterChaseService {
       }
       await this.#stop(record, journal, io, reason);
       return record;
+    });
+  }
+
+  /**
+   * Retain a scheduler failure without using any financial transport.
+   *
+   * @param owner - Immutable account ownership.
+   * @param handle - Exact session handle.
+   * @param io - Current read and storage authority.
+   * @param error - Visible failure reason.
+   */
+  async recordError(
+    owner: LighterChaseOwner,
+    handle: string,
+    io: Pick<LighterChaseIo, 'assertCurrent'>,
+    error: string,
+  ): Promise<void> {
+    this.#active.delete(handle);
+    await this.#locked(owner, async () => {
+      const journal = await this.#read(owner, io);
+      const record = journal.records.find(
+        (entry) => entry.intent.handle === handle,
+      );
+      if (
+        record &&
+        (record.status === 'active' || record.status === 'termination_pending')
+      ) {
+        record.error = error;
+        record.status = 'termination_pending';
+        record.stopReason ??= 'failed';
+        await this.#write(owner, journal, io);
+      }
     });
   }
 
@@ -929,7 +1105,10 @@ export function toLighterChaseOrder(record: LighterChaseRecord): ChaseOrder {
     restingOrderId: child?.observation?.terminal
       ? null
       : (child?.observation?.orderId ?? null),
-    distanceChasedBps: BigNumber.maximum(0, adverse.div(arrival).times(10000))
+    distanceChasedBps: BigNumber.maximum(
+      0,
+      adverse.div(arrival).times(LIGHTER_CHASE_MAX_DISTANCE_BPS),
+    )
       .integerValue(BigNumber.ROUND_HALF_UP)
       .toNumber(),
     maxDistanceBps: intent.maxDistanceBps,

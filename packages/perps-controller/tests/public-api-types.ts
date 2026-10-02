@@ -21,7 +21,7 @@ import type {
   identifyLighterChaseChild,
 } from '@metamask/perps-controller/utils/lighterChase';
 import type { prepareLighterTwapOrder } from '@metamask/perps-controller/utils/lighterTwap';
-import {
+import type {
   reconcileLighterTwapObservation,
   identifyLighterTwapParent,
 } from '@metamask/perps-controller/utils/lighterTwapReconciliation';

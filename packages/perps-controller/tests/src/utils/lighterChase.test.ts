@@ -129,7 +129,10 @@ describe('Lighter Chase native book and fill accounting', () => {
   });
   it('accounts canceled partial fills from exact individual trades', () => {
     expect(
-      reconcileLighterChaseChild(intent, child, order, [trade]),
+      reconcileLighterChaseChild(intent, child, order, [
+        { ...trade, size: '0.00002', usdAmount: '2' },
+        { ...trade, tradeId: 2, size: '0.00003', usdAmount: '3' },
+      ]),
     ).toStrictEqual({
       orderId: '9001',
       terminal: true,

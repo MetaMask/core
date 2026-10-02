@@ -181,8 +181,9 @@ export type PerpsControllerGetChaseOrdersAction = {
 };
 
 /**
- * Stop Chase repricing for app backgrounding without cancelling the current
- * resting children.
+ * Stop Chase repricing for app backgrounding. HyperLiquid leaves current
+ * children resting. The bounded Lighter probe attempts exact cancellation and
+ * reports canceled or termination_pending rather than a resting status.
  *
  * @returns Chase snapshots after suspension.
  * @throws If an aggregated provider cannot suspend every active venue. Other

@@ -409,6 +409,8 @@ export const LIGHTER_TX_EXPIRY_SLACK_MS = 30_000;
 /** Fixed native wire bounds and bounded probe inventory limits. */
 export const LIGHTER_MAX_MARKET_ID = 65535;
 export const LIGHTER_MAX_BASE_AMOUNT = '281474976710655';
+/** Inclusive uint48 client-order identity bound. */
+export const LIGHTER_MAX_CLIENT_ORDER_INDEX = '281474976710655';
 export const LIGHTER_MAX_ORDER_PRICE = '4294967295';
 export const LIGHTER_MAX_ORDER_ID = '1152921504606846975';
 export const LIGHTER_MAX_DECIMALS = 255;
@@ -418,3 +420,17 @@ export const LIGHTER_NATIVE_PROBE_CANCEL_LIMIT = 16;
 export const LIGHTER_NATIVE_PROBE_PAGE_LIMIT = 100;
 export const LIGHTER_NATIVE_PROBE_PAGE_SIZE = 100;
 export const LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT = 20;
+
+/** Shared bounded testnet native-probe notional ceiling, in USD. */
+export const LIGHTER_NATIVE_PROBE_MAX_NOTIONAL = 20;
+/** Bounded Chase policy, distinct from native wire limits. */
+export const LIGHTER_CHASE_DEFAULT_INTERVAL_MS = 15_000;
+export const LIGHTER_CHASE_DEFAULT_DURATION_MS = 60_000;
+export const LIGHTER_CHASE_DEFAULT_REPRICINGS = 1;
+export const LIGHTER_CHASE_DEFAULT_DISTANCE_BPS = 100;
+export const LIGHTER_CHASE_MIN_INTERVAL_MS = 1_000;
+export const LIGHTER_CHASE_MAX_DURATION_MS = 300_000;
+export const LIGHTER_CHASE_MAX_REPRICINGS = 20;
+export const LIGHTER_CHASE_MAX_DISTANCE_BPS = 10_000;
+export const LIGHTER_CHASE_QUOTE_MAX_AGE_MS = 5_000;
+export const LIGHTER_CHASE_HANDLE_MAX_LENGTH = 128;

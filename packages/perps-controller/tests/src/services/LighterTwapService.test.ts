@@ -428,6 +428,50 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
         );
       },
     );
+
+    it.each(['active', 'history'] as const)(
+      'retains expired placement uncertainty after incomplete %s reads across restart',
+      async (failure) => {
+        const { service, disk } = build();
+        await sendPlacement(service);
+        const client = readClient();
+        client.getTx.mockResolvedValue(null);
+        if (failure === 'active') {
+          client.getActiveOrders.mockRejectedValue(
+            new Error('active read unavailable'),
+          );
+        } else {
+          client.getInactiveOrders.mockResolvedValue({
+            code: 200,
+            orders: [],
+            nextCursor: 'incomplete',
+          });
+        }
+        const now = jest
+          .spyOn(Date, 'now')
+          .mockReturnValue(identity.expiresAt + 30001);
+        try {
+          const observed = await service.observe(
+            intent.owner,
+            client,
+            'read-token',
+          );
+          expect(observed[0].issue).toBeDefined();
+          expect(observed[0].record.placement.phase).toBe('acknowledged');
+          const restarted = build(disk).service;
+          expect((await restarted.list(intent.owner))[0].placement.phase).toBe(
+            'acknowledged',
+          );
+          const send = jest.fn();
+          await expect(
+            restarted.place({ ...intent, clientOrderId: '124' }, send),
+          ).rejects.toThrow('unresolved');
+          expect(send).not.toHaveBeenCalled();
+        } finally {
+          now.mockRestore();
+        }
+      },
+    );
     it('releases never-landed response loss after signed expiry plus clock slack', async () => {
       const { service } = build();
       await sendPlacement(service);
@@ -595,6 +639,74 @@ describe('LighterTwapService read-only lifecycle reconciliation', () => {
       expect(client.getInactiveOrders).toHaveBeenCalledTimes(2);
       expect(client.getTrades).toHaveBeenCalledTimes(3);
     });
+
+    it.each(['repeat', 'capacity'] as const)(
+      'refuses %s trade cursors without accepting a partial lifecycle',
+      async (mode) => {
+        const { service, disk } = build();
+        await sendPlacement(service);
+        const client = readClient();
+        client.getInactiveOrders.mockResolvedValue({
+          code: 200,
+          orders: [
+            {
+              ...parent,
+              orderIndex: 1001,
+              orderId: '1001',
+              clientOrderIndex: 124,
+              clientOrderId: '124',
+              parentOrderIndex: 1000,
+              parentOrderId: '1000',
+              type: 'twap-sub',
+            },
+          ],
+        });
+        let page = 0;
+        client.getTrades.mockImplementation(async () => {
+          page += 1;
+          return {
+            code: 200,
+            trades: [
+              {
+                tradeId: page,
+                txHash: 'abcdabcd',
+                marketId: intent.marketId,
+                size: '0.01',
+                price: '120',
+                usdAmount: '1.2',
+                bidId: 1001,
+                askId: 999,
+                bidAccountId: 28,
+                askAccountId: 99,
+                isMakerAsk: true,
+                timestamp: Math.floor(intent.startedAt / 1000) + 1,
+                type: 'trade',
+                takerPositionSizeBefore: '0',
+                makerPositionSizeBefore: '0',
+              },
+            ],
+            nextCursor: mode === 'repeat' ? 'repeat' : String(page),
+          };
+        });
+        const [result] = await service.observe(
+          intent.owner,
+          client,
+          'read-token',
+        );
+        expect(result.issue).toContain(
+          mode === 'repeat'
+            ? 'trade pagination is incomplete'
+            : 'trade pagination limit reached',
+        );
+        expect(result.observation).toBeUndefined();
+        expect(client.getTrades).toHaveBeenCalledTimes(
+          mode === 'repeat' ? 2 : 100,
+        );
+        expect(
+          (await build(disk).service.list(intent.owner))[0].placement.phase,
+        ).toBe('acknowledged');
+      },
+    );
     it('rejects conflicting exact client ID counterparts before parent collection', async () => {
       const { service } = build();
       await sendPlacement(service);

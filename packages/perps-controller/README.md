@@ -343,10 +343,10 @@ This transport support does not advertise Chase or establish its venue proof.
 ## Bounded Lighter Chase lifecycle
 
 Normal Chase capability remains unavailable. A constructor-only
-`chaseTestnetProbe: true` enables the reviewed source path on testnet; mainnet
+`chaseTestnetProbe: true` enables bounded Chase transport on testnet; mainnet
 construction rejects it. The controller factory does not pass this option.
-This is a bounded implementation awaiting independent approval and Mobile/venue
-proof, not production strategy support.
+The option defaults to false. Production Chase capability remains unavailable;
+client integration and live venue acceptance are required before enabling it.
 
 The probe uses the existing `orderType: 'chase'` contract with exact base size,
 explicit existing 1x leverage, a 20 USD aggregate notional ceiling, an interval
@@ -376,17 +376,28 @@ A durable journal binds wallet, network, account, original key slot, market,
 immutable budget and session handle. Each exact child is persisted before
 signing, its hash/nonce/expiry before dispatch, and attempted state before send.
 A serial tick cannot replace a child until exact terminal order state, exhaustive
-unaggregated fill history and a stable reread agree. Local cancellation also
-requires its exact executed transaction. Fills observed during cancellation
-reduce the next size. Acknowledgments and missing rows never prove termination.
+unaggregated fill history and a stable reread agree. Exact terminal child state
+settles cleanup even when a fill beats its cancel transaction. Cancel transaction
+outcomes provide attribution and retire definitively failed attempts for explicit
+retry. Fills observed during cancellation reduce the next size. Acknowledgments
+and missing rows never prove termination. An attempted placement absent after
+signed expiry plus clock slack can settle only with definitive transaction and
+exact-order evidence; acknowledged or previously visible placements remain owned.
 There are at most 64 retained sessions, 21 children per session and 16 cancel
 attempts per child; records are never silently pruned.
 
-`getChaseOrders()` returns provider-bound public state.
+`getChaseOrders()` returns provider-bound public state, or an empty list for an
+unbound wallet or a wallet without a Lighter account, including with the probe off.
 `getNativeChaseRecords()` exposes exact local cleanup identities for diagnostics.
 `cancelOrder({orderType: 'chase', orderId: handle, symbol, providerId: 'lighter'})`
 explicitly terminates an owned handle. `suspendChaseOrders()` interrupts in-flight
-and scheduled continuation before attempting exact cleanup. Account changes and
+and scheduled continuation before attempting exact cleanup. This Lighter probe
+cancels the last child on backgrounding and duration, repricing or distance limits.
+Confirmed cleanup reports `canceled` with no resting order ID; the native record
+retains the first cause in `stopReason`. Unknown cleanup reports
+`termination_pending`. HyperLiquid suspension leaves its child resting. The
+Lighter timer uses the absolute duration deadline; network latency and suspended
+execution can delay venue cleanup. Account changes and
 provider teardown interrupt synchronously. Reconnect exposes interrupted records
 as `termination_pending` and never restarts the financial loop. Unknown cancel or
 lost-response ownership remains visible, including across process restart and
@@ -397,11 +408,7 @@ Exact order lookup has the venue's limited retention window. Missing retained
 history or unsafe numeric IDs fail closed and may require separate manual
 recovery; they do not authorize a replacement. All lifecycle checks above are
 source behavior. Live post-only crossing, fill/cancel races and bounded reprice
-proof remain separate acceptance evidence.
-
-## Contributing
-
-This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
+behavior require venue acceptance checks.
 
 `utils/lighterTwapReconciliation.reconcileLighterTwapObservation` reconciles
 complete native parent/child rows and unaggregated trades against persisted
@@ -416,3 +423,7 @@ retain that exclusion. The provider class is not a package export, controller
 registration omits probe constructor options, and observation collection needs
 a direct Lighter provider rather than the aggregated provider. Probe callers
 must supply a development integration; these are not enabled product features.
+
+## Contributing
+
+This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).

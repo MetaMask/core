@@ -1,5 +1,9 @@
 import { BigNumber } from 'bignumber.js';
 
+import {
+  LIGHTER_MAX_DECIMALS,
+  LIGHTER_MAX_ORDER_PRICE,
+} from '../constants/lighterConfig.js';
 import type {
   LighterApiOrder,
   LighterOrderBookOrdersResponse,
@@ -48,7 +52,7 @@ function exactId(numeric: number, exact?: string): string {
 }
 
 /**
- * Quote on the native fixed tick grid after excluding every account-owned row.
+ * Quote on the native fixed tick grid after excluding same-side account-owned rows.
  * The public endpoint supplies individual orders, so subtraction is exact and
  * includes other sessions and ordinary resting orders on the same side.
  *
@@ -66,7 +70,7 @@ export function readLighterChaseQuote(
   if (
     !Number.isSafeInteger(options.priceDecimals) ||
     options.priceDecimals < 0 ||
-    options.priceDecimals > 18
+    options.priceDecimals > LIGHTER_MAX_DECIMALS
   ) {
     throw new Error('Lighter Chase book grid is invalid');
   }
@@ -101,7 +105,7 @@ export function readLighterChaseQuote(
       if (
         !units.isInteger() ||
         units.lt(1) ||
-        units.gt('4294967295') ||
+        units.gt(LIGHTER_MAX_ORDER_PRICE) ||
         size.lte(0) ||
         size.gt(amount(row.initialBaseAmount))
       ) {
