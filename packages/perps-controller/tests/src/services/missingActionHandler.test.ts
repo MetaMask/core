@@ -62,7 +62,9 @@ describe('isMissingActionHandlerError', () => {
   it('treats the action as a literal rather than a pattern', () => {
     expect(
       isMissingActionHandlerError(
-        new Error('A handler for GeolocationControllerXgetGeolocation has not been registered'),
+        new Error(
+          'A handler for GeolocationControllerXgetGeolocation has not been registered',
+        ),
         'GeolocationController.getGeolocation',
       ),
     ).toBe(false);
@@ -72,12 +74,18 @@ describe('isMissingActionHandlerError', () => {
     ['a prefix', `Wrapped: A handler for ${ACTION} has not been registered`],
     ['a suffix', `A handler for ${ACTION} has not been registered (retry)`],
     ['a longer word', `A handler for ${ACTION} has not been registeredSuccess`],
-    ['an empty namespace', `A handler for ${ACTION} has not been delegated to `],
+    [
+      'an empty namespace',
+      `A handler for ${ACTION} has not been delegated to `,
+    ],
     [
       'a namespace with spaces',
       `A handler for ${ACTION} has not been delegated to Perps Controller`,
     ],
-    ['a duplicate registration', `A handler for ${ACTION} has already been registered`],
+    [
+      'a duplicate registration',
+      `A handler for ${ACTION} has already been registered`,
+    ],
   ])('does not match a message with %s', (_case, message) => {
     expect(isMissingActionHandlerError(new Error(message), ACTION)).toBe(false);
   });
