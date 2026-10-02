@@ -73,6 +73,11 @@ import {
   LighterApiError,
   LighterClientService,
 } from '../services/LighterClientService.js';
+import { LighterTwapService } from '../services/LighterTwapService.js';
+import type {
+  LighterTwapOwner,
+  LighterTwapReadObservation,
+} from '../services/LighterTwapService.js';
 import { LighterWalletService } from '../services/LighterWalletService.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
@@ -188,6 +193,7 @@ import {
   adaptPriceUpdateFromLighter,
   adaptPriceUpdateFromLighterWsStat,
 } from '../utils/lighterAdapter.js';
+import { prepareLighterTwapOrder } from '../utils/lighterTwap.js';
 import {
   isLimitExecutionOrderType,
   isTriggerOrderType,
@@ -1514,7 +1520,12 @@ export class LighterProvider implements PerpsProvider {
   /** Cached auth token (deadline-managed). */
   #authToken: { token: string; deadline: number } | null = null;
 
+  readonly #nativeTwapTestnetProbe: boolean;
+  readonly #nativeTwapService: LighterTwapService;
+
   constructor(options: {
+    /** Explicit bounded testnet research path; never enables product capability. */
+    nativeTwapTestnetProbe?: boolean;
     isTestnet?: boolean;
     platformDependencies: PerpsPlatformDependencies;
     messenger?: PerpsControllerMessenger;
@@ -1524,6 +1535,10 @@ export class LighterProvider implements PerpsProvider {
   }) {
     this.#deps = options.platformDependencies;
     this.#isTestnet = options.isTestnet ?? true;
+    if (options.nativeTwapTestnetProbe && !this.#isTestnet) {
+      throw new Error('Native TWAP probe mode is testnet-only');
+    }
+    this.#nativeTwapTestnetProbe = options.nativeTwapTestnetProbe ?? false;
     this.#messenger = options.messenger ?? null;
     this.#signerBridge = options.signerBridge ?? null;
     this.#ensureSignerResetListener();
@@ -1547,6 +1562,21 @@ export class LighterProvider implements PerpsProvider {
     this.#walletService = new LighterWalletService(this.#deps, {
       isTestnet: this.#isTestnet,
       messenger: options.messenger,
+    });
+
+    this.#nativeTwapService = new LighterTwapService({
+      storage: this.#deps.diskCache,
+      assertCurrent: (owner): void => {
+        this.#ensureSessionBinding();
+        if (
+          owner.wallet !== this.#boundAddress ||
+          owner.network !== (this.#isTestnet ? 'testnet' : 'mainnet') ||
+          owner.accountIndex !== this.#accountIndex ||
+          this.#isDisconnected
+        ) {
+          throw new Error('Lighter TWAP ownership changed during operation');
+        }
+      },
     });
 
     this.#deps.debugLogger.log('[LighterProvider] Constructor complete', {
@@ -7590,6 +7620,9 @@ export class LighterProvider implements PerpsProvider {
     // mutation happened.
     let leverageCommitted = false;
     try {
+      if (params.orderType === 'twap' && this.#nativeTwapTestnetProbe) {
+        return await this.#placeNativeTwapProbe(params);
+      }
       if (params.marginMode !== undefined) {
         return {
           success: false,
@@ -7959,6 +7992,361 @@ export class LighterProvider implements PerpsProvider {
   }
 
   /**
+   * Collect owned native schedules without registering keys or financial writes.
+   * Raw observations preserve mapping uncertainty for the bounded runtime probe.
+   *
+   * @returns Exact owned records and parent/child execution observations.
+   */
+  async getNativeTwapObservations(): Promise<LighterTwapReadObservation[]> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    const owner = this.#nativeTwapOwner(accountIndex);
+    const records = await this.#nativeTwapService.list(owner);
+    this.#assertSession(generation);
+    if (records.length === 0) {
+      return [];
+    }
+    const authority = await this.#getRecoveryReadToken(
+      accountIndex,
+      generation,
+    );
+    this.#assertSession(generation);
+    return await this.#nativeTwapService.observe(
+      owner,
+      this.#clientService,
+      authority.token,
+    );
+  }
+
+  #nativeTwapOwner(accountIndex: number): LighterTwapOwner {
+    if (!this.#boundAddress) {
+      throw new Error('Lighter TWAP wallet is unbound');
+    }
+    return {
+      wallet: this.#boundAddress,
+      network: this.#isTestnet ? 'testnet' : 'mainnet',
+      accountIndex,
+      apiKeyIndex: this.#apiKeyIndex,
+    };
+  }
+
+  async #placeNativeTwapProbe(input: OrderParams): Promise<OrderResult> {
+    const params = { ...input };
+    if (!this.#isTestnet || !this.#nativeTwapTestnetProbe) {
+      throw new Error('Lighter native TWAP lifecycle is unavailable');
+    }
+    const unsupportedFields = [
+      'scaleMinPrice',
+      'scaleMaxPrice',
+      'scaleNumOrders',
+      'scaleSkew',
+      'chaseIntervalMs',
+      'chaseMaxDurationMs',
+      'chaseMaxRepricings',
+      'chaseMaxDistanceBps',
+      'takeProfitSize',
+      'stopLossSize',
+      'clientOrderId',
+      'tpslLinkage',
+      'grouping',
+      'isFullClose',
+    ] as const;
+    if (
+      unsupportedFields.some((field) => params[field] !== undefined) ||
+      params.leverage !== 1 ||
+      params.marginMode !== undefined ||
+      params.usdAmount !== undefined ||
+      params.price !== undefined ||
+      params.triggerPrice !== undefined ||
+      params.timeInForce !== undefined ||
+      params.takeProfitPrice !== undefined ||
+      params.stopLossPrice !== undefined
+    ) {
+      throw new Error(
+        'Native TWAP probe requires exact size, existing 1x leverage and no unsupported order fields',
+      );
+    }
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const market = (await this.#ensureMarkets(true)).get(params.symbol);
+    this.#assertSession(generation);
+    if (market?.status !== 'active') {
+      throw new Error('Native TWAP probe requires an active market');
+    }
+    const slippage =
+      params.maxSlippageBps === undefined
+        ? (params.slippage ?? 0.01)
+        : params.maxSlippageBps / 10_000;
+    const resolved = await this.#resolveMarketReferencePrice(
+      params.symbol,
+      slippage,
+      params.priceAtCalculation,
+    );
+    if (resolved.error !== null) {
+      throw new Error(resolved.error);
+    }
+    const reference = resolved.referencePrice;
+    this.#assertSession(generation);
+    const startedAt = Date.now();
+    const prepared = prepareLighterTwapOrder({
+      size: params.size,
+      referencePrice: String(reference),
+      sizeDecimals: market.supportedSizeDecimals,
+      priceDecimals: market.supportedPriceDecimals,
+      isBuy: params.isBuy,
+      slippage: String(slippage),
+      durationMinutes: params.twapDuration ?? 0,
+      nowMilliseconds: startedAt,
+      randomize: params.twapRandomize ?? false,
+      reduceOnly: params.reduceOnly ?? false,
+    });
+    const maximumNotional = new BigNumber(params.size)
+      .times(reference)
+      .times(new BigNumber(1).plus(slippage));
+    if (
+      maximumNotional.gt(20) ||
+      maximumNotional.lt(market.minQuoteAmount) ||
+      new BigNumber(params.size).lt(market.minBaseAmount)
+    ) {
+      throw new Error(
+        'Native TWAP probe must fit venue parent minimums and the 20 USD limit',
+      );
+    }
+    const accountIndex = await this.#ensureAccountIndex();
+    const response = await this.#clientService.getAccountByIndex(accountIndex);
+    this.#assertSession(generation);
+    if (response.accounts.length !== 1) {
+      throw new Error('Native TWAP probe account is ambiguous');
+    }
+    const account = response.accounts[0];
+    this.#assertAccountOwnership(account);
+    this.#assertStandardAccount(account.accountType);
+    const positions = (account.positions ?? []).filter(
+      (position) => position.marketId === market.marketId,
+    );
+    if (
+      positions.length !== 1 ||
+      !new BigNumber(positions[0].initialMarginFraction).eq(100)
+    ) {
+      throw new Error(
+        'Native TWAP probe requires independently confirmed existing 1x leverage',
+      );
+    }
+    this.#assertSession(generation);
+    await this.#ensureSignerReady();
+    this.#assertSession(generation);
+    const owner = this.#nativeTwapOwner(accountIndex);
+    const [clientId] = this.#allocateClientOrderIndexes(1);
+    const intent = {
+      owner,
+      symbol: params.symbol,
+      marketId: market.marketId,
+      clientOrderId: String(clientId),
+      size: params.size,
+      price: new BigNumber(prepared.price)
+        .shiftedBy(-market.supportedPriceDecimals)
+        .toFixed(),
+      isBuy: params.isBuy,
+      reduceOnly: params.reduceOnly ?? false,
+      sizeDecimals: market.supportedSizeDecimals,
+      priceDecimals: market.supportedPriceDecimals,
+      durationMinutes: params.twapDuration ?? 0,
+      startedAt,
+      orderExpiry: prepared.orderExpiry,
+    };
+    try {
+      await this.#nativeTwapService.place(intent, async (hooks) => {
+        await this.#withVenueNonce(
+          accountIndex,
+          async (nonce, submit) => {
+            this.#assertSession(generation);
+            if (
+              this.#apiKeyIndex !== owner.apiKeyIndex ||
+              Date.now() >= intent.orderExpiry
+            ) {
+              throw new Error('Native TWAP intent became stale');
+            }
+            const signed = await this.#getSignerBridge().execute({
+              function: '_signCreateOrder',
+              params: [
+                accountIndex,
+                market.marketId,
+                clientId,
+                prepared.baseAmount,
+                prepared.price,
+                prepared.isAsk,
+                prepared.orderType,
+                prepared.timeInForce,
+                prepared.reduceOnly,
+                prepared.triggerPrice,
+                prepared.orderExpiry,
+                nonce,
+              ],
+            });
+            if (signed.error) {
+              throw new Error('Native TWAP signer refused the placement');
+            }
+            const identity = extractDispatchIdentity(signed);
+            if (identity.txHash === null || identity.expiresAt === null) {
+              throw new Error(
+                'Native TWAP signer omitted exact dispatch identity',
+              );
+            }
+            await hooks.signed({
+              nonce,
+              txHash: identity.txHash,
+              expiresAt: identity.expiresAt,
+            });
+            await submit(
+              LIGHTER_TX_TYPE_CREATE_ORDER,
+              signed.txInfo,
+              undefined,
+              {
+                ...identity,
+                intent: `nativeTwap:${params.symbol}:${clientId}`,
+                beforeDispatch: hooks.beforeDispatch,
+                onNotDispatched: hooks.notDispatched,
+              },
+            );
+          },
+          generation,
+        );
+      });
+    } catch (error) {
+      return {
+        success: false,
+        orderId: String(clientId),
+        providerId: 'lighter',
+        error: `Native TWAP placement did not complete; reconcile this client order before retrying: ${ensureError(error, 'LighterProvider.nativeTwap').message}`,
+      };
+    }
+    let observations: LighterTwapReadObservation[];
+    try {
+      observations = await this.getNativeTwapObservations();
+    } catch (error) {
+      return {
+        success: false,
+        orderId: String(clientId),
+        providerId: 'lighter',
+        error: `Native TWAP submitted; parent observation failed. Do not replay: ${ensureError(error, 'LighterProvider.nativeTwapRead').message}`,
+      };
+    }
+    const observed = observations.find(
+      (entry) => entry.record.intent.clientOrderId === String(clientId),
+    );
+    if (!observed?.observation) {
+      return {
+        success: false,
+        orderId: String(clientId),
+        providerId: 'lighter',
+        error:
+          'Native TWAP submitted; exact parent or fill mapping remains unresolved. Do not replay.',
+      };
+    }
+    return {
+      success: true,
+      orderId: observed.observation.parentOrderId,
+      submittedSize: params.size,
+      providerId: 'lighter',
+    };
+  }
+
+  async #cancelNativeTwapProbe(
+    input: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    const params = { ...input };
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const observations = await this.getNativeTwapObservations();
+    this.#assertSession(generation);
+    const owned = observations.filter(
+      (entry) =>
+        entry.record.intent.symbol === params.symbol &&
+        (entry.record.intent.clientOrderId === params.orderId ||
+          entry.record.parentOrderId === params.orderId),
+    );
+    if (owned.length !== 1 || !owned[0].observation) {
+      throw new Error(
+        'Native TWAP cancellation requires an exact owned visible parent',
+      );
+    }
+    const { record, observation } = owned[0];
+    if (!observation) {
+      throw new Error('Native TWAP parent observation missing');
+    }
+    if (record.terminalConfirmed) {
+      return {
+        success: true,
+        orderId: observation.parentOrderId,
+        providerId: 'lighter',
+      };
+    }
+    await this.#ensureSignerReady();
+    this.#assertSession(generation);
+    if (this.#apiKeyIndex !== record.intent.owner.apiKeyIndex) {
+      throw new Error(
+        'Native TWAP cancellation requires the original signing slot',
+      );
+    }
+    await this.#nativeTwapService.cancel(
+      record.intent.owner,
+      record.intent.clientOrderId,
+      async (hooks) => {
+        await this.#withVenueNonce(
+          record.intent.owner.accountIndex,
+          async (nonce, submit) => {
+            const signed = await this.#getSignerBridge().execute({
+              function: '_signCancelOrder',
+              params: [
+                record.intent.owner.accountIndex,
+                record.intent.marketId,
+                observation.parentOrderId,
+                nonce,
+              ],
+            });
+            if (signed.error) {
+              throw new Error('Native TWAP signer refused cancellation');
+            }
+            const identity = extractDispatchIdentity(signed);
+            if (identity.txHash === null || identity.expiresAt === null) {
+              throw new Error(
+                'Native TWAP cancel signer omitted exact dispatch identity',
+              );
+            }
+            await hooks.signed({
+              nonce,
+              txHash: identity.txHash,
+              expiresAt: identity.expiresAt,
+            });
+            await submit(
+              LIGHTER_TX_TYPE_CANCEL_ORDER,
+              signed.txInfo,
+              undefined,
+              {
+                ...identity,
+                intent: `cancelNativeTwap:${record.intent.symbol}:${record.intent.clientOrderId}`,
+                beforeDispatch: hooks.beforeDispatch,
+                onNotDispatched: hooks.notDispatched,
+              },
+            );
+          },
+          generation,
+        );
+      },
+    );
+    await this.getNativeTwapObservations();
+    return {
+      success: false,
+      orderId: observation.parentOrderId,
+      providerId: 'lighter',
+      error:
+        'Native TWAP cancellation submitted; authoritative schedule termination remains unverified',
+    };
+  }
+
+  /**
    * Refuse a management read until native parent execution totals and terminal
    * schedule semantics can be established from authoritative venue evidence.
    * An empty result would incorrectly imply that no native schedules exist.
@@ -7977,6 +8365,16 @@ export class LighterProvider implements PerpsProvider {
   ): Promise<CancelOrderResult> {
     // A generic cancel acknowledgment does not establish that a native
     // schedule is terminal or that no further slices can execute.
+    if (params.orderType === 'twap' && this.#nativeTwapTestnetProbe) {
+      try {
+        return await this.#cancelNativeTwapProbe(params);
+      } catch (error) {
+        return {
+          success: false,
+          error: ensureError(error, 'LighterProvider.cancelNativeTwap').message,
+        };
+      }
+    }
     if (params.orderType === 'twap') {
       return {
         success: false,

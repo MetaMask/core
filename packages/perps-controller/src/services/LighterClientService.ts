@@ -239,6 +239,12 @@ const OrderStruct = type({
   initialBaseAmount: PositiveDecimalStringStruct,
   remainingBaseAmount: NonNegativeDecimalStringStruct,
   filledBaseAmount: optional(NonNegativeDecimalStringStruct),
+  filledQuoteAmount: optional(NonNegativeDecimalStringStruct),
+  clientOrderId: optional(string()),
+  nonce: optional(SafeIntegerStruct),
+  createdAt: optional(NonNegativeIntegerStruct),
+  updatedAt: optional(NonNegativeIntegerStruct),
+  transactionTime: optional(NonNegativeIntegerStruct),
   price: PositiveDecimalStringStruct,
   isAsk: boolean(),
   type: string(),
@@ -655,6 +661,43 @@ export class LighterClientService {
   }
 
   /**
+   * Fetch exact client IDs. Venue retention is the last 10K active orders or
+   * last 1K inactive orders within 24 hours; omission is not absence proof.
+   *
+   * @param accountIndex - Explicit verified account owner.
+   * @param authToken - Matching account read authority.
+   * @param clientOrderIds - Unique canonical 48-bit client IDs, at most twenty.
+   * @returns Matching rows, subject to venue retention limits.
+   */
+  async getOrdersByClientIds(
+    accountIndex: number,
+    authToken: string,
+    clientOrderIds: readonly string[],
+  ): Promise<LighterActiveOrdersResponse> {
+    if (!Number.isSafeInteger(accountIndex) || accountIndex < 0) {
+      throw new Error('Invalid Lighter account index');
+    }
+    if (
+      clientOrderIds.length === 0 ||
+      clientOrderIds.length > 20 ||
+      new Set(clientOrderIds).size !== clientOrderIds.length ||
+      clientOrderIds.some(
+        (id) =>
+          typeof id !== 'string' ||
+          !/^[1-9]\d*$/u.test(id) ||
+          BigInt(id) > 281474976710655n,
+      )
+    ) {
+      throw new Error('Invalid Lighter client order IDs');
+    }
+    return await this.#get<LighterActiveOrdersResponse>(
+      `/api/v1/accountOrders?account_index=${accountIndex}&client_order_indexes=${encodeURIComponent(clientOrderIds.join(','))}`,
+      ResponseStructs.activeOrders,
+      { authorization: authToken },
+    );
+  }
+
+  /**
    * Fetch historical (inactive) orders: filled and canceled lifecycle
    * states, newest first (auth token required).
    *
@@ -752,12 +795,22 @@ export class LighterClientService {
     authToken: string,
     query: LighterTradesQuery,
   ): Promise<LighterTradesResponse> {
-    const { limit, cursor, from, marketId } = query;
+    const { limit, cursor, from, marketId, orderIndex, aggregate } = query;
+    if (
+      orderIndex !== undefined &&
+      (typeof orderIndex !== 'string' ||
+        !/^[1-9]\d*$/u.test(orderIndex) ||
+        BigInt(orderIndex) > 1152921504606846975n)
+    ) {
+      throw new Error('Invalid Lighter exact trade order index');
+    }
     return await this.#get<LighterTradesResponse>(
       `/api/v1/trades?sort_by=timestamp&sort_dir=desc&limit=${limit}&account_index=${accountIndex}&market_type=perp${
         cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`
       }${from === undefined ? '' : `&from=${from}`}${
         marketId === undefined ? '' : `&market_id=${marketId}`
+      }${orderIndex === undefined ? '' : `&order_index=${orderIndex}`}${
+        aggregate === undefined ? '' : `&aggregate=${String(aggregate)}`
       }`,
       ResponseStructs.trades,
       { authorization: authToken },

@@ -717,6 +717,10 @@ export type LighterTradesResponse = {
 
 /** Query parameters supported by the Lighter trades endpoint. */
 export type LighterTradesQuery = {
+  /** Exact uint60 order ID; a number would lose precision for large IDs. */
+  orderIndex?: string;
+  /** False preserves individual trade identities for reconciliation. */
+  aggregate?: boolean;
   limit: number;
   cursor?: string;
   from?: number;
@@ -802,6 +806,12 @@ export type LighterApiOrder = {
   remainingBaseAmount: string;
   /** Executed base amount; zero remaining does not imply a fill on cancellation. */
   filledBaseAmount?: string;
+  filledQuoteAmount?: string;
+  clientOrderId?: string;
+  nonce?: number;
+  createdAt?: number;
+  updatedAt?: number;
+  transactionTime?: number;
   price: string;
   isAsk: boolean;
   type: string;

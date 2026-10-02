@@ -258,7 +258,7 @@ whole-position coverage through its existing implementation.
 
 ## Lighter native TWAP preparation
 
-Lighter TWAP remains unavailable in `getOrderCapabilities`. Placement refuses
+Lighter TWAP remains unavailable in `getOrderCapabilities`. Default placement refuses
 before signer setup. `getTwapOrders` rejects rather than reporting an empty
 inventory, and `cancelOrder` with `orderType: 'twap'` refuses before signing.
 A generic cancel transaction acknowledgment cannot establish that a native
@@ -278,6 +278,49 @@ restart reconciliation and uncertain-dispatch recovery must then be integrated
 and validated before enabling placement. Reducing a position to zero is not
 termination: Lighter documents that reduce-only schedules keep attempting slices
 until expiry.
+
+## Gated Lighter native TWAP lifecycle
+
+The provider's default-off `nativeTwapTestnetProbe` constructor option enables
+bounded source-validation placement and cancellation on testnet. It rejects
+mainnet construction, requires explicit and independently observed 1x leverage,
+exact size within the venue's parent minimums and a maximum 20 USD initial
+protected notional, and refuses unsupported strategy fields. Normal controller
+construction does not enable this option. `getOrderCapabilities` and product
+`getTwapOrders` remain unavailable pending native mapping proof.
+
+Before signing a native schedule, a separate durable journal records immutable
+wallet, network, account, original key slot, market, exact intent and client ID.
+Signed nonce, hash and transaction expiry are recorded separately from schedule
+expiry, and dispatch attempt is persisted before transport. Lost responses and
+restarts retain obligations without replaying CreateOrder. An unresolved owned
+schedule prevents another on the same market. The journal is bounded to 64
+records and 16 cancellation attempts per record; it does not silently prune
+unresolved or historical records.
+
+`getNativeTwapObservations()` uses existing registered read authority, never key
+registration or financial dispatch. It reports exact parent and child rows,
+unaggregated child trades, matching transaction outcomes, candidate normalized
+fills and explicit mapping issues. Parent identity includes account, market,
+client ID, side, size, price, expiry and nonce. Pagination must exhaust, repeated
+cursors fail, snapshots must remain stable, and parent/child/trade quantities
+must agree. A failed read or an omitted parent is uncertainty, not an empty
+schedule inventory or a completed order. Unrelated orders are excluded from
+parent-child reconciliation.
+
+`accountOrders` has a documented retention window: last 10K active orders or
+last 1K inactive orders within 24 hours. History scans retain raw evidence when
+an exact row is absent, but canonical projection still requires a stable exact
+parent reread. Missing retained history therefore remains an explicit obligation.
+The current native mapping gate prevents terminal observations from releasing
+cleanup obligations. The settlement code additionally requires a matching
+executed cancellation for canceled parents and elapsed expiry for expired
+parents. Disconnecting the provider never completes or deletes schedules.
+
+Native slice minimums, cumulative parent/child semantics, terminal timestamps
+and cancellation race ordering still require root-owned testnet evidence.
+Candidate observations and unit fixtures are not venue proof. The constructor
+probe option is not exposed as a production feature flag or controller action.
 
 ## Contributing
 

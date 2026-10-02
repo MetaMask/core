@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add gated Lighter native TWAP lifecycle machinery with durable account/network/slot ownership, exact nonce/hash/expiry dispatch records, parent/client-ID reads and complete child-trade reconciliation. Expose provider-only read observations and a default-off, testnet-only bounded probe constructor option. Cancellation acknowledgment remains unresolved until separately verified native terminal mapping; ordinary strategy capabilities remain unchanged.
+
 - Add `utils/lighterTwap.prepareLighterTwapOrder` for exact native TWAP wire preparation only. Keep Lighter TWAP unavailable pending authoritative parent-fill and terminal-cancellation semantics. Reject unsupported management reads and TWAP cancellation before signer setup rather than reporting an empty inventory or treating generic cancel acknowledgment as schedule termination.
 
 - Support fixed partial Lighter position protection with single triggers or equal-quantity OCO pairs, exact downward quantity normalization and cancellation-first replacement. Expose optional `positionTpsl.defaultCoverage`, `positionTpsl.partialCoverage` and `PerpsPendingManualRecovery.partialIntent`. Lighter reports snapshot defaults, equal-quantity OCO and explicit current-position recovery; `HYPERLIQUID_ORDER_CAPABILITIES` reports dynamic defaults, independent partial pairs and provider-default recovery. Release proven-unsent partial attempts without removing prior protection or unresolved dispatched obligations.
