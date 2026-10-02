@@ -38,6 +38,22 @@ function getCoinType(symbol: string): string | undefined {
 }
 
 /**
+ * Chain-native CAIP asset references for native tokens that are not available
+ * from chainlist `slip44` or the SLIP-44 symbol registry.
+ */
+const nativeAssetReferenceByChainId = new Map<CaipChainId, string>([
+  ['eip155:5042', '5042'],
+]);
+
+/**
+ * ERC-20 wrapper addresses that represent a chain's native token in API data.
+ * These addresses are normalized back to the native CAIP asset id.
+ */
+const nativeAssetWrapperAddressByChainId = new Map<CaipChainId, string>([
+  ['eip155:5042', '0x3600000000000000000000000000000000000000'],
+]);
+
+/**
  * Normalizes a hex, decimal, numeric, or CAIP chain id to its CAIP-2 form.
  * Only EVM (eip155) chains are normalized here; CAIP ids are returned as-is.
  *
@@ -100,9 +116,41 @@ export function resolveNativeAssetId(
 }
 
 /**
+ * Resolves ERC-20 wrapper addresses that represent a chain's native token to
+ * the native CAIP asset id.
+ *
+ * @param chainId - Hex, decimal, numeric, or CAIP chain id.
+ * @param address - ERC-20 token contract address from transaction data.
+ * @returns The native CAIP asset id, or undefined when the address is not a known native wrapper.
+ */
+export function resolveNativeAssetIdForTokenAddress(
+  chainId: string | number | undefined,
+  address: string | undefined,
+): CaipAssetType | undefined {
+  if (chainId === undefined || address === undefined) {
+    return undefined;
+  }
+
+  const caipChainId = formatChainIdToCaip(chainId);
+
+  if (!caipChainId) {
+    return undefined;
+  }
+
+  const wrapperAddress = nativeAssetWrapperAddressByChainId.get(caipChainId);
+  const checksummedAddress = toChecksumHexAddress(address);
+
+  if (wrapperAddress?.toLowerCase() !== checksummedAddress?.toLowerCase()) {
+    return undefined;
+  }
+
+  return getNativeAsset(caipChainId)?.assetId;
+}
+
+/**
  * Resolves EVM native symbol, decimals, and CAIP asset id for a chain.
  * Prefers eth-chainlist slip44 except testnet coin type 1, then falls back to
- * `@metamask/slip44` by native symbol.
+ * known chain-native asset references and `@metamask/slip44` by native symbol.
  *
  * @param chainId - CAIP-2 chain id (eip155 only).
  * @returns Native asset metadata, or undefined when it cannot be resolved.
@@ -133,7 +181,8 @@ export function getNativeAsset(chainId: CaipChainId):
   const assetReference =
     typeof slip44 === 'number' && slip44 !== slip44TestnetCoinType
       ? String(slip44)
-      : getCoinType(nativeCurrency.symbol);
+      : (nativeAssetReferenceByChainId.get(chainId) ??
+        getCoinType(nativeCurrency.symbol));
 
   const assetId = assetReference
     ? toCaipAssetType(namespace, reference, 'slip44', assetReference)
