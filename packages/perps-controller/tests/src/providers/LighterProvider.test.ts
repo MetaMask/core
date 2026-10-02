@@ -7817,17 +7817,19 @@ describe('LighterProvider', () => {
     it('an index read failure during clear is AMBIGUITY: the settlement stays unresolved and the index is retained', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      // Allow the persist-time index read; fail from the SECOND index
-      // read on (the clear-time RMW).
+      // Inject the failure at clear-time RMW, after the journal payload
+      // and pointer are removed, rather than counting earlier safety reads.
+      const journalKey = `lighterTpslJournal:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
       let failIndexReads = false;
-      let indexReads = 0;
       (infra.diskCache.getItem as jest.Mock).mockImplementation(
         async (key: string) => {
-          if (key.startsWith('lighterTpslJournalIndex:')) {
-            indexReads += 1;
-            if (failIndexReads && indexReads > 1) {
-              throw new Error('index storage read failed');
-            }
+          if (
+            key.startsWith('lighterTpslJournalIndex:') &&
+            failIndexReads &&
+            disk.has(key) &&
+            !disk.has(journalKey)
+          ) {
+            throw new Error('index storage read failed');
           }
           return disk.get(key) ?? null;
         },
