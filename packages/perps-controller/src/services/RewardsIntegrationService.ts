@@ -131,35 +131,6 @@ export class RewardsIntegrationService {
   }
 
   /**
-   * Get chain ID for a network client via DI network controller
-   *
-   * @param networkClientId - The network client identifier to look up.
-   * @returns The chain ID string, or undefined if the network client is not found.
-   */
-  #getChainIdForNetwork(networkClientId: string): string | undefined {
-    try {
-      const networkClient = this.#messenger.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
-      return networkClient.configuration.chainId;
-    } catch (error) {
-      // An absent NetworkController is not a missing network client; let the
-      // caller degrade without reporting it as one.
-      if (
-        isMissingActionHandlerError(
-          error,
-          'NetworkController:getNetworkClientById',
-        )
-      ) {
-        throw error;
-      }
-      // Network client may not exist
-      return undefined;
-    }
-  }
-
-  /**
    * Calculate user fee discount from the unified fee resolver.
    * Returns discount in basis points (e.g., 6500 = 65% discount)
    *
@@ -785,13 +756,24 @@ export class RewardsIntegrationService {
       }
 
       let chainId: string | undefined;
+      let chainIdError: string | undefined;
       try {
-        chainId = this.#getChainIdForNetwork(selectedNetworkClientId);
+        chainId = this.#messenger.call(
+          'NetworkController:getNetworkClientById',
+          selectedNetworkClientId,
+        ).configuration.chainId;
       } catch (error) {
-        // `#getChainIdForNetwork` only rethrows a missing
-        // `NetworkController:getNetworkClientById` handler.
-        this.#logNetworkControllerNotProvided(error);
-        return undefined;
+        if (
+          isMissingActionHandlerError(
+            error,
+            'NetworkController:getNetworkClientById',
+          )
+        ) {
+          this.#logNetworkControllerNotProvided(error);
+          return undefined;
+        }
+        // Network client may not exist; reported below with the cause.
+        chainIdError = ensureError(error).message;
       }
 
       if (!chainId) {
@@ -803,6 +785,7 @@ export class RewardsIntegrationService {
               name: 'RewardsIntegrationService.calculateUserFeeDiscount',
               data: {
                 selectedNetworkClientId,
+                ...(chainIdError && { error: chainIdError }),
               },
             },
           },

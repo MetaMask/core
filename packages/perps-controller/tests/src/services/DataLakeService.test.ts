@@ -7,6 +7,7 @@ import {
   createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
+  callMissingFrom,
   createPartiallyDelegatedMessenger,
 } from '../../helpers/serviceMocks.js';
 
@@ -235,6 +236,7 @@ describe('DataLakeService', () => {
       expect(fetch).not.toHaveBeenCalled();
       expect(setTimeout).not.toHaveBeenCalled();
       expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledTimes(1);
       expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'mock-trace-id',
@@ -244,23 +246,33 @@ describe('DataLakeService', () => {
     });
 
     it.each([
-      ['fails', 'Not signed in'],
+      [
+        'fails',
+        'Not signed in',
+        async () => {
+          throw new Error('Not signed in');
+        },
+      ],
       [
         'fails on a missing dependency of its own',
         'A handler for KeyringController:getState has not been delegated to AuthenticationController',
+        // A real nested `Messenger` call.
+        async () =>
+          callMissingFrom(
+            'AuthenticationController',
+            'KeyringController:getState',
+          ),
       ],
     ])(
       'still logs and retries when a delegated getBearerToken handler %s',
-      async (_case, message) => {
+      async (_case, message, getBearerToken) => {
         dataLakeService = new DataLakeService(
           mockDeps,
           createPartiallyDelegatedMessenger({
             'AccountTreeController:getAccountsFromSelectedAccountGroup': () => [
               mockEvmAccount,
             ],
-            'AuthenticationController:getBearerToken': async () => {
-              throw new Error(message);
-            },
+            'AuthenticationController:getBearerToken': getBearerToken,
           }),
         );
 

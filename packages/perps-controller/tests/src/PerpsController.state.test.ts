@@ -7,6 +7,8 @@
 import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
+  callMissingFrom,
+  createDeferred,
   createMockMessenger,
   createPartiallyDelegatedMessenger,
 } from '../helpers/serviceMocks.js';
@@ -1645,52 +1647,119 @@ describe('PerpsController', () => {
         expect(infrastructure.logger.error).not.toHaveBeenCalled();
       });
 
-      describe('when a delegated AUS handler fails on a missing dependency of its own', () => {
-        const missing = (action: string, namespace: string) =>
-          new Error(
-            `A handler for ${action} has not been delegated to ${namespace}`,
+      describe('when the hydration read is still in flight', () => {
+        const remotePrefs = {
+          ...MOCK_PREFS_BASE,
+          perps: {
+            ...MOCK_PREFS_BASE.perps,
+            watchlistMarkets: {
+              hyperliquid: { testnet: [], mainnet: ['ETH', 'SOL'] },
+              lighter: { testnet: [], mainnet: [] },
+            },
+          },
+        };
+
+        it('applies toggles made meanwhile on top of the remote watchlist when only the read is delegated', async () => {
+          const hydration = createDeferred<typeof remotePrefs>();
+          const { controller, infrastructure } = buildController({
+            mainnetWatchlist: ['SOL'],
+            handlers: { [GET]: async () => hydration.promise },
+          });
+
+          await controller.init();
+          // Both toggles apply locally at once; their writes queue behind
+          // the hydration read.
+          const toggles = Promise.all([
+            controller.toggleWatchlistMarket('SOL'),
+            controller.toggleWatchlistMarket('BTC'),
+          ]);
+          hydration.resolve(remotePrefs);
+          await toggles;
+
+          expect(controller.state.watchlistMarkets.mainnet).toStrictEqual([
+            'ETH',
+            'BTC',
+          ]);
+          expect(infrastructure.logger.error).not.toHaveBeenCalled();
+        });
+
+        it('writes the remote watchlist plus toggles made meanwhile', async () => {
+          const hydration = createDeferred<typeof remotePrefs>();
+          let reads = 0;
+          const put = jest.fn(async () => undefined);
+          const { controller, infrastructure } = buildController({
+            handlers: {
+              // The first read hydrates; the toggle's own read sees the
+              // remote list.
+              [GET]: async () => {
+                reads += 1;
+                return reads === 1 ? hydration.promise : remotePrefs;
+              },
+              [PUT]: put,
+            },
+          });
+
+          await controller.init();
+          const toggle = controller.toggleWatchlistMarket('BTC');
+          hydration.resolve(remotePrefs);
+          await toggle;
+
+          expect(controller.state.watchlistMarkets.mainnet).toStrictEqual([
+            'ETH',
+            'SOL',
+            'BTC',
+          ]);
+          expect(put).toHaveBeenCalledWith(
+            expect.objectContaining({
+              perps: expect.objectContaining({
+                watchlistMarkets: expect.objectContaining({
+                  hyperliquid: { testnet: [], mainnet: ['ETH', 'SOL', 'BTC'] },
+                }),
+              }),
+            }),
           );
-        const cases: [string, Record<string, () => Promise<unknown>>, Error][] =
+          expect(infrastructure.logger.error).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('when a delegated AUS handler fails on a missing dependency of its own', () => {
+        // Each handler makes a real nested `Messenger` call that throws.
+        const cases: [
+          string,
+          Record<string, () => Promise<unknown>>,
+          string,
+        ][] = [
           [
-            [
-              'the read misses AuthenticationController',
-              {
-                [GET]: async () => {
-                  throw missing(
-                    'AuthenticationController:getBearerToken',
-                    'AuthenticatedUserStorageService',
-                  );
-                },
-              },
-              missing(
-                'AuthenticationController:getBearerToken',
-                'AuthenticatedUserStorageService',
-              ),
-            ],
-            [
-              'the read misses the write action',
-              {
-                [GET]: async () => {
-                  throw missing(PUT, 'UserStorageProxy');
-                },
-              },
-              missing(PUT, 'UserStorageProxy'),
-            ],
-            [
-              'the write misses the read action',
-              {
-                [GET]: async () => MOCK_PREFS_BASE,
-                [PUT]: async () => {
-                  throw missing(GET, 'UserStorageProxy');
-                },
-              },
-              missing(GET, 'UserStorageProxy'),
-            ],
-          ];
+            'the read misses AuthenticationController',
+            {
+              [GET]: async () =>
+                callMissingFrom(
+                  'AuthenticatedUserStorageService',
+                  'AuthenticationController:getBearerToken',
+                ),
+            },
+            'A handler for AuthenticationController:getBearerToken has not been delegated to AuthenticatedUserStorageService',
+          ],
+          [
+            'the read misses the write action',
+            {
+              [GET]: async () => callMissingFrom('UserStorageProxy', PUT),
+            },
+            `A handler for ${PUT} has not been delegated to UserStorageProxy`,
+          ],
+          [
+            'the write misses the read action',
+            {
+              [GET]: async () => MOCK_PREFS_BASE,
+              [PUT]: async () => callMissingFrom('UserStorageProxy', GET),
+            },
+            `A handler for ${GET} has not been delegated to UserStorageProxy`,
+          ],
+        ];
 
         it.each(cases)(
           'logs an error and reverts the toggle when %s',
-          async (_case, handlers, expected) => {
+          async (_case, handlers, expectedMessage) => {
             const { controller, infrastructure } = buildController({
               handlers,
             });
@@ -1699,7 +1768,7 @@ describe('PerpsController', () => {
 
             expect(controller.getWatchlistMarkets()).not.toContain('BTC');
             expect(infrastructure.logger.error).toHaveBeenCalledWith(
-              expect.objectContaining({ message: expected.message }),
+              expect.objectContaining({ message: expectedMessage }),
               expect.anything(),
             );
           },
@@ -1707,7 +1776,7 @@ describe('PerpsController', () => {
 
         it.each(cases)(
           'logs an error on init when %s',
-          async (_case, handlers, expected) => {
+          async (_case, handlers, expectedMessage) => {
             // A local list with no remote watchlist also exercises the
             // one-time migration write.
             const { controller, infrastructure } = buildController({
@@ -1719,7 +1788,7 @@ describe('PerpsController', () => {
             await new Promise((resolve) => setTimeout(resolve, 0));
 
             expect(infrastructure.logger.error).toHaveBeenCalledWith(
-              expect.objectContaining({ message: expected.message }),
+              expect.objectContaining({ message: expectedMessage }),
               expect.anything(),
             );
           },

@@ -452,3 +452,23 @@ export const createPartiallyDelegatedMessenger = (
   root.delegate({ actions, messenger });
   return messenger;
 };
+
+/**
+ * Call `action` from a real messenger in `namespace` whose host provides no
+ * handlers, so it throws the real nested `Messenger` error — as a delegated
+ * handler does when its own dependency is missing.
+ *
+ * @param namespace - Namespace of the messenger making the nested call.
+ * @param action - The action it calls.
+ * @returns Never; always throws.
+ */
+export const callMissingFrom = (namespace: string, action: string): never => {
+  const root = new Messenger<MockAnyNamespace, any>({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  const messenger = new Messenger<string, any, never, typeof root>({
+    namespace,
+    parent: root,
+  });
+  return messenger.call(action as never) as never;
+};

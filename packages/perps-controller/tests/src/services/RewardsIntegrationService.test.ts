@@ -5,6 +5,7 @@ import {
   createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
+  callMissingFrom,
   createPartiallyDelegatedMessenger,
 } from '../../helpers/serviceMocks.js';
 
@@ -1602,9 +1603,11 @@ describe('RewardsIntegrationService', () => {
         createPartiallyDelegatedMessenger({
           ...accountHandlers,
           ...networkHandlers,
-          'NetworkController:getState': () => {
-            throw new Error(nested);
-          },
+          'NetworkController:getState': () =>
+            callMissingFrom(
+              'NetworkController',
+              'SelectedNetworkController:getState',
+            ),
         }),
       );
 
@@ -1617,44 +1620,63 @@ describe('RewardsIntegrationService', () => {
       );
     });
 
-    it.each([
-      // `getState` failing surfaces its own error.
-      [
-        'NetworkController:getState',
-        'NetworkController:getNetworkClientById',
-        'A handler for NetworkController:getNetworkClientById has not been delegated to NetworkController',
-      ],
-      // `getNetworkClientById` failing is reported as an unresolved chain ID.
-      [
-        'NetworkController:getNetworkClientById',
-        'NetworkController:getState',
-        'Chain ID not found for fee discount calculation',
-      ],
-    ])(
-      'still logs an error when a delegated %s handler misses %s',
-      async (failing, missingAction, expectedMessage) => {
-        service = new RewardsIntegrationService(
-          mockDeps,
-          createPartiallyDelegatedMessenger({
-            ...accountHandlers,
-            ...networkHandlers,
-            [failing]: () => {
-              throw new Error(
-                `A handler for ${missingAction} has not been delegated to NetworkController`,
-              );
+    // A nested call inside NetworkController's own namespace reports "has not
+    // been registered"; it names the other action, so it is still a failure.
+    it('still logs an error when a delegated getState handler misses getNetworkClientById', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          ...accountHandlers,
+          ...networkHandlers,
+          'NetworkController:getState': () =>
+            callMissingFrom(
+              'NetworkController',
+              'NetworkController:getNetworkClientById',
+            ),
+        }),
+      );
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message:
+            'A handler for NetworkController:getNetworkClientById has not been registered',
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('reports the cause when a delegated getNetworkClientById handler misses getState', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          ...accountHandlers,
+          ...networkHandlers,
+          'NetworkController:getNetworkClientById': () =>
+            callMissingFrom('NetworkController', 'NetworkController:getState'),
+        }),
+      );
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Chain ID not found for fee discount calculation',
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: {
+              selectedNetworkClientId: 'mainnet',
+              error:
+                'A handler for NetworkController:getState has not been registered',
             },
           }),
-        );
-
-        const result = await service.calculateUserFeeDiscount();
-
-        expect(result).toBeUndefined();
-        expect(mockDeps.logger.error).toHaveBeenCalledWith(
-          expect.objectContaining({ message: expectedMessage }),
-          expect.anything(),
-        );
-      },
-    );
+        }),
+      );
+    });
 
     it('still logs an error when the injected rewards source fails on a missing NetworkController handler', async () => {
       const nested =
