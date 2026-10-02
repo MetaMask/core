@@ -366,6 +366,7 @@ type BuiltProvider = {
  */
 function buildProvider(
   options: {
+    chaseTestnetProbe?: boolean;
     nativeTwapTestnetProbe?: boolean;
     withBridge?: boolean;
     registeredKey?: string;
@@ -593,6 +594,7 @@ function buildProvider(
     bridgeBundle;
   const provider = new LighterProvider({
     nativeTwapTestnetProbe: options.nativeTwapTestnetProbe,
+    chaseTestnetProbe: options.chaseTestnetProbe,
     isTestnet,
     platformDependencies,
     lighterAuthConfig: {
@@ -21239,5 +21241,310 @@ describe('Lighter post-only placement', () => {
     expect(
       restarted.calls.some((call) => call.function === '_signCreateOrder'),
     ).toBe(false);
+  });
+});
+
+describe('Lighter bounded Chase provider probe', () => {
+  const intent: OrderParams = {
+    symbol: 'BTC',
+    isBuy: true,
+    orderType: 'chase',
+    size: '0.0002',
+    leverage: 1,
+    chaseIntervalMs: 1000,
+    chaseMaxDurationMs: 60000,
+    chaseMaxRepricings: 1,
+    chaseMaxDistanceBps: 100,
+  };
+  const setup = (): BuiltProvider => {
+    const built = buildProvider({
+      chaseTestnetProbe: true,
+      registeredKey: '9c'.repeat(40),
+    });
+    const expiry = Date.now() + 100000;
+    built.clientInstance.getAccountByIndex.mockResolvedValue({
+      code: 200,
+      accounts: [
+        {
+          ...ACCOUNT,
+          positions: [
+            {
+              ...ACCOUNT.positions[0],
+              position: '0',
+              positionValue: '0',
+              initialMarginFraction: '100',
+            },
+          ],
+        },
+      ],
+    });
+    built.clientInstance.getActiveOrders.mockResolvedValue({
+      code: 200,
+      orders: [],
+    });
+    built.clientInstance.getOrderBookOrders.mockResolvedValue({
+      code: 200,
+      totalBids: 1,
+      totalAsks: 1,
+      bids: [
+        {
+          orderIndex: 10,
+          orderId: '10',
+          ownerAccountIndex: 99,
+          initialBaseAmount: '1',
+          remainingBaseAmount: '1',
+          price: '99999.8',
+          orderExpiry: 0,
+          transactionTime: 1,
+        },
+      ],
+      asks: [
+        {
+          orderIndex: 11,
+          orderId: '11',
+          ownerAccountIndex: 99,
+          initialBaseAmount: '1',
+          remainingBaseAmount: '1',
+          price: '100001',
+          orderExpiry: 0,
+          transactionTime: 1,
+        },
+      ],
+    });
+    built.clientInstance.getTrades.mockResolvedValue({ code: 200, trades: [] });
+    built.clientInstance.getTx.mockImplementation(async (hash: string) => ({
+      code: 200,
+      hash,
+      accountIndex: 28,
+      apiKeyIndex: 7,
+      nonce: Number(
+        [...built.calls]
+          .reverse()
+          .find((call) => call.function === '_signCancelOrder')?.params[3],
+      ),
+      status: 2,
+    }));
+    built.clientInstance.getOrdersByClientIds.mockImplementation(
+      async (_account: number, _token: string, ids: string[]) => {
+        const create = built.calls.find(
+          (call) =>
+            call.function === '_signCreateOrder' &&
+            String(call.params[2]) === ids[0],
+        );
+        if (!create) {
+          return { code: 200, orders: [] };
+        }
+        const canceled = built.calls.some(
+          (call) => call.function === '_signCancelOrder',
+        );
+        return {
+          code: 200,
+          orders: [
+            {
+              orderIndex: 9001,
+              orderId: '9001',
+              clientOrderIndex: Number(ids[0]),
+              clientOrderId: ids[0],
+              marketIndex: 1,
+              ownerAccountIndex: 28,
+              initialBaseAmount: '0.0002',
+              remainingBaseAmount: '0.0002',
+              filledBaseAmount: '0',
+              filledQuoteAmount: '0',
+              price: '99999.9',
+              isAsk: false,
+              type: 'limit',
+              timeInForce: 'post-only',
+              reduceOnly: 0,
+              status: canceled ? 'canceled' : 'open',
+              orderExpiry: expiry,
+              timestamp: 1,
+              nonce: Number(create.params[11]),
+            },
+          ],
+        };
+      },
+    );
+    return built;
+  };
+  it('keeps normal strategy advertisement unavailable and rejects mainnet probe construction', async () => {
+    expect(() =>
+      buildProvider({ chaseTestnetProbe: true, isTestnet: false }),
+    ).toThrow('testnet-only');
+    const built = setup();
+    expect(
+      await built.provider.getOrderCapabilities({ symbol: 'BTC' }),
+    ).toMatchObject({ supportedStrategies: [] });
+    expect((await buildProvider().provider.placeOrder(intent)).success).toBe(
+      false,
+    );
+  });
+  it('rejects over-budget, leverage and unbounded options before signer setup', async () => {
+    const built = setup();
+    for (const override of [
+      { size: '0.001' },
+      { leverage: 2 },
+      { chaseMaxRepricings: 21 },
+      { chaseMaxDurationMs: 301000 },
+    ]) {
+      expect(
+        (await built.provider.placeOrder({ ...intent, ...override })).success,
+      ).toBe(false);
+    }
+    expect(built.calls).toHaveLength(0);
+  });
+  it('refuses a mismatched provider route before any signer setup', async () => {
+    const built = setup();
+    expect(
+      (
+        await built.provider.placeOrder({
+          ...intent,
+          providerId: 'hyperliquid',
+        })
+      ).success,
+    ).toBe(false);
+    expect(built.calls).toHaveLength(0);
+  });
+  it('serializes one native cancel/reprice and then terminates at its count bound', async () => {
+    jest.useFakeTimers();
+    const built = setup();
+    try {
+      built.clientInstance.getOrdersByClientIds.mockImplementation(
+        async (_account: number, _token: string, ids: string[]) => {
+          const creates = built.calls.filter(
+            (call) => call.function === '_signCreateOrder',
+          );
+          const index = creates.findIndex(
+            (call) => String(call.params[2]) === ids[0],
+          );
+          const create = creates[index];
+          if (!create) {
+            return { code: 200, orders: [] };
+          }
+          const orderId = String(9001 + index);
+          const canceled = built.calls.some(
+            (call) =>
+              call.function === '_signCancelOrder' &&
+              String(call.params[2]) === orderId,
+          );
+          return {
+            code: 200,
+            orders: [
+              {
+                orderIndex: Number(orderId),
+                orderId,
+                clientOrderIndex: Number(ids[0]),
+                clientOrderId: ids[0],
+                marketIndex: 1,
+                ownerAccountIndex: 28,
+                initialBaseAmount: '0.0002',
+                remainingBaseAmount: '0.0002',
+                filledBaseAmount: '0',
+                filledQuoteAmount: '0',
+                price: String(Number(create.params[4]) / 10),
+                isAsk: false,
+                type: 'limit',
+                timeInForce: 'post-only',
+                reduceOnly: 0,
+                status: canceled ? 'canceled' : 'open',
+                orderExpiry: 9999999999999,
+                timestamp: 1,
+                nonce: Number(create.params[11]),
+              },
+            ],
+          };
+        },
+      );
+      const first = await built.provider.placeOrder(intent);
+      expect(first.success).toBe(true);
+      built.clientInstance.getOrderBookOrders.mockResolvedValue({
+        code: 200,
+        totalBids: 1,
+        totalAsks: 1,
+        bids: [
+          {
+            orderIndex: 10,
+            orderId: '10',
+            ownerAccountIndex: 99,
+            initialBaseAmount: '1',
+            remainingBaseAmount: '1',
+            price: '99999.9',
+            orderExpiry: 0,
+            transactionTime: 1,
+          },
+        ],
+        asks: [
+          {
+            orderIndex: 11,
+            orderId: '11',
+            ownerAccountIndex: 99,
+            initialBaseAmount: '1',
+            remainingBaseAmount: '1',
+            price: '100001',
+            orderExpiry: 0,
+            transactionTime: 1,
+          },
+        ],
+      });
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(
+        built.calls
+          .filter((call) =>
+            ['_signCreateOrder', '_signCancelOrder'].includes(call.function),
+          )
+          .map((call) => call.function),
+      ).toStrictEqual([
+        '_signCreateOrder',
+        '_signCancelOrder',
+        '_signCreateOrder',
+      ]);
+      expect((await built.provider.getChaseOrders())[0].repricings).toBe(1);
+      await jest.advanceTimersByTimeAsync(1000);
+      expect((await built.provider.getChaseOrders())[0].status).toBe(
+        'repricing_limit_reached',
+      );
+    } finally {
+      await built.provider.disconnect();
+      jest.useRealTimers();
+    }
+  });
+  it('places an exact owned native ALO child and exposes its public management handle', async () => {
+    const built = setup();
+    const result = await built.provider.placeOrder(intent);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    expect(result.success).toBe(true);
+    expect(result.providerId).toBe('lighter');
+    expect(result.orderId).toMatch(/^lighter-chase:/u);
+    expect(result.childOrderIds).toStrictEqual(['9001']);
+    expect(
+      built.calls
+        .find((call) => call.function === '_signCreateOrder')
+        ?.params.slice(6, 8),
+    ).toStrictEqual([0, 2]);
+    const orders = await built.provider.getChaseOrders();
+    expect(orders[0].handle).toBe(result.orderId);
+    expect(orders[0].status).toBe('active');
+    await built.provider.disconnect();
+  });
+  it('suspends in-flight work and never repeats placement after disconnect', async () => {
+    const built = setup();
+    const result = await built.provider.placeOrder(intent);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    expect(result.success).toBe(true);
+    await built.provider.suspendChaseOrders();
+    const creates = built.calls.filter(
+      (call) => call.function === '_signCreateOrder',
+    ).length;
+    expect((await built.provider.getChaseOrders())[0].status).not.toBe(
+      'active',
+    );
+    expect(
+      built.calls.filter((call) => call.function === '_signCreateOrder'),
+    ).toHaveLength(creates);
+    await built.provider.disconnect();
   });
 });

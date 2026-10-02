@@ -1,4 +1,6 @@
 import type {
+  ChaseOrder,
+  PerpsProvider,
   DirectProviderOrderCapabilities,
   TriggerOrderType,
   PerpsRecoveredDispatch,
@@ -13,6 +15,7 @@ import type {
   PerpsControllerAcknowledgeRecoveredDispatchAction,
 } from '@metamask/perps-controller';
 import type { LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT } from '@metamask/perps-controller/constants/lighterConfig';
+import type { readLighterChaseQuote } from '@metamask/perps-controller/utils/lighterChase';
 import type { prepareLighterTwapOrder } from '@metamask/perps-controller/utils/lighterTwap';
 
 // Compile-time consumer contracts. These are not runtime fixture assertions.
@@ -187,3 +190,19 @@ export type LighterTwapWireConsumerContract = AssertCompatible<
   },
   ReturnType<typeof prepareLighterTwapOrder>
 >;
+
+export type LighterChaseConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Awaited<ReturnType<NonNullable<PerpsProvider['getChaseOrders']>>>,
+      ChaseOrder[]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Awaited<ReturnType<NonNullable<PerpsProvider['suspendChaseOrders']>>>,
+      ChaseOrder[]
+    >
+  >,
+  AssertTrue<IsExact<ReturnType<typeof readLighterChaseQuote>, string>>,
+];

@@ -340,6 +340,65 @@ the failure receipt and the inherited durable nonce/transaction journal blocks
 replay across restart until authoritative recovery. No automatic retry is added.
 This transport support does not advertise Chase or establish its venue proof.
 
+## Bounded Lighter Chase lifecycle
+
+Normal Chase capability remains unavailable. A constructor-only
+`chaseTestnetProbe: true` enables the reviewed source path on testnet; mainnet
+construction rejects it. The controller factory does not pass this option.
+This is a bounded implementation awaiting independent approval and Mobile/venue
+proof, not production strategy support.
+
+The probe uses the existing `orderType: 'chase'` contract with exact base size,
+explicit existing 1x leverage, a 20 USD aggregate notional ceiling, an interval
+of at least 1,000 ms, duration from one interval through 300,000 ms, at most 20
+reprices, and an adverse distance strictly between 0 and 10,000 bps. Defaults are
+15,000 ms interval, 60,000 ms duration, one reprice and 100 bps distance. It starts
+from a flat account with no unrelated open orders or exposure. Every replacement
+requires account position quantity to match the exact cumulative owned fills,
+plus no outstanding prior child. Existing position value plus replacement
+notional must still fit the same ceiling. Native minimums apply to each remaining
+child; a remainder below minimum stops rather than enlarging the order.
+
+Probe transport currently supports opening orders only; reduce-only, USD sizing,
+attached protection and other strategy fields remain refused at the probe
+boundary. The dedicated coordinator retains reduce-only intent in its internal
+contract, but no product or probe support is claimed for that route. No automatic
+leverage change, new slot allocation policy, key replacement, fee or PnL invention
+is introduced.
+
+The native public order book supplies individual owner-tagged orders. Quotes
+remove every same-side account order, preserve opposing liquidity, and use the
+market's fixed price tick. Missing external liquidity, stale responses, malformed
+identity or a crossed book stop financial continuation. Each replacement uses
+newly read quotes and native post-only TIF 2.
+
+A durable journal binds wallet, network, account, original key slot, market,
+immutable budget and session handle. Each exact child is persisted before
+signing, its hash/nonce/expiry before dispatch, and attempted state before send.
+A serial tick cannot replace a child until exact terminal order state, exhaustive
+unaggregated fill history and a stable reread agree. Local cancellation also
+requires its exact executed transaction. Fills observed during cancellation
+reduce the next size. Acknowledgments and missing rows never prove termination.
+There are at most 64 retained sessions, 21 children per session and 16 cancel
+attempts per child; records are never silently pruned.
+
+`getChaseOrders()` returns provider-bound public state.
+`getNativeChaseRecords()` exposes exact local cleanup identities for diagnostics.
+`cancelOrder({orderType: 'chase', orderId: handle, symbol, providerId: 'lighter'})`
+explicitly terminates an owned handle. `suspendChaseOrders()` interrupts in-flight
+and scheduled continuation before attempting exact cleanup. Account changes and
+provider teardown interrupt synchronously. Reconnect exposes interrupted records
+as `termination_pending` and never restarts the financial loop. Unknown cancel or
+lost-response ownership remains visible, including across process restart and
+original-slot changes; cleanup requires the original available authority and
+existing recovery-ledger conditions.
+
+Exact order lookup has the venue's limited retention window. Missing retained
+history or unsafe numeric IDs fail closed and may require separate manual
+recovery; they do not authorize a replacement. All lifecycle checks above are
+source behavior. Live post-only crossing, fill/cancel races and bounded reprice
+proof remain separate acceptance evidence.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
