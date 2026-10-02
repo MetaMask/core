@@ -126,6 +126,7 @@ import type {
   ScalePriceLadderUnavailableReason,
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
+  AttachedOrderGroup,
   PerpsRecoveryVenueReview,
   ResolveRecoveryProtectionParams,
   PerpsRecoveryProtectionResult,
@@ -955,6 +956,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPositions',
   'getSelectedOrderType',
   'getRecoveredDispatches',
+  'getAttachedOrderGroups',
+  'reviewAttachedOrderGroups',
   'reconcileRecoveredDispatches',
   'reviewRecoveryVenue',
   'resolveRecoveryProtection',
@@ -3960,6 +3963,42 @@ export class PerpsController extends BaseController<
       return [];
     }
     return provider.getPendingManualRecoveries();
+  }
+
+  /**
+   * Review native attached lifecycle through provider-owned read authority.
+   *
+   * @returns Exact venue identities without financial replay or key registration.
+   */
+  async reviewAttachedOrderGroups(): Promise<AttachedOrderGroup[]> {
+    const issuedContext = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    const groups = (await provider.reviewAttachedOrderGroups?.()) ?? [];
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return groups;
+  }
+
+  /**
+   * List durable attached identities for the selected provider and account.
+   *
+   * @returns Stored intent without venue writes, signer setup or automatic replay.
+   */
+  async getAttachedOrderGroups(): Promise<AttachedOrderGroup[]> {
+    const issuedContext = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    const groups = (await provider.getAttachedOrderGroups?.()) ?? [];
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return groups;
   }
 
   /**

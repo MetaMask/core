@@ -160,12 +160,20 @@ export function getLighterTransactionOutcome(
 // Order enums (wire values expected by `_signCreateOrder`)
 // ============================================================================
 
+/** The pinned signer represents execution and trigger prices as uint32. */
+export const LIGHTER_MAX_WIRE_PRICE = 4_294_967_295;
+
 export const LIGHTER_ORDER_TYPE_LIMIT = 0;
 export const LIGHTER_ORDER_TYPE_MARKET = 1;
 export const LIGHTER_ORDER_TYPE_STOP_LOSS = 2;
 export const LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT = 3;
 export const LIGHTER_ORDER_TYPE_TAKE_PROFIT = 4;
 export const LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT = 5;
+
+/** Native parent plus one attached child (OTO). */
+export const LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER = 1;
+/** Native parent plus mutually cancelling attached children (OTOCO). */
+export const LIGHTER_GROUPING_ONE_TRIGGERS_OCO = 3;
 
 /** Grouped-orders grouping type: one-cancels-the-other (OCO). */
 export const LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER = 2;

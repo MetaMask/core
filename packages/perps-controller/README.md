@@ -256,6 +256,76 @@ reports this boundary, snapshot coverage, and equal-quantity OCO linkage.
 Hyperliquid continues to report independent fixed partial triggers and dynamic
 whole-position coverage through its existing implementation.
 
+## Native Lighter attached orders
+
+`placeOrder` accepts a market or limit parent with `takeProfitPrice`,
+`stopLossPrice`, or both. Omit attached child sizes. `tpslLinkage` defaults to
+`order`. The native OTO or OTOCO transaction contains the opening parent and
+zero-size, opposite-side, reduce-only trigger-market children. An explicit
+child quantity, position linkage, reduce-only parent, caller-supplied client
+ID, or invalid price or size grid is refused before signer setup. IOC and
+resting GTC limit parents are supported. The caller's slippage also bounds
+child market execution prices.
+
+`OrderResult.attachedOrderGroup` separates signed client IDs from observed
+venue IDs and returns an opaque group handle. `getAttachedOrderGroups` lists
+durable local identities across restarts and trading-key changes without signer
+setup. Confirmed absent or known Premium accounts retain local groups through
+the wallet-scoped recovery account index; listing never acknowledges or replays
+them. `reviewAttachedOrderGroups` uses an existing registered local key for
+read-only venue authentication, then matches exact signed IDs against bounded
+active and bounded older inactive history for missing legs. A preparation-time
+cutoff stops reads before the group could have existed. The page/row budget
+returns `historyStatus: bounded` with unknown missing legs rather than failing
+reviews of other groups. Older journals without a preparation time retain the
+explicit budget. Missing orders or linkage stay unknown. A successful
+submission reports acceptance, not activation, a fill, or protected quantity.
+If a pending `placeAttached:` dispatch blocks writes, call
+`reviewAttachedOrderGroups` to refresh exact venue evidence, then
+`reconcileRecoveredDispatches` and acknowledge only a resolved outcome. A
+pending, non-acknowledgeable dispatch cannot be cleared by acknowledgment alone.
+
+Pass the exact `groupId` as `cancelOrder.orderId`, with its symbol and
+provider, to cancel the owned parent and children. Cancellation rereads exact
+IDs after each leg, preserves unrelated triggers and reports success only when
+all legs are terminal. Missing identities retain the group for later explicit
+review. The group handle never cancels a position or creates replacement
+protection. Attached children are excluded from ordinary position TP/SL
+replacement/removal.
+
+Unsigned intent is persisted before signing and transaction identity before
+dispatch. Ambiguous acceptance remains quarantined across restart and key
+migration. There is no automatic financial replay or attachment to a later
+position. Explicitly cancel a prepared group before submitting fresh intent;
+uncertain dispatches also require the existing exact-transaction reconciliation
+and acknowledgment flow. Exact failure observed by review remains durable until
+nonce-ledger retirement succeeds, including retries after storage failure. When
+the exact hash stays absent but the nonce advanced, explicit review can
+transfer fresh complete exact-leg observations into an acknowledgeable
+succeeded outcome. Saved IDs alone never authorize this transfer. The group
+remains owned; acknowledgment permits later intentional writes and exact
+cancellation without replay. Reconciliation persists exact failed, expired or
+nonce-consumed non-acceptance before retiring the nonce evidence; explicit
+group cancellation can then abandon that intent without a cancellation
+signature or replay of the grouped order. Signer setup and authentication still
+apply. Nonce advance before signed expiry remains ambiguous. Abandonment
+rereads exact transaction and bounded order history, and refuses recorded or
+freshly correlated legs. Missing history alone never proves non-acceptance. Up
+to 64 groups are retained per account. Only canceled groups or `completed`
+groups with all legs exactly correlated as terminal can be evicted. Review
+reads one bounded snapshot per market and skips unchanged persistence. Terminal
+groups normally return local identities without new order observations or
+linkage; a retained dispatch ledger keeps them eligible for fresh review and
+settlement.
+
+Mobile and Extension must gate attached forwarding on `attachedTpsl` plus their
+own rollout policy. This package change does not adopt the feature in either
+client. `attachedTpsl.lifecycleVerification` remains `pending`. Native
+activation, partial-parent-fill coverage, and automatic parent/child
+cancellation guarantees require venue execution evidence. The current
+capability only describes the implemented grouped submission, read review and
+explicit exact-ID cancellation.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).

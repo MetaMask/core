@@ -1,5 +1,9 @@
 import type {
   DirectProviderOrderCapabilities,
+  LighterWasmCall,
+  AttachedOrderGroup,
+  PerpsControllerGetAttachedOrderGroupsAction,
+  PerpsControllerReviewAttachedOrderGroupsAction,
   TriggerOrderType,
   PerpsRecoveredDispatch,
   PerpsPendingManualRecovery,
@@ -176,4 +180,82 @@ export type PartialRecoveryConsumerContract = AssertTrue<
 
 export type RecoveryAccountCapacityConsumerContract = AssertTrue<
   IsExact<typeof LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT, 64>
+>;
+// Native grouped signing preserves a fixed tuple for every supported shape.
+type GroupedCall = LighterWasmCall<'_signCreateGroupedOrders'>;
+type WireOrder = [
+  number,
+  number,
+  string,
+  string,
+  number,
+  number,
+  number,
+  number,
+  string,
+  number,
+];
+type TwoOrderParams<Group extends number, Count extends number = 2> = [
+  number,
+  Group,
+  Count,
+  ...WireOrder,
+  ...WireOrder,
+  number,
+];
+type ThreeOrderParams<Group extends number, Count extends number = 3> = [
+  number,
+  Group,
+  Count,
+  ...WireOrder,
+  ...WireOrder,
+  ...WireOrder,
+  number,
+];
+type RejectsParams<Params> = Params extends GroupedCall['params']
+  ? false
+  : true;
+export type GroupedSigningConsumerContracts = [
+  AssertCompatible<GroupedCall['params'], TwoOrderParams<1>>,
+  AssertCompatible<GroupedCall['params'], TwoOrderParams<2>>,
+  AssertCompatible<GroupedCall['params'], ThreeOrderParams<3>>,
+  AssertTrue<RejectsParams<TwoOrderParams<3>>>,
+  AssertTrue<RejectsParams<ThreeOrderParams<1>>>,
+  AssertTrue<RejectsParams<ThreeOrderParams<2>>>,
+  AssertTrue<RejectsParams<TwoOrderParams<0>>>,
+  AssertTrue<RejectsParams<ThreeOrderParams<4>>>,
+  AssertTrue<RejectsParams<TwoOrderParams<1, 3>>>,
+  AssertTrue<RejectsParams<ThreeOrderParams<3, 2>>>,
+  AssertTrue<RejectsParams<[string, 1, 2, ...WireOrder, ...WireOrder, number]>>,
+  AssertTrue<RejectsParams<[number, 1, 2, ...WireOrder, ...WireOrder, string]>>,
+  AssertTrue<RejectsParams<[number, 1, 2, ...WireOrder, number]>>,
+  AssertTrue<RejectsParams<(number | string)[]>>,
+];
+
+export type AttachedGroupConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerGetAttachedOrderGroupsAction['handler']>,
+      Promise<AttachedOrderGroup[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerReviewAttachedOrderGroupsAction['handler']>,
+      Promise<AttachedOrderGroup[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AttachedOrderGroup['submission'],
+      'prepared' | 'unknown' | 'accepted' | 'canceled' | 'completed'
+    >
+  >,
+];
+
+export type AttachedHistoryConsumerContract = AssertTrue<
+  IsExact<
+    AttachedOrderGroup['historyStatus'],
+    'complete' | 'bounded' | undefined
+  >
 >;

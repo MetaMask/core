@@ -29,6 +29,7 @@ import {
   LIGHTER_DEFAULT_API_KEY_INDEX,
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
   LIGHTER_MAX_TRADING_API_KEY_INDEX,
+  LIGHTER_MAX_WIRE_PRICE,
   LIGHTER_TRADING_API_KEY_COUNT,
   LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS,
   LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS,
@@ -46,6 +47,8 @@ import {
   LIGHTER_TX_TYPE_CANCEL_ORDER,
   LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
   LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER,
+  LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER,
+  LIGHTER_GROUPING_ONE_TRIGGERS_OCO,
   LIGHTER_ORDER_TYPE_STOP_LOSS,
   LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT,
   LIGHTER_ORDER_TYPE_TAKE_PROFIT,
@@ -113,6 +116,7 @@ import type {
   OrderFill,
   OrderParams,
   OrderResult,
+  AttachedOrderGroup,
   TriggerOrderType,
   PerpsMarginModeLock,
   PerpsMarketData,
@@ -188,6 +192,14 @@ import {
   adaptPriceUpdateFromLighterWsStat,
 } from '../utils/lighterAdapter.js';
 import {
+  LIGHTER_ATTACHED_MAX_GROUPS,
+  LIGHTER_ATTACHED_HANDLE_PREFIX,
+  parseLighterAttachedGroups,
+  correlateLighterAttachedOrders,
+  toAttachedOrderGroup,
+} from '../utils/lighterAttachedOrders.js';
+import type { LighterAttachedGroup } from '../utils/lighterAttachedOrders.js';
+import {
   isLimitExecutionOrderType,
   isTriggerOrderType,
   TRIGGER_ORDER_TYPES,
@@ -223,6 +235,13 @@ const LIGHTER_TPSL_OWNERSHIP_MAX_ORDERS = 256;
 
 /** Single-page history bound used when reclaiming expired protection ownership. */
 const LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE = 100;
+const LIGHTER_ATTACHED_HISTORY_PAGE_LIMIT =
+  LIGHTER_INACTIVE_HISTORY_ROW_LIMIT / LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE;
+const LIGHTER_ATTACHED_HISTORY_TIME_SLACK_MS = 30_000;
+type LighterAttachedOrderSnapshot = {
+  rows: LighterApiOrder[];
+  complete: boolean;
+};
 
 const deriveLighterMaxLeverage = (
   minInitialMarginFraction: number | undefined,
@@ -391,9 +410,6 @@ const toFiniteCandle = (candle: LighterCandle): CandleStick | null => {
     volume: String(volume),
   };
 };
-
-/** The pinned signer casts price fields to uint32. */
-const LIGHTER_MAX_WIRE_PRICE = 4_294_967_295;
 
 /**
  * One recorded TP/SL venue mutation attempt. Each attempt carries its own
@@ -778,11 +794,13 @@ const requireSignedTxIdentity = (signed: {
  * @param signed - Bridge signing result.
  * @param signed.txInfo - Signed single or grouped wire payload.
  * @param clientIds - Expected client identities, in journal order.
+ * @param zeroExpiryClientIds - Immediate parents whose exact signed expiry must be zero.
  * @returns Index-aligned absolute order expiries, in milliseconds.
  */
 const requireSignedOrderExpiries = (
   signed: { txInfo?: string },
   clientIds: number[],
+  zeroExpiryClientIds: readonly number[] = [],
 ): number[] => {
   const invalid = (): Error =>
     new Error(
@@ -815,7 +833,9 @@ const requireSignedOrderExpiries = (
       expiries.has(clientId) ||
       typeof orderExpiry !== 'number' ||
       !Number.isSafeInteger(orderExpiry) ||
-      orderExpiry <= Date.now()
+      (zeroExpiryClientIds.includes(clientId)
+        ? orderExpiry !== 0
+        : orderExpiry <= Date.now())
     ) {
       throw invalid();
     }
@@ -1309,6 +1329,134 @@ const resolveLighterTriggerPrices = (
     ),
     triggerPriceInt,
   };
+};
+
+/**
+ * Preserve unsupported attached sizes and linkage as explicit errors.
+ *
+ * @param params - Caller intent.
+ * @returns Error or null for native full attached coverage.
+ */
+const getLighterAttachedIntentError = (params: OrderParams): string | null => {
+  const attached =
+    params.takeProfitPrice !== undefined || params.stopLossPrice !== undefined;
+  if (
+    params.takeProfitSize !== undefined ||
+    params.stopLossSize !== undefined
+  ) {
+    return 'Lighter attached orders do not support explicit child sizes';
+  }
+  if (!attached) {
+    return (params.tpslLinkage !== undefined &&
+      params.tpslLinkage !== 'none') ||
+      (params.grouping !== undefined && params.grouping !== 'na')
+      ? 'Lighter attached linkage requires a TP or SL trigger'
+      : null;
+  }
+  if (params.orderType !== 'limit' && params.orderType !== 'market') {
+    return 'Lighter attached orders require a market or limit parent';
+  }
+  if (params.reduceOnly) {
+    return 'Lighter attached orders require an opening parent';
+  }
+  if (
+    (params.tpslLinkage !== undefined && params.tpslLinkage !== 'order') ||
+    (params.grouping !== undefined && params.grouping !== 'normalTpsl')
+  ) {
+    return 'Lighter attached orders only support order linkage';
+  }
+  if (params.clientOrderId !== undefined) {
+    return 'Lighter attached orders do not support caller-provided client IDs';
+  }
+  if (
+    params.timeInForce !== undefined &&
+    !['GTC', 'IOC'].includes(params.timeInForce)
+  ) {
+    return 'Lighter attached orders support GTC or IOC parents';
+  }
+  return null;
+};
+
+/**
+ * Validate both native children before key setup or signing.
+ *
+ * @param params - Parent and attached intent.
+ * @param market - Fresh venue grid.
+ * @param referencePrice - Parent limit or current market price.
+ * @returns Unsigned children; their client IDs are assigned under the write lock.
+ */
+const resolveLighterAttachedChildren = (
+  params: OrderParams,
+  market: LighterOrderBookMeta,
+  referencePrice: number,
+): LighterCreateOrderWireParams[] => {
+  const children: LighterCreateOrderWireParams[] = [];
+  if (
+    params.takeProfitPrice === undefined &&
+    params.stopLossPrice === undefined
+  ) {
+    return children;
+  }
+  if (
+    params.orderType === 'limit' &&
+    fromLighterInteger(
+      toSignerWirePriceInteger(referencePrice, market.supportedPriceDecimals),
+      market.supportedPriceDecimals,
+    ) !== referencePrice
+  ) {
+    throw new Error(
+      'Lighter attached parent price does not align with the price grid',
+    );
+  }
+  for (const [price, orderType] of [
+    [params.takeProfitPrice, 'take_profit_market'],
+    [params.stopLossPrice, 'stop_market'],
+  ] as const) {
+    if (price === undefined) {
+      continue;
+    }
+    const trigger = parseFinitePositive(price);
+    if (trigger === null) {
+      throw new Error('Lighter attached trigger prices must be positive');
+    }
+    const takeProfit = orderType === 'take_profit_market';
+    if (
+      takeProfit === params.isBuy
+        ? trigger <= referencePrice
+        : trigger >= referencePrice
+    ) {
+      throw new Error(
+        'Lighter attached trigger is on the wrong side of the parent reference price',
+      );
+    }
+    const childIntent: OrderParams = {
+      ...params,
+      isBuy: !params.isBuy,
+      orderType,
+      triggerPrice: price,
+    };
+    const resolved = resolveLighterTriggerPrices(childIntent, market);
+    children.push([
+      market.marketId,
+      1,
+      '0',
+      String(
+        toSignerWirePriceInteger(
+          resolved.executionPrice,
+          market.supportedPriceDecimals,
+        ),
+      ),
+      params.isBuy ? 1 : 0,
+      takeProfit
+        ? LIGHTER_ORDER_TYPE_TAKE_PROFIT
+        : LIGHTER_ORDER_TYPE_STOP_LOSS,
+      LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+      1,
+      String(resolved.triggerPriceInt),
+      LIGHTER_ORDER_EXPIRY_NONE,
+    ]);
+  }
+  return children;
 };
 
 /** A definitive venue response that the selected wallet has no account. */
@@ -2727,6 +2875,41 @@ export class LighterProvider implements PerpsProvider {
         evidence,
       });
     };
+    // Persist attached ownership settlement before retiring its nonce evidence.
+    const settleAttached = async (
+      entry: LighterNonceLedgerDoc['entries'][number],
+      proof: NonNullable<LighterAttachedGroup['nonAcceptance']>,
+    ): Promise<boolean> => {
+      if (!entry.intent.startsWith('placeAttached:')) {
+        return true;
+      }
+      const key = this.#attachedKey(accountIndex);
+      const groups = await this.#readAttachedGroups(key);
+      this.#assertSession(generation);
+      const group = groups.find(
+        (candidate) => `placeAttached:${candidate.groupId}` === entry.intent,
+      );
+      if (
+        !group ||
+        group.accountIndex !== accountIndex ||
+        group.apiKeyIndex !== apiKeyIndex ||
+        group.nonce !== entry.nonce ||
+        group.txHash === null ||
+        group.txHash !== entry.txHash ||
+        group.expiresAt !== entry.expiresAt ||
+        group.venueIds.some((id) => id !== null) ||
+        (proof === 'nonce-consumed' &&
+          (entry.expiresAt === null ||
+            Date.now() <= entry.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS)) ||
+        (group.submission !== 'unknown' &&
+          !(group.submission === 'canceled' && group.nonAcceptance))
+      ) {
+        return false;
+      }
+      group.nonAcceptance = proof;
+      await this.#writeAttachedGroup(key, group, generation);
+      return true;
+    };
     const nonceResponse = await this.#clientService.getNextNonce(
       accountIndex,
       apiKeyIndex,
@@ -2786,6 +2969,13 @@ export class LighterProvider implements PerpsProvider {
               remaining.push(entry);
               continue;
             }
+            if (
+              transactionOutcome === 'failed' &&
+              !(await settleAttached(entry, 'failed'))
+            ) {
+              remaining.push(entry);
+              continue;
+            }
             doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
             // The EXACT tx status decides the intent's fate: executed →
             // succeeded (blocking until acknowledged); failed/rejected →
@@ -2815,6 +3005,10 @@ export class LighterProvider implements PerpsProvider {
           // absent: another dispatch (e.g. a second device) consumed it.
           // Our payload can never land now — retry-safe never-landed,
           // no quarantine; the floor advances with the venue.
+          if (!(await settleAttached(entry, 'nonce-consumed'))) {
+            remaining.push(entry);
+            continue;
+          }
           doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
           continue;
         }
@@ -2825,6 +3019,10 @@ export class LighterProvider implements PerpsProvider {
           // Venue-confirmed absent after the signed validity: PROVEN
           // never landed — the venue still expects this nonce (unless a
           // later dispatch already consumed it: consumedFloor guards).
+          if (!(await settleAttached(entry, 'expired'))) {
+            remaining.push(entry);
+            continue;
+          }
           releasedNonces.push(entry.nonce);
           continue;
         }
@@ -7166,6 +7364,13 @@ export class LighterProvider implements PerpsProvider {
       providerId: this.protocolId,
       supportedStrategies: Object.freeze([]),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
+      attachedTpsl: Object.freeze({
+        submission: 'native-oto-otoco',
+        childCoverage: 'venue-native-zero-size',
+        partialSizes: false,
+        lifecycleVerification: 'pending',
+        cancellation: 'explicit-exact-owned-orders',
+      }),
       positionTpsl: Object.freeze({
         supportsExpectedPosition: true,
         childOrderIds: 'request-correlated',
@@ -7582,6 +7787,759 @@ export class LighterProvider implements PerpsProvider {
     return Math.round(10_000 / requested);
   };
 
+  /**
+   * Account-wide attached ownership survives signer-key migration.
+   *
+   * @param accountIndex - Captured venue account.
+   * @returns Storage identity bound to this wallet and network.
+   */
+  readonly #attachedKey = (accountIndex: number): string =>
+    `lighterAttachedOrders:${this.#isTestnet ? 'testnet' : 'mainnet'}:${this.#boundAddress}:${accountIndex}`;
+
+  /**
+   * Read immutable groups and reserve their client IDs in this provider lifetime.
+   *
+   * @param key - Captured account storage key.
+   * @returns Validated durable groups.
+   */
+  readonly #readAttachedGroups = async (
+    key: string,
+  ): Promise<LighterAttachedGroup[]> => {
+    const groups = parseLighterAttachedGroups(
+      await this.#deps.diskCache.getItem(key),
+    );
+    const scope = `${LIGHTER_ATTACHED_HANDLE_PREFIX}${key.slice('lighterAttachedOrders:'.length)}:`;
+    for (const group of groups) {
+      if (
+        group.accountIndex !== Number(key.split(':').at(-1)) ||
+        !group.groupId.startsWith(scope) ||
+        !group.groupId.endsWith(`:${group.orders[0][0]}:${group.orders[0][1]}`)
+      ) {
+        throw new Error(
+          'Lighter attached-order journal belongs to a different account',
+        );
+      }
+      for (const order of group.orders) {
+        this.#issuedClientOrderIds.add(order[1]);
+      }
+    }
+    return groups;
+  };
+
+  /**
+   * Persist one group without replacing another concurrent operation.
+   *
+   * @param key - Captured account storage key.
+   * @param group - Group with immutable intent and updated observation.
+   * @param generation - Caller session.
+   */
+  readonly #writeAttachedGroup = async (
+    key: string,
+    group: LighterAttachedGroup,
+    generation: number,
+  ): Promise<void> => {
+    await withStorageMutex(key, async () => {
+      this.#assertSession(generation);
+      const groups = await this.#readAttachedGroups(key);
+      this.#assertSession(generation);
+      const index = groups.findIndex(
+        (entry) => entry.groupId === group.groupId,
+      );
+      if (index < 0) {
+        if (groups.length >= LIGHTER_ATTACHED_MAX_GROUPS) {
+          const reclaimable = groups.findIndex(
+            (entry) =>
+              entry.submission === 'canceled' ||
+              entry.submission === 'completed',
+          );
+          if (reclaimable < 0) {
+            throw new Error('Lighter attached-order ownership is full');
+          }
+          groups.splice(reclaimable, 1);
+        }
+        groups.push(group);
+      } else {
+        if (JSON.stringify(groups[index]) === JSON.stringify(group)) {
+          return;
+        }
+        groups[index] = group;
+      }
+      const serialized = JSON.stringify(groups);
+      parseLighterAttachedGroups(serialized);
+      await this.#deps.diskCache.setItem(key, serialized);
+      this.#assertSession(generation);
+    });
+  };
+
+  /**
+   * Read local attached group identities without signer setup or financial replay.
+   *
+   * @returns All retained groups for the selected account.
+   */
+  async getAttachedOrderGroups(): Promise<AttachedOrderGroup[]> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    await this.#signerReadyPromise?.catch(() => undefined);
+    this.#assertSession(generation);
+    const inventory = await this.#resolveRecoveryInventory(generation);
+    const groups = await Promise.all(
+      inventory.accounts.map(async (accountIndex) =>
+        this.#readAttachedGroups(this.#attachedKey(accountIndex)),
+      ),
+    );
+    this.#assertSession(generation);
+    return groups.flat().map(toAttachedOrderGroup);
+  }
+
+  /**
+   * Read one bounded market snapshot under the caller's session.
+   *
+   * @param accountIndex - Venue account.
+   * @param token - Registered read authority.
+   * @param marketIndex - Signed market identity.
+   * @param generation - Caller session.
+   * @param groups - Same-market groups whose missing legs require older history.
+   * @returns Authoritative active and bounded inactive rows.
+   */
+  readonly #readAttachedOrders = async (
+    accountIndex: number,
+    token: string,
+    marketIndex: number,
+    generation: number,
+    groups: LighterAttachedGroup[],
+  ): Promise<LighterAttachedOrderSnapshot> => {
+    const active = await this.#clientService.getActiveOrders(
+      accountIndex,
+      token,
+      marketIndex,
+    );
+    this.#assertSession(generation);
+    if (!Array.isArray(active.orders)) {
+      throw new Error(
+        'Lighter attached orders require bounded authoritative order containers',
+      );
+    }
+    const rows = [...active.orders];
+    let cursor: string | undefined;
+    const seenCursors = new Set<string>();
+    let historyRows = 0;
+    let pages = 0;
+    const prepared = groups.map((group) => group.preparedAt);
+    const cutoff = prepared.every((time): time is number => time !== undefined)
+      ? (Math.min(...prepared) - LIGHTER_ATTACHED_HISTORY_TIME_SLACK_MS) / 1000
+      : null;
+    let previousTimestamp = Number.POSITIVE_INFINITY;
+    let orderedHistory = true;
+    do {
+      const inactive = await this.#clientService.getInactiveOrders(
+        accountIndex,
+        token,
+        LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE,
+        cursor,
+        marketIndex,
+      );
+      this.#assertSession(generation);
+      pages += 1;
+      if (
+        !Array.isArray(inactive.orders) ||
+        inactive.orders.length > LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE ||
+        (inactive.nextCursor !== undefined &&
+          typeof inactive.nextCursor !== 'string')
+      ) {
+        throw new Error(
+          'Lighter attached orders require bounded authoritative order containers',
+        );
+      }
+      historyRows += inactive.orders.length;
+      rows.push(...inactive.orders);
+      cursor = inactive.nextCursor;
+      for (const row of inactive.orders) {
+        if (
+          !Number.isFinite(row.timestamp) ||
+          row.timestamp <= 0 ||
+          row.timestamp > previousTimestamp ||
+          row.ownerAccountIndex !== accountIndex ||
+          row.marketIndex !== marketIndex
+        ) {
+          orderedHistory = false;
+        }
+        previousTimestamp = row.timestamp;
+      }
+      if (
+        !groups.some((group) =>
+          correlateLighterAttachedOrders(group, rows).some(
+            (row) => row === null,
+          ),
+        )
+      ) {
+        return { rows, complete: true };
+      }
+      if (cutoff !== null && orderedHistory && previousTimestamp < cutoff) {
+        return { rows, complete: true };
+      }
+      if (
+        cursor &&
+        (historyRows >= LIGHTER_INACTIVE_HISTORY_ROW_LIMIT ||
+          pages >= LIGHTER_ATTACHED_HISTORY_PAGE_LIMIT)
+      ) {
+        return { rows, complete: false };
+      }
+      if (cursor) {
+        if (seenCursors.has(cursor) || inactive.orders.length === 0) {
+          throw new Error(
+            'Lighter attached history cursor did not make progress',
+          );
+        }
+        seenCursors.add(cursor);
+      }
+    } while (cursor);
+    return { rows, complete: orderedHistory };
+  };
+
+  /**
+   * Transfer fresh complete native-group acceptance to the generic nonce ledger.
+   * The caller holds the account mutex and has persisted the exact observation.
+   * Saved venue IDs alone never invoke this handoff.
+   * @param group - Scoped durable group with its complete fresh observation.
+   * @param rows - Exact rows from this review, not persisted IDs.
+   * @param generation - Issuing session.
+   */
+  readonly #settleObservedAttachedAcceptance = async (
+    group: LighterAttachedGroup,
+    rows: (LighterApiOrder | null)[],
+    generation: number,
+  ): Promise<void> => {
+    if (
+      rows.length !== group.orders.length ||
+      rows.some((row) => row === null) ||
+      group.txHash === null ||
+      group.nonce === null ||
+      group.expiresAt === null ||
+      group.acceptanceReviewedAt === undefined
+    ) {
+      return;
+    }
+    const transaction = await this.#clientService.getTx(group.txHash);
+    this.#assertSession(generation);
+    // Exact transaction outcomes retain their existing generic settlement path.
+    // Mismatched, pending or failed hash responses never borrow leg evidence.
+    if (transaction !== null) {
+      return;
+    }
+    const nonce = await this.#clientService.getNextNonce(
+      group.accountIndex,
+      group.apiKeyIndex,
+    );
+    this.#assertSession(generation);
+    if (!Number.isSafeInteger(nonce.nonce) || nonce.nonce <= group.nonce) {
+      return;
+    }
+    await this.#withLedgerLock(
+      group.accountIndex,
+      async () => {
+        const doc = await this.#readNonceLedger(
+          group.accountIndex,
+          group.apiKeyIndex,
+        );
+        this.#assertSession(generation);
+        const entry = doc.entries.find(
+          (candidate) =>
+            candidate.owner === null &&
+            candidate.intent === `placeAttached:${group.groupId}` &&
+            candidate.kind === LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS &&
+            candidate.nonce === group.nonce &&
+            candidate.txHash === group.txHash &&
+            candidate.expiresAt === group.expiresAt,
+        );
+        if (!entry) {
+          return;
+        }
+        this.#appendRecoveredDispatch(doc, {
+          recoveryId: `${entry.nonce}:${entry.txHash}`,
+          kind: entry.kind,
+          intent: entry.intent,
+          txHash: entry.txHash,
+          outcome: 'succeeded',
+          evidence: 'fresh-exact-attached-legs',
+        });
+        doc.consumedFloor = Math.max(doc.consumedFloor, entry.nonce + 1);
+        doc.entries = doc.entries.filter((candidate) => candidate !== entry);
+        await this.#writeNonceLedger(
+          group.accountIndex,
+          doc,
+          group.apiKeyIndex,
+        );
+        this.#assertSession(generation);
+        const reservationKey = `${group.accountIndex}:${group.apiKeyIndex}`;
+        this.#nonceReservations.set(
+          reservationKey,
+          Math.max(
+            this.#nonceReservations.get(reservationKey) ?? 0,
+            entry.nonce + 1,
+          ),
+        );
+      },
+      group.apiKeyIndex,
+    );
+  };
+
+  /**
+   * Check terminal status only on an exactly correlated owned leg.
+   *
+   * @param row - Exact venue leg.
+   * @param symbol - Group symbol.
+   * @returns Whether the leg cannot execute again.
+   */
+  readonly #isAttachedOrderTerminal = (
+    row: LighterApiOrder,
+    symbol: string,
+  ): boolean => {
+    if (row.status === 'rejected') {
+      return true;
+    }
+    const order = adaptOrderFromLighter(row, symbol);
+    return (
+      order.status === 'canceled' ||
+      (order.status === 'filled' &&
+        parseStrictDecimal(row.remainingBaseAmount) === 0)
+    );
+  };
+
+  /**
+   * Review exact signed identities using registered local read authority.
+   *
+   * @returns Venue observations; missing rows and linkage remain unknown.
+   */
+  async reviewAttachedOrderGroups(): Promise<AttachedOrderGroup[]> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    const key = this.#attachedKey(accountIndex);
+    return await withProcessMutex(
+      `lighterVenueWrite:${this.#isTestnet ? 'testnet' : 'mainnet'}:${accountIndex}`,
+      async () => {
+        this.#assertSession(generation);
+        const groups = await this.#readAttachedGroups(key);
+        this.#assertSession(generation);
+        const pendingGroups = new Set<string>();
+        for (const group of groups) {
+          const ledger = await this.#readNonceLedger(
+            accountIndex,
+            group.apiKeyIndex,
+          );
+          this.#assertSession(generation);
+          if (
+            ledger.entries.some(
+              (entry) => entry.intent === `placeAttached:${group.groupId}`,
+            )
+          ) {
+            pendingGroups.add(group.groupId);
+          }
+        }
+        if (
+          groups.every(
+            (group) =>
+              (group.submission === 'canceled' ||
+                group.submission === 'completed') &&
+              !pendingGroups.has(group.groupId),
+          )
+        ) {
+          return groups.map(toAttachedOrderGroup);
+        }
+        const { token } = await this.#getRecoveryReadToken(
+          accountIndex,
+          generation,
+        );
+        this.#assertSession(generation);
+        const results: AttachedOrderGroup[] = [];
+        const snapshots = new Map<number, LighterAttachedOrderSnapshot>();
+        for (const group of groups) {
+          if (
+            (group.submission === 'canceled' ||
+              group.submission === 'completed') &&
+            !pendingGroups.has(group.groupId)
+          ) {
+            results.push(toAttachedOrderGroup(group));
+            continue;
+          }
+          const marketIndex = group.orders[0][0];
+          let snapshot = snapshots.get(marketIndex);
+          if (!snapshot) {
+            snapshot = await this.#readAttachedOrders(
+              accountIndex,
+              token,
+              marketIndex,
+              generation,
+              groups.filter(
+                (candidate) =>
+                  candidate.orders[0][0] === marketIndex &&
+                  ((candidate.submission !== 'canceled' &&
+                    candidate.submission !== 'completed') ||
+                    pendingGroups.has(candidate.groupId)),
+              ),
+            );
+            snapshots.set(marketIndex, snapshot);
+          }
+          const rows = correlateLighterAttachedOrders(group, snapshot.rows);
+          for (let index = 0; index < rows.length; index += 1) {
+            const row = rows[index];
+            if (row) {
+              group.venueIds[index] = String(row.orderIndex);
+            }
+          }
+          const hasLegs = rows.some((row) => row !== null);
+          const allLegs = rows.every((row) => row !== null);
+          if (allLegs) {
+            delete group.nonAcceptance;
+            group.submission = 'accepted';
+            if (pendingGroups.has(group.groupId)) {
+              group.acceptanceReviewedAt = Date.now();
+            }
+          }
+          if (hasLegs && group.nonAcceptance !== undefined) {
+            delete group.nonAcceptance;
+            group.submission = 'accepted';
+          }
+          if (
+            (group.submission === 'unknown' ||
+              (group.submission === 'accepted' && !hasLegs)) &&
+            group.txHash !== null
+          ) {
+            const transaction = await this.#clientService.getTx(group.txHash);
+            this.#assertSession(generation);
+            if (
+              transaction &&
+              typeof transaction.hash === 'string' &&
+              transaction.hash.toLowerCase().replace(/^0x/u, '') ===
+                group.txHash.toLowerCase().replace(/^0x/u, '') &&
+              transaction.accountIndex === accountIndex &&
+              transaction.apiKeyIndex === group.apiKeyIndex &&
+              transaction.nonce === group.nonce
+            ) {
+              const outcome = getLighterTransactionOutcome(transaction.status);
+              if (outcome === 'executed') {
+                delete group.nonAcceptance;
+                group.submission = 'accepted';
+              } else if (
+                outcome === 'failed' &&
+                !hasLegs &&
+                snapshot.complete &&
+                group.venueIds.every((id) => id === null)
+              ) {
+                group.nonAcceptance = 'failed';
+                group.submission = 'canceled';
+              }
+            }
+          }
+          const parent = rows[0];
+          const children = rows.slice(1);
+          const linked =
+            parent !== null &&
+            children.every((child) => {
+              if (child === null) {
+                return false;
+              }
+              const parentIds = [
+                String(parent.orderIndex),
+                parent.orderId,
+              ].filter((id): id is string => id !== undefined);
+              const childIds = [String(child.orderIndex), child.orderId].filter(
+                (id): id is string => id !== undefined,
+              );
+              const childReferences = [
+                child.parentOrderIndex === undefined
+                  ? undefined
+                  : String(child.parentOrderIndex),
+                child.parentOrderId,
+              ].filter(
+                (id): id is string =>
+                  id !== undefined && id !== '' && id !== '0',
+              );
+              const parentReferences = [
+                parent.toTriggerOrderId0,
+                parent.toTriggerOrderId1,
+              ].filter(
+                (id): id is string =>
+                  id !== undefined && id !== '' && id !== '0',
+              );
+              return (
+                childReferences.every((id) => parentIds.includes(id)) &&
+                (childReferences.length > 0 ||
+                  parentReferences.some((id) => childIds.includes(id))) &&
+                (parentReferences.length === 0 ||
+                  parentReferences.some((id) => childIds.includes(id)))
+              );
+            });
+          const orders: NonNullable<AttachedOrderGroup['orders']> = rows.map(
+            (row, index) => {
+              if (!row) {
+                return {
+                  clientOrderId: String(group.orders[index][1]),
+                  status: 'unknown',
+                };
+              }
+              const status =
+                row.status === 'rejected'
+                  ? 'rejected'
+                  : adaptOrderFromLighter(row, group.symbol).status;
+              const filled =
+                row.filledBaseAmount === undefined
+                  ? null
+                  : parseStrictDecimal(row.filledBaseAmount);
+              if (
+                (row.filledBaseAmount !== undefined && filled === null) ||
+                (filled !== null && (!Number.isFinite(filled) || filled < 0))
+              ) {
+                throw new Error(
+                  'Lighter attached review has invalid fill quantity',
+                );
+              }
+              let observedStatus: NonNullable<
+                AttachedOrderGroup['orders']
+              >[number]['status'] = 'unknown';
+              if (status === 'open') {
+                observedStatus = 'resting';
+                if (row.status === 'pending') {
+                  observedStatus = 'waiting';
+                } else if (filled !== null && filled > 0) {
+                  observedStatus = 'partially-filled';
+                }
+              } else if (
+                status === 'filled' ||
+                status === 'canceled' ||
+                status === 'rejected'
+              ) {
+                observedStatus = status;
+              }
+              return {
+                clientOrderId: String(row.clientOrderIndex),
+                orderId: String(row.orderIndex),
+                status: observedStatus,
+                ...(filled === null ? {} : { filledSize: String(filled) }),
+              };
+            },
+          );
+          if (
+            rows.every(
+              (row) =>
+                row !== null &&
+                this.#isAttachedOrderTerminal(row, group.symbol),
+            )
+          ) {
+            group.submission = 'completed';
+          }
+          await this.#writeAttachedGroup(key, group, generation);
+          if (allLegs && pendingGroups.has(group.groupId)) {
+            await this.#settleObservedAttachedAcceptance(
+              group,
+              rows,
+              generation,
+            );
+          }
+          results.push({
+            ...toAttachedOrderGroup(group),
+            orders,
+            historyStatus:
+              snapshot.complete || allLegs ? 'complete' : 'bounded',
+            linkage: linked ? 'confirmed' : 'unknown',
+          });
+        }
+        this.#assertSession(generation);
+        return results;
+      },
+    );
+  }
+
+  /**
+   * Cancel a recorded native group using exact venue/client identities only.
+   *
+   * @param params - Explicit group handle and symbol.
+   * @param generation - Caller session.
+   * @returns Success only after every owned order is proven terminal.
+   */
+  readonly #cancelAttachedGroup = async (
+    params: CancelOrderParams,
+    generation: number,
+  ): Promise<CancelOrderResult> => {
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    const key = this.#attachedKey(accountIndex);
+    const lookup = async (): Promise<LighterAttachedGroup> => {
+      const groups = await this.#readAttachedGroups(key);
+      this.#assertSession(generation);
+      const group = groups.find(
+        (entry) =>
+          entry.groupId === params.orderId &&
+          entry.symbol === params.symbol &&
+          entry.accountIndex === accountIndex,
+      );
+      if (!group) {
+        throw new Error(
+          'Unknown Lighter attached-order group for this account and symbol',
+        );
+      }
+      return group;
+    };
+    await lookup();
+    await this.#ensureSignerReady();
+    this.#assertSession(generation);
+    const authToken = await this.#getAuthToken();
+    this.#assertSession(generation);
+    return await this.#withVenueWriteLock(
+      accountIndex,
+      async (nextNonce, submit) => {
+        const group = await lookup();
+        if (
+          group.submission === 'canceled' ||
+          group.submission === 'completed'
+        ) {
+          return {
+            success: true,
+            orderId: params.orderId,
+            providerId: 'lighter',
+          };
+        }
+        // Abandon only undispatched intent or durably proven non-acceptance.
+        if (group.submission === 'prepared' && group.txHash === null) {
+          group.submission = 'canceled';
+          await this.#writeAttachedGroup(key, group, generation);
+          return {
+            success: true,
+            orderId: params.orderId,
+            providerId: 'lighter',
+          };
+        }
+        const initialSnapshot = await this.#readAttachedOrders(
+          accountIndex,
+          authToken,
+          group.orders[0][0],
+          generation,
+          [group],
+        );
+        const initialRows = correlateLighterAttachedOrders(
+          group,
+          initialSnapshot.rows,
+        );
+        const hasLegs = initialRows.some((row) => row !== null);
+        if (hasLegs && group.nonAcceptance !== undefined) {
+          delete group.nonAcceptance;
+          group.submission = 'accepted';
+          await this.#writeAttachedGroup(key, group, generation);
+        }
+        if (
+          (group.submission === 'unknown' ||
+            (group.submission === 'accepted' && !hasLegs)) &&
+          group.txHash !== null
+        ) {
+          const transaction = await this.#clientService.getTx(group.txHash);
+          this.#assertSession(generation);
+          const matches =
+            transaction !== null &&
+            typeof transaction.hash === 'string' &&
+            transaction.hash.toLowerCase().replace(/^0x/u, '') ===
+              group.txHash.toLowerCase().replace(/^0x/u, '') &&
+            transaction.accountIndex === accountIndex &&
+            transaction.apiKeyIndex === group.apiKeyIndex &&
+            transaction.nonce === group.nonce;
+          const outcome = matches
+            ? getLighterTransactionOutcome(transaction.status)
+            : null;
+          if (outcome === 'executed' && group.nonAcceptance !== undefined) {
+            delete group.nonAcceptance;
+            group.submission = 'accepted';
+            await this.#writeAttachedGroup(key, group, generation);
+          }
+          const neverLanded =
+            group.nonAcceptance !== undefined &&
+            transaction === null &&
+            group.expiresAt !== null &&
+            Date.now() > group.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS;
+          // Neither stale proof nor missing history can erase observed ownership.
+          if (
+            !hasLegs &&
+            group.venueIds.every((id) => id === null) &&
+            initialSnapshot.complete &&
+            (outcome === 'failed' || neverLanded)
+          ) {
+            group.submission = 'canceled';
+            await this.#writeAttachedGroup(key, group, generation);
+            return {
+              success: true,
+              orderId: params.orderId,
+              providerId: 'lighter',
+            };
+          }
+        }
+        const read = async (): Promise<LighterApiOrder[]> => {
+          const snapshot = await this.#readAttachedOrders(
+            accountIndex,
+            authToken,
+            group.orders[0][0],
+            generation,
+            [group],
+          );
+          const rows = correlateLighterAttachedOrders(group, snapshot.rows);
+          if (rows.some((row) => row === null)) {
+            throw new Error(
+              'Lighter attached-order identity is unresolved; no cancellation guarantee',
+            );
+          }
+          return rows.filter((row): row is LighterApiOrder => row !== null);
+        };
+        const terminal = (row: LighterApiOrder): boolean =>
+          this.#isAttachedOrderTerminal(row, group.symbol);
+        if (initialRows.some((row) => row === null)) {
+          throw new Error(
+            'Lighter attached-order identity is unresolved; no cancellation guarantee',
+          );
+        }
+        const rows = initialRows.filter(
+          (row): row is LighterApiOrder => row !== null,
+        );
+        group.venueIds = rows.map((row) => String(row.orderIndex));
+        await this.#writeAttachedGroup(key, group, generation);
+        // Re-read after parent cancellation: the venue may already have canceled
+        // its children, or a fill may have made a leg terminal in the meantime.
+        for (let index = 0; index < rows.length; index += 1) {
+          const row = (index === 0 ? rows : await read())[index];
+          if (terminal(row)) {
+            continue;
+          }
+          const signed = await this.#getSignerBridge().execute({
+            function: '_signCancelOrder',
+            params: [
+              accountIndex,
+              row.marketIndex,
+              String(row.orderIndex),
+              await nextNonce(),
+            ],
+          });
+          if (signed.error) {
+            throw new Error(signed.error);
+          }
+          await submit(LIGHTER_TX_TYPE_CANCEL_ORDER, signed.txInfo, undefined, {
+            ...extractDispatchIdentity(signed),
+            intent: `cancelAttached:${group.groupId}:${row.orderIndex}`,
+          });
+        }
+        if (!(await read()).every(terminal)) {
+          throw new Error(
+            'Lighter attached cancellation is pending; retained exact owned identities',
+          );
+        }
+        group.submission = 'canceled';
+        await this.#writeAttachedGroup(key, group, generation);
+        return {
+          success: true,
+          orderId: params.orderId,
+          providerId: 'lighter',
+        };
+      },
+      generation,
+    );
+  };
+
   async placeOrder(
     params: OrderParams,
     inheritedGeneration?: number,
@@ -7590,6 +8548,8 @@ export class LighterProvider implements PerpsProvider {
     // reports the partial venue state explicitly instead of implying no
     // mutation happened.
     let leverageCommitted = false;
+    let attachedGroup: LighterAttachedGroup | undefined;
+    let attachedGroupPersisted = false;
     try {
       if (params.marginMode !== undefined) {
         return {
@@ -7610,13 +8570,13 @@ export class LighterProvider implements PerpsProvider {
       }
       // User intent is never silently dropped: fields this venue path does
       // not execute are rejected so the caller can adapt, not surprised.
-      if (params.takeProfitPrice || params.stopLossPrice) {
-        return {
-          success: false,
-          error:
-            'Lighter does not support TP/SL attached at placement; place the order, then call updatePositionTPSL',
-        };
+      const attachedIntentError = getLighterAttachedIntentError(params);
+      if (attachedIntentError) {
+        return { success: false, error: attachedIntentError };
       }
+      const hasAttached =
+        params.takeProfitPrice !== undefined ||
+        params.stopLossPrice !== undefined;
       if (params.timeInForce === 'ALO') {
         return {
           success: false,
@@ -7639,7 +8599,7 @@ export class LighterProvider implements PerpsProvider {
       // causes zero bridge calls (no client creation or key registration
       // side effects).
       const markets = await this.#ensureMarkets(
-        isTriggerOrderType(params.orderType),
+        isTriggerOrderType(params.orderType) || hasAttached,
       );
       const market = markets.get(params.symbol);
       if (!market) {
@@ -7649,13 +8609,12 @@ export class LighterProvider implements PerpsProvider {
         };
       }
       if (
-        isTriggerOrderType(params.orderType) &&
+        (isTriggerOrderType(params.orderType) || hasAttached) &&
         (market.status !== 'active' || market.marketType !== 'perp')
       ) {
         return {
           success: false,
-          error:
-            'Lighter standalone triggers require an active perpetual market',
+          error: 'Lighter trigger orders require an active perpetual market',
         };
       }
       if (isLimitExecutionOrderType(params.orderType) && !params.price) {
@@ -7828,6 +8787,11 @@ export class LighterProvider implements PerpsProvider {
         orderTypeInt = LIGHTER_ORDER_TYPE_LIMIT;
       }
 
+      const attachedChildren = resolveLighterAttachedChildren(
+        params,
+        market,
+        referencePrice,
+      );
       const leverageImfHundredths = await this.#resolveLeverageIntent(params);
       // Margin mode is sent only with an explicit leverage update. An
       // omitted leverage leaves both leverage and margin mode unchanged;
@@ -7843,10 +8807,34 @@ export class LighterProvider implements PerpsProvider {
       // which the wallet may have switched, and a stale intent must never
       // create or register the new account's venue key.
       this.#assertSession(generationAtIntent);
+      if (hasAttached) {
+        const preflightAccount = await this.#ensureAccountIndex();
+        this.#assertSession(generationAtIntent);
+        const priorGroups = await this.#readAttachedGroups(
+          this.#attachedKey(preflightAccount),
+        );
+        this.#assertSession(generationAtIntent);
+        if (
+          priorGroups.some(
+            (group) =>
+              group.submission === 'prepared' || group.submission === 'unknown',
+          )
+        ) {
+          throw new Error(
+            'Lighter attached placement has unresolved intent; review or cancel its exact group before placing another',
+          );
+        }
+      }
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       this.#assertSession(generationAtIntent);
-      const [clientOrderIndex] = this.#allocateClientOrderIndexes(1);
+      const attachedKey = this.#attachedKey(accountIndex);
+      if (hasAttached) {
+        await this.#readAttachedGroups(attachedKey);
+        this.#assertSession(generationAtIntent);
+      }
+      const [clientOrderIndex, ...attachedClientIds] =
+        this.#allocateClientOrderIndexes(1 + attachedChildren.length);
 
       // Leverage update and order placement share ONE lock acquisition so a
       // concurrent write can never interleave between the caller's leverage
@@ -7854,6 +8842,34 @@ export class LighterProvider implements PerpsProvider {
       const result = await this.#withVenueWriteLock(
         accountIndex,
         async (nextNonce, submit) => {
+          if (hasAttached) {
+            const existing = await this.#readAttachedGroups(attachedKey);
+            this.#assertSession(generationAtIntent);
+            if (
+              existing.some(
+                (group) =>
+                  group.submission === 'prepared' ||
+                  group.submission === 'unknown',
+              )
+            ) {
+              throw new Error(
+                'Lighter attached placement has unresolved intent; review or cancel its exact group before placing another',
+              );
+            }
+            const allocatedIds = new Set([
+              clientOrderIndex,
+              ...attachedClientIds,
+            ]);
+            if (
+              existing.some((group) =>
+                group.orders.some((order) => allocatedIds.has(order[1])),
+              )
+            ) {
+              throw new Error(
+                'Lighter attached client identity was allocated concurrently; refresh and retry',
+              );
+            }
+          }
           if (leverageImfHundredths !== null && leverageMarginMode !== null) {
             const signedLeverage = await this.#getSignerBridge().execute({
               function: '_signUpdateLeverage',
@@ -7883,45 +8899,148 @@ export class LighterProvider implements PerpsProvider {
             );
             leverageCommitted = true;
           }
-          const signed = await this.#getSignerBridge().execute({
-            function: '_signCreateOrder',
-            params: [
+          const parent: LighterCreateOrderWireParams = [
+            market.marketId,
+            clientOrderIndex,
+            String(sizeInt),
+            String(priceInt),
+            params.isBuy ? 0 : 1,
+            orderTypeInt,
+            isLighterMakerOrder(params)
+              ? LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME
+              : LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
+            params.reduceOnly ? 1 : 0,
+            String(triggerPrices?.triggerPriceInt ?? LIGHTER_NO_TRIGGER_PRICE),
+            // Triggers remain pending even when they execute as IOC.
+            // The signer expands -1 to its 28-day default expiry;
+            // only ordinary immediate orders use a zero expiry.
+            isTriggerOrderType(params.orderType) || isLighterMakerOrder(params)
+              ? LIGHTER_ORDER_EXPIRY_NONE
+              : 0,
+          ];
+          let signed: LighterTxResult;
+          if (attachedChildren.length > 0) {
+            const children = attachedChildren.map(
+              (child, index): LighterCreateOrderWireParams => {
+                const copy: LighterCreateOrderWireParams = [...child];
+                copy[1] = attachedClientIds[index];
+                return copy;
+              },
+            );
+            const orders: LighterAttachedGroup['orders'] =
+              children.length === 1
+                ? [parent, children[0]]
+                : [parent, children[0], children[1]];
+            attachedGroup = {
+              version: 1,
+              preparedAt: Date.now(),
+              groupId: `${LIGHTER_ATTACHED_HANDLE_PREFIX}${attachedKey.slice('lighterAttachedOrders:'.length)}:${market.marketId}:${clientOrderIndex}`,
+              symbol: params.symbol,
               accountIndex,
-              market.marketId,
-              clientOrderIndex,
-              String(sizeInt),
-              String(priceInt),
-              params.isBuy ? 0 : 1,
-              orderTypeInt,
-              isLighterMakerOrder(params)
-                ? LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME
-                : LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
-              params.reduceOnly ? 1 : 0,
-              String(
-                triggerPrices?.triggerPriceInt ?? LIGHTER_NO_TRIGGER_PRICE,
-              ),
-              // Triggers remain pending even when they execute as IOC.
-              // The signer expands -1 to its 28-day default expiry;
-              // only ordinary immediate orders use a zero expiry.
-              isTriggerOrderType(params.orderType) ||
-              isLighterMakerOrder(params)
-                ? LIGHTER_ORDER_EXPIRY_NONE
-                : 0,
-              await nextNonce(),
-            ],
-          });
+              apiKeyIndex: this.#apiKeyIndex,
+              submission: 'prepared',
+              orders,
+              txHash: null,
+              nonce: null,
+              expiresAt: null,
+              venueIds: orders.map(() => null),
+            };
+            await this.#writeAttachedGroup(
+              attachedKey,
+              attachedGroup,
+              generationAtIntent,
+            );
+            attachedGroupPersisted = true;
+            const nonce = await nextNonce();
+            attachedGroup.nonce = nonce;
+            signed = await this.#getSignerBridge().execute({
+              function: '_signCreateGroupedOrders',
+              params:
+                orders.length === 2
+                  ? [
+                      accountIndex,
+                      LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER,
+                      2,
+                      ...orders[0],
+                      ...orders[1],
+                      nonce,
+                    ]
+                  : [
+                      accountIndex,
+                      LIGHTER_GROUPING_ONE_TRIGGERS_OCO,
+                      3,
+                      ...orders[0],
+                      ...orders[1],
+                      ...orders[2],
+                      nonce,
+                    ],
+            });
+          } else {
+            signed = await this.#getSignerBridge().execute({
+              function: '_signCreateOrder',
+              params: [accountIndex, ...parent, await nextNonce()],
+            });
+          }
           if (signed.error) {
             throw new Error(`Lighter order signing failed: ${signed.error}`);
           }
-          return await submit(
-            LIGHTER_TX_TYPE_CREATE_ORDER,
+          const dispatchIdentity = extractDispatchIdentity(signed);
+          if (attachedGroup) {
+            this.#assertSession(generationAtIntent);
+            if (
+              dispatchIdentity.txHash === null ||
+              dispatchIdentity.expiresAt === null
+            ) {
+              throw new Error(
+                'Lighter attached signer omitted transaction identity',
+              );
+            }
+            attachedGroup.orderExpiries = requireSignedOrderExpiries(
+              signed,
+              attachedGroup.orders.map((order) => order[1]),
+              parent[9] === 0 ? [parent[1]] : [],
+            );
+            const childExpiries = attachedGroup.orderExpiries.slice(1);
+            if (
+              new Set(childExpiries).size !== 1 ||
+              (parent[9] !== 0 &&
+                attachedGroup.orderExpiries[0] !== childExpiries[0])
+            ) {
+              throw new Error(
+                'Lighter attached signer changed grouped expiry compatibility',
+              );
+            }
+            attachedGroup.txHash = dispatchIdentity.txHash;
+            attachedGroup.expiresAt = dispatchIdentity.expiresAt;
+            attachedGroup.submission = 'unknown';
+            await this.#writeAttachedGroup(
+              attachedKey,
+              attachedGroup,
+              generationAtIntent,
+            );
+          }
+          const response = await submit(
+            attachedGroup
+              ? LIGHTER_TX_TYPE_CREATE_GROUPED_ORDERS
+              : LIGHTER_TX_TYPE_CREATE_ORDER,
             signed.txInfo,
             undefined,
             {
               ...extractDispatchIdentity(signed),
-              intent: `placeOrder:${params.symbol}:${clientOrderIndex}`,
+              intent: attachedGroup
+                ? `placeAttached:${attachedGroup.groupId}`
+                : `placeOrder:${params.symbol}:${clientOrderIndex}`,
             },
           );
+          if (attachedGroup) {
+            attachedGroup.submission = 'accepted';
+            await this.#writeAttachedGroup(
+              attachedKey,
+              attachedGroup,
+              generationAtIntent,
+            );
+          }
+          return response;
         },
         generationAtIntent,
       );
@@ -7936,6 +9055,9 @@ export class LighterProvider implements PerpsProvider {
         success: true,
         orderId: String(clientOrderIndex),
         submittedSize: String(size),
+        ...(attachedGroup && attachedGroupPersisted
+          ? { attachedOrderGroup: toAttachedOrderGroup(attachedGroup) }
+          : {}),
         providerId: 'lighter',
       };
     } catch (caughtError) {
@@ -7956,6 +9078,9 @@ export class LighterProvider implements PerpsProvider {
       return {
         success: false,
         error: `${partialPrefix}${wrappedError.message}`,
+        ...(attachedGroup && attachedGroupPersisted
+          ? { attachedOrderGroup: toAttachedOrderGroup(attachedGroup) }
+          : {}),
         ...(leverageCommitted
           ? { partialState: { leverageUpdated: Number(params.leverage) } }
           : {}),
@@ -7971,6 +9096,9 @@ export class LighterProvider implements PerpsProvider {
       this.#ensureSessionBinding();
       const generationAtIntent = inheritedGeneration ?? this.#sessionGeneration;
       this.#assertSession(generationAtIntent);
+      if (params.orderId.startsWith(LIGHTER_ATTACHED_HANDLE_PREFIX)) {
+        return await this.#cancelAttachedGroup(params, generationAtIntent);
+      }
       await this.#ensureSignerReady();
       const accountIndex = await this.#ensureAccountIndex();
       const markets = await this.#ensureMarkets();
@@ -9285,6 +10413,15 @@ export class LighterProvider implements PerpsProvider {
                 row.marketIndex === market.marketId,
             );
           });
+          const attachedGroups = await this.#readAttachedGroups(
+            this.#attachedKey(accountIndex),
+          );
+          this.#assertSession(generationAtIntent);
+          const attachedClientIds = new Set(
+            attachedGroups.flatMap((group) =>
+              group.orders.map((order) => String(order[1])),
+            ),
+          );
           const managed = await this.#readManagedTpsl(settlementKey);
           this.#assertSession(generationAtIntent);
           // The public preflight position read occurred before signer
@@ -9358,6 +10495,10 @@ export class LighterProvider implements PerpsProvider {
             const raw = rawOrders.find(
               (row) => String(row.orderIndex) === order.orderId,
             );
+            // Attached children belong to their opening group, not this position update.
+            if (raw && attachedClientIds.has(String(raw.clientOrderIndex))) {
+              return false;
+            }
             // Core-owned IDs survive resizing, restart and key-slot recovery.
             // Legacy unrecorded full-quantity closing trigger markets retain
             // their historical protection contract, using the in-lock position.
@@ -10485,13 +11626,13 @@ export class LighterProvider implements PerpsProvider {
     if (triggerIntentError) {
       return { isValid: false, error: triggerIntentError };
     }
-    if (params.takeProfitPrice || params.stopLossPrice) {
-      return {
-        isValid: false,
-        error:
-          'Lighter does not support TP/SL attached at placement; place the order, then call updatePositionTPSL',
-      };
+    const attachedIntentError = getLighterAttachedIntentError(params);
+    if (attachedIntentError) {
+      return { isValid: false, error: attachedIntentError };
     }
+    const hasAttached =
+      params.takeProfitPrice !== undefined ||
+      params.stopLossPrice !== undefined;
     if (params.timeInForce === 'ALO') {
       return {
         isValid: false,
@@ -10537,7 +11678,7 @@ export class LighterProvider implements PerpsProvider {
       return { isValid: false, error: 'Order size must be positive' };
     }
     const markets = await this.#ensureMarkets(
-      isTriggerOrderType(params.orderType),
+      isTriggerOrderType(params.orderType) || hasAttached,
     );
     const market = markets.get(params.symbol);
     if (!market) {
@@ -10547,12 +11688,12 @@ export class LighterProvider implements PerpsProvider {
       };
     }
     if (
-      isTriggerOrderType(params.orderType) &&
+      (isTriggerOrderType(params.orderType) || hasAttached) &&
       (market.status !== 'active' || market.marketType !== 'perp')
     ) {
       return {
         isValid: false,
-        error: 'Lighter standalone triggers require an active perpetual market',
+        error: 'Lighter trigger orders require an active perpetual market',
       };
     }
     if (params.leverage !== undefined) {
@@ -10621,6 +11762,7 @@ export class LighterProvider implements PerpsProvider {
       );
       executionPrice = referencePrice;
     }
+    resolveLighterAttachedChildren(params, market, referencePrice);
     if (referencePrice > 0) {
       // USD-derived sizes snap onto the venue grid (placement parity);
       // explicit size strings stay verbatim.

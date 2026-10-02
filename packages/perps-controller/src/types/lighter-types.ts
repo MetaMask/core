@@ -81,13 +81,23 @@ export type LighterSignCreateOrderWireParams = [
   nonce: number,
 ];
 
-export type LighterSignCreateGroupedOrdersWireParams = [
-  accountIndex: number,
-  groupingType: number,
-  orderCount: 2,
-  ...orders: LighterGroupedOrderWireParams,
-  nonce: number,
-];
+/** Native OTO/OCO use two orders; OTOCO uses a parent and two children. */
+export type LighterSignCreateGroupedOrdersWireParams =
+  | [
+      accountIndex: number,
+      groupingType: 1 | 2,
+      orderCount: 2,
+      ...orders: LighterGroupedOrderWireParams,
+      nonce: number,
+    ]
+  | [
+      accountIndex: number,
+      groupingType: 3,
+      orderCount: 3,
+      ...parentAndFirstChild: LighterGroupedOrderWireParams,
+      ...secondChild: LighterCreateOrderWireParams,
+      nonce: number,
+    ];
 
 export type LighterSignCancelOrderWireParams = [
   accountIndex: number,
