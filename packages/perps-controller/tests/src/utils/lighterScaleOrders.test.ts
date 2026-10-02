@@ -87,6 +87,15 @@ function groupFixture(): LighterScaleGroup {
 }
 
 describe('Lighter Scale exact builder', () => {
+  it.each([0.5, Number.NaN, Number.POSITIVE_INFINITY, -1, 21])(
+    'rejects invalid price precision %s before applying decimal shifts',
+    (decimals) => {
+      expect(() =>
+        normalizeLighterScalePrices('125', '156.25', 2, decimals),
+      ).toThrow('Invalid Lighter Scale precision');
+    },
+  );
+
   it.each([
     [
       { scaleMinPrice: undefined },
@@ -104,14 +113,11 @@ describe('Lighter Scale exact builder', () => {
     [{ scaleMaxPrice: '125' }, PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID],
     [{ size: '0.0001' }, PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL],
     [{ usdAmount: '1' }, PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL],
-  ] as const)(
-    'scale02 returns shared Scale error codes for %j',
-    (override, code) => {
-      expect(() =>
-        buildLighterScaleLadder({ ...intent, ...override }, market),
-      ).toThrow(code);
-    },
-  );
+  ] as const)('returns shared Scale error codes for %j', (override, code) => {
+    expect(() =>
+      buildLighterScaleLadder({ ...intent, ...override }, market),
+    ).toThrow(code);
+  });
 
   it('conserves skewed integer lots and the exact quote budget', () => {
     const explicit = buildLighterScaleLadder(intent, market);

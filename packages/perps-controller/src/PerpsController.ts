@@ -4105,7 +4105,7 @@ export class PerpsController extends BaseController<
       this.state.activeProvider !== 'aggregated' &&
       params.providerId !== this.state.activeProvider
     ) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }
     if (!provider.reviewScaleOrderGroups) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);

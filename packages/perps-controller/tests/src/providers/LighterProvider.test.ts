@@ -716,8 +716,235 @@ describe('LighterProvider', () => {
       return venue;
     }
 
+    it('preserves executed Scale acceptance when later lookups disappear after expiry', async () => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: infra,
+      });
+      scaleVenue(built);
+      built.clientInstance.sendTx.mockRejectedValue(new Error('lost response'));
+      await built.provider.placeOrder(intent);
+      const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
+      const [group] = parseLighterScaleGroups(
+        await infra.diskCache.getItem(key),
+      );
+      const rung = group.rungs[0];
+      built.clientInstance.getTx.mockResolvedValue({
+        code: 200,
+        hash: rung.txHash,
+        nonce: rung.nonce,
+        apiKeyIndex: group.apiKeyIndex,
+        accountIndex: group.accountIndex,
+        status: 2,
+      });
+      await built.provider.reviewScaleOrderGroups();
+      const [accepted] = parseLighterScaleGroups(
+        await infra.diskCache.getItem(key),
+      );
+      expect(accepted.rungs[0].state).toBe('accepted');
+      expect(accepted.rungs[0].orderId).toBeUndefined();
+      built.clientInstance.getTx.mockResolvedValue(null);
+      const clock = jest
+        .spyOn(Date, 'now')
+        .mockReturnValue(Number(rung.expiresAt) + 31_000);
+      try {
+        const [receipt] = await built.provider.reviewScaleOrderGroups();
+        expect(receipt.state).toBe('stopped');
+        expect(receipt.acceptedSize).toBe(rung.size);
+        const [retained] = parseLighterScaleGroups(
+          await infra.diskCache.getItem(key),
+        );
+        expect(retained.rungs[0].state).toBe('accepted');
+        expect(retained.rungs[0].nonAcceptance).toBeUndefined();
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
+    it.each(['filled', 'canceled'] as const)(
+      'preserves a %s Scale child and its fills across stale active rows',
+      async (terminalState) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        const venue = scaleVenue(built);
+        const placed = await built.provider.placeOrder(intent);
+        expect(placed.success).toBe(true);
+        const stale = venue.active.shift();
+        if (!stale) {
+          throw new Error('Missing first Scale child');
+        }
+        const filledSize =
+          terminalState === 'filled' ? stale.initialBaseAmount : '0.0001';
+        venue.history.push({
+          ...stale,
+          status: terminalState,
+          filledBaseAmount: filledSize,
+          remainingBaseAmount: terminalState === 'filled' ? '0' : '0.0004',
+        });
+        await built.provider.reviewScaleOrderGroups();
+        // Both endpoints now return the earlier snapshot, after durable terminal proof.
+        venue.history.length = 0;
+        venue.active.unshift(stale);
+        const [receipt] = await built.provider.reviewScaleOrderGroups();
+        expect(receipt.filledSize).toBe(filledSize);
+        expect(receipt.childOrderIds).toStrictEqual(['801']);
+        const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
+        const [group] = parseLighterScaleGroups(
+          await infra.diskCache.getItem(key),
+        );
+        expect(group.rungs[0]).toMatchObject({
+          state: terminalState,
+          filledSize,
+        });
+        expect(
+          await built.provider.cancelOrder({
+            symbol: 'BTC',
+            orderId: String(placed.orderId),
+            orderType: 'scale',
+          }),
+        ).toMatchObject({ success: true });
+        expect(
+          built.calls
+            .filter((call) => call.function === '_signCancelOrder')
+            .map((call) => call.params[2]),
+        ).toStrictEqual(['801']);
+      },
+    );
+
+    it('preserves cumulative Scale fills when a live child row goes backwards', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      const venue = scaleVenue(built);
+      expect((await built.provider.placeOrder(intent)).success).toBe(true);
+      const stale = { ...venue.active[0] };
+      venue.active[0] = {
+        ...stale,
+        filledBaseAmount: '0.0002',
+        remainingBaseAmount: '0.0003',
+      };
+      expect(
+        (await built.provider.reviewScaleOrderGroups())[0].filledSize,
+      ).toBe('0.0002');
+      venue.active[0] = stale;
+      expect(
+        (await built.provider.reviewScaleOrderGroups())[0].filledSize,
+      ).toBe('0.0002');
+    });
+
+    it.each(['missing', 'replaced'] as const)(
+      'cancels an owned live Scale group after its local read authority is %s',
+      async (authority) => {
+        const infra = createMockInfrastructure();
+        const first = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        const originalVenue = scaleVenue(first);
+        const placed = await first.provider.placeOrder(intent);
+        expect(placed.success).toBe(true);
+        const registeredKey =
+          authority === 'missing' ? '9c'.repeat(40) : 'ab'.repeat(40);
+        const restarted = buildProvider({
+          registeredKey,
+          platformDependencies: infra,
+        });
+        const recoveredKey =
+          authority === 'missing' ? 'de'.repeat(40) : '9c'.repeat(40);
+        Object.assign(restarted.bridge, {
+          getStoredKeyIndices: async () => (authority === 'missing' ? [] : [7]),
+          getRecoverableKeyIndices: async () => [7],
+        });
+        const createClient = jest.spyOn(restarted.bridge, 'createClient');
+        const createClientImplementation = createClient.getMockImplementation();
+        createClient.mockImplementation(async (params) => {
+          const result = await createClientImplementation?.(params);
+          if (!result) {
+            throw new Error('Missing fixture client');
+          }
+          return { ...result, pk: recoveredKey };
+        });
+        const venue = scaleVenue(restarted);
+        venue.active.push(...originalVenue.active);
+        const send = restarted.clientInstance.sendTx.getMockImplementation();
+        restarted.clientInstance.sendTx.mockImplementation(
+          async (kind: number, txInfo: string) => {
+            const wire = JSON.parse(txInfo) as { changePubKey?: boolean };
+            if (wire.changePubKey) {
+              restarted.clientInstance.getApiKeys.mockResolvedValue({
+                code: 200,
+                apiKeys: [
+                  {
+                    accountIndex: 28,
+                    apiKeyIndex: 7,
+                    nonce: 1,
+                    publicKey: registeredKey,
+                  },
+                  {
+                    accountIndex: 28,
+                    apiKeyIndex: Number(
+                      restarted.calls
+                        .filter((call) => call.function === '_createClient')
+                        .at(-1)?.params[3],
+                    ),
+                    nonce: 1,
+                    publicKey: recoveredKey,
+                  },
+                ],
+              });
+            }
+            await send?.(kind, txInfo);
+            return { code: 200, txHash: '0xsent' };
+          },
+        );
+        const canceled = await restarted.provider.cancelOrder({
+          symbol: 'BTC',
+          orderId: String(placed.orderId),
+          orderType: 'scale',
+        });
+        expect(canceled).toMatchObject({ success: true });
+        expect(
+          restarted.calls
+            .filter((call) => call.function === '_signCancelOrder')
+            .map((call) => call.params[2]),
+        ).toStrictEqual(['800', '801']);
+        expect(
+          restarted.calls.filter(
+            (call) => call.function === '_signChangePubKey',
+          ),
+        ).toHaveLength(1);
+        expect(venue.active).toStrictEqual([]);
+      },
+    );
+
+    it('does not treat a Scale registration lookup failure as missing local authority', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      scaleVenue(built);
+      const placed = await built.provider.placeOrder(intent);
+      const signedBefore = built.calls.filter((call) =>
+        call.function.startsWith('_sign'),
+      ).length;
+      built.clientInstance.getApiKeys.mockRejectedValue(
+        new Error('registration unavailable'),
+      );
+      const canceled = await built.provider.cancelOrder({
+        symbol: 'BTC',
+        orderId: String(placed.orderId),
+        orderType: 'scale',
+      });
+      expect(canceled).toMatchObject({
+        success: false,
+        error: 'registration unavailable',
+      });
+      expect(
+        built.calls.filter((call) => call.function.startsWith('_sign')),
+      ).toHaveLength(signedBefore);
+    });
+
     it.each(['failed', 'expired'] as const)(
-      'scale02 reviews %s proof before reconciliation without trapping the ledger',
+      'reviews %s proof before reconciliation without trapping the ledger',
       async (proof) => {
         const infra = createMockInfrastructure();
         const built = buildProvider({
@@ -765,7 +992,7 @@ describe('LighterProvider', () => {
       },
     );
 
-    it('scale02 retires an acknowledged invisible child after restart and expiry without financial setup', async () => {
+    it('retires an acknowledged invisible child after restart and expiry without financial setup', async () => {
       const infra = createMockInfrastructure();
       const first = buildProvider({
         registeredKey: '9c'.repeat(40),
@@ -811,7 +1038,7 @@ describe('LighterProvider', () => {
       }
     });
 
-    it('scale02 observes delayed placement and cancellation rows within the settle window', async () => {
+    it('observes delayed placement and cancellation rows within the settle window', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       const venue = scaleVenue(built);
       let reads = 0;
@@ -826,7 +1053,7 @@ describe('LighterProvider', () => {
       ).toHaveLength(2);
     });
 
-    it('scale02 persists a rejected later row while preserving the resting first child', async () => {
+    it('persists a rejected later row while preserving the resting first child', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       const venue = scaleVenue(built);
       const send = built.clientInstance.sendTx.getMockImplementation();
@@ -858,7 +1085,7 @@ describe('LighterProvider', () => {
       ).toBe(true);
     });
 
-    it('scale02 returns real ordinary rows when optional attribution is corrupt', async () => {
+    it('returns real ordinary rows when optional attribution is corrupt', async () => {
       const infra = createMockInfrastructure();
       const built = buildProvider({
         registeredKey: '9c'.repeat(40),
@@ -877,7 +1104,7 @@ describe('LighterProvider', () => {
       );
     });
 
-    it('scale02 rejects excessive reduce-only leverage before financial setup', async () => {
+    it('rejects excessive reduce-only leverage before financial setup', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       const params = {
         ...intent,
@@ -891,7 +1118,7 @@ describe('LighterProvider', () => {
       expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
     });
 
-    it('scale02 cancels an already terminal group after restart without signer setup', async () => {
+    it('cancels an already terminal group after restart without signer setup', async () => {
       const infra = createMockInfrastructure();
       const first = buildProvider({
         registeredKey: '9c'.repeat(40),
@@ -912,7 +1139,7 @@ describe('LighterProvider', () => {
     });
 
     it.each(['0', '0.0001', undefined])(
-      'scale02 tracks actual accepted exposure with fill %s through TradingService',
+      'tracks actual accepted exposure with fill %s through TradingService',
       async (fill) => {
         const infra = createMockInfrastructure();
         const built = buildProvider({
@@ -960,7 +1187,7 @@ describe('LighterProvider', () => {
       },
     );
 
-    it('scale02 validates existing reduce-only reservations before any financial setup', async () => {
+    it('validates existing reduce-only reservations before any financial setup', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       const venue = scaleVenue(built);
       venue.active.push({
@@ -988,7 +1215,7 @@ describe('LighterProvider', () => {
       expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
     });
 
-    it('scale02 fails closed without registered reservation read authority', async () => {
+    it('fails closed without registered reservation read authority', async () => {
       const built = buildProvider();
       const params = { ...intent, isBuy: false, reduceOnly: true };
       expect((await built.provider.validateOrder(params)).isValid).toBe(false);
@@ -999,7 +1226,7 @@ describe('LighterProvider', () => {
       ).toStrictEqual([]);
     });
 
-    it('scale02 uses fresh terminal history when a prior reduce-only child filled', async () => {
+    it('uses fresh terminal history when a prior reduce-only child filled', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       const venue = scaleVenue(built);
       const spy = jest.spyOn(built.bridge, 'execute');
@@ -1044,7 +1271,7 @@ describe('LighterProvider', () => {
       expect(venue.active).toHaveLength(1);
     });
 
-    it('scale02 cancels known resting siblings even when an earlier accepted row is absent', async () => {
+    it('cancels known resting siblings even when an earlier accepted row is absent', async () => {
       const infra = createMockInfrastructure();
       const built = buildProvider({
         registeredKey: '9c'.repeat(40),
@@ -1077,7 +1304,7 @@ describe('LighterProvider', () => {
       ).toStrictEqual(['801']);
     });
 
-    it('scale02 waits for lagged cancellation without signing duplicate cancels', async () => {
+    it('waits for lagged cancellation without signing duplicate cancels', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       const venue = scaleVenue(built);
       const result = await built.provider.placeOrder(intent);
@@ -1115,7 +1342,7 @@ describe('LighterProvider', () => {
     });
 
     it.each([7, 8])(
-      'scale02 recovers fresh exact accepted rows into acknowledgment after restart in slot %s',
+      'recovers fresh exact accepted rows into acknowledgment after restart in slot %s',
       async (slot) => {
         const infra = createMockInfrastructure();
         const built = buildProvider({
@@ -1187,101 +1414,98 @@ describe('LighterProvider', () => {
       'wrong-owner',
       'wrong-ledger-hash',
       'wrong-slot',
-    ] as const)(
-      'scale02 keeps recovery pending with %s evidence',
-      async (control) => {
-        const infra = createMockInfrastructure();
-        const built = buildProvider({
-          registeredKey: '9c'.repeat(40),
-          platformDependencies: infra,
-        });
-        const venue = scaleVenue(built);
-        const send = built.clientInstance.sendTx.getMockImplementation();
-        built.clientInstance.sendTx.mockImplementation(
-          async (...args: unknown[]) => {
-            await send?.(...args);
-            throw new Error('lost');
-          },
-        );
-        await built.provider.placeOrder(intent);
-        const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
-        const [group] = parseLighterScaleGroups(
-          await infra.diskCache.getItem(key),
-        );
-        const rung = group.rungs[0];
-        const ledgerKey = 'lighterNonceLedger:testnet:28:7';
-        const ledger = JSON.parse(
-          String(await infra.diskCache.getItem(ledgerKey)),
-        ) as {
-          entries: {
-            kind: number;
-            nonce: number;
-            expiresAt: number;
-            intent: string;
-            owner: string | null;
-            txHash: string | null;
-          }[];
-        };
-        if (control === 'wrong-owner') {
-          ledger.entries[0].owner = 'another-operation';
-        }
-        if (control === 'wrong-ledger-hash') {
-          ledger.entries[0].txHash = 'aa';
-        }
-        if (control === 'wrong-slot') {
-          group.apiKeyIndex = 8;
-          await infra.diskCache.setItem(key, JSON.stringify([group]));
-        }
-        if (control === 'wrong-kind') {
-          ledger.entries[0].kind = 15;
-        }
-        if (control === 'wrong-nonce') {
-          ledger.entries[0].nonce += 1;
-        }
-        if (control === 'wrong-expiry') {
-          ledger.entries[0].expiresAt += 1;
-        }
-        if (control === 'wrong-intent') {
-          ledger.entries[0].intent += ':other';
-        }
-        await infra.diskCache.setItem(ledgerKey, JSON.stringify(ledger));
-        built.clientInstance.getNextNonce.mockResolvedValue({
+    ] as const)('keeps recovery pending with %s evidence', async (control) => {
+      const infra = createMockInfrastructure();
+      const built = buildProvider({
+        registeredKey: '9c'.repeat(40),
+        platformDependencies: infra,
+      });
+      const venue = scaleVenue(built);
+      const send = built.clientInstance.sendTx.getMockImplementation();
+      built.clientInstance.sendTx.mockImplementation(
+        async (...args: unknown[]) => {
+          await send?.(...args);
+          throw new Error('lost');
+        },
+      );
+      await built.provider.placeOrder(intent);
+      const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
+      const [group] = parseLighterScaleGroups(
+        await infra.diskCache.getItem(key),
+      );
+      const rung = group.rungs[0];
+      const ledgerKey = 'lighterNonceLedger:testnet:28:7';
+      const ledger = JSON.parse(
+        String(await infra.diskCache.getItem(ledgerKey)),
+      ) as {
+        entries: {
+          kind: number;
+          nonce: number;
+          expiresAt: number;
+          intent: string;
+          owner: string | null;
+          txHash: string | null;
+        }[];
+      };
+      if (control === 'wrong-owner') {
+        ledger.entries[0].owner = 'another-operation';
+      }
+      if (control === 'wrong-ledger-hash') {
+        ledger.entries[0].txHash = 'aa';
+      }
+      if (control === 'wrong-slot') {
+        group.apiKeyIndex = 8;
+        await infra.diskCache.setItem(key, JSON.stringify([group]));
+      }
+      if (control === 'wrong-kind') {
+        ledger.entries[0].kind = 15;
+      }
+      if (control === 'wrong-nonce') {
+        ledger.entries[0].nonce += 1;
+      }
+      if (control === 'wrong-expiry') {
+        ledger.entries[0].expiresAt += 1;
+      }
+      if (control === 'wrong-intent') {
+        ledger.entries[0].intent += ':other';
+      }
+      await infra.diskCache.setItem(ledgerKey, JSON.stringify(ledger));
+      built.clientInstance.getNextNonce.mockResolvedValue({
+        code: 200,
+        nonce: control === 'unadvanced' ? rung.nonce : 1000,
+      });
+      if (control === 'mismatched-hash' || control === 'pending-hash') {
+        built.clientInstance.getTx.mockResolvedValue({
           code: 200,
-          nonce: control === 'unadvanced' ? rung.nonce : 1000,
+          hash: control === 'mismatched-hash' ? 'ff' : rung.txHash,
+          nonce: rung.nonce,
+          apiKeyIndex: 7,
+          accountIndex: 28,
+          status: control === 'pending-hash' ? 1 : 2,
         });
-        if (control === 'mismatched-hash' || control === 'pending-hash') {
-          built.clientInstance.getTx.mockResolvedValue({
-            code: 200,
-            hash: control === 'mismatched-hash' ? 'ff' : rung.txHash,
-            nonce: rung.nonce,
-            apiKeyIndex: 7,
-            accountIndex: 28,
-            status: control === 'pending-hash' ? 1 : 2,
-          });
-        }
-        if (control === 'missing-row') {
-          venue.active.length = 0;
-        }
-        if (control === 'wrong-side') {
-          venue.active[0].isAsk = true;
-        }
-        const reviewError = await built.provider.reviewScaleOrderGroups().then(
-          () => undefined,
-          (error: unknown) =>
-            error instanceof Error ? error.message : String(error),
-        );
-        expect(reviewError).toBe(
-          control === 'wrong-side'
-            ? 'Lighter Scale order does not match signed intent'
-            : undefined,
-        );
-        const recovered = await built.provider.getRecoveredDispatches();
-        expect(recovered).not.toContainEqual(
-          expect.objectContaining({ evidence: 'fresh-exact-scale-child' }),
-        );
-        expect((await built.provider.placeOrder(intent)).success).toBe(false);
-      },
-    );
+      }
+      if (control === 'missing-row') {
+        venue.active.length = 0;
+      }
+      if (control === 'wrong-side') {
+        venue.active[0].isAsk = true;
+      }
+      const reviewError = await built.provider.reviewScaleOrderGroups().then(
+        () => undefined,
+        (error: unknown) =>
+          error instanceof Error ? error.message : String(error),
+      );
+      expect(reviewError).toBe(
+        control === 'wrong-side'
+          ? 'Lighter Scale order does not match signed intent'
+          : undefined,
+      );
+      const recovered = await built.provider.getRecoveredDispatches();
+      expect(recovered).not.toContainEqual(
+        expect.objectContaining({ evidence: 'fresh-exact-scale-child' }),
+      );
+      expect((await built.provider.placeOrder(intent)).success).toBe(false);
+    });
 
     it.each([
       'unexpired',
@@ -1290,7 +1514,7 @@ describe('LighterProvider', () => {
       'unscoped-active',
       'unscoped-history',
     ] as const)(
-      'scale02 does not abandon acknowledged absence with %s',
+      'does not abandon acknowledged absence with %s',
       async (control) => {
         const infra = createMockInfrastructure();
         const built = buildProvider({
@@ -1379,7 +1603,7 @@ describe('LighterProvider', () => {
       },
     );
 
-    it('scale02 retries terminal fresh-row acceptance after a ledger persistence failure', async () => {
+    it('retries terminal fresh-row acceptance after a ledger persistence failure', async () => {
       const infra = createMockInfrastructure();
       const built = buildProvider({
         registeredKey: '9c'.repeat(40),
@@ -1437,7 +1661,7 @@ describe('LighterProvider', () => {
       ]);
     });
 
-    it('scale02 rejects unavailable leverage metadata for reduce-only before setup', async () => {
+    it('rejects unavailable leverage metadata for reduce-only before setup', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       built.clientInstance.getOrderBookDetails.mockResolvedValue({
         code: 200,
@@ -1450,7 +1674,7 @@ describe('LighterProvider', () => {
       expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
     });
 
-    it('scale02 rechecks reservations that change during child signing', async () => {
+    it('rechecks reservations that change during child signing', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       const venue = scaleVenue(built);
       const params = { ...intent, isBuy: false, reduceOnly: true };
@@ -1489,7 +1713,7 @@ describe('LighterProvider', () => {
       ).toBe('0');
     });
 
-    it('scale02 retains failed proof when ledger retirement fails after group review', async () => {
+    it('retains failed proof when ledger retirement fails after group review', async () => {
       const infra = createMockInfrastructure();
       const built = buildProvider({
         registeredKey: '9c'.repeat(40),

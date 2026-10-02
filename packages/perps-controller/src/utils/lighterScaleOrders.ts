@@ -101,6 +101,13 @@ export function normalizeLighterScalePrices(
   count: number,
   decimals: number,
 ): string[] {
+  if (
+    !Number.isInteger(decimals) ||
+    decimals < 0 ||
+    decimals > LIGHTER_SCALE_MAX_DECIMALS
+  ) {
+    throw new Error('Invalid Lighter Scale precision');
+  }
   let low: BigNumber;
   let high: BigNumber;
   try {
@@ -120,13 +127,6 @@ export function normalizeLighterScalePrices(
     maxPrice: high.toNumber(),
     count,
   });
-  if (
-    !Number.isInteger(decimals) ||
-    decimals < 0 ||
-    decimals > LIGHTER_SCALE_MAX_DECIMALS
-  ) {
-    throw new Error('Invalid Lighter Scale precision');
-  }
   const prices = Array.from({ length: count }, (_, index) =>
     low
       .plus(

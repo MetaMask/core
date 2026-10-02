@@ -255,7 +255,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     Object.assign(fixture.provider, { reviewScaleOrderGroups });
     await expect(
       fixture.controller.reviewScaleOrderGroups({ providerId: 'lighter' }),
-    ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     expect(reviewScaleOrderGroups).not.toHaveBeenCalled();
   });
 

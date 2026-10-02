@@ -413,7 +413,8 @@ const toFiniteCandle = (candle: LighterCandle): CandleStick | null => {
   };
 };
 
-/** The pinned signer casts price fields to uint32. */
+/** No retained local key matches a current venue registration. */
+class LighterRecoveryReadAuthorityError extends Error {}
 
 /**
  * One recorded TP/SL venue mutation attempt. Each attempt carries its own
@@ -3714,7 +3715,7 @@ export class LighterProvider implements PerpsProvider {
               publicKey: created.pk,
             };
           }
-          throw new Error(
+          throw new LighterRecoveryReadAuthorityError(
             'Lighter recovery review requires a matching locally retained registered key; reconnect without replacing venue keys',
           );
         } finally {
@@ -7926,8 +7927,6 @@ export class LighterProvider implements PerpsProvider {
         ) {
           throw new Error('Lighter Scale order does not match signed intent');
         }
-        delete rung.nonAcceptance;
-        rung.orderId = orderId;
         const adapted =
           row.status === 'rejected'
             ? undefined
@@ -7941,23 +7940,44 @@ export class LighterProvider implements PerpsProvider {
           ) {
             throw new Error('Invalid Lighter Scale fill quantity');
           }
-          rung.filledSize = row.filledBaseAmount;
+          if (
+            rung.filledSize !== undefined &&
+            new BigNumber(row.filledBaseAmount).lt(rung.filledSize)
+          ) {
+            // Indexer lag cannot erase cumulative execution evidence.
+            continue;
+          }
         }
         // Limit price is not execution price. No average fill price is inferred.
+        let nextState: LighterScaleRung['state'];
         if (row.status === 'rejected') {
-          rung.state = 'rejected';
+          nextState = 'rejected';
         } else if (adapted?.status === 'canceled') {
-          rung.state = 'canceled';
+          nextState = 'canceled';
         } else if (
           adapted?.status === 'filled' &&
           parseStrictDecimal(row.remainingBaseAmount) === 0
         ) {
-          rung.state = 'filled';
+          nextState = 'filled';
         } else if (adapted?.status === 'open') {
-          rung.state = 'resting';
+          nextState = 'resting';
         } else {
-          rung.state = 'accepted';
+          nextState = 'accepted';
         }
+        if (
+          ['filled', 'canceled', 'rejected'].includes(rung.state) &&
+          nextState !== rung.state
+        ) {
+          // Keep terminal proof when an older active row reappears. Fresh
+          // matching terminal rows still settle any pending nonce ledger.
+          continue;
+        }
+        delete rung.nonAcceptance;
+        rung.orderId = orderId;
+        if (row.filledBaseAmount !== undefined) {
+          rung.filledSize = row.filledBaseAmount;
+        }
+        rung.state = nextState;
         observed.push(rung);
       } else if (rung.txHash !== null && rung.orderId === undefined) {
         const transaction = await this.#clientService.getTx(rung.txHash);
@@ -7981,6 +8001,7 @@ export class LighterProvider implements PerpsProvider {
           }
         } else if (
           abandon &&
+          (rung.state === 'unknown' || rung.state === 'submitted') &&
           transaction === null &&
           cursor === undefined &&
           rung.expiresAt !== null &&
@@ -8399,17 +8420,26 @@ export class LighterProvider implements PerpsProvider {
         const current = await lookup();
         current.placementStopped = true;
         if (!isLighterScaleTerminal(current)) {
-          const { token: readToken } = await this.#getRecoveryReadToken(
-            accountIndex,
-            generation,
-          );
-          await this.#refreshScaleGroup(
-            current,
-            key,
-            readToken,
-            generation,
-            true,
-          );
+          try {
+            const { token: readToken } = await this.#getRecoveryReadToken(
+              accountIndex,
+              generation,
+            );
+            await this.#refreshScaleGroup(
+              current,
+              key,
+              readToken,
+              generation,
+              true,
+            );
+          } catch (error) {
+            if (!(error instanceof LighterRecoveryReadAuthorityError)) {
+              throw error;
+            }
+            // A live owned group can acquire signing authority below even
+            // after local key loss. Registration and transport errors cannot.
+            this.#assertSession(generation);
+          }
         }
         await this.#writeScaleGroup(key, current, generation);
         if (!isLighterScaleTerminal(current)) {

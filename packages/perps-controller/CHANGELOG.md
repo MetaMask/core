@@ -30,8 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add `canceled` to `ScaleOrderChild.state` for accepted children canceled after placement. Scale receipts distinguish submitted, accepted and known filled exposure.
-
+- **BREAKING:** Add `canceled` to `ScaleOrderChild.state` for accepted children canceled after placement. Consumers exhaustively matching this union must handle the new state. Scale receipts distinguish submitted, accepted and known filled exposure.
 - **BREAKING:** Add `order_market_unsupported` to `DirectProviderOrderCapabilitiesUnavailableReason` and `OrderCapabilitiesUnavailableReason` for known inactive markets that cannot accept native triggers. Consumers exhaustively matching these unions must include the new reason; Scale price-ladder reasons are unchanged ([#10638](https://github.com/MetaMask/core/pull/10638))
 - **BREAKING:** Refuse stray `triggerPrice` on Lighter basic market and limit orders with `ORDER_TRIGGER_PRICE_NOT_SUPPORTED` rather than silently ignoring it. Omit the field or select an explicit trigger order type ([#10638](https://github.com/MetaMask/core/pull/10638))
 - **BREAKING:** Lighter position TP/SL replacement and removal preserve independent partial triggers and trigger limits. Legacy unrecorded trigger-market orders count as protection only on the closing side with exactly the in-lock position quantity and a known restorable time-in-force. Cancel independent orders and pre-upgrade protection whose quantity no longer matches explicitly ([#10638](https://github.com/MetaMask/core/pull/10638))
