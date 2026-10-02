@@ -13645,7 +13645,7 @@ describe('LighterProvider', () => {
         expect(await getItem(payloadKey)).toBe(
           change === 'journal' ? payload : null,
         );
-        expect(infra.debugLogger.log).not.toHaveBeenCalledWith(
+        expect(jest.spyOn(infra.debugLogger, 'log')).not.toHaveBeenCalledWith(
           '[LighterProvider] Previous-slot warning cleanup remains pending',
           expect.anything(),
         );
@@ -13788,7 +13788,7 @@ describe('LighterProvider', () => {
         expect(await infra.diskCache.getItem(journalKey)).toBe(
           change === 'new-journal' ? pointer : null,
         );
-        expect(infra.debugLogger.log).not.toHaveBeenCalledWith(
+        expect(jest.spyOn(infra.debugLogger, 'log')).not.toHaveBeenCalledWith(
           '[LighterProvider] Previous-slot warning cleanup remains pending',
           expect.anything(),
         );
