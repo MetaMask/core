@@ -3,9 +3,11 @@ import { webcrypto } from 'crypto';
 import {
   LIGHTER_TX_TYPE_CREATE_ORDER,
   LIGHTER_TX_TYPE_CANCEL_ORDER,
+  LIGHTER_NATIVE_PROBE_CANCEL_LIMIT,
 } from '../../../src/constants/lighterConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterProvider } from '../../../src/providers/LighterProvider.js';
+import type { LighterChaseRecord } from '../../../src/services/LighterChaseService.js';
 import {
   LighterApiError,
   LighterClientService,
@@ -21968,6 +21970,270 @@ describe('Lighter bounded Chase provider probe', () => {
       expect(restarted.clientInstance.getApiKeys).not.toHaveBeenCalled();
     } finally {
       await restarted.provider.disconnect();
+    }
+  });
+  const absentChase = (
+    deps: ReturnType<typeof createMockInfrastructure>,
+  ): BuiltProvider => {
+    const built = buildProvider({
+      platformDependencies: deps,
+      configuredAccountIndex: null,
+    });
+    built.clientInstance.getAccountsByL1Address.mockResolvedValue({
+      code: 200,
+      l1Address: ACCOUNT.l1Address,
+      subAccounts: [],
+    });
+    return built;
+  };
+  const bindRetainedChaseLookup = (
+    built: BuiltProvider,
+    record: LighterChaseRecord,
+    terminal: () => boolean = () =>
+      built.calls.some(
+        (call) =>
+          call.function === '_signCancelOrder' &&
+          String(call.params[2]) === record.children[0].observation?.orderId,
+      ),
+  ): void => {
+    const child = record.children[0];
+    built.clientInstance.getOrdersByClientIds.mockImplementation(
+      async (_account: number, _token: string, ids: string[]) => ({
+        code: 200,
+        orders: ids.includes(child.clientOrderId)
+          ? [
+              {
+                orderIndex: Number(child.observation?.orderId),
+                orderId: child.observation?.orderId ?? '',
+                clientOrderIndex: Number(child.clientOrderId),
+                clientOrderId: child.clientOrderId,
+                marketIndex: record.intent.marketId,
+                ownerAccountIndex: record.intent.owner.accountIndex,
+                initialBaseAmount: child.size,
+                remainingBaseAmount: child.size,
+                filledBaseAmount: '0',
+                filledQuoteAmount: '0',
+                price: child.price,
+                isAsk: !record.intent.isBuy,
+                type: 'limit',
+                timeInForce: 'post-only',
+                reduceOnly: 0,
+                status: terminal() ? 'canceled' : 'open',
+                orderExpiry: Date.now() + 100000,
+                timestamp: 1,
+                nonce: child.placement.nonce,
+              },
+            ]
+          : [],
+      }),
+    );
+  };
+  type AbsentChaseStops = {
+    deps: ReturnType<typeof createMockInfrastructure>;
+    orderId: string;
+    retained: LighterChaseRecord;
+    local: LighterChaseRecord;
+  };
+  const repeatAbsentChaseStops = async (
+    first: 'suspension' | 'cancellation',
+  ): Promise<AbsentChaseStops> => {
+    const deps = diskDependencies();
+    const original = setup({
+      platformDependencies: deps,
+      configuredAccountIndex: null,
+    });
+    const placed = await original.provider.placeOrder(intent);
+    if (!placed.orderId || !placed.success) {
+      throw new Error(placed.error ?? 'Missing Chase placement');
+    }
+    const retained = (await original.provider.getNativeChaseRecords())[0];
+    await original.provider.disconnect();
+    let local = retained;
+    for (let restart = 0; restart < 2; restart += 1) {
+      const absent = absentChase(deps);
+      try {
+        for (
+          let stop = 0;
+          stop <= LIGHTER_NATIVE_PROBE_CANCEL_LIMIT;
+          stop += 1
+        ) {
+          const suspension = (stop % 2 === 0) === (first === 'suspension');
+          const result = suspension
+            ? (await absent.provider.suspendChaseOrders())[0]
+            : await absent.provider.cancelOrder(cancelParams(placed.orderId));
+          const expected = suspension
+            ? {
+                handle: placed.orderId,
+                status: 'termination_pending',
+                restingOrderId: '9001',
+              }
+            : { success: false, error: expect.any(String) as string };
+          expect(result).toMatchObject(expected);
+        }
+        local = (await absent.provider.getNativeChaseRecords())[0];
+        expect(absent.calls).toStrictEqual([]);
+        expect(absent.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(absent.clientInstance.getApiKeys).not.toHaveBeenCalled();
+        expect(
+          absent.clientInstance.getOrdersByClientIds,
+        ).not.toHaveBeenCalled();
+        expect(local.stopReason).toBe(
+          first === 'suspension' ? 'backgrounded' : 'canceled',
+        );
+      } finally {
+        await absent.provider.disconnect();
+      }
+    }
+    return { deps, orderId: placed.orderId, retained, local };
+  };
+  const assertRestoredChaseCleanup = async ({
+    deps,
+    orderId,
+    retained,
+    local,
+  }: AbsentChaseStops): Promise<void> => {
+    const restored = setup({
+      platformDependencies: deps,
+      configuredAccountIndex: null,
+    });
+    bindRetainedChaseLookup(restored, retained);
+    try {
+      const cleanup = await restored.provider.cancelOrder(
+        cancelParams(orderId),
+      );
+      if (!cleanup.success) {
+        throw new Error(cleanup.error);
+      }
+      expect(cleanup.success).toBe(true);
+      expect(local.children).toStrictEqual(retained.children);
+      expect(local.error).toContain('authority is unavailable');
+      const cancel = restored.calls.filter(
+        (call) => call.function === '_signCancelOrder',
+      );
+      expect(cancel).toHaveLength(1);
+      expect(cancel[0].params.slice(0, 3)).toStrictEqual([28, 1, '9001']);
+      expect(
+        restored.calls.filter((call) => call.function === '_signCreateOrder'),
+      ).toHaveLength(0);
+      expect(
+        restored.clientInstance.sendTx.mock.calls.filter(
+          ([kind]) => kind === LIGHTER_TX_TYPE_CANCEL_ORDER,
+        ),
+      ).toHaveLength(1);
+      expect(
+        (await restored.provider.getNativeChaseRecords())[0],
+      ).toMatchObject({
+        intent: retained.intent,
+        status: 'canceled',
+        stopReason: local.stopReason,
+      });
+      expect(
+        (await restored.provider.getChaseOrders())[0].restingOrderId,
+      ).toBeNull();
+    } finally {
+      await restored.provider.disconnect();
+    }
+  };
+  it('preserves cancellation capacity after repeated local suspension across restart', async () => {
+    const stopped = await repeatAbsentChaseStops('suspension');
+
+    expect(stopped.local.children).toStrictEqual(stopped.retained.children);
+    await assertRestoredChaseCleanup(stopped);
+  });
+  it('restores exact cleanup after repeated local cancellation across restart', async () => {
+    const stopped = await repeatAbsentChaseStops('cancellation');
+
+    await assertRestoredChaseCleanup(stopped);
+    expect(stopped.local.children).toStrictEqual(stopped.retained.children);
+  });
+  it('preserves a real attempted cancellation through absent stops and refuses an unknown duplicate after restart', async () => {
+    const deps = diskDependencies();
+    const original = setup({
+      platformDependencies: deps,
+      configuredAccountIndex: null,
+    });
+    const placed = await original.provider.placeOrder(intent);
+    if (!placed.orderId || !placed.success) {
+      throw new Error(placed.error ?? 'Missing Chase placement');
+    }
+    const retained = (await original.provider.getNativeChaseRecords())[0];
+    bindRetainedChaseLookup(original, retained, () => false);
+    original.clientInstance.sendTx.mockRejectedValueOnce(
+      new Error('cancel response lost'),
+    );
+    expect(
+      (await original.provider.cancelOrder(cancelParams(placed.orderId)))
+        .success,
+    ).toBe(false);
+    const attempted = (await original.provider.getNativeChaseRecords())[0];
+    expect(attempted.children[0].cancellations[0]).toMatchObject({
+      phase: 'attempted',
+      txHash: expect.any(String) as string,
+    });
+    expect(
+      original.calls.filter((call) => call.function === '_signCancelOrder'),
+    ).toHaveLength(1);
+    expect(
+      original.clientInstance.sendTx.mock.calls.filter(
+        ([kind]) => kind === LIGHTER_TX_TYPE_CANCEL_ORDER,
+      ),
+    ).toHaveLength(1);
+    await original.provider.disconnect();
+    for (let restart = 0; restart < 2; restart += 1) {
+      const absent = absentChase(deps);
+      try {
+        for (
+          let stop = 0;
+          stop <= LIGHTER_NATIVE_PROBE_CANCEL_LIMIT;
+          stop += 1
+        ) {
+          await absent.provider.suspendChaseOrders();
+          await absent.provider.cancelOrder(cancelParams(placed.orderId));
+        }
+        expect(
+          (await absent.provider.getNativeChaseRecords())[0].children,
+        ).toStrictEqual(attempted.children);
+        expect(absent.calls).toStrictEqual([]);
+        expect(absent.clientInstance.sendTx).not.toHaveBeenCalled();
+      } finally {
+        await absent.provider.disconnect();
+      }
+    }
+    const restored = setup({
+      platformDependencies: deps,
+      configuredAccountIndex: null,
+    });
+    let terminal = false;
+    bindRetainedChaseLookup(restored, attempted, () => terminal);
+    const dispatch = attempted.children[0].cancellations[0];
+    restored.clientInstance.getTx.mockImplementation(async (hash: string) => ({
+      code: 200,
+      hash,
+      accountIndex: 28,
+      apiKeyIndex: 7,
+      nonce: dispatch.nonce,
+      status: terminal ? 2 : 1,
+    }));
+    try {
+      expect(
+        (await restored.provider.cancelOrder(cancelParams(placed.orderId)))
+          .success,
+      ).toBe(false);
+      expect(
+        (await restored.provider.getNativeChaseRecords())[0].children[0]
+          .cancellations,
+      ).toStrictEqual(attempted.children[0].cancellations);
+      terminal = true;
+      expect(
+        (await restored.provider.cancelOrder(cancelParams(placed.orderId)))
+          .success,
+      ).toBe(true);
+      expect(
+        restored.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(0);
+      expect(restored.clientInstance.sendTx).not.toHaveBeenCalled();
+    } finally {
+      await restored.provider.disconnect();
     }
   });
   it.each(['empty', 'other-wallet', 'other-network'] as const)(

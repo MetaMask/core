@@ -741,12 +741,7 @@ export class LighterChaseService {
     }
   }
 
-  async #stop(
-    record: LighterChaseRecord,
-    journal: Journal,
-    io: LighterChaseIo,
-    reason: ChaseOrderStatus,
-  ): Promise<void> {
+  #requestStop(record: LighterChaseRecord, reason: ChaseOrderStatus): boolean {
     this.#active.delete(record.intent.handle);
     if (
       record.status !== 'active' &&
@@ -754,12 +749,24 @@ export class LighterChaseService {
       this.#settled(record)
     ) {
       this.#stopRequests.delete(record.intent.handle);
-      return;
+      return false;
     }
     record.stopReason ??=
       this.#stopRequests.get(record.intent.handle) ?? reason;
     this.#stopRequests.delete(record.intent.handle);
     record.status = 'termination_pending';
+    return true;
+  }
+
+  async #stop(
+    record: LighterChaseRecord,
+    journal: Journal,
+    io: LighterChaseIo,
+    reason: ChaseOrderStatus,
+  ): Promise<void> {
+    if (!this.#requestStop(record, reason)) {
+      return;
+    }
     await this.#write(record.intent.owner, journal, io);
     try {
       await this.#cancel(record, journal, io);
@@ -993,6 +1000,43 @@ export class LighterChaseService {
         throw new Error('Unknown owned Lighter Chase handle');
       }
       await this.#stop(record, journal, io, reason);
+      return record;
+    });
+  }
+
+  /**
+   * Persist stop intent when venue authority is unavailable, retaining every dispatch.
+   *
+   * @param owner - Remembered account scope.
+   * @param handle - Exact durable session handle.
+   * @param io - Current wallet/network and local storage authority only.
+   * @param reason - Requested stop cause; the first cause remains authoritative.
+   * @param error - Explanation of the unresolved venue cleanup.
+   * @returns Existing terminal evidence or pending local cleanup, without cancellation.
+   */
+  async stopLocally(
+    owner: LighterChaseOwner,
+    handle: string,
+    io: Pick<LighterChaseIo, 'assertCurrent'>,
+    reason: ChaseOrderStatus,
+    error: string,
+  ): Promise<LighterChaseRecord> {
+    if (this.#active.has(handle) && !this.#stopRequests.has(handle)) {
+      this.#stopRequests.set(handle, reason);
+    }
+    this.#active.delete(handle);
+    return await this.#locked(owner, async () => {
+      const journal = await this.#read(owner, io);
+      const record = journal.records.find(
+        (entry) => entry.intent.handle === handle,
+      );
+      if (!record) {
+        throw new Error('Unknown owned Lighter Chase handle');
+      }
+      if (this.#requestStop(record, reason)) {
+        record.error = error;
+        await this.#write(owner, journal, io);
+      }
       return record;
     });
   }

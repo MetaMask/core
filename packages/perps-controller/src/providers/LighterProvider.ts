@@ -8964,17 +8964,12 @@ export class LighterProvider implements PerpsProvider {
    *
    * @param intent - Exact validated remembered record.
    * @param generation - Issuing wallet/network session.
-   * @param canReconcile - Whether current venue account ownership is available.
-   * @returns Current provider I/O, or local-only I/O that refuses venue operations.
+   * @returns Current local storage authority without venue operations.
    */
   #chaseManagementIo(
     intent: LighterChaseIntent,
     generation: number,
-    canReconcile: boolean,
-  ): LighterChaseIo {
-    if (canReconcile) {
-      return this.#chaseIo(intent, generation);
-    }
+  ): Pick<LighterChaseIo, 'assertCurrent'> {
     const assertCurrent = (): void => {
       this.#assertSession(generation);
       if (
@@ -8984,21 +8979,36 @@ export class LighterProvider implements PerpsProvider {
         throw new Error('Lighter Chase remembered owner changed');
       }
     };
-    const unavailable = (): never => {
-      assertCurrent();
-      throw new Error(
-        'Lighter Chase current venue authority is unavailable; remembered cleanup remains pending',
-      );
-    };
-    return {
-      assertCurrent,
-      now: () => Date.now(),
-      allocateClientId: unavailable,
-      quote: async () => unavailable(),
-      place: async () => unavailable(),
-      cancel: async () => unavailable(),
-      observe: async () => unavailable(),
-    };
+    return { assertCurrent };
+  }
+
+  /**
+   * @param intent - Exact validated owned record.
+   * @param generation - Issuing wallet/network session.
+   * @param canReconcile - Whether current venue account authority is available.
+   * @param reason - Requested stop cause.
+   * @returns Confirmed settlement or explicit unresolved cleanup.
+   */
+  async #stopChase(
+    intent: LighterChaseIntent,
+    generation: number,
+    canReconcile: boolean,
+    reason: ChaseOrderStatus,
+  ): Promise<LighterChaseRecord> {
+    return canReconcile
+      ? await this.#chaseService.stop(
+          intent.owner,
+          intent.handle,
+          this.#chaseIo(intent, generation),
+          reason,
+        )
+      : await this.#chaseService.stopLocally(
+          intent.owner,
+          intent.handle,
+          this.#chaseManagementIo(intent, generation),
+          reason,
+          'Lighter Chase current venue authority is unavailable; remembered cleanup remains pending',
+        );
   }
 
   /** @returns Provider-bound management state, including interrupted ownership. */
@@ -9019,10 +9029,10 @@ export class LighterProvider implements PerpsProvider {
       ) {
         result.push(
           toLighterChaseOrder(
-            await this.#chaseService.stop(
-              record.intent.owner,
-              record.intent.handle,
-              this.#chaseManagementIo(record.intent, generation, canReconcile),
+            await this.#stopChase(
+              record.intent,
+              generation,
+              canReconcile,
               'backgrounded',
             ),
           ),
@@ -9053,14 +9063,10 @@ export class LighterProvider implements PerpsProvider {
     if (!record) {
       throw new Error('Unknown owned Lighter Chase handle');
     }
-    const result = await this.#chaseService.stop(
-      record.intent.owner,
-      record.intent.handle,
-      this.#chaseManagementIo(
-        record.intent,
-        this.#sessionGeneration,
-        canReconcile,
-      ),
+    const result = await this.#stopChase(
+      record.intent,
+      this.#sessionGeneration,
+      canReconcile,
       'canceled',
     );
     const settled =

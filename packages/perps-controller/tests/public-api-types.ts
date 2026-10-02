@@ -14,7 +14,19 @@ import type {
   PerpsControllerReconcileRecoveredDispatchesAction,
   PerpsControllerAcknowledgeRecoveredDispatchAction,
 } from '@metamask/perps-controller';
-import type { LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT } from '@metamask/perps-controller/constants/lighterConfig';
+import type {
+  LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
+  LIGHTER_NATIVE_PROBE_CANCEL_LIMIT,
+  LIGHTER_NATIVE_PROBE_MAX_NOTIONAL,
+  LIGHTER_CHASE_MIN_INTERVAL_MS,
+  LIGHTER_CHASE_MAX_DURATION_MS,
+  LIGHTER_CHASE_MAX_REPRICINGS,
+  LIGHTER_CHASE_MAX_DISTANCE_BPS,
+  LIGHTER_CHASE_DEFAULT_INTERVAL_MS,
+  LIGHTER_CHASE_DEFAULT_DURATION_MS,
+  LIGHTER_CHASE_DEFAULT_REPRICINGS,
+  LIGHTER_CHASE_DEFAULT_DISTANCE_BPS,
+} from '@metamask/perps-controller/constants/lighterConfig';
 import type {
   readLighterChaseQuote,
   reconcileLighterChaseChild,
@@ -200,6 +212,16 @@ export type LighterTwapWireConsumerContract = AssertCompatible<
 >;
 
 export type LighterChaseConsumerContracts = [
+  AssertTrue<IsExact<typeof LIGHTER_NATIVE_PROBE_CANCEL_LIMIT, 16>>,
+  AssertTrue<IsExact<typeof LIGHTER_NATIVE_PROBE_MAX_NOTIONAL, 20>>,
+  AssertTrue<IsExact<typeof LIGHTER_CHASE_MIN_INTERVAL_MS, 1000>>,
+  AssertTrue<IsExact<typeof LIGHTER_CHASE_MAX_DURATION_MS, 300000>>,
+  AssertTrue<IsExact<typeof LIGHTER_CHASE_MAX_REPRICINGS, 20>>,
+  AssertTrue<IsExact<typeof LIGHTER_CHASE_MAX_DISTANCE_BPS, 10000>>,
+  AssertTrue<IsExact<typeof LIGHTER_CHASE_DEFAULT_INTERVAL_MS, 15000>>,
+  AssertTrue<IsExact<typeof LIGHTER_CHASE_DEFAULT_DURATION_MS, 60000>>,
+  AssertTrue<IsExact<typeof LIGHTER_CHASE_DEFAULT_REPRICINGS, 1>>,
+  AssertTrue<IsExact<typeof LIGHTER_CHASE_DEFAULT_DISTANCE_BPS, 100>>,
   AssertTrue<
     IsExact<
       Awaited<ReturnType<NonNullable<PerpsProvider['getChaseOrders']>>>,

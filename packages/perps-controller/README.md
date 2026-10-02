@@ -390,7 +390,10 @@ attempts per child; records are never silently pruned.
 unbound or recordless wallet, including with the probe off. If current venue
 discovery reports no account, previously verified wallet/network journals remain
 visible. Suspension retains their pending cleanup locally without enabling venue
-reads, signing or registration.
+reads, signing or registration. Repeated local suspension and cancellation preserve
+the child's cancellation capacity and existing dispatch identities, including across
+provider restart. Cleanup remains `termination_pending` with an explanatory native
+record error until the original account and key authority can reconcile it.
 `getNativeChaseRecords()` exposes exact local cleanup identities for diagnostics.
 `cancelOrder({orderType: 'chase', orderId: handle, symbol, providerId: 'lighter'})`
 explicitly terminates an owned handle. A wrong-symbol request leaves its active
