@@ -427,3 +427,28 @@ export const keyringCalls = (call: jest.SpyInstance): string[] =>
   call.mock.calls
     .map(([action]: [unknown]) => String(action))
     .filter((action) => action.startsWith('KeyringController:'));
+
+/**
+ * Create a real PerpsController messenger whose host registers and delegates
+ * only the given actions, like a host that does not provide every optional
+ * controller. Any other action throws the real `Messenger` error
+ * (`A handler for <Action> has not been delegated to PerpsController`).
+ *
+ * @param handlers - Action handlers the host registers and delegates.
+ * @returns The PerpsController messenger.
+ */
+export const createPartiallyDelegatedMessenger = (
+  handlers: Record<string, (...args: any[]) => unknown> = {},
+): PerpsControllerMessenger => {
+  const root: RootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  const messenger: PerpsControllerMessenger = new Messenger({
+    namespace: 'PerpsController',
+    parent: root,
+  });
+  const actions = Object.keys(handlers) as any[];
+  for (const action of actions) {
+    root.registerActionHandler(action, handlers[action] as any);
+  }
+  root.delegate({ actions, messenger });
+  return messenger;
+};

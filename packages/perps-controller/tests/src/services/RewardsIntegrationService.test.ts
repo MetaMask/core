@@ -5,6 +5,7 @@ import {
   createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
+  createPartiallyDelegatedMessenger,
 } from '../../helpers/serviceMocks.js';
 
 describe('RewardsIntegrationService', () => {
@@ -1515,6 +1516,103 @@ describe('RewardsIntegrationService', () => {
       // resolver's outcome log.
       expect(mockDeps.debugLogger.log).toHaveBeenCalledTimes(2);
       expect(mockDeps2.debugLogger.log).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('host messenger without optional actions', () => {
+    const accountHandlers = {
+      'AccountTreeController:getAccountsFromSelectedAccountGroup': () => [
+        mockEvmAccount,
+      ],
+    };
+    const networkHandlers = {
+      'NetworkController:getState': () => ({
+        selectedNetworkClientId: 'mainnet',
+      }),
+      'NetworkController:getNetworkClientById': () => ({
+        configuration: { chainId: '0x1' },
+      }),
+    };
+
+    it('reads no subscription benefits without logging an error when getBenefits is not delegated', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger(),
+      );
+
+      await service.refreshSubscriptionBenefits();
+
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'no-source',
+      });
+    });
+
+    it('reports the missing registration hook when registerAddress is not delegated', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger(),
+      );
+
+      await service.registerTradingAddress(mockEvmAccount.address);
+
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        'RewardsIntegrationService: No trading-address registration hook wired; fills will be unattributed',
+        { address: mockEvmAccount.address },
+      );
+    });
+
+    it.each([
+      ['NetworkController:getState', {}],
+      [
+        'NetworkController:getNetworkClientById',
+        {
+          'NetworkController:getState':
+            networkHandlers['NetworkController:getState'],
+        },
+      ],
+    ])(
+      'resolves no rewards discount without logging an error when %s is not delegated',
+      async (_action, extraHandlers) => {
+        service = new RewardsIntegrationService(
+          mockDeps,
+          createPartiallyDelegatedMessenger({
+            ...accountHandlers,
+            ...extraHandlers,
+          }),
+        );
+
+        const result = await service.calculateUserFeeDiscount();
+
+        expect(result).toBeUndefined();
+        expect(mockDeps.logger.error).not.toHaveBeenCalled();
+        expect(
+          mockDeps.rewards.getPerpsDiscountForAccount,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('still logs an error when a delegated NetworkController handler fails', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          ...accountHandlers,
+          ...networkHandlers,
+          'NetworkController:getState': () => {
+            throw new Error('network state unavailable');
+          },
+        }),
+      );
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'network state unavailable' }),
+        expect.anything(),
+      );
     });
   });
 });

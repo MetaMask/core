@@ -177,7 +177,10 @@ import {
   TransactionStatus,
 } from './types/transactionTypes.js';
 import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
-import { ensureError } from './utils/errorUtils.js';
+import {
+  ensureError,
+  isMissingActionHandlerError,
+} from './utils/errorUtils.js';
 import { parseAssetName } from './utils/hyperLiquidAdapter.js';
 import {
   clonePerpsMarketData,
@@ -7212,6 +7215,8 @@ export class PerpsController extends BaseController<
    * - The remote preferences blob does not yet exist (returns `null` / 404).
    *   In that case, `NotificationServicesController.createOnChainTriggers` is
    *   the canonical owner that creates the initial blob.
+   * - The host does not provide `AuthenticatedUserStorageService`; local state
+   *   is then the only watchlist.
    *
    * Throws on remote write failure so the caller can decide whether to revert.
    *
@@ -7229,9 +7234,21 @@ export class PerpsController extends BaseController<
       return;
     }
 
-    const prefs = await this.messenger.call(
-      'AuthenticatedUserStorageService:getNotificationPreferences',
-    );
+    let prefs: NotificationPreferences | null;
+    try {
+      prefs = await this.messenger.call(
+        'AuthenticatedUserStorageService:getNotificationPreferences',
+      );
+    } catch (error) {
+      if (!isMissingActionHandlerError(error)) {
+        throw error;
+      }
+      this.#debugLog(
+        'PerpsController: Skipping AUS watchlist write — AuthenticatedUserStorageService not provided',
+        { exchangeKey, network },
+      );
+      return;
+    }
 
     if (!prefs) {
       this.#debugLog(
@@ -7365,6 +7382,12 @@ export class PerpsController extends BaseController<
         });
       }
     } catch (error) {
+      if (isMissingActionHandlerError(error)) {
+        this.#debugLog(
+          'PerpsController: AuthenticatedUserStorageService not provided — using local watchlist',
+        );
+        return;
+      }
       this.#logError(
         ensureError(error, 'PerpsController.syncWatchlistFromRemote'),
         this.#getErrorContext('syncWatchlistFromRemote'),

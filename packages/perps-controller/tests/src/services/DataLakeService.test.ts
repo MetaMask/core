@@ -7,6 +7,7 @@ import {
   createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
+  createPartiallyDelegatedMessenger,
 } from '../../helpers/serviceMocks.js';
 
 jest.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
@@ -208,6 +209,57 @@ describe('DataLakeService', () => {
         error: 'No account or token available',
       });
       expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('skips reporting without logging an error when getBearerToken is not delegated', async () => {
+      dataLakeService = new DataLakeService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          'AccountTreeController:getAccountsFromSelectedAccountGroup': () => [
+            mockEvmAccount,
+          ],
+        }),
+      );
+
+      const result = await dataLakeService.reportOrder({
+        action: 'open',
+        symbol: 'BTC',
+        isTestnet: false,
+        context: mockContext,
+      });
+
+      expect(result).toEqual({
+        success: false,
+        error: 'No account or token available',
+      });
+      expect(fetch).not.toHaveBeenCalled();
+      expect(setTimeout).not.toHaveBeenCalled();
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+    });
+
+    it('still logs and retries when a delegated getBearerToken handler fails', async () => {
+      dataLakeService = new DataLakeService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          'AccountTreeController:getAccountsFromSelectedAccountGroup': () => [
+            mockEvmAccount,
+          ],
+          'AuthenticationController:getBearerToken': async () => {
+            throw new Error('Not signed in');
+          },
+        }),
+      );
+
+      const result = await dataLakeService.reportOrder({
+        action: 'open',
+        symbol: 'BTC',
+        isTestnet: false,
+        context: mockContext,
+      });
+
+      expect(result).toEqual({ success: false, error: 'Not signed in' });
+      expect(mockDeps.logger.error).toHaveBeenCalled();
+      expect(setTimeout).toHaveBeenCalled();
     });
 
     it('retries on network error with exponential backoff', async () => {

@@ -9,7 +9,10 @@ import { PerpsTraceNames, PerpsTraceOperations } from '../types/index.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
-import { ensureError } from '../utils/errorUtils.js';
+import {
+  ensureError,
+  isMissingActionHandlerError,
+} from '../utils/errorUtils.js';
 import type { ServiceContext } from './ServiceContext.js';
 
 /**
@@ -43,10 +46,22 @@ export class DataLakeService {
   /**
    * Get bearer token via DI authentication controller
    *
-   * @returns The bearer token string for API authentication.
+   * @returns The bearer token string for API authentication, or undefined when
+   * the host does not provide `AuthenticationController:getBearerToken`.
    */
-  async #getBearerToken(): Promise<string> {
-    return this.#messenger.call('AuthenticationController:getBearerToken');
+  async #getBearerToken(): Promise<string | undefined> {
+    try {
+      return await this.#messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+    } catch (error) {
+      // Reporting is optional: a host without authentication skips it rather
+      // than logging and retrying a call that can never succeed.
+      if (isMissingActionHandlerError(error)) {
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   /**

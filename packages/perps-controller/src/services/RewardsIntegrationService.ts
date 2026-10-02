@@ -20,7 +20,10 @@ import type {
 } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
-import { ensureError } from '../utils/errorUtils.js';
+import {
+  ensureError,
+  isMissingActionHandlerError,
+} from '../utils/errorUtils.js';
 import { formatAccountToCaipAccountId } from '../utils/rewardsUtils.js';
 import {
   quantizeBuilderFeeTenthsBps,
@@ -142,7 +145,12 @@ export class RewardsIntegrationService {
         networkClientId,
       );
       return networkClient.configuration.chainId;
-    } catch {
+    } catch (error) {
+      // An absent NetworkController is not a missing network client; let the
+      // caller degrade without reporting it as one.
+      if (isMissingActionHandlerError(error)) {
+        throw error;
+      }
       // Network client may not exist
       return undefined;
     }
@@ -533,14 +541,15 @@ export class RewardsIntegrationService {
         // Definitive "not entitled", even thrown synchronously.
         return null;
       }
-      // An unregistered action throws a recognisable "no handler" error; any
-      // other synchronous throw came from a handler that exists and failed, so
-      // it must not be mistaken for an absent action and cached as `null` —
-      // including on the very first call, before one has ever answered.
-      if (!isUnregisteredActionError(error) && !this.#deps.subscription) {
+      // An unregistered or undelegated action throws a recognisable "no
+      // handler" error; any other synchronous throw came from a handler that
+      // exists and failed, so it must not be mistaken for an absent action and
+      // cached as `null` — including on the very first call, before one has
+      // ever answered.
+      if (!isMissingActionHandlerError(error) && !this.#deps.subscription) {
         throw error;
       }
-      // Otherwise: unregistered action, or a throw with a DI source to fall
+      // Otherwise: missing handler, or a throw with a DI source to fall
       // back to.
     }
 
@@ -646,7 +655,7 @@ export class RewardsIntegrationService {
           registration = Promise.resolve(result);
         }
       } catch (error) {
-        if (!isUnregisteredActionError(error) && !this.#deps.subscription) {
+        if (!isMissingActionHandlerError(error) && !this.#deps.subscription) {
           throw error;
         }
       }
@@ -805,6 +814,15 @@ export class RewardsIntegrationService {
 
       return discountBips;
     } catch (error) {
+      // A host without NetworkController (or one that does not delegate it)
+      // simply has no rewards discount: the fee falls back to the next source.
+      if (isMissingActionHandlerError(error)) {
+        this.#deps.debugLogger.log(
+          'RewardsIntegrationService: Fee discount unavailable (messenger action not provided)',
+          { error: ensureError(error).message },
+        );
+        return undefined;
+      }
       this.#deps.logger.error(
         ensureError(
           error,
@@ -821,25 +839,6 @@ export class RewardsIntegrationService {
       return undefined;
     }
   }
-}
-
-/**
- * Whether a messenger call failed because no handler is registered.
- *
- * `Messenger.call` reports an unregistered action with a distinctive message.
- * Anything else thrown synchronously came from a handler that does exist, and
- * conflating the two would cache a real failure as "no subscription".
- *
- * @param error - The error thrown by the messenger call.
- * @returns True when the action has no registered handler.
- */
-function isUnregisteredActionError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    /handler.*not.*registered|no.*handler.*registered|A handler for .* has not been registered/iu.test(
-      error.message,
-    )
-  );
 }
 
 /**

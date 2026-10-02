@@ -8,6 +8,7 @@ import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
+  createPartiallyDelegatedMessenger,
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
@@ -1514,6 +1515,62 @@ describe('PerpsController', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(mockAusInfrastructure.logger.error).toHaveBeenCalled();
+      });
+    });
+
+    describe('when the host does not delegate AuthenticatedUserStorageService', () => {
+      const buildController = (mainnetWatchlist: string[] = []) => {
+        const undelegated = createPartiallyDelegatedMessenger();
+        const call = jest.fn().mockImplementation((action: string) => {
+          if (action === 'RemoteFeatureFlagController:getState') {
+            return { remoteFeatureFlags: {} };
+          }
+          if (
+            action ===
+            'AuthenticatedUserStorageService:getNotificationPreferences'
+          ) {
+            return undelegated.call(
+              'AuthenticatedUserStorageService:getNotificationPreferences',
+            );
+          }
+          return undefined;
+        });
+        const infrastructure = createMockInfrastructure();
+        const state = getDefaultPerpsControllerState();
+        state.isTestnet = false;
+        state.activeProvider = 'hyperliquid';
+        state.watchlistMarkets.mainnet = mainnetWatchlist;
+        const controller = new TestablePerpsController({
+          messenger: createMockMessenger({ call }),
+          state,
+          infrastructure,
+        });
+        return { controller, call, infrastructure };
+      };
+
+      it('keeps a toggled market without logging an error', async () => {
+        const { controller, call, infrastructure } = buildController();
+
+        await controller.toggleWatchlistMarket('BTC');
+
+        expect(call).toHaveBeenCalledWith(
+          'AuthenticatedUserStorageService:getNotificationPreferences',
+        );
+        expect(controller.getWatchlistMarkets()).toContain('BTC');
+        expect(infrastructure.logger.error).not.toHaveBeenCalled();
+      });
+
+      it('keeps the local watchlist on init without logging an error', async () => {
+        const { controller, call, infrastructure } = buildController(['BTC']);
+
+        await controller.init();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(call).toHaveBeenCalledWith(
+          'AuthenticatedUserStorageService:getNotificationPreferences',
+        );
+        expect(controller.state.watchlistMarkets.mainnet).toEqual(['BTC']);
+        expect(infrastructure.logger.error).not.toHaveBeenCalled();
       });
     });
   });
