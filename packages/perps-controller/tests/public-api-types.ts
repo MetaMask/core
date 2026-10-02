@@ -3,6 +3,9 @@ import type {
   ScaleOrderGroup,
   PerpsProvider,
   ScaleOrderChild,
+  GetScalePriceLadderParams,
+  PerpsScalePriceLadder,
+  PerpsControllerGetScalePriceLadderAction,
   PerpsControllerGetScaleOrderGroupsAction,
   PerpsControllerReviewScaleOrderGroupsAction,
   TriggerOrderType,
@@ -221,6 +224,62 @@ export type ScaleInventoryConsumerContracts = [
     IsExact<
       ScaleOrderGroup['state'],
       'placing' | 'stopped' | 'unknown' | 'terminal'
+    >
+  >,
+];
+
+export type ScaleSizingConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerGetScalePriceLadderAction['handler']>,
+      [params: GetScalePriceLadderParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      NonNullable<GetScalePriceLadderParams['sizing']>,
+      Readonly<
+        (
+          | { size: string; usdAmount?: never }
+          | { usdAmount: string; size?: never }
+        ) & {
+          skew?: number;
+        }
+      >
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<PerpsScalePriceLadder, { status: 'ready' }>['sizingPreview'],
+      | Readonly<{
+          sizes: readonly string[];
+          totalSize: string;
+          totalNotional: string;
+          minimumBaseSize: string;
+          minimumQuoteAmount: string;
+          sizeDecimals: number;
+        }>
+      | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      { size: string; usdAmount: string } extends NonNullable<
+        GetScalePriceLadderParams['sizing']
+      >
+        ? true
+        : false,
+      false
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Record<string, never> extends NonNullable<
+        GetScalePriceLadderParams['sizing']
+      >
+        ? true
+        : false,
+      false
     >
   >,
 ];

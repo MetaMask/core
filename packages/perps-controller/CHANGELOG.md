@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `GetScalePriceLadderParams.sizing` for exact base size or bounded quote budget and optional skew. Lighter returns venue-valid `PerpsScalePriceLadder.sizingPreview` quantities, totals and maker minimums without account or signer setup; unsupported providers leave the preview absent.
 - Add durable Lighter Scale ladders with exact-grid preview, aggregate exposure checks, uncertain-child retention and exact group cancellation.
 - Add optional `getScaleOrderGroups` and `reviewScaleOrderGroups` provider methods and controller actions, with the exported `ScaleOrderGroup` inventory type.
 - Attribute real Lighter Scale order rows through `strategyGroupId`; retain ordinary order reads when optional attribution is unavailable.
@@ -41,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep ordinary Lighter orders unattributed when a live row contradicts a durably rejected Scale child.
 - Treat confirmed absent and known Premium Lighter accounts as local-only recovery inventories without acknowledgment. Verify account ownership and index before caching or recording recovery authority. Preserve durable obligations and refuse transport, storage, ownership or unverified account-type failures; Premium trading remains unsupported.
 - Recheck HyperLiquid position protection after SDK signing and correlate partial SDK acknowledgments by exact signed child IDs. Preserve uncertain outcomes and restore only exact pre-call reduce-only protection when replacement becomes stale after cancellation; report protection loss if restoration fails ([#10644](https://github.com/MetaMask/core/pull/10644))
 - Release only proven-unsent Lighter TP/SL attempts, ownership and nonce reservations after final position rejection, allowing a refreshed update or close while retaining older uncertain attempts. Preserve the position rejection if unsent cleanup fails, and direct failed older-slot retirement to explicit recovery ([#10644](https://github.com/MetaMask/core/pull/10644))

@@ -1812,6 +1812,18 @@ export type GetScalePriceLadderParams = {
   count: number;
   /** Optional explicit route; omitted uses the active/default provider. */
   providerId?: PerpsProviderType;
+  /**
+   * Optional exact base size or maximum quote budget, with a rung-size skew.
+   * Providers without sizing support leave `sizingPreview` absent.
+   */
+  sizing?: Readonly<
+    (
+      | { size: string; usdAmount?: never }
+      | { usdAmount: string; size?: never }
+    ) & {
+      skew?: number;
+    }
+  >;
 };
 
 /** Reasons provider-owned order capabilities are unavailable for a market. */
@@ -1907,6 +1919,18 @@ export type PerpsScalePriceLadder =
       status: 'ready';
       providerId: PerpsProviderType;
       prices: readonly string[];
+      /**
+       * Exact venue-valid rung quantities when sizing is supported and requested.
+       * This previews maker minimums and exposure, not account trading readiness.
+       */
+      sizingPreview?: Readonly<{
+        sizes: readonly string[];
+        totalSize: string;
+        totalNotional: string;
+        minimumBaseSize: string;
+        minimumQuoteAmount: string;
+        sizeDecimals: number;
+      }>;
     }>
   | Readonly<{
       status: 'unavailable';

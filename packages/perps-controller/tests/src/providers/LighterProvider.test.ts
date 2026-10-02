@@ -629,6 +629,158 @@ class StreamFakeWebSocket implements LighterWebSocketLike {
 const fakeStreamCtor = StreamFakeWebSocket as unknown as LighterWebSocketCtor;
 
 describe('LighterProvider', () => {
+  describe('provider-owned Scale sizing preview', () => {
+    const previewIntent = {
+      symbol: 'BTC',
+      minPrice: 99000,
+      maxPrice: 100000,
+      count: 3,
+    };
+
+    it('previews exact sizes below the quote budget without account or signer setup', async () => {
+      const built = buildProvider();
+      const result = await built.provider.getScalePriceLadder({
+        ...previewIntent,
+        sizing: { usdAmount: '60' },
+      });
+
+      expect(result).toStrictEqual({
+        status: 'ready',
+        providerId: 'lighter',
+        prices: ['99000', '99500', '100000'],
+        sizingPreview: {
+          sizes: ['0.0002', '0.0002', '0.0002'],
+          totalSize: '0.0006',
+          totalNotional: '59.7',
+          minimumBaseSize: '0.00020',
+          minimumQuoteAmount: '10.000000',
+          sizeDecimals: 5,
+        },
+      });
+      expect(built.calls).toStrictEqual([]);
+      expect(built.clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+    });
+
+    it('rounds an explicit base intent down without increasing exposure', async () => {
+      const built = buildProvider();
+      const result = await built.provider.getScalePriceLadder({
+        ...previewIntent,
+        sizing: { size: '0.000609' },
+      });
+
+      expect(result).toMatchObject({
+        sizingPreview: {
+          totalSize: '0.0006',
+          sizes: ['0.0002', '0.0002', '0.0002'],
+          totalNotional: '59.7',
+        },
+      });
+      expect(built.calls).toStrictEqual([]);
+    });
+
+    it('uses exact skewed sizes from the placement builder', async () => {
+      const built = buildProvider();
+      const result = await built.provider.getScalePriceLadder({
+        symbol: 'BTC',
+        minPrice: 99000,
+        maxPrice: 100000,
+        count: 2,
+        sizing: { size: '0.0012', skew: 2 },
+      });
+
+      expect(result).toMatchObject({
+        sizingPreview: {
+          sizes: ['0.0004', '0.0008'],
+          totalSize: '0.0012',
+          totalNotional: '119.6',
+        },
+      });
+    });
+
+    it.each([
+      ['1', PERPS_ERROR_CODES.ORDER_SCALE_SIZE_TOO_SMALL],
+      ['0', 'Lighter Scale values must be positive'],
+      ['NaN', 'Invalid Lighter Scale decimal'],
+      ['60usd', 'Invalid Lighter Scale decimal'],
+    ])(
+      'rejects a quote intent %s that cannot produce valid maker rungs',
+      async (usdAmount, message) => {
+        const built = buildProvider();
+        await expect(
+          built.provider.getScalePriceLadder({
+            ...previewIntent,
+            sizing: { usdAmount },
+          }),
+        ).rejects.toThrow(message);
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it('captures the sizing intent before deferred market metadata arrives', async () => {
+      const built = buildProvider();
+      const metadata = createDeferred<(typeof BTC_MARKET)[]>();
+      built.clientInstance.getOrderBooks.mockReturnValueOnce(metadata.promise);
+      const params = { ...previewIntent, sizing: { usdAmount: '60' } };
+      const result = built.provider.getScalePriceLadder(params);
+      params.sizing.usdAmount = '600';
+      params.symbol = 'SOL';
+      params.minPrice = 1;
+      params.maxPrice = 2;
+      params.count = 2;
+      metadata.resolve([BTC_MARKET]);
+
+      expect(await result).toMatchObject({
+        sizingPreview: { totalSize: '0.0006', totalNotional: '59.7' },
+      });
+    });
+
+    it.each([{}, { size: '0.0006', usdAmount: '60' }])(
+      'rejects sizing without exactly one exposure intent: %j',
+      async (sizing) => {
+        const built = buildProvider();
+        const params = { ...previewIntent };
+        Object.assign(params, { sizing });
+
+        await expect(
+          built.provider.getScalePriceLadder(params),
+        ).rejects.toThrow(
+          'Lighter Scale sizing requires exactly one exposure intent',
+        );
+        expect(built.calls).toStrictEqual([]);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      },
+    );
+
+    it('refuses a conflicting explicit provider route before loading metadata', async () => {
+      const built = buildProvider();
+      const result = await built.provider.getScalePriceLadder({
+        ...previewIntent,
+        providerId: 'hyperliquid',
+        sizing: { usdAmount: '60' },
+      });
+      expect(result).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'provider_not_routable',
+      });
+      expect(built.clientInstance.getOrderBooks).not.toHaveBeenCalled();
+      expect(built.calls).toStrictEqual([]);
+    });
+
+    it('retains the existing price-only contract when sizing is omitted', async () => {
+      const built = buildProvider();
+      expect(
+        await built.provider.getScalePriceLadder(previewIntent),
+      ).toStrictEqual({
+        status: 'ready',
+        providerId: 'lighter',
+        prices: ['99000', '99500', '100000'],
+      });
+    });
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -837,18 +989,8 @@ describe('LighterProvider', () => {
                 throw new Error('lost second response');
               }
             }
-            const response: unknown = await send?.(kind, txInfo);
-            if (
-              response === null ||
-              typeof response !== 'object' ||
-              !('code' in response) ||
-              typeof response.code !== 'number' ||
-              !('txHash' in response) ||
-              typeof response.txHash !== 'string'
-            ) {
-              throw new Error('Missing mock transaction response');
-            }
-            return { code: response.code, txHash: response.txHash };
+            await send?.(kind, txInfo);
+            return { code: 200, txHash: '0xsent' };
           },
         );
         const placed = await built.provider.placeOrder(intent);
@@ -922,6 +1064,16 @@ describe('LighterProvider', () => {
             state: 'rejected',
             nonAcceptance: 'expired',
           });
+          const openOrders = await built.provider.getOpenOrders();
+          expect(openOrders.map((order) => order.orderId)).toStrictEqual([
+            '800',
+            '801',
+          ]);
+          expect(openOrders[0].strategyGroupId).toBe(retained.groupId);
+          expect(openOrders[1].strategyGroupId).toBeUndefined();
+          const [listed] = await built.provider.getScaleOrderGroups();
+          expect(listed.childOrderIds).toStrictEqual(['800']);
+          expect(listed.acceptedSize).toBe('0.0005');
         } finally {
           clock.mockRestore();
         }

@@ -267,6 +267,15 @@ placement and again before each send. Caller-supplied slippage, trigger,
 attached-protection, time-in-force, full-close and other strategy fields are
 rejected rather than ignored.
 
+`getScalePriceLadder` accepts optional `sizing` with either an exact base `size`
+or a maximum quote `usdAmount`, plus optional `skew`. Lighter returns
+`sizingPreview` with exact per-rung sizes, totals, size precision and the venue's
+maker minimums. Preview uses the placement builder without account reads,
+key setup or signing. It rounds base size down and never exceeds the quote
+budget; account collateral and reservations still require placement validation.
+Omitting `sizing` preserves the price-only result. Providers without sizing
+support leave `sizingPreview` absent, so clients must check before using it.
+
 Each group persists wallet, network, account, trading slot, immutable rung
 intent and signed dispatch identity before transport. Placement polls through
 bounded venue visibility lag and stops after unresolved acceptance;
@@ -285,7 +294,8 @@ accepted children, including canceled children; `childOrderIds` contains
 resting children only. Filled quantities require authoritative venue data;
 limit prices never stand in for execution prices. Wholly unknown groups never
 create synthetic `Order` rows. Real venue rows that match the persisted intent
-carry `strategyGroupId`.
+carry `strategyGroupId`. A live row that contradicts a durably rejected child
+remains an ordinary order without that group's attribution.
 
 Cancel with `{ orderType: 'scale', orderId: groupId, symbol }`. Only exact
 group children are canceled, using the currently registered trading slot even

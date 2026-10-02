@@ -156,7 +156,8 @@ export function normalizeLighterScalePrices(
  * @returns Exact normalized rungs and totals.
  */
 export function buildLighterScaleLadder(
-  params: OrderParams,
+  params: Omit<OrderParams, 'size' | 'isBuy'> &
+    Partial<Pick<OrderParams, 'size' | 'isBuy'>>,
   market: LighterOrderBookMeta,
 ): { prices: string[]; sizes: string[]; size: string; notional: string } {
   const unsupported = [

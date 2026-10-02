@@ -7309,13 +7309,27 @@ export class LighterProvider implements PerpsProvider {
   }
 
   /** Normalize a Scale preview without account or signer setup.
-   * @param params - Market and price range.
-   * @returns Fixed-grid ascending prices or unavailable scope.
+   * @param params - Market, price range and optional sizing intent.
+   * @returns Fixed-grid prices and requested sizing, or unavailable scope.
    */
   async getScalePriceLadder(
     params: GetScalePriceLadderParams,
   ): Promise<PerpsScalePriceLadder> {
-    const capability = await this.getOrderCapabilities(params);
+    const intent = {
+      ...params,
+      sizing: params.sizing === undefined ? undefined : { ...params.sizing },
+    };
+    if (
+      intent.providerId !== undefined &&
+      intent.providerId !== this.protocolId
+    ) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_not_routable',
+      };
+    }
+    const capability = await this.getOrderCapabilities(intent);
     if (capability.status !== 'ready') {
       const reason =
         capability.reason === 'order_market_unsupported' ||
@@ -7324,7 +7338,7 @@ export class LighterProvider implements PerpsProvider {
           : capability.reason;
       return { status: 'unavailable', providerId: 'lighter', reason };
     }
-    const market = this.#marketsBySymbol.get(params.symbol);
+    const market = this.#marketsBySymbol.get(intent.symbol);
     if (!market) {
       return {
         status: 'unavailable',
@@ -7332,13 +7346,47 @@ export class LighterProvider implements PerpsProvider {
         reason: 'market_not_found',
       };
     }
+    if (intent.sizing !== undefined) {
+      const { sizing } = intent;
+      if ((sizing.size !== undefined) === (sizing.usdAmount !== undefined)) {
+        throw new Error(
+          'Lighter Scale sizing requires exactly one exposure intent',
+        );
+      }
+      const ladder = buildLighterScaleLadder(
+        {
+          symbol: intent.symbol,
+          orderType: 'scale',
+          scaleMinPrice: String(intent.minPrice),
+          scaleMaxPrice: String(intent.maxPrice),
+          scaleNumOrders: intent.count,
+          size: sizing.size,
+          usdAmount: sizing.usdAmount,
+          scaleSkew: sizing.skew,
+        },
+        market,
+      );
+      return {
+        status: 'ready',
+        providerId: this.protocolId,
+        prices: ladder.prices,
+        sizingPreview: {
+          sizes: ladder.sizes,
+          totalSize: ladder.size,
+          totalNotional: ladder.notional,
+          minimumBaseSize: market.minBaseAmount,
+          minimumQuoteAmount: market.minQuoteAmount,
+          sizeDecimals: market.supportedSizeDecimals,
+        },
+      };
+    }
     return {
       status: 'ready',
       providerId: 'lighter',
       prices: normalizeLighterScalePrices(
-        String(params.minPrice),
-        String(params.maxPrice),
-        params.count,
+        String(intent.minPrice),
+        String(intent.maxPrice),
+        intent.count,
         market.supportedPriceDecimals,
       ),
     };
@@ -8797,6 +8845,7 @@ export class LighterProvider implements PerpsProvider {
           group.rungs.some(
             (rung) =>
               rung.clientOrderId === row.clientOrderIndex &&
+              (rung.state !== 'rejected' || row.status === 'rejected') &&
               (rung.orderId === undefined ||
                 rung.orderId === String(row.orderIndex)) &&
               new BigNumber(rung.size).eq(row.initialBaseAmount) &&
