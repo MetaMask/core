@@ -60,6 +60,7 @@ import {
   LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
   LIGHTER_BRIDGE_CONFIG,
   LIGHTER_TX_TYPE_CANCEL_ORDER,
+  LIGHTER_TX_TYPE_MODIFY_ORDER,
   LIGHTER_TX_TYPE_CHANGE_PUB_KEY,
   LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER,
   LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER,
@@ -197,6 +198,8 @@ import type {
 } from '../types/index.js';
 import type {
   LighterApiOrder,
+  LighterEditableOrder,
+  LighterSignModifyOrderWireParams,
   LighterRestTrade,
   LighterApiPosition,
   LighterAccountsByL1AddressResponse,
@@ -232,6 +235,7 @@ import {
   adaptMarketDataFromLighter,
   adaptMarketFromLighter,
   adaptOrderFromLighter,
+  adaptOrderStatus,
   adaptPositionFromLighter,
   adaptPriceUpdateFromLighter,
   adaptPriceUpdateFromLighterWsStat,
@@ -249,6 +253,17 @@ import {
   readLighterChaseQuote,
   reconcileLighterChaseChild,
 } from '../utils/lighterChase.js';
+import {
+  LIGHTER_EDIT_JOURNAL_PREFIX,
+  decodeLighterModifyOrder,
+  lighterEditOrderId,
+  lighterNativeEditTarget,
+  lighterNativeEditResult,
+  observeLighterNativeEdit,
+  parseLighterNativeEditJournal,
+  prepareLighterNativeEdit,
+} from '../utils/lighterNativeEdit.js';
+import type { LighterNativeEditJournal } from '../utils/lighterNativeEdit.js';
 import {
   buildLighterScaleLadder,
   captureExpectedScaleLadder,
@@ -12955,17 +12970,452 @@ export class LighterProvider implements PerpsProvider {
   // Trading Operations (POC: stubbed)
   // ============================================================================
 
-  async editOrder(_params: EditOrderParams): Promise<OrderResult> {
-    // ModifyOrder (tx 17) is accepted by the venue's sendTx but the resting
-    // order keeps its original price — an execution no-op we have raised
-    // with Lighter. Reporting success here would misrepresent user intent,
-    // so the operation refuses until the venue behavior is resolved.
-    // Callers can cancel + re-place instead.
-    return {
-      success: false,
-      error:
-        'Lighter order editing is unavailable: the venue currently accepts but does not apply ModifyOrder. Cancel and re-place the order instead.',
-    };
+  /**
+   * Modify a verified ordinary resting limit in place. Acceptance remains
+   * pending until exact transaction and order observations agree. The native
+   * ABI has no order version, so the final venue race cannot be eliminated.
+   *
+   * @param params - Exact venue order ID and explicit price/size intent.
+   * @returns Truthful durable same-order outcome, never a placement receipt.
+   */
+  async editOrder(params: EditOrderParams): Promise<OrderResult> {
+    try {
+      this.#ensureSessionBinding();
+      const generation = this.#sessionGeneration;
+      const orderId = lighterEditOrderId(params.orderId);
+      const accountIndex = await this.#ensureAccountIndex();
+      this.#assertSession(generation);
+      if (!this.#boundAddress) {
+        throw new Error('Lighter native edit wallet is unbound');
+      }
+      const scope = {
+        wallet: this.#boundAddress,
+        network: this.#isTestnet ? ('testnet' as const) : ('mainnet' as const),
+        accountIndex,
+        orderId,
+      };
+      const key = `${LIGHTER_EDIT_JOURNAL_PREFIX}${JSON.stringify([scope.network, scope.wallet, accountIndex, orderId])}`;
+      // Process-wide per-order ownership excludes duplicate live providers as
+      // well as a restarted caller. No other operation takes this lock.
+      return await withProcessMutex(key, async () => {
+        let journal: LighterNativeEditJournal | null = null;
+        const read = async (): Promise<LighterNativeEditJournal | null> => {
+          this.#assertSession(generation);
+          const raw = await this.#deps.diskCache.getItem(key);
+          this.#assertSession(generation);
+          return parseLighterNativeEditJournal(raw, scope);
+        };
+        const save = async (
+          record: LighterNativeEditJournal,
+        ): Promise<void> => {
+          this.#assertSession(generation);
+          const raw = JSON.stringify(record);
+          const snapshot = parseLighterNativeEditJournal(raw, scope);
+          await this.#deps.diskCache.setItem(key, raw);
+          this.#assertSession(generation);
+          journal = snapshot;
+        };
+        journal = await read();
+        // Restore read authority in the original slot before any financial
+        // signer setup. Slot changes must not bypass a pending edit.
+        const authority = await withProcessMutex(
+          `lighterVenueWrite:${scope.network}:${accountIndex}`,
+          async () =>
+            await this.#getRecoveryReadToken(
+              accountIndex,
+              generation,
+              journal?.apiKeyIndex,
+            ),
+        );
+        this.#assertSession(generation);
+        const exactRow = async (
+          clientId?: string,
+        ): Promise<LighterEditableOrder | null> => {
+          const response = await this.#clientService.getEditableOrders(
+            accountIndex,
+            authority.token,
+            clientId ? [clientId] : undefined,
+          );
+          this.#assertSession(generation);
+          const candidates = response.orders.filter(
+            (row) =>
+              lighterEditOrderId(row.orderIndex) === orderId ||
+              (clientId !== undefined &&
+                String(row.clientOrderIndex) === clientId),
+          );
+          if (candidates.length > 1) {
+            throw new Error('Lighter native edit target is ambiguous');
+          }
+          return candidates[0] ?? null;
+        };
+        // Only this operation's exact owned ledger entry may be retired.
+        // Unknown or unrelated dispatches keep their existing safeguards.
+        const retire = async (
+          record: LighterNativeEditJournal,
+          consumed: boolean,
+        ): Promise<void> => {
+          const { nonce, txHash } = record;
+          if (nonce === undefined || txHash === undefined) {
+            return;
+          }
+          await this.#withLedgerLock(
+            accountIndex,
+            async () => {
+              this.#assertSession(generation);
+              const doc = await this.#readNonceLedger(
+                accountIndex,
+                record.apiKeyIndex,
+              );
+              this.#assertSession(generation);
+              const entries = doc.entries.filter(
+                (entry) =>
+                  entry.owner !== key ||
+                  entry.nonce !== nonce ||
+                  entry.txHash !== txHash ||
+                  entry.kind !== LIGHTER_TX_TYPE_MODIFY_ORDER,
+              );
+              if (entries.length !== doc.entries.length || consumed) {
+                await this.#writeNonceLedger(
+                  accountIndex,
+                  {
+                    ...doc,
+                    entries,
+                    consumedFloor: consumed
+                      ? Math.max(doc.consumedFloor, nonce + 1)
+                      : doc.consumedFloor,
+                  },
+                  record.apiKeyIndex,
+                );
+                this.#assertSession(generation);
+              }
+              if (!consumed && nonce >= doc.consumedFloor) {
+                this.#releaseNonceReservation(
+                  accountIndex,
+                  nonce,
+                  record.apiKeyIndex,
+                );
+              }
+            },
+            record.apiKeyIndex,
+          );
+        };
+        const reconcile = async (
+          record: LighterNativeEditJournal,
+        ): Promise<OrderResult> => {
+          if (record.status !== 'pending') {
+            return lighterNativeEditResult(record, params.newOrder);
+          }
+          if (record.phase === 'prepared' || record.phase === 'signed') {
+            // Account lock and durable attempted-before-transport boundary
+            // prove this interrupted attempt never reached transport.
+            record.status = 'failed';
+            record.resolution = 'unsent';
+            await save(record);
+            await retire(record, false);
+            return lighterNativeEditResult(record, params.newOrder);
+          }
+          let transaction: LighterTxLookupResponse | null;
+          try {
+            transaction = await this.#clientService.getTx(record.txHash ?? '');
+          } catch {
+            this.#assertSession(generation);
+            if (record.resolution !== 'executed') {
+              return lighterNativeEditResult(record, params.newOrder);
+            }
+            transaction = null;
+          }
+          this.#assertSession(generation);
+          const row = await exactRow(record.original.clientOrderId);
+          if (row) {
+            record.observation = observeLighterNativeEdit(row, record);
+          }
+          if (transaction !== null) {
+            const matches =
+              typeof transaction.hash === 'string' &&
+              transaction.hash.toLowerCase().replace(/^0x/u, '') ===
+                record.txHash?.toLowerCase().replace(/^0x/u, '') &&
+              transaction.accountIndex === accountIndex &&
+              transaction.apiKeyIndex === record.apiKeyIndex &&
+              transaction.nonce === record.nonce;
+            if (!matches) {
+              throw new Error(
+                'Lighter native edit transaction identity mismatch',
+              );
+            }
+            const outcome = getLighterTransactionOutcome(transaction.status);
+            if (outcome === 'failed') {
+              record.status = 'failed';
+              record.resolution = 'failed';
+            } else if (outcome === 'executed') {
+              record.resolution = 'executed';
+            }
+          } else if (
+            record.phase !== 'accepted' &&
+            record.resolution !== 'executed' &&
+            Date.now() >
+              (record.expiresAt ?? Number.MAX_SAFE_INTEGER) +
+                LIGHTER_TX_EXPIRY_SLACK_MS &&
+            row
+          ) {
+            // Confirmed exact-hash absence after expiry is retry-safe only
+            // without prior acceptance/execution. The target is reread too.
+            const ledger = await this.#readNonceLedger(
+              accountIndex,
+              record.apiKeyIndex,
+            );
+            this.#assertSession(generation);
+            // A durable consumed floor may retain an acceptance whose edit
+            // journal update failed. Never turn that evidence into absence.
+            if (ledger.consumedFloor <= (record.nonce ?? -1)) {
+              record.status = 'failed';
+              record.resolution = 'expired';
+            }
+          }
+          // An earlier exact execution proof survives later lookup loss. Its
+          // order obligation still needs a fresh exact observation.
+          if (record.resolution === 'executed' && row && record.observation) {
+            const status = adaptOrderStatus(row.status);
+            if (['filled', 'canceled'].includes(status)) {
+              record.status = 'terminal';
+            } else if (
+              status === 'open' &&
+              new BigNumber(row.price).eq(record.intent.price) &&
+              new BigNumber(row.initialBaseAmount).eq(record.intent.size) &&
+              new BigNumber(row.remainingBaseAmount).eq(record.intent.size) &&
+              new BigNumber(record.observation.filledSize).isZero()
+            ) {
+              record.status = 'settled';
+            }
+          }
+          await save(record);
+          if (
+            record.resolution === 'executed' ||
+            record.resolution === 'failed'
+          ) {
+            await retire(record, true);
+          } else if (record.resolution === 'expired') {
+            await retire(record, false);
+          }
+          return lighterNativeEditResult(record, params.newOrder);
+        };
+        if (
+          journal?.status === 'pending' ||
+          journal?.status === 'terminal' ||
+          (journal?.status === 'settled' &&
+            lighterNativeEditResult(journal, params.newOrder).success)
+        ) {
+          const retained = journal;
+          return await this.#withVenueWriteLock(
+            accountIndex,
+            async () => {
+              throw new Error('Lighter native edit recovery cannot dispatch');
+            },
+            generation,
+            retained.apiKeyIndex,
+            async () => ({ result: await reconcile(retained) }),
+          );
+        }
+        const preflight = async (): Promise<{
+          row: LighterEditableOrder;
+          intent: LighterNativeEditJournal['intent'];
+        }> => {
+          const row = await exactRow();
+          if (!row) {
+            throw new Error(
+              'Lighter native edit target is not an active exact order',
+            );
+          }
+          const markets = await this.#clientService.getOrderBooks(true);
+          this.#assertSession(generation);
+          const matches = markets.filter(
+            (market) =>
+              market.marketId === row.marketIndex &&
+              market.symbol === params.newOrder.symbol,
+          );
+          if (matches.length !== 1) {
+            throw new Error(
+              'Lighter native edit market identity is unavailable',
+            );
+          }
+          const intent = prepareLighterNativeEdit(
+            params.newOrder,
+            row,
+            matches[0],
+            accountIndex,
+          );
+          const scale = await this.#readScaleGroups(
+            this.#scaleKey(accountIndex),
+            accountIndex,
+          );
+          const attached = await this.#readAttachedGroups(
+            this.#attachedKey(accountIndex),
+          );
+          const protection = await this.#readManagedTpsl(
+            `${scope.wallet}:${accountIndex}:${authority.apiKeyIndex}:${intent.symbol}`,
+          );
+          const chase = await this.#chaseService.hasRecordedChild(
+            this.#chaseOwner(accountIndex),
+            String(row.clientOrderIndex),
+            { assertCurrent: () => this.#assertSession(generation) },
+          );
+          this.#assertSession(generation);
+          if (
+            chase ||
+            protection.some(
+              (order) =>
+                order.clientId === String(row.clientOrderIndex) ||
+                order.orderId === orderId,
+            ) ||
+            scale.some((group) =>
+              group.rungs.some(
+                (rung) => rung.clientOrderId === row.clientOrderIndex,
+              ),
+            ) ||
+            attached.some((group) =>
+              group.orders.some(
+                (order) =>
+                  order[0] === row.marketIndex &&
+                  order[1] === row.clientOrderIndex,
+              ),
+            )
+          ) {
+            throw new Error(
+              'Lighter native edit cannot modify a recorded strategy or protection child',
+            );
+          }
+          return { row, intent };
+        };
+        await preflight();
+        await this.#ensureSignerReady();
+        this.#assertSession(generation);
+        if (this.#apiKeyIndex !== authority.apiKeyIndex) {
+          throw new Error(
+            'Lighter native edit signing key changed after preflight',
+          );
+        }
+        try {
+          return await this.#withVenueWriteLock(
+            accountIndex,
+            async (nextNonce, submit) => {
+              const { row, intent } = await preflight();
+              const record: LighterNativeEditJournal = {
+                version: 1,
+                wallet: scope.wallet,
+                network: scope.network,
+                accountIndex,
+                apiKeyIndex: authority.apiKeyIndex,
+                startedAt: Date.now(),
+                original: lighterNativeEditTarget(row),
+                intent,
+                phase: 'prepared',
+                status: 'pending',
+              };
+              await save(record);
+              const nonce = await nextNonce();
+              const tuple: LighterSignModifyOrderWireParams = [
+                accountIndex,
+                intent.marketIndex,
+                orderId,
+                intent.sizeInt,
+                intent.priceInt,
+                0,
+                nonce,
+              ];
+              const startedAt = Date.now();
+              const signed = await this.#getSignerBridge().execute({
+                function: '_signModifyOrder',
+                params: tuple,
+              });
+              this.#assertSession(generation);
+              const decoded = decodeLighterModifyOrder(
+                signed,
+                tuple,
+                record.apiKeyIndex,
+                startedAt,
+                Date.now(),
+              );
+              Object.assign(record, {
+                phase: 'signed',
+                nonce,
+                txHash: decoded.txHash,
+                expiresAt: decoded.expiresAt,
+              });
+              await save(record);
+              await submit(
+                LIGHTER_TX_TYPE_MODIFY_ORDER,
+                decoded.txInfo,
+                undefined,
+                {
+                  txHash: decoded.txHash,
+                  expiresAt: decoded.expiresAt,
+                  intent: `editOrder:${intent.symbol}:${orderId}`,
+                  owner: key,
+                  beforeDispatch: async () => {
+                    const finalTarget = await preflight();
+                    if (
+                      JSON.stringify(
+                        lighterNativeEditTarget(finalTarget.row),
+                      ) !== JSON.stringify(record.original) ||
+                      JSON.stringify(finalTarget.intent) !==
+                        JSON.stringify(record.intent)
+                    ) {
+                      throw new Error(
+                        'Lighter native edit target changed before dispatch',
+                      );
+                    }
+                    record.phase = 'attempted';
+                    await save(record);
+                  },
+                  onNotDispatched: async () => {
+                    record.status = 'failed';
+                    record.resolution = 'unsent';
+                    await save(record);
+                  },
+                },
+              );
+              record.phase = 'accepted';
+              await save(record);
+              return await reconcile(record);
+            },
+            generation,
+            authority.apiKeyIndex,
+            async () => {
+              const current = await read();
+              if (current?.status === 'pending') {
+                return { result: await reconcile(current) };
+              }
+              // Inspecting this order must not bypass other-slot quarantine.
+              for (
+                let slot = LIGHTER_MIN_TRADING_API_KEY_INDEX;
+                slot <= LIGHTER_MAX_TRADING_API_KEY_INDEX;
+                slot += 1
+              ) {
+                if (slot !== authority.apiKeyIndex) {
+                  await this.#resolveNonceLedger(accountIndex, slot);
+                }
+              }
+            },
+          );
+        } catch {
+          // Project only retained intent and observations. Do not leak signer
+          // or transport failures, or mutate a cancelled issuing session.
+          if (journal) {
+            return {
+              ...lighterNativeEditResult(journal, params.newOrder),
+              success: false,
+            };
+          }
+          throw new Error('Lighter native edit could not dispatch');
+        }
+      });
+    } catch {
+      return {
+        success: false,
+        error:
+          'Lighter native edit refused: exact ordinary resting order, supported fields and original read authority are required',
+        providerId: 'lighter',
+      };
+    }
   }
 
   /**

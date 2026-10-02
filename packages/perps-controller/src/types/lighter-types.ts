@@ -99,6 +99,17 @@ export type LighterSignCreateGroupedOrdersWireParams =
       nonce: number,
     ];
 
+/** Seven-argument ModifyOrder ABI of the pinned embedded signer. */
+export type LighterSignModifyOrderWireParams = [
+  accountIndex: number,
+  marketIndex: number,
+  orderIndex: string,
+  baseAmount: number,
+  price: number,
+  triggerPrice: number,
+  nonce: number,
+];
+
 export type LighterSignCancelOrderWireParams = [
   accountIndex: number,
   marketId: number,
@@ -158,6 +169,10 @@ export type LighterSignerOperationMap = {
   >;
   _signCreateGroupedOrders: LighterSignerOperationDefinition<
     LighterSignCreateGroupedOrdersWireParams,
+    LighterTxResult
+  >;
+  _signModifyOrder: LighterSignerOperationDefinition<
+    LighterSignModifyOrderWireParams,
     LighterTxResult
   >;
   _signCancelOrder: LighterSignerOperationDefinition<
@@ -853,6 +868,21 @@ export type LighterApiOrder = {
   toCancelOrderId0?: string;
   toTriggerOrderId0?: string;
   toTriggerOrderId1?: string;
+};
+
+/** Edit-only reader preserves venue int64 identities instead of rounding them. */
+export type LighterEditableOrder = Omit<
+  LighterApiOrder,
+  'orderIndex' | 'parentOrderIndex'
+> & {
+  orderIndex: number | string;
+  parentOrderIndex?: number | string;
+};
+
+export type LighterEditableOrdersResponse = {
+  code: number;
+  message?: string;
+  orders: LighterEditableOrder[];
 };
 
 /**

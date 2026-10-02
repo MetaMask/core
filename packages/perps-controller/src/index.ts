@@ -220,6 +220,7 @@ export type {
   ExpectedScaleLadder,
   MarginMode,
   OrderResult,
+  OrderEditObservation,
   AttachedOrderGroup,
   ScaleOrderChild,
   ChaseOrder,
@@ -534,6 +535,7 @@ export type {
   LighterWebSocketCtor,
   LighterWebSocketLike,
   LighterWasmCall,
+  LighterSignModifyOrderWireParams,
   LighterAuthConfig,
 } from './types/lighter-types.js';
 export {
