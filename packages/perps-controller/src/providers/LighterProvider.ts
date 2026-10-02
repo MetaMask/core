@@ -2374,14 +2374,16 @@ export class LighterProvider implements PerpsProvider {
       survivingOrderIds: string[];
       actionNeeded: string;
     }[] = [];
-    const actionNeeded = (settlementKey: string): string => {
+    const actionNeeded = (settlementKey: string, unsettled = false): string => {
       if (currentSlotPrefix === null) {
-        return 'Initialize the wallet trading key and review the position and recorded TP/SL orders. Reconcile each obligation under its original key before changing protection';
+        return 'Initialize the wallet trading key, then review the position and recorded TP/SL orders after pending venue transactions settle';
       }
       if (settlementKey.startsWith(currentSlotPrefix)) {
         return 'Review the position and submit a new explicit TP/SL update for this symbol to re-establish protection';
       }
-      return 'Review the position and recorded orders from the previous trading key in Lighter. A current-key TP/SL update does not clear this obligation; initialize the wallet trading key and reconcile the recorded orders before changing protection';
+      return unsettled
+        ? 'Recorded TP/SL transactions are still settling under a previous trading key. Retry after the venue shows their outcome'
+        : 'Review surviving orders with the current trading key and submit an explicit TP/SL update or removal. This warning clears once its recorded transactions and orders are settled';
     };
     // Storage errors PROPAGATE — a corrupt index degrading to "nothing
     // pending" would hide a naked position.
@@ -2392,6 +2394,8 @@ export class LighterProvider implements PerpsProvider {
       }
       const doc = await this.#loadTpslManualRecovery(settlementKey);
       if (doc) {
+        const unsettled = await this.#loadTpslJournal(settlementKey);
+        this.#assertSession(generation);
         pending.push({
           symbol: doc.symbol,
           settlementKey,
@@ -2399,7 +2403,7 @@ export class LighterProvider implements PerpsProvider {
           reason: doc.reason,
           priorIntent: doc.priorIntent,
           survivingOrderIds: doc.survivingOrderIds,
-          actionNeeded: actionNeeded(settlementKey),
+          actionNeeded: actionNeeded(settlementKey, unsettled !== null),
         });
       }
     }
@@ -2435,7 +2439,7 @@ export class LighterProvider implements PerpsProvider {
           reason,
           priorIntent: journal.intent,
           survivingOrderIds: [],
-          actionNeeded: actionNeeded(settlementKey),
+          actionNeeded: actionNeeded(settlementKey, true),
         });
       }
     }
@@ -3088,12 +3092,21 @@ export class LighterProvider implements PerpsProvider {
    * protection intent has authoritatively succeeded.
    *
    * @param settlementKey - Settlement identity.
+   * @param expectedOperationId - Optional observed warning identity; never clear a successor.
    */
   readonly #clearTpslManualRecovery = async (
     settlementKey: string,
+    expectedOperationId?: string,
   ): Promise<void> => {
     await withStorageMutex(this.#tpslManualIndexKey(), async () => {
       const index = await this.#readTpslManualIndex();
+      if (
+        expectedOperationId !== undefined &&
+        (await this.#loadTpslManualRecovery(settlementKey))?.operationId !==
+          expectedOperationId
+      ) {
+        return;
+      }
       await this.#deps.diskCache.removeItem(this.#tpslManualKey(settlementKey));
       if (index.includes(settlementKey)) {
         await this.#deps.diskCache.setItem(
@@ -3102,6 +3115,94 @@ export class LighterProvider implements PerpsProvider {
         );
       }
     });
+  };
+
+  /**
+   * Retire other-slot warnings only after an explicit current-key intent
+   * succeeds. Reads alone never acknowledge surviving protection.
+   * @param settlementKey - Current wallet/account/slot/symbol identity.
+   * @param accountIndex - Captured venue account.
+   * @param symbol - Symbol changed by the successful explicit intent.
+   * @param generation - Captured wallet session.
+   * @param readActiveRaw - Strict account-wide active book reader.
+   */
+  readonly #clearSettledPreviousSlotWarnings = async (
+    settlementKey: string,
+    accountIndex: number,
+    symbol: string,
+    generation: number,
+    readActiveRaw: () => Promise<LighterApiOrder[]>,
+  ): Promise<void> => {
+    const index = await this.#readTpslManualIndex();
+    this.#assertSession(generation);
+    for (const key of index) {
+      const [address, account, , ...keySymbol] = key.split(':');
+      if (
+        key === settlementKey ||
+        address !== this.#boundAddress ||
+        account !== String(accountIndex) ||
+        keySymbol.join(':') !== symbol
+      ) {
+        continue;
+      }
+      // A manual document can coexist with an unresolved journal after a
+      // failed cleanup. Preserve that obligation regardless of book absence.
+      if (await this.#loadTpslJournal(key)) {
+        this.#assertSession(generation);
+        continue;
+      }
+      this.#assertSession(generation);
+      const doc = await this.#loadTpslManualRecovery(key);
+      this.#assertSession(generation);
+      if (!doc) {
+        continue;
+      }
+      if (doc.settlementKey !== key || doc.symbol !== symbol) {
+        throw new Error(
+          'Lighter previous-slot protection warning identity is invalid',
+        );
+      }
+      const ids = [
+        ...doc.survivingOrderIds,
+        ...doc.priorTriggers.map((prior) => prior.orderId),
+      ];
+      if (ids.some((id) => typeof id !== 'string' || id.length === 0)) {
+        throw new Error(
+          'Lighter previous-slot protection warning order identity is invalid',
+        );
+      }
+      const readSurvivors = async (): Promise<boolean> => {
+        const active = await readActiveRaw();
+        this.#assertSession(generation);
+        if (
+          !Array.isArray(active) ||
+          active.some(
+            (row) =>
+              !row ||
+              row.ownerAccountIndex !== accountIndex ||
+              !Number.isSafeInteger(row.orderIndex) ||
+              row.orderIndex <= 0 ||
+              !Number.isSafeInteger(row.marketIndex) ||
+              row.marketIndex < 0,
+          )
+        ) {
+          throw new Error(
+            'Lighter previous-slot protection review requires a complete account order response',
+          );
+        }
+        return active.some((row) => ids.includes(String(row.orderIndex)));
+      };
+      if ((await readSurvivors()) || (await readSurvivors())) {
+        continue;
+      }
+      if (await this.#loadTpslJournal(key)) {
+        this.#assertSession(generation);
+        continue;
+      }
+      this.#assertSession(generation);
+      await this.#clearTpslManualRecovery(key, doc.operationId);
+      this.#assertSession(generation);
+    }
   };
 
   /**
@@ -6580,7 +6681,7 @@ export class LighterProvider implements PerpsProvider {
               }))
             ) {
               throw new Error(
-                `Lighter TP/SL settlement for ${params.symbol} is unresolved under its original API key slot ${String(slot)}; reconcile that slot before changing protection with the selected key`,
+                `Lighter TP/SL settlement for ${params.symbol} is still settling under its original API key slot ${String(slot)}; retry after the venue shows its outcome`,
               );
             }
           }
@@ -7078,6 +7179,13 @@ export class LighterProvider implements PerpsProvider {
           // failed successor leaves the warning untouched.
           await this.#clearTpslManualRecovery(settlementKey);
           this.#assertSession(generationAtIntent);
+          await this.#clearSettledPreviousSlotWarnings(
+            settlementKey,
+            accountIndex,
+            params.symbol,
+            generationAtIntent,
+            readActiveRaw,
+          );
         },
         generationAtIntent,
       );

@@ -2278,9 +2278,11 @@ describe('LighterProvider', () => {
         initializedPending.map((entry) => entry.settlementKey),
       ).toStrictEqual([settlementKey]);
       expect(initializedPending[0].actionNeeded).toContain(
-        'previous trading key',
+        'current trading key',
       );
-      expect(initializedPending[0].actionNeeded).toContain('does not clear');
+      expect(initializedPending[0].actionNeeded).toContain(
+        'explicit TP/SL update or removal',
+      );
       expect(removeItem).not.toHaveBeenCalled();
     });
 
@@ -13011,6 +13013,9 @@ describe('LighterProvider', () => {
       [false, 'read', false],
       [true, 'read', false],
       [false, 'read', true],
+      [true, 'read', true],
+      [false, 'foreground', true],
+      [true, 'foreground', true],
     ] as const)(
       'settles a visible old-slot create read-only while its signing key stays foreign, replacement=%s via %s prior-survivor=%s',
       async (replacement, recoveryMode, hasPrior) => {
@@ -13184,11 +13189,55 @@ describe('LighterProvider', () => {
         expect(migratedVenue.rawTriggers).toStrictEqual(
           originalVenue.rawTriggers,
         );
+        const manualKey = `lighterTpslManual:testnet:${sourceKey}`;
+        const manualIndexKey = 'lighterTpslManualIndex:testnet';
+        let failureProof:
+          | {
+              hadWarning: boolean;
+              hadIndexEntry: boolean;
+              success: boolean;
+              warningUnchanged: boolean;
+              indexUnchanged: boolean;
+            }
+          | undefined;
+        if (recoveryMode === 'read' && hasPrior) {
+          const warningBefore = await infra.diskCache.getItem(manualKey);
+          const indexBefore = await infra.diskCache.getItem(manualIndexKey);
+          const failed = await migrated.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '-1',
+          });
+          failureProof = {
+            hadWarning: warningBefore !== null,
+            hadIndexEntry: (
+              JSON.parse(indexBefore ?? '[]') as string[]
+            ).includes(sourceKey),
+            success: failed.success,
+            warningUnchanged:
+              (await infra.diskCache.getItem(manualKey)) === warningBefore,
+            indexUnchanged:
+              (await infra.diskCache.getItem(manualIndexKey)) === indexBefore,
+          };
+        }
+        expect(failureProof).toStrictEqual(
+          recoveryMode === 'read' && hasPrior
+            ? {
+                hadWarning: true,
+                hadIndexEntry: true,
+                success: false,
+                warningUnchanged: true,
+                indexUnchanged: true,
+              }
+            : undefined,
+        );
         const cleared = await migrated.provider.updatePositionTPSL({
           symbol: 'BTC',
           stopLossPrice: replacement ? '85000' : undefined,
         });
         expect(cleared).toMatchObject({ success: true });
+        expect(
+          await migrated.provider.getPendingManualRecoveries(),
+        ).toStrictEqual([]);
         expect(await infra.diskCache.getItem(journalKey)).toBeNull();
         expect(migratedVenue.rawTriggers).toHaveLength(replacement ? 1 : 0);
         expect(migrated.clientInstance.sendTx).toHaveBeenCalledTimes(
@@ -13204,6 +13253,251 @@ describe('LighterProvider', () => {
           await infra.diskCache.getItem('lighterNonceLedger:testnet:28:19'),
         ).toBe(ledgerBefore);
         await migrated.provider.disconnect();
+        expect(await infra.diskCache.getItem(manualKey)).toBeNull();
+        expect(
+          JSON.parse((await infra.diskCache.getItem(manualIndexKey)) ?? '[]'),
+        ).not.toContain(sourceKey);
+        const restarted = buildProvider({ platformDependencies: infra });
+        Object.assign(restarted.bridge, {
+          getRecoverableKeyIndices: async (): Promise<number[]> => [19, 7],
+        });
+        restarted.clientInstance.getApiKeys.mockResolvedValue({
+          code: 200,
+          apiKeys: [
+            { apiKeyIndex: 19, publicKey: 'ab'.repeat(40) },
+            { apiKeyIndex: 7, publicKey: '9c'.repeat(40) },
+          ],
+        });
+        const restartedVenue = setupTriggerVenue(
+          restarted.clientInstance,
+          restarted.bridge,
+        );
+        restartedVenue.rawTriggers.push(...migratedVenue.rawTriggers);
+        restartedVenue.setVenueNonce(migratedVenue.getVenueNonce());
+        expect((await restarted.provider.isReadyToTrade()).ready).toBe(true);
+        expect(
+          jest.mocked(restarted.bridge).createClient.mock.lastCall,
+        ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 7 })]);
+        expect(
+          await restarted.provider.getPendingManualRecoveries(),
+        ).toStrictEqual([]);
+        expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+        await restarted.provider.disconnect();
+      },
+    );
+
+    it.each(['wallet', 'account', 'network', 'symbol'] as const)(
+      'preserves unrelated previous-slot manual warning bytes for another %s after an explicit update',
+      async (context) => {
+        const infra = createMockInfrastructure();
+        const address =
+          context === 'wallet'
+            ? '0x9999999999999999999999999999999999999999'
+            : ACCOUNT.l1Address.toLowerCase();
+        const key = `${address}:${context === 'account' ? 29 : 28}:19:${context === 'symbol' ? 'ETH' : 'BTC'}`;
+        const network = context === 'network' ? 'mainnet' : 'testnet';
+        const indexKey = `lighterTpslManualIndex:${network}`;
+        const docKey = `lighterTpslManual:${network}:${key}`;
+        await infra.diskCache.setItem(indexKey, JSON.stringify([key]));
+        await infra.diskCache.setItem(
+          docKey,
+          'unrelated bytes must not be interpreted',
+        );
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+        expect(
+          await built.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+          }),
+        ).toMatchObject({ success: true });
+        expect(venue.rawTriggers).toHaveLength(1);
+        expect(await infra.diskCache.getItem(docKey)).toBe(
+          'unrelated bytes must not be interpreted',
+        );
+        expect(await infra.diskCache.getItem(indexKey)).toBe(
+          JSON.stringify([key]),
+        );
+        await built.provider.disconnect();
+      },
+    );
+
+    it.each(['survivor', 'prior'] as const)(
+      'retains a previous-slot warning while a recorded %s order stays active',
+      async (recordedAs) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        const venue = setupTriggerVenue(built.clientInstance, built.bridge);
+        const orderId = venue.seedTrigger('stop-loss', '80000');
+        // This plain resting limit is deliberately outside protection selection.
+        venue.rawTriggers[0].type = 'limit';
+        const key = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        const docKey = `lighterTpslManual:testnet:${key}`;
+        const bytes = JSON.stringify({
+          version: 1,
+          settlementKey: key,
+          symbol: 'BTC',
+          reason: 'Review prior protection',
+          priorIntent: 'remove',
+          priorTriggers:
+            recordedAs === 'prior' ? [{ orderId: String(orderId) }] : [],
+          survivingOrderIds: recordedAs === 'survivor' ? [String(orderId)] : [],
+          operationId: 'prior-operation',
+          recordedAt: 5,
+        });
+        await infra.diskCache.setItem(
+          'lighterTpslManualIndex:testnet',
+          JSON.stringify([key]),
+        );
+        await infra.diskCache.setItem(docKey, bytes);
+        expect(
+          await built.provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+          }),
+        ).toMatchObject({ success: true });
+        expect(await infra.diskCache.getItem(docKey)).toBe(bytes);
+        expect(await built.provider.getPendingManualRecoveries()).toStrictEqual(
+          [expect.objectContaining({ settlementKey: key })],
+        );
+        expect(
+          venue.rawTriggers.some((row) => row.orderIndex === orderId),
+        ).toBe(true);
+        await built.provider.disconnect();
+      },
+    );
+
+    it.each(['new-warning', 'new-journal'] as const)(
+      'preserves a %s arriving during previous-slot warning reconciliation',
+      async (change) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        const key = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        const docKey = `lighterTpslManual:testnet:${key}`;
+        const journalKey = `lighterTpslJournal:testnet:${key}`;
+        const doc = {
+          version: 1,
+          settlementKey: key,
+          symbol: 'BTC',
+          reason: 'Review prior protection',
+          priorIntent: 'remove',
+          priorTriggers: [],
+          survivingOrderIds: ['777'],
+          operationId: 'prior-operation',
+          recordedAt: 5,
+        };
+        await infra.diskCache.setItem(
+          'lighterTpslManualIndex:testnet',
+          JSON.stringify([key]),
+        );
+        await infra.diskCache.setItem(docKey, JSON.stringify(doc));
+        let reads = 0;
+        built.clientInstance.getActiveOrders.mockImplementation(async () => {
+          reads += 1;
+          if (reads === 3) {
+            if (change === 'new-warning') {
+              await infra.diskCache.setItem(
+                docKey,
+                JSON.stringify({ ...doc, operationId: 'new-operation' }),
+              );
+            } else {
+              await infra.diskCache.setItem(
+                journalKey,
+                'unresolved incoming journal',
+              );
+            }
+          }
+          return { code: 200, orders: [] };
+        });
+        expect(
+          (await built.provider.updatePositionTPSL({ symbol: 'BTC' })).success,
+        ).toBe(change === 'new-warning');
+        expect(await infra.diskCache.getItem(docKey)).toBe(
+          JSON.stringify(
+            change === 'new-warning'
+              ? { ...doc, operationId: 'new-operation' }
+              : doc,
+          ),
+        );
+        expect(await infra.diskCache.getItem(journalKey)).toBe(
+          change === 'new-journal' ? 'unresolved incoming journal' : null,
+        );
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        await built.provider.disconnect();
+      },
+    );
+
+    it.each(['failed', 'incomplete', 'foreign', 'incomplete-row'] as const)(
+      'preserves previous-slot warning when its final order read is %s',
+      async (readMode) => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          platformDependencies: infra,
+          registeredKey: '9c'.repeat(40),
+        });
+        setupTriggerVenue(built.clientInstance, built.bridge);
+        const key = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        const docKey = `lighterTpslManual:testnet:${key}`;
+        const bytes = JSON.stringify({
+          version: 1,
+          settlementKey: key,
+          symbol: 'BTC',
+          reason: 'Review prior protection',
+          priorIntent: 'remove',
+          priorTriggers: [],
+          survivingOrderIds: ['777'],
+          operationId: 'prior-operation',
+          recordedAt: 5,
+        });
+        await infra.diskCache.setItem(
+          'lighterTpslManualIndex:testnet',
+          JSON.stringify([key]),
+        );
+        await infra.diskCache.setItem(docKey, bytes);
+        const read =
+          built.clientInstance.getActiveOrders.getMockImplementation() as
+            | (() => Promise<{ code: number; orders: RawTriggerOrder[] }>)
+            | undefined;
+        if (!read) {
+          throw new Error('Expected venue book reader');
+        }
+        let reads = 0;
+        built.clientInstance.getActiveOrders.mockImplementation(async () => {
+          reads += 1;
+          if (reads === 1) {
+            return read();
+          }
+          if (readMode === 'failed') {
+            throw new Error('Order transport unavailable');
+          }
+          return readMode === 'incomplete'
+            ? { code: 200 }
+            : {
+                code: 200,
+                orders: [
+                  {
+                    ownerAccountIndex: readMode === 'foreign' ? 29 : 28,
+                    orderIndex: undefined,
+                  },
+                ],
+              };
+        });
+        expect(
+          (await built.provider.updatePositionTPSL({ symbol: 'BTC' })).success,
+        ).toBe(false);
+        expect(await infra.diskCache.getItem(docKey)).toBe(bytes);
+        expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        await built.provider.disconnect();
       },
     );
 
