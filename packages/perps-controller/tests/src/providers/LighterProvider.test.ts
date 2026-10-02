@@ -16548,7 +16548,7 @@ describe('LighterProvider', () => {
           | {
               hadWarning: boolean;
               hadIndexEntry: boolean;
-              success: boolean;
+              success: boolean | undefined;
               warningUnchanged: boolean;
               indexUnchanged: boolean;
             }
