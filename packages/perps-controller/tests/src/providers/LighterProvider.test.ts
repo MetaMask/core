@@ -16267,9 +16267,232 @@ describe('LighterProvider', () => {
       },
     );
 
-    it.each(['wallet', 'account', 'network', 'symbol', 'absent'] as const)(
-      'allows protection changes when the old-slot journal belongs to an unrelated %s',
-      async (context) => {
+    it.each([
+      [false, 'foreground', false],
+      [true, 'foreground', false],
+      [false, 'read', false],
+      [true, 'read', false],
+      [false, 'read', true],
+    ] as const)(
+      'settles a visible old-slot create read-only while its signing key stays foreign, replacement=%s via %s prior-survivor=%s',
+      async (replacement, recoveryMode, hasPrior) => {
+        const infra = createMockInfrastructure();
+        const original = buildProvider({
+          platformDependencies: infra,
+          apiKeyIndex: 19,
+        });
+        Object.assign(original.bridge, {
+          getRecoverableKeyIndices: async (): Promise<number[]> => [19],
+        });
+        original.clientInstance.getApiKeys.mockResolvedValue({
+          code: 200,
+          apiKeys: [{ apiKeyIndex: 19, publicKey: '9c'.repeat(40) }],
+        });
+        const originalVenue = setupTriggerVenue(
+          original.clientInstance,
+          original.bridge,
+          { apiKeyIndex: 19 },
+        );
+        if (hasPrior) {
+          originalVenue.seedTrigger('take-profit', '110000');
+        }
+        originalVenue.setRestLag(100);
+        const created = await original.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '80000',
+        });
+        expect(created.success).toBe(false);
+        expect(created.error).toContain('settlement is not yet visible');
+        expect(originalVenue.rawTriggers).toHaveLength(hasPrior ? 2 : 1);
+        expect(original.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        const sourceKey = `${ACCOUNT.l1Address.toLowerCase()}:28:19:BTC`;
+        const journalKey = `lighterTpslJournal:testnet:${sourceKey}`;
+        const journalBefore = await infra.diskCache.getItem(journalKey);
+        expect(journalBefore).not.toBeNull();
+        const pointer = JSON.parse(journalBefore ?? '') as {
+          operationId: string;
+        };
+        const payloadKey = `lighterTpslJournalOp:testnet:${sourceKey}:${pointer.operationId}`;
+        const payloadBefore = await infra.diskCache.getItem(payloadKey);
+        expect(JSON.parse(payloadBefore ?? '')).toMatchObject({
+          apiKeyIndex: 19,
+          intent: 'replace',
+          phase: 'creating',
+          attempts: [expect.objectContaining({ kind: 'create' })],
+        });
+        const ledgerBefore = await infra.diskCache.getItem(
+          'lighterNonceLedger:testnet:28:19',
+        );
+        expect(JSON.parse(ledgerBefore ?? '')).toMatchObject({
+          entries: [],
+          recovered: [],
+        });
+        await original.provider.disconnect();
+
+        const migrated = buildProvider({ platformDependencies: infra });
+        Object.assign(migrated.bridge, {
+          getRecoverableKeyIndices: async (): Promise<number[]> => [19, 7],
+        });
+        migrated.clientInstance.getApiKeys.mockResolvedValue({
+          code: 200,
+          apiKeys: [
+            { apiKeyIndex: 19, publicKey: 'ab'.repeat(40) },
+            { apiKeyIndex: 7, publicKey: '9c'.repeat(40) },
+          ],
+        });
+        const migratedVenue = setupTriggerVenue(
+          migrated.clientInstance,
+          migrated.bridge,
+        );
+        migratedVenue.rawTriggers.push(...originalVenue.rawTriggers);
+        migratedVenue.setVenueNonce(originalVenue.getVenueNonce());
+        migratedVenue.setNextIndex(originalVenue.getNextIndex());
+        migratedVenue.primeLag([], 100);
+        expect((await migrated.provider.isReadyToTrade()).ready).toBe(true);
+        expect(
+          jest.mocked(migrated.bridge).createClient.mock.lastCall,
+        ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 7 })]);
+        expect(await migrated.provider.getRecoveredDispatches()).toStrictEqual(
+          [],
+        );
+        const result = await migrated.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: replacement ? '85000' : undefined,
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('original API key slot 19');
+        expect(migrated.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(
+          migrated.calls.filter((call) => call.function.startsWith('_sign')),
+        ).toStrictEqual([]);
+        expect(await infra.diskCache.getItem(journalKey)).toBe(journalBefore);
+        expect(await infra.diskCache.getItem(payloadKey)).toBe(payloadBefore);
+        expect(
+          await infra.diskCache.getItem('lighterNonceLedger:testnet:28:19'),
+        ).toBe(ledgerBefore);
+        expect(migratedVenue.rawTriggers).toStrictEqual(
+          originalVenue.rawTriggers,
+        );
+        const clientCreationsAtReady = jest.mocked(migrated.bridge).createClient
+          .mock.calls.length;
+        // Slot 19 stays foreign permanently. Only its own exact hash/nonce
+        // identity may discharge the old obligation; the selected key signs
+        // only the fresh user intent after read-only settlement.
+        migratedVenue.setRestLag(0);
+        migratedVenue.primeLag([], 0);
+        migrated.clientInstance.getTx.mockImplementation(
+          async (hash: string) => {
+            const old = originalVenue.landedTxs.get(hash);
+            return old
+              ? { code: 200, hash, accountIndex: 28, apiKeyIndex: 19, ...old }
+              : null;
+          },
+        );
+        let readProof:
+          | {
+              journal: string | null;
+              submissions: number;
+              signatures: string[];
+              manual: {
+                settlementKey: string;
+                priorIntent: string;
+                survivingOrderIds: string[];
+              }[];
+            }
+          | undefined;
+        if (recoveryMode === 'read') {
+          for (let attempt = 0; attempt < 80; attempt += 1) {
+            await migrated.provider.getOpenOrders();
+            if ((await infra.diskCache.getItem(journalKey)) === null) {
+              break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          readProof = {
+            journal: await infra.diskCache.getItem(journalKey),
+            submissions: migrated.clientInstance.sendTx.mock.calls.length,
+            signatures: migrated.calls
+              .filter((call) => call.function.startsWith('_sign'))
+              .map((call) => call.function),
+            manual: (await migrated.provider.getPendingManualRecoveries()).map(
+              ({ settlementKey, priorIntent, survivingOrderIds }) => ({
+                settlementKey,
+                priorIntent,
+                survivingOrderIds,
+              }),
+            ),
+          };
+        }
+        expect(readProof).toStrictEqual(
+          recoveryMode === 'read'
+            ? {
+                journal: null,
+                submissions: 0,
+                signatures: [],
+                manual: hasPrior
+                  ? [
+                      {
+                        settlementKey: sourceKey,
+                        priorIntent: 'replace',
+                        survivingOrderIds: originalVenue.rawTriggers.map(
+                          (row) => String(row.orderIndex),
+                        ),
+                      },
+                    ]
+                  : [],
+              }
+            : undefined,
+        );
+        expect(migratedVenue.rawTriggers).toStrictEqual(
+          originalVenue.rawTriggers,
+        );
+        const cleared = await migrated.provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: replacement ? '85000' : undefined,
+        });
+        expect(cleared).toMatchObject({ success: true });
+        expect(await infra.diskCache.getItem(journalKey)).toBeNull();
+        expect(migratedVenue.rawTriggers).toHaveLength(replacement ? 1 : 0);
+        expect(migrated.clientInstance.sendTx).toHaveBeenCalledTimes(
+          (replacement ? 2 : 1) + (hasPrior ? 1 : 0),
+        );
+        expect(
+          jest
+            .mocked(migrated.bridge)
+            .createClient.mock.calls.slice(clientCreationsAtReady)
+            .every(([call]) => call.apiKeyIndex === 7),
+        ).toBe(true);
+        expect(
+          await infra.diskCache.getItem('lighterNonceLedger:testnet:28:19'),
+        ).toBe(ledgerBefore);
+        await migrated.provider.disconnect();
+      },
+    );
+
+    it.each([
+      {
+        context: 'wallet',
+        title: 'the old-slot journal belongs to another wallet',
+      },
+      {
+        context: 'account',
+        title: 'the old-slot journal belongs to another account',
+      },
+      {
+        context: 'network',
+        title: 'the old-slot journal belongs to another network',
+      },
+      {
+        context: 'symbol',
+        title: 'the old-slot journal belongs to another symbol',
+      },
+      {
+        context: 'absent',
+        title: 'a matching old-slot index entry has no journal',
+      },
+    ] as const)(
+      'allows protection changes when $title',
+      async ({ context }) => {
         const infra = createMockInfrastructure();
         const address =
           context === 'wallet'

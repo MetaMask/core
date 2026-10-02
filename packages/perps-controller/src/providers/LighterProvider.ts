@@ -4101,17 +4101,22 @@ export class LighterProvider implements PerpsProvider {
         }
         const accountIndex = await this.#ensureAccountIndex();
         this.#assertSession(generation);
-        const prefix = `${address}:${accountIndex}:${this.#apiKeyIndex}:`;
+        const prefix = `${address}:${accountIndex}:`;
         let allResolved = true;
         for (const settlementKey of index) {
           if (!settlementKey.startsWith(prefix)) {
             continue;
           }
+          const [slot, ...symbol] = settlementKey
+            .slice(prefix.length)
+            .split(':');
+          const originalSlot = Number(slot);
           const resolved = await this.#recoverTpslSymbol(
-            settlementKey.slice(prefix.length),
+            symbol.join(':'),
             settlementKey,
             generation,
             accountIndex,
+            originalSlot,
           ).catch((error) => {
             // Surface the exact cause (corruption, transport, session
             // fence) — the entry stays retryable, but never silently.
@@ -4154,6 +4159,7 @@ export class LighterProvider implements PerpsProvider {
    * @param settlementKey - Full settlement identity.
    * @param generation - Captured session generation.
    * @param accountIndex - Captured account index.
+   * @param originalSlot - Original journal slot, read-only if different after setup.
    * @returns True when the obligation fully resolved (journal cleared);
    * false when it remains pending and must be retried.
    */
@@ -4162,6 +4168,7 @@ export class LighterProvider implements PerpsProvider {
     settlementKey: string,
     generation: number,
     accountIndex: number,
+    originalSlot = this.#apiKeyIndex,
   ): Promise<boolean> => {
     const markets = await this.#ensureMarkets();
     const market = markets.get(symbol);
@@ -4205,6 +4212,8 @@ export class LighterProvider implements PerpsProvider {
           settlementKey,
           symbol,
           journalEntry,
+          readOnlyApiKeyIndex:
+            originalSlot === this.#apiKeyIndex ? undefined : originalSlot,
           market,
           accountIndex,
           authToken,
@@ -4230,6 +4239,7 @@ export class LighterProvider implements PerpsProvider {
    * @param context.settlementKey - Full settlement identity.
    * @param context.symbol - Market symbol.
    * @param context.journalEntry - The pending journal.
+   * @param context.readOnlyApiKeyIndex - Original slot for read-only migrated settlement.
    * @param context.market - Market integerization parameters.
    * @param context.market.marketId - Venue market id.
    * @param context.market.supportedSizeDecimals - Size integerization decimals.
@@ -4248,6 +4258,7 @@ export class LighterProvider implements PerpsProvider {
     settlementKey: string;
     symbol: string;
     journalEntry: TpslJournalState;
+    readOnlyApiKeyIndex?: number;
     market: {
       marketId: number;
       supportedSizeDecimals: number;
@@ -4290,6 +4301,7 @@ export class LighterProvider implements PerpsProvider {
    * @param context.settlementKey - Full settlement identity.
    * @param context.symbol - Market symbol.
    * @param context.journalEntry - Caller's journal snapshot (reloaded).
+   * @param context.readOnlyApiKeyIndex - Original slot for read-only migrated settlement.
    * @param context.market - Market integerization parameters.
    * @param context.market.marketId - Venue market id.
    * @param context.market.supportedSizeDecimals - Size decimals.
@@ -4307,6 +4319,7 @@ export class LighterProvider implements PerpsProvider {
     settlementKey: string;
     symbol: string;
     journalEntry: TpslJournalState;
+    readOnlyApiKeyIndex?: number;
     market: {
       marketId: number;
       supportedSizeDecimals: number;
@@ -4363,6 +4376,7 @@ export class LighterProvider implements PerpsProvider {
       readInactiveFor,
       accountIndex,
       journalEntry,
+      context.readOnlyApiKeyIndex,
     );
     if (reconciled === 'unresolved') {
       return false;
@@ -4386,6 +4400,11 @@ export class LighterProvider implements PerpsProvider {
       orderId: string,
       role: 'stale' | 'rollback',
     ): Promise<void> => {
+      if (context.readOnlyApiKeyIndex !== undefined) {
+        throw new Error(
+          'Read-only original-slot settlement cannot sign a cancellation',
+        );
+      }
       if (role === 'stale' && journalEntry.intent === 'replace') {
         journalEntry.phase = 'cancelling';
       }
@@ -4604,6 +4623,28 @@ export class LighterProvider implements PerpsProvider {
       );
       return true;
     };
+    if (context.readOnlyApiKeyIndex !== undefined) {
+      const hasPriorSurvivors = journalEntry.priorTriggers.some(priorActive);
+      const replacementWon = anySuccess || (anyActive && !anyFailed);
+      const needsPriorCleanup =
+        hasPriorSurvivors &&
+        (journalEntry.intent === 'remove' ||
+          (journalEntry.phase === 'creating' &&
+            replacementIds.length > 0 &&
+            replacementWon) ||
+          (journalEntry.phase === 'cancelling' && replacementWon));
+      const needsRollback =
+        journalEntry.intent === 'replace' &&
+        journalEntry.phase === 'creating' &&
+        !anySuccess &&
+        anyFailed &&
+        anyActive;
+      if (needsPriorCleanup || needsRollback) {
+        return await parkManual(
+          'An earlier trading key completed its dispatched attempts but further protection changes require a new explicit request; surviving orders were preserved',
+        );
+      }
+    }
     if (journalEntry.phase === 'manual') {
       // Reconciled manual journals release only their settlement slot.
       // Keep surviving protection in the durable warning for explicit action.
@@ -4692,6 +4733,7 @@ export class LighterProvider implements PerpsProvider {
    * @param entry - The recorded expectation.
    * @param entry.attempts - Journalled per-attempt submissions.
    * @param entry.recordedAt - When the journal was recorded (ms).
+   * @param apiKeyIndex - Original journal slot; never inferred from a successor signer.
    * @returns 'resolved' when safe to proceed; 'unresolved' when an
    * ACCEPTED mutation is still not visible.
    */
@@ -4700,8 +4742,8 @@ export class LighterProvider implements PerpsProvider {
     readInactive: (targetClientIds: number[]) => Promise<LighterApiOrder[]>,
     accountIndex: number,
     entry: { attempts: TpslAttempt[]; recordedAt: number },
+    apiKeyIndex = this.#apiKeyIndex,
   ): Promise<'resolved' | 'unresolved'> => {
-    const apiKeyIndex = this.#apiKeyIndex;
     for (const attempt of entry.attempts) {
       if (attempt.kind === 'create') {
         delete attempt.neverLanded;
@@ -5959,7 +6001,7 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   /**
-   * Report native standalone triggers for an active, known market. Explicit
+   * Report native standalone triggers for an active, known perpetual market. Explicit
    * margin modes and strategies remain unreported until their write paths exist.
    *
    * @param params - Market route to inspect.
@@ -7322,21 +7364,10 @@ export class LighterProvider implements PerpsProvider {
             market.marketId,
           );
 
-          // VENUE LINEARIZABILITY: if a previous TP/SL transition's
-          // settlement never became visible, run it through the SAME
-          // obligation state machine as startup recovery — a pending
-          // 'cancelling'/'restoring' journal may owe a rollback or a
-          // RESTORE, and merely reconciling-then-clearing it here would
-          // erase that obligation and leave the position naked.
-          // Pending obligations survive provider death via the durable
-          // journal. DISK IS AUTHORITATIVE: absence means the obligation
-          // was resolved (possibly by another provider) — a stale
-          // in-memory copy is dropped, never resurrected.
-          // Acceptance can clear a dispatch from the nonce ledger before
-          // its protection appears in the order book. That journal still
-          // owns settlement, even after discovery selects another key. Keep
-          // the original slot identity: its nonce proof and any recovery
-          // signatures must never run through the newly selected signer.
+          // An accepted create can leave the nonce ledger before its trigger
+          // is visible. Another slot may still own settlement for this symbol.
+          // Reconcile only its original-slot proof; never sign its follow-up
+          // under the selected key. Refuse while any attempt is unresolved.
           const journalIndex = await this.#readTpslJournalIndex();
           this.#assertSession(generationAtIntent);
           for (const previousKey of journalIndex) {
@@ -7351,12 +7382,38 @@ export class LighterProvider implements PerpsProvider {
             }
             const previousJournal = await this.#loadTpslJournal(previousKey);
             this.#assertSession(generationAtIntent);
-            if (previousJournal) {
+            if (
+              previousJournal &&
+              !(await this.#settleTpslObligation({
+                settlementKey: previousKey,
+                symbol: params.symbol,
+                journalEntry: previousJournal,
+                readOnlyApiKeyIndex: Number(slot),
+                market,
+                accountIndex,
+                authToken,
+                generation: generationAtIntent,
+                readActiveRaw,
+                readInactiveFor,
+                nextNonce,
+                submit,
+              }))
+            ) {
               throw new Error(
                 `Lighter TP/SL settlement for ${params.symbol} is unresolved under its original API key slot ${String(slot)}; reconcile that slot before changing protection with the selected key`,
               );
             }
           }
+          // VENUE LINEARIZABILITY: if a previous TP/SL transition's
+          // settlement never became visible, run it through the SAME
+          // obligation state machine as startup recovery — a pending
+          // 'cancelling'/'restoring' journal may owe a rollback or a
+          // RESTORE, and merely reconciling-then-clearing it here would
+          // erase that obligation and leave the position naked.
+          // Pending obligations survive provider death via the durable
+          // journal. DISK IS AUTHORITATIVE: absence means the obligation
+          // was resolved (possibly by another provider) — a stale
+          // in-memory copy is dropped, never resurrected.
           const unsettled = await this.#loadTpslJournal(settlementKey);
           if (unsettled === null) {
             this.#tpslUnsettled.delete(settlementKey);
