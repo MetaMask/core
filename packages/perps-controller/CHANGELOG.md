@@ -20,9 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Degrade without logging an error when the host does not provide an optional messenger action, whether it is unregistered or not delegated to `PerpsController` ([#10665](https://github.com/MetaMask/core/pull/10665))
   - `SubscriptionController:getBenefits` (fee waiver): an undelegated action now reads as no subscription source, as an unregistered one already did, instead of logging an error when no injected `subscription` source is wired
   - `NetworkController:getState` / `getNetworkClientById` (rewards discount): no discount instead of an error
-  - `AuthenticationController:getBearerToken` (data-lake report): skipped instead of logged and retried
-  - `AuthenticatedUserStorageService:getNotificationPreferences` / `putNotificationPreferences` (watchlist sync): the local watchlist is kept instead of logging an error and reverting the toggle
-  - Only a missing handler for the action itself counts; a handler that fails, including on a missing dependency of its own, is still reported
+  - `AuthenticationController:getBearerToken` (data-lake report): skipped instead of logged and retried; a report skipped for a missing account or token now also ends its trace
+  - `AuthenticatedUserStorageService:getNotificationPreferences` / `putNotificationPreferences` (watchlist sync): the local watchlist is kept instead of logging an error and reverting the toggle. AUS stays the source of truth: with the read but not the write, toggles last until the next `init()` hydrates the remote watchlist
+  - Only a missing handler for the exact action called counts. A delegated handler that fails is still reported, including when it fails on a missing handler for another action (such as AUS missing `AuthenticationController:getBearerToken`, or a `NetworkController` read missing the other one), and so is a failure of the injected `rewards` dependency
   - `RemoteFeatureFlagController:getState` in the constructor and `startEligibilityMonitoring`, `GeolocationController`, `KeyringController` and `TransactionController` are unchanged and still report errors
 
 ## [19.0.0]

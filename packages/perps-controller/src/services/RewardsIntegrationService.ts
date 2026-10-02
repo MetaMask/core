@@ -738,6 +738,19 @@ export class RewardsIntegrationService {
   }
 
   /**
+   * Log that the rewards discount is unavailable because the host does not
+   * provide a NetworkController action.
+   *
+   * @param error - The missing-handler error from the messenger.
+   */
+  #logNetworkControllerNotProvided(error: unknown): void {
+    this.#deps.debugLogger.log(
+      'RewardsIntegrationService: Fee discount unavailable (NetworkController not provided)',
+      { error: ensureError(error).message },
+    );
+  }
+
+  /**
    * Resolve the rewards (VIP + season) discount for the selected account.
    *
    * @returns The discount in basis points, or undefined when unavailable.
@@ -755,28 +768,29 @@ export class RewardsIntegrationService {
 
       // Get the chain ID via DI network controller. A host without
       // NetworkController (or one that does not delegate it) simply has no
-      // rewards discount: the fee falls back to the next source.
+      // rewards discount: the fee falls back to the next source. Each read
+      // checks only its own action, so a handler failing on a missing
+      // dependency of its own is still reported below.
       let selectedNetworkClientId: string;
-      let chainId: string | undefined;
       try {
         ({ selectedNetworkClientId } = this.#messenger.call(
           'NetworkController:getState',
         ));
-        chainId = this.#getChainIdForNetwork(selectedNetworkClientId);
       } catch (error) {
-        if (
-          !isMissingActionHandlerError(error, 'NetworkController:getState') &&
-          !isMissingActionHandlerError(
-            error,
-            'NetworkController:getNetworkClientById',
-          )
-        ) {
+        if (!isMissingActionHandlerError(error, 'NetworkController:getState')) {
           throw error;
         }
-        this.#deps.debugLogger.log(
-          'RewardsIntegrationService: Fee discount unavailable (NetworkController not provided)',
-          { error: ensureError(error).message },
-        );
+        this.#logNetworkControllerNotProvided(error);
+        return undefined;
+      }
+
+      let chainId: string | undefined;
+      try {
+        chainId = this.#getChainIdForNetwork(selectedNetworkClientId);
+      } catch (error) {
+        // `#getChainIdForNetwork` only rethrows a missing
+        // `NetworkController:getNetworkClientById` handler.
+        this.#logNetworkControllerNotProvided(error);
         return undefined;
       }
 

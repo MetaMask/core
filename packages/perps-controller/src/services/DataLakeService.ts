@@ -158,6 +158,12 @@ export class DataLakeService {
           action,
           symbol,
         });
+        // Not retried, so close the trace opened on the first attempt.
+        this.#deps.tracer.endTrace({
+          name: PerpsTraceNames.DataLakeReport,
+          id: traceId,
+          data: { success: false, error: 'No account or token available' },
+        });
         return { success: false, error: 'No account or token available' };
       }
 

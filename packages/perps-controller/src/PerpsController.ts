@@ -198,27 +198,6 @@ import { wait } from './utils/wait.js';
 /** Derived type for logger options from PerpsLogger interface */
 type PerpsLoggerOptions = Parameters<PerpsLogger['error']>[1];
 
-/**
- * Whether the host does not provide the AuthenticatedUserStorageService action
- * a watchlist sync just called. A missing handler deeper in AUS (for example
- * its own `AuthenticationController` dependency) is not matched.
- *
- * @param error - The error from the AUS call.
- * @returns True when the AUS action itself has no reachable handler.
- */
-function isAuthenticatedUserStorageMissingError(error: unknown): boolean {
-  return (
-    isMissingActionHandlerError(
-      error,
-      'AuthenticatedUserStorageService:getNotificationPreferences',
-    ) ||
-    isMissingActionHandlerError(
-      error,
-      'AuthenticatedUserStorageService:putNotificationPreferences',
-    )
-  );
-}
-
 function cloneUserDataSnapshot(
   snapshot: PerpsUserDataSnapshot,
 ): PerpsUserDataSnapshot {
@@ -7234,8 +7213,10 @@ export class PerpsController extends BaseController<
    * - The remote preferences blob does not yet exist (returns `null` / 404).
    *   In that case, `NotificationServicesController.createOnChainTriggers` is
    *   the canonical owner that creates the initial blob.
-   * - The host does not provide the AuthenticatedUserStorageService actions;
-   *   local state is then the only watchlist.
+   * - The host does not provide the AUS read or write action. Local state is
+   *   then the only copy of the change: with the read but not the write, the
+   *   next `init()` still hydrates from AUS (the source of truth), so changes
+   *   made here last only until then.
    *
    * Throws on remote write failure so the caller can decide whether to revert.
    *
@@ -7259,7 +7240,12 @@ export class PerpsController extends BaseController<
         'AuthenticatedUserStorageService:getNotificationPreferences',
       );
     } catch (error) {
-      if (!isAuthenticatedUserStorageMissingError(error)) {
+      if (
+        !isMissingActionHandlerError(
+          error,
+          'AuthenticatedUserStorageService:getNotificationPreferences',
+        )
+      ) {
         throw error;
       }
       this.#debugLog(
@@ -7304,7 +7290,12 @@ export class PerpsController extends BaseController<
         nextPrefs,
       );
     } catch (error) {
-      if (!isAuthenticatedUserStorageMissingError(error)) {
+      if (
+        !isMissingActionHandlerError(
+          error,
+          'AuthenticatedUserStorageService:putNotificationPreferences',
+        )
+      ) {
         throw error;
       }
       this.#debugLog(
@@ -7343,9 +7334,25 @@ export class PerpsController extends BaseController<
     }
 
     try {
-      const prefs = await this.messenger.call(
-        'AuthenticatedUserStorageService:getNotificationPreferences',
-      );
+      let prefs: NotificationPreferences | null;
+      try {
+        prefs = await this.messenger.call(
+          'AuthenticatedUserStorageService:getNotificationPreferences',
+        );
+      } catch (error) {
+        if (
+          !isMissingActionHandlerError(
+            error,
+            'AuthenticatedUserStorageService:getNotificationPreferences',
+          )
+        ) {
+          throw error;
+        }
+        this.#debugLog(
+          'PerpsController: AuthenticatedUserStorageService not provided — using local watchlist',
+        );
+        return;
+      }
 
       if (!prefs) {
         this.#debugLog(
@@ -7391,10 +7398,26 @@ export class PerpsController extends BaseController<
               watchlistMarkets: nextWatchlistMarkets,
             },
           };
-          await this.messenger.call(
-            'AuthenticatedUserStorageService:putNotificationPreferences',
-            nextPrefs,
-          );
+          try {
+            await this.messenger.call(
+              'AuthenticatedUserStorageService:putNotificationPreferences',
+              nextPrefs,
+            );
+          } catch (error) {
+            if (
+              !isMissingActionHandlerError(
+                error,
+                'AuthenticatedUserStorageService:putNotificationPreferences',
+              )
+            ) {
+              throw error;
+            }
+            this.#debugLog(
+              'PerpsController: Skipping AUS watchlist migration — putNotificationPreferences not provided',
+              { exchangeKey },
+            );
+            return;
+          }
           this.#debugLog('PerpsController: Local watchlist migrated to AUS', {
             exchangeKey,
           });
@@ -7412,12 +7435,6 @@ export class PerpsController extends BaseController<
         });
       }
     } catch (error) {
-      if (isAuthenticatedUserStorageMissingError(error)) {
-        this.#debugLog(
-          'PerpsController: AuthenticatedUserStorageService not provided — using local watchlist',
-        );
-        return;
-      }
       this.#logError(
         ensureError(error, 'PerpsController.syncWatchlistFromRemote'),
         this.#getErrorContext('syncWatchlistFromRemote'),

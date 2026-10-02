@@ -1617,6 +1617,45 @@ describe('RewardsIntegrationService', () => {
       );
     });
 
+    it.each([
+      // `getState` failing surfaces its own error.
+      [
+        'NetworkController:getState',
+        'NetworkController:getNetworkClientById',
+        'A handler for NetworkController:getNetworkClientById has not been delegated to NetworkController',
+      ],
+      // `getNetworkClientById` failing is reported as an unresolved chain ID.
+      [
+        'NetworkController:getNetworkClientById',
+        'NetworkController:getState',
+        'Chain ID not found for fee discount calculation',
+      ],
+    ])(
+      'still logs an error when a delegated %s handler misses %s',
+      async (failing, missingAction, expectedMessage) => {
+        service = new RewardsIntegrationService(
+          mockDeps,
+          createPartiallyDelegatedMessenger({
+            ...accountHandlers,
+            ...networkHandlers,
+            [failing]: () => {
+              throw new Error(
+                `A handler for ${missingAction} has not been delegated to NetworkController`,
+              );
+            },
+          }),
+        );
+
+        const result = await service.calculateUserFeeDiscount();
+
+        expect(result).toBeUndefined();
+        expect(mockDeps.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ message: expectedMessage }),
+          expect.anything(),
+        );
+      },
+    );
+
     it('still logs an error when the injected rewards source fails on a missing NetworkController handler', async () => {
       const nested =
         'A handler for NetworkController:getState has not been delegated to RewardsController';

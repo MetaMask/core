@@ -235,6 +235,12 @@ describe('DataLakeService', () => {
       expect(fetch).not.toHaveBeenCalled();
       expect(setTimeout).not.toHaveBeenCalled();
       expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'mock-trace-id',
+          data: { success: false, error: 'No account or token available' },
+        }),
+      );
     });
 
     it.each([
