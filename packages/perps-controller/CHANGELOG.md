@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getChaseOrderOwnership({handle, providerId, owner?})` to the controller, messenger and optional provider contract. Lighter returns validated durable local history for every exact child under its original wallet/network/account/key owner, including superseded and unresolved attempts, without signing, transport, automatic continuation or durable writes. Missing handles and owner mismatches return unavailable; corrupt storage rejects. Aggregated mode routes one explicit provider; providers without durable history return unsupported. Existing Chase and disabled TWAP behavior remain unchanged.
+
 - Add the default-off testnet-only `chaseTestnetProbe` constructor option to `LighterProvider` for bounded, durable native Chase cancel/replace. Production strategy capabilities remain unavailable.
 - Implement Lighter `getChaseOrders`, `suspendChaseOrders` and `cancelOrder` with `orderType: 'chase'`. Unbound or recordless absent accounts return empty management state; absent venue discovery retains remembered wallet/network cleanup obligations without signing authority. Confirmed cancel-on-stop reports `canceled`; native records retain the first `stopReason` and uncertain cleanup remains `termination_pending`.
 - Expose `LIGHTER_MAX_CLIENT_ORDER_INDEX`, `LIGHTER_NATIVE_PROBE_MAX_NOTIONAL` and `LIGHTER_CHASE_*` bounds/defaults through `constants/lighterConfig` for shared native identity and Chase policy validation.

@@ -394,6 +394,34 @@ reads, signing or registration. Repeated local suspension and cancellation prese
 the child's cancellation capacity and existing dispatch identities, including across
 provider restart. Cleanup remains `termination_pending` with an explanatory native
 record error until the original account and key authority can reconcile it.
+`PerpsController:getChaseOrderOwnership({handle, providerId, owner?})` reads one
+exact stable handle from validated local storage. `available` includes its original
+wallet, provider, network, account and trading-key slot, every durable child in order,
+placement/cancellation phases and public transaction identities, and each child's
+last exact persisted venue ID, terminal flag and decimal fill quantities. Superseded
+children remain included. An absent observation leaves attempted or acknowledged
+placement unresolved. These observations are not a fresh venue reconciliation.
+The optional `owner` binds a repeat read to the full original identity.
+
+This read works with the probe off, without a signer and after venue authority
+has disappeared. It does not bind/rebuild transport, allocate keys, sign, resume,
+cancel or write storage. Prepared/signed attempts retain their recorded phases.
+Account, network, provider, key/session or controller lifetime changes across awaits
+reject the read. Missing handles return `unavailable` with `not_found`; a mismatched
+expected owner returns `owner_mismatch`. Missing storage never becomes an available
+empty inventory, and malformed/ambiguous records reject. Returned IDs grant no
+cleanup authority under another wallet, account, network or key.
+
+Pass the exact `OrderResult.orderId` as `handle`, preserve all opaque IDs and
+reconcile each returned child independently before explicit cleanup for that handle.
+Aggregated mode routes only the requested `providerId`. HyperLiquid reports
+`unsupported` for this durable read and retains its existing `getChaseOrders()`
+behavior. Full Lighter Chase readiness still requires client integration and venue
+proof; the default-off/testnet gates remain unchanged. TWAP remains separate:
+Lighter's public TWAP lifecycle read refuses support until authoritative parent fills
+and terminal semantics are established. Local children do not establish a complete
+TWAP schedule.
+
 `getNativeChaseRecords()` exposes exact local cleanup identities for diagnostics.
 `cancelOrder({orderType: 'chase', orderId: handle, symbol, providerId: 'lighter'})`
 explicitly terminates an owned handle. A wrong-symbol request leaves its active

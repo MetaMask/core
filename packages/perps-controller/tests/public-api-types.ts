@@ -1,5 +1,12 @@
 import type {
   ChaseOrder,
+  PerpsController,
+  GetChaseOrderOwnershipParams,
+  PerpsChaseOrderOwner,
+  PerpsChaseOrderChild,
+  PerpsChaseOrderDispatch,
+  PerpsChaseOrderOwnership,
+  PerpsControllerGetChaseOrderOwnershipAction,
   PerpsProvider,
   DirectProviderOrderCapabilities,
   TriggerOrderType,
@@ -259,5 +266,69 @@ export type LighterChaseIdentityConsumerContracts = [
   AssertTrue<IsExact<ReturnType<typeof identifyLighterChaseChild>, string>>,
   AssertTrue<
     IsExact<ReturnType<typeof reconcileLighterChaseChild>['filledSize'], string>
+  >,
+];
+
+export type ChaseOwnershipConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerGetChaseOrderOwnershipAction['handler']>,
+      [input: GetChaseOrderOwnershipParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerGetChaseOrderOwnershipAction['handler']>,
+      Promise<PerpsChaseOrderOwnership>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerGetChaseOrderOwnershipAction['type'],
+      'PerpsController:getChaseOrderOwnership'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsController['getChaseOrderOwnership']>,
+      Promise<PerpsChaseOrderOwnership>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<NonNullable<PerpsProvider['getChaseOrderOwnership']>>,
+      Promise<PerpsChaseOrderOwnership>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<PerpsChaseOrderOwnership, { status: 'available' }>['children'],
+      PerpsChaseOrderChild[]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<PerpsChaseOrderOwnership, { status: 'available' }>['owner'],
+      PerpsChaseOrderOwner
+    >
+  >,
+  AssertTrue<
+    IsExact<PerpsChaseOrderChild['placement'], PerpsChaseOrderDispatch>
+  >,
+  AssertTrue<IsExact<PerpsChaseOrderChild['clientOrderId'], string>>,
+  AssertTrue<
+    IsExact<NonNullable<PerpsChaseOrderChild['observation']>['orderId'], string>
+  >,
+  AssertTrue<
+    IsExact<
+      NonNullable<PerpsChaseOrderChild['observation']>['filledSize'],
+      string
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsChaseOrderOwnership['status'],
+      'available' | 'unavailable' | 'unsupported'
+    >
   >,
 ];

@@ -1084,6 +1084,28 @@ export class LighterChaseService {
   }
 
   /**
+   * Inspect one validated durable record without retiring unsent attempts.
+   *
+   * @param owner - Wallet/network/account storage scope, not current venue authority.
+   * @param handle - Exact opaque stable handle.
+   * @param io - Read-only context fence.
+   * @returns Complete durable record, or undefined when absent. Corruption rejects.
+   */
+  async inspect(
+    owner: LighterChaseOwner,
+    handle: string,
+    io: Pick<LighterChaseIo, 'assertCurrent'>,
+  ): Promise<LighterChaseRecord | undefined> {
+    return await this.#locked(owner, async () => {
+      const journal = await this.#read(owner, io);
+      const record = journal.records.find(
+        (entry) => entry.intent.handle === handle,
+      );
+      return record ? this.#visible(record) : undefined;
+    });
+  }
+
+  /**
    * @param owner - Account-scoped durable inventory.
    * @param io - Read authority and ownership fence only; no transport is used.
    * @returns Visible owned state without automatic financial continuation.

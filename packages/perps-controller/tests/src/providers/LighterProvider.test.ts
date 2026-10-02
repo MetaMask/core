@@ -5,7 +5,13 @@ import {
   LIGHTER_TX_TYPE_CANCEL_ORDER,
   LIGHTER_NATIVE_PROBE_CANCEL_LIMIT,
 } from '../../../src/constants/lighterConfig.js';
+import {
+  PerpsController,
+  InitializationState,
+} from '../../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
+import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { LighterProvider } from '../../../src/providers/LighterProvider.js';
 import type { LighterChaseRecord } from '../../../src/services/LighterChaseService.js';
 import {
@@ -19,6 +25,10 @@ import type {
   OrderBookData,
   OrderFill,
   OrderParams,
+  PerpsProvider,
+  PerpsProviderType,
+  GetChaseOrderOwnershipParams,
+  PerpsActiveProviderMode,
 } from '../../../src/types/index.js';
 import type {
   LighterSignerBridge,
@@ -32,6 +42,8 @@ import type {
 import {
   createMockInfrastructure,
   createDeferred,
+  createKeyringlessMessenger,
+  keyringCalls,
 } from '../../helpers/serviceMocks.js';
 
 jest.mock('../../../src/services/LighterClientService', () => ({
@@ -665,6 +677,75 @@ class StreamFakeWebSocket implements LighterWebSocketLike {
 }
 
 const fakeStreamCtor = StreamFakeWebSocket as unknown as LighterWebSocketCtor;
+
+/** Real public controller with initialized providers and host-controlled selection. */
+class ChaseOwnershipController extends PerpsController {
+  /**
+   * @param provider - Actual provider under test.
+   * @param mode - Host route.
+   */
+  activate(
+    provider: PerpsProvider,
+    mode: PerpsActiveProviderMode = 'lighter',
+  ): void {
+    this.activeProviderInstance = provider;
+    if (mode !== 'aggregated') {
+      this.providers.set(mode, provider);
+    }
+    this.isInitialized = true;
+    this.update((state) => {
+      state.activeProvider = mode;
+      state.initializationState = InitializationState.Initialized;
+    });
+  }
+
+  /**
+   * @param change - Host context changes during an asynchronous read.
+   */
+  changeContext(change: {
+    isTestnet?: boolean;
+    activeProvider?: PerpsActiveProviderMode;
+  }): void {
+    this.update((state) => Object.assign(state, change));
+  }
+}
+
+/**
+ * @param provider - Real provider, with only external I/O mocked.
+ * @param mode - Active route.
+ * @returns Real controller and its registered public messenger.
+ */
+function ownershipController(
+  provider: PerpsProvider,
+  mode: PerpsActiveProviderMode = 'lighter',
+): {
+  controller: ChaseOwnershipController;
+  host: ReturnType<typeof createKeyringlessMessenger>;
+} {
+  const host = createKeyringlessMessenger();
+  host.selectAccount(ACCOUNT.l1Address as `0x${string}`);
+  host.rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({ remoteFeatureFlags: {}, cacheTimestamp: 0 }),
+  );
+  host.rootMessenger.delegate({
+    actions: ['RemoteFeatureFlagController:getState'],
+    events: [
+      'RemoteFeatureFlagController:stateChange',
+      'AccountsController:selectedAccountChange',
+      'AccountTreeController:selectedAccountGroupChange',
+    ],
+    messenger: host.messenger,
+  });
+  const controller = new ChaseOwnershipController({
+    messenger: host.messenger,
+    state: { isTestnet: true },
+    infrastructure: createMockInfrastructure(),
+    deferEligibilityCheck: true,
+  });
+  controller.activate(provider, mode);
+  return { controller, host };
+}
 
 describe('LighterProvider', () => {
   beforeEach(() => {
@@ -21776,6 +21857,722 @@ describe('Lighter bounded Chase provider probe', () => {
       });
     return deps;
   };
+  describe('public Chase ownership', () => {
+    const journalKey = `lighterChase:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28])}`;
+    const accountsKey = `lighterRecoveryAccounts:testnet:${ACCOUNT.l1Address.toLowerCase()}`;
+    const route = (handle: string): GetChaseOrderOwnershipParams => ({
+      handle,
+      providerId: 'lighter' as const,
+    });
+    const stored = async (
+      deps: ReturnType<typeof diskDependencies>,
+    ): Promise<{ version: 1; records: LighterChaseRecord[] }> => {
+      const raw = await deps.diskCache.getItem(journalKey);
+      if (!raw) {
+        throw new Error('Missing test journal');
+      }
+      return JSON.parse(raw) as { version: 1; records: LighterChaseRecord[] };
+    };
+    type BoundarySnapshot = {
+      wasm: LighterWasmCall[];
+      bridge: number[];
+      client: number[];
+      writes: number;
+      removes: number;
+      timers: number;
+    };
+    const boundaries = (
+      built: BuiltProvider,
+      deps: ReturnType<typeof diskDependencies>,
+    ): BoundarySnapshot => ({
+      wasm: [...built.calls],
+      bridge: Object.values(built.bridge)
+        .filter((value) => jest.isMockFunction(value))
+        .map((mock) => mock.mock.calls.length),
+      client: Object.values(built.clientInstance)
+        .filter((value) => jest.isMockFunction(value))
+        .map((mock) => mock.mock.calls.length),
+      writes: jest.spyOn(deps.diskCache, 'setItem').mock.calls.length,
+      removes: jest.spyOn(deps.diskCache, 'removeItem').mock.calls.length,
+      timers: jest.getTimerCount(),
+    });
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it('retains every exact child after multiple reprices and current-child replacement through the public messenger', async () => {
+      const deps = diskDependencies();
+      const built = setup({ platformDependencies: deps });
+      const { controller, host } = ownershipController(built.provider);
+      try {
+        await controller.init();
+        const book =
+          (await built.clientInstance.getOrderBookOrders()) as Awaited<
+            ReturnType<LighterClientService['getOrderBookOrders']>
+          >;
+        built.clientInstance.getOrderBookOrders.mockResolvedValue({
+          ...book,
+          bids: [{ ...book.bids[0], price: '99999.6' }],
+        });
+        const placed = await built.provider.placeOrder({
+          ...intent,
+          chaseMaxRepricings: 3,
+        });
+        expect(placed.success).toBe(true);
+        const handle = placed.orderId as string;
+        for (const price of ['99999.7', '99999.8']) {
+          built.clientInstance.getOrderBookOrders.mockResolvedValue({
+            ...book,
+            bids: [{ ...book.bids[0], price }],
+          });
+          await jest.advanceTimersByTimeAsync(1000);
+        }
+        const journal = await stored(deps);
+        expect(journal.records[0].children).toHaveLength(3);
+        const before = boundaries(built, deps);
+
+        const snapshot = await host.messenger.call(
+          'PerpsController:getChaseOrderOwnership',
+          route(handle),
+        );
+
+        expect(snapshot.status).toBe('available');
+        if (snapshot.status !== 'available') {
+          throw new Error('Missing ownership');
+        }
+        expect(snapshot.owner).toStrictEqual({
+          providerId: 'lighter',
+          walletAddress: ACCOUNT.l1Address.toLowerCase(),
+          network: 'testnet',
+          accountIndex: 28,
+          apiKeyIndex: 7,
+        });
+        expect(snapshot.handle).toBe(handle);
+        expect(snapshot.order).toMatchObject({
+          handle,
+          restingOrderId: '9003',
+          repricings: 2,
+        });
+        expect(
+          snapshot.children.map((child) => child.clientOrderId),
+        ).toStrictEqual(
+          journal.records[0].children.map((child) => child.clientOrderId),
+        );
+        expect(
+          snapshot.children.map((child) => child.observation),
+        ).toStrictEqual(
+          journal.records[0].children.map((child) => child.observation),
+        );
+        expect(
+          snapshot.children.map((child) => child.observation?.orderId),
+        ).toStrictEqual(['9001', '9002', '9003']);
+        expect(
+          snapshot.children.map((child) => child.observation?.terminal),
+        ).toStrictEqual([true, true, false]);
+        expect(boundaries(built, deps)).toStrictEqual(before);
+        expect(keyringCalls(host.call)).toStrictEqual([]);
+        expect(await stored(deps)).toStrictEqual(journal);
+        expect(
+          await controller.getChaseOrderOwnership({
+            ...route(handle),
+            owner: snapshot.owner,
+          }),
+        ).toStrictEqual(snapshot);
+      } finally {
+        await built.provider.disconnect();
+      }
+    });
+
+    it('preserves response loss and unknown child ownership after a signerless absent-authority restart', async () => {
+      const deps = diskDependencies();
+      const original = setup({ platformDependencies: deps });
+      original.clientInstance.sendTx.mockRejectedValueOnce(
+        new Error('response lost'),
+      );
+      const placed = await original.provider.placeOrder(intent);
+      expect(placed.success).toBe(false);
+      expect(placed.orderId).toStrictEqual(expect.any(String));
+      await original.provider.disconnect();
+      const restarted = buildProvider({
+        platformDependencies: deps,
+        withBridge: false,
+        apiKeyIndex: 8,
+        configuredAccountIndex: null,
+      });
+      restarted.clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        subAccounts: [],
+      });
+      const { controller, host } = ownershipController(restarted.provider);
+      try {
+        const journal = await stored(deps);
+        const before = boundaries(restarted, deps);
+
+        const snapshot = await controller.getChaseOrderOwnership(
+          route(placed.orderId as string),
+        );
+
+        expect(snapshot).toMatchObject({
+          status: 'available',
+          owner: { apiKeyIndex: 7, accountIndex: 28 },
+          order: { status: 'termination_pending', restingOrderId: null },
+          children: [{ placement: { phase: 'attempted' } }],
+        });
+        if (snapshot.status !== 'available') {
+          throw new Error('Missing ownership');
+        }
+        expect(snapshot.children[0].observation).toBeUndefined();
+        expect(snapshot.children[0].clientOrderId).toBe(
+          journal.records[0].children[0].clientOrderId,
+        );
+        expect(snapshot.children[0].placement).toStrictEqual(
+          journal.records[0].children[0].placement,
+        );
+        expect(boundaries(restarted, deps)).toStrictEqual(before);
+        expect(keyringCalls(host.call)).toStrictEqual([]);
+        expect(await stored(deps)).toStrictEqual(journal);
+        await jest.advanceTimersByTimeAsync(60000);
+        expect(boundaries(restarted, deps)).toStrictEqual({
+          ...before,
+          timers: 0,
+        });
+        expect(
+          await controller.getChaseOrderOwnership({
+            ...route(placed.orderId as string),
+            owner: { ...snapshot.owner, apiKeyIndex: 8 },
+          }),
+        ).toMatchObject({ status: 'unavailable', reason: 'owner_mismatch' });
+      } finally {
+        await restarted.provider.disconnect();
+      }
+    });
+
+    it('preserves exact observed quantities and excludes private journal extensions', async () => {
+      const deps = diskDependencies();
+      const original = setup({ platformDependencies: deps });
+      const placed = await original.provider.placeOrder(intent);
+      await original.provider.disconnect();
+      const journal = await stored(deps);
+      const child = journal.records[0].children[0];
+      journal.records[0].error = 'secret-error-auth';
+      child.observation = {
+        orderId: '9001',
+        terminal: false,
+        filledSize: '0.000010',
+        filledNotional: '0.9999900',
+        remainingSize: '0.000190',
+      };
+      Object.assign(child, {
+        privateKey: 'secret-private-key',
+        authToken: 'secret-auth',
+        signedPayload: 'secret-payload',
+      });
+      Object.assign(child.placement, {
+        txInfo: 'secret-transaction',
+        signature: 'secret-signature',
+      });
+      await deps.diskCache.setItem(journalKey, JSON.stringify(journal));
+      const restarted = buildProvider({
+        platformDependencies: deps,
+        withBridge: false,
+      });
+      const { controller } = ownershipController(restarted.provider);
+      const before = boundaries(restarted, deps);
+      try {
+        const snapshot = await controller.getChaseOrderOwnership(
+          route(placed.orderId as string),
+        );
+        expect(snapshot.status).toBe('available');
+        if (snapshot.status !== 'available') {
+          throw new Error('Missing ownership');
+        }
+        expect(snapshot.children[0].observation).toStrictEqual(
+          child.observation,
+        );
+        expect(snapshot.executedSize).toBe('0.00001');
+        expect(snapshot.executedNotional).toBe('0.99999');
+        expect(JSON.stringify(snapshot)).not.toContain('secret-');
+        expect(boundaries(restarted, deps)).toStrictEqual(before);
+        expect(await stored(deps)).toStrictEqual(journal);
+      } finally {
+        await restarted.provider.disconnect();
+      }
+    });
+
+    it.each(['wallet', 'network', 'account', 'key', 'provider'] as const)(
+      'fences a mismatched expected %s owner without acquiring cleanup authority',
+      async (field) => {
+        const deps = diskDependencies();
+        const original = setup({ platformDependencies: deps });
+        const placed = await original.provider.placeOrder(intent);
+        await original.provider.disconnect();
+        const restarted = buildProvider({
+          platformDependencies: deps,
+          apiKeyIndex: 8,
+        });
+        const { controller } = ownershipController(restarted.provider);
+        try {
+          const snapshot = await controller.getChaseOrderOwnership(
+            route(placed.orderId as string),
+          );
+          if (snapshot.status !== 'available') {
+            throw new Error('Missing ownership');
+          }
+          const owner = { ...snapshot.owner };
+          if (field === 'wallet') {
+            owner.walletAddress = '0xforeign';
+          } else if (field === 'network') {
+            owner.network = 'mainnet';
+          } else if (field === 'account') {
+            owner.accountIndex = 29;
+          } else if (field === 'key') {
+            owner.apiKeyIndex = 8;
+          } else {
+            owner.providerId = 'hyperliquid';
+          }
+          const before = boundaries(restarted, deps);
+          expect(
+            await controller.getChaseOrderOwnership({
+              ...route(placed.orderId as string),
+              owner,
+            }),
+          ).toMatchObject({ status: 'unavailable', reason: 'owner_mismatch' });
+          expect(boundaries(restarted, deps)).toStrictEqual(before);
+          const canceled = await restarted.provider.cancelOrder({
+            orderId: snapshot.handle,
+            symbol: 'BTC',
+            orderType: 'chase',
+            providerId: 'lighter',
+          });
+          expect(canceled.success).toBe(false);
+          expect(
+            restarted.calls.filter(
+              (call) => call.function === '_signCancelOrder',
+            ),
+          ).toHaveLength(0);
+          expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+        } finally {
+          await restarted.provider.disconnect();
+        }
+      },
+    );
+
+    it.each(['prepared', 'signed', 'acknowledged', 'failed'] as const)(
+      'observes %s durable children without retiring or replaying them',
+      async (phase) => {
+        const deps = diskDependencies();
+        const original = setup({ platformDependencies: deps });
+        const placed = await original.provider.placeOrder(intent);
+        await original.provider.disconnect();
+        const journal = await stored(deps);
+        const child = journal.records[0].children[0];
+        child.placement.phase = phase;
+        delete child.observation;
+        await deps.diskCache.setItem(journalKey, JSON.stringify(journal));
+        const restarted = buildProvider({
+          platformDependencies: deps,
+          withBridge: false,
+        });
+        const { controller } = ownershipController(restarted.provider);
+        const before = boundaries(restarted, deps);
+        try {
+          const snapshot = await controller.getChaseOrderOwnership(
+            route(placed.orderId as string),
+          );
+          expect(snapshot).toMatchObject({
+            status: 'available',
+            children: [{ placement: { phase } }],
+          });
+          expect(boundaries(restarted, deps)).toStrictEqual(before);
+          expect(await stored(deps)).toStrictEqual(journal);
+        } finally {
+          await restarted.provider.disconnect();
+        }
+      },
+    );
+
+    it.each([
+      'foreign handle',
+      'missing journal',
+      'empty journal',
+      'missing account index',
+      'foreign wallet',
+      'foreign network',
+    ] as const)(
+      'returns unavailable for %s without claiming an empty complete inventory',
+      async (condition) => {
+        const deps = diskDependencies();
+        const original = setup({ platformDependencies: deps });
+        const placed = await original.provider.placeOrder(intent);
+        await original.provider.disconnect();
+        if (condition === 'missing journal') {
+          const read = jest
+            .spyOn(deps.diskCache, 'getItem')
+            .getMockImplementation();
+          if (!read) {
+            throw new Error('Missing test read');
+          }
+          jest
+            .spyOn(deps.diskCache, 'getItem')
+            .mockImplementation(async (key) =>
+              key === journalKey ? null : await read(key),
+            );
+        } else if (condition === 'empty journal') {
+          await deps.diskCache.setItem(
+            journalKey,
+            JSON.stringify({ version: 1, records: [] }),
+          );
+        } else if (condition === 'missing account index') {
+          await deps.diskCache.setItem(accountsKey, '[]');
+        }
+        const restarted = buildProvider({
+          platformDependencies: deps,
+          withBridge: false,
+          isTestnet: condition !== 'foreign network',
+        });
+        const { controller, host } = ownershipController(restarted.provider);
+        if (condition === 'foreign wallet') {
+          restarted.getUserAddressMock.mockReturnValue('0xother');
+          host.selectAccount('0xother');
+        } else if (condition === 'foreign network') {
+          controller.changeContext({ isTestnet: false });
+        }
+        try {
+          const before = boundaries(restarted, deps);
+          const snapshot = await controller.getChaseOrderOwnership(
+            route(
+              condition === 'foreign handle'
+                ? 'foreign:opaque'
+                : (placed.orderId as string),
+            ),
+          );
+          expect(snapshot).toMatchObject({
+            status: 'unavailable',
+            reason: 'not_found',
+          });
+          expect(snapshot).not.toHaveProperty('children');
+          expect(boundaries(restarted, deps)).toStrictEqual(before);
+        } finally {
+          await restarted.provider.disconnect();
+        }
+      },
+    );
+
+    it.each([
+      'invalid JSON',
+      'dangling child',
+      'corrupt account index',
+      'foreign journal owner',
+      'ambiguous handle',
+    ] as const)(
+      'rejects %s through the public controller without side effects',
+      async (condition) => {
+        const deps = diskDependencies();
+        const original = setup({ platformDependencies: deps });
+        const placed = await original.provider.placeOrder(intent);
+        await original.provider.disconnect();
+        const journal = await stored(deps);
+        if (condition === 'invalid JSON') {
+          await deps.diskCache.setItem(journalKey, '{broken');
+        } else if (condition === 'corrupt account index') {
+          await deps.diskCache.setItem(accountsKey, '[28,28]');
+        } else {
+          if (condition === 'dangling child') {
+            journal.records[0].children[0].clientOrderId = 'not-an-id';
+          } else if (condition === 'foreign journal owner') {
+            journal.records[0].intent.owner.wallet = '0xforeign';
+          } else {
+            await deps.diskCache.setItem(accountsKey, '[28,29]');
+            const duplicate = structuredClone(journal);
+            duplicate.records[0].intent.owner.accountIndex = 29;
+            await deps.diskCache.setItem(
+              `lighterChase:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 29])}`,
+              JSON.stringify(duplicate),
+            );
+          }
+          await deps.diskCache.setItem(journalKey, JSON.stringify(journal));
+        }
+        const restarted = buildProvider({
+          platformDependencies: deps,
+          withBridge: false,
+        });
+        const { controller } = ownershipController(restarted.provider);
+        const before = boundaries(restarted, deps);
+        try {
+          await expect(
+            controller.getChaseOrderOwnership(route(placed.orderId as string)),
+          ).rejects.toThrow(
+            {
+              'invalid JSON': /JSON/u,
+              'dangling child': /persisted child identity/u,
+              'corrupt account index': /account index is corrupt/u,
+              'foreign journal owner': /persisted ownership/u,
+              'ambiguous handle': /ambiguous durable ownership/u,
+            }[condition],
+          );
+          expect(boundaries(restarted, deps)).toStrictEqual(before);
+        } finally {
+          await restarted.provider.disconnect();
+        }
+      },
+    );
+
+    it.each(['account', 'network', 'provider', 'instance'] as const)(
+      'rejects %s changes at controller readiness before calling the provider',
+      async (condition) => {
+        const deps = diskDependencies();
+        const built = buildProvider({
+          platformDependencies: deps,
+          withBridge: false,
+        });
+        const { controller, host } = ownershipController(built.provider);
+        const inspect = jest.spyOn(built.provider, 'getChaseOrderOwnership');
+        const before = boundaries(built, deps);
+        const result = controller.getChaseOrderOwnership(
+          route('opaque-handle'),
+        );
+        if (condition === 'account') {
+          host.selectAccount('0xother');
+        } else if (condition === 'network') {
+          controller.changeContext({ isTestnet: false });
+        } else if (condition === 'provider') {
+          controller.changeContext({ activeProvider: 'hyperliquid' });
+        } else {
+          controller.activate(buildProvider().provider);
+        }
+        try {
+          await expect(result).rejects.toThrow(
+            PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          );
+          expect(inspect).not.toHaveBeenCalled();
+          expect(boundaries(built, deps)).toStrictEqual(before);
+        } finally {
+          await built.provider.disconnect();
+        }
+      },
+    );
+
+    it('refuses foreign provider routes before any storage or authority work', async () => {
+      const deps = diskDependencies();
+      const built = buildProvider({
+        platformDependencies: deps,
+        withBridge: false,
+      });
+      const { controller } = ownershipController(built.provider);
+      const before = boundaries(built, deps);
+      const reads = jest.spyOn(deps.diskCache, 'getItem').mock.calls.length;
+      try {
+        await expect(
+          controller.getChaseOrderOwnership({
+            handle: 'opaque',
+            providerId: 'hyperliquid',
+          }),
+        ).rejects.toThrow('provider does not match');
+        await expect(
+          built.provider.getChaseOrderOwnership({
+            handle: 'opaque',
+            providerId: 'hyperliquid',
+          }),
+        ).rejects.toThrow('matching provider');
+        expect(jest.spyOn(deps.diskCache, 'getItem').mock.calls).toHaveLength(
+          reads,
+        );
+        expect(boundaries(built, deps)).toStrictEqual(before);
+      } finally {
+        await built.provider.disconnect();
+      }
+    });
+
+    it.each([
+      'account',
+      'account round trip',
+      'network',
+      'provider',
+      'instance',
+      'signer reset',
+      'disconnect',
+    ] as const)(
+      'fences %s changes while durable storage awaits',
+      async (condition) => {
+        const deps = diskDependencies();
+        const original = setup({ platformDependencies: deps });
+        const placed = await original.provider.placeOrder(intent);
+        await original.provider.disconnect();
+        const restarted = buildProvider({ platformDependencies: deps });
+        const { controller, host } = ownershipController(restarted.provider);
+        const entered = createDeferred<void>();
+        const pending = createDeferred<void>();
+        const read = jest
+          .spyOn(deps.diskCache, 'getItem')
+          .getMockImplementation();
+        if (!read) {
+          throw new Error('Missing storage read');
+        }
+        jest
+          .spyOn(deps.diskCache, 'getItem')
+          .mockImplementation(async (key) => {
+            if (key === journalKey) {
+              entered.resolve();
+              await pending.promise;
+            }
+            return await read(key);
+          });
+        const before = boundaries(restarted, deps);
+        const result = controller.getChaseOrderOwnership(
+          route(placed.orderId as string),
+        );
+        const settled = result.then(
+          () => undefined,
+          (error: unknown) => error,
+        );
+        await entered.promise;
+        if (condition === 'account') {
+          host.selectAccount('0xother');
+          restarted.getUserAddressMock.mockReturnValue('0xother');
+        } else if (condition === 'account round trip') {
+          host.selectAccount('0xother');
+          restarted.getUserAddressMock.mockReturnValue('0xother');
+          host.rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            host.rootMessenger.call('AccountsController:getSelectedAccount'),
+          );
+          host.selectAccount(ACCOUNT.l1Address as `0x${string}`);
+          restarted.getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
+          host.rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            host.rootMessenger.call('AccountsController:getSelectedAccount'),
+          );
+        } else if (condition === 'network') {
+          controller.changeContext({ isTestnet: false });
+        } else if (condition === 'provider') {
+          controller.changeContext({ activeProvider: 'hyperliquid' });
+        } else if (condition === 'instance') {
+          controller.activate(buildProvider().provider);
+        } else if (condition === 'signer reset') {
+          restarted.fireReset();
+        } else {
+          await controller.disconnect();
+        }
+        const afterChange = boundaries(restarted, deps);
+        pending.resolve();
+        try {
+          expect(await settled).toBeInstanceOf(Error);
+          expect(boundaries(restarted, deps)).toStrictEqual(afterChange);
+          expect(afterChange.writes).toBe(before.writes);
+          expect(keyringCalls(host.call)).toStrictEqual([]);
+        } finally {
+          pending.resolve();
+          await restarted.provider.disconnect();
+        }
+      },
+    );
+
+    it('rejects an aggregate route replaced during a real Lighter storage read', async () => {
+      const deps = diskDependencies();
+      const original = setup({ platformDependencies: deps });
+      const placed = await original.provider.placeOrder(intent);
+      await original.provider.disconnect();
+      const restarted = buildProvider({
+        platformDependencies: deps,
+        withBridge: false,
+      });
+      const providers = new Map<PerpsProviderType, PerpsProvider>([
+        ['lighter', restarted.provider],
+      ]);
+      const aggregate = new AggregatedPerpsProvider({
+        providers,
+        defaultProvider: 'lighter',
+        infrastructure: deps,
+      });
+      const { controller } = ownershipController(aggregate, 'aggregated');
+      const entered = createDeferred<void>();
+      const pending = createDeferred<void>();
+      const read = jest
+        .spyOn(deps.diskCache, 'getItem')
+        .getMockImplementation();
+      if (!read) {
+        throw new Error('Missing test read');
+      }
+      jest.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) => {
+        if (key === journalKey) {
+          entered.resolve();
+          await pending.promise;
+        }
+        return await read(key);
+      });
+      const before = boundaries(restarted, deps);
+      const result = controller.getChaseOrderOwnership(
+        route(placed.orderId as string),
+      );
+      const settled = result.then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      await entered.promise;
+      const replacement = buildProvider({ withBridge: false });
+      const replacementRead = jest.spyOn(
+        replacement.provider,
+        'getChaseOrderOwnership',
+      );
+      providers.set('lighter', replacement.provider);
+      pending.resolve();
+      try {
+        expect(await settled).toStrictEqual(
+          new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
+        );
+        expect(replacementRead).not.toHaveBeenCalled();
+        expect(boundaries(restarted, deps)).toStrictEqual(before);
+      } finally {
+        pending.resolve();
+        await restarted.provider.disconnect();
+        await aggregate.disconnect();
+      }
+    });
+
+    it('routes the public aggregate read only to Lighter and reports HyperLiquid unsupported without reading Chase sessions', async () => {
+      const deps = diskDependencies();
+      const built = setup({ platformDependencies: deps });
+      const placed = await built.provider.placeOrder(intent);
+      const hyperliquid = new HyperLiquidProvider({
+        platformDependencies: createMockInfrastructure(),
+        isTestnet: true,
+        messenger: createKeyringlessMessenger().messenger,
+      });
+      const legacyRead = jest.spyOn(hyperliquid, 'getChaseOrders');
+      const aggregate = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          ['lighter', built.provider],
+          ['hyperliquid', hyperliquid],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: deps,
+      });
+      const { controller } = ownershipController(aggregate, 'aggregated');
+      try {
+        const before = boundaries(built, deps);
+        expect(
+          await controller.getChaseOrderOwnership(
+            route(placed.orderId as string),
+          ),
+        ).toMatchObject({ status: 'available', providerId: 'lighter' });
+        expect(
+          await controller.getChaseOrderOwnership({
+            providerId: 'hyperliquid',
+            handle: 'opaque-hl-handle',
+          }),
+        ).toMatchObject({ status: 'unsupported', providerId: 'hyperliquid' });
+        expect(legacyRead).not.toHaveBeenCalled();
+        expect(boundaries(built, deps)).toStrictEqual(before);
+        await deps.diskCache.setItem(journalKey, '{broken');
+        const afterCorruption = boundaries(built, deps);
+        await expect(
+          controller.getChaseOrderOwnership(route(placed.orderId as string)),
+        ).rejects.toThrow(/JSON/u);
+        expect(boundaries(built, deps)).toStrictEqual(afterCorruption);
+      } finally {
+        await aggregate.disconnect();
+      }
+    });
+  });
   const cancelParams = (
     orderId: string,
   ): {

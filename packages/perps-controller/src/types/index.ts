@@ -594,6 +594,83 @@ export type ChaseOrder = {
   providerId?: PerpsProviderType;
 };
 
+/** Original durable Chase owner. Observation never grants current cleanup authority. */
+export type PerpsChaseOrderOwner = {
+  providerId: PerpsProviderType;
+  walletAddress: string;
+  network: 'testnet' | 'mainnet';
+  accountIndex: number;
+  apiKeyIndex: number;
+};
+
+/** Public transaction identity and durable dispatch phase, without signed payloads. */
+export type PerpsChaseOrderDispatch = {
+  phase: 'prepared' | 'signed' | 'attempted' | 'acknowledged' | 'failed';
+  nonce?: number;
+  txHash?: string;
+  expiresAt?: number;
+};
+
+/** One durable child, including superseded, terminal and unresolved attempts. */
+export type PerpsChaseOrderChild = {
+  /** Exact opaque native client ID. Never infer it from the stable handle. */
+  clientOrderId: string;
+  size: string;
+  price: string;
+  quotedAt: number;
+  placement: PerpsChaseOrderDispatch;
+  cancellations: PerpsChaseOrderDispatch[];
+  /**
+   * Last exact persisted venue observation, not a fresh venue read. Absence
+   * means no observation; an attempted or acknowledged dispatch stays unknown.
+   */
+  observation?: {
+    orderId: string;
+    terminal: boolean;
+    filledSize: string;
+    filledNotional: string;
+    remainingSize: string;
+  };
+};
+
+/** Select one opaque handle and explicit provider, optionally fencing its original owner. */
+export type GetChaseOrderOwnershipParams = {
+  handle: string;
+  providerId: PerpsProviderType;
+  owner?: PerpsChaseOrderOwner;
+};
+
+/**
+ * Validated durable local history for one exact handle. Available means every
+ * locally recorded child is included, not that venue reconciliation is complete.
+ * Missing records never report an available empty inventory; corrupt storage rejects.
+ */
+export type PerpsChaseOrderOwnership =
+  | {
+      status: 'unsupported';
+      providerId: PerpsProviderType;
+      handle: string;
+      reason: string;
+    }
+  | {
+      status: 'unavailable';
+      providerId: PerpsProviderType;
+      handle: string;
+      reason: 'not_found' | 'owner_mismatch';
+    }
+  | {
+      status: 'available';
+      providerId: PerpsProviderType;
+      handle: string;
+      owner: PerpsChaseOrderOwner;
+      order: ChaseOrder;
+      children: PerpsChaseOrderChild[];
+      executedSize: string;
+      executedNotional: string;
+      lastTickAt: number;
+      stopReason?: ChaseOrderStatus;
+    };
+
 /** Lifecycle signal emitted when a Chase reaches its configured distance. */
 export type ChaseOrderMaxDistanceReached = {
   handle: string;
@@ -2193,6 +2270,10 @@ export type PerpsProvider = {
    */
   subscribeToTwapOrders?(params: SubscribeTwapOrdersParams): () => void;
   getChaseOrders?(): Promise<ChaseOrder[]>;
+  /** Pure local observation; no signing, transport, continuation or durable writes. */
+  getChaseOrderOwnership?(
+    params: GetChaseOrderOwnershipParams,
+  ): Promise<PerpsChaseOrderOwnership>;
   suspendChaseOrders?(): Promise<ChaseOrder[]>;
   closePosition(params: ClosePositionParams): Promise<OrderResult>;
   closePositions?(params: ClosePositionsParams): Promise<ClosePositionsResult>; // Optional: batch close for protocols that support it

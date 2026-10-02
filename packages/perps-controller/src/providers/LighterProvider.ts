@@ -107,7 +107,13 @@ import type {
   LighterTwapReadObservation,
 } from '../services/LighterTwapService.js';
 import { LighterWalletService } from '../services/LighterWalletService.js';
-import type { ChaseOrder, ChaseOrderStatus } from '../types/index.js';
+import type {
+  ChaseOrder,
+  ChaseOrderStatus,
+  GetChaseOrderOwnershipParams,
+  PerpsChaseOrderOwnership,
+  PerpsChaseOrderDispatch,
+} from '../types/index.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
@@ -2163,12 +2169,15 @@ export class LighterProvider implements PerpsProvider {
     `lighterRecoveryAccounts:${this.#isTestnet ? 'testnet' : 'mainnet'}:${this.#boundAddress}`;
 
   /**
+   * @param key - Captured wallet/network storage key, or the bound session key.
    * @returns Wallet-scoped previously verified venue accounts.
    */
-  readonly #readRememberedRecoveryAccounts = async (): Promise<number[]> => {
+  readonly #readRememberedRecoveryAccounts = async (
+    key = this.#recoveryAccountsKey(),
+  ): Promise<number[]> => {
     let raw: string | null;
     try {
-      raw = await this.#deps.diskCache.getItem(this.#recoveryAccountsKey());
+      raw = await this.#deps.diskCache.getItem(key);
     } catch (error) {
       throw new Error(
         `Lighter recovery account index read failed: ${ensureError(error, 'LighterProvider.#readRememberedRecoveryAccounts').message}`,
@@ -8900,6 +8909,143 @@ export class LighterProvider implements PerpsProvider {
         error: ensureError(error, 'LighterProvider.placeChase').message,
       };
     }
+  }
+
+  /**
+   * Read every durable child for one exact handle without acquiring venue authority.
+   * Does not bind a session, initialize signing, use transport or alter storage.
+   * Original account/key identities remain visible after authority disappears.
+   *
+   * @param input - Explicit handle/route and optional original owner.
+   * @returns Validated local history, or explicit absence. Corrupt storage rejects.
+   */
+  async getChaseOrderOwnership(
+    input: GetChaseOrderOwnershipParams,
+  ): Promise<PerpsChaseOrderOwnership> {
+    const params = {
+      ...input,
+      owner: input.owner ? { ...input.owner } : undefined,
+    };
+    if (params.providerId !== 'lighter' || !params.handle) {
+      throw new Error(
+        'Chase ownership requires an exact handle and matching provider',
+      );
+    }
+    const wallet = this.#walletService.getUserAddress().toLowerCase();
+    const network = this.#isTestnet ? 'testnet' : 'mainnet';
+    const generation = this.#sessionGeneration;
+    const accountIndex = this.#accountIndex;
+    const apiKeyIndex = this.#apiKeyIndex;
+    const assertCurrent = (): void => {
+      // The usual session fence may rebind streams. This observation must only
+      // reject stale context, including a switch no other operation has noticed.
+      if (
+        this.#isDisconnected ||
+        generation !== this.#sessionGeneration ||
+        wallet !== this.#walletService.getUserAddress().toLowerCase() ||
+        network !== (this.#isTestnet ? 'testnet' : 'mainnet') ||
+        accountIndex !== this.#accountIndex ||
+        apiKeyIndex !== this.#apiKeyIndex
+      ) {
+        throw new Error('Lighter Chase ownership context changed during read');
+      }
+    };
+    assertCurrent();
+    const unavailable = (
+      reason: 'not_found' | 'owner_mismatch',
+    ): PerpsChaseOrderOwnership => ({
+      status: 'unavailable',
+      providerId: 'lighter',
+      handle: params.handle,
+      reason,
+    });
+    if (
+      params.owner &&
+      (params.owner.providerId !== 'lighter' ||
+        params.owner.walletAddress.toLowerCase() !== wallet ||
+        params.owner.network !== network)
+    ) {
+      return unavailable('owner_mismatch');
+    }
+    const accounts = await this.#readRememberedRecoveryAccounts(
+      `lighterRecoveryAccounts:${network}:${wallet}`,
+    );
+    assertCurrent();
+    let found: LighterChaseRecord | undefined;
+    for (const index of accounts) {
+      const record = await this.#chaseService.inspect(
+        { wallet, network, accountIndex: index, apiKeyIndex },
+        params.handle,
+        { assertCurrent },
+      );
+      assertCurrent();
+      if (record) {
+        if (found) {
+          throw new Error(
+            'Lighter Chase handle has ambiguous durable ownership',
+          );
+        }
+        found = record;
+      }
+    }
+    if (!found) {
+      return unavailable('not_found');
+    }
+    const { intent } = found;
+    if (
+      params.owner &&
+      (params.owner.accountIndex !== intent.owner.accountIndex ||
+        params.owner.apiKeyIndex !== intent.owner.apiKeyIndex)
+    ) {
+      return unavailable('owner_mismatch');
+    }
+    // Explicit projections prevent private journal extensions from leaking into
+    // the public contract. Transaction identity is public; signed payloads and
+    // raw signer/transport error messages are not.
+    const dispatch = (
+      value: LighterChaseDispatch,
+    ): PerpsChaseOrderDispatch => ({
+      phase: value.phase,
+      ...(value.nonce === undefined ? {} : { nonce: value.nonce }),
+      ...(value.txHash === undefined ? {} : { txHash: value.txHash }),
+      ...(value.expiresAt === undefined ? {} : { expiresAt: value.expiresAt }),
+    });
+    return {
+      status: 'available',
+      providerId: 'lighter',
+      handle: intent.handle,
+      owner: {
+        providerId: 'lighter',
+        walletAddress: intent.owner.wallet,
+        network: intent.owner.network,
+        accountIndex: intent.owner.accountIndex,
+        apiKeyIndex: intent.owner.apiKeyIndex,
+      },
+      order: toLighterChaseOrder(found),
+      executedSize: found.executedSize,
+      executedNotional: found.executedNotional,
+      lastTickAt: found.lastTickAt,
+      ...(found.stopReason ? { stopReason: found.stopReason } : {}),
+      children: found.children.map((child) => ({
+        clientOrderId: child.clientOrderId,
+        size: child.size,
+        price: child.price,
+        quotedAt: child.quotedAt,
+        placement: dispatch(child.placement),
+        cancellations: child.cancellations.map(dispatch),
+        ...(child.observation
+          ? {
+              observation: {
+                orderId: child.observation.orderId,
+                terminal: child.observation.terminal,
+                filledSize: child.observation.filledSize,
+                filledNotional: child.observation.filledNotional,
+                remainingSize: child.observation.remainingSize,
+              },
+            }
+          : {}),
+      })),
+    };
   }
 
   /**
