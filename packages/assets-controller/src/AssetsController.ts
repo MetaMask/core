@@ -133,6 +133,7 @@ import {
   buildWsUpdateSources,
   executeAssetsPipeline,
 } from './pipeline/index.js';
+import { trackAssetsLoading } from './trackAssetsLoading.js';
 import type {
   AccountId,
   AssetsControllerState,
@@ -493,6 +494,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  assetsLoadingStatus: {
+    persist: false,
+    includeInStateLogs: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 };
@@ -1616,6 +1623,7 @@ export class AssetsController extends BaseController<
   // PUBLIC API: QUERY METHODS
   // ============================================================================
 
+  @trackAssetsLoading
   async getAssets(
     accounts: InternalAccount[],
     options?: {
