@@ -46,6 +46,7 @@ export const subscriptionController: InitializationConfiguration<
       actions: [
         ...SUBSCRIPTION_SERVICE_ACTIONS,
         'AuthenticationController:performSignOut',
+        'SeedlessOnboardingController:getIsUserAuthenticated',
       ],
     });
 

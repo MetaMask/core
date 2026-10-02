@@ -44,6 +44,23 @@ export type SubscriptionControllerGetSubscriptionByProductAction = {
 };
 
 /**
+ * Whether the user is eligible to start a trial for the given product.
+ *
+ * Shield is eligible when the user has not trialed Shield before.
+ * Money Account Plus is eligible when the user has not trialed it before
+ * and is authenticated with social login. Only an unlocked wallet can
+ * subscribe, so `SeedlessOnboardingController:getIsUserAuthenticated` is a
+ * sufficient social-login check.
+ *
+ * @param productType - The product to check.
+ * @returns Whether the user is eligible for a trial.
+ */
+export type SubscriptionControllerIsUserEligibleForTrialAction = {
+  type: `SubscriptionController:isUserEligibleForTrial`;
+  handler: SubscriptionController['isUserEligibleForTrial'];
+};
+
+/**
  * Get the subscriptions eligibilities.
  *
  * @param request - Optional request object containing user balance to check cohort eligibility.
@@ -288,6 +305,7 @@ export type SubscriptionControllerMethodActions =
   | SubscriptionControllerGetSubscriptionsAction
   | SubscriptionControllerGetBenefitsAction
   | SubscriptionControllerGetSubscriptionByProductAction
+  | SubscriptionControllerIsUserEligibleForTrialAction
   | SubscriptionControllerGetSubscriptionsEligibilitiesAction
   | SubscriptionControllerCancelSubscriptionAction
   | SubscriptionControllerUnCancelSubscriptionAction
