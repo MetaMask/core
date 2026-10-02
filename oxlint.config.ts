@@ -20,6 +20,14 @@ export default createConfig({
     'packages/wallet-framework-docs/site/build/**',
   ],
 
+  // Load custom plugins for this repo from `.oxlint-plugins`
+  jsPlugins: ['./.oxlint-plugins/metamask-core.ts'],
+
+  rules: {
+    'metamask-core/no-wildcard-exports': 'error',
+    'metamask-core/no-barrel-files': 'error',
+  },
+
   options: {
     // TODO: Enable this once all unused disable directives are removed.
     // For the initial migration of ESLint to Oxlint, there are many unused
@@ -59,6 +67,7 @@ export default createConfig({
         'packages/platform-api-docs/**',
         'packages/wallet-cli/**',
         '**/scripts/**',
+        '.oxlint-plugins/**',
       ],
       extends: [nodejs],
       rules: {
