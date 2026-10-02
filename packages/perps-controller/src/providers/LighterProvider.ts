@@ -2890,6 +2890,10 @@ export class LighterProvider implements PerpsProvider {
         group.txHash === null ||
         group.txHash !== entry.txHash ||
         group.expiresAt !== entry.expiresAt ||
+        group.venueIds.some((id) => id !== null) ||
+        (proof === 'nonce-consumed' &&
+          (entry.expiresAt === null ||
+            Date.now() <= entry.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS)) ||
         (group.submission !== 'unknown' &&
           !(group.submission === 'canceled' && group.nonAcceptance))
       ) {
@@ -7834,15 +7838,15 @@ export class LighterProvider implements PerpsProvider {
       );
       if (index < 0) {
         if (groups.length >= LIGHTER_ATTACHED_MAX_GROUPS) {
-          const canceled = groups.findIndex(
+          const reclaimable = groups.findIndex(
             (entry) =>
               entry.submission === 'canceled' ||
               entry.submission === 'completed',
           );
-          if (canceled < 0) {
+          if (reclaimable < 0) {
             throw new Error('Lighter attached-order ownership is full');
           }
-          groups.splice(canceled, 1);
+          groups.splice(reclaimable, 1);
         }
         groups.push(group);
       } else {
@@ -7885,6 +7889,7 @@ export class LighterProvider implements PerpsProvider {
    * @param token - Registered read authority.
    * @param marketIndex - Signed market identity.
    * @param generation - Caller session.
+   * @param groups - Same-market groups whose missing legs require older history.
    * @returns Authoritative active and bounded inactive rows.
    */
   readonly #readAttachedOrders = async (
@@ -7892,6 +7897,7 @@ export class LighterProvider implements PerpsProvider {
     token: string,
     marketIndex: number,
     generation: number,
+    groups: LighterAttachedGroup[],
   ): Promise<LighterApiOrder[]> => {
     const active = await this.#clientService.getActiveOrders(
       accountIndex,
@@ -7899,24 +7905,66 @@ export class LighterProvider implements PerpsProvider {
       marketIndex,
     );
     this.#assertSession(generation);
-    const inactive = await this.#clientService.getInactiveOrders(
-      accountIndex,
-      token,
-      LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE,
-      undefined,
-      marketIndex,
-    );
-    this.#assertSession(generation);
-    if (
-      !Array.isArray(active.orders) ||
-      !Array.isArray(inactive.orders) ||
-      inactive.orders.length > LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE
-    ) {
+    if (!Array.isArray(active.orders)) {
       throw new Error(
-        'Lighter attached review requires bounded authoritative order containers',
+        'Lighter attached orders require bounded authoritative order containers',
       );
     }
-    return [...active.orders, ...inactive.orders];
+    const rows = [...active.orders];
+    let cursor: string | undefined;
+    const seenCursors = new Set<string>();
+    let historyRows = 0;
+    let pages = 0;
+    do {
+      const inactive = await this.#clientService.getInactiveOrders(
+        accountIndex,
+        token,
+        LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE,
+        cursor,
+        marketIndex,
+      );
+      this.#assertSession(generation);
+      pages += 1;
+      if (
+        !Array.isArray(inactive.orders) ||
+        inactive.orders.length > LIGHTER_TPSL_OWNERSHIP_HISTORY_PAGE_SIZE ||
+        (inactive.nextCursor !== undefined &&
+          typeof inactive.nextCursor !== 'string')
+      ) {
+        throw new Error(
+          'Lighter attached orders require bounded authoritative order containers',
+        );
+      }
+      historyRows += inactive.orders.length;
+      if (
+        historyRows > LIGHTER_INACTIVE_HISTORY_ROW_LIMIT ||
+        pages > LIGHTER_INACTIVE_HISTORY_ROW_LIMIT
+      ) {
+        throw new Error(
+          'Lighter attached history limit exceeded; ownership remains unresolved',
+        );
+      }
+      rows.push(...inactive.orders);
+      cursor = inactive.nextCursor;
+      if (
+        !groups.some((group) =>
+          correlateLighterAttachedOrders(group, rows).some(
+            (row) => row === null,
+          ),
+        )
+      ) {
+        break;
+      }
+      if (cursor) {
+        if (seenCursors.has(cursor) || inactive.orders.length === 0) {
+          throw new Error(
+            'Lighter attached history cursor did not make progress',
+          );
+        }
+        seenCursors.add(cursor);
+      }
+    } while (cursor);
+    return rows;
   };
 
   /**
@@ -7990,6 +8038,12 @@ export class LighterProvider implements PerpsProvider {
               token,
               marketIndex,
               generation,
+              groups.filter(
+                (candidate) =>
+                  candidate.orders[0][0] === marketIndex &&
+                  candidate.submission !== 'canceled' &&
+                  candidate.submission !== 'completed',
+              ),
             );
             snapshots.set(marketIndex, snapshot);
           }
@@ -8000,7 +8054,16 @@ export class LighterProvider implements PerpsProvider {
               group.venueIds[index] = String(row.orderIndex);
             }
           }
-          if (group.submission === 'unknown' && group.txHash !== null) {
+          const hasLegs = rows.some((row) => row !== null);
+          if (hasLegs && group.nonAcceptance !== undefined) {
+            delete group.nonAcceptance;
+            group.submission = 'accepted';
+          }
+          if (
+            (group.submission === 'unknown' ||
+              (group.submission === 'accepted' && !hasLegs)) &&
+            group.txHash !== null
+          ) {
             const transaction = await this.#clientService.getTx(group.txHash);
             this.#assertSession(generation);
             if (
@@ -8010,10 +8073,20 @@ export class LighterProvider implements PerpsProvider {
                 group.txHash.toLowerCase().replace(/^0x/u, '') &&
               transaction.accountIndex === accountIndex &&
               transaction.apiKeyIndex === group.apiKeyIndex &&
-              transaction.nonce === group.nonce &&
-              getLighterTransactionOutcome(transaction.status) === 'executed'
+              transaction.nonce === group.nonce
             ) {
-              group.submission = 'accepted';
+              const outcome = getLighterTransactionOutcome(transaction.status);
+              if (outcome === 'executed') {
+                delete group.nonAcceptance;
+                group.submission = 'accepted';
+              } else if (
+                outcome === 'failed' &&
+                !hasLegs &&
+                group.venueIds.every((id) => id === null)
+              ) {
+                delete group.nonAcceptance;
+                group.submission = 'canceled';
+              }
             }
           }
           const parent = rows[0];
@@ -8176,10 +8249,7 @@ export class LighterProvider implements PerpsProvider {
           };
         }
         // Abandon only undispatched intent or durably proven non-acceptance.
-        if (
-          (group.submission === 'prepared' && group.txHash === null) ||
-          (group.submission === 'unknown' && group.nonAcceptance !== undefined)
-        ) {
+        if (group.submission === 'prepared' && group.txHash === null) {
           group.submission = 'canceled';
           await this.#writeAttachedGroup(key, group, generation);
           return {
@@ -8188,21 +8258,56 @@ export class LighterProvider implements PerpsProvider {
             providerId: 'lighter',
           };
         }
-        if (group.submission === 'unknown' && group.txHash !== null) {
+        const initialRows = correlateLighterAttachedOrders(
+          group,
+          await this.#readAttachedOrders(
+            accountIndex,
+            authToken,
+            group.orders[0][0],
+            generation,
+            [group],
+          ),
+        );
+        const hasLegs = initialRows.some((row) => row !== null);
+        if (hasLegs && group.nonAcceptance !== undefined) {
+          delete group.nonAcceptance;
+          group.submission = 'accepted';
+          await this.#writeAttachedGroup(key, group, generation);
+        }
+        if (
+          (group.submission === 'unknown' ||
+            (group.submission === 'accepted' && !hasLegs)) &&
+          group.txHash !== null
+        ) {
           const transaction = await this.#clientService.getTx(group.txHash);
           this.#assertSession(generation);
-          const rejected =
+          const matches =
             transaction !== null &&
             typeof transaction.hash === 'string' &&
             transaction.hash.toLowerCase().replace(/^0x/u, '') ===
               group.txHash.toLowerCase().replace(/^0x/u, '') &&
             transaction.accountIndex === accountIndex &&
             transaction.apiKeyIndex === group.apiKeyIndex &&
-            transaction.nonce === group.nonce &&
-            getLighterTransactionOutcome(transaction.status) === 'failed';
-          // A missing hash cannot discard a group: the accepted-state write may
-          // have failed after the generic dispatch ledger already settled.
-          if (rejected) {
+            transaction.nonce === group.nonce;
+          const outcome = matches
+            ? getLighterTransactionOutcome(transaction.status)
+            : null;
+          if (outcome === 'executed' && group.nonAcceptance !== undefined) {
+            delete group.nonAcceptance;
+            group.submission = 'accepted';
+            await this.#writeAttachedGroup(key, group, generation);
+          }
+          const neverLanded =
+            group.nonAcceptance !== undefined &&
+            transaction === null &&
+            group.expiresAt !== null &&
+            Date.now() > group.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS;
+          // Neither stale proof nor missing history can erase observed ownership.
+          if (
+            !hasLegs &&
+            group.venueIds.every((id) => id === null) &&
+            (outcome === 'failed' || neverLanded)
+          ) {
             group.submission = 'canceled';
             await this.#writeAttachedGroup(key, group, generation);
             return {
@@ -8220,6 +8325,7 @@ export class LighterProvider implements PerpsProvider {
               authToken,
               group.orders[0][0],
               generation,
+              [group],
             ),
           );
           if (rows.some((row) => row === null)) {
@@ -8231,7 +8337,14 @@ export class LighterProvider implements PerpsProvider {
         };
         const terminal = (row: LighterApiOrder): boolean =>
           this.#isAttachedOrderTerminal(row, group.symbol);
-        const rows = await read();
+        if (initialRows.some((row) => row === null)) {
+          throw new Error(
+            'Lighter attached-order identity is unresolved; no cancellation guarantee',
+          );
+        }
+        const rows = initialRows.filter(
+          (row): row is LighterApiOrder => row !== null,
+        );
         group.venueIds = rows.map((row) => String(row.orderIndex));
         await this.#writeAttachedGroup(key, group, generation);
         // Re-read after parent cancellation: the venue may already have canceled

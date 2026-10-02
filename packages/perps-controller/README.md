@@ -273,7 +273,7 @@ Confirmed absent or known Premium accounts retain local groups through the
 wallet-scoped recovery account index; listing never acknowledges or replays them.
 `reviewAttachedOrderGroups` uses an existing registered local key for read-only
 venue authentication, then matches exact signed IDs against bounded active and
-recent inactive history. Missing orders or linkage stay unknown. A successful
+bounded older inactive history for missing legs. Missing orders or linkage stay unknown. A successful
 submission reports acceptance, not activation, a fill, or protected quantity.
 
 Pass the exact `groupId` as `cancelOrder.orderId`, with its symbol and provider,
@@ -290,11 +290,15 @@ position. Explicitly cancel a prepared group before submitting fresh intent;
 uncertain dispatches also require the existing exact-transaction reconciliation
 and acknowledgment flow. Reconciliation persists exact failed, expired or
 nonce-consumed non-acceptance before retiring the nonce evidence; explicit group
-cancellation can then abandon that intent without signing. Missing history alone
+cancellation can then abandon that intent without a cancellation signature or replay
+of the grouped order. Signer setup and authentication still apply. Nonce advance
+before signed expiry remains ambiguous. Abandonment rereads exact transaction and
+bounded order history, and refuses recorded or freshly correlated legs. Missing history alone
 never proves non-acceptance. Up to 64 groups are retained per account. Only canceled
 groups or `completed` groups with all legs exactly correlated as terminal can be
 evicted. Review reads one bounded snapshot per market and skips terminal groups
-and unchanged persistence.
+and unchanged persistence. Terminal groups return local identities without new
+order observations or linkage.
 
 Mobile and Extension must gate attached forwarding on `attachedTpsl` plus their
 own rollout policy. This package change does not adopt the feature in either client.

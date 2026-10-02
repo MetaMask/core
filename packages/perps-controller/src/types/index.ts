@@ -351,7 +351,7 @@ export type AttachedOrderGroup = {
   childOrderIds?: string[];
   /** Automatic parent/child cancellation is not assumed. */
   cancellation: 'explicit-exact-owned-orders';
-  /** Returned only by an explicit venue review; absence is not an empty book. */
+  /** Explicit review observations; terminal groups return local identities only. Absence is not an empty book. */
   orders?: {
     clientOrderId: string;
     orderId?: string;
