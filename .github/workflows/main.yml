@@ -30,8 +30,7 @@ jobs:
 
   check-workflows:
     name: Check workflows
-    needs:
-      - check-skip-merge-queue
+    needs: check-skip-merge-queue
     if: github.event_name != 'merge_group' || needs.check-skip-merge-queue.outputs.skip-merge-queue != 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -53,7 +52,7 @@ jobs:
 
   analyse-code:
     name: Analyse code
-    needs: check-workflows
+    needs: check-skip-merge-queue
     if: github.ref_name == 'main'
     uses: MetaMask/action-security-code-scanner/.github/workflows/security-scan.yml@v2
     with:
@@ -88,7 +87,7 @@ jobs:
 
   lint-build-test:
     name: Lint, build, and test
-    needs: check-workflows
+    needs: check-skip-merge-queue
     uses: ./.github/workflows/lint-build-test.yml
 
   deploy-platform-api-docs:
@@ -102,7 +101,7 @@ jobs:
 
   check-release:
     name: Check release
-    needs: check-workflows
+    needs: check-skip-merge-queue
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -121,7 +120,9 @@ jobs:
 
   is-release:
     name: Determine whether this is a release merge commit
-    needs: lint-build-test
+    needs:
+      - check-workflows
+      - lint-build-test
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
