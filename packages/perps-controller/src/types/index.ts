@@ -1807,6 +1807,21 @@ export type FeeCalculationResult = {
    */
   chargesMetamaskBuilderFee?: boolean;
 
+  /**
+   * Fee source whose rate the MetaMask fee above was priced from: the winner
+   * of the unified fee resolution this quote was computed with.
+   *
+   * Absent when the quote was not re-priced from a resolution, e.g. a
+   * placement that carries no MetaMask builder fee. `subscription` always
+   * implies a reduced fee. `rewards` can win a tie with the default, so it may
+   * carry a 0% discount; check `metamaskFeeRate` before presenting it as a
+   * reduction.
+   *
+   * Describes this preview only. The submit path resolves the fee again, so
+   * the order is attributed to whichever source wins at submission.
+   */
+  feeSource?: PerpsFeeSource;
+
   // Optional detailed breakdown for transparency
   breakdown?: {
     baseFeeRate: number;

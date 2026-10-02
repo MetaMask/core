@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `PerpsAccountSigner.getChainId`. When set, HyperLiquid user-signed actions (builder fee approval, withdrawals, transfers) are signed for the chain it returns instead of chain 1, so a wallet that only signs for its connected chain does not switch chains ([#10643](https://github.com/MetaMask/core/pull/10643))
+- Add optional `feeSource` to `FeeCalculationResult`, reporting which fee source (`default`, `rewards` or `subscription`) won the fee resolution the quoted MetaMask fee was priced from, so clients can attribute the discount shown in a fee preview without re-deriving it from the rates ([#10650](https://github.com/MetaMask/core/pull/10650))
+  - Absent when the quote was not re-priced from a fee resolution, for example a placement that carries no MetaMask builder fee
+  - `rewards` can carry a 0% discount, so check `metamaskFeeRate` before presenting it as a reduction
 
 ### Changed
 
