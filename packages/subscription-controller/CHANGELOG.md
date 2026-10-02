@@ -9,16 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `SubscriptionDelegationService:startSubscriptionWithDelegation` no longer requests an approval. Callers must obtain consent and initiate funding (for example, a `membershipSubscription` transaction) before calling.
+- **BREAKING:** `SubscriptionDelegationService:startSubscriptionWithDelegation` no longer requests an approval. Callers must obtain consent and initiate funding (for example, a `membershipSubscription` transaction) before calling. ([#10666](https://github.com/MetaMask/core/pull/10666))
   - `skipApproval` is removed from `StartSubscriptionWithDelegationRequest`.
 
 ### Removed
 
-- **BREAKING:** Remove the subscription delegation approval contracts.
+- **BREAKING:** Remove the subscription delegation approval contracts. ([#10666](https://github.com/MetaMask/core/pull/10666))
   - Remove `SUBSCRIPTION_DELEGATION_APPROVAL_TYPE`, `SubscriptionFundingRequest`, and `SubscriptionDelegationApprovalResult`.
   - Remove `ApprovalResultMissing` and `InvalidFundingTransactionHash` from `SubscriptionDelegationServiceErrorMessage`.
   - `SubscriptionDelegationServiceMessenger` no longer allows `ApprovalController:addRequest`. Clients that construct this messenger must stop delegating that action.
-- Remove the `@metamask/approval-controller` dependency.
+- Remove the `@metamask/approval-controller` dependency. ([#10666](https://github.com/MetaMask/core/pull/10666))
 
 ## [12.0.1]
 

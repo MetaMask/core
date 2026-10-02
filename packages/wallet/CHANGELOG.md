@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Stop delegating `ApprovalController:addRequest` to `SubscriptionDelegationService`. Client that supply their own root messenger no longer need to allow that action for the delegation service.
+- Stop delegating `ApprovalController:addRequest` to `SubscriptionDelegationService`. Client that supply their own root messenger no longer need to allow that action for the delegation service. ([#10666](https://github.com/MetaMask/core/pull/10666))
 - Bump `@metamask/claims-controller` from `^1.0.2` to `^1.0.3` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/shield-controller` from `^7.0.3` to `^7.0.4` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/subscription-controller` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
