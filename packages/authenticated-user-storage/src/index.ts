@@ -6,6 +6,7 @@ export {
   ASSETS_WATCHLIST_MAX_ASSETS,
   DEFAULT_AGENTIC_CLI_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
+  DEFAULT_SUBSCRIPTION_PREFERENCES,
 } from './validators.js';
 export type {
   AuthenticatedUserStorageActions,
@@ -49,6 +50,7 @@ export type {
   SocialAIPreference,
   AgenticCliPreference,
   PriceAlertPreference,
+  SubscriptionPreference,
   NotificationPreferences,
   AssetsWatchlistBlob,
   ClientType,

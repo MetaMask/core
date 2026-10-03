@@ -22,6 +22,7 @@ import type {
   MarketingConsent,
   NotificationPreferences,
   PriceAlertPreference,
+  SubscriptionPreference,
 } from './types.js';
 
 /**
@@ -109,6 +110,11 @@ const PriceAlertPreferenceSchema = type({
   pushNotificationsEnabled: boolean(),
 });
 
+const SubscriptionPreferenceSchema = type({
+  inAppNotificationsEnabled: boolean(),
+  pushNotificationsEnabled: boolean(),
+});
+
 const NotificationPreferencesSchema = type({
   walletActivity: WalletActivityPreferenceSchema,
   marketing: MarketingPreferenceSchema,
@@ -116,6 +122,7 @@ const NotificationPreferencesSchema = type({
   socialAI: SocialAIPreferenceSchema,
   agenticCli: AgenticCliPreferenceSchema,
   priceAlerts: PriceAlertPreferenceSchema,
+  subscriptions: SubscriptionPreferenceSchema,
 });
 
 const MarketingConsentSchema = type({
@@ -146,6 +153,15 @@ export const DEFAULT_AGENTIC_CLI_PREFERENCES: AgenticCliPreference = {
  * fresh `NotificationPreferences` object.
  */
 export const DEFAULT_PRICE_ALERT_PREFERENCES: PriceAlertPreference = {
+  inAppNotificationsEnabled: true,
+  pushNotificationsEnabled: true,
+};
+
+/**
+ * Default subscription notification preferences for consumers building a
+ * fresh `NotificationPreferences` object.
+ */
+export const DEFAULT_SUBSCRIPTION_PREFERENCES: SubscriptionPreference = {
   inAppNotificationsEnabled: true,
   pushNotificationsEnabled: true,
 };
