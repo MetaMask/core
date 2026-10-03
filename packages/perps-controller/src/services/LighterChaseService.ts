@@ -74,6 +74,7 @@ const DispatchStruct = type({
   nonce: optional(number()),
   txHash: optional(string()),
   expiresAt: optional(number()),
+  acknowledged: optional(boolean()),
 });
 const ObservationStruct = type({
   orderId: string(),
@@ -133,6 +134,8 @@ export type LighterChaseDispatchHooks = {
   }) => Promise<void>;
   beforeDispatch: () => Promise<void>;
   notDispatched: () => Promise<void>;
+  accepted: () => void;
+  afterAccepted: () => Promise<void>;
 };
 export type LighterChaseIo = {
   assertCurrent: () => void;
@@ -149,6 +152,10 @@ export type LighterChaseIo = {
   ) => Promise<void>;
   observe: (
     child: LighterChaseChild,
+    recordEvidence: (
+      dispatch: LighterChaseDispatch,
+      acknowledged: boolean | undefined,
+    ) => Promise<void>,
   ) => Promise<LighterChaseChildObservation | null>;
 };
 /** Accepted dispatches may precede their exact order snapshot. */
@@ -329,8 +336,13 @@ export class LighterChaseService {
     io: Pick<LighterChaseIo, 'assertCurrent'>,
   ): Promise<Journal> {
     io.assertCurrent();
-    const raw = await this.#storage.getItem(ownerKey(owner));
+    const journal = await this.#readCaptured(owner);
     io.assertCurrent();
+    return journal;
+  }
+
+  async #readCaptured(owner: LighterChaseOwner): Promise<Journal> {
+    const raw = await this.#storage.getItem(ownerKey(owner));
     if (raw === null) {
       return { version: 1, records: [] };
     }
@@ -379,6 +391,15 @@ export class LighterChaseService {
           LIGHTER_MAX_ORDER_PRICE,
         );
         for (const dispatch of [child.placement, ...child.cancellations]) {
+          if (
+            (dispatch.phase === 'acknowledged' &&
+              dispatch.acknowledged === false) ||
+            (dispatch.acknowledged === true &&
+              dispatch.phase !== 'acknowledged' &&
+              dispatch.phase !== 'failed')
+          ) {
+            throw new Error('Lighter Chase persisted acceptance is invalid');
+          }
           if (dispatch.phase !== 'prepared' && dispatch.phase !== 'failed') {
             if (
               !Number.isSafeInteger(dispatch.nonce) ||
@@ -411,6 +432,70 @@ export class LighterChaseService {
     io.assertCurrent();
     await this.#storage.setItem(ownerKey(owner), JSON.stringify(journal));
     io.assertCurrent();
+  }
+
+  async #recordEvidence(
+    record: LighterChaseRecord,
+    dispatch: LighterChaseDispatch,
+    acknowledged: boolean | undefined,
+  ): Promise<void> {
+    // The owner operation lock remains held through transport and observation.
+    // Completion may outlive its session, but can update only this saved attempt.
+    const journal = await this.#readCaptured(record.intent.owner);
+    const savedRecord = journal.records.find(
+      (entry) => entry.intent.handle === record.intent.handle,
+    );
+    const child = record.children.find(
+      (entry) =>
+        entry.placement === dispatch || entry.cancellations.includes(dispatch),
+    );
+    const savedChild = savedRecord?.children.find(
+      (entry) => entry.clientOrderId === child?.clientOrderId,
+    );
+    const saved =
+      child?.placement === dispatch
+        ? savedChild?.placement
+        : savedChild?.cancellations[
+            child?.cancellations.indexOf(dispatch) ?? -1
+          ];
+    if (
+      !savedRecord ||
+      !child ||
+      !savedChild ||
+      !saved ||
+      JSON.stringify(savedRecord.intent) !== JSON.stringify(record.intent) ||
+      savedChild.size !== child.size ||
+      savedChild.price !== child.price ||
+      savedChild.quotedAt !== child.quotedAt ||
+      saved.nonce !== dispatch.nonce ||
+      saved.txHash !== dispatch.txHash ||
+      saved.expiresAt !== dispatch.expiresAt ||
+      !['attempted', 'acknowledged'].includes(saved.phase)
+    ) {
+      throw new Error('Lighter Chase completion attempt mismatch');
+    }
+    if (saved.phase === 'acknowledged' || saved.acknowledged === true) {
+      dispatch.acknowledged = true;
+      if (dispatch.phase !== 'failed') {
+        dispatch.phase = 'acknowledged';
+      }
+      return;
+    }
+    if (acknowledged === undefined) {
+      delete saved.acknowledged;
+      delete dispatch.acknowledged;
+    } else {
+      saved.acknowledged = acknowledged;
+      dispatch.acknowledged = acknowledged;
+      if (acknowledged && saved.phase !== 'failed') {
+        saved.phase = 'acknowledged';
+        dispatch.phase = 'acknowledged';
+      }
+    }
+    await this.#storage.setItem(
+      ownerKey(record.intent.owner),
+      JSON.stringify(journal),
+    );
   }
 
   #running(record: LighterChaseRecord): void {
@@ -472,7 +557,9 @@ export class LighterChaseService {
     child: LighterChaseChild,
     io: LighterChaseIo,
   ): Promise<void> {
-    const observed = await io.observe(child);
+    const observed = await io.observe(child, async (dispatch, acknowledged) =>
+      this.#recordEvidence(record, dispatch, acknowledged),
+    );
     io.assertCurrent();
     if (!observed) {
       if (child.placement.phase !== 'failed' || child.observation) {
@@ -506,6 +593,7 @@ export class LighterChaseService {
     financialContinuation: boolean,
     send: (hooks: LighterChaseDispatchHooks) => Promise<void>,
   ): Promise<void> {
+    let accepted = false;
     let signedQuote:
       | Pick<LighterChaseChild, 'price' | 'size' | 'quotedAt'>
       | undefined;
@@ -608,17 +696,30 @@ export class LighterChaseService {
         dispatch.phase = 'failed';
         await this.#write(record.intent.owner, journal, io);
       },
+      accepted: () => {
+        accepted = true;
+        dispatch.acknowledged = true;
+      },
+      afterAccepted: async () => this.#recordEvidence(record, dispatch, true),
     };
     try {
       guard();
       await send(hooks);
-      io.assertCurrent();
-      if (dispatch.phase !== 'attempted') {
+      if (dispatch.phase !== 'attempted' && dispatch.phase !== 'acknowledged') {
         throw new Error('Lighter Chase transport did not persist its dispatch');
       }
-      dispatch.phase = 'acknowledged';
-      await this.#write(record.intent.owner, journal, io);
+      if (!accepted) {
+        hooks.accepted();
+        await hooks.afterAccepted();
+      }
+      io.assertCurrent();
+      if (dispatch.phase !== 'acknowledged') {
+        throw new Error('Lighter Chase transport did not persist its dispatch');
+      }
     } catch (error) {
+      if (!accepted && dispatch.phase === 'attempted') {
+        await this.#recordEvidence(record, dispatch, false);
+      }
       if (dispatch.phase === 'prepared' || dispatch.phase === 'signed') {
         dispatch.phase = 'failed';
         await this.#write(record.intent.owner, journal, io);

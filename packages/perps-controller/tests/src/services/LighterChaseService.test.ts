@@ -7,6 +7,7 @@ import type {
   LighterChaseIo,
   LighterChaseChild,
   LighterChaseDispatchHooks,
+  LighterChaseRecord,
 } from '../../../src/services/LighterChaseService.js';
 import type { LighterChaseChildObservation } from '../../../src/utils/lighterChase.js';
 import { createDeferred } from '../../helpers/serviceMocks.js';
@@ -130,6 +131,105 @@ const setup = (): TestEnvironment => {
 };
 
 describe('Lighter bounded Chase lifecycle', () => {
+  it.each([undefined, false, true])(
+    'round06 reads version-1 acknowledgment evidence %s without replay',
+    async (acknowledged) => {
+      const env = setup();
+      const record = await env.service.start(intent, env.io);
+      record.status = 'termination_pending';
+      const dispatch = record.children[0].placement;
+      dispatch.phase = acknowledged === true ? 'acknowledged' : 'attempted';
+      if (acknowledged === undefined) {
+        delete dispatch.acknowledged;
+      } else {
+        dispatch.acknowledged = acknowledged;
+      }
+      const key = [...env.disk.keys()][0];
+      env.disk.set(key, JSON.stringify({ version: 1, records: [record] }));
+      const restored = new LighterChaseService({ storage: env.storage });
+      const records = await restored.list(owner, env.io);
+      expect(records[0].children[0].placement).toStrictEqual(dispatch);
+      await restored.tick(owner, intent.handle, env.io);
+      expect(env.io.place).toHaveBeenCalledTimes(1);
+      expect(env.io.cancel).not.toHaveBeenCalled();
+    },
+  );
+  it.each([
+    { phase: 'attempted', acknowledged: 'false' },
+    { phase: 'acknowledged', acknowledged: false },
+    { phase: 'attempted', acknowledged: true },
+  ])(
+    'round06 rejects malformed acknowledgment evidence %s',
+    async (evidence) => {
+      const env = setup();
+      const record = await env.service.start(intent, env.io);
+      Object.assign(record.children[0].placement, evidence);
+      const key = [...env.disk.keys()][0];
+      env.disk.set(key, JSON.stringify({ version: 1, records: [record] }));
+      const restored = new LighterChaseService({ storage: env.storage });
+      await expect(restored.list(owner, env.io)).rejects.toThrow(
+        /acknowledged|acceptance/u,
+      );
+      expect(env.io.place).toHaveBeenCalledTimes(1);
+      expect(env.io.cancel).not.toHaveBeenCalled();
+    },
+  );
+  it.each([
+    'owner',
+    'clientOrderId',
+    'size',
+    'price',
+    'nonce',
+    'txHash',
+    'expiresAt',
+  ] as const)(
+    'round06 refuses captured completion after saved %s changes',
+    async (field) => {
+      const env = setup();
+      let completionError: unknown;
+      let savedAfterCompletion: string | undefined;
+      jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+        await hooks.signed({ nonce: 8, txHash: 'deadbeef', expiresAt: 110000 });
+        await hooks.beforeDispatch();
+        const key = [...env.disk.keys()][0];
+        const journal = JSON.parse(env.disk.get(key) ?? '') as {
+          records: LighterChaseRecord[];
+        };
+        const record = journal.records[0];
+        const child = record.children[0];
+        if (field === 'owner') {
+          record.intent.owner.apiKeyIndex += 1;
+        } else if (field === 'clientOrderId') {
+          child.clientOrderId = '102';
+        } else if (field === 'size') {
+          child.size = '0.0001';
+        } else if (field === 'price') {
+          child.price = '99999';
+        } else if (field === 'nonce') {
+          child.placement.nonce = 9;
+        } else if (field === 'txHash') {
+          child.placement.txHash = 'abcdefab';
+        } else {
+          child.placement.expiresAt = 110001;
+        }
+        env.disk.set(key, JSON.stringify(journal));
+        hooks.accepted();
+        completionError = await hooks
+          .afterAccepted()
+          .catch((error: unknown) => error);
+        savedAfterCompletion = env.disk.get(key);
+        throw new Error('completion attempt mismatch');
+      });
+      await env.service.start(intent, env.io);
+      expect(completionError).toBeInstanceOf(Error);
+      expect((completionError as Error).message).toBe(
+        'Lighter Chase completion attempt mismatch',
+      );
+      expect(savedAfterCompletion).not.toContain('"acknowledged":true');
+      expect(env.io.place).toHaveBeenCalledTimes(1);
+      expect(env.io.cancel).not.toHaveBeenCalled();
+    },
+  );
   describe('bounded Chase cancellation settlement', () => {
     beforeEach(() => {
       jest.useFakeTimers();
@@ -176,18 +276,20 @@ describe('Lighter bounded Chase lifecycle', () => {
         if (!observe) {
           throw new Error('Missing observation implementation');
         }
-        jest.mocked(env.io.observe).mockImplementation(async (child) => {
-          if (
-            visibility === 'missing' &&
-            child.cancellations.length > 0 &&
-            !env.observed.get('101')?.terminal
-          ) {
-            throw new LighterChaseObservationPendingError(
-              'Exact child pending',
-            );
-          }
-          return await observe(child);
-        });
+        jest
+          .mocked(env.io.observe)
+          .mockImplementation(async (child, recordEvidence) => {
+            if (
+              visibility === 'missing' &&
+              child.cancellations.length > 0 &&
+              !env.observed.get('101')?.terminal
+            ) {
+              throw new LighterChaseObservationPendingError(
+                'Exact child pending',
+              );
+            }
+            return await observe(child, recordEvidence);
+          });
         const stopping = env.service.stop(
           owner,
           intent.handle,
@@ -220,17 +322,19 @@ describe('Lighter bounded Chase lifecycle', () => {
           if (!observe) {
             throw new Error('Missing observation implementation');
           }
-          jest.mocked(env.io.observe).mockImplementation(async (child) => {
-            if (
-              child.cancellations.length > 0 &&
-              !env.observed.get('101')?.terminal
-            ) {
-              throw new LighterChaseObservationPendingError(
-                'Exact child pending',
-              );
-            }
-            return await observe(child);
-          });
+          jest
+            .mocked(env.io.observe)
+            .mockImplementation(async (child, recordEvidence) => {
+              if (
+                child.cancellations.length > 0 &&
+                !env.observed.get('101')?.terminal
+              ) {
+                throw new LighterChaseObservationPendingError(
+                  'Exact child pending',
+                );
+              }
+              return await observe(child, recordEvidence);
+            });
         }
         let finished = false;
         const stopping = env.service
@@ -367,12 +471,14 @@ describe('Lighter bounded Chase lifecycle', () => {
       if (!observe) {
         throw new Error('Missing observation implementation');
       }
-      jest.mocked(env.io.observe).mockImplementation(async (child) => {
-        if (child.cancellations.length > 0) {
-          throw new Error('foreign child identity');
-        }
-        return await observe(child);
-      });
+      jest
+        .mocked(env.io.observe)
+        .mockImplementation(async (child, recordEvidence) => {
+          if (child.cancellations.length > 0) {
+            throw new Error('foreign child identity');
+          }
+          return await observe(child, recordEvidence);
+        });
       const result = await env.service.stop(
         owner,
         intent.handle,
@@ -797,11 +903,13 @@ describe('Lighter bounded Chase lifecycle', () => {
     if (!original) {
       throw new Error('Missing observation implementation');
     }
-    jest.mocked(env.io.observe).mockImplementation(async (child) => {
-      const result = await original(child);
-      env.service.interrupt();
-      return result;
-    });
+    jest
+      .mocked(env.io.observe)
+      .mockImplementation(async (child, recordEvidence) => {
+        const result = await original(child, recordEvidence);
+        env.service.interrupt();
+        return result;
+      });
     expect((await env.service.start(intent, env.io)).status).toBe(
       'termination_pending',
     );

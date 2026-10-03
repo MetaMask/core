@@ -101,13 +101,17 @@ import type {
   LighterChaseIo,
   LighterChaseRecord,
   LighterChaseDispatch,
+  LighterChaseChild,
 } from '../services/LighterChaseService.js';
 import {
   convertKeysToCamelCase,
   LighterApiError,
   LighterClientService,
 } from '../services/LighterClientService.js';
-import { requireSignedTxIdentity } from '../services/lighterDispatchIdentity.js';
+import {
+  requireSignedTxIdentity,
+  isLighterTxExpiry,
+} from '../services/lighterDispatchIdentity.js';
 import { LighterTwapService } from '../services/LighterTwapService.js';
 import type {
   LighterTwapOwner,
@@ -8105,6 +8109,7 @@ export class LighterProvider implements PerpsProvider {
           onNotDispatched?: () => Promise<void>;
           requireExecution?: boolean;
           onDispatch?: () => void;
+          afterAccepted?: () => Promise<void>;
         },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
@@ -12100,17 +12105,86 @@ export class LighterProvider implements PerpsProvider {
     };
     const reconcileDispatch = async (
       dispatch: LighterChaseDispatch,
+      child: LighterChaseChild,
+      recordEvidence: Parameters<LighterChaseIo['observe']>[1],
     ): Promise<void> => {
       if (!dispatch.txHash || dispatch.phase === 'failed') {
         return;
       }
+      const unacknowledged =
+        dispatch.phase === 'attempted' && dispatch.acknowledged === false;
+      if (unacknowledged) {
+        // Clear retry eligibility before an awaited lookup can reveal a conflict
+        // whose persistence fails or whose owner session has already changed.
+        await recordEvidence(dispatch, undefined);
+      }
       const transaction = await this.#clientService.getTx(dispatch.txHash);
-      assertCurrent();
       if (!transaction) {
+        assertCurrent();
+        if (unacknowledged) {
+          await recordEvidence(dispatch, false);
+          assertCurrent();
+        }
         if (
-          dispatch.phase === 'attempted' &&
-          dispatch.expiresAt !== undefined &&
-          Date.now() > dispatch.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS
+          dispatch.phase !== 'attempted' ||
+          dispatch.acknowledged !== false ||
+          !isLighterTxExpiry(dispatch.expiresAt) ||
+          !Number.isSafeInteger(dispatch.nonce) ||
+          (dispatch.nonce ?? -1) < 0 ||
+          Date.now() <= dispatch.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS
+        ) {
+          return;
+        }
+        const nonce = await this.#clientService.getNextNonce(
+          intent.owner.accountIndex,
+          intent.owner.apiKeyIndex,
+        );
+        assertCurrent();
+        if (
+          !Number.isSafeInteger(nonce.nonce) ||
+          nonce.nonce < 0 ||
+          nonce.nonce > (dispatch.nonce ?? -1)
+        ) {
+          return;
+        }
+        const { token } = await this.#getNativeProbeReadToken(
+          intent.owner.accountIndex,
+          generation,
+        );
+        assertCurrent();
+        const exact = await this.#clientService.getOrdersByClientIds(
+          intent.owner.accountIndex,
+          token,
+          [child.clientOrderId],
+        );
+        assertCurrent();
+        if (dispatch === child.placement) {
+          if (!child.observation && exact.orders.length === 0) {
+            dispatch.phase = 'failed';
+          }
+          return;
+        }
+        if (
+          exact.orders.length !== 1 ||
+          !child.observation ||
+          child.observation.terminal
+        ) {
+          return;
+        }
+        const orderId = identifyLighterChaseChild(
+          intent,
+          { ...child, nonce: child.placement.nonce },
+          exact.orders[0],
+        );
+        const remaining = parseStrictDecimal(
+          exact.orders[0].remainingBaseAmount,
+        );
+        if (
+          orderId === child.observation.orderId &&
+          exact.orders[0].status === 'open' &&
+          remaining !== null &&
+          remaining > 0 &&
+          new BigNumber(exact.orders[0].remainingBaseAmount).lte(child.size)
         ) {
           dispatch.phase = 'failed';
         }
@@ -12123,13 +12197,17 @@ export class LighterProvider implements PerpsProvider {
         transaction.apiKeyIndex !== intent.owner.apiKeyIndex ||
         transaction.nonce !== dispatch.nonce
       ) {
+        await recordEvidence(dispatch, undefined);
+        assertCurrent();
         throw new Error('Lighter Chase transaction identity mismatch');
       }
       if (getLighterTransactionOutcome(transaction.status) === 'failed') {
+        assertCurrent();
         dispatch.phase = 'failed';
       } else {
         // Exact venue evidence survives later indexer loss, including restart.
-        dispatch.phase = 'acknowledged';
+        await recordEvidence(dispatch, true);
+        assertCurrent();
       }
     };
     const quote = async (): Promise<string> => {
@@ -12233,7 +12311,7 @@ export class LighterProvider implements PerpsProvider {
             await submit(
               LIGHTER_TX_TYPE_CREATE_ORDER,
               signed.txInfo,
-              undefined,
+              hooks.accepted,
               {
                 ...identity,
                 intent: `chaseCreate:${intent.symbol}:${child.clientOrderId}`,
@@ -12251,6 +12329,7 @@ export class LighterProvider implements PerpsProvider {
                   await hooks.beforeDispatch();
                 },
                 onNotDispatched: hooks.notDispatched,
+                afterAccepted: hooks.afterAccepted,
               },
             );
           },
@@ -12316,7 +12395,7 @@ export class LighterProvider implements PerpsProvider {
             await submit(
               LIGHTER_TX_TYPE_CANCEL_ORDER,
               signed.txInfo,
-              undefined,
+              hooks.accepted,
               {
                 ...identity,
                 intent: `chaseCancel:${intent.symbol}:${child.clientOrderId}`,
@@ -12327,17 +12406,18 @@ export class LighterProvider implements PerpsProvider {
                   assertSigning();
                 },
                 onNotDispatched: hooks.notDispatched,
+                afterAccepted: hooks.afterAccepted,
               },
             );
           },
           generation,
         );
       },
-      observe: async (child) => {
+      observe: async (child, recordEvidence) => {
         assertCurrent();
         const cancel = child.cancellations.at(-1);
         if (cancel) {
-          await reconcileDispatch(cancel);
+          await reconcileDispatch(cancel, child, recordEvidence);
         }
 
         const { token } = await this.#getNativeProbeReadToken(
@@ -12353,7 +12433,7 @@ export class LighterProvider implements PerpsProvider {
         assertCurrent();
         if (exact.orders.length === 0) {
           if (!child.observation) {
-            await reconcileDispatch(child.placement);
+            await reconcileDispatch(child.placement, child, recordEvidence);
             if (child.placement.phase === 'failed') {
               return null;
             }
