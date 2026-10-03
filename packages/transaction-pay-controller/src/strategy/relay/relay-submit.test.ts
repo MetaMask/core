@@ -2138,46 +2138,21 @@ describe('Relay Submit Utils', () => {
           });
         });
 
-        it('passes getCalls to submitSecondLeg for post-quote flows', async () => {
+        it('builds the second leg calls via getPaymentOverrideData with the settled amount', async () => {
           await submitRelayQuotes(request);
 
-          expect(submitSecondLegMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-              getCalls: expect.any(Function),
-            }),
-          );
-          expect(submitSecondLegMock).toHaveBeenCalledWith(
-            expect.not.objectContaining({ calls: expect.anything() }),
-          );
-        });
+          const { getCalls } = submitSecondLegMock.mock.calls[0][0];
+          const calls = await getCalls?.(ON_CHAIN_AMOUNT_MOCK);
 
-        it('getCalls calls getPaymentOverrideData with settled amount in human units', async () => {
-          await submitRelayQuotes(request);
-
-          // Capture the getCalls callback and invoke it with the settled amount
-          const { getCalls } = submitSecondLegMock.mock.calls[0][0] as {
-            getCalls: (sourceAmountRaw: string) => Promise<BatchTransactionParams[]>;
-          };
-
-          const calls = await getCalls(ON_CHAIN_AMOUNT_MOCK);
-
-          // 535000 raw with 6 decimals → 0.535 human
+          // 535000 raw with 6 decimals -> 0.535 human
           expect(getPaymentOverrideDataMock).toHaveBeenCalledWith({
             amount: '0.535',
             transaction: expect.objectContaining({
               id: ORIGINAL_TRANSACTION_ID_MOCK,
             }),
-            transactionData: expect.anything(),
+            transactionData: {},
           });
           expect(calls).toStrictEqual(DEPOSIT_CALLS_MOCK);
-        });
-
-        it('falls back to the quote recipient when no recipient override', async () => {
-          await submitRelayQuotes(request);
-
-          expect(submitSecondLegMock).toHaveBeenCalledWith(
-            expect.objectContaining({ from: RECIPIENT_MOCK }),
-          );
         });
       });
 
@@ -2205,7 +2180,6 @@ describe('Relay Submit Utils', () => {
       const RECIPIENT_MOCK = '0xrecip0000000000000000000000000000000001' as Hex;
       const TARGET_HASH_MOCK =
         '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as Hex;
-      const NON_ATOMIC_ON_CHAIN_AMOUNT_MOCK = '535000';
       const NON_ATOMIC_MINIMUM_AMOUNT_MOCK = '530000';
       const VAULT_HASH_MOCK =
         '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex;

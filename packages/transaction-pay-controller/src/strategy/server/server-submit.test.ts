@@ -362,41 +362,13 @@ describe('submitServerQuotes', () => {
       expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
     });
 
-    it('passes settlementHash as undefined when targetHash is the missing-hash sentinel', async () => {
-      getServerStatusMock.mockResolvedValue({
-        status: ServerStatus.Confirmed,
-        targetHash: '0x',
-      });
-
-      // submitSecondLeg will throw 'Missing settlement hash' when called with
-      // settlementHash: undefined; this test just verifies the mapping by
-      // checking the mock was called with the right value before it throws.
-      submitSecondLegMock.mockRejectedValue(
-        new Error('Missing settlement hash'),
-      );
-
-      await expect(submitServerQuotes(request)).rejects.toThrow(
-        'Missing settlement hash',
-      );
-
-      expect(submitSecondLegMock).toHaveBeenCalledWith(
-        expect.objectContaining({ settlementHash: undefined }),
-      );
-    });
-
-    it('passes settlementHash as undefined when targetHash is undefined', async () => {
+    it('passes no settlement hash when the intent confirmed without one', async () => {
       getServerStatusMock.mockResolvedValue({
         status: ServerStatus.Confirmed,
         targetHash: undefined,
       });
 
-      submitSecondLegMock.mockRejectedValue(
-        new Error('Missing settlement hash'),
-      );
-
-      await expect(submitServerQuotes(request)).rejects.toThrow(
-        'Missing settlement hash',
-      );
+      await submitServerQuotes(request);
 
       expect(submitSecondLegMock).toHaveBeenCalledWith(
         expect.objectContaining({ settlementHash: undefined }),

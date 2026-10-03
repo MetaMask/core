@@ -24,13 +24,10 @@ import {
   waitForTransactionConfirmed,
 } from './transaction.js';
 
-const log = createModuleLogger(projectLogger, 'second-leg');
-
 export const SECOND_LEG_ERROR_PREFIX = 'Second leg: ';
 
-/**
- * Builds the second-leg batch for the amount that settled, in raw units.
- */
+const log = createModuleLogger(projectLogger, 'second-leg');
+
 export type SecondLegCallsBuilder = (
   sourceAmountRaw: string,
 ) => Promise<BatchTransactionParams[]>;
@@ -117,6 +114,96 @@ export async function resolveNonAtomicRecipient(
 }
 
 /**
+ * Submits the second leg of a non-atomic flow: the calls that the quote could
+ * not execute itself, run on the target chain once the first leg has settled.
+ *
+ * The single entrypoint for every strategy. The caller decides the chain, the
+ * submitting account, the calls, and whether gas is sponsored, while
+ * transaction-type-specific handling (e.g. {@link withChompRecovery}) is
+ * applied here so it holds whichever strategy settled the funds.
+ *
+ * The amount spent is read from the settlement transaction's transfer logs
+ * rather than trusted from a quote or provider, since slippage and fees mean
+ * the landed amount is only known after settlement. Throws when there is no
+ * settlement hash or no matching transfer, rather than guessing.
+ *
+ * @param options - Submit options.
+ * @param options.chainId - Chain the funds settled on and the batch is
+ * submitted on.
+ * @param options.from - Account that received the settled funds and submits
+ * the batch.
+ * @param options.getCalls - Builds the batch for the settled amount. Derived
+ * from the parent transaction's nested calls when omitted.
+ * @param options.messenger - Controller messenger.
+ * @param options.note - Note recorded against the parent transaction update.
+ * @param options.settlementHash - Hash of the transaction that delivered the
+ * funds to `from`.
+ * @param options.sponsored - Whether gas is sponsored. Defaults to `true`,
+ * since second legs run on chains where MetaMask sponsors gas; submission
+ * fails rather than silently charging the user when sponsorship is refused.
+ * @param options.tokenAddress - Token that settled.
+ * @param options.transaction - Parent transaction meta.
+ * @returns Hash of the final submitted child transaction, if available.
+ */
+export async function submitSecondLeg({
+  chainId,
+  from,
+  getCalls,
+  messenger,
+  note,
+  settlementHash,
+  sponsored = true,
+  tokenAddress,
+  transaction,
+}: {
+  chainId: Hex;
+  from: Hex;
+  getCalls?: SecondLegCallsBuilder;
+  messenger: TransactionPayControllerMessenger;
+  note?: string;
+  settlementHash: Hex | undefined;
+  sponsored?: boolean;
+  tokenAddress: Hex;
+  transaction: TransactionMeta;
+}): Promise<{ transactionHash?: Hex }> {
+  const { amountRaw: sourceAmountRaw, fromBlock } = await resolveSettledAmount({
+    chainId,
+    messenger,
+    recipient: from,
+    settlementHash,
+    tokenAddress,
+  });
+
+  // Resolved up front so the parent transaction reflects the settled amount
+  // even when type-specific handling short-circuits the submission.
+  const nestedTransactions = await resolveSecondLegCalls({
+    getCalls,
+    messenger,
+    note,
+    sourceAmountRaw,
+    transaction,
+  });
+
+  try {
+    return await withChompRecovery(
+      { from, fromBlock, messenger, sourceAmountRaw, transaction },
+      async () =>
+        await submitBatch({
+          chainId,
+          from,
+          messenger,
+          nestedTransactions,
+          sourceAmountRaw,
+          sponsored,
+          transaction,
+        }),
+    );
+  } catch (error) {
+    throw prefixError(error, SECOND_LEG_ERROR_PREFIX);
+  }
+}
+
+/**
  * Resolves the calls to submit as the second leg.
  *
  * Callers with no calls on the parent transaction (e.g. withdraw flows) supply
@@ -134,7 +221,7 @@ export async function resolveNonAtomicRecipient(
  * @param options.transaction - Parent transaction meta.
  * @returns Nested transactions to submit as the second leg.
  */
-export async function resolveSecondLegCalls({
+async function resolveSecondLegCalls({
   getCalls,
   messenger,
   note = 'Second leg: update amount',
@@ -201,98 +288,6 @@ export async function resolveSecondLegCalls({
   });
 
   return nestedTransactions;
-}
-
-/**
- * Submits the second leg of a non-atomic flow: the calls that the quote could
- * not execute itself, run on the target chain once the first leg has settled.
- *
- * The single entrypoint for every strategy. The caller decides the chain, the
- * submitting account, the calls, and whether gas is sponsored, while
- * transaction-type-specific handling (e.g. {@link withChompRecovery}) is
- * applied here so it holds whichever strategy settled the funds.
- *
- * The amount spent is read from the settlement transaction's transfer logs
- * rather than trusted from a quote or provider, since slippage and fees mean
- * the landed amount is only known after settlement. Throws when there is no
- * settlement hash or no matching transfer, rather than guessing.
- *
- * @param options - Submit options.
- * @param options.chainId - Chain the funds settled on and the batch is
- * submitted on.
- * @param options.from - Account that received the settled funds and submits
- * the batch.
- * @param options.getCalls - Builds the batch for the settled amount. Derived
- * from the parent transaction's nested calls when omitted.
- * @param options.messenger - Controller messenger.
- * @param options.note - Note recorded against the parent transaction update.
- * @param options.settlementHash - Hash of the transaction that delivered the
- * funds to `from`.
- * @param options.sponsored - Whether gas is sponsored. Defaults to `true`,
- * since second legs run on chains where MetaMask sponsors gas; submission
- * fails rather than silently charging the user when sponsorship is refused.
- * @param options.tokenAddress - Token that settled.
- * @param options.transaction - Parent transaction meta.
- * @returns Hash of the final submitted child transaction, if available.
- */
-export async function submitSecondLeg({
-  chainId,
-  from,
-  getCalls,
-  messenger,
-  note,
-  settlementHash,
-  sponsored = true,
-  tokenAddress,
-  transaction,
-}: {
-  chainId: Hex;
-  from: Hex;
-  getCalls?: SecondLegCallsBuilder;
-  messenger: TransactionPayControllerMessenger;
-  note?: string;
-  settlementHash: Hex | undefined;
-  sponsored?: boolean;
-  tokenAddress: Hex;
-  transaction: TransactionMeta;
-}): Promise<{ transactionHash?: Hex }> {
-  const { amountRaw: sourceAmountRaw, fromBlock } = await resolveSettledAmount(
-    {
-      chainId,
-      messenger,
-      recipient: from,
-      settlementHash,
-      tokenAddress,
-    },
-  );
-
-  // Resolved up front so the parent transaction reflects the settled amount
-  // even when type-specific handling short-circuits the submission.
-  const nestedTransactions = await resolveSecondLegCalls({
-    getCalls,
-    messenger,
-    note,
-    sourceAmountRaw,
-    transaction,
-  });
-
-  try {
-    return await withChompRecovery(
-      { from, fromBlock, messenger, sourceAmountRaw, transaction },
-      async () =>
-        await submitBatch({
-          chainId,
-          from,
-          messenger,
-          nestedTransactions,
-          sourceAmountRaw,
-          sponsored,
-          transaction,
-        }),
-    );
-  } catch (error) {
-    throw prefixError(error, SECOND_LEG_ERROR_PREFIX);
-  }
 }
 
 /**
