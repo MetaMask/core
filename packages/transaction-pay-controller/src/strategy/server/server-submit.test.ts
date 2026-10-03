@@ -17,10 +17,7 @@ import {
   getServerPollingInterval,
   getServerPollingTimeout,
 } from '../../utils/feature-flags.js';
-import {
-  resolveSettledAmount,
-  submitSecondLeg,
-} from '../../utils/second-leg.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import { getLiveTokenBalance } from '../../utils/token.js';
 import {
   collectTransactionIds,
@@ -309,13 +306,10 @@ describe('submitServerQuotes', () => {
   describe('second leg', () => {
     const SECOND_LEG_HASH_MOCK = '0xsecondleg' as Hex;
     const RECIPIENT_MOCK = '0x9999999999999999999999999999999999999999' as Hex;
-    const SETTLED_AMOUNT_MOCK = '999999';
 
-    const resolveSettledAmountMock = jest.mocked(resolveSettledAmount);
     const submitSecondLegMock = jest.mocked(submitSecondLeg);
 
     beforeEach(() => {
-      resolveSettledAmountMock.mockResolvedValue(SETTLED_AMOUNT_MOCK);
       submitSecondLegMock.mockResolvedValue({
         transactionHash: SECOND_LEG_HASH_MOCK,
       });
@@ -328,21 +322,15 @@ describe('submitServerQuotes', () => {
       request.quotes = [{ ...cloneDeep(QUOTE_MOCK), requiresSecondLeg: true }];
     });
 
-    it('submits the settled amount on the target chain and returns its hash', async () => {
+    it('submits the second leg with the settlement hash and target token address', async () => {
       const result = await submitServerQuotes(request);
 
-      expect(resolveSettledAmountMock).toHaveBeenCalledWith({
-        messenger,
-        recipient: QUOTE_FROM_MOCK,
-        settlementHash: TARGET_HASH_MOCK,
-        targetChainId: '0x1',
-        targetTokenAddress: '0x6666666666666666666666666666666666666666',
-      });
       expect(submitSecondLegMock).toHaveBeenCalledWith({
         chainId: '0x1',
         from: QUOTE_FROM_MOCK,
         messenger,
-        sourceAmountRaw: SETTLED_AMOUNT_MOCK,
+        settlementHash: TARGET_HASH_MOCK,
+        tokenAddress: '0x6666666666666666666666666666666666666666',
         transaction: expect.objectContaining({
           id: ORIGINAL_TRANSACTION_ID_MOCK,
         }),
@@ -361,9 +349,6 @@ describe('submitServerQuotes', () => {
 
       await submitServerQuotes(request);
 
-      expect(resolveSettledAmountMock).toHaveBeenCalledWith(
-        expect.objectContaining({ recipient: RECIPIENT_MOCK }),
-      );
       expect(submitSecondLegMock).toHaveBeenCalledWith(
         expect.objectContaining({ from: RECIPIENT_MOCK }),
       );
@@ -377,18 +362,45 @@ describe('submitServerQuotes', () => {
       expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
     });
 
-    it('throws when the intent confirmed without a settlement hash', async () => {
+    it('passes settlementHash as undefined when targetHash is the missing-hash sentinel', async () => {
+      getServerStatusMock.mockResolvedValue({
+        status: ServerStatus.Confirmed,
+        targetHash: '0x',
+      });
+
+      // submitSecondLeg will throw 'Missing settlement hash' when called with
+      // settlementHash: undefined; this test just verifies the mapping by
+      // checking the mock was called with the right value before it throws.
+      submitSecondLegMock.mockRejectedValue(
+        new Error('Missing settlement hash'),
+      );
+
+      await expect(submitServerQuotes(request)).rejects.toThrow(
+        'Missing settlement hash',
+      );
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({ settlementHash: undefined }),
+      );
+    });
+
+    it('passes settlementHash as undefined when targetHash is undefined', async () => {
       getServerStatusMock.mockResolvedValue({
         status: ServerStatus.Confirmed,
         targetHash: undefined,
       });
 
-      await expect(submitServerQuotes(request)).rejects.toThrow(
-        'Missing settlement hash for second leg',
+      submitSecondLegMock.mockRejectedValue(
+        new Error('Missing settlement hash'),
       );
 
-      expect(submitSecondLegMock).not.toHaveBeenCalled();
-      expect(resolveSettledAmountMock).not.toHaveBeenCalled();
+      await expect(submitServerQuotes(request)).rejects.toThrow(
+        'Missing settlement hash',
+      );
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({ settlementHash: undefined }),
+      );
     });
 
     it('is skipped when the quote embedded the calls', async () => {
@@ -397,7 +409,6 @@ describe('submitServerQuotes', () => {
       const result = await submitServerQuotes(request);
 
       expect(submitSecondLegMock).not.toHaveBeenCalled();
-      expect(resolveSettledAmountMock).not.toHaveBeenCalled();
       expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
     });
   });

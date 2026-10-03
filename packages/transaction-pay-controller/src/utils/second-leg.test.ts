@@ -10,7 +10,6 @@ import {
   resolveExecutionAccount,
   resolveNonAtomicRecipient,
   resolveSecondLegCalls,
-  resolveSettledAmount,
   submitSecondLeg,
 } from './second-leg.js';
 import {
@@ -247,57 +246,13 @@ describe('second-leg', () => {
     });
   });
 
-  describe('resolveSettledAmount', () => {
-    it('returns the amount transferred to the recipient', async () => {
-      getTransferredAmountFromTxHashMock.mockResolvedValue({
-        amountRaw: AMOUNT_MOCK,
-      } as never);
-
-      const result = await resolveSettledAmount({
-        messenger: buildMessenger(),
-        recipient: FROM_MOCK,
-        settlementHash: SETTLEMENT_HASH_MOCK,
-        targetChainId: CHAIN_ID_MOCK,
-        targetTokenAddress: TOKEN_MOCK,
-      });
-
-      expect(result).toBe(AMOUNT_MOCK);
-      expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          chainId: CHAIN_ID_MOCK,
-          tokenAddress: TOKEN_MOCK,
-          txHash: SETTLEMENT_HASH_MOCK,
-          walletAddress: FROM_MOCK,
-        }),
-      );
-    });
-
-    it('throws when no amount can be read from the settlement transaction', async () => {
-      getTransferredAmountFromTxHashMock.mockResolvedValue({
-        amountRaw: undefined,
-      } as never);
-
-      await expect(
-        resolveSettledAmount({
-          messenger: buildMessenger(),
-          recipient: FROM_MOCK,
-          settlementHash: SETTLEMENT_HASH_MOCK,
-          targetChainId: CHAIN_ID_MOCK,
-          targetTokenAddress: TOKEN_MOCK,
-        }),
-      ).rejects.toThrow(
-        `Could not determine settled amount from transaction ${SETTLEMENT_HASH_MOCK}`,
-      );
-    });
-  });
-
   describe('resolveSecondLegCalls', () => {
-    it('returns pre-built calls unchanged without re-encoding', async () => {
+    it('returns calls from getCalls without re-encoding', async () => {
       const calls = [{ data: '0xprebuilt' as Hex, to: '0xtarget' as Hex }];
       const callMock = jest.fn();
 
       const result = await resolveSecondLegCalls({
-        calls,
+        getCalls: async () => calls,
         messenger: buildMessenger(callMock),
         sourceAmountRaw: AMOUNT_MOCK,
         transaction: TRANSACTION_MOCK,
@@ -305,6 +260,31 @@ describe('second-leg', () => {
 
       expect(result).toStrictEqual(calls);
       expect(callMock).not.toHaveBeenCalled();
+    });
+
+    it('calls getCalls with sourceAmountRaw', async () => {
+      const calls = [{ data: '0xprebuilt' as Hex, to: '0xtarget' as Hex }];
+      const getCallsMock = jest.fn().mockResolvedValue(calls);
+
+      await resolveSecondLegCalls({
+        getCalls: getCallsMock,
+        messenger: buildMessenger(),
+        sourceAmountRaw: AMOUNT_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(getCallsMock).toHaveBeenCalledWith(AMOUNT_MOCK);
+    });
+
+    it('throws when getCalls returns empty array', async () => {
+      await expect(
+        resolveSecondLegCalls({
+          getCalls: async () => [],
+          messenger: buildMessenger(),
+          sourceAmountRaw: AMOUNT_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('Missing second leg calls');
     });
 
     it('re-encodes the nested calls for the settled amount', async () => {
@@ -425,6 +405,122 @@ describe('second-leg', () => {
   });
 
   describe('submitSecondLeg', () => {
+    beforeEach(() => {
+      getTransferredAmountFromTxHashMock.mockResolvedValue({
+        amountRaw: AMOUNT_MOCK,
+        blockNumber: FROM_BLOCK_MOCK,
+      });
+    });
+
+    it('throws when settlement hash is missing', async () => {
+      await expect(
+        submitSecondLeg({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          messenger: buildMessenger(),
+          settlementHash: undefined,
+          tokenAddress: TOKEN_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('Missing settlement hash');
+    });
+
+    it('throws when no amount can be read from the settlement transaction', async () => {
+      getTransferredAmountFromTxHashMock.mockResolvedValue({
+        amountRaw: undefined,
+        blockNumber: undefined,
+      });
+
+      await expect(
+        submitSecondLeg({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          messenger: buildMessenger(),
+          settlementHash: SETTLEMENT_HASH_MOCK,
+          tokenAddress: TOKEN_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow(
+        `Could not determine settled amount from transaction ${SETTLEMENT_HASH_MOCK}`,
+      );
+    });
+
+    it('reads the settled amount from the settlement transaction', async () => {
+      await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger: buildMessenger(buildAmountDataCallMock()),
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        tokenAddress: TOKEN_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chainId: CHAIN_ID_MOCK,
+          tokenAddress: TOKEN_MOCK,
+          txHash: SETTLEMENT_HASH_MOCK,
+          walletAddress: FROM_MOCK,
+        }),
+      );
+    });
+
+    it('passes fromBlock (receipt blockNumber) to type-specific handling', async () => {
+      const messenger = buildMessenger(buildAmountDataCallMock());
+
+      await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger,
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        tokenAddress: TOKEN_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(withChompRecoveryMock).toHaveBeenCalledWith(
+        {
+          from: FROM_MOCK,
+          fromBlock: FROM_BLOCK_MOCK,
+          messenger,
+          sourceAmountRaw: AMOUNT_MOCK,
+          transaction: TRANSACTION_MOCK,
+        },
+        expect.any(Function),
+      );
+    });
+
+    it('calls getCalls with the settled amount', async () => {
+      const getCallsMock = jest.fn().mockResolvedValue([
+        { data: '0xcall' as Hex, to: '0xtarget' as Hex },
+      ]);
+
+      await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        getCalls: getCallsMock,
+        messenger: buildMessenger(),
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        tokenAddress: TOKEN_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(getCallsMock).toHaveBeenCalledWith(AMOUNT_MOCK);
+    });
+
+    it('throws when getCalls returns empty array', async () => {
+      await expect(
+        submitSecondLeg({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          getCalls: async () => [],
+          messenger: buildMessenger(),
+          settlementHash: SETTLEMENT_HASH_MOCK,
+          tokenAddress: TOKEN_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('Missing second leg calls');
+    });
+
     it('submits a sponsored batch on the requested chain from the requested account', async () => {
       const callMock = buildAmountDataCallMock();
 
@@ -432,7 +528,8 @@ describe('second-leg', () => {
         chainId: CHAIN_ID_MOCK,
         from: FROM_MOCK,
         messenger: buildMessenger(callMock),
-        sourceAmountRaw: AMOUNT_MOCK,
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        tokenAddress: TOKEN_MOCK,
         transaction: TRANSACTION_MOCK,
       });
 
@@ -475,8 +572,9 @@ describe('second-leg', () => {
         chainId: CHAIN_ID_MOCK,
         from: FROM_MOCK,
         messenger: buildMessenger(callMock),
-        sourceAmountRaw: AMOUNT_MOCK,
+        settlementHash: SETTLEMENT_HASH_MOCK,
         sponsored: false,
+        tokenAddress: TOKEN_MOCK,
         transaction: TRANSACTION_MOCK,
       });
 
@@ -491,7 +589,8 @@ describe('second-leg', () => {
         chainId: CHAIN_ID_MOCK,
         from: FROM_MOCK,
         messenger: buildMessenger(buildAmountDataCallMock()),
-        sourceAmountRaw: AMOUNT_MOCK,
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        tokenAddress: TOKEN_MOCK,
         transaction: TRANSACTION_MOCK,
       });
 
@@ -515,7 +614,8 @@ describe('second-leg', () => {
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
           messenger: buildMessenger(callMock),
-          sourceAmountRaw: AMOUNT_MOCK,
+          settlementHash: SETTLEMENT_HASH_MOCK,
+          tokenAddress: TOKEN_MOCK,
           transaction: TRANSACTION_MOCK,
         }),
       ).rejects.toThrow('Second leg: submit failed');
@@ -526,7 +626,8 @@ describe('second-leg', () => {
         chainId: CHAIN_ID_MOCK,
         from: FROM_MOCK,
         messenger: buildMessenger(buildAmountDataCallMock()),
-        sourceAmountRaw: AMOUNT_MOCK,
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        tokenAddress: TOKEN_MOCK,
         transaction: TRANSACTION_MOCK,
       });
 
@@ -547,30 +648,6 @@ describe('second-leg', () => {
       ]);
     });
 
-    it('applies type-specific handling with the submission context', async () => {
-      const messenger = buildMessenger(buildAmountDataCallMock());
-
-      await submitSecondLeg({
-        chainId: CHAIN_ID_MOCK,
-        from: FROM_MOCK,
-        fromBlock: FROM_BLOCK_MOCK,
-        messenger,
-        sourceAmountRaw: AMOUNT_MOCK,
-        transaction: TRANSACTION_MOCK,
-      });
-
-      expect(withChompRecoveryMock).toHaveBeenCalledWith(
-        {
-          from: FROM_MOCK,
-          fromBlock: FROM_BLOCK_MOCK,
-          messenger,
-          sourceAmountRaw: AMOUNT_MOCK,
-          transaction: TRANSACTION_MOCK,
-        },
-        expect.any(Function),
-      );
-    });
-
     it('updates the parent transaction even when type-specific handling skips submission', async () => {
       withChompRecoveryMock.mockResolvedValue({
         transactionHash: '0xexternal',
@@ -582,7 +659,8 @@ describe('second-leg', () => {
         chainId: CHAIN_ID_MOCK,
         from: FROM_MOCK,
         messenger: buildMessenger(callMock),
-        sourceAmountRaw: AMOUNT_MOCK,
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        tokenAddress: TOKEN_MOCK,
         transaction: TRANSACTION_MOCK,
       });
 
@@ -604,7 +682,8 @@ describe('second-leg', () => {
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
           messenger: buildMessenger(buildAmountDataCallMock()),
-          sourceAmountRaw: AMOUNT_MOCK,
+          settlementHash: SETTLEMENT_HASH_MOCK,
+          tokenAddress: TOKEN_MOCK,
           transaction: TRANSACTION_MOCK,
         }),
       ).rejects.toThrow(/^Second leg: Vault: submit failed$/u);
@@ -618,7 +697,8 @@ describe('second-leg', () => {
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
           messenger: buildMessenger(callMock),
-          sourceAmountRaw: AMOUNT_MOCK,
+          settlementHash: SETTLEMENT_HASH_MOCK,
+          tokenAddress: TOKEN_MOCK,
           transaction: TRANSACTION_MOCK,
         }),
       ).rejects.toThrow(/^No amount updates$/u);
@@ -632,7 +712,8 @@ describe('second-leg', () => {
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
           messenger: buildMessenger(buildAmountDataCallMock()),
-          sourceAmountRaw: AMOUNT_MOCK,
+          settlementHash: SETTLEMENT_HASH_MOCK,
+          tokenAddress: TOKEN_MOCK,
           transaction: TRANSACTION_MOCK,
         }),
       ).rejects.toThrow('Second leg: No transactions submitted');
@@ -648,7 +729,8 @@ describe('second-leg', () => {
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
           messenger: buildMessenger(buildAmountDataCallMock()),
-          sourceAmountRaw: AMOUNT_MOCK,
+          settlementHash: SETTLEMENT_HASH_MOCK,
+          tokenAddress: TOKEN_MOCK,
           transaction: TRANSACTION_MOCK,
         }),
       ).rejects.toThrow('Second leg: Missing transaction hash');
