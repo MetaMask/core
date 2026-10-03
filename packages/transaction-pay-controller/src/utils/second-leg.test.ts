@@ -9,7 +9,6 @@ import { getNetworkClientId } from './provider.js';
 import {
   resolveExecutionAccount,
   resolveNonAtomicRecipient,
-  resolveSecondLegCalls,
   submitSecondLeg,
 } from './second-leg.js';
 import {
@@ -54,12 +53,15 @@ function buildMessenger(
 }
 
 function buildAmountDataCallMock(
-  overrides: { addTransactionBatch?: () => Promise<unknown> } = {},
+  overrides: {
+    addTransactionBatch?: () => Promise<unknown>;
+    updates?: { data: string; nestedTransactionIndex: number }[];
+  } = {},
 ): jest.Mock {
   return jest.fn((action: string) => {
     if (action === 'TransactionPayController:getAmountData') {
       return Promise.resolve({
-        updates: [
+        updates: overrides.updates ?? [
           { data: '0xnewApprove', nestedTransactionIndex: 0 },
           { data: '0xnewDeposit', nestedTransactionIndex: 1 },
         ],
@@ -246,164 +248,6 @@ describe('second-leg', () => {
     });
   });
 
-  describe('resolveSecondLegCalls', () => {
-    it('returns calls from getCalls without re-encoding', async () => {
-      const calls = [{ data: '0xprebuilt' as Hex, to: '0xtarget' as Hex }];
-      const callMock = jest.fn();
-
-      const result = await resolveSecondLegCalls({
-        getCalls: async () => calls,
-        messenger: buildMessenger(callMock),
-        sourceAmountRaw: AMOUNT_MOCK,
-        transaction: TRANSACTION_MOCK,
-      });
-
-      expect(result).toStrictEqual(calls);
-      expect(callMock).not.toHaveBeenCalled();
-    });
-
-    it('calls getCalls with sourceAmountRaw', async () => {
-      const calls = [{ data: '0xprebuilt' as Hex, to: '0xtarget' as Hex }];
-      const getCallsMock = jest.fn().mockResolvedValue(calls);
-
-      await resolveSecondLegCalls({
-        getCalls: getCallsMock,
-        messenger: buildMessenger(),
-        sourceAmountRaw: AMOUNT_MOCK,
-        transaction: TRANSACTION_MOCK,
-      });
-
-      expect(getCallsMock).toHaveBeenCalledWith(AMOUNT_MOCK);
-    });
-
-    it('throws when getCalls returns empty array', async () => {
-      await expect(
-        resolveSecondLegCalls({
-          getCalls: async () => [],
-          messenger: buildMessenger(),
-          sourceAmountRaw: AMOUNT_MOCK,
-          transaction: TRANSACTION_MOCK,
-        }),
-      ).rejects.toThrow('Missing second leg calls');
-    });
-
-    it('re-encodes the nested calls for the settled amount', async () => {
-      const callMock = buildAmountDataCallMock();
-
-      const result = await resolveSecondLegCalls({
-        messenger: buildMessenger(callMock),
-        sourceAmountRaw: AMOUNT_MOCK,
-        transaction: TRANSACTION_MOCK,
-      });
-
-      expect(result).toStrictEqual([
-        { data: '0xnewApprove', to: '0xapprove' },
-        { data: '0xnewDeposit', to: '0xdeposit' },
-      ]);
-    });
-
-    it('updates the parent transaction calls and required asset amount', async () => {
-      const parentTransaction = {
-        ...TRANSACTION_MOCK,
-        nestedTransactions: TRANSACTION_MOCK.nestedTransactions?.map((nt) => ({
-          ...nt,
-        })),
-        requiredAssets: [{ amount: '0x0' }],
-      } as TransactionMeta;
-
-      updateTransactionMock.mockImplementation((_request, callback) => {
-        callback(parentTransaction);
-      });
-
-      await resolveSecondLegCalls({
-        messenger: buildMessenger(buildAmountDataCallMock()),
-        sourceAmountRaw: AMOUNT_MOCK,
-        transaction: TRANSACTION_MOCK,
-      });
-
-      expect(parentTransaction.nestedTransactions).toStrictEqual([
-        { data: '0xnewApprove', to: '0xapprove' },
-        { data: '0xnewDeposit', to: '0xdeposit' },
-      ]);
-      expect(parentTransaction.requiredAssets?.[0].amount).toBe('0x4c4b40');
-    });
-
-    it('ignores updates that target a call index that does not exist', async () => {
-      const parentTransaction = {
-        ...TRANSACTION_MOCK,
-        nestedTransactions: [{ data: '0xoldApprove' }],
-      } as TransactionMeta;
-
-      getTransactionMock.mockReturnValue(parentTransaction);
-      updateTransactionMock.mockImplementation((_request, callback) => {
-        callback(parentTransaction);
-      });
-
-      const callMock = jest.fn(() =>
-        Promise.resolve({
-          updates: [{ data: '0xnew', nestedTransactionIndex: 5 }],
-        }),
-      );
-
-      const result = await resolveSecondLegCalls({
-        messenger: buildMessenger(callMock),
-        sourceAmountRaw: AMOUNT_MOCK,
-        transaction: TRANSACTION_MOCK,
-      });
-
-      expect(result).toStrictEqual([{ data: '0xoldApprove' }]);
-    });
-
-    it('leaves the required asset amount alone when the transaction has none', async () => {
-      const parentTransaction = {
-        ...TRANSACTION_MOCK,
-        nestedTransactions: TRANSACTION_MOCK.nestedTransactions?.map((nt) => ({
-          ...nt,
-        })),
-        requiredAssets: undefined,
-      } as TransactionMeta;
-
-      updateTransactionMock.mockImplementation((_request, callback) => {
-        callback(parentTransaction);
-      });
-
-      await resolveSecondLegCalls({
-        messenger: buildMessenger(buildAmountDataCallMock()),
-        sourceAmountRaw: AMOUNT_MOCK,
-        transaction: TRANSACTION_MOCK,
-      });
-
-      expect(parentTransaction.requiredAssets).toBeUndefined();
-    });
-
-    it('throws when there are no amount updates', async () => {
-      const callMock = jest.fn(() => Promise.resolve({ updates: [] }));
-
-      await expect(
-        resolveSecondLegCalls({
-          messenger: buildMessenger(callMock),
-          sourceAmountRaw: AMOUNT_MOCK,
-          transaction: TRANSACTION_MOCK,
-        }),
-      ).rejects.toThrow('No amount updates');
-    });
-
-    it('throws when the transaction has no nested calls', async () => {
-      getTransactionMock.mockReturnValue({
-        ...TRANSACTION_MOCK,
-        nestedTransactions: undefined,
-      });
-
-      await expect(
-        resolveSecondLegCalls({
-          messenger: buildMessenger(buildAmountDataCallMock()),
-          sourceAmountRaw: AMOUNT_MOCK,
-          transaction: TRANSACTION_MOCK,
-        }),
-      ).rejects.toThrow('Missing nested transactions');
-    });
-  });
-
   describe('submitSecondLeg', () => {
     beforeEach(() => {
       getTransferredAmountFromTxHashMock.mockResolvedValue({
@@ -490,9 +334,9 @@ describe('second-leg', () => {
     });
 
     it('calls getCalls with the settled amount', async () => {
-      const getCallsMock = jest.fn().mockResolvedValue([
-        { data: '0xcall' as Hex, to: '0xtarget' as Hex },
-      ]);
+      const getCallsMock = jest
+        .fn()
+        .mockResolvedValue([{ data: '0xcall' as Hex, to: '0xtarget' as Hex }]);
 
       await submitSecondLeg({
         chainId: CHAIN_ID_MOCK,
@@ -519,6 +363,165 @@ describe('second-leg', () => {
           transaction: TRANSACTION_MOCK,
         }),
       ).rejects.toThrow('Missing second leg calls');
+    });
+
+    it('submits the calls from getCalls without re-encoding the parent calls', async () => {
+      const callMock = buildAmountDataCallMock();
+
+      await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        getCalls: async () => [{ data: '0xprebuilt', to: '0xtarget' }],
+        messenger: buildMessenger(callMock),
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        tokenAddress: TOKEN_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(callMock).not.toHaveBeenCalledWith(
+        'TransactionPayController:getAmountData',
+        expect.anything(),
+      );
+      expect(callMock).toHaveBeenCalledWith(
+        'TransactionController:addTransactionBatch',
+        expect.objectContaining({
+          transactions: [
+            {
+              params: { data: '0xprebuilt', to: '0xtarget', value: '0x0' },
+              type: TransactionType.tokenMethodApprove,
+            },
+          ],
+        }),
+      );
+    });
+
+    it('updates the parent transaction calls and required asset amount', async () => {
+      const parentTransaction = {
+        ...TRANSACTION_MOCK,
+        nestedTransactions: TRANSACTION_MOCK.nestedTransactions?.map((nt) => ({
+          ...nt,
+        })),
+        requiredAssets: [{ amount: '0x0' }],
+      } as TransactionMeta;
+
+      updateTransactionMock.mockImplementation((_request, callback) => {
+        callback(parentTransaction);
+      });
+
+      await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger: buildMessenger(buildAmountDataCallMock()),
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        tokenAddress: TOKEN_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(parentTransaction.nestedTransactions).toStrictEqual([
+        { data: '0xnewApprove', to: '0xapprove' },
+        { data: '0xnewDeposit', to: '0xdeposit' },
+      ]);
+      expect(parentTransaction.requiredAssets?.[0].amount).toBe('0x4c4b40');
+    });
+
+    it('ignores amount updates that target a call index that does not exist', async () => {
+      const parentTransaction = {
+        ...TRANSACTION_MOCK,
+        nestedTransactions: [{ data: '0xoldApprove', to: '0xapprove' }],
+      } as TransactionMeta;
+
+      getTransactionMock.mockImplementation((transactionId) =>
+        transactionId === TRANSACTION_ID_MOCK
+          ? parentTransaction
+          : ({ hash: '0xsecondleg' } as TransactionMeta),
+      );
+      updateTransactionMock.mockImplementation((_request, callback) => {
+        callback(parentTransaction);
+      });
+
+      const callMock = buildAmountDataCallMock({
+        updates: [{ data: '0xnew', nestedTransactionIndex: 5 }],
+      });
+
+      await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger: buildMessenger(callMock),
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        tokenAddress: TOKEN_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(parentTransaction.nestedTransactions).toStrictEqual([
+        { data: '0xoldApprove', to: '0xapprove' },
+      ]);
+      expect(callMock).toHaveBeenCalledWith(
+        'TransactionController:addTransactionBatch',
+        expect.objectContaining({
+          transactions: [
+            {
+              params: { data: '0xoldApprove', to: '0xapprove', value: '0x0' },
+              type: TransactionType.tokenMethodApprove,
+            },
+          ],
+        }),
+      );
+    });
+
+    it('leaves the required asset amount alone when the transaction has none', async () => {
+      const parentTransaction = {
+        ...TRANSACTION_MOCK,
+        nestedTransactions: TRANSACTION_MOCK.nestedTransactions?.map((nt) => ({
+          ...nt,
+        })),
+        requiredAssets: undefined,
+      } as TransactionMeta;
+
+      updateTransactionMock.mockImplementation((_request, callback) => {
+        callback(parentTransaction);
+      });
+
+      await submitSecondLeg({
+        chainId: CHAIN_ID_MOCK,
+        from: FROM_MOCK,
+        messenger: buildMessenger(buildAmountDataCallMock()),
+        settlementHash: SETTLEMENT_HASH_MOCK,
+        tokenAddress: TOKEN_MOCK,
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(parentTransaction.requiredAssets).toBeUndefined();
+    });
+
+    it('throws when there are no amount updates', async () => {
+      await expect(
+        submitSecondLeg({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          messenger: buildMessenger(buildAmountDataCallMock({ updates: [] })),
+          settlementHash: SETTLEMENT_HASH_MOCK,
+          tokenAddress: TOKEN_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('No amount updates');
+    });
+
+    it('throws when the transaction has no nested calls', async () => {
+      getTransactionMock.mockReturnValue({
+        ...TRANSACTION_MOCK,
+        nestedTransactions: undefined,
+      });
+
+      await expect(
+        submitSecondLeg({
+          chainId: CHAIN_ID_MOCK,
+          from: FROM_MOCK,
+          messenger: buildMessenger(buildAmountDataCallMock()),
+          settlementHash: SETTLEMENT_HASH_MOCK,
+          tokenAddress: TOKEN_MOCK,
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('Missing nested transactions');
     });
 
     it('submits a sponsored batch on the requested chain from the requested account', async () => {

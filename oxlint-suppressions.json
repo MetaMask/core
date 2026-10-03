@@ -6584,9 +6584,6 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/fiat/utils.test.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 1
-    },
     "typescript/no-unsafe-argument": {
       "count": 11
     },
@@ -6594,10 +6591,10 @@
       "count": 6
     },
     "typescript/no-unsafe-call": {
-      "count": 10
+      "count": 9
     },
     "typescript/no-unsafe-member-access": {
-      "count": 10
+      "count": 9
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/RelayStrategy.test.ts": {
@@ -6701,14 +6698,11 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit.test.ts": {
-    "no-unused-vars": {
-      "count": 1
-    },
     "typescript/no-unsafe-argument": {
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 37
+      "count": 34
     },
     "typescript/no-unsafe-call": {
       "count": 17

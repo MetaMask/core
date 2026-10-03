@@ -256,6 +256,7 @@ describe('Fiat Utils', () => {
       findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
       getNetworkConfigurationByChainIdMock.mockReturnValue(undefined);
       getNetworkClientByIdMock.mockReturnValue({
+        configuration: { chainId: CHAIN_ID_MOCK },
         provider: PROVIDER_MOCK,
       });
     });
@@ -298,10 +299,6 @@ describe('Fiat Utils', () => {
     });
 
     it('propagates errors from getTransferredAmountFromTxHash', async () => {
-      getNetworkClientByIdMock.mockReturnValue({
-        provider: PROVIDER_MOCK,
-        configuration: { chainId: CHAIN_ID_MOCK },
-      } as unknown as ReturnType<typeof getNetworkClientByIdMock>);
       PROVIDER_MOCK.request.mockRejectedValue(new Error('Network error'));
 
       await expect(
