@@ -1839,7 +1839,7 @@ describe('PerpsController', () => {
           },
         };
         const pendingReads: (() => void)[] = [];
-        let writes = 0;
+        let failuresLeft = failingWrites;
         const handlers: Record<string, (...args: never[]) => unknown> = {
           [GET]: async () => {
             const snapshot = structuredClone(remote);
@@ -1850,8 +1850,8 @@ describe('PerpsController', () => {
         };
         if (withWrite) {
           handlers[PUT] = async (prefs: StoredPrefs) => {
-            writes += 1;
-            if (writes <= failingWrites) {
+            if (failuresLeft > 0) {
+              failuresLeft -= 1;
               throw new Error('AUS server error');
             }
             remote = prefs;
@@ -1860,6 +1860,10 @@ describe('PerpsController', () => {
         return {
           handlers,
           remote: () => remote.perps.watchlistMarkets.hyperliquid,
+          // Make the next `count` writes reject.
+          failNextWrites: (count: number) => {
+            failuresLeft += count;
+          },
           // Answer reads in call order until none are left.
           drain: async () => {
             await flush();
@@ -1974,15 +1978,14 @@ describe('PerpsController', () => {
       });
 
       it.each([
-        ['starred, unstarred and starred again', [], ['BTC']],
-        ['unstarred, starred and unstarred again', ['BTC'], []],
+        ['starred, unstarred and starred again', 'the first', [], 1, ['BTC']],
+        ['unstarred, starred and unstarred again', 'the first', ['BTC'], 1, []],
+        // Only the latest toggle is undone.
+        ['starred, unstarred and starred again', 'every', [], 3, []],
       ])(
-        'keeps the last toggle when a market is %s and the first write fails',
-        async (_case, initial, expected) => {
-          const store = createAusStore({
-            mainnet: initial,
-            failingWrites: 1,
-          });
+        'keeps the last toggle when a market is %s and %s write fails',
+        async (_case, _failing, initial, failingWrites, expected) => {
+          const store = createAusStore({ mainnet: initial, failingWrites });
           const { controller } = buildController({
             mainnetWatchlist: initial,
             handlers: store.handlers,
@@ -2002,6 +2005,44 @@ describe('PerpsController', () => {
           expect(store.remote().mainnet).toStrictEqual(expected);
         },
       );
+
+      it('undoes a failed star on one network when the same market is starred on the other', async () => {
+        const store = createAusStore({ mainnet: [], failingWrites: 1 });
+        const { controller } = buildController({ handlers: store.handlers });
+
+        const mainnetToggle = controller.toggleWatchlistMarket('BTC');
+        controller.testUpdate((state: { isTestnet: boolean }) => {
+          state.isTestnet = true;
+        });
+        const testnetToggle = controller.toggleWatchlistMarket('BTC');
+        await store.drain();
+        await Promise.all([mainnetToggle, testnetToggle]);
+
+        expect(controller.state.watchlistMarkets).toStrictEqual({
+          testnet: ['BTC'],
+          mainnet: [],
+        });
+        expect(store.remote()).toStrictEqual({ testnet: ['BTC'], mainnet: [] });
+      });
+
+      it('undoes a failed toggle after an earlier burst of the same market completed', async () => {
+        const store = createAusStore({ mainnet: [] });
+        const { controller } = buildController({ handlers: store.handlers });
+        const burst = Promise.all([
+          controller.toggleWatchlistMarket('BTC'),
+          controller.toggleWatchlistMarket('BTC'),
+        ]);
+        await store.drain();
+        await burst;
+
+        store.failNextWrites(1);
+        const toggle = controller.toggleWatchlistMarket('BTC');
+        await store.drain();
+        await toggle;
+
+        expect(controller.state.watchlistMarkets.mainnet).toStrictEqual([]);
+        expect(store.remote().mainnet).toStrictEqual([]);
+      });
 
       it('restores an unstarred market at its position when the write fails', async () => {
         const store = createAusStore({
