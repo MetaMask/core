@@ -1983,7 +1983,7 @@ describe('PerpsController', () => {
         // Only the latest toggle is undone.
         ['starred, unstarred and starred again', 'every', [], 3, []],
       ])(
-        'keeps the last toggle when a market is %s and %s write fails',
+        'undoes a failed toggle only when it is the latest, when a market is %s and %s write fails',
         async (_case, _failing, initial, failingWrites, expected) => {
           const store = createAusStore({ mainnet: initial, failingWrites });
           const { controller } = buildController({
