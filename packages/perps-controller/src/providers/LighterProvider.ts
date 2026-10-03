@@ -7748,6 +7748,7 @@ export class LighterProvider implements PerpsProvider {
           onNotDispatched?: () => Promise<void>;
           requireExecution?: boolean;
           onDispatch?: () => void;
+          afterAccepted?: () => Promise<void>;
         },
       ) => Promise<LighterSendTxResponse>,
     ) => Promise<Result>,
@@ -7848,6 +7849,7 @@ export class LighterProvider implements PerpsProvider {
           onNotDispatched?: () => Promise<void>;
           requireExecution?: boolean;
           onDispatch?: () => void;
+          afterAccepted?: () => Promise<void>;
         },
       ): Promise<LighterSendTxResponse> => {
         // Last fence before anything reaches the venue: a switch that
@@ -8030,6 +8032,9 @@ export class LighterProvider implements PerpsProvider {
         // fail: a switch during network submission must cancel the
         // operation, never the record of an accepted venue mutation.
         onAccepted?.();
+        if (identity?.afterAccepted) {
+          await identity.afterAccepted();
+        }
         // POST-SEND ORDER: evaluate the session fence BEFORE the ledger
         // entry transitions, then commit the transition ATOMICALLY in
         // ONE write under the ledger lock — fence pass → consumed/
@@ -8443,6 +8448,56 @@ export class LighterProvider implements PerpsProvider {
       parseLighterScaleGroups(serialized);
       await this.#deps.diskCache.setItem(key, serialized);
       this.#assertSession(generation);
+    });
+  };
+
+  readonly #recordScaleCancellationAcknowledgement = async (
+    key: string,
+    group: LighterScaleGroup,
+    rung: LighterScaleRung,
+    attempt: NonNullable<LighterScaleRung['cancelAttempt']>,
+    acknowledged: boolean,
+  ): Promise<void> => {
+    // Completion evidence belongs to its captured owner even after a session
+    // switch. This updates only an already-persisted exact attempt, never authority.
+    await withStorageMutex(key, async () => {
+      const groups = parseLighterScaleGroups(
+        await this.#deps.diskCache.getItem(key),
+      );
+      const current = groups.find((entry) => entry.groupId === group.groupId);
+      if (
+        !current ||
+        current.walletAddress !== group.walletAddress ||
+        current.network !== group.network ||
+        current.accountIndex !== group.accountIndex ||
+        current.marketId !== group.marketId ||
+        current.apiKeyIndex !== group.apiKeyIndex
+      ) {
+        throw new Error('Lighter Scale acknowledgement ownership mismatch');
+      }
+      const child = current.rungs.find(
+        (entry) => entry.clientOrderId === rung.clientOrderId,
+      );
+      const saved = child?.cancelAttempt;
+      if (saved === undefined) {
+        return;
+      }
+      if (
+        child?.orderId !== rung.orderId ||
+        saved.apiKeyIndex !== attempt.apiKeyIndex ||
+        saved.nonce !== attempt.nonce ||
+        saved.txHash !== attempt.txHash ||
+        saved.expiresAt !== attempt.expiresAt
+      ) {
+        throw new Error('Lighter Scale acknowledgement attempt mismatch');
+      }
+      if (saved.acknowledged === true) {
+        return;
+      }
+      saved.acknowledged = acknowledged;
+      const serialized = JSON.stringify(groups);
+      parseLighterScaleGroups(serialized);
+      await this.#deps.diskCache.setItem(key, serialized);
     });
   };
 
@@ -9091,17 +9146,49 @@ export class LighterProvider implements PerpsProvider {
       }
       const transaction = await this.#clientService.getTx(attempt.txHash);
       this.#assertSession(generation);
-      if (
-        transaction !== null &&
-        typeof transaction.hash === 'string' &&
-        transaction.hash.replace(/^0x/u, '').toLowerCase() === attempt.txHash &&
-        transaction.accountIndex === group.accountIndex &&
-        transaction.apiKeyIndex === attempt.apiKeyIndex &&
-        transaction.nonce === attempt.nonce &&
-        getLighterTransactionOutcome(transaction.status) === 'failed'
+      if (transaction !== null) {
+        const matches =
+          typeof transaction.hash === 'string' &&
+          transaction.hash.replace(/^0x/u, '').toLowerCase() ===
+            attempt.txHash &&
+          transaction.accountIndex === group.accountIndex &&
+          transaction.apiKeyIndex === attempt.apiKeyIndex &&
+          transaction.nonce === attempt.nonce;
+        if (
+          matches &&
+          getLighterTransactionOutcome(transaction.status) === 'failed'
+        ) {
+          delete rung.cancelAttempt;
+        } else if (matches) {
+          // A seen transaction cannot become never-landed through later indexer loss.
+          attempt.acknowledged = true;
+        } else if (attempt.acknowledged !== true) {
+          delete attempt.acknowledged;
+        }
+      } else if (
+        attempt.acknowledged === false &&
+        observed.includes(rung) &&
+        active.orders.some(
+          (row) =>
+            row.clientOrderIndex === rung.clientOrderId &&
+            String(row.orderIndex) === rung.orderId,
+        ) &&
+        Date.now() > attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS
       ) {
-        // Only definitive failure permits a later explicit cancellation attempt.
-        delete rung.cancelAttempt;
+        const nonce = await this.#clientService.getNextNonce(
+          group.accountIndex,
+          attempt.apiKeyIndex,
+        );
+        this.#assertSession(generation);
+        if (
+          Number.isSafeInteger(nonce.nonce) &&
+          nonce.nonce >= 0 &&
+          nonce.nonce <= attempt.nonce
+        ) {
+          // Exact not-found after validity, an unconsumed nonce and a fresh owned
+          // resting row prove this unacknowledged cancellation never landed.
+          delete rung.cancelAttempt;
+        }
       }
     }
     await this.#writeScaleGroup(key, group, generation);
@@ -9667,24 +9754,54 @@ export class LighterProvider implements PerpsProvider {
           ) {
             throw new Error('Invalid Lighter Scale cancellation identity');
           }
-          const attempt = {
+          const attempt: NonNullable<LighterScaleRung['cancelAttempt']> = {
             apiKeyIndex: this.#apiKeyIndex,
             nonce,
             txHash: identity.txHash.replace(/^0x/u, '').toLowerCase(),
             expiresAt: identity.expiresAt,
           };
-          await submit(LIGHTER_TX_TYPE_CANCEL_ORDER, signed.txInfo, undefined, {
-            ...identity,
-            intent: `cancelScale:${group.groupId}:${rung.clientOrderId}`,
-            beforeDispatch: async () => {
-              rung.cancelAttempt = attempt;
-              await this.#writeScaleGroup(key, group, generation);
-            },
-            onNotDispatched: async () => {
-              delete rung.cancelAttempt;
-              await this.#writeScaleGroup(key, group, generation);
-            },
-          });
+          let accepted = false;
+          try {
+            await submit(
+              LIGHTER_TX_TYPE_CANCEL_ORDER,
+              signed.txInfo,
+              () => {
+                accepted = true;
+                attempt.acknowledged = true;
+              },
+              {
+                ...identity,
+                intent: `cancelScale:${group.groupId}:${rung.clientOrderId}`,
+                beforeDispatch: async () => {
+                  rung.cancelAttempt = attempt;
+                  await this.#writeScaleGroup(key, group, generation);
+                },
+                onNotDispatched: async () => {
+                  delete rung.cancelAttempt;
+                  await this.#writeScaleGroup(key, group, generation);
+                },
+                afterAccepted: async () =>
+                  this.#recordScaleCancellationAcknowledgement(
+                    key,
+                    group,
+                    rung,
+                    attempt,
+                    true,
+                  ),
+              },
+            );
+          } catch (error) {
+            if (!accepted) {
+              await this.#recordScaleCancellationAcknowledgement(
+                key,
+                group,
+                rung,
+                attempt,
+                false,
+              );
+            }
+            throw error;
+          }
           cancellations.push(rung);
         }
         if (cancellations.length > 0) {

@@ -202,6 +202,48 @@ describe('Lighter Scale exact builder', () => {
 });
 
 describe('Lighter Scale durable receipt', () => {
+  it.each([undefined, false, true])(
+    'round trips cancellation acknowledgement %s without inferring legacy acceptance',
+    (acknowledged) => {
+      const group = groupFixture();
+      group.rungs[0].cancelAttempt = {
+        apiKeyIndex: 7,
+        nonce: 44,
+        txHash: 'bbbb000000000001',
+        expiresAt: 20000,
+        acknowledged,
+      };
+      const [parsed] = parseLighterScaleGroups(JSON.stringify([group]));
+      expect(parsed.rungs[0].cancelAttempt?.acknowledged).toBe(acknowledged);
+    },
+  );
+
+  it.each([null, 0, 'false'])(
+    'rejects malformed cancellation acknowledgement %s',
+    (acknowledged) => {
+      const group = groupFixture();
+      const raw = {
+        ...group,
+        rungs: [
+          {
+            ...group.rungs[0],
+            cancelAttempt: {
+              apiKeyIndex: 7,
+              nonce: 44,
+              txHash: 'bbbb000000000001',
+              expiresAt: 20000,
+              acknowledged,
+            },
+          },
+          group.rungs[1],
+        ],
+      };
+      expect(() => parseLighterScaleGroups(JSON.stringify([raw]))).toThrow(
+        'Invalid Lighter Scale cancellation attempt',
+      );
+    },
+  );
+
   it('round trips an unresolved cancellation and accepts legacy rungs without one', () => {
     const group = groupFixture();
     expect(parseLighterScaleGroups(JSON.stringify([group]))).toStrictEqual([

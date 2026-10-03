@@ -54,6 +54,7 @@ export type LighterScaleRung = {
   orderId?: string;
   filledSize?: string;
   cancelAttempt?: {
+    acknowledged?: boolean;
     apiKeyIndex: number;
     nonce: number;
     txHash: string;
@@ -602,6 +603,8 @@ export function parseLighterScaleGroups(
           typeof rung.cancelAttempt !== 'object' ||
           rung.orderId === undefined ||
           !group.placementStopped ||
+          (rung.cancelAttempt.acknowledged !== undefined &&
+            typeof rung.cancelAttempt.acknowledged !== 'boolean') ||
           !integer(rung.cancelAttempt.apiKeyIndex) ||
           rung.cancelAttempt.apiKeyIndex < LIGHTER_MIN_TRADING_API_KEY_INDEX ||
           rung.cancelAttempt.apiKeyIndex > LIGHTER_MAX_TRADING_API_KEY_INDEX ||
