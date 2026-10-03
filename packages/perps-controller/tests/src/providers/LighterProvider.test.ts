@@ -2961,6 +2961,225 @@ describe('LighterProvider', () => {
         },
       );
 
+      it('retains an unacknowledged Scale cancellation after mismatched evidence and expired absence', async () => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        const venue = scaleVenue(built);
+        const placed = await built.provider.placeOrder(intent);
+        const second = venue.active.pop();
+        if (!second) {
+          throw new Error('Missing Scale sibling');
+        }
+        venue.history.push({ ...second, status: 'canceled' });
+        const unrelated = {
+          ...second,
+          orderIndex: 9999,
+          clientOrderIndex: second.clientOrderIndex + 1,
+        };
+        venue.active.push(unrelated);
+        built.clientInstance.sendTx.mockRejectedValue(
+          new Error('cancel response lost'),
+        );
+        const params = {
+          symbol: 'BTC',
+          orderId: String(placed.orderId),
+          orderType: 'scale' as const,
+        };
+        expect(await built.provider.cancelOrder(params)).toMatchObject({
+          success: false,
+        });
+        const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
+        const [group] = parseLighterScaleGroups(
+          await infra.diskCache.getItem(key),
+        );
+        const attempt = group.rungs[0].cancelAttempt;
+        if (!attempt) {
+          throw new Error('Missing unacknowledged Scale cancellation');
+        }
+        expect(attempt.acknowledged).toBe(false);
+        built.clientInstance.getTx.mockResolvedValue({
+          code: 200,
+          hash: 'deadbeef',
+          accountIndex: group.accountIndex,
+          apiKeyIndex: attempt.apiKeyIndex,
+          nonce: attempt.nonce,
+          status: Number(LIGHTER_TRANSACTION_STATUS.Failed),
+        });
+        await built.provider.reviewScaleOrderGroups();
+        const unknown = parseLighterScaleGroups(
+          await infra.diskCache.getItem(key),
+        )[0].rungs[0].cancelAttempt;
+        await jest.advanceTimersByTimeAsync(
+          attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS - Date.now() + 1,
+        );
+        built.clientInstance.getTx.mockResolvedValue(null);
+        built.clientInstance.getNextNonce.mockResolvedValue({
+          code: 200,
+          nonce: attempt.nonce,
+        });
+        await built.provider.reviewScaleOrderGroups();
+        const repeated = built.provider.cancelOrder(params);
+        await jest.advanceTimersByTimeAsync(10000);
+        expect(await repeated).toMatchObject({ success: false });
+
+        const expected = { ...attempt };
+        delete expected.acknowledged;
+        expect(unknown).toStrictEqual(expected);
+        expect(
+          parseLighterScaleGroups(await infra.diskCache.getItem(key))[0]
+            .rungs[0].cancelAttempt,
+        ).toStrictEqual(expected);
+        expect(
+          built.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(1);
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(3);
+        expect(venue.active).toStrictEqual([
+          expect.objectContaining({ orderIndex: 800 }),
+          unrelated,
+        ]);
+      });
+
+      it.each(['hash', 'expiry', 'nonce'] as const)(
+        'refuses a malformed signed Scale cancellation %s before ledger append or send',
+        async (field) => {
+          const infra = createMockInfrastructure();
+          const built = buildProvider({
+            registeredKey: '9c'.repeat(40),
+            platformDependencies: infra,
+          });
+          const venue = scaleVenue(built);
+          const placed = await built.provider.placeOrder(intent);
+          const activeBefore = [...venue.active];
+          const execute = jest
+            .mocked(built.bridge)
+            .execute.getMockImplementation();
+          if (!execute) {
+            throw new Error('Missing signer implementation');
+          }
+          jest
+            .mocked(built.bridge)
+            .execute.mockImplementation(
+              async <Operation extends LighterSignerOperation>(
+                call: LighterWasmCall<Operation>,
+              ): Promise<LighterSignerResult<Operation>> => {
+                const result = await execute(call);
+                if (
+                  call.function !== '_signCancelOrder' ||
+                  !('txInfo' in result) ||
+                  typeof result.txInfo !== 'string'
+                ) {
+                  return result;
+                }
+                const wire = JSON.parse(result.txInfo) as Record<
+                  string,
+                  unknown
+                >;
+                if (field === 'expiry') {
+                  wire.ExpiredAt = 0;
+                }
+                if (field === 'nonce') {
+                  delete wire.Nonce;
+                }
+                return {
+                  ...result,
+                  ...(field === 'hash' ? { txHash: 'invalid' } : {}),
+                  txInfo: JSON.stringify(wire),
+                } as LighterSignerResult<Operation>;
+              },
+            );
+          const writes = jest.spyOn(infra.diskCache, 'setItem');
+          expect(
+            await built.provider.cancelOrder({
+              symbol: 'BTC',
+              orderId: String(placed.orderId),
+              orderType: 'scale',
+            }),
+          ).toMatchObject({
+            success: false,
+            error: 'Invalid Lighter Scale cancellation identity',
+          });
+          const cancelEntries = writes.mock.calls
+            .filter(([key]) => key === 'lighterNonceLedger:testnet:28:7')
+            .flatMap(([, value]) => {
+              const ledger = JSON.parse(value) as {
+                entries: { kind: number }[];
+              };
+              return ledger.entries.filter(
+                (entry) => entry.kind === LIGHTER_TX_TYPE_CANCEL_ORDER,
+              );
+            });
+          expect(cancelEntries).toStrictEqual([]);
+          expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(2);
+          expect(venue.active).toStrictEqual(activeBefore);
+          const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
+          expect(
+            parseLighterScaleGroups(
+              await infra.diskCache.getItem(key),
+            )[0].rungs.every((rung) => rung.cancelAttempt === undefined),
+          ).toBe(true);
+        },
+      );
+
+      it.each(['owner', 'attempt'] as const)(
+        'rejects Scale acknowledgement after its persisted %s is rewritten',
+        async (field) => {
+          const infra = createMockInfrastructure();
+          const built = buildProvider({
+            registeredKey: '9c'.repeat(40),
+            platformDependencies: infra,
+          });
+          const venue = scaleVenue(built);
+          const placed = await built.provider.placeOrder(intent);
+          const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
+          let rewritten:
+            | ReturnType<typeof parseLighterScaleGroups>[number]
+            | undefined;
+          built.clientInstance.sendTx.mockImplementation(async () => {
+            const groups = parseLighterScaleGroups(
+              await infra.diskCache.getItem(key),
+            );
+            const [group] = groups;
+            const attempt = group.rungs[0].cancelAttempt;
+            if (!attempt) {
+              throw new Error('Missing persisted Scale cancellation');
+            }
+            if (field === 'owner') {
+              group.accountIndex += 1;
+            } else {
+              attempt.nonce += 1;
+            }
+            rewritten = group;
+            await infra.diskCache.setItem(key, JSON.stringify(groups));
+            return { code: 200, txHash: 'accepted' };
+          });
+          const cancellation = built.provider.cancelOrder({
+            symbol: 'BTC',
+            orderId: String(placed.orderId),
+            orderType: 'scale',
+          });
+          await jest.advanceTimersByTimeAsync(10000);
+          expect(await cancellation).toMatchObject({
+            success: false,
+            error: `Lighter Scale acknowledgement ${field === 'owner' ? 'ownership' : 'attempt'} mismatch`,
+          });
+          expect(rewritten?.rungs[0].cancelAttempt).toBeDefined();
+          expect(
+            parseLighterScaleGroups(await infra.diskCache.getItem(key))[0],
+          ).toStrictEqual(rewritten);
+          expect(
+            rewritten?.rungs[0].cancelAttempt?.acknowledged,
+          ).toBeUndefined();
+          expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(3);
+          expect(
+            built.calls.filter((call) => call.function === '_signCancelOrder'),
+          ).toHaveLength(1);
+          expect(venue.active).toHaveLength(2);
+        },
+      );
+
       it('retains Scale cancellation identity before transport and retries only exact failure', async () => {
         const infra = createMockInfrastructure();
         const built = buildProvider({
@@ -34145,6 +34364,109 @@ describe('Lighter bounded Chase provider probe', () => {
     await assertRestoredChaseCleanup(stopped);
     expect(stopped.local.children).toStrictEqual(stopped.retained.children);
   });
+  it.each([
+    LIGHTER_TRANSACTION_STATUS.Pending,
+    LIGHTER_TRANSACTION_STATUS.PendingFinal,
+    LIGHTER_TRANSACTION_STATUS.Executed,
+  ])(
+    'keeps exact-seen Chase acceptance after response loss, expired absence and restart outcome=%s',
+    async (outcome) => {
+      jest.useFakeTimers();
+      try {
+        const deps = diskDependencies();
+        const original = setup({
+          platformDependencies: deps,
+          configuredAccountIndex: null,
+        });
+        const placed = await original.provider.placeOrder(intent);
+        if (!placed.orderId || !placed.success) {
+          throw new Error(placed.error ?? 'Missing Chase placement');
+        }
+        const handle = placed.orderId;
+        const retained = (await original.provider.getNativeChaseRecords())[0];
+        bindRetainedChaseLookup(original, retained, () => false);
+        original.clientInstance.getTx.mockResolvedValue(null);
+        original.clientInstance.sendTx.mockRejectedValueOnce(
+          new Error('cancel response lost'),
+        );
+        const cancel = (): ReturnType<typeof original.provider.cancelOrder> =>
+          original.provider.cancelOrder(cancelParams(handle));
+        const firstCancellation = cancel();
+        await jest.advanceTimersByTimeAsync(10000);
+        expect((await firstCancellation).success).toBe(false);
+        const attempted = (await original.provider.getNativeChaseRecords())[0];
+        const dispatch = attempted.children[0].cancellations[0];
+        if (
+          !dispatch.expiresAt ||
+          !dispatch.txHash ||
+          dispatch.nonce === undefined
+        ) {
+          throw new Error('Missing Chase cancellation identity');
+        }
+        expect(dispatch.phase).toBe('attempted');
+        original.clientInstance.getTx.mockResolvedValue({
+          code: 200,
+          hash: dispatch.txHash,
+          accountIndex: attempted.intent.owner.accountIndex,
+          apiKeyIndex: attempted.intent.owner.apiKeyIndex,
+          nonce: dispatch.nonce,
+          status: outcome,
+        });
+        const observingAcceptance = cancel();
+        await jest.advanceTimersByTimeAsync(10000);
+        expect((await observingAcceptance).success).toBe(false);
+        const seen = (await original.provider.getNativeChaseRecords())[0];
+        await original.provider.disconnect();
+        await jest.advanceTimersByTimeAsync(
+          dispatch.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS - Date.now() + 1,
+        );
+        for (let restart = 0; restart < 2; restart += 1) {
+          const restored = setup({
+            platformDependencies: deps,
+            configuredAccountIndex: null,
+          });
+          bindRetainedChaseLookup(restored, attempted, () => false);
+          restored.clientInstance.getTx.mockResolvedValue(null);
+          try {
+            const cancellation = restored.provider.cancelOrder(
+              cancelParams(placed.orderId),
+            );
+            await jest.advanceTimersByTimeAsync(10000);
+            expect((await cancellation).success).toBe(false);
+            const current = (
+              await restored.provider.getNativeChaseRecords()
+            )[0];
+            expect(current.children[0].cancellations).toStrictEqual([
+              { ...dispatch, phase: 'acknowledged' },
+            ]);
+            expect(current.executedSize).toBe(attempted.executedSize);
+            expect(current.executedNotional).toBe(attempted.executedNotional);
+            expect(
+              restored.calls.filter(
+                (call) => call.function === '_signCancelOrder',
+              ),
+            ).toStrictEqual([]);
+            expect(restored.clientInstance.sendTx).not.toHaveBeenCalled();
+          } finally {
+            await restored.provider.disconnect();
+          }
+        }
+        expect(seen.children[0].cancellations).toStrictEqual([
+          { ...dispatch, phase: 'acknowledged' },
+        ]);
+        expect(
+          original.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(1);
+        expect(
+          original.clientInstance.sendTx.mock.calls.filter(
+            ([kind]) => kind === LIGHTER_TX_TYPE_CANCEL_ORDER,
+          ),
+        ).toHaveLength(1);
+      } finally {
+        jest.useRealTimers();
+      }
+    },
+  );
   it('preserves a real attempted cancellation through absent stops and refuses an unknown duplicate after restart', async () => {
     jest.useFakeTimers();
     try {
@@ -34159,6 +34481,7 @@ describe('Lighter bounded Chase provider probe', () => {
       }
       const retained = (await original.provider.getNativeChaseRecords())[0];
       bindRetainedChaseLookup(original, retained, () => false);
+      original.clientInstance.getTx.mockResolvedValue(null);
       original.clientInstance.sendTx.mockRejectedValueOnce(
         new Error('cancel response lost'),
       );
@@ -34227,7 +34550,7 @@ describe('Lighter bounded Chase provider probe', () => {
         expect(
           (await restored.provider.getNativeChaseRecords())[0].children[0]
             .cancellations,
-        ).toStrictEqual(attempted.children[0].cancellations);
+        ).toStrictEqual([{ ...dispatch, phase: 'acknowledged' }]);
         terminal = true;
         expect(
           (await restored.provider.cancelOrder(cancelParams(placed.orderId)))

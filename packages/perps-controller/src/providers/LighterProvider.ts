@@ -12127,6 +12127,9 @@ export class LighterProvider implements PerpsProvider {
       }
       if (getLighterTransactionOutcome(transaction.status) === 'failed') {
         dispatch.phase = 'failed';
+      } else {
+        // Exact venue evidence survives later indexer loss, including restart.
+        dispatch.phase = 'acknowledged';
       }
     };
     const quote = async (): Promise<string> => {
