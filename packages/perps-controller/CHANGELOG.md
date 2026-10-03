@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export `LIGHTER_SCALE_SETTLEMENT_WINDOW_MS`, `LIGHTER_SCALE_SETTLEMENT_POLL_MS`, `LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS` and `LIGHTER_CHASE_CANCEL_SETTLEMENT_POLL_MS` through the `constants` and `constants/lighterConfig` package entrypoints for shared settlement policy ([#10638](https://github.com/MetaMask/core/pull/10638)).
+
 - Support explicit independent Lighter partial TP/SL pairs, including captured full-position siblings, through cancellation-first durable per-leg dispatch. Expose supported pair linkages and role-bound protection receipts without changing native OCO defaults ([#10638](https://github.com/MetaMask/core/pull/10638)).
 
 - Support explicit Lighter `marginMode` selections with required leverage, authoritative position/order locks and exact mode transaction execution before dependent exposure. Ready active perpetual capabilities report both native modes ([#10638](https://github.com/MetaMask/core/pull/10638)).
@@ -75,7 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Give Lighter Scale placement and cancellation a dedicated ten-second visibility window. Wait for exact Chase cancellation settlement and reconcile retained cancellation attempts without signing or sending again, preserving session authority and cumulative fill evidence ([#10638](https://github.com/MetaMask/core/pull/10638)).
+- Give Lighter Scale placement a dedicated ten-second visibility window and share one ten-second deadline across a group's exact child cancellations. Wait for exact Chase cancellation settlement and reconcile retained cancellation attempts without signing or sending again, preserving session authority and cumulative fill evidence ([#10638](https://github.com/MetaMask/core/pull/10638)).
 
 - Recognize and cancel exact Lighter Chase children when the venue order nonce differs from the signed transaction nonce, preserving transaction and order ownership checks ([#10638](https://github.com/MetaMask/core/pull/10638)).
 

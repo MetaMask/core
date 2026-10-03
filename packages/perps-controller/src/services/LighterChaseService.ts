@@ -29,6 +29,8 @@ import {
   LIGHTER_CHASE_QUOTE_MAX_AGE_MS,
   LIGHTER_CHASE_HANDLE_MAX_LENGTH,
   LIGHTER_MAX_TRADING_API_KEY_INDEX,
+  LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS,
+  LIGHTER_CHASE_CANCEL_SETTLEMENT_POLL_MS,
 } from '../constants/lighterConfig.js';
 import type {
   ChaseOrder,
@@ -151,12 +153,6 @@ export type LighterChaseIo = {
 };
 /** Accepted dispatches may precede their exact order snapshot. */
 export class LighterChaseObservationPendingError extends Error {}
-
-/** Read-only settlement budget after an exact Chase cancellation dispatch. */
-const LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS = 10_000;
-
-/** Delay between exact-child reads, without another sign or send. */
-const LIGHTER_CHASE_CANCEL_SETTLEMENT_POLL_MS = 250;
 
 const queues = new Map<string, Promise<unknown>>();
 
@@ -733,15 +729,12 @@ export class LighterChaseService {
     child: LighterChaseChild,
     io: LighterChaseIo,
   ): Promise<void> {
-    const startedAt = Date.now();
+    const startedAt = io.now();
     const deadline = startedAt + LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS;
-    for (
-      let poll = 0;
-      poll <=
+    const maxPolls =
       LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS /
-        LIGHTER_CHASE_CANCEL_SETTLEMENT_POLL_MS;
-      poll += 1
-    ) {
+      LIGHTER_CHASE_CANCEL_SETTLEMENT_POLL_MS;
+    for (let poll = 0; poll <= maxPolls; poll += 1) {
       io.assertCurrent();
       try {
         await this.#observe(record, child, io);
@@ -760,8 +753,8 @@ export class LighterChaseService {
       ) {
         return;
       }
-      const now = Date.now();
-      if (now < startedAt || now >= deadline) {
+      const now = io.now();
+      if (poll === maxPolls || now < startedAt || now >= deadline) {
         return;
       }
       await new Promise((resolve) =>

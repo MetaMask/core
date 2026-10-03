@@ -2382,21 +2382,30 @@ describe('LighterProvider', () => {
           );
           expect(
             built.calls.filter((call) => call.function === '_signCancelOrder'),
-          ).toHaveLength(placed ? 1 : 0);
+          ).toHaveLength(placed ? 2 : 0);
           expect(
             built.calls.filter((call) => call.function === '_signCreateOrder'),
           ).toHaveLength(placed ? 2 : 1);
         },
       );
 
-      it('keeps cancellation timeout unresolved and later settles without replay', async () => {
+      it('bounds two-rung cancellation to one shared window and later settles without replay', async () => {
         const built = buildProvider({ registeredKey: '9c'.repeat(40) });
         const venue = scaleVenue(built);
         const placed = await built.provider.placeOrder(intent);
         const stale = [...venue.active];
+        const unrelated = {
+          ...stale[0],
+          orderIndex: 9999,
+          clientOrderIndex:
+            Math.max(...stale.map((row) => Number(row.clientOrderIndex))) + 1,
+        };
+        venue.active.push(unrelated);
+        const readsBefore =
+          built.clientInstance.getActiveOrders.mock.calls.length;
         built.clientInstance.getActiveOrders.mockResolvedValue({
           code: 200,
-          orders: stale,
+          orders: [...stale, unrelated],
         });
         built.clientInstance.getInactiveOrders.mockResolvedValue({
           code: 200,
@@ -2413,9 +2422,10 @@ describe('LighterProvider', () => {
             finished = true;
             return result;
           });
-        await jest.advanceTimersByTimeAsync(19999);
+        await jest.advanceTimersByTimeAsync(9999);
         expect(finished).toBe(false);
         await jest.advanceTimersByTimeAsync(1);
+        expect(finished).toBe(true);
         expect(await canceling).toMatchObject({
           success: false,
           error: 'Lighter Scale cancellation remains unresolved',
@@ -2425,6 +2435,19 @@ describe('LighterProvider', () => {
             .filter((call) => call.function === '_signCancelOrder')
             .map((call) => call.params[2]),
         ).toStrictEqual(['800', '801']);
+        expect(
+          built.calls
+            .filter((call) => call.function === '_signCancelOrder')
+            .map((call) => call.params[3]),
+        ).toStrictEqual([44, 45]);
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(4);
+        expect(
+          built.clientInstance.getActiveOrders.mock.calls.length - readsBefore,
+        ).toBeLessThanOrEqual(45);
+        expect(venue.active).toStrictEqual([unrelated]);
+        expect((await built.provider.getScaleOrderGroups())[0].state).toBe(
+          'stopped',
+        );
         built.clientInstance.getActiveOrders.mockResolvedValue({
           code: 200,
           orders: venue.active,
@@ -3201,48 +3224,60 @@ describe('LighterProvider', () => {
     );
 
     it('retires an acknowledged invisible child after restart and expiry without financial setup', async () => {
-      const infra = createMockInfrastructure();
-      const first = buildProvider({
-        registeredKey: '9c'.repeat(40),
-        platformDependencies: infra,
-      });
-      first.clientInstance.getActiveOrders.mockResolvedValue({
-        code: 200,
-        orders: [],
-      });
-      first.clientInstance.getInactiveOrders.mockResolvedValue({
-        code: 200,
-        orders: [],
-      });
-      const result = await first.provider.placeOrder(intent);
-      const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
-      const [group] = parseLighterScaleGroups(
-        await infra.diskCache.getItem(key),
-      );
-      const restarted = buildProvider({
-        registeredKey: '9c'.repeat(40),
-        platformDependencies: infra,
-      });
-      scaleVenue(restarted);
-      const clock = jest
-        .spyOn(Date, 'now')
-        .mockReturnValue(Number(group.rungs[0].expiresAt) + 31_000);
+      jest.useFakeTimers();
       try {
-        expect(
-          (
-            await restarted.provider.cancelOrder({
-              symbol: 'BTC',
-              orderId: String(result.orderId),
-              orderType: 'scale',
-            })
-          ).success,
-        ).toBe(true);
-        expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
-        expect(
-          restarted.calls.filter((call) => call.function.startsWith('_sign')),
-        ).toStrictEqual([]);
+        const infra = createMockInfrastructure();
+        const first = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        first.clientInstance.getActiveOrders.mockResolvedValue({
+          code: 200,
+          orders: [],
+        });
+        first.clientInstance.getInactiveOrders.mockResolvedValue({
+          code: 200,
+          orders: [],
+        });
+        const placing = first.provider.placeOrder(intent);
+        await jest.advanceTimersByTimeAsync(10000);
+        const result = await placing;
+        expect(result).toMatchObject({
+          success: false,
+          submittedSize: '0.0005',
+        });
+        expect(first.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
+        const [group] = parseLighterScaleGroups(
+          await infra.diskCache.getItem(key),
+        );
+        const restarted = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        scaleVenue(restarted);
+        const clock = jest
+          .spyOn(Date, 'now')
+          .mockReturnValue(Number(group.rungs[0].expiresAt) + 31_000);
+        try {
+          expect(
+            (
+              await restarted.provider.cancelOrder({
+                symbol: 'BTC',
+                orderId: String(result.orderId),
+                orderType: 'scale',
+              })
+            ).success,
+          ).toBe(true);
+          expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+          expect(
+            restarted.calls.filter((call) => call.function.startsWith('_sign')),
+          ).toStrictEqual([]);
+        } finally {
+          clock.mockRestore();
+        }
       } finally {
-        clock.mockRestore();
+        jest.useRealTimers();
       }
     });
 
@@ -3513,40 +3548,62 @@ describe('LighterProvider', () => {
     });
 
     it('waits for lagged cancellation without signing duplicate cancels', async () => {
-      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
-      const venue = scaleVenue(built);
-      const result = await built.provider.placeOrder(intent);
-      const send = built.clientInstance.sendTx.getMockImplementation();
-      let lagged: LighterApiOrder | undefined;
-      let reads = 0;
-      built.clientInstance.sendTx.mockImplementation(
-        async (...args: unknown[]) => {
-          lagged = venue.active[0];
-          reads = 0;
-          await send?.(...args);
-          return { code: 200, txHash: '0xsent' };
-        },
-      );
-      built.clientInstance.getActiveOrders.mockImplementation(async () => {
-        reads += 1;
-        return {
+      jest.useFakeTimers();
+      try {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const venue = scaleVenue(built);
+        const result = await built.provider.placeOrder(intent);
+        const stale = [...venue.active];
+        const send = built.clientInstance.sendTx.getMockImplementation();
+        let canceledAt: number | undefined;
+        built.clientInstance.sendTx.mockImplementation(
+          async (...args: unknown[]) => {
+            canceledAt = Date.now();
+            await send?.(...args);
+            return { code: 200, txHash: '0xsent' };
+          },
+        );
+        const visibilityPending = (): boolean =>
+          canceledAt !== undefined && Date.now() - canceledAt < 750;
+        built.clientInstance.getActiveOrders.mockImplementation(async () => ({
           code: 200,
-          orders:
-            lagged && reads < 3 ? [lagged, ...venue.active] : [...venue.active],
-        };
-      });
-      expect(
-        (
-          await built.provider.cancelOrder({
+          orders: visibilityPending() ? [...stale] : [...venue.active],
+        }));
+        built.clientInstance.getInactiveOrders.mockImplementation(async () => ({
+          code: 200,
+          orders: visibilityPending() ? [] : [...venue.history],
+        }));
+        let finished = false;
+        const canceling = built.provider
+          .cancelOrder({
             symbol: 'BTC',
             orderId: String(result.orderId),
             orderType: 'scale',
           })
-        ).success,
-      ).toBe(true);
-      expect(
-        built.calls.filter((call) => call.function === '_signCancelOrder'),
-      ).toHaveLength(2);
+          .then((receipt) => {
+            finished = true;
+            return receipt;
+          });
+        await jest.advanceTimersByTimeAsync(749);
+        expect(finished).toBe(false);
+        await jest.advanceTimersByTimeAsync(1);
+        expect(await canceling).toMatchObject({ success: true });
+        expect(
+          built.calls
+            .filter((call) => call.function === '_signCancelOrder')
+            .map((call) => [call.params[2], call.params[3]]),
+        ).toStrictEqual([
+          ['800', 44],
+          ['801', 45],
+        ]);
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(4);
+        expect((await built.provider.reviewScaleOrderGroups())[0].state).toBe(
+          'terminal',
+        );
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(4);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it.each([7, 8])(
@@ -3724,89 +3781,104 @@ describe('LighterProvider', () => {
     ] as const)(
       'does not abandon acknowledged absence with %s',
       async (control) => {
-        const infra = createMockInfrastructure();
-        const built = buildProvider({
-          registeredKey: '9c'.repeat(40),
-          platformDependencies: infra,
-        });
-        built.clientInstance.getActiveOrders.mockResolvedValue({
-          code: 200,
-          orders: [],
-        });
-        built.clientInstance.getInactiveOrders.mockResolvedValue({
-          code: 200,
-          orders: [],
-        });
-        const placed = await built.provider.placeOrder(intent);
-        const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
-        const [group] = parseLighterScaleGroups(
-          await infra.diskCache.getItem(key),
-        );
-        const clock = jest
-          .spyOn(Date, 'now')
-          .mockReturnValue(
-            control === 'unexpired'
-              ? Number(group.rungs[0].expiresAt) - 1
-              : Number(group.rungs[0].expiresAt) + 31_000,
-          );
-        if (control === 'incomplete-history') {
+        jest.useFakeTimers();
+        try {
+          const infra = createMockInfrastructure();
+          const built = buildProvider({
+            registeredKey: '9c'.repeat(40),
+            platformDependencies: infra,
+          });
+          built.clientInstance.getActiveOrders.mockResolvedValue({
+            code: 200,
+            orders: [],
+          });
           built.clientInstance.getInactiveOrders.mockResolvedValue({
             code: 200,
             orders: [],
-            nextCursor: 'more',
           });
-        }
-        if (control === 'mismatched-hash') {
-          built.clientInstance.getTx.mockResolvedValue({
-            code: 200,
-            hash: 'ff',
-            accountIndex: 28,
-            apiKeyIndex: 7,
-            nonce: group.rungs[0].nonce,
-            status: 2,
+          const placing = built.provider.placeOrder(intent);
+          await jest.advanceTimersByTimeAsync(9999);
+          expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+          await jest.advanceTimersByTimeAsync(1);
+          const placed = await placing;
+          expect(placed).toMatchObject({
+            success: false,
+            submittedSize: '0.0005',
           });
-        }
-        if (control === 'unscoped-active' || control === 'unscoped-history') {
-          const row: LighterApiOrder = {
-            orderIndex: 700,
-            clientOrderIndex: 1000,
-            marketIndex: 1,
-            ownerAccountIndex: 29,
-            initialBaseAmount: '0.001',
-            remainingBaseAmount: '0.001',
-            price: '100000',
-            isAsk: false,
-            type: 'limit',
-            timeInForce: 'good-till-time',
-            reduceOnly: 0,
-            status: 'open',
-            orderExpiry: 0,
-            timestamp: Date.now(),
-          };
-          const endpoint =
-            control === 'unscoped-active'
-              ? built.clientInstance.getActiveOrders
-              : built.clientInstance.getInactiveOrders;
-          endpoint.mockResolvedValue({ code: 200, orders: [row] });
-        }
-        try {
-          expect(
-            (
-              await built.provider.cancelOrder({
-                symbol: 'BTC',
-                orderId: String(placed.orderId),
-                orderType: 'scale',
-              })
-            ).success,
-          ).toBe(false);
-          expect((await built.provider.getScaleOrderGroups())[0].state).toBe(
-            'unknown',
+          const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
+          const [group] = parseLighterScaleGroups(
+            await infra.diskCache.getItem(key),
           );
-          expect(
-            built.calls.filter((call) => call.function === '_signCancelOrder'),
-          ).toHaveLength(0);
+          const clock = jest
+            .spyOn(Date, 'now')
+            .mockReturnValue(
+              control === 'unexpired'
+                ? Number(group.rungs[0].expiresAt) - 1
+                : Number(group.rungs[0].expiresAt) + 31_000,
+            );
+          if (control === 'incomplete-history') {
+            built.clientInstance.getInactiveOrders.mockResolvedValue({
+              code: 200,
+              orders: [],
+              nextCursor: 'more',
+            });
+          }
+          if (control === 'mismatched-hash') {
+            built.clientInstance.getTx.mockResolvedValue({
+              code: 200,
+              hash: 'ff',
+              accountIndex: 28,
+              apiKeyIndex: 7,
+              nonce: group.rungs[0].nonce,
+              status: 2,
+            });
+          }
+          if (control === 'unscoped-active' || control === 'unscoped-history') {
+            const row: LighterApiOrder = {
+              orderIndex: 700,
+              clientOrderIndex: 1000,
+              marketIndex: 1,
+              ownerAccountIndex: 29,
+              initialBaseAmount: '0.001',
+              remainingBaseAmount: '0.001',
+              price: '100000',
+              isAsk: false,
+              type: 'limit',
+              timeInForce: 'good-till-time',
+              reduceOnly: 0,
+              status: 'open',
+              orderExpiry: 0,
+              timestamp: Date.now(),
+            };
+            const endpoint =
+              control === 'unscoped-active'
+                ? built.clientInstance.getActiveOrders
+                : built.clientInstance.getInactiveOrders;
+            endpoint.mockResolvedValue({ code: 200, orders: [row] });
+          }
+          try {
+            expect(
+              (
+                await built.provider.cancelOrder({
+                  symbol: 'BTC',
+                  orderId: String(placed.orderId),
+                  orderType: 'scale',
+                })
+              ).success,
+            ).toBe(false);
+            expect((await built.provider.getScaleOrderGroups())[0].state).toBe(
+              'unknown',
+            );
+            expect(
+              built.calls.filter(
+                (call) => call.function === '_signCancelOrder',
+              ),
+            ).toHaveLength(0);
+          } finally {
+            clock.mockRestore();
+          }
         } finally {
-          clock.mockRestore();
+          jest.useRealTimers();
         }
       },
     );
@@ -4538,22 +4610,36 @@ describe('LighterProvider', () => {
     });
 
     it('stops after an acknowledged child without authoritative acceptance', async () => {
-      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
-      built.clientInstance.getActiveOrders.mockResolvedValue({
-        code: 200,
-        orders: [],
-      });
-      built.clientInstance.getInactiveOrders.mockResolvedValue({
-        code: 200,
-        orders: [],
-      });
-      const result = await built.provider.placeOrder(intent);
-      expect(result.success).toBe(false);
-      expect(result.acceptedSize).toBeUndefined();
-      expect(result.submittedSize).toBe('0.0005');
-      expect(
-        built.calls.filter((call) => call.function === '_signCreateOrder'),
-      ).toHaveLength(1);
+      jest.useFakeTimers();
+      try {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        built.clientInstance.getActiveOrders.mockResolvedValue({
+          code: 200,
+          orders: [],
+        });
+        built.clientInstance.getInactiveOrders.mockResolvedValue({
+          code: 200,
+          orders: [],
+        });
+        let finished = false;
+        const placing = built.provider.placeOrder(intent).then((result) => {
+          finished = true;
+          return result;
+        });
+        await jest.advanceTimersByTimeAsync(9999);
+        expect(finished).toBe(false);
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        await jest.advanceTimersByTimeAsync(1);
+        const result = await placing;
+        expect(result.success).toBe(false);
+        expect(result.acceptedSize).toBeUndefined();
+        expect(result.submittedSize).toBe('0.0005');
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('rechecks margin after signing and refuses dispatch if funds disappeared', async () => {

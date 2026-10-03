@@ -431,6 +431,19 @@ export const LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT = 20;
 
 /** Shared bounded testnet native-probe notional ceiling, in USD. */
 export const LIGHTER_NATIVE_PROBE_MAX_NOTIONAL = 20;
+
+/** Settlement budget shared by every cancellation in one Scale group. */
+export const LIGHTER_SCALE_SETTLEMENT_WINDOW_MS = 10_000;
+
+/** Read-only Scale visibility cadence, also used after each placement. */
+export const LIGHTER_SCALE_SETTLEMENT_POLL_MS = 250;
+
+/** Read-only settlement budget after an exact Chase cancellation dispatch. */
+export const LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS = 10_000;
+
+/** Delay between exact Chase child reads, without another sign or send. */
+export const LIGHTER_CHASE_CANCEL_SETTLEMENT_POLL_MS = 250;
+
 /** Bounded Chase policy, distinct from native wire limits. */
 export const LIGHTER_CHASE_DEFAULT_INTERVAL_MS = 15_000;
 export const LIGHTER_CHASE_DEFAULT_DURATION_MS = 60_000;

@@ -81,6 +81,8 @@ import {
   LIGHTER_USDC_ASSET_INDEX,
   LIGHTER_DATA_INTEGRITY_PREFIX,
   LIGHTER_MARGIN_METADATA_TTL_MS,
+  LIGHTER_SCALE_SETTLEMENT_WINDOW_MS,
+  LIGHTER_SCALE_SETTLEMENT_POLL_MS,
   parseLighterStrictDecimal,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
@@ -1186,12 +1188,6 @@ const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
 
 /** Bounded attempts for TP/SL settlement visibility. */
 const LIGHTER_TPSL_SETTLE_ATTEMPTS = 10;
-
-/** Scale indexer settlement window after one exact create or cancel dispatch. */
-const LIGHTER_SCALE_SETTLEMENT_WINDOW_MS = 10_000;
-
-/** Read-only Scale visibility cadence, independent of TP/SL settlement. */
-const LIGHTER_SCALE_SETTLEMENT_POLL_MS = 250;
 
 /** Convert authoritative position percentage or default basis points to leverage.
  * @param positionMargin - Position margin percentage, when a position exists.
@@ -9083,22 +9079,19 @@ export class LighterProvider implements PerpsProvider {
     token: string,
     generation: number,
     settled: () => boolean,
+    deadline = Date.now() + LIGHTER_SCALE_SETTLEMENT_WINDOW_MS,
   ): Promise<void> => {
     const startedAt = Date.now();
-    const deadline = startedAt + LIGHTER_SCALE_SETTLEMENT_WINDOW_MS;
-    for (
-      let poll = 0;
-      poll <=
+    const maxPolls =
       LIGHTER_SCALE_SETTLEMENT_WINDOW_MS / LIGHTER_SCALE_SETTLEMENT_POLL_MS;
-      poll += 1
-    ) {
+    for (let poll = 0; poll <= maxPolls; poll += 1) {
       this.#assertSession(generation);
       await this.#refreshScaleGroup(group, key, token, generation, true);
       if (settled()) {
         return;
       }
       const now = Date.now();
-      if (now < startedAt || now >= deadline) {
+      if (poll === maxPolls || now < startedAt || now >= deadline) {
         return;
       }
       await new Promise((resolve) =>
@@ -9599,6 +9592,11 @@ export class LighterProvider implements PerpsProvider {
         group.placementStopped = true;
         await this.#writeScaleGroup(key, group, generation);
         await this.#refreshScaleGroup(group, key, token, generation, true);
+        // One group deadline includes every authorized child cancellation.
+        // Dispatch each exact child once before polling the whole group.
+        const settlementDeadline =
+          Date.now() + LIGHTER_SCALE_SETTLEMENT_WINDOW_MS;
+        const cancellations: LighterScaleRung[] = [];
         for (const rung of group.rungs) {
           if (
             ['prepared', 'filled', 'canceled', 'rejected'].includes(rung.state)
@@ -9624,12 +9622,16 @@ export class LighterProvider implements PerpsProvider {
             ...extractDispatchIdentity(signed),
             intent: `cancelScale:${group.groupId}:${rung.clientOrderId}`,
           });
+          cancellations.push(rung);
+        }
+        if (cancellations.length > 0) {
           await this.#awaitScaleVisibility(
             group,
             key,
             token,
             generation,
-            () => rung.state !== 'resting',
+            () => cancellations.every((rung) => rung.state !== 'resting'),
+            settlementDeadline,
           );
         }
         await this.#refreshScaleGroup(group, key, token, generation, true);

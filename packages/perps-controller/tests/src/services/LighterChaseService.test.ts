@@ -131,10 +131,14 @@ const setup = (): TestEnvironment => {
 
 describe('Lighter bounded Chase lifecycle', () => {
   describe('bounded Chase cancellation settlement', () => {
-    beforeEach(() => jest.useFakeTimers());
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(100000);
+    });
     afterEach(() => jest.useRealTimers());
 
     const pendingCancel = async (env: TestEnvironment): Promise<void> => {
+      env.io.now = (): number => Date.now();
       await env.service.start(intent, env.io);
       jest.mocked(env.io.cancel).mockImplementation(async (_child, hooks) => {
         await hooks.signed({
@@ -280,6 +284,31 @@ describe('Lighter bounded Chase lifecycle', () => {
       expect(env.io.cancel).toHaveBeenCalledTimes(1);
       expect(env.io.place).toHaveBeenCalledTimes(1);
     });
+
+    it.each(['deadline', 'backwards'] as const)(
+      'uses the injected cancellation clock for a %s change',
+      async (change) => {
+        const env = setup();
+        await pendingCancel(env);
+        let injectedNow = 100000;
+        env.io.now = (): number => injectedNow;
+        let finished = false;
+        const stopping = env.service
+          .stop(owner, intent.handle, env.io, 'canceled')
+          .then((result) => {
+            finished = true;
+            return result;
+          });
+        await jest.advanceTimersByTimeAsync(0);
+        expect(finished).toBe(false);
+        injectedNow = change === 'deadline' ? 110000 : 99999;
+        await jest.advanceTimersByTimeAsync(250);
+        expect(finished).toBe(true);
+        expect((await stopping).status).toBe('termination_pending');
+        expect(env.io.cancel).toHaveBeenCalledTimes(1);
+        expect(env.io.place).toHaveBeenCalledTimes(1);
+      },
+    );
 
     it('persists partial fills during settlement and retains them in the terminal receipt', async () => {
       const env = setup();
