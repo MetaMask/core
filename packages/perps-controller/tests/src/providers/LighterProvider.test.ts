@@ -31176,7 +31176,7 @@ describe('Lighter bounded Chase provider probe', () => {
               status: canceled ? 'canceled' : 'open',
               orderExpiry: expiry,
               timestamp: 1,
-              nonce: Number(create.params[11]),
+              nonce: 2075941,
             },
           ],
         };
@@ -31376,7 +31376,7 @@ describe('Lighter bounded Chase provider probe', () => {
                 status: canceled ? 'canceled' : 'open',
                 orderExpiry: 9999999999999,
                 timestamp: 1,
-                nonce: Number(create.params[11]),
+                nonce: 2075941,
               },
             ],
           };
@@ -32858,7 +32858,7 @@ describe('Lighter bounded Chase provider probe', () => {
                 status: terminal() ? 'canceled' : 'open',
                 orderExpiry,
                 timestamp: 1,
-                nonce: child.placement.nonce,
+                nonce: 2075941,
               },
             ]
           : [],
@@ -33275,6 +33275,125 @@ describe('Lighter bounded Chase provider probe', () => {
       jest.useRealTimers();
     }
   });
+  it.each(['open', 'canceled'] as const)(
+    'recovers a legacy nonce-mismatch Chase child that is now %s without replacing it',
+    async (status) => {
+      const deps = diskDependencies();
+      const original = setup({ platformDependencies: deps });
+      const placed = await original.provider.placeOrder(intent);
+      if (!placed.orderId || !placed.success) {
+        throw new Error('Missing placed Chase handle');
+      }
+      const record = (await original.provider.getNativeChaseRecords())[0];
+      const child = record.children[0];
+      const exact = await original.clientInstance.getOrdersByClientIds(
+        record.intent.owner.accountIndex,
+        'test-token',
+        [child.clientOrderId],
+      );
+      await original.provider.disconnect();
+      const key = `lighterChase:${JSON.stringify([
+        record.intent.owner.network,
+        record.intent.owner.wallet,
+        record.intent.owner.accountIndex,
+      ])}`;
+      delete child.observation;
+      record.status = 'termination_pending';
+      record.stopReason = 'failed';
+      record.error = 'Lighter Chase child identity mismatch';
+      await deps.diskCache.setItem(
+        key,
+        JSON.stringify({ version: 1, records: [record] }),
+      );
+      const restarted = setup({ platformDependencies: deps });
+      restarted.clientInstance.getOrdersByClientIds.mockImplementation(
+        async () => ({
+          code: 200,
+          orders: exact.orders.map((row: LighterApiOrder) => ({
+            ...row,
+            status: restarted.calls.some(
+              (call) => call.function === '_signCancelOrder',
+            )
+              ? 'canceled'
+              : status,
+          })),
+        }),
+      );
+      try {
+        expect(
+          await restarted.provider.cancelOrder(cancelParams(placed.orderId)),
+        ).toMatchObject({ success: true });
+        expect(
+          (await restarted.provider.getNativeChaseRecords())[0],
+        ).toMatchObject({
+          status: 'failed',
+          stopReason: 'failed',
+          executedSize: '0',
+          children: [{ observation: { orderId: '9001', terminal: true } }],
+        });
+        expect(
+          restarted.calls.filter(
+            (call) => call.function === '_signCreateOrder',
+          ),
+        ).toHaveLength(0);
+        expect(
+          restarted.calls.filter(
+            (call) => call.function === '_signCancelOrder',
+          ),
+        ).toHaveLength(status === 'open' ? 1 : 0);
+      } finally {
+        await restarted.provider.disconnect();
+      }
+    },
+  );
+  it.each(['hash', 'accountIndex', 'apiKeyIndex', 'nonce'] as const)(
+    'refuses a foreign %s in Chase placement transaction evidence',
+    async (field) => {
+      const built = setup();
+      built.clientInstance.getOrdersByClientIds.mockResolvedValue({
+        code: 200,
+        orders: [],
+      });
+      built.clientInstance.getTx.mockImplementation(async (hash: string) => {
+        const create = built.calls.find(
+          (call) => call.function === '_signCreateOrder',
+        );
+        if (!create) {
+          throw new Error('Missing signed create order');
+        }
+        const transaction = {
+          code: 200,
+          hash,
+          accountIndex: 28,
+          apiKeyIndex: 7,
+          nonce: Number(create.params[11]),
+          status: 2,
+        };
+        return {
+          ...transaction,
+          [field]: field === 'hash' ? 'foreign' : transaction[field] + 1,
+        };
+      });
+      try {
+        const result = await built.provider.placeOrder(intent);
+        expect(result.success).toBe(false);
+        expect((await built.provider.getNativeChaseRecords())[0]).toMatchObject(
+          {
+            status: 'termination_pending',
+            error: 'Lighter Chase transaction identity mismatch',
+          },
+        );
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+        expect(
+          built.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(0);
+      } finally {
+        await built.provider.disconnect();
+      }
+    },
+  );
   it.each(['failed', 'expired'] as const)(
     'settles a %s never-landed Chase placement across restart',
     async (outcome) => {
@@ -33453,7 +33572,7 @@ describe('Lighter bounded Chase provider probe', () => {
               status: 'open',
               orderExpiry: Date.now() + 100000,
               timestamp: 1,
-              nonce: original.children[0].placement.nonce,
+              nonce: 2075941,
             },
           ],
         }),
@@ -33802,7 +33921,7 @@ describe('Lighter bounded Chase provider probe', () => {
       await built.provider.disconnect();
     },
   );
-  it.each(['owner', 'reread'] as const)(
+  it.each(['owner', 'order', 'client', 'market', 'reread'] as const)(
     'refuses a changed %s snapshot without settling or replacing',
     async (mode) => {
       const built = setup();
@@ -33824,14 +33943,27 @@ describe('Lighter bounded Chase provider probe', () => {
           };
           return {
             ...result,
-            orders: result.orders.map((row) =>
-              mode === 'owner'
-                ? { ...row, ownerAccountIndex: 29 }
-                : {
+            orders: result.orders.map((row) => {
+              switch (mode) {
+                case 'owner':
+                  return { ...row, ownerAccountIndex: 29 };
+                case 'order':
+                  return { ...row, orderIndex: 9002, orderId: '9002' };
+                case 'client':
+                  return {
+                    ...row,
+                    clientOrderIndex: 101,
+                    clientOrderId: '101',
+                  };
+                case 'market':
+                  return { ...row, marketIndex: 2 };
+                default:
+                  return {
                     ...row,
                     timestamp: row.timestamp + Number(reads % 2 === 0),
-                  },
-            ),
+                  };
+              }
+            }),
           };
         },
       );
@@ -33851,7 +33983,7 @@ describe('Lighter bounded Chase provider probe', () => {
         built.clientInstance.sendTx.mock.calls.filter(
           ([kind]) => kind === LIGHTER_TX_TYPE_CANCEL_ORDER,
         ),
-      ).toHaveLength(mode === 'owner' ? 0 : 1);
+      ).toHaveLength(mode === 'reread' ? 1 : 0);
       await built.provider.disconnect();
     },
   );

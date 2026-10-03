@@ -841,6 +841,7 @@ export type LighterApiOrder = {
   filledBaseAmount?: string;
   filledQuoteAmount?: string;
   clientOrderId?: string;
+  /** Venue order nonce, independent of the signing API key transaction nonce. */
   nonce?: number;
   createdAt?: number;
   updatedAt?: number;

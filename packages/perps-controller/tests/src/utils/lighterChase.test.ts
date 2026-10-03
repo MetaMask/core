@@ -4,6 +4,7 @@ import type {
   LighterRestTrade,
 } from '../../../src/types/lighter-types.js';
 import {
+  identifyLighterChaseChild,
   readLighterChaseQuote,
   reconcileLighterChaseChild,
 } from '../../../src/utils/lighterChase.js';
@@ -127,6 +128,50 @@ describe('Lighter Chase native book and fill accounting', () => {
       ),
     ).toThrow('identity');
   });
+  it.each([2075941, undefined])(
+    'identifies a signed child independently of venue order nonce %s',
+    (nonce) => {
+      expect(
+        identifyLighterChaseChild(intent, child, { ...order, nonce }),
+      ).toBe('9001');
+      expect(
+        reconcileLighterChaseChild(intent, child, { ...order, nonce }, [trade]),
+      ).toMatchObject({
+        orderId: '9001',
+        terminal: true,
+        filledSize: '0.00005',
+      });
+    },
+  );
+  it.each([
+    { ownerAccountIndex: 99 },
+    { marketIndex: 2 },
+    { clientOrderIndex: 101, clientOrderId: '101' },
+    { orderId: '9002' },
+    { clientOrderId: '101' },
+    { initialBaseAmount: '0.0003' },
+    { price: '100001' },
+    { isAsk: true },
+    { timeInForce: 'good-till-time' },
+    { type: 'market' },
+    { reduceOnly: 1 },
+  ])(
+    'rejects foreign immutable order identity %j despite an independent nonce',
+    (override) => {
+      expect(() =>
+        identifyLighterChaseChild(intent, child, {
+          ...order,
+          nonce: 2075941,
+          ...override,
+        }),
+      ).toThrow('identity');
+    },
+  );
+  it('still requires a persisted signed child nonce', () => {
+    expect(() =>
+      identifyLighterChaseChild(intent, { ...child, nonce: undefined }, order),
+    ).toThrow('identity');
+  });
   it('accounts canceled partial fills from exact individual trades', () => {
     expect(
       reconcileLighterChaseChild(intent, child, order, [
@@ -168,9 +213,12 @@ describe('Lighter Chase native book and fill accounting', () => {
       'totals',
     );
     expect(() =>
-      reconcileLighterChaseChild(intent, child, { ...order, nonce: 9 }, [
-        trade,
-      ]),
+      reconcileLighterChaseChild(
+        intent,
+        child,
+        { ...order, ownerAccountIndex: 99 },
+        [trade],
+      ),
     ).toThrow('identity');
     expect(() =>
       reconcileLighterChaseChild(intent, child, order, [

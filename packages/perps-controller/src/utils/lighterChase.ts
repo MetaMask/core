@@ -232,6 +232,8 @@ export function reconcileLighterChaseChild(
 
 /**
  * Validate exact immutable child ownership independently of execution reads.
+ * Venue order nonces are not API-key transaction nonces. The provider verifies
+ * the signed nonce against exact transaction evidence during dispatch recovery.
  *
  * @param intent - Immutable session ownership.
  * @param child - Persisted signed child.
@@ -260,7 +262,6 @@ export function identifyLighterChaseChild(
     order.timeInForce !== 'post-only' ||
     Boolean(order.reduceOnly) !== intent.reduceOnly ||
     child.nonce === undefined ||
-    order.nonce !== child.nonce ||
     !amount(order.initialBaseAmount).eq(child.size) ||
     !amount(order.price).eq(child.price)
   ) {

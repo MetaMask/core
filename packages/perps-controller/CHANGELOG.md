@@ -75,6 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Recognize and cancel exact Lighter Chase children when the venue order nonce differs from the signed transaction nonce, preserving transaction and order ownership checks ([#10638](https://github.com/MetaMask/core/pull/10638)).
+
 - Wait for bounded exact transaction and order settlement after an accepted Lighter native edit, without signing or sending the edit again. Preserve pending outcomes when visibility does not settle within the polling bound ([#10638](https://github.com/MetaMask/core/pull/10638)).
 
 - Wait for bounded exact transaction execution reads before completing Lighter margin mode and collateral updates, without resubmitting pending transactions ([#10638](https://github.com/MetaMask/core/pull/10638)).
