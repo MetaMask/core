@@ -31,9 +31,6 @@ export enum ServerUnsupportedReason {
   /** Two-phase max-amount gas station probing is not implemented. */
   MaxAmount = 'maxAmount',
 
-  /** Non-atomic multi-leg submission is not implemented. */
-  NonAtomic = 'nonAtomic',
-
   /** Polymarket deposit-wallet routing is not implemented. */
   PolymarketDepositWallet = 'polymarketDepositWallet',
 }
@@ -94,10 +91,6 @@ export function getServerUnsupportedReason({
 function getRequestUnsupportedReason(
   request: QuoteRequest,
 ): ServerUnsupportedReason | undefined {
-  if (request.atomic === false) {
-    return ServerUnsupportedReason.NonAtomic;
-  }
-
   if (request.hyperliquidActivationFeeUsd !== undefined) {
     return ServerUnsupportedReason.HyperliquidActivationFee;
   }

@@ -91,7 +91,9 @@ describe('FiatStrategy', () => {
 
     it('preserves nested Post-Ramp and Vault prefixes', async () => {
       submitFiatQuotesMock.mockRejectedValue(
-        new Error('Post-Ramp: Direct mUSD: Vault: Missing transaction hash'),
+        new Error(
+          'Post-Ramp: Direct mUSD: Second leg: Vault: Missing transaction hash',
+        ),
       );
 
       await expect(
@@ -102,7 +104,7 @@ describe('FiatStrategy', () => {
           transaction: { txParams: { from: '0x1' } } as TransactionMeta,
         }),
       ).rejects.toThrow(
-        'Fiat: Post-Ramp: Direct mUSD: Vault: Missing transaction hash',
+        'Fiat: Post-Ramp: Direct mUSD: Second leg: Vault: Missing transaction hash',
       );
     });
   });

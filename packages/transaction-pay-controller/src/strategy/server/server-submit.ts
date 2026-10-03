@@ -31,6 +31,7 @@ import {
   resolveGasPayment,
 } from '../../utils/gas-payment.js';
 import { getNetworkClientId } from '../../utils/provider.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -54,6 +55,13 @@ import type {
 import { ServerStatus } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-strategy');
+
+/**
+ * Placeholder returned when an intent confirms without reporting a
+ * target-chain transaction hash, so there is no settlement to read amounts
+ * from.
+ */
+const MISSING_TARGET_HASH = '0x' as Hex;
 
 const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
   name: { name: 'name', type: 'string' },
@@ -161,6 +169,25 @@ async function executeSingleServerQuote(
       tx.isIntentComplete = true;
     },
   );
+
+  // Phase 4: submit the calls the quote could not execute itself, now that the
+  // funds have settled on the target chain.
+  if (quote.requiresSecondLeg) {
+    const { from, recipient, targetChainId, targetTokenAddress } =
+      quote.request;
+
+    const { transactionHash } = await submitSecondLeg({
+      chainId: targetChainId,
+      from: recipient ?? from,
+      messenger,
+      settlementHash:
+        targetHash === MISSING_TARGET_HASH ? undefined : targetHash,
+      tokenAddress: targetTokenAddress,
+      transaction,
+    });
+
+    return { transactionHash: transactionHash ?? targetHash };
+  }
 
   return { transactionHash: targetHash };
 }
@@ -992,7 +1019,7 @@ async function waitForServerCompletion(
       }
 
       if (statusResponse.status === ServerStatus.Confirmed) {
-        return statusResponse.targetHash ?? '0x';
+        return statusResponse.targetHash ?? MISSING_TARGET_HASH;
       }
 
       if (

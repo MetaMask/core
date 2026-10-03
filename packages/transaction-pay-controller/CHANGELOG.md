@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support submitting target calls as a separate second leg when the quote provider cannot execute them ([#10501](https://github.com/MetaMask/core/pull/10501))
+  - Add `requiresSecondLeg` to `TransactionPayQuote`.
+  - `ServerStrategy` now supports non-atomic requests.
+  - Non-atomic quotes settle funds on the account that executes the calls.
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
+- Fail fiat and second-leg submissions when the settled amount cannot be read from an on-chain transaction, rather than falling back to `order.cryptoAmount` or the quote minimum ([#10501](https://github.com/MetaMask/core/pull/10501))
 
 ### Fixed
 
