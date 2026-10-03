@@ -1216,6 +1216,13 @@ export class PerpsController extends BaseController<
    */
   readonly #watchlistEditsDuringHydration = new Set<WatchlistEdit[]>();
 
+  /**
+   * Latest toggle number per `network:symbol` whose write is still pending,
+   * so a failed write is undone only when no later toggle of the same market
+   * has superseded it.
+   */
+  readonly #pendingWatchlistToggles = new Map<string, number>();
+
   #userDiskWrite: Promise<void> = Promise.resolve();
 
   // Store options for dependency injection (allows core package to inject platform-specific services)
@@ -7158,6 +7165,12 @@ export class PerpsController extends BaseController<
     for (const edits of this.#watchlistEditsDuringHydration) {
       edits.push({ network: currentNetwork, symbol, add: !isWatchlisted });
     }
+    const toggleKey = `${currentNetwork}:${symbol}`;
+    const toggleNumber =
+      (this.#pendingWatchlistToggles.get(toggleKey) ?? 0) + 1;
+    this.#pendingWatchlistToggles.set(toggleKey, toggleNumber);
+    const isLatestToggle = (): boolean =>
+      this.#pendingWatchlistToggles.get(toggleKey) === toggleNumber;
 
     this.#getMetrics().trackPerpsEvent(PerpsAnalyticsEvent.UiInteraction, {
       [PERPS_EVENT_PROPERTY.INTERACTION_TYPE]:
@@ -7191,6 +7204,11 @@ export class PerpsController extends BaseController<
           action: isWatchlisted ? 'remove' : 'add',
         }),
       );
+      // A later toggle of the same market decides its state; its own write
+      // persists it.
+      if (!isLatestToggle()) {
+        return;
+      }
       // Undo only this toggle. The list may have changed since it was made
       // (hydration, other toggles), so restoring the earlier snapshot would
       // discard those changes.
@@ -7211,6 +7229,10 @@ export class PerpsController extends BaseController<
           );
         }
       });
+    } finally {
+      if (isLatestToggle()) {
+        this.#pendingWatchlistToggles.delete(toggleKey);
+      }
     }
   }
 

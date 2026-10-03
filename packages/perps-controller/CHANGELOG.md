@@ -41,8 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The "Chain ID not found" error for the rewards discount now includes the `getNetworkClientById` failure that caused it
   - `RemoteFeatureFlagController:getState` in the constructor and `startEligibilityMonitoring`, `GeolocationController`, `KeyringController` and `TransactionController` are unchanged and still report errors
 - Keep watchlist toggles made while an AuthenticatedUserStorageService hydration is queued or in flight, applying them on top of the remote watchlist instead of overwriting them with it ([#10665](https://github.com/MetaMask/core/pull/10665), [#10670](https://github.com/MetaMask/core/pull/10670))
-  - A hydration started by `toggleTestnet()` or `switchProvider()` now waits for earlier watchlist writes, so it no longer drops a star made just before it
-- Undo only the failed toggle when a watchlist write to AuthenticatedUserStorageService fails, instead of restoring the watchlist from before that toggle, which also discarded hydrated markets and later toggles; an unstarred market goes back to its position ([#10670](https://github.com/MetaMask/core/pull/10670))
+  - A hydration started by a re-initialization (`init()` after `disconnect()`, `toggleTestnet()`, `switchProvider()`) now waits for earlier watchlist writes, so it no longer drops a star made just before it. A hydration read that never settles now also holds later watchlist writes, instead of being abandoned by the next re-initialization
+- Undo only the failed toggle when syncing a watchlist toggle to AuthenticatedUserStorageService fails, instead of restoring the watchlist from before that toggle, which also discarded hydrated markets and later toggles of other markets ([#10670](https://github.com/MetaMask/core/pull/10670))
+  - An unstarred market goes back to its position
+  - A toggle is not undone when a later toggle of the same market supersedes it; that toggle's own sync decides the market's state
 
 ## [19.0.0]
 
