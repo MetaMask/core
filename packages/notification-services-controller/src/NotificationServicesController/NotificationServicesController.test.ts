@@ -52,6 +52,7 @@ import {
   DEFAULT_AGENTIC_CLI_PREFERENCES,
   DEFAULT_PERPS_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
+  DEFAULT_SUBSCRIPTION_PREFERENCES,
   DEFAULT_SOCIAL_AI_PREFERENCES,
   NotificationServicesController,
   ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS,
@@ -114,6 +115,7 @@ const mockPreferences = (
   },
   agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
   priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
+  subscriptions: { ...DEFAULT_SUBSCRIPTION_PREFERENCES },
   ...overrides,
 });
 
@@ -699,6 +701,7 @@ describe('NotificationServicesController', () => {
           socialAI: { ...DEFAULT_SOCIAL_AI_PREFERENCES },
           agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
           priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
+          subscriptions: { ...DEFAULT_SUBSCRIPTION_PREFERENCES },
         });
         // Every address this installation holds, including the one whose
         // wallet-activity subscription is disabled.
