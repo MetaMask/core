@@ -75,6 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Wait for bounded exact transaction execution reads before completing Lighter margin mode and collateral updates, without resubmitting pending transactions ([#10638](https://github.com/MetaMask/core/pull/10638)).
+
 - Retire the exact HyperLiquid agent signature when a post-signing guard refuses dispatch, preserving the original wallet attribution, other pending requests and the guard error ([#10638](https://github.com/MetaMask/core/pull/10638)).
 
 - Select and persist the bounded testnet Chase child's final book quote after preparation and nonce acquisition, retaining five-second quote freshness, original duration and dispatch safety checks ([#10638](https://github.com/MetaMask/core/pull/10638)).

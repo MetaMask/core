@@ -8731,7 +8731,7 @@ describe('LighterProvider', () => {
       });
 
       it.each(['cross', 'isolated'] as const)(
-        'submits %s only after its exact mode transaction executes',
+        'waits for pending %s mode execution before submitting exposure',
         async (marginMode) => {
           const { provider, clientInstance, calls } = buildProvider({
             registeredKey: '9c'.repeat(40),
@@ -8748,7 +8748,9 @@ describe('LighterProvider', () => {
               },
             ],
           });
+          let reads = 0;
           clientInstance.getTx.mockImplementation(async (hash: string) => {
+            reads += 1;
             const call = calls.find(
               (entry) => entry.function === '_signUpdateLeverage',
             );
@@ -8758,7 +8760,7 @@ describe('LighterProvider', () => {
               accountIndex: 28,
               apiKeyIndex: 7,
               nonce: call?.params.at(-1),
-              status: 2,
+              status: reads === 1 ? 1 : 2,
             };
           });
           expect(
@@ -8768,7 +8770,11 @@ describe('LighterProvider', () => {
             calls.find((call) => call.function === '_signUpdateLeverage')
               ?.params[3],
           ).toBe(mode);
-          expect(clientInstance.getTx).toHaveBeenCalledTimes(1);
+          expect(clientInstance.getTx).toHaveBeenCalledTimes(2);
+          expect(clientInstance.sendTx).toHaveBeenCalledTimes(2);
+          expect(
+            calls.filter((call) => call.function === '_signUpdateLeverage'),
+          ).toHaveLength(1);
           expect(
             calls.filter((call) => call.function === '_signCreateOrder'),
           ).toHaveLength(1);
@@ -22291,6 +22297,136 @@ describe('LighterProvider', () => {
     });
 
     describe('isolated margin settlement', () => {
+      describe('bounded exact margin execution polling', () => {
+        beforeEach(() => jest.useFakeTimers());
+        afterEach(() => jest.useRealTimers());
+
+        function setup(): BuiltProvider & {
+          exact: (hash: string, status: number) => Record<string, unknown>;
+        } {
+          const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+          built.clientInstance.getAccountByIndex.mockResolvedValue({
+            code: 200,
+            accounts: [
+              {
+                ...ACCOUNT,
+                positions: [
+                  {
+                    ...ACCOUNT.positions[0],
+                    marginMode: 1,
+                    allocatedMargin: '2000',
+                  },
+                ],
+              },
+            ],
+          });
+          const exact = (
+            hash: string,
+            status: number,
+          ): Record<string, unknown> => ({
+            code: 200,
+            hash,
+            accountIndex: 28,
+            apiKeyIndex: 7,
+            nonce: built.calls
+              .find((call) => call.function === '_signUpdateMargin')
+              ?.params.at(-1),
+            status,
+          });
+          return { ...built, exact };
+        }
+
+        it('waits for pending then executed without signing or sending twice', async () => {
+          const built = setup();
+          built.clientInstance.getTx
+            .mockImplementationOnce(async (hash: string) =>
+              built.exact(hash, 1),
+            )
+            .mockImplementation(async (hash: string) => built.exact(hash, 2));
+          const pending = built.provider.updateMargin({
+            symbol: 'BTC',
+            amount: '5',
+          });
+          await jest.advanceTimersByTimeAsync(3000);
+          expect(await pending).toStrictEqual({ success: true });
+          expect(built.clientInstance.getTx).toHaveBeenCalledTimes(2);
+          expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+          expect(
+            built.calls.filter((call) => call.function === '_signUpdateMargin'),
+          ).toHaveLength(1);
+        });
+
+        it('stops on an exact failed outcome after pending without resending', async () => {
+          const built = setup();
+          built.clientInstance.getTx
+            .mockImplementationOnce(async (hash: string) =>
+              built.exact(hash, 1),
+            )
+            .mockImplementation(async (hash: string) => built.exact(hash, 0));
+          const pending = built.provider.updateMargin({
+            symbol: 'BTC',
+            amount: '5',
+          });
+          await jest.advanceTimersByTimeAsync(3000);
+          expect(await pending).toMatchObject({
+            success: false,
+            error: expect.stringContaining(
+              'margin transaction failed',
+            ) as string,
+          });
+          expect(built.clientInstance.getTx).toHaveBeenCalledTimes(2);
+          expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        });
+
+        it.each(['pending', 'missing', 'foreign'])(
+          'retains %s uncertainty after bounded reads without resending',
+          async (mode) => {
+            const built = setup();
+            built.clientInstance.getTx.mockImplementation(
+              async (hash: string) =>
+                mode === 'missing'
+                  ? null
+                  : {
+                      ...built.exact(hash, mode === 'pending' ? 1 : 2),
+                      ...(mode === 'foreign' ? { apiKeyIndex: 8 } : {}),
+                    },
+            );
+            const pending = built.provider.updateMargin({
+              symbol: 'BTC',
+              amount: '5',
+            });
+            await jest.advanceTimersByTimeAsync(3000);
+            expect(await pending).toMatchObject({
+              success: false,
+              error: expect.stringContaining('remains unresolved') as string,
+            });
+            expect(built.clientInstance.getTx).toHaveBeenCalledTimes(10);
+            expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+            const recovered = await built.provider.getRecoveredDispatches();
+            expect(recovered).toHaveLength(1);
+            expect(recovered[0]).toMatchObject({ outcome: 'unknown' });
+          },
+        );
+
+        it('stops reads when the account changes while waiting', async () => {
+          const built = setup();
+          built.clientInstance.getTx.mockImplementation(
+            async (hash: string) => {
+              built.getUserAddressMock.mockReturnValue('0xdef');
+              return built.exact(hash, 1);
+            },
+          );
+          const pending = built.provider.updateMargin({
+            symbol: 'BTC',
+            amount: '5',
+          });
+          await jest.advanceTimersByTimeAsync(3000);
+          expect(await pending).toMatchObject({ success: false });
+          expect(built.clientInstance.getTx).toHaveBeenCalledTimes(1);
+          expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        });
+      });
+
       it.each([
         ['foreign-account', { index: 99 }, {}],
         ['foreign-wallet', { l1Address: '0xforeign' }, {}],

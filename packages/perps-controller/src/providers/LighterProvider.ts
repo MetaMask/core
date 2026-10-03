@@ -1169,6 +1169,12 @@ const nextAttemptIdFor = (journal: TpslJournalState): number => {
   return allocated;
 };
 
+/** Delay between exact margin transaction execution reads. */
+const LIGHTER_MARGIN_EXECUTION_POLL_MS = 150;
+
+/** Bound settlement reads without repeating the signed dispatch. */
+const LIGHTER_MARGIN_EXECUTION_ATTEMPTS = 10;
+
 /** Delay between TP/SL settlement visibility polls. */
 const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
 
@@ -7967,28 +7973,46 @@ export class LighterProvider implements PerpsProvider {
           // Transport acceptance cannot retire additive collateral intent.
           // Keep its durable record until its exact transaction executes.
           this.#assertSession(generationAtIntent);
-          const transaction = ledgerEntry?.txHash
-            ? await this.#clientService.getTx(ledgerEntry.txHash)
-            : null;
-          this.#assertSession(generationAtIntent);
-          const matches =
-            ledgerEntry !== null &&
-            transaction !== null &&
-            typeof transaction.hash === 'string' &&
-            transaction.hash.toLowerCase().replace(/^0x/u, '') ===
-              ledgerEntry.txHash?.toLowerCase().replace(/^0x/u, '') &&
-            transaction.accountIndex === accountIndex &&
-            transaction.apiKeyIndex === apiKeyIndex &&
-            transaction.nonce === ledgerEntry.nonce;
-          const outcome = matches
-            ? getLighterTransactionOutcome(transaction.status)
-            : null;
-          if (outcome === 'failed') {
-            throw new Error(
-              'Lighter margin transaction failed; refresh its exact outcome before retrying',
-            );
+          let executed = false;
+          for (
+            let attempt = 0;
+            attempt < LIGHTER_MARGIN_EXECUTION_ATTEMPTS;
+            attempt += 1
+          ) {
+            this.#assertSession(generationAtIntent);
+            const transaction = ledgerEntry?.txHash
+              ? await this.#clientService.getTx(ledgerEntry.txHash)
+              : null;
+            this.#assertSession(generationAtIntent);
+            const matches =
+              ledgerEntry !== null &&
+              transaction !== null &&
+              typeof transaction.hash === 'string' &&
+              transaction.hash.toLowerCase().replace(/^0x/u, '') ===
+                ledgerEntry.txHash?.toLowerCase().replace(/^0x/u, '') &&
+              transaction.accountIndex === accountIndex &&
+              transaction.apiKeyIndex === apiKeyIndex &&
+              transaction.nonce === ledgerEntry.nonce;
+            const outcome = matches
+              ? getLighterTransactionOutcome(transaction.status)
+              : null;
+            if (outcome === 'failed') {
+              throw new Error(
+                'Lighter margin transaction failed; refresh its exact outcome before retrying',
+              );
+            }
+            if (outcome === 'executed') {
+              executed = true;
+              break;
+            }
+            if (attempt + 1 < LIGHTER_MARGIN_EXECUTION_ATTEMPTS) {
+              await new Promise((resolve) =>
+                setTimeout(resolve, LIGHTER_MARGIN_EXECUTION_POLL_MS),
+              );
+              this.#assertSession(generationAtIntent);
+            }
           }
-          if (outcome !== 'executed') {
+          if (!executed) {
             throw new Error(
               'Lighter margin mode update remains unresolved or margin adjustment is pending; review its exact transaction before retrying',
             );
