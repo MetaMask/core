@@ -2,13 +2,6 @@ import type { Hex } from '@metamask/utils';
 
 import type { TradeType } from '../../utils/trade-type.js';
 
-/** Provider names supported by the server intents API. */
-export enum ServerProviderName {
-  Relay = 'relay',
-  Across = 'across',
-  M0 = 'm0',
-}
-
 /** Token amount with chain and token context. */
 export type ServerQuoteAmount = {
   chainId: number;
@@ -74,7 +67,7 @@ export type ServerQuoteRequest = {
   recipient: Hex;
   refundTo?: Hex;
   slippage?: number;
-  providers?: ServerProviderName[];
+  providers?: string[];
   calls?: ServerCall[];
   authorizationList?: ServerAuthorization[];
   supportsDeferredCalls?: boolean;
@@ -108,7 +101,7 @@ export type ServerQuoteFees = {
 
 /** A single provider result within the quote response. */
 export type ServerQuoteResult = {
-  provider: ServerProviderName;
+  provider: string;
   quote?: ServerQuotePayload;
   error?: ServerQuoteError;
 };
@@ -128,7 +121,7 @@ export type ServerQuoteClient = {
 /** Normalized server quote stored in TransactionPayQuote.original. */
 export type ServerQuote = {
   id: string;
-  provider: ServerProviderName;
+  provider: string;
   input: ServerQuoteAmount;
   output: ServerQuoteAmount;
   fees: ServerQuoteFees;
@@ -158,7 +151,7 @@ export type ServerStatusResponse = {
 
 /** Request body for POST /submit. */
 export type ServerSubmitRequest = {
-  provider: ServerProviderName;
+  provider: string;
   id: string;
   chainId: number;
   to: Hex;
