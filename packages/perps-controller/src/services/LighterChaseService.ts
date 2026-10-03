@@ -699,6 +699,7 @@ export class LighterChaseService {
       accepted: () => {
         accepted = true;
         dispatch.acknowledged = true;
+        dispatch.phase = 'acknowledged';
       },
       afterAccepted: async () => this.#recordEvidence(record, dispatch, true),
     };

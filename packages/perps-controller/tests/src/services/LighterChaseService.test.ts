@@ -132,7 +132,7 @@ const setup = (): TestEnvironment => {
 
 describe('Lighter bounded Chase lifecycle', () => {
   it.each([undefined, false, true])(
-    'round06 reads version-1 acknowledgment evidence %s without replay',
+    'reads version-1 acknowledgment evidence %s without replay',
     async (acknowledged) => {
       const env = setup();
       const record = await env.service.start(intent, env.io);
@@ -158,22 +158,19 @@ describe('Lighter bounded Chase lifecycle', () => {
     { phase: 'attempted', acknowledged: 'false' },
     { phase: 'acknowledged', acknowledged: false },
     { phase: 'attempted', acknowledged: true },
-  ])(
-    'round06 rejects malformed acknowledgment evidence %s',
-    async (evidence) => {
-      const env = setup();
-      const record = await env.service.start(intent, env.io);
-      Object.assign(record.children[0].placement, evidence);
-      const key = [...env.disk.keys()][0];
-      env.disk.set(key, JSON.stringify({ version: 1, records: [record] }));
-      const restored = new LighterChaseService({ storage: env.storage });
-      await expect(restored.list(owner, env.io)).rejects.toThrow(
-        /acknowledged|acceptance/u,
-      );
-      expect(env.io.place).toHaveBeenCalledTimes(1);
-      expect(env.io.cancel).not.toHaveBeenCalled();
-    },
-  );
+  ])('rejects malformed acknowledgment evidence %s', async (evidence) => {
+    const env = setup();
+    const record = await env.service.start(intent, env.io);
+    Object.assign(record.children[0].placement, evidence);
+    const key = [...env.disk.keys()][0];
+    env.disk.set(key, JSON.stringify({ version: 1, records: [record] }));
+    const restored = new LighterChaseService({ storage: env.storage });
+    await expect(restored.list(owner, env.io)).rejects.toThrow(
+      /acknowledged|acceptance/u,
+    );
+    expect(env.io.place).toHaveBeenCalledTimes(1);
+    expect(env.io.cancel).not.toHaveBeenCalled();
+  });
   it.each([
     'owner',
     'clientOrderId',
@@ -183,7 +180,7 @@ describe('Lighter bounded Chase lifecycle', () => {
     'txHash',
     'expiresAt',
   ] as const)(
-    'round06 refuses captured completion after saved %s changes',
+    'refuses captured completion after saved %s changes',
     async (field) => {
       const env = setup();
       let completionError: unknown;
@@ -226,8 +223,111 @@ describe('Lighter bounded Chase lifecycle', () => {
         'Lighter Chase completion attempt mismatch',
       );
       expect(savedAfterCompletion).not.toContain('"acknowledged":true');
+      const expected = [
+        {
+          intent,
+          status: 'termination_pending',
+          children: [
+            {
+              clientOrderId: '101',
+              size: '0.0002',
+              price: '100000',
+              placement: {
+                phase: 'acknowledged',
+                acknowledged: true,
+                nonce: 8,
+                txHash: 'deadbeef',
+                expiresAt: 110000,
+              },
+            },
+          ],
+        },
+      ];
+      expect(await env.service.list(owner, env.io)).toMatchObject(expected);
+      const restarted = new LighterChaseService({ storage: env.storage });
+      expect(await restarted.list(owner, env.io)).toMatchObject(expected);
+      await restarted.tick(owner, intent.handle, env.io);
       expect(env.io.place).toHaveBeenCalledTimes(1);
       expect(env.io.cancel).not.toHaveBeenCalled();
+    },
+  );
+  it.each(
+    (['place', 'cancel'] as const).flatMap((operation) =>
+      (['read', 'parse'] as const).map((failure) => ({ operation, failure })),
+    ),
+  )(
+    'keeps accepted $operation readable after completion $failure failure and restart',
+    async ({ operation, failure }) => {
+      jest.useFakeTimers();
+      jest.setSystemTime(100000);
+      try {
+        const env = setup();
+        env.io.now = (): number => Date.now();
+        const send: LighterChaseIo['place'] = async (child, hooks) => {
+          await hooks.signed({
+            nonce: 8,
+            txHash: 'deadbeef',
+            expiresAt: 110000,
+          });
+          await hooks.beforeDispatch();
+          if (operation === 'place') {
+            env.observed.set(child.clientOrderId, {
+              orderId: `9${child.clientOrderId}`,
+              terminal: false,
+              filledSize: '0',
+              filledNotional: '0',
+              remainingSize: child.size,
+            });
+          }
+          hooks.accepted();
+          if (failure === 'read') {
+            env.storage.getItem.mockRejectedValueOnce(
+              new Error('completion read failed'),
+            );
+          } else {
+            env.storage.getItem.mockResolvedValueOnce('{"version":1,');
+          }
+          await hooks.afterAccepted();
+        };
+        if (operation === 'cancel') {
+          await env.service.start(intent, env.io);
+          jest.mocked(env.io.cancel).mockImplementation(send);
+        } else {
+          jest.mocked(env.io.place).mockImplementation(send);
+        }
+        const pending =
+          operation === 'place'
+            ? env.service.start(intent, env.io)
+            : env.service.stop(owner, intent.handle, env.io, 'canceled');
+        await jest.advanceTimersByTimeAsync(10000);
+        expect((await pending).status).toBe('termination_pending');
+        const expectedDispatch = {
+          phase: 'acknowledged',
+          acknowledged: true,
+          nonce: 8,
+          txHash: 'deadbeef',
+          expiresAt: 110000,
+        };
+        for (const service of [
+          env.service,
+          new LighterChaseService({ storage: env.storage }),
+        ]) {
+          const records = await service.list(owner, env.io);
+          expect(records[0].intent).toStrictEqual(intent);
+          expect(records[0].status).toBe('termination_pending');
+          const child = records[0].children[0];
+          expect(
+            operation === 'place' ? child.placement : child.cancellations[0],
+          ).toMatchObject(expectedDispatch);
+          await service.tick(owner, intent.handle, env.io);
+        }
+        expect(env.io.place).toHaveBeenCalledTimes(1);
+        expect(env.io.cancel).toHaveBeenCalledTimes(
+          operation === 'cancel' ? 1 : 0,
+        );
+      } finally {
+        jest.useRealTimers();
+      }
     },
   );
   describe('bounded Chase cancellation settlement', () => {

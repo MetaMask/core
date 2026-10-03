@@ -34373,7 +34373,7 @@ describe('Lighter bounded Chase provider probe', () => {
     'unknown remaining',
     'legacy unknown',
   ] as const)(
-    'round06 retains uncertain Chase cancellation after %s and expired absence across restart',
+    'retains uncertain Chase cancellation after %s and expired absence across restart',
     async (evidence) => {
       jest.useFakeTimers();
       const deps = diskDependencies();
@@ -34487,7 +34487,7 @@ describe('Lighter bounded Chase provider probe', () => {
       }
     },
   );
-  it('round06 retains unknown Chase evidence when conflict persistence fails after an owner switch', async () => {
+  it('retains unknown Chase evidence when conflict persistence fails after an owner switch', async () => {
     jest.useFakeTimers();
     const deps = diskDependencies();
     const original = setup({ platformDependencies: deps });
@@ -34569,6 +34569,164 @@ describe('Lighter bounded Chase provider probe', () => {
   });
   it.each(
     (['place', 'cancel'] as const).flatMap((operation) =>
+      (['read', 'parse', 'matching'] as const).map((failure) => ({
+        operation,
+        failure,
+      })),
+    ),
+  )(
+    'retains accepted Chase $operation and its nonce after completion $failure failure across restart',
+    async ({ operation, failure }) => {
+      jest.useFakeTimers();
+      const deps = diskDependencies();
+      const original = setup({ platformDependencies: deps });
+      const read = jest
+        .spyOn(deps.diskCache, 'getItem')
+        .getMockImplementation();
+      if (!read) {
+        throw new Error('Missing journal storage');
+      }
+      let armed = false;
+      let injected = false;
+      let attempted: LighterChaseRecord | undefined;
+      jest.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) => {
+        const raw = await read(key);
+        if (!armed || !key.startsWith('lighterChase:')) {
+          return raw;
+        }
+        armed = false;
+        injected = true;
+        const journal = JSON.parse(raw ?? '') as {
+          records: LighterChaseRecord[];
+        };
+        attempted = structuredClone(journal.records[0]);
+        if (failure === 'read') {
+          throw new Error('completion read failed');
+        }
+        if (failure === 'parse') {
+          return '{"version":1,';
+        }
+        const child = journal.records[0].children[0];
+        const dispatch =
+          operation === 'place' ? child.placement : child.cancellations[0];
+        if (dispatch.nonce === undefined) {
+          throw new Error('Missing captured signed nonce');
+        }
+        dispatch.nonce += 1;
+        return JSON.stringify(journal);
+      });
+      try {
+        let handle = '';
+        if (operation === 'cancel') {
+          const placed = await original.provider.placeOrder(intent);
+          handle = placed.orderId ?? '';
+          const record = (await original.provider.getNativeChaseRecords())[0];
+          bindRetainedChaseLookup(original, record, () => false);
+        } else {
+          original.clientInstance.getOrdersByClientIds.mockResolvedValue({
+            code: 200,
+            orders: [],
+          });
+        }
+        original.clientInstance.getTx.mockResolvedValue(null);
+        original.clientInstance.sendTx.mockImplementationOnce(async () => {
+          armed = true;
+          return { code: 200, txHash: 'accepted' };
+        });
+        const pending =
+          operation === 'place'
+            ? original.provider.placeOrder(intent)
+            : original.provider.cancelOrder(cancelParams(handle));
+        await jest.advanceTimersByTimeAsync(10000);
+        expect((await pending).success).toBe(false);
+        expect(injected).toBe(true);
+        if (!attempted) {
+          throw new Error('Missing captured original attempt');
+        }
+        const saved = (await original.provider.getNativeChaseRecords())[0];
+        expect(saved.intent).toStrictEqual(attempted.intent);
+        expect(saved.status).toBe('termination_pending');
+        const dispatch =
+          operation === 'place'
+            ? saved.children[0].placement
+            : saved.children[0].cancellations[0];
+        const originalDispatch =
+          operation === 'place'
+            ? attempted.children[0].placement
+            : attempted.children[0].cancellations[0];
+        expect(dispatch).toStrictEqual({
+          ...originalDispatch,
+          phase: 'acknowledged',
+          acknowledged: true,
+        });
+        const ledgerKey = 'lighterNonceLedger:testnet:28:7';
+        const ledger = JSON.parse(
+          (await deps.diskCache.getItem(ledgerKey)) ?? '',
+        ) as {
+          entries: unknown[];
+        };
+        expect(ledger.entries).toHaveLength(1);
+        expect(
+          original.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+        expect(
+          original.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(operation === 'cancel' ? 1 : 0);
+        expect(original.clientInstance.sendTx).toHaveBeenCalledTimes(
+          operation === 'cancel' ? 2 : 1,
+        );
+        await original.provider.disconnect();
+        jest.setSystemTime(
+          (dispatch.expiresAt ?? 0) + LIGHTER_TX_EXPIRY_SLACK_MS + 1,
+        );
+        const restored = setup({ platformDependencies: deps });
+        restored.clientInstance.getTx.mockResolvedValue(null);
+        if (operation === 'cancel') {
+          bindRetainedChaseLookup(restored, saved, () => false);
+        } else {
+          restored.clientInstance.getOrdersByClientIds.mockResolvedValue({
+            code: 200,
+            orders: [],
+          });
+        }
+        try {
+          expect(
+            (await restored.provider.getNativeChaseRecords())[0],
+          ).toStrictEqual(saved);
+          const cleanup = restored.provider.cancelOrder(
+            cancelParams(saved.intent.handle),
+          );
+          await jest.advanceTimersByTimeAsync(10000);
+          expect((await cleanup).success).toBe(false);
+          const retained = (await restored.provider.getNativeChaseRecords())[0];
+          expect(retained.status).toBe('termination_pending');
+          expect(
+            operation === 'place'
+              ? retained.children[0].placement
+              : retained.children[0].cancellations[0],
+          ).toStrictEqual(dispatch);
+          expect(
+            restored.calls.filter((call) =>
+              ['_signCreateOrder', '_signCancelOrder'].includes(call.function),
+            ),
+          ).toHaveLength(0);
+          expect(restored.clientInstance.sendTx).not.toHaveBeenCalled();
+          const retainedLedger = JSON.parse(
+            (await deps.diskCache.getItem(ledgerKey)) ?? '',
+          ) as { entries: unknown[] };
+          expect(retainedLedger.entries).toStrictEqual(ledger.entries);
+        } finally {
+          await restored.provider.disconnect();
+        }
+      } finally {
+        await original.provider.disconnect();
+        jest.spyOn(deps.diskCache, 'getItem').mockImplementation(read);
+        jest.useRealTimers();
+      }
+    },
+  );
+  it.each(
+    (['place', 'cancel'] as const).flatMap((operation) =>
       (
         [
           'account switch',
@@ -34579,7 +34737,7 @@ describe('Lighter bounded Chase provider probe', () => {
       ).map((boundary) => ({ operation, boundary })),
     ),
   )(
-    'round06 saves accepted Chase $operation before $boundary and nonce retirement',
+    'saves accepted Chase $operation before $boundary and nonce retirement',
     async ({ operation, boundary }) => {
       jest.useFakeTimers();
       const deps = diskDependencies();
@@ -34720,7 +34878,7 @@ describe('Lighter bounded Chase provider probe', () => {
       }
     },
   );
-  it('round06 retries an unacknowledged Chase cancellation only with complete never-landed proof', async () => {
+  it('retries an unacknowledged Chase cancellation only with complete never-landed proof', async () => {
     jest.useFakeTimers();
     const deps = diskDependencies();
     const original = setup({ platformDependencies: deps });
@@ -34780,7 +34938,7 @@ describe('Lighter bounded Chase provider probe', () => {
     }
   });
   it.each(['place', 'cancel'] as const)(
-    'round06 saves exact-seen Chase %s acceptance across an owner switch',
+    'saves exact-seen Chase %s acceptance across an owner switch',
     async (operation) => {
       jest.useFakeTimers();
       const deps = diskDependencies();
