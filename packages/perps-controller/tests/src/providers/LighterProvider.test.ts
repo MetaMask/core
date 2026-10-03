@@ -3,6 +3,7 @@ import { webcrypto } from 'crypto';
 import {
   LIGHTER_TX_TYPE_CREATE_ORDER,
   LIGHTER_TX_TYPE_CANCEL_ORDER,
+  LIGHTER_TRANSACTION_STATUS,
   LIGHTER_NATIVE_PROBE_CANCEL_LIMIT,
   LIGHTER_ORDER_TYPE_STOP_LOSS,
   LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
@@ -2389,6 +2390,294 @@ describe('LighterProvider', () => {
         },
       );
 
+      it.each([false, true])(
+        'does not replay unresolved Scale cancellations after restart=%s',
+        async (restart) => {
+          const infra = createMockInfrastructure();
+          const built = buildProvider({
+            registeredKey: '9c'.repeat(40),
+            platformDependencies: infra,
+          });
+          const venue = scaleVenue(built);
+          const placed = await built.provider.placeOrder(intent);
+          const stale = [...venue.active];
+          built.clientInstance.getTx.mockResolvedValue(null);
+          built.clientInstance.getActiveOrders.mockResolvedValue({
+            code: 200,
+            orders: stale,
+          });
+          built.clientInstance.getInactiveOrders.mockResolvedValue({
+            code: 200,
+            orders: [],
+          });
+          const params = {
+            symbol: 'BTC',
+            orderId: String(placed.orderId),
+            orderType: 'scale' as const,
+          };
+          const first = built.provider.cancelOrder(params);
+          await jest.advanceTimersByTimeAsync(10000);
+          expect(await first).toMatchObject({
+            success: false,
+            error: 'Lighter Scale cancellation remains unresolved',
+          });
+          const current = restart
+            ? buildProvider({
+                registeredKey: '9c'.repeat(40),
+                platformDependencies: infra,
+              })
+            : built;
+          if (restart) {
+            scaleVenue(current);
+            current.clientInstance.getTx.mockResolvedValue(null);
+            current.clientInstance.getActiveOrders.mockResolvedValue({
+              code: 200,
+              orders: stale,
+            });
+            current.clientInstance.getInactiveOrders.mockResolvedValue({
+              code: 200,
+              orders: [],
+            });
+          }
+          const repeated = current.provider.cancelOrder(params);
+          await jest.advanceTimersByTimeAsync(10000);
+          expect(await repeated).toMatchObject({
+            success: false,
+            error: 'Lighter Scale cancellation remains unresolved',
+          });
+          const workers = restart ? [built, current] : [built];
+          expect(
+            workers
+              .flatMap((worker) => worker.calls)
+              .filter((call) => call.function === '_signCancelOrder')
+              .map((call) => [call.params[2], call.params[3]]),
+          ).toStrictEqual([
+            ['800', 44],
+            ['801', 45],
+          ]);
+          expect(
+            workers.reduce(
+              (count, worker) =>
+                count + worker.clientInstance.sendTx.mock.calls.length,
+              0,
+            ),
+          ).toBe(4);
+          current.clientInstance.getActiveOrders.mockResolvedValue({
+            code: 200,
+            orders: venue.active,
+          });
+          current.clientInstance.getInactiveOrders.mockResolvedValue({
+            code: 200,
+            orders: venue.history,
+          });
+          expect(
+            (await current.provider.reviewScaleOrderGroups())[0].state,
+          ).toBe('terminal');
+          expect(await current.provider.cancelOrder(params)).toMatchObject({
+            success: true,
+          });
+          expect(
+            workers.reduce(
+              (count, worker) =>
+                count + worker.clientInstance.sendTx.mock.calls.length,
+              0,
+            ),
+          ).toBe(4);
+        },
+      );
+
+      it('retains an uncertain Scale cancellation across response loss and restart', async () => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        const venue = scaleVenue(built);
+        const placed = await built.provider.placeOrder(intent);
+        const stale = [...venue.active];
+        const send = built.clientInstance.sendTx.getMockImplementation();
+        built.clientInstance.sendTx.mockImplementation(
+          async (...args: unknown[]) => {
+            await send?.(...args);
+            throw new Error('lost cancellation response');
+          },
+        );
+        const params = {
+          symbol: 'BTC',
+          orderId: String(placed.orderId),
+          orderType: 'scale' as const,
+        };
+        expect(await built.provider.cancelOrder(params)).toMatchObject({
+          success: false,
+        });
+        const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
+        const [group] = parseLighterScaleGroups(
+          await infra.diskCache.getItem(key),
+        );
+        expect(group.rungs[0].cancelAttempt).toMatchObject({ nonce: 44 });
+        const restarted = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        scaleVenue(restarted);
+        restarted.clientInstance.getActiveOrders.mockResolvedValue({
+          code: 200,
+          orders: stale,
+        });
+        restarted.clientInstance.getInactiveOrders.mockResolvedValue({
+          code: 200,
+          orders: [],
+        });
+        restarted.clientInstance.getTx.mockResolvedValue(null);
+        const repeated = restarted.provider.cancelOrder(params);
+        await jest.advanceTimersByTimeAsync(10000);
+        expect(await repeated).toMatchObject({ success: false });
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(3);
+        expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(
+          restarted.calls.filter((call) => call.function.startsWith('_sign')),
+        ).toStrictEqual([]);
+        expect(
+          parseLighterScaleGroups(await infra.diskCache.getItem(key))[0]
+            .rungs[0].cancelAttempt,
+        ).toStrictEqual(group.rungs[0].cancelAttempt);
+      });
+
+      it('does not dispatch when Scale cancellation ownership cannot be persisted', async () => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        scaleVenue(built);
+        const placed = await built.provider.placeOrder(intent);
+        const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
+        const writeSpy = jest.spyOn(infra.diskCache, 'setItem');
+        const write = writeSpy.getMockImplementation();
+        writeSpy.mockImplementation(async (cacheKey: string, value: string) => {
+          if (
+            cacheKey === key &&
+            parseLighterScaleGroups(value).some((group) =>
+              group.rungs.some((rung) => rung.cancelAttempt !== undefined),
+            )
+          ) {
+            throw new Error('cancellation storage unavailable');
+          }
+          await write?.(cacheKey, value);
+        });
+        expect(
+          await built.provider.cancelOrder({
+            symbol: 'BTC',
+            orderId: String(placed.orderId),
+            orderType: 'scale',
+          }),
+        ).toMatchObject({
+          success: false,
+          error: 'cancellation storage unavailable',
+        });
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(2);
+        expect(
+          parseLighterScaleGroups(
+            await infra.diskCache.getItem(key),
+          )[0].rungs.every((rung) => rung.cancelAttempt === undefined),
+        ).toBe(true);
+      });
+
+      it('retains Scale cancellation identity before transport and retries only exact failure', async () => {
+        const infra = createMockInfrastructure();
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: infra,
+        });
+        const venue = scaleVenue(built);
+        const placed = await built.provider.placeOrder(intent);
+        const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
+        const send = built.clientInstance.sendTx.getMockImplementation();
+        built.clientInstance.getTx.mockResolvedValue(null);
+        built.clientInstance.sendTx.mockImplementation(
+          async (_kind: number, txInfo: string) => {
+            const wire = JSON.parse(txInfo) as { Nonce: number };
+            const [group] = parseLighterScaleGroups(
+              await infra.diskCache.getItem(key),
+            );
+            expect(
+              group.rungs.some(
+                (rung) => rung.cancelAttempt?.nonce === wire.Nonce,
+              ),
+            ).toBe(true);
+            return { code: 200, txHash: '0xsent' };
+          },
+        );
+        const params = {
+          symbol: 'BTC',
+          orderId: String(placed.orderId),
+          orderType: 'scale' as const,
+        };
+        const first = built.provider.cancelOrder(params);
+        await jest.advanceTimersByTimeAsync(10000);
+        expect(await first).toMatchObject({ success: false });
+        const [group] = parseLighterScaleGroups(
+          await infra.diskCache.getItem(key),
+        );
+        const attempt = group.rungs[0].cancelAttempt;
+        if (!attempt) {
+          throw new Error('Missing durable Scale cancellation');
+        }
+        built.clientInstance.getTx.mockResolvedValue({
+          code: 200,
+          hash: attempt.txHash,
+          accountIndex: 28,
+          apiKeyIndex: 7,
+          nonce: attempt.nonce + 1,
+          status: LIGHTER_TRANSACTION_STATUS.Failed,
+        });
+        await built.provider.reviewScaleOrderGroups();
+        expect(
+          parseLighterScaleGroups(await infra.diskCache.getItem(key))[0]
+            .rungs[0].cancelAttempt,
+        ).toStrictEqual(attempt);
+        built.clientInstance.getTx.mockImplementation(async (hash: string) =>
+          hash === attempt.txHash
+            ? {
+                code: 200,
+                hash,
+                accountIndex: 28,
+                apiKeyIndex: 7,
+                nonce: attempt.nonce,
+                status: LIGHTER_TRANSACTION_STATUS.Failed,
+              }
+            : null,
+        );
+        await built.provider.reviewScaleOrderGroups();
+        const [failed] = parseLighterScaleGroups(
+          await infra.diskCache.getItem(key),
+        );
+        expect(failed.rungs[0].cancelAttempt).toBeUndefined();
+        expect(failed.rungs[1].cancelAttempt).toStrictEqual(
+          group.rungs[1].cancelAttempt,
+        );
+        built.clientInstance.sendTx.mockImplementation(
+          async (...args: unknown[]) => {
+            await send?.(...args);
+            return { code: 200, txHash: '0xsent' };
+          },
+        );
+        const retrying = built.provider.cancelOrder(params);
+        await jest.advanceTimersByTimeAsync(10000);
+        expect(await retrying).toMatchObject({ success: false });
+        expect(
+          built.calls
+            .filter((call) => call.function === '_signCancelOrder')
+            .map((call) => [call.params[2], call.params[3]]),
+        ).toStrictEqual([
+          ['800', 44],
+          ['801', 45],
+          ['800', 46],
+        ]);
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(5);
+        expect(venue.active.map((row) => row.orderIndex)).toStrictEqual([801]);
+      });
+
       it('bounds two-rung cancellation to one shared window and later settles without replay', async () => {
         const built = buildProvider({ registeredKey: '9c'.repeat(40) });
         const venue = scaleVenue(built);
@@ -3553,41 +3842,37 @@ describe('LighterProvider', () => {
         const built = buildProvider({ registeredKey: '9c'.repeat(40) });
         const venue = scaleVenue(built);
         const result = await built.provider.placeOrder(intent);
-        const stale = [...venue.active];
         const send = built.clientInstance.sendTx.getMockImplementation();
-        let canceledAt: number | undefined;
+        let lagged: LighterApiOrder | undefined;
+        let reads = 0;
+        const snapshots: number[][] = [];
         built.clientInstance.sendTx.mockImplementation(
           async (...args: unknown[]) => {
-            canceledAt = Date.now();
+            lagged = venue.active[0];
+            reads = 0;
             await send?.(...args);
             return { code: 200, txHash: '0xsent' };
           },
         );
-        const visibilityPending = (): boolean =>
-          canceledAt !== undefined && Date.now() - canceledAt < 750;
-        built.clientInstance.getActiveOrders.mockImplementation(async () => ({
-          code: 200,
-          orders: visibilityPending() ? [...stale] : [...venue.active],
-        }));
-        built.clientInstance.getInactiveOrders.mockImplementation(async () => ({
-          code: 200,
-          orders: visibilityPending() ? [] : [...venue.history],
-        }));
-        let finished = false;
-        const canceling = built.provider
-          .cancelOrder({
-            symbol: 'BTC',
-            orderId: String(result.orderId),
-            orderType: 'scale',
-          })
-          .then((receipt) => {
-            finished = true;
-            return receipt;
-          });
-        await jest.advanceTimersByTimeAsync(749);
-        expect(finished).toBe(false);
-        await jest.advanceTimersByTimeAsync(1);
+        built.clientInstance.getActiveOrders.mockImplementation(async () => {
+          reads += 1;
+          const orders =
+            lagged && reads < 3 ? [lagged, ...venue.active] : [...venue.active];
+          snapshots.push(orders.map((row) => row.orderIndex));
+          return { code: 200, orders };
+        });
+        const canceling = built.provider.cancelOrder({
+          symbol: 'BTC',
+          orderId: String(result.orderId),
+          orderType: 'scale',
+        });
+        await jest.advanceTimersByTimeAsync(750);
         expect(await canceling).toMatchObject({ success: true });
+        expect(snapshots).toContainEqual([801]);
+        expect(venue.history.map((row) => row.orderIndex)).toStrictEqual([
+          800, 801,
+        ]);
+        expect(built.clientInstance.getInactiveOrders).toHaveBeenCalled();
         expect(
           built.calls
             .filter((call) => call.function === '_signCancelOrder')
@@ -3604,6 +3889,85 @@ describe('LighterProvider', () => {
       } finally {
         jest.useRealTimers();
       }
+    });
+
+    it.each([
+      'different-order',
+      'active-duplicate',
+      'history-duplicate',
+      'signed-intent',
+      'invalid-fill',
+    ] as const)(
+      'refuses conflicting Scale overlap for %s without financial dispatch',
+      async (conflict) => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const venue = scaleVenue(built);
+        expect((await built.provider.placeOrder(intent)).success).toBe(true);
+        const [first, second] = venue.active.splice(0);
+        venue.history.push(
+          { ...first, status: 'canceled' },
+          { ...second, status: 'canceled' },
+        );
+        venue.active.push(second);
+        if (conflict === 'different-order') {
+          venue.history[1].orderIndex = 9999;
+        }
+        if (conflict === 'active-duplicate') {
+          venue.active.push({ ...second });
+        }
+        if (conflict === 'history-duplicate') {
+          venue.history.push({ ...venue.history[1] });
+        }
+        if (conflict === 'signed-intent') {
+          venue.history[1].price = '1';
+        }
+        if (conflict === 'invalid-fill') {
+          venue.active[0].filledBaseAmount = '-1';
+        }
+        const errors = {
+          'different-order': 'Ambiguous Lighter Scale order identity',
+          'active-duplicate': 'Ambiguous Lighter Scale order identity',
+          'history-duplicate': 'Ambiguous Lighter Scale order identity',
+          'signed-intent': 'Lighter Scale order does not match signed intent',
+          'invalid-fill': 'Invalid Lighter Scale fill quantity',
+        };
+        await expect(built.provider.reviewScaleOrderGroups()).rejects.toThrow(
+          errors[conflict],
+        );
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(2);
+        expect(
+          built.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toStrictEqual([]);
+      },
+    );
+
+    it('preserves cumulative Scale fills through overlapping snapshots', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      const venue = scaleVenue(built);
+      expect((await built.provider.placeOrder(intent)).success).toBe(true);
+      const [first, second] = venue.active;
+      venue.active[1] = {
+        ...second,
+        filledBaseAmount: '0.0002',
+        remainingBaseAmount: '0.0003',
+      };
+      expect(
+        (await built.provider.reviewScaleOrderGroups())[0].filledSize,
+      ).toBe('0.0002');
+      venue.active.splice(0, 2, { ...second, filledBaseAmount: '0.0001' });
+      venue.history.push(
+        { ...first, status: 'canceled' },
+        { ...second, status: 'canceled', filledBaseAmount: '0' },
+      );
+      expect(
+        (await built.provider.reviewScaleOrderGroups())[0].filledSize,
+      ).toBe('0.0002');
+      venue.active.length = 0;
+      venue.history[1].filledBaseAmount = '0.0002';
+      expect(
+        (await built.provider.reviewScaleOrderGroups())[0].filledSize,
+      ).toBe('0.0002');
+      expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(2);
     });
 
     it.each([7, 8])(

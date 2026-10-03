@@ -53,6 +53,12 @@ export type LighterScaleRung = {
   expiresAt: number | null;
   orderId?: string;
   filledSize?: string;
+  cancelAttempt?: {
+    apiKeyIndex: number;
+    nonce: number;
+    txHash: string;
+    expiresAt: number;
+  };
 };
 export type LighterScaleGroup = {
   version: 1;
@@ -589,6 +595,23 @@ export function parseLighterScaleGroups(
         (rung.orderId !== undefined && !/^\d{1,20}$/u.test(rung.orderId))
       ) {
         throw new Error('Invalid Lighter Scale rung');
+      }
+      if (
+        rung.cancelAttempt !== undefined &&
+        (rung.cancelAttempt === null ||
+          typeof rung.cancelAttempt !== 'object' ||
+          rung.orderId === undefined ||
+          !group.placementStopped ||
+          !integer(rung.cancelAttempt.apiKeyIndex) ||
+          rung.cancelAttempt.apiKeyIndex < LIGHTER_MIN_TRADING_API_KEY_INDEX ||
+          rung.cancelAttempt.apiKeyIndex > LIGHTER_MAX_TRADING_API_KEY_INDEX ||
+          !integer(rung.cancelAttempt.nonce) ||
+          typeof rung.cancelAttempt.txHash !== 'string' ||
+          !/^[a-f\d]{8,128}$/u.test(rung.cancelAttempt.txHash) ||
+          !integer(rung.cancelAttempt.expiresAt) ||
+          rung.cancelAttempt.expiresAt === 0)
+      ) {
+        throw new Error('Invalid Lighter Scale cancellation attempt');
       }
       if (
         !parseScaleDecimal(rung.price)

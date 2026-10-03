@@ -8959,11 +8959,18 @@ export class LighterProvider implements PerpsProvider {
           row.marketIndex === group.marketId &&
           row.clientOrderIndex === rung.clientOrderId,
       );
-      if (matches.length > 1) {
+      const overlap = matches.length > 1;
+      if (
+        overlap &&
+        (matches.length !== 2 ||
+          !active.orders.includes(matches[0]) ||
+          active.orders.includes(matches[1]) ||
+          String(matches[0].orderIndex) !== String(matches[1].orderIndex))
+      ) {
         throw new Error('Ambiguous Lighter Scale order identity');
       }
-      const row = matches[0];
-      if (row) {
+      // Validate both snapshots before treating a cross-endpoint overlap as lag.
+      for (const row of matches) {
         const orderId = String(row.orderIndex);
         if (
           !/^\d{1,20}$/u.test(orderId) ||
@@ -8980,10 +8987,6 @@ export class LighterProvider implements PerpsProvider {
         if (rung.state === 'rejected' && row.status !== 'rejected') {
           throw new Error('Lighter Scale rejection conflicts with venue order');
         }
-        const adapted =
-          row.status === 'rejected'
-            ? undefined
-            : adaptOrderFromLighter(row, group.symbol);
         if (row.filledBaseAmount !== undefined) {
           const filled = parseStrictDecimal(row.filledBaseAmount);
           if (
@@ -8993,13 +8996,27 @@ export class LighterProvider implements PerpsProvider {
           ) {
             throw new Error('Invalid Lighter Scale fill quantity');
           }
-          if (
-            rung.filledSize !== undefined &&
-            new BigNumber(row.filledBaseAmount).lt(rung.filledSize)
-          ) {
-            // Indexer lag cannot erase cumulative execution evidence.
-            continue;
-          }
+        }
+      }
+      if (overlap) {
+        // Separate endpoint reads are not atomic. Reobserve this exact child
+        // rather than resolving conflicting mutable snapshots by endpoint order.
+        continue;
+      }
+      const row = matches[0];
+      if (row) {
+        const orderId = String(row.orderIndex);
+        const adapted =
+          row.status === 'rejected'
+            ? undefined
+            : adaptOrderFromLighter(row, group.symbol);
+        if (
+          row.filledBaseAmount !== undefined &&
+          rung.filledSize !== undefined &&
+          new BigNumber(row.filledBaseAmount).lt(rung.filledSize)
+        ) {
+          // Indexer lag cannot erase cumulative execution evidence.
+          continue;
         }
         // Limit price is not execution price. No average fill price is inferred.
         let nextState: LighterScaleRung['state'];
@@ -9065,6 +9082,26 @@ export class LighterProvider implements PerpsProvider {
           rung.nonAcceptance = 'expired';
           rung.state = 'rejected';
         }
+      }
+    }
+    for (const rung of group.rungs) {
+      const attempt = rung.cancelAttempt;
+      if (attempt === undefined || rung.state !== 'resting') {
+        continue;
+      }
+      const transaction = await this.#clientService.getTx(attempt.txHash);
+      this.#assertSession(generation);
+      if (
+        transaction !== null &&
+        typeof transaction.hash === 'string' &&
+        transaction.hash.replace(/^0x/u, '').toLowerCase() === attempt.txHash &&
+        transaction.accountIndex === group.accountIndex &&
+        transaction.apiKeyIndex === attempt.apiKeyIndex &&
+        transaction.nonce === attempt.nonce &&
+        getLighterTransactionOutcome(transaction.status) === 'failed'
+      ) {
+        // Only definitive failure permits a later explicit cancellation attempt.
+        delete rung.cancelAttempt;
       }
     }
     await this.#writeScaleGroup(key, group, generation);
@@ -9606,21 +9643,47 @@ export class LighterProvider implements PerpsProvider {
           if (rung.state !== 'resting' || rung.orderId === undefined) {
             continue;
           }
+          if (rung.cancelAttempt !== undefined) {
+            cancellations.push(rung);
+            continue;
+          }
+          const nonce = await nextNonce();
           const signed = await this.#getSignerBridge().execute({
             function: '_signCancelOrder',
-            params: [
-              accountIndex,
-              group.marketId,
-              rung.orderId,
-              await nextNonce(),
-            ],
+            params: [accountIndex, group.marketId, rung.orderId, nonce],
           });
           if (signed.error) {
             throw new Error(signed.error);
           }
+          const identity = extractDispatchIdentity(signed);
+          const wire: unknown = JSON.parse(signed.txInfo);
+          if (
+            identity.txHash === null ||
+            identity.expiresAt === null ||
+            typeof wire !== 'object' ||
+            wire === null ||
+            !('Nonce' in wire) ||
+            wire.Nonce !== nonce
+          ) {
+            throw new Error('Invalid Lighter Scale cancellation identity');
+          }
+          const attempt = {
+            apiKeyIndex: this.#apiKeyIndex,
+            nonce,
+            txHash: identity.txHash.replace(/^0x/u, '').toLowerCase(),
+            expiresAt: identity.expiresAt,
+          };
           await submit(LIGHTER_TX_TYPE_CANCEL_ORDER, signed.txInfo, undefined, {
-            ...extractDispatchIdentity(signed),
+            ...identity,
             intent: `cancelScale:${group.groupId}:${rung.clientOrderId}`,
+            beforeDispatch: async () => {
+              rung.cancelAttempt = attempt;
+              await this.#writeScaleGroup(key, group, generation);
+            },
+            onNotDispatched: async () => {
+              delete rung.cancelAttempt;
+              await this.#writeScaleGroup(key, group, generation);
+            },
           });
           cancellations.push(rung);
         }

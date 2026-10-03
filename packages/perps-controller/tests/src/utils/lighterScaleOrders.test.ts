@@ -202,6 +202,60 @@ describe('Lighter Scale exact builder', () => {
 });
 
 describe('Lighter Scale durable receipt', () => {
+  it('round trips an unresolved cancellation and accepts legacy rungs without one', () => {
+    const group = groupFixture();
+    expect(parseLighterScaleGroups(JSON.stringify([group]))).toStrictEqual([
+      group,
+    ]);
+    group.rungs[0].cancelAttempt = {
+      apiKeyIndex: 7,
+      nonce: 44,
+      txHash: 'bbbb000000000001',
+      expiresAt: 20000,
+    };
+    expect(parseLighterScaleGroups(JSON.stringify([group]))).toStrictEqual([
+      group,
+    ]);
+  });
+
+  it.each([
+    null,
+    {},
+    { apiKeyIndex: 7, nonce: -1, txHash: 'bbbb000000000001', expiresAt: 20000 },
+    { apiKeyIndex: 7, nonce: 44, txHash: 'wrong', expiresAt: 20000 },
+    { apiKeyIndex: 7, nonce: 44, txHash: 'bbbb000000000001', expiresAt: 0 },
+  ])('rejects malformed cancellation ownership %j', (attempt) => {
+    const group = groupFixture();
+    const raw = {
+      ...group,
+      rungs: [{ ...group.rungs[0], cancelAttempt: attempt }, group.rungs[1]],
+    };
+    expect(() => parseLighterScaleGroups(JSON.stringify([raw]))).toThrow(
+      'Invalid Lighter Scale cancellation attempt',
+    );
+  });
+
+  it.each(['orderId', 'placementStopped'] as const)(
+    'rejects cancellation without its %s ownership fence',
+    (field) => {
+      const group = groupFixture();
+      group.rungs[0].cancelAttempt = {
+        apiKeyIndex: 7,
+        nonce: 44,
+        txHash: 'bbbb000000000001',
+        expiresAt: 20000,
+      };
+      if (field === 'orderId') {
+        delete group.rungs[0].orderId;
+      } else {
+        group.placementStopped = false;
+      }
+      expect(() => parseLighterScaleGroups(JSON.stringify([group]))).toThrow(
+        'Invalid Lighter Scale cancellation attempt',
+      );
+    },
+  );
+
   it('validates persisted native base amounts at the maximum and one unit above', () => {
     const group = groupFixture();
     group.sizeDecimals = 12;
