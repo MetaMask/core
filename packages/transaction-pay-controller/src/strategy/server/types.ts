@@ -77,12 +77,6 @@ export type ServerQuoteRequest = {
   providers?: ServerProviderName[];
   calls?: ServerCall[];
   authorizationList?: ServerAuthorization[];
-  /**
-   * Whether we can execute `calls` ourselves after the quote settles. When
-   * true, providers that cannot execute the calls return a quote anyway,
-   * flagged with `callsDeferred: true`, instead of declining the request.
-   * Ignored by the server when `calls` is empty.
-   */
   supportsDeferredCalls?: boolean;
   supportsGasless?: boolean;
 };
@@ -102,12 +96,6 @@ export type ServerQuotePayload = {
   duration: number;
   steps: ServerStep[];
   gasless: boolean;
-  /**
-   * Whether the requested `calls` are left for us to execute. Only set when the
-   * request included `calls` and `supportsDeferredCalls`. When `true` the quote
-   * only moves the funds, so the calls must be submitted as a second leg once
-   * it settles.
-   */
   callsDeferred?: boolean;
 };
 
