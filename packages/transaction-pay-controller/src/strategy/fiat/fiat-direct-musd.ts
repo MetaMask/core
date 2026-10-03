@@ -24,7 +24,6 @@ import type { FiatQuote } from './types.js';
 import {
   getRampsQuote,
   getRawSourceAmountFromOrderCryptoAmount,
-  resolveSourceAmountRaw,
   validateOrderAsset,
 } from './utils.js';
 
@@ -144,20 +143,11 @@ export async function submitDirectMusdAfterFiatCompletion({
       transactionId: transaction.id,
     });
 
-    const { amountRaw: sourceAmountRaw, fromBlock } =
-      await resolveSourceAmountRaw({
-        messenger,
-        order,
-        fiatAsset: MUSD_MONAD_FIAT_ASSET,
-        walletAddress: moneyAccountAddress,
-      });
-
     // Kill switch: leave the on-ramped mUSD in the Money Account rather than
     // depositing it into the vault.
     if (getFiatVaultDisabled(messenger)) {
       log('Skipping vault deposit because the fiat vault is disabled', {
         moneyAccountAddress,
-        sourceAmountRaw,
         transactionId: transaction.id,
       });
 
@@ -167,9 +157,9 @@ export async function submitDirectMusdAfterFiatCompletion({
     return await submitSecondLeg({
       chainId: MUSD_MONAD_FIAT_ASSET.chainId,
       from: moneyAccountAddress,
-      fromBlock,
       messenger,
-      sourceAmountRaw,
+      settlementHash: order.txHash as Hex | undefined,
+      tokenAddress: MUSD_MONAD_FIAT_ASSET.address,
       transaction,
     });
   } catch (error) {
