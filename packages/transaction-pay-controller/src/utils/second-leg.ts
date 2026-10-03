@@ -29,6 +29,13 @@ const log = createModuleLogger(projectLogger, 'second-leg');
 export const SECOND_LEG_ERROR_PREFIX = 'Second leg: ';
 
 /**
+ * Builds the second-leg batch for the amount that settled, in raw units.
+ */
+export type SecondLegCallsBuilder = (
+  sourceAmountRaw: string,
+) => Promise<BatchTransactionParams[]>;
+
+/**
  * Resolves the account the transaction's own calls execute from, when it
  * differs from the account paying for the quote.
  *
@@ -110,70 +117,17 @@ export async function resolveNonAtomicRecipient(
 }
 
 /**
- * Resolves the amount that actually settled for `recipient` on the target
- * chain, read from the settlement transaction's transfer logs.
- *
- * Second legs run after the first leg settles, so the amount they consume is
- * only known once the funds have landed. Reading it on-chain avoids relying on
- * quoted amounts that slippage or fees may have changed.
- *
- * @param options - Resolution options.
- * @param options.messenger - Controller messenger.
- * @param options.recipient - Account that received the settled funds.
- * @param options.settlementHash - Hash of the transaction that delivered the
- * funds on the target chain.
- * @param options.targetChainId - Chain the funds settled on.
- * @param options.targetTokenAddress - Token that settled.
- * @returns The settled amount in raw units.
- */
-export async function resolveSettledAmount({
-  messenger,
-  recipient,
-  settlementHash,
-  targetChainId,
-  targetTokenAddress,
-}: {
-  messenger: TransactionPayControllerMessenger;
-  recipient: Hex;
-  settlementHash: Hex;
-  targetChainId: Hex;
-  targetTokenAddress: Hex;
-}): Promise<string> {
-  const { amountRaw } = await getTransferredAmountFromTxHash({
-    chainId: targetChainId,
-    messenger,
-    tokenAddress: targetTokenAddress,
-    txHash: settlementHash,
-    walletAddress: recipient,
-  });
-
-  if (!amountRaw) {
-    throw new Error(
-      `Could not determine settled amount from transaction ${settlementHash}`,
-    );
-  }
-
-  log('Resolved settled amount', {
-    amountRaw,
-    recipient,
-    settlementHash,
-    targetChainId,
-  });
-
-  return amountRaw;
-}
-
-/**
  * Resolves the calls to submit as the second leg.
  *
  * Callers with no calls on the parent transaction (e.g. withdraw flows) supply
- * a pre-built `calls` batch. Otherwise the parent transaction's own nested
- * calls are re-encoded for the settled amount via `getAmountData`, and the
- * parent transaction is mutated so its stored calls and `requiredAssets`
- * reflect that amount.
+ * `getCalls` to build the batch for the settled amount. Otherwise the parent
+ * transaction's own nested calls are re-encoded for the settled amount via
+ * `getAmountData`, and the parent transaction is mutated so its stored calls
+ * and `requiredAssets` reflect that amount.
  *
  * @param options - Resolution options.
- * @param options.calls - Pre-built batch, used as-is when provided.
+ * @param options.getCalls - Builds the batch for the settled amount, used
+ * as-is when provided.
  * @param options.messenger - Controller messenger.
  * @param options.note - Note recorded against the parent transaction update.
  * @param options.sourceAmountRaw - Settled amount in raw units.
@@ -181,19 +135,25 @@ export async function resolveSettledAmount({
  * @returns Nested transactions to submit as the second leg.
  */
 export async function resolveSecondLegCalls({
-  calls,
+  getCalls,
   messenger,
   note = 'Second leg: update amount',
   sourceAmountRaw,
   transaction,
 }: {
-  calls?: BatchTransactionParams[];
+  getCalls?: SecondLegCallsBuilder;
   messenger: TransactionPayControllerMessenger;
   note?: string;
   sourceAmountRaw: string;
   transaction: TransactionMeta;
 }): Promise<NestedTransactionMetadata[]> {
-  if (calls?.length) {
+  if (getCalls) {
+    const calls = await getCalls(sourceAmountRaw);
+
+    if (!calls.length) {
+      throw new Error('Missing second leg calls');
+    }
+
     return calls;
   }
 
@@ -252,49 +212,64 @@ export async function resolveSecondLegCalls({
  * transaction-type-specific handling (e.g. {@link withChompRecovery}) is
  * applied here so it holds whichever strategy settled the funds.
  *
+ * The amount spent is read from the settlement transaction's transfer logs
+ * rather than trusted from a quote or provider, since slippage and fees mean
+ * the landed amount is only known after settlement. Throws when there is no
+ * settlement hash or no matching transfer, rather than guessing.
+ *
  * @param options - Submit options.
- * @param options.calls - Pre-built batch. Derived from the parent transaction's
- * nested calls when omitted.
- * @param options.chainId - Chain to submit the batch on.
- * @param options.from - Account submitting the batch, which must hold the
- * settled funds.
- * @param options.fromBlock - Block at or after which the funds settled. Lets
- * type-specific handling detect work already done by external actors (e.g.
- * CHOMP auto-vaulting a Money Account deposit).
+ * @param options.chainId - Chain the funds settled on and the batch is
+ * submitted on.
+ * @param options.from - Account that received the settled funds and submits
+ * the batch.
+ * @param options.getCalls - Builds the batch for the settled amount. Derived
+ * from the parent transaction's nested calls when omitted.
  * @param options.messenger - Controller messenger.
  * @param options.note - Note recorded against the parent transaction update.
- * @param options.sourceAmountRaw - Settled amount in raw units.
+ * @param options.settlementHash - Hash of the transaction that delivered the
+ * funds to `from`.
  * @param options.sponsored - Whether gas is sponsored. Defaults to `true`,
  * since second legs run on chains where MetaMask sponsors gas; submission
  * fails rather than silently charging the user when sponsorship is refused.
+ * @param options.tokenAddress - Token that settled.
  * @param options.transaction - Parent transaction meta.
  * @returns Hash of the final submitted child transaction, if available.
  */
 export async function submitSecondLeg({
-  calls,
   chainId,
   from,
-  fromBlock,
+  getCalls,
   messenger,
   note,
-  sourceAmountRaw,
+  settlementHash,
   sponsored = true,
+  tokenAddress,
   transaction,
 }: {
-  calls?: BatchTransactionParams[];
   chainId: Hex;
   from: Hex;
-  fromBlock?: Hex;
+  getCalls?: SecondLegCallsBuilder;
   messenger: TransactionPayControllerMessenger;
   note?: string;
-  sourceAmountRaw: string;
+  settlementHash: Hex | undefined;
   sponsored?: boolean;
+  tokenAddress: Hex;
   transaction: TransactionMeta;
 }): Promise<{ transactionHash?: Hex }> {
+  const { amountRaw: sourceAmountRaw, fromBlock } = await resolveSettledAmount(
+    {
+      chainId,
+      messenger,
+      recipient: from,
+      settlementHash,
+      tokenAddress,
+    },
+  );
+
   // Resolved up front so the parent transaction reflects the settled amount
   // even when type-specific handling short-circuits the submission.
   const nestedTransactions = await resolveSecondLegCalls({
-    calls,
+    getCalls,
     messenger,
     note,
     sourceAmountRaw,
@@ -318,6 +293,62 @@ export async function submitSecondLeg({
   } catch (error) {
     throw prefixError(error, SECOND_LEG_ERROR_PREFIX);
   }
+}
+
+/**
+ * Resolves the amount that settled on `recipient`, read from the settlement
+ * transaction's transfer logs, along with the block it settled in.
+ *
+ * @param options - Resolution options.
+ * @param options.chainId - Chain the funds settled on.
+ * @param options.messenger - Controller messenger.
+ * @param options.recipient - Account that received the settled funds.
+ * @param options.settlementHash - Hash of the transaction that delivered the
+ * funds.
+ * @param options.tokenAddress - Token that settled.
+ * @returns The settled amount in raw units, and the settlement block when
+ * available.
+ */
+async function resolveSettledAmount({
+  chainId,
+  messenger,
+  recipient,
+  settlementHash,
+  tokenAddress,
+}: {
+  chainId: Hex;
+  messenger: TransactionPayControllerMessenger;
+  recipient: Hex;
+  settlementHash: Hex | undefined;
+  tokenAddress: Hex;
+}): Promise<{ amountRaw: string; fromBlock: Hex | undefined }> {
+  if (!settlementHash) {
+    throw new Error('Missing settlement hash');
+  }
+
+  const { amountRaw, blockNumber } = await getTransferredAmountFromTxHash({
+    chainId,
+    messenger,
+    tokenAddress,
+    txHash: settlementHash,
+    walletAddress: recipient,
+  });
+
+  if (!amountRaw) {
+    throw new Error(
+      `Could not determine settled amount from transaction ${settlementHash}`,
+    );
+  }
+
+  log('Resolved settled amount', {
+    amountRaw,
+    blockNumber,
+    chainId,
+    recipient,
+    settlementHash,
+  });
+
+  return { amountRaw, fromBlock: blockNumber };
 }
 
 /**
