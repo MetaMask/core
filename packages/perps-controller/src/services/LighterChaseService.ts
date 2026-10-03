@@ -152,6 +152,12 @@ export type LighterChaseIo = {
 /** Accepted dispatches may precede their exact order snapshot. */
 export class LighterChaseObservationPendingError extends Error {}
 
+/** Read-only settlement budget after an exact Chase cancellation dispatch. */
+const LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS = 10_000;
+
+/** Delay between exact-child reads, without another sign or send. */
+const LIGHTER_CHASE_CANCEL_SETTLEMENT_POLL_MS = 250;
+
 const queues = new Map<string, Promise<unknown>>();
 
 /**
@@ -721,6 +727,53 @@ export class LighterChaseService {
     }
   }
 
+  async #awaitCancellationSettlement(
+    record: LighterChaseRecord,
+    journal: Journal,
+    child: LighterChaseChild,
+    io: LighterChaseIo,
+  ): Promise<void> {
+    const startedAt = Date.now();
+    const deadline = startedAt + LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS;
+    for (
+      let poll = 0;
+      poll <=
+      LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS /
+        LIGHTER_CHASE_CANCEL_SETTLEMENT_POLL_MS;
+      poll += 1
+    ) {
+      io.assertCurrent();
+      try {
+        await this.#observe(record, child, io);
+      } catch (error) {
+        io.assertCurrent();
+        if (!(error instanceof LighterChaseObservationPendingError)) {
+          throw error;
+        }
+      }
+      // Observation also reconciles the retained dispatch. Persist phase
+      // changes and cumulative fills even while exact visibility is pending.
+      await this.#write(record.intent.owner, journal, io);
+      if (
+        child.observation?.terminal ||
+        child.cancellations.at(-1)?.phase === 'failed'
+      ) {
+        return;
+      }
+      const now = Date.now();
+      if (now < startedAt || now >= deadline) {
+        return;
+      }
+      await new Promise((resolve) =>
+        setTimeout(
+          resolve,
+          Math.min(LIGHTER_CHASE_CANCEL_SETTLEMENT_POLL_MS, deadline - now),
+        ),
+      );
+      io.assertCurrent();
+    }
+  }
+
   async #cancel(
     record: LighterChaseRecord,
     journal: Journal,
@@ -751,6 +804,10 @@ export class LighterChaseService {
     }
     const previous = child.cancellations.at(-1);
     if (previous && previous.phase !== 'failed') {
+      await this.#awaitCancellationSettlement(record, journal, child, io);
+      if (child.observation?.terminal) {
+        return;
+      }
       throw new LighterChaseObservationPendingError(
         'Lighter Chase exact cancellation remains unresolved',
       );
@@ -777,8 +834,7 @@ export class LighterChaseService {
     }
     // A fill can win even when the cancellation transport rejects or loses
     // its response. Always reread the exact child before deciding cleanup.
-    await this.#observe(record, child, io);
-    await this.#write(record.intent.owner, journal, io);
+    await this.#awaitCancellationSettlement(record, journal, child, io);
     if (dispatchError && !child.observation?.terminal) {
       throw dispatchError;
     }

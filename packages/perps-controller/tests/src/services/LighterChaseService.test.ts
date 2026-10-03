@@ -1,4 +1,7 @@
-import { LighterChaseService } from '../../../src/services/LighterChaseService.js';
+import {
+  LighterChaseService,
+  LighterChaseObservationPendingError,
+} from '../../../src/services/LighterChaseService.js';
 import type {
   LighterChaseIntent,
   LighterChaseIo,
@@ -127,6 +130,237 @@ const setup = (): TestEnvironment => {
 };
 
 describe('Lighter bounded Chase lifecycle', () => {
+  describe('bounded Chase cancellation settlement', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    const pendingCancel = async (env: TestEnvironment): Promise<void> => {
+      await env.service.start(intent, env.io);
+      jest.mocked(env.io.cancel).mockImplementation(async (_child, hooks) => {
+        await hooks.signed({
+          nonce: 202,
+          txHash: 'cdefcdef',
+          expiresAt: 120000,
+        });
+        await hooks.beforeDispatch();
+      });
+    };
+    const terminal = (
+      env: TestEnvironment,
+      filledSize = '0',
+      filledNotional = '0',
+    ): void => {
+      const row = env.observed.get('101');
+      if (!row) {
+        throw new Error('Missing owned child');
+      }
+      env.observed.set('101', {
+        ...row,
+        terminal: true,
+        filledSize,
+        filledNotional,
+        remainingSize: filledSize === '0' ? intent.originalSize : '0.00015',
+      });
+    };
+
+    it.each(['live', 'missing'] as const)(
+      'settles delayed %s visibility after exactly one cancellation',
+      async (visibility) => {
+        const env = setup();
+        await pendingCancel(env);
+        const observe = jest.mocked(env.io.observe).getMockImplementation();
+        if (!observe) {
+          throw new Error('Missing observation implementation');
+        }
+        jest.mocked(env.io.observe).mockImplementation(async (child) => {
+          if (
+            visibility === 'missing' &&
+            child.cancellations.length > 0 &&
+            !env.observed.get('101')?.terminal
+          ) {
+            throw new LighterChaseObservationPendingError(
+              'Exact child pending',
+            );
+          }
+          return await observe(child);
+        });
+        const stopping = env.service.stop(
+          owner,
+          intent.handle,
+          env.io,
+          'canceled',
+        );
+        setTimeout(() => terminal(env), 2000);
+        await jest.advanceTimersByTimeAsync(2500);
+        const result = await stopping;
+        expect(result.status).toBe('canceled');
+        expect(result.children[0].cancellations).toStrictEqual([
+          expect.objectContaining({ phase: 'acknowledged', nonce: 202 }),
+        ]);
+        expect(result.children[0].observation?.terminal).toBe(true);
+        expect(env.io.cancel).toHaveBeenCalledTimes(1);
+        expect(env.io.place).toHaveBeenCalledTimes(1);
+        expect((await env.service.list(owner, env.io))[0].status).toBe(
+          'canceled',
+        );
+      },
+    );
+
+    it.each(['live', 'missing'] as const)(
+      'bounds %s visibility and reconciles the retained attempt without replay',
+      async (visibility) => {
+        const env = setup();
+        await pendingCancel(env);
+        if (visibility === 'missing') {
+          const observe = jest.mocked(env.io.observe).getMockImplementation();
+          if (!observe) {
+            throw new Error('Missing observation implementation');
+          }
+          jest.mocked(env.io.observe).mockImplementation(async (child) => {
+            if (
+              child.cancellations.length > 0 &&
+              !env.observed.get('101')?.terminal
+            ) {
+              throw new LighterChaseObservationPendingError(
+                'Exact child pending',
+              );
+            }
+            return await observe(child);
+          });
+        }
+        let finished = false;
+        const stopping = env.service
+          .stop(owner, intent.handle, env.io, 'canceled')
+          .then((result) => {
+            finished = true;
+            return result;
+          });
+        await jest.advanceTimersByTimeAsync(9999);
+        expect(finished).toBe(false);
+        await jest.advanceTimersByTimeAsync(1);
+        expect((await stopping).status).toBe('termination_pending');
+        const retrying = env.service.stop(
+          owner,
+          intent.handle,
+          env.io,
+          'canceled',
+        );
+        setTimeout(() => terminal(env), 2000);
+        await jest.advanceTimersByTimeAsync(2500);
+        expect((await retrying).status).toBe('canceled');
+        expect(env.io.cancel).toHaveBeenCalledTimes(1);
+        expect(env.io.place).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('settles delayed terminal evidence after cancellation response loss without replay', async () => {
+      const env = setup();
+      await pendingCancel(env);
+      const cancel = jest.mocked(env.io.cancel).getMockImplementation();
+      if (!cancel) {
+        throw new Error('Missing cancellation implementation');
+      }
+      jest.mocked(env.io.cancel).mockImplementation(async (child, hooks) => {
+        await cancel(child, hooks);
+        throw new Error('cancel response lost');
+      });
+      const stopping = env.service.stop(
+        owner,
+        intent.handle,
+        env.io,
+        'canceled',
+      );
+      setTimeout(() => terminal(env), 2000);
+      await jest.advanceTimersByTimeAsync(2500);
+      const result = await stopping;
+      expect(result.status).toBe('canceled');
+      expect(result.children[0].cancellations).toStrictEqual([
+        expect.objectContaining({ phase: 'attempted', nonce: 202 }),
+      ]);
+      expect(env.io.cancel).toHaveBeenCalledTimes(1);
+      expect(env.io.place).toHaveBeenCalledTimes(1);
+    });
+
+    it('persists partial fills during settlement and retains them in the terminal receipt', async () => {
+      const env = setup();
+      await pendingCancel(env);
+      const stopping = env.service.stop(
+        owner,
+        intent.handle,
+        env.io,
+        'canceled',
+      );
+      setTimeout(() => {
+        terminal(env, '0.00005', '5');
+        const row = env.observed.get('101');
+        if (row) {
+          env.observed.set('101', { ...row, terminal: false });
+        }
+      }, 1000);
+      setTimeout(() => terminal(env, '0.00005', '5'), 2000);
+      await jest.advanceTimersByTimeAsync(1250);
+      expect([...env.disk.values()].join(' ')).toContain(
+        '"executedSize":"0.00005"',
+      );
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(await stopping).toMatchObject({
+        status: 'canceled',
+        executedSize: '0.00005',
+        executedNotional: '5',
+      });
+      expect(env.io.place).toHaveBeenCalledTimes(1);
+      expect(env.io.cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('fences owner changes during the read-only wait before further reads or journal writes', async () => {
+      const env = setup();
+      await pendingCancel(env);
+      const stopping = env.service
+        .stop(owner, intent.handle, env.io, 'canceled')
+        .catch((error: unknown) => error);
+      await jest.advanceTimersByTimeAsync(1000);
+      const disk = [...env.disk.entries()];
+      const reads = jest.mocked(env.io.observe).mock.calls.length;
+      jest.mocked(env.io.assertCurrent).mockImplementation(() => {
+        throw new Error('owner changed');
+      });
+      await jest.advanceTimersByTimeAsync(250);
+      expect(await stopping).toMatchObject({ message: 'owner changed' });
+      expect([...env.disk.entries()]).toStrictEqual(disk);
+      expect(env.io.observe).toHaveBeenCalledTimes(reads);
+      expect(env.io.cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('retains foreign identity failures instead of retrying them as visibility lag', async () => {
+      const env = setup();
+      await pendingCancel(env);
+      const observe = jest.mocked(env.io.observe).getMockImplementation();
+      if (!observe) {
+        throw new Error('Missing observation implementation');
+      }
+      jest.mocked(env.io.observe).mockImplementation(async (child) => {
+        if (child.cancellations.length > 0) {
+          throw new Error('foreign child identity');
+        }
+        return await observe(child);
+      });
+      const result = await env.service.stop(
+        owner,
+        intent.handle,
+        env.io,
+        'canceled',
+      );
+      expect(result).toMatchObject({
+        status: 'termination_pending',
+        error: 'foreign child identity',
+      });
+      const reads = jest.mocked(env.io.observe).mock.calls.length;
+      await jest.advanceTimersByTimeAsync(10000);
+      expect(env.io.observe).toHaveBeenCalledTimes(reads);
+      expect(env.io.cancel).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('prepared final quote', () => {
     it('persists a fresh bounded price after slow preparation without changing the original intent', async () => {
       const env = setup();
@@ -351,19 +585,26 @@ describe('Lighter bounded Chase lifecycle', () => {
     expect(result.executedSize).toBe('0.00005');
   });
   it('never replaces an acknowledged cancel whose child remains live', async () => {
-    const env = setup();
-    await env.service.start(intent, env.io);
-    jest.mocked(env.io.cancel).mockImplementation(async (_child, hooks) => {
-      await hooks.signed({ nonce: 9, txHash: 'cdefcdef', expiresAt: 111000 });
-      await hooks.beforeDispatch();
-    });
-    env.setNow(101000);
-    env.setQuote('99999');
-    const result = await env.service.tick(owner, intent.handle, env.io);
-    expect(result.status).toBe('active');
-    expect(env.io.place).toHaveBeenCalledTimes(1);
-    await env.service.tick(owner, intent.handle, env.io);
-    expect(env.io.cancel).toHaveBeenCalledTimes(1);
+    jest.useFakeTimers();
+    try {
+      const env = setup();
+      await env.service.start(intent, env.io);
+      jest.mocked(env.io.cancel).mockImplementation(async (_child, hooks) => {
+        await hooks.signed({ nonce: 9, txHash: 'cdefcdef', expiresAt: 111000 });
+        await hooks.beforeDispatch();
+      });
+      env.setNow(101000);
+      env.setQuote('99999');
+      const ticking = env.service.tick(owner, intent.handle, env.io);
+      await jest.advanceTimersByTimeAsync(10000);
+      const result = await ticking;
+      expect(result.status).toBe('active');
+      expect(env.io.place).toHaveBeenCalledTimes(1);
+      await env.service.tick(owner, intent.handle, env.io);
+      expect(env.io.cancel).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
   it('preserves response loss across restart without creating or resuming a child', async () => {
     const env = setup();

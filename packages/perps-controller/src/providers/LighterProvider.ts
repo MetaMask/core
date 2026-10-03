@@ -1187,6 +1187,12 @@ const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
 /** Bounded attempts for TP/SL settlement visibility. */
 const LIGHTER_TPSL_SETTLE_ATTEMPTS = 10;
 
+/** Scale indexer settlement window after one exact create or cancel dispatch. */
+const LIGHTER_SCALE_SETTLEMENT_WINDOW_MS = 10_000;
+
+/** Read-only Scale visibility cadence, independent of TP/SL settlement. */
+const LIGHTER_SCALE_SETTLEMENT_POLL_MS = 250;
+
 /** Convert authoritative position percentage or default basis points to leverage.
  * @param positionMargin - Position margin percentage, when a position exists.
  * @param defaultInitial - Market initial margin in basis points.
@@ -9078,17 +9084,30 @@ export class LighterProvider implements PerpsProvider {
     generation: number,
     settled: () => boolean,
   ): Promise<void> => {
-    for (let poll = 0; poll < LIGHTER_TPSL_SETTLE_ATTEMPTS; poll += 1) {
+    const startedAt = Date.now();
+    const deadline = startedAt + LIGHTER_SCALE_SETTLEMENT_WINDOW_MS;
+    for (
+      let poll = 0;
+      poll <=
+      LIGHTER_SCALE_SETTLEMENT_WINDOW_MS / LIGHTER_SCALE_SETTLEMENT_POLL_MS;
+      poll += 1
+    ) {
+      this.#assertSession(generation);
       await this.#refreshScaleGroup(group, key, token, generation, true);
       if (settled()) {
         return;
       }
-      if (poll + 1 < LIGHTER_TPSL_SETTLE_ATTEMPTS) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, LIGHTER_TPSL_SETTLE_POLL_MS),
-        );
-        this.#assertSession(generation);
+      const now = Date.now();
+      if (now < startedAt || now >= deadline) {
+        return;
       }
+      await new Promise((resolve) =>
+        setTimeout(
+          resolve,
+          Math.min(LIGHTER_SCALE_SETTLEMENT_POLL_MS, deadline - now),
+        ),
+      );
+      this.#assertSession(generation);
     }
   };
 

@@ -2232,6 +2232,221 @@ describe('LighterProvider', () => {
       return venue;
     }
 
+    describe('bounded Scale settlement', () => {
+      beforeEach(() => jest.useFakeTimers());
+      afterEach(() => jest.useRealTimers());
+
+      it('waits beyond the TP/SL window for exact delayed children without replay', async () => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const venue = scaleVenue(built);
+        built.clientInstance.getTx.mockResolvedValue(null);
+        built.clientInstance.getActiveOrders.mockImplementation(async () => ({
+          code: 200,
+          orders: venue.active.filter(
+            (row) => Date.now() - Number(row.timestamp) >= 2000,
+          ),
+        }));
+        const placing = built.provider.placeOrder(intent);
+        await jest.advanceTimersByTimeAsync(5000);
+        const result = await placing;
+        expect(result).toMatchObject({
+          success: true,
+          childOrderIds: ['800', '801'],
+          acceptedSize: '0.001',
+        });
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(2);
+        const creates = built.calls.filter(
+          (call) => call.function === '_signCreateOrder',
+        );
+        expect(creates).toHaveLength(2);
+        expect(new Set(creates.map((call) => call.params.at(-1))).size).toBe(2);
+        expect(
+          (await built.provider.getScaleOrderGroups())[0].acceptedChildren,
+        ).toStrictEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ orderId: '800', state: 'resting' }),
+            expect.objectContaining({ orderId: '801', state: 'resting' }),
+          ]),
+        );
+      });
+
+      it('waits for exact delayed cancellations without duplicate signs or sends', async () => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const venue = scaleVenue(built);
+        const placed = await built.provider.placeOrder(intent);
+        const send = built.clientInstance.sendTx.getMockImplementation();
+        let canceledAt = 0;
+        let stale: LighterApiOrder | undefined;
+        built.clientInstance.sendTx.mockImplementation(
+          async (...args: unknown[]) => {
+            stale = venue.active[0];
+            canceledAt = Date.now();
+            await send?.(...args);
+            return { code: 200, txHash: '0xsent' };
+          },
+        );
+        built.clientInstance.getActiveOrders.mockImplementation(async () => ({
+          code: 200,
+          orders:
+            stale && Date.now() - canceledAt < 2000
+              ? [stale, ...venue.active]
+              : [...venue.active],
+        }));
+        built.clientInstance.getInactiveOrders.mockImplementation(async () => ({
+          code: 200,
+          orders: Date.now() - canceledAt < 2000 ? [] : [...venue.history],
+        }));
+        const canceling = built.provider.cancelOrder({
+          symbol: 'BTC',
+          orderId: String(placed.orderId),
+          orderType: 'scale',
+        });
+        await jest.advanceTimersByTimeAsync(5000);
+        expect(await canceling).toMatchObject({ success: true });
+        expect(
+          built.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(2);
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(4);
+        expect((await built.provider.getScaleOrderGroups())[0].state).toBe(
+          'terminal',
+        );
+      });
+
+      it('bounds missing placement visibility and later reconciles without replay', async () => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const venue = scaleVenue(built);
+        built.clientInstance.getTx.mockResolvedValue(null);
+        built.clientInstance.getActiveOrders.mockResolvedValue({
+          code: 200,
+          orders: [],
+        });
+        let finished = false;
+        const placing = built.provider.placeOrder(intent).then((result) => {
+          finished = true;
+          return result;
+        });
+        await jest.advanceTimersByTimeAsync(9999);
+        expect(finished).toBe(false);
+        await jest.advanceTimersByTimeAsync(1);
+        expect(await placing).toMatchObject({ success: false });
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        built.clientInstance.getActiveOrders.mockResolvedValue({
+          code: 200,
+          orders: venue.active,
+        });
+        await built.provider.reviewScaleOrderGroups();
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        expect(
+          built.calls.filter((call) => call.function === '_signCreateOrder'),
+        ).toHaveLength(1);
+      });
+
+      it.each(['placement', 'cancellation'] as const)(
+        'stops delayed %s settlement when the issuing session changes',
+        async (phase) => {
+          const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+          scaleVenue(built);
+          const placed =
+            phase === 'cancellation'
+              ? await built.provider.placeOrder(intent)
+              : undefined;
+          if (placed) {
+            built.clientInstance.sendTx.mockResolvedValue({
+              code: 200,
+              txHash: '0xsent',
+            });
+          } else {
+            built.clientInstance.getActiveOrders.mockResolvedValue({
+              code: 200,
+              orders: [],
+            });
+            built.clientInstance.getTx.mockResolvedValue(null);
+          }
+          const pending = placed
+            ? built.provider.cancelOrder({
+                symbol: 'BTC',
+                orderId: String(placed.orderId),
+                orderType: 'scale',
+              })
+            : built.provider.placeOrder(intent);
+          await jest.advanceTimersByTimeAsync(2000);
+          built.fireReset();
+          const reads = built.clientInstance.getActiveOrders.mock.calls.length;
+          await jest.advanceTimersByTimeAsync(250);
+          expect(await pending).toMatchObject({
+            success: false,
+            error: expect.stringMatching(/session|reset/u) as string,
+          });
+          expect(built.clientInstance.getActiveOrders).toHaveBeenCalledTimes(
+            reads,
+          );
+          expect(
+            built.calls.filter((call) => call.function === '_signCancelOrder'),
+          ).toHaveLength(placed ? 1 : 0);
+          expect(
+            built.calls.filter((call) => call.function === '_signCreateOrder'),
+          ).toHaveLength(placed ? 2 : 1);
+        },
+      );
+
+      it('keeps cancellation timeout unresolved and later settles without replay', async () => {
+        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const venue = scaleVenue(built);
+        const placed = await built.provider.placeOrder(intent);
+        const stale = [...venue.active];
+        built.clientInstance.getActiveOrders.mockResolvedValue({
+          code: 200,
+          orders: stale,
+        });
+        built.clientInstance.getInactiveOrders.mockResolvedValue({
+          code: 200,
+          orders: [],
+        });
+        let finished = false;
+        const canceling = built.provider
+          .cancelOrder({
+            symbol: 'BTC',
+            orderId: String(placed.orderId),
+            orderType: 'scale',
+          })
+          .then((result) => {
+            finished = true;
+            return result;
+          });
+        await jest.advanceTimersByTimeAsync(19999);
+        expect(finished).toBe(false);
+        await jest.advanceTimersByTimeAsync(1);
+        expect(await canceling).toMatchObject({
+          success: false,
+          error: 'Lighter Scale cancellation remains unresolved',
+        });
+        expect(
+          built.calls
+            .filter((call) => call.function === '_signCancelOrder')
+            .map((call) => call.params[2]),
+        ).toStrictEqual(['800', '801']);
+        built.clientInstance.getActiveOrders.mockResolvedValue({
+          code: 200,
+          orders: venue.active,
+        });
+        built.clientInstance.getInactiveOrders.mockResolvedValue({
+          code: 200,
+          orders: venue.history,
+        });
+        expect((await built.provider.reviewScaleOrderGroups())[0].state).toBe(
+          'terminal',
+        );
+        expect(
+          await built.provider.cancelOrder({
+            symbol: 'BTC',
+            orderId: String(placed.orderId),
+            orderType: 'scale',
+          }),
+        ).toMatchObject({ success: true });
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(4);
+      });
+    });
+
     it.each([
       'nonce',
       'signer',
@@ -32218,6 +32433,125 @@ describe('Lighter bounded Chase provider probe', () => {
     orderType: 'chase';
     providerId: 'lighter';
   } => ({ symbol: 'BTC', orderId, orderType: 'chase', providerId: 'lighter' });
+  describe('bounded Chase provider settlement', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it.each(['live', 'missing'] as const)(
+      'reports success after delayed exact %s cancellation visibility',
+      async (visibility) => {
+        const built = setup();
+        try {
+          const placed = await built.provider.placeOrder({
+            ...intent,
+            chaseIntervalMs: 120000,
+            chaseMaxDurationMs: 180000,
+          });
+          const original =
+            built.clientInstance.getOrdersByClientIds.getMockImplementation() as
+              | ExactLookup
+              | undefined;
+          if (!original) {
+            throw new Error('Missing exact lookup');
+          }
+          let observedAt: number | undefined;
+          built.clientInstance.getOrdersByClientIds.mockImplementation(
+            async (...args: Parameters<ExactLookup>) => {
+              const result = await original(...args);
+              if (
+                built.calls.some((call) => call.function === '_signCancelOrder')
+              ) {
+                observedAt ??= Date.now() + 2000;
+                if (Date.now() < observedAt) {
+                  return {
+                    ...result,
+                    orders:
+                      visibility === 'missing'
+                        ? []
+                        : result.orders.map((row) => ({
+                            ...row,
+                            status: 'open',
+                          })),
+                  };
+                }
+              }
+              return result;
+            },
+          );
+          const canceling = built.provider.cancelOrder(
+            cancelParams(String(placed.orderId)),
+          );
+          await jest.advanceTimersByTimeAsync(2500);
+          expect(await canceling).toMatchObject({ success: true });
+          const record = (await built.provider.getNativeChaseRecords())[0];
+          expect(record).toMatchObject({
+            status: 'canceled',
+            executedSize: '0',
+            executedNotional: '0',
+          });
+          expect(record.children).toHaveLength(1);
+          expect(record.children[0].cancellations).toHaveLength(1);
+          expect(record.children[0].cancellations[0].nonce).toBe(
+            Number(record.children[0].placement.nonce) + 1,
+          );
+          expect(
+            built.calls.filter((call) => call.function === '_signCreateOrder'),
+          ).toHaveLength(1);
+          expect(
+            built.calls.filter((call) => call.function === '_signCancelOrder'),
+          ).toHaveLength(1);
+          expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(2);
+          expect(
+            await built.provider.cancelOrder(
+              cancelParams(String(placed.orderId)),
+            ),
+          ).toMatchObject({ success: true });
+          expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(2);
+        } finally {
+          await built.provider.disconnect();
+        }
+      },
+    );
+
+    it('preserves foreign cancellation transaction errors without treating them as indexer lag', async () => {
+      const built = setup();
+      try {
+        const placed = await built.provider.placeOrder(intent);
+        const tx = built.clientInstance.getTx.getMockImplementation() as
+          | TxLookup
+          | undefined;
+        if (!tx) {
+          throw new Error('Missing transaction lookup');
+        }
+        built.clientInstance.getTx.mockImplementation(async (hash: string) => ({
+          ...(await tx(hash)),
+          accountIndex: 99,
+        }));
+        expect(
+          await built.provider.cancelOrder(
+            cancelParams(String(placed.orderId)),
+          ),
+        ).toMatchObject({
+          success: false,
+          error: 'Lighter Chase transaction identity mismatch',
+        });
+        const reads =
+          built.clientInstance.getOrdersByClientIds.mock.calls.length;
+        await jest.advanceTimersByTimeAsync(10000);
+        expect(built.clientInstance.getOrdersByClientIds).toHaveBeenCalledTimes(
+          reads,
+        );
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(2);
+        expect(
+          (await built.provider.getNativeChaseRecords())[0].children[0]
+            .cancellations,
+        ).toHaveLength(1);
+      } finally {
+        await built.provider.disconnect();
+      }
+    });
+  });
+
   describe('late Chase quote preparation', () => {
     type Book = Awaited<ReturnType<LighterClientService['getOrderBookOrders']>>;
     const finalBook = async (
@@ -32984,93 +33318,102 @@ describe('Lighter bounded Chase provider probe', () => {
     expect(stopped.local.children).toStrictEqual(stopped.retained.children);
   });
   it('preserves a real attempted cancellation through absent stops and refuses an unknown duplicate after restart', async () => {
-    const deps = diskDependencies();
-    const original = setup({
-      platformDependencies: deps,
-      configuredAccountIndex: null,
-    });
-    const placed = await original.provider.placeOrder(intent);
-    if (!placed.orderId || !placed.success) {
-      throw new Error(placed.error ?? 'Missing Chase placement');
-    }
-    const retained = (await original.provider.getNativeChaseRecords())[0];
-    bindRetainedChaseLookup(original, retained, () => false);
-    original.clientInstance.sendTx.mockRejectedValueOnce(
-      new Error('cancel response lost'),
-    );
-    expect(
-      (await original.provider.cancelOrder(cancelParams(placed.orderId)))
-        .success,
-    ).toBe(false);
-    const attempted = (await original.provider.getNativeChaseRecords())[0];
-    expect(attempted.children[0].cancellations[0]).toMatchObject({
-      phase: 'attempted',
-      txHash: expect.any(String) as string,
-    });
-    expect(
-      original.calls.filter((call) => call.function === '_signCancelOrder'),
-    ).toHaveLength(1);
-    expect(
-      original.clientInstance.sendTx.mock.calls.filter(
-        ([kind]) => kind === LIGHTER_TX_TYPE_CANCEL_ORDER,
-      ),
-    ).toHaveLength(1);
-    await original.provider.disconnect();
-    for (let restart = 0; restart < 2; restart += 1) {
-      const absent = absentChase(deps);
-      try {
-        for (
-          let stop = 0;
-          stop <= LIGHTER_NATIVE_PROBE_CANCEL_LIMIT;
-          stop += 1
-        ) {
-          await absent.provider.suspendChaseOrders();
-          await absent.provider.cancelOrder(cancelParams(placed.orderId));
-        }
-        expect(
-          (await absent.provider.getNativeChaseRecords())[0].children,
-        ).toStrictEqual(attempted.children);
-        expect(absent.calls).toStrictEqual([]);
-        expect(absent.clientInstance.sendTx).not.toHaveBeenCalled();
-      } finally {
-        await absent.provider.disconnect();
-      }
-    }
-    const restored = setup({
-      platformDependencies: deps,
-      configuredAccountIndex: null,
-    });
-    let terminal = false;
-    bindRetainedChaseLookup(restored, attempted, () => terminal);
-    const dispatch = attempted.children[0].cancellations[0];
-    restored.clientInstance.getTx.mockImplementation(async (hash: string) => ({
-      code: 200,
-      hash,
-      accountIndex: 28,
-      apiKeyIndex: 7,
-      nonce: dispatch.nonce,
-      status: terminal ? 2 : 1,
-    }));
+    jest.useFakeTimers();
     try {
+      const deps = diskDependencies();
+      const original = setup({
+        platformDependencies: deps,
+        configuredAccountIndex: null,
+      });
+      const placed = await original.provider.placeOrder(intent);
+      if (!placed.orderId || !placed.success) {
+        throw new Error(placed.error ?? 'Missing Chase placement');
+      }
+      const retained = (await original.provider.getNativeChaseRecords())[0];
+      bindRetainedChaseLookup(original, retained, () => false);
+      original.clientInstance.sendTx.mockRejectedValueOnce(
+        new Error('cancel response lost'),
+      );
+      const firstCancellation = original.provider.cancelOrder(
+        cancelParams(placed.orderId),
+      );
+      await jest.advanceTimersByTimeAsync(10000);
+      expect((await firstCancellation).success).toBe(false);
+      const attempted = (await original.provider.getNativeChaseRecords())[0];
+      expect(attempted.children[0].cancellations[0]).toMatchObject({
+        phase: 'attempted',
+        txHash: expect.any(String) as string,
+      });
       expect(
-        (await restored.provider.cancelOrder(cancelParams(placed.orderId)))
-          .success,
-      ).toBe(false);
+        original.calls.filter((call) => call.function === '_signCancelOrder'),
+      ).toHaveLength(1);
       expect(
-        (await restored.provider.getNativeChaseRecords())[0].children[0]
-          .cancellations,
-      ).toStrictEqual(attempted.children[0].cancellations);
-      terminal = true;
-      expect(
-        (await restored.provider.cancelOrder(cancelParams(placed.orderId)))
-          .success,
-      ).toBe(true);
-      expect(
-        restored.calls.filter((call) => call.function === '_signCancelOrder'),
-      ).toHaveLength(0);
-      expect(restored.clientInstance.sendTx).not.toHaveBeenCalled();
+        original.clientInstance.sendTx.mock.calls.filter(
+          ([kind]) => kind === LIGHTER_TX_TYPE_CANCEL_ORDER,
+        ),
+      ).toHaveLength(1);
+      await original.provider.disconnect();
+      for (let restart = 0; restart < 2; restart += 1) {
+        const absent = absentChase(deps);
+        try {
+          for (
+            let stop = 0;
+            stop <= LIGHTER_NATIVE_PROBE_CANCEL_LIMIT;
+            stop += 1
+          ) {
+            await absent.provider.suspendChaseOrders();
+            await absent.provider.cancelOrder(cancelParams(placed.orderId));
+          }
+          expect(
+            (await absent.provider.getNativeChaseRecords())[0].children,
+          ).toStrictEqual(attempted.children);
+          expect(absent.calls).toStrictEqual([]);
+          expect(absent.clientInstance.sendTx).not.toHaveBeenCalled();
+        } finally {
+          await absent.provider.disconnect();
+        }
+      }
+      const restored = setup({
+        platformDependencies: deps,
+        configuredAccountIndex: null,
+      });
+      let terminal = false;
+      bindRetainedChaseLookup(restored, attempted, () => terminal);
+      const dispatch = attempted.children[0].cancellations[0];
+      restored.clientInstance.getTx.mockImplementation(
+        async (hash: string) => ({
+          code: 200,
+          hash,
+          accountIndex: 28,
+          apiKeyIndex: 7,
+          nonce: dispatch.nonce,
+          status: terminal ? 2 : 1,
+        }),
+      );
+      try {
+        const retainedCancellation = restored.provider.cancelOrder(
+          cancelParams(placed.orderId),
+        );
+        await jest.advanceTimersByTimeAsync(10000);
+        expect((await retainedCancellation).success).toBe(false);
+        expect(
+          (await restored.provider.getNativeChaseRecords())[0].children[0]
+            .cancellations,
+        ).toStrictEqual(attempted.children[0].cancellations);
+        terminal = true;
+        expect(
+          (await restored.provider.cancelOrder(cancelParams(placed.orderId)))
+            .success,
+        ).toBe(true);
+        expect(
+          restored.calls.filter((call) => call.function === '_signCancelOrder'),
+        ).toHaveLength(0);
+        expect(restored.clientInstance.sendTx).not.toHaveBeenCalled();
+      } finally {
+        await restored.provider.disconnect();
+      }
     } finally {
-      await restored.provider.disconnect();
+      jest.useRealTimers();
     }
   });
   it.each(['empty', 'other-wallet', 'other-network'] as const)(
@@ -33178,16 +33521,18 @@ describe('Lighter bounded Chase provider probe', () => {
         built.clientInstance.getOrderBookOrders.mockRejectedValue(
           new Error('quote unavailable'),
         );
-        await jest.advanceTimersByTimeAsync(1000);
+        await jest.advanceTimersByTimeAsync(11000);
         const before = (await built.provider.getNativeChaseRecords())[0];
         expect(before.stopReason).toBe('failed');
         if (state === 'later-settled') {
           terminal = true;
         }
 
-        const receipt = await built.provider.cancelOrder(
+        const cancellation = built.provider.cancelOrder(
           cancelParams(placed.orderId),
         );
+        await jest.advanceTimersByTimeAsync(10000);
+        const receipt = await cancellation;
 
         const after = (await built.provider.getNativeChaseRecords())[0];
         expect(after.stopReason).toBe('failed');
@@ -33527,93 +33872,108 @@ describe('Lighter bounded Chase provider probe', () => {
   it.each(['failed', 'unknown'] as const)(
     'allows cleanup retry only for a definitively %s cancellation despite unavailable fills',
     async (outcome) => {
-      const deps = diskDependencies();
-      const built = setup({ platformDependencies: deps });
-      const exact =
-        built.clientInstance.getOrdersByClientIds.getMockImplementation() as
-          | ExactLookup
-          | undefined;
-      if (!exact) {
-        throw new Error('Missing exact lookup');
+      jest.useFakeTimers();
+      try {
+        const deps = diskDependencies();
+        const built = setup({ platformDependencies: deps });
+        const exact =
+          built.clientInstance.getOrdersByClientIds.getMockImplementation() as
+            | ExactLookup
+            | undefined;
+        if (!exact) {
+          throw new Error('Missing exact lookup');
+        }
+        built.clientInstance.getOrdersByClientIds.mockImplementation(
+          async (...args: Parameters<ExactLookup>) => {
+            const result = (await exact(...args)) as {
+              code: number;
+              orders: LighterApiOrder[];
+            };
+            return {
+              ...result,
+              orders: result.orders.map((row) => ({ ...row, status: 'open' })),
+            };
+          },
+        );
+        const placed = await built.provider.placeOrder(intent);
+        const cancellation = built.provider.cancelOrder(
+          cancelParams(placed.orderId ?? ''),
+        );
+        await jest.advanceTimersByTimeAsync(10000);
+        expect((await cancellation).success).toBe(false);
+        const original = (await built.provider.getNativeChaseRecords())[0];
+        await built.provider.disconnect();
+        const restarted = setup({ platformDependencies: deps });
+        restarted.clientInstance.getOrdersByClientIds.mockImplementation(
+          async (_account: number, _token: string, ids: string[]) => ({
+            code: 200,
+            orders: [
+              {
+                orderIndex: 9001,
+                orderId: '9001',
+                clientOrderIndex: Number(ids[0]),
+                clientOrderId: ids[0],
+                marketIndex: 1,
+                ownerAccountIndex: 28,
+                initialBaseAmount: original.children[0].size,
+                remainingBaseAmount: original.children[0].size,
+                filledBaseAmount: '0',
+                filledQuoteAmount: '0',
+                price: original.children[0].price,
+                isAsk: false,
+                type: 'limit',
+                timeInForce: 'post-only',
+                reduceOnly: 0,
+                status: 'open',
+                orderExpiry: Date.now() + 100000,
+                timestamp: 1,
+                nonce: 2075941,
+              },
+            ],
+          }),
+        );
+        restarted.clientInstance.getTrades.mockRejectedValue(
+          new Error('fills unavailable'),
+        );
+        const previous = original.children[0].cancellations[0];
+        restarted.clientInstance.getTx.mockImplementation(
+          async (hash: string) =>
+            hash === previous.txHash
+              ? {
+                  code: 200,
+                  hash,
+                  accountIndex: 28,
+                  apiKeyIndex: 7,
+                  nonce: previous.nonce,
+                  status: outcome === 'failed' ? 0 : 1,
+                }
+              : null,
+        );
+        await restarted.provider.cancelOrder(
+          cancelParams(placed.orderId ?? ''),
+        );
+        expect(
+          restarted.calls.filter(
+            (call) => call.function === '_signCancelOrder',
+          ),
+        ).toHaveLength(outcome === 'failed' ? 1 : 0);
+        const updated = (await restarted.provider.getNativeChaseRecords())[0];
+        expect(updated.children[0].cancellations).toHaveLength(
+          outcome === 'failed' ? 2 : 1,
+        );
+        expect(updated.status).toBe('termination_pending');
+        await restarted.provider.cancelOrder(
+          cancelParams(placed.orderId ?? ''),
+        );
+        expect(
+          restarted.calls.filter(
+            (call) => call.function === '_signCancelOrder',
+          ),
+        ).toHaveLength(outcome === 'failed' ? 1 : 0);
+        await restarted.provider.disconnect();
+      } finally {
+        jest.useRealTimers();
       }
-      built.clientInstance.getOrdersByClientIds.mockImplementation(
-        async (...args: Parameters<ExactLookup>) => {
-          const result = (await exact(...args)) as {
-            code: number;
-            orders: LighterApiOrder[];
-          };
-          return {
-            ...result,
-            orders: result.orders.map((row) => ({ ...row, status: 'open' })),
-          };
-        },
-      );
-      const placed = await built.provider.placeOrder(intent);
-      expect(
-        (await built.provider.cancelOrder(cancelParams(placed.orderId ?? '')))
-          .success,
-      ).toBe(false);
-      const original = (await built.provider.getNativeChaseRecords())[0];
-      await built.provider.disconnect();
-      const restarted = setup({ platformDependencies: deps });
-      restarted.clientInstance.getOrdersByClientIds.mockImplementation(
-        async (_account: number, _token: string, ids: string[]) => ({
-          code: 200,
-          orders: [
-            {
-              orderIndex: 9001,
-              orderId: '9001',
-              clientOrderIndex: Number(ids[0]),
-              clientOrderId: ids[0],
-              marketIndex: 1,
-              ownerAccountIndex: 28,
-              initialBaseAmount: original.children[0].size,
-              remainingBaseAmount: original.children[0].size,
-              filledBaseAmount: '0',
-              filledQuoteAmount: '0',
-              price: original.children[0].price,
-              isAsk: false,
-              type: 'limit',
-              timeInForce: 'post-only',
-              reduceOnly: 0,
-              status: 'open',
-              orderExpiry: Date.now() + 100000,
-              timestamp: 1,
-              nonce: 2075941,
-            },
-          ],
-        }),
-      );
-      restarted.clientInstance.getTrades.mockRejectedValue(
-        new Error('fills unavailable'),
-      );
-      const previous = original.children[0].cancellations[0];
-      restarted.clientInstance.getTx.mockImplementation(async (hash: string) =>
-        hash === previous.txHash
-          ? {
-              code: 200,
-              hash,
-              accountIndex: 28,
-              apiKeyIndex: 7,
-              nonce: previous.nonce,
-              status: outcome === 'failed' ? 0 : 1,
-            }
-          : null,
-      );
-      await restarted.provider.cancelOrder(cancelParams(placed.orderId ?? ''));
-      expect(
-        restarted.calls.filter((call) => call.function === '_signCancelOrder'),
-      ).toHaveLength(outcome === 'failed' ? 1 : 0);
-      const updated = (await restarted.provider.getNativeChaseRecords())[0];
-      expect(updated.children[0].cancellations).toHaveLength(
-        outcome === 'failed' ? 2 : 1,
-      );
-      expect(updated.status).toBe('termination_pending');
-      await restarted.provider.cancelOrder(cancelParams(placed.orderId ?? ''));
-      expect(
-        restarted.calls.filter((call) => call.function === '_signCancelOrder'),
-      ).toHaveLength(outcome === 'failed' ? 1 : 0);
-      await restarted.provider.disconnect();
     },
   );
   it('cleans up at an absolute non-divisible deadline', async () => {
