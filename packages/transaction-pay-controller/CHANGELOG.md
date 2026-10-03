@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/ramps-controller` from `^26.2.0` to `^26.3.0` ([#10741](https://github.com/MetaMask/core/pull/10741))
 - Bump `@metamask/ramps-controller` from `^26.1.0` to `^26.2.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/sentinel-api-service` from `^2.0.0` to `^2.1.0` ([#10746](https://github.com/MetaMask/core/pull/10746))
+- Fail fiat and second-leg submissions when the settled amount cannot be read from an on-chain transaction, rather than falling back to `order.cryptoAmount` or the quote minimum ([#10501](https://github.com/MetaMask/core/pull/10501))
 
 ### Fixed
 
