@@ -6,7 +6,7 @@ import {
   getServerStatus,
   submitServerIntent,
 } from './server-api.js';
-import { ServerProviderName, ServerStatus } from './types.js';
+import { ServerStatus } from './types.js';
 import type { ServerQuoteRequest, ServerSubmitRequest } from './types.js';
 
 jest.mock('../../utils/feature-flags');
@@ -62,7 +62,7 @@ describe('server-api', () => {
     const QUOTE_RESPONSE_MOCK = {
       results: [
         {
-          provider: ServerProviderName.Relay,
+          provider: 'relay',
           quote: {
             id: '0xid',
             input: {
@@ -160,7 +160,7 @@ describe('server-api', () => {
       chainId: 1,
       data: '0xbbb',
       id: '0xid',
-      provider: ServerProviderName.Relay,
+      provider: 'relay',
       to: '0xaaa',
       value: '0',
     };
@@ -195,7 +195,7 @@ describe('server-api', () => {
 
   describe('getServerStatus', () => {
     const STATUS_PARAMS_MOCK = {
-      provider: ServerProviderName.Relay,
+      provider: 'relay',
       id: '0xabc',
     };
 

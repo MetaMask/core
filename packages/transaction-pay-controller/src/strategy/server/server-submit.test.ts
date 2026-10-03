@@ -26,7 +26,7 @@ import {
 } from '../../utils/transaction.js';
 import { getServerStatus, submitServerIntent } from './server-api.js';
 import { submitServerQuotes } from './server-submit.js';
-import { ServerProviderName, ServerStatus } from './types.js';
+import { ServerStatus } from './types.js';
 import type { ServerQuote, ServerSignatureStep } from './types.js';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -94,7 +94,7 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
     raw: '1000000',
     token: '0x6666666666666666666666666666666666666666',
   },
-  provider: ServerProviderName.Relay,
+  provider: 'relay',
   steps: [
     {
       type: 'transaction' as const,
@@ -231,7 +231,7 @@ describe('submitServerQuotes', () => {
       chainId: 137,
       data: DELEGATION_MOCK.data,
       id: ORIGINAL_QUOTE_MOCK.id,
-      provider: ServerProviderName.Relay,
+      provider: 'relay',
       to: DELEGATION_MOCK.to,
       value: '16',
     });
