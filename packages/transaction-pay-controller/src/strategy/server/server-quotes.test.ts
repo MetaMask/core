@@ -27,7 +27,6 @@ import {
 import { TradeType } from '../../utils/trade-type.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
-import { ServerProviderName } from './types.js';
 
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
@@ -76,7 +75,7 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 };
 
 const FULFILLED_RESULT_MOCK = {
-  provider: ServerProviderName.Relay,
+  provider: 'relay',
   quote: {
     duration: 42,
     fees: { metamask: '0', provider: '0.25', subsidized: false },
@@ -110,7 +109,7 @@ const FULFILLED_RESULT_MOCK = {
 
 const REJECTED_RESULT_MOCK = {
   error: { message: 'no route' },
-  provider: ServerProviderName.Relay,
+  provider: 'relay',
 };
 
 const CONTRACT_CALL_TRANSACTION_MOCK = {
