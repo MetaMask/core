@@ -22,9 +22,6 @@ export enum ServerUnsupportedReason {
   /** The direct mUSD Money Account fiat flow is not implemented. */
   DirectMusdMoneyAccount = 'directMusdMoneyAccount',
 
-  /** Non-atomic multi-leg submission is not implemented. */
-  NonAtomic = 'nonAtomic',
-
   /** The parent transaction type is not in the remote-flag allowlist. */
   DisabledTransactionType = 'disabledTransactionType',
 
@@ -94,10 +91,6 @@ export function getServerUnsupportedReason({
 function getRequestUnsupportedReason(
   request: QuoteRequest,
 ): ServerUnsupportedReason | undefined {
-  if (request.atomic === false) {
-    return ServerUnsupportedReason.NonAtomic;
-  }
-
   if (request.hyperliquidActivationFeeUsd !== undefined) {
     return ServerUnsupportedReason.HyperliquidActivationFee;
   }
