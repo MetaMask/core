@@ -4300,7 +4300,9 @@ export class PerpsController extends BaseController<
    * Explicit non-financial reconciliation with local persistence. Never signs,
    * retries or acknowledges dispatches. Unsupported providers return their local
    * listed state, or an empty list when neither capability is available.
-   * Rejects account, network or provider changes during controller readiness.
+   * Rejects account, network or provider changes while controller readiness,
+   * reconciliation or fallback listing completes. Provider rejections propagate
+   * unchanged.
    *
    * @returns Newly scoped pending and recovered dispatches.
    */
@@ -4310,10 +4312,13 @@ export class PerpsController extends BaseController<
     if (this.#getActionContext() !== issuedContext) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }
-    if (provider.reconcileRecoveredDispatches) {
-      return provider.reconcileRecoveredDispatches();
+    const dispatches = provider.reconcileRecoveredDispatches
+      ? await provider.reconcileRecoveredDispatches()
+      : ((await provider.getRecoveredDispatches?.()) ?? []);
+    if (this.#getActionContext() !== issuedContext) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }
-    return provider.getRecoveredDispatches?.() ?? [];
+    return dispatches;
   }
 
   /**

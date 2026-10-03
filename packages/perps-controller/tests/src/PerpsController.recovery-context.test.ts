@@ -8,6 +8,7 @@ import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js'
 import type {
   PerpsActiveProviderMode,
   PerpsProvider,
+  PerpsRecoveredDispatch,
   SwitchProviderResult,
   ToggleTestnetResult,
 } from '../../src/types/index.js';
@@ -257,6 +258,128 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
       fixture.controller.reviewScaleOrderGroups({ providerId: 'lighter' }),
     ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     expect(reviewScaleOrderGroups).not.toHaveBeenCalled();
+  });
+
+  describe.each([
+    'reconcileRecoveredDispatches',
+    'getRecoveredDispatches',
+  ] as const)('reconciliation through %s', (capability) => {
+    const dispatches: PerpsRecoveredDispatch[] = [
+      {
+        recoveryId: LEGACY_ID,
+        walletAddress: ACCOUNT_A,
+        kind: 1,
+        intent: 'Recovered test dispatch',
+        txHash: null,
+        outcome: 'unknown',
+        evidence: 'unresolved',
+      },
+    ];
+
+    it.each(CONTEXT_CHANGES)(
+      'refuses stale reconciliation before provider readiness after $name changes',
+      async ({ change }) => {
+        const fixture = createFixture();
+        const read = jest.fn().mockResolvedValue(dispatches);
+        Object.assign(fixture.provider, { [capability]: read });
+
+        const result = fixture.controller.reconcileRecoveredDispatches();
+        change(fixture);
+
+        await expect(result).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        expect(read).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(CONTEXT_CHANGES)(
+      'refuses stale reconciliation after awaited provider call and $name changes',
+      async ({ change }) => {
+        const fixture = createFixture();
+        const completion = createDeferred<PerpsRecoveredDispatch[]>();
+        const entered = createDeferred<void>();
+        const read = jest.fn(async () => {
+          entered.resolve();
+          return completion.promise;
+        });
+        Object.assign(fixture.provider, { [capability]: read });
+
+        const result = fixture.controller.reconcileRecoveredDispatches();
+        await entered.promise;
+        change(fixture);
+        completion.resolve(dispatches);
+
+        await expect(result).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        expect(read).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('returns the exact provider result after an unchanged-context await', async () => {
+      const fixture = createFixture();
+      const completion = createDeferred<PerpsRecoveredDispatch[]>();
+      const entered = createDeferred<void>();
+      const read = jest.fn(async () => {
+        entered.resolve();
+        return completion.promise;
+      });
+      Object.assign(fixture.provider, { [capability]: read });
+
+      const result = fixture.controller.reconcileRecoveredDispatches();
+      await entered.promise;
+      completion.resolve(dispatches);
+
+      expect(await result).toBe(dispatches);
+      expect(read).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(CONTEXT_CHANGES)(
+      'preserves readiness rejection after $name changes',
+      async ({ change }) => {
+        const fixture = createFixture(false);
+        const read = jest.fn().mockResolvedValue(dispatches);
+        Object.assign(fixture.provider, { [capability]: read });
+
+        const result = fixture.controller.reconcileRecoveredDispatches();
+        change(fixture);
+
+        await expect(result).rejects.toThrow(
+          PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED,
+        );
+        expect(read).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(CONTEXT_CHANGES)(
+      'preserves the exact provider rejection after $name changes in flight',
+      async ({ change }) => {
+        const fixture = createFixture();
+        const completion = createDeferred<PerpsRecoveredDispatch[]>();
+        const entered = createDeferred<void>();
+        const failure = new Error('Original reconciliation rejection');
+        const read = jest.fn(async () => {
+          entered.resolve();
+          return completion.promise;
+        });
+        Object.assign(fixture.provider, { [capability]: read });
+
+        const result = fixture.controller.reconcileRecoveredDispatches();
+        await entered.promise;
+        change(fixture);
+        completion.reject(failure);
+
+        await expect(result).rejects.toBe(failure);
+        expect(read).toHaveBeenCalledTimes(1);
+      },
+    );
+  });
+
+  it('returns an empty reconciliation when neither provider capability is available', async () => {
+    const { controller } = createFixture();
+
+    expect(await controller.reconcileRecoveredDispatches()).toStrictEqual([]);
   });
 
   it.each(CONTEXT_CHANGES)(
