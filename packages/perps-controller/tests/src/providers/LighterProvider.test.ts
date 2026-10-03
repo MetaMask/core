@@ -821,6 +821,232 @@ describe('LighterProvider', () => {
     };
     const journalKey = `lighterNativeEdit:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, edit.orderId])}`;
 
+    describe('bounded native edit settlement polling', () => {
+      beforeEach(() => jest.useFakeTimers());
+      afterEach(() => jest.useRealTimers());
+
+      function setup(): BuiltProvider & {
+        deps: ReturnType<typeof createMockInfrastructure>;
+        setRow: (next: LighterEditableOrder) => void;
+      } {
+        const deps = createMockInfrastructure();
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: deps,
+        });
+        let row = target();
+        built.clientInstance.getEditableOrders.mockImplementation(async () => ({
+          code: 200,
+          orders: [row],
+        }));
+        built.clientInstance.sendTx.mockImplementation(async () => {
+          row = { ...row, price: '91000' };
+          return { code: 200 };
+        });
+        return {
+          ...built,
+          deps,
+          setRow: (next: LighterEditableOrder): void => {
+            row = next;
+          },
+        };
+      }
+
+      it('waits for pending then executed and returns settled after one signed send', async () => {
+        const built = setup();
+        built.clientInstance.getTx
+          .mockResolvedValueOnce({ ...executed, status: 1 })
+          .mockResolvedValue(executed);
+
+        const pending = built.provider.editOrder(edit);
+        await jest.advanceTimersByTimeAsync(3000);
+        const result = await pending;
+
+        expect(result).toMatchObject({
+          success: true,
+          orderId: edit.orderId,
+          orderEdit: { status: 'settled', observation: { price: '91000' } },
+        });
+        expect(built.clientInstance.getTx).toHaveBeenCalledTimes(2);
+        expect(built.clientInstance.getTx).toHaveBeenNthCalledWith(
+          1,
+          executed.hash,
+        );
+        expect(built.clientInstance.getTx).toHaveBeenNthCalledWith(
+          2,
+          executed.hash,
+        );
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        expect(
+          built.calls.filter((call) => call.function === '_signModifyOrder'),
+        ).toHaveLength(1);
+      });
+
+      it('waits for exact order visibility after the transaction executes', async () => {
+        const built = setup();
+        built.clientInstance.getTx
+          .mockImplementationOnce(async () => {
+            built.setRow(target());
+            return executed;
+          })
+          .mockImplementation(async () => {
+            built.setRow({ ...target(), price: '91000' });
+            return executed;
+          });
+
+        const pending = built.provider.editOrder(edit);
+        await jest.advanceTimersByTimeAsync(3000);
+
+        expect(await pending).toMatchObject({
+          success: true,
+          orderEdit: { status: 'settled' },
+        });
+        expect(built.clientInstance.getTx).toHaveBeenCalledTimes(2);
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+      });
+
+      it.each(['pending', 'missing', 'lookup-error'] as const)(
+        'bounds %s settlement and keeps later reconciliation read-only',
+        async (mode) => {
+          const built = setup();
+          built.clientInstance.getTx.mockImplementation(async () => {
+            if (mode === 'lookup-error') {
+              throw new Error('lookup unavailable');
+            }
+            return mode === 'missing' ? null : { ...executed, status: 1 };
+          });
+
+          const pending = built.provider.editOrder(edit);
+          await jest.advanceTimersByTimeAsync(3000);
+
+          expect(await pending).toMatchObject({
+            success: false,
+            orderEdit: { status: 'pending' },
+          });
+          expect(built.clientInstance.getTx).toHaveBeenCalledTimes(10);
+          expect(
+            JSON.parse((await built.deps.diskCache.getItem(journalKey)) ?? ''),
+          ).toMatchObject({
+            phase: 'accepted',
+            status: 'pending',
+            txHash: executed.hash,
+            nonce: 42,
+          });
+          expect(await built.provider.editOrder(edit)).toMatchObject({
+            success: false,
+            orderEdit: { status: 'pending' },
+          });
+          expect(built.clientInstance.getTx).toHaveBeenCalledTimes(11);
+          expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+          expect(
+            built.calls.filter((call) => call.function === '_signModifyOrder'),
+          ).toHaveLength(1);
+        },
+      );
+
+      it('stops at an exact failed transaction instead of polling through a later success', async () => {
+        const built = setup();
+        built.clientInstance.getTx
+          .mockResolvedValueOnce({ ...executed, status: 1 })
+          .mockResolvedValueOnce({ ...executed, status: 0 })
+          .mockResolvedValue(executed);
+
+        const pending = built.provider.editOrder(edit);
+        await jest.advanceTimersByTimeAsync(3000);
+
+        expect(await pending).toMatchObject({
+          success: false,
+          orderEdit: { status: 'failed' },
+        });
+        expect(built.clientInstance.getTx).toHaveBeenCalledTimes(2);
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+      });
+
+      it.each([
+        { hash: 'foreign' },
+        { accountIndex: 29 },
+        { apiKeyIndex: 8 },
+        { nonce: 43 },
+      ])(
+        'refuses foreign transaction identity after waiting: %j',
+        async (changed) => {
+          const built = setup();
+          built.clientInstance.getTx
+            .mockResolvedValueOnce({ ...executed, status: 1 })
+            .mockResolvedValue({ ...executed, ...changed });
+
+          const pending = built.provider.editOrder(edit);
+          await jest.advanceTimersByTimeAsync(3000);
+
+          expect(await pending).toMatchObject({
+            success: false,
+            orderEdit: { status: 'pending' },
+          });
+          expect(built.clientInstance.getTx).toHaveBeenCalledTimes(2);
+          expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      it('refuses a foreign order observation after exact transaction execution', async () => {
+        const built = setup();
+        built.clientInstance.getTx
+          .mockResolvedValueOnce({ ...executed, status: 1 })
+          .mockImplementation(async () => {
+            built.setRow({
+              ...target(),
+              ownerAccountIndex: 99,
+              price: '91000',
+            });
+            return executed;
+          });
+
+        const pending = built.provider.editOrder(edit);
+        await jest.advanceTimersByTimeAsync(3000);
+
+        expect(await pending).toMatchObject({
+          success: false,
+          orderEdit: { status: 'pending' },
+        });
+        expect(built.clientInstance.getTx).toHaveBeenCalledTimes(2);
+        expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+      });
+
+      it.each(['account', 'network-disconnect'] as const)(
+        'retires %s changes during the wait before another read or journal mutation',
+        async (change) => {
+          const built = setup();
+          built.clientInstance.getTx.mockResolvedValue({
+            ...executed,
+            status: 1,
+          });
+          let completed = false;
+          const pending = built.provider.editOrder(edit).then((result) => {
+            completed = true;
+            return result;
+          });
+          await jest.advanceTimersByTimeAsync(0);
+          expect(completed).toBe(false);
+          expect(built.clientInstance.getTx).toHaveBeenCalledTimes(1);
+          const retained = await built.deps.diskCache.getItem(journalKey);
+
+          if (change === 'account') {
+            built.getUserAddressMock.mockReturnValue(`0x${'11'.repeat(20)}`);
+          } else {
+            await built.provider.disconnect();
+          }
+          await jest.advanceTimersByTimeAsync(3000);
+
+          expect(await pending).toMatchObject({
+            success: false,
+            orderEdit: { status: 'pending' },
+          });
+          expect(built.clientInstance.getTx).toHaveBeenCalledTimes(1);
+          expect(await built.deps.diskCache.getItem(journalKey)).toBe(retained);
+          expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
     it('keeps an uncertain native edit fenced from margin writes after key migration', async () => {
       const deps = createMockInfrastructure();
       const first = buildProvider({

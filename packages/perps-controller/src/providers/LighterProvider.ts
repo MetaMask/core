@@ -1175,6 +1175,12 @@ const LIGHTER_MARGIN_EXECUTION_POLL_MS = 150;
 /** Bound settlement reads without repeating the signed dispatch. */
 const LIGHTER_MARGIN_EXECUTION_ATTEMPTS = 10;
 
+/** Delay between exact native edit transaction and order settlement reads. */
+const LIGHTER_EDIT_SETTLE_POLL_MS = 150;
+
+/** Bound native edit settlement reads without signing or dispatching again. */
+const LIGHTER_EDIT_SETTLE_ATTEMPTS = 10;
+
 /** Delay between TP/SL settlement visibility polls. */
 const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
 
@@ -13548,7 +13554,25 @@ export class LighterProvider implements PerpsProvider {
               );
               record.phase = 'accepted';
               await save(record);
-              return await reconcile(record);
+              // A normal accepted edit can precede transaction or order indexer
+              // visibility. Poll only its exact durable identity; replayed
+              // pending edits above remain a single read-only reconciliation.
+              let result = await reconcile(record);
+              this.#assertSession(generation);
+              for (
+                let attempt = 1;
+                attempt < LIGHTER_EDIT_SETTLE_ATTEMPTS &&
+                result.orderEdit?.status === 'pending';
+                attempt += 1
+              ) {
+                await new Promise((resolve) =>
+                  setTimeout(resolve, LIGHTER_EDIT_SETTLE_POLL_MS),
+                );
+                this.#assertSession(generation);
+                result = await reconcile(record);
+                this.#assertSession(generation);
+              }
+              return result;
             },
             generation,
             authority.apiKeyIndex,
