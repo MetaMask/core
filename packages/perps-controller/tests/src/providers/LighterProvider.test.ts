@@ -33286,7 +33286,14 @@ describe('Lighter bounded Chase provider probe', () => {
       }
       const record = (await original.provider.getNativeChaseRecords())[0];
       const child = record.children[0];
-      const exact = await original.clientInstance.getOrdersByClientIds(
+      const lookup =
+        original.clientInstance.getOrdersByClientIds.getMockImplementation() as
+          | ExactLookup
+          | undefined;
+      if (!lookup) {
+        throw new Error('Missing exact lookup');
+      }
+      const exact = await lookup(
         record.intent.owner.accountIndex,
         'test-token',
         [child.clientOrderId],
@@ -33309,7 +33316,7 @@ describe('Lighter bounded Chase provider probe', () => {
       restarted.clientInstance.getOrdersByClientIds.mockImplementation(
         async () => ({
           code: 200,
-          orders: exact.orders.map((row: LighterApiOrder) => ({
+          orders: exact.orders.map((row) => ({
             ...row,
             status: restarted.calls.some(
               (call) => call.function === '_signCancelOrder',
