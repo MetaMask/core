@@ -657,7 +657,7 @@
   },
   "packages/notification-services-controller/src/NotificationServicesController/__fixtures__/mockServices.ts": {
     "TS2769": {
-      "count": 3
+      "count": 4
     }
   },
   "packages/passkey-controller/tests/mocks/passkey-controller-messenger.ts": {

@@ -1,4 +1,5 @@
 import {
+  NOTIFICATION_API_CATEGORIES_LIST_ENDPOINT,
   NOTIFICATION_API_LIST_ENDPOINT,
   NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT,
   TRIGGER_API_NOTIFICATIONS_ENDPOINT,
@@ -59,6 +60,27 @@ export const getMockMarkNotificationsAsReadResponse = (): MockResponse => {
     url: NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT(),
     requestMethod: 'POST',
     response: null,
+  } satisfies MockResponse;
+};
+
+export const getMockNotificationsCategoriesResponse = (): MockResponse => {
+  return {
+    url: NOTIFICATION_API_CATEGORIES_LIST_ENDPOINT(),
+    requestMethod: 'GET',
+    response: [
+      {
+        category_id: 'trading_activity',
+        visible_on: ['extension', 'mobile'],
+        aus_keys: ['perps'],
+        notification_types: ['perps'],
+      },
+      {
+        category_id: 'wallet_activity',
+        visible_on: ['extension', 'mobile', 'portfolio'],
+        aus_keys: ['walletActivity'],
+        notification_types: [],
+      },
+    ],
   } satisfies MockResponse;
 };
 

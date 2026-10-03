@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `fetchMetamaskNotificationsCategories()` controller method that fetches the notification categories manifest from `GET /api/v4/notifications/categories`, stores the result in new `metamaskNotificationsCategories` state, and exposes it through the messenger as `NotificationServicesController:fetchMetamaskNotificationsCategories` ([#9984](https://github.com/MetaMask/core/pull/9984))
+- Add `metamaskNotificationsCategories` state field (`NotificationsCategory[]`) for the server-driven notification settings taxonomy ([#9984](https://github.com/MetaMask/core/pull/9984))
+- Add `isFetchingMetamaskNotificationsCategories` state flag that reflects whether the categories request is in flight ([#9984](https://github.com/MetaMask/core/pull/9984))
+- Export `NotificationsCategory` type from the notification-api schema ([#9984](https://github.com/MetaMask/core/pull/9984))
+
 ## [29.0.3]
 
 ### Changed
