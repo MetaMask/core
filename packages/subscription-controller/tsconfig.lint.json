@@ -52,9 +52,6 @@
     },
     {
       "path": "../seedless-onboarding-controller/tsconfig.lint.json"
-    },
-    {
-      "path": "../approval-controller/tsconfig.lint.json"
     }
   ]
 }
