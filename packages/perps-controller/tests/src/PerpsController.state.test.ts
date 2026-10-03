@@ -1722,6 +1722,205 @@ describe('PerpsController', () => {
         });
       });
 
+      describe('with a stateful AUS store', () => {
+        type StoredPrefs = typeof MOCK_PREFS_BASE & {
+          perps: {
+            watchlistMarkets: {
+              hyperliquid: { testnet: string[]; mainnet: string[] };
+              lighter: { testnet: string[]; mainnet: string[] };
+            };
+          };
+        };
+
+        const flush = async () =>
+          new Promise((resolve) => setTimeout(resolve, 0));
+
+        /**
+         * An AUS store whose reads snapshot the remote blob when called and
+         * answer only when the test drains them, in call order.
+         *
+         * @param options - Options.
+         * @param options.mainnet - Remote mainnet watchlist.
+         * @param options.withWrite - Whether the host delegates the write.
+         * @param options.failingWrites - How many first writes reject.
+         * @returns The handlers, the remote list and a drain function.
+         */
+        const createAusStore = ({
+          mainnet,
+          withWrite = true,
+          failingWrites = 0,
+        }: {
+          mainnet: string[];
+          withWrite?: boolean;
+          failingWrites?: number;
+        }) => {
+          let remote: StoredPrefs = {
+            ...MOCK_PREFS_BASE,
+            perps: {
+              ...MOCK_PREFS_BASE.perps,
+              watchlistMarkets: {
+                hyperliquid: { testnet: [], mainnet },
+                lighter: { testnet: [], mainnet: [] },
+              },
+            },
+          };
+          const pendingReads: (() => void)[] = [];
+          let writes = 0;
+          const handlers: Record<string, (...args: never[]) => unknown> = {
+            [GET]: async () => {
+              const snapshot = structuredClone(remote);
+              return new Promise((resolve) => {
+                pendingReads.push(() => resolve(snapshot));
+              });
+            },
+          };
+          if (withWrite) {
+            handlers[PUT] = async (prefs: StoredPrefs) => {
+              writes += 1;
+              if (writes <= failingWrites) {
+                throw new Error('AUS server error');
+              }
+              remote = prefs;
+            };
+          }
+          return {
+            handlers,
+            remote: () => remote.perps.watchlistMarkets.hyperliquid,
+            // Answer reads in call order until none are left.
+            drain: async () => {
+              await flush();
+              while (pendingReads.length > 0) {
+                pendingReads.shift()?.();
+                await flush();
+              }
+            },
+          };
+        };
+
+        it('keeps a star made during hydration when a re-initialization starts before it is written', async () => {
+          const store = createAusStore({ mainnet: ['ETH'] });
+          const { controller, infrastructure } = buildController({
+            handlers: store.handlers,
+          });
+
+          await controller.init();
+          const toggle = controller.toggleWatchlistMarket('BTC');
+          await controller.toggleTestnet();
+          await store.drain();
+          await toggle;
+
+          expect(controller.state.watchlistMarkets.mainnet).toStrictEqual([
+            'ETH',
+            'BTC',
+          ]);
+          expect(store.remote().mainnet).toStrictEqual(['ETH', 'BTC']);
+          expect(infrastructure.logger.error).not.toHaveBeenCalled();
+        });
+
+        it('keeps a star made while a re-initialization hydration waits in the queue', async () => {
+          const store = createAusStore({ mainnet: ['ETH'] });
+          const { controller, infrastructure } = buildController({
+            handlers: store.handlers,
+          });
+
+          await controller.init();
+          const mainnetToggle = controller.toggleWatchlistMarket('BTC');
+          await controller.toggleTestnet();
+          const testnetToggle = controller.toggleWatchlistMarket('SOL');
+          await store.drain();
+          await Promise.all([mainnetToggle, testnetToggle]);
+
+          expect(controller.state.watchlistMarkets).toStrictEqual({
+            testnet: ['SOL'],
+            mainnet: ['ETH', 'BTC'],
+          });
+          expect(store.remote()).toStrictEqual({
+            testnet: ['SOL'],
+            mainnet: ['ETH', 'BTC'],
+          });
+          expect(infrastructure.logger.error).not.toHaveBeenCalled();
+        });
+
+        it('still replaces a star with the remote list on a later hydration when only the read is delegated', async () => {
+          const store = createAusStore({ mainnet: ['ETH'], withWrite: false });
+          const { controller, infrastructure } = buildController({
+            handlers: store.handlers,
+          });
+
+          await controller.init();
+          const toggle = controller.toggleWatchlistMarket('BTC');
+          await controller.toggleTestnet();
+          await store.drain();
+          await toggle;
+
+          // The re-initialization hydration is queued after the star, which
+          // never reached AUS.
+          expect(controller.state.watchlistMarkets.mainnet).toStrictEqual([
+            'ETH',
+          ]);
+          expect(infrastructure.logger.error).not.toHaveBeenCalled();
+        });
+
+        it('undoes only the failed star when its write fails after hydration', async () => {
+          const store = createAusStore({ mainnet: ['ETH'], failingWrites: 1 });
+          const { controller, infrastructure } = buildController({
+            mainnetWatchlist: ['SOL'],
+            handlers: store.handlers,
+          });
+
+          await controller.init();
+          const toggle = controller.toggleWatchlistMarket('BTC');
+          await store.drain();
+          await toggle;
+
+          expect(controller.state.watchlistMarkets.mainnet).toStrictEqual([
+            'ETH',
+          ]);
+          expect(infrastructure.logger.error).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'AUS server error' }),
+            expect.anything(),
+          );
+        });
+
+        it('keeps a later star when an earlier star fails to write', async () => {
+          const store = createAusStore({ mainnet: [], failingWrites: 1 });
+          const { controller } = buildController({ handlers: store.handlers });
+
+          const toggles = Promise.all([
+            controller.toggleWatchlistMarket('BTC'),
+            controller.toggleWatchlistMarket('ETH'),
+          ]);
+          await store.drain();
+          await toggles;
+
+          expect(controller.state.watchlistMarkets.mainnet).toStrictEqual([
+            'ETH',
+          ]);
+          expect(store.remote().mainnet).toStrictEqual(['ETH']);
+        });
+
+        it('restores an unstarred market at its position when the write fails', async () => {
+          const store = createAusStore({
+            mainnet: ['ETH', 'BTC', 'SOL'],
+            failingWrites: 1,
+          });
+          const { controller } = buildController({
+            mainnetWatchlist: ['ETH', 'BTC', 'SOL'],
+            handlers: store.handlers,
+          });
+
+          const toggle = controller.toggleWatchlistMarket('BTC');
+          await store.drain();
+          await toggle;
+
+          expect(controller.state.watchlistMarkets.mainnet).toStrictEqual([
+            'ETH',
+            'BTC',
+            'SOL',
+          ]);
+        });
+      });
+
       describe('when a delegated AUS handler fails on a missing dependency of its own', () => {
         // Each handler makes a real nested `Messenger` call that throws.
         const cases: [
