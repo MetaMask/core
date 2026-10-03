@@ -15,6 +15,8 @@ import type {
   ChaseOrder,
   TwapOrder,
   FeeCalculationParams,
+  ReconcileChaseOrderCancellationParams,
+  ReconcileChaseOrderCancellationResult,
 } from '../../../src/types/index.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
 import { STRATEGY_ORDER_TYPES } from '../../../src/utils/orderTypes.js';
@@ -216,7 +218,142 @@ describe('AggregatedPerpsProvider', () => {
     routedProvider = aggregatedProvider;
   });
 
+  it('lists optional Scale inventory and reviews only the explicit owning provider', async () => {
+    const groups = [
+      {
+        groupId: 'opaque-scale',
+        symbol: 'BTC',
+        state: 'unknown',
+        accountIndex: 28,
+        apiKeyIndex: 7,
+        walletAddress: '0xabc',
+        network: 'testnet',
+        providerId: 'lighter',
+      },
+    ];
+    const reviewScaleOrderGroups = jest.fn().mockResolvedValue(groups);
+    Object.assign(mockLighterProvider, {
+      getScaleOrderGroups: jest.fn().mockResolvedValue(groups),
+      reviewScaleOrderGroups,
+    });
+    expect(await aggregatedProvider.getScaleOrderGroups()).toEqual(groups);
+    await expect(aggregatedProvider.reviewScaleOrderGroups()).rejects.toThrow(
+      PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+    );
+    await expect(
+      aggregatedProvider.reviewScaleOrderGroups({ providerId: 'hyperliquid' }),
+    ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    expect(reviewScaleOrderGroups).not.toHaveBeenCalled();
+    expect(
+      await aggregatedProvider.reviewScaleOrderGroups({
+        providerId: 'lighter',
+      }),
+    ).toEqual(groups);
+    expect(reviewScaleOrderGroups).toHaveBeenCalledTimes(1);
+  });
+
   describe('durable-settlement surfacing', () => {
+    it.each(['getAttachedOrderGroups', 'reviewAttachedOrderGroups'] as const)(
+      'routes attached %s to the implementing provider and retains its identity',
+      async (method) => {
+        const group = {
+          groupId: 'group',
+          providerId: 'hyperliquid',
+          symbol: 'BTC',
+          submission: 'unknown',
+          parentClientOrderId: '101',
+          childClientOrderIds: ['102'],
+          cancellation: 'explicit-exact-owned-orders',
+        };
+        const read = jest.fn().mockResolvedValue([group]);
+        const provider = new AggregatedPerpsProvider({
+          providers: new Map([
+            ['hyperliquid', mockHLProvider],
+            ['lighter', { ...mockLighterProvider, [method]: read }],
+          ]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: mockInfrastructure,
+        });
+        expect(await provider[method]()).toStrictEqual([
+          { ...group, providerId: 'lighter' },
+        ]);
+        expect(read).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('routes strict review and selected protection to only the explicit owner', async () => {
+      const review = {
+        status: 'ready' as const,
+        providerId: 'lighter' as const,
+        walletAddress: '0xabc',
+        network: 'testnet',
+        accountIndex: 28,
+        positions: [],
+        orders: [],
+        reviewedAt: 5,
+      };
+      const reviewRecoveryVenue = jest.fn().mockResolvedValue(review);
+      const resolveRecoveryProtection = jest.fn().mockResolvedValue({
+        status: 'settled',
+        providerId: 'lighter',
+        success: true,
+      });
+      const provider = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockHLProvider],
+          [
+            'lighter',
+            {
+              ...mockLighterProvider,
+              reviewRecoveryVenue,
+              resolveRecoveryProtection,
+            },
+          ],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      expect(
+        await provider.reviewRecoveryVenue({ providerId: 'lighter' }),
+      ).toStrictEqual(review);
+      expect(
+        await provider.resolveRecoveryProtection({
+          providerId: 'lighter',
+          recoveryId: 'opaque',
+          symbol: 'BTC',
+          stopLossPrice: '1',
+        }),
+      ).toMatchObject({ status: 'settled', success: true });
+      expect(reviewRecoveryVenue).toHaveBeenCalledTimes(1);
+      expect(resolveRecoveryProtection).toHaveBeenCalledWith({
+        providerId: 'lighter',
+        recoveryId: 'opaque',
+        symbol: 'BTC',
+        stopLossPrice: '1',
+      });
+      expect(
+        await provider.reviewRecoveryVenue({ providerId: 'hyperliquid' }),
+      ).toMatchObject({ status: 'unsupported', providerId: 'hyperliquid' });
+      expect(
+        await provider.resolveRecoveryProtection({
+          providerId: 'hyperliquid',
+          recoveryId: 'opaque',
+          symbol: 'BTC',
+        }),
+      ).toMatchObject({ status: 'unsupported', success: false });
+      await expect(provider.reviewRecoveryVenue()).rejects.toThrow(
+        /explicit provider/u,
+      );
+      await expect(
+        provider.resolveRecoveryProtection({
+          recoveryId: 'opaque',
+          symbol: 'BTC',
+        }),
+      ).rejects.toThrow(/explicit provider/u);
+      expect(mockHLProvider.getPositions).not.toHaveBeenCalled();
+      expect(mockHLProvider.getOpenOrders).not.toHaveBeenCalled();
+    });
+
     const pending = {
       symbol: 'BTC',
       settlementKey: '0xabc:28:7:BTC',
@@ -235,6 +372,67 @@ describe('AggregatedPerpsProvider', () => {
       evidence: 'tx-status:3',
     };
 
+    it('returns only Lighter rows when HyperLiquid has no recovery capabilities', async () => {
+      const reconcile = jest.fn().mockResolvedValue([outcome]);
+      const listing = jest
+        .fn()
+        .mockResolvedValue([{ ...outcome, recoveryId: 'old' }]);
+      expect(mockHLProvider.reconcileRecoveredDispatches).toBeUndefined();
+      expect(mockHLProvider.getRecoveredDispatches).toBeUndefined();
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockHLProvider],
+          [
+            'lighter',
+            {
+              ...mockLighterProvider,
+              getRecoveredDispatches: listing,
+              reconcileRecoveredDispatches: reconcile,
+            },
+          ],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+
+      expect(await aggregated.reconcileRecoveredDispatches()).toStrictEqual([
+        { ...outcome, providerId: 'lighter' },
+      ]);
+      expect(reconcile).toHaveBeenCalledTimes(1);
+      expect(listing).not.toHaveBeenCalled();
+    });
+
+    it('reconciles all providers with listing fallback and propagates failures', async () => {
+      const reconcile = jest.fn().mockResolvedValue([outcome]);
+      const listing = jest
+        .fn()
+        .mockResolvedValue([{ ...outcome, recoveryId: 'other' }]);
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map([
+          [
+            'hyperliquid',
+            { ...mockHLProvider, getRecoveredDispatches: listing },
+          ],
+          [
+            'lighter',
+            { ...mockLighterProvider, reconcileRecoveredDispatches: reconcile },
+          ],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      expect(await aggregated.reconcileRecoveredDispatches()).toStrictEqual([
+        { ...outcome, recoveryId: 'other', providerId: 'hyperliquid' },
+        { ...outcome, providerId: 'lighter' },
+      ]);
+      expect(listing).toHaveBeenCalledTimes(1);
+      expect(reconcile).toHaveBeenCalledTimes(1);
+      reconcile.mockRejectedValueOnce(new Error('recovery failed'));
+      await expect(aggregated.reconcileRecoveredDispatches()).rejects.toThrow(
+        'recovery failed',
+      );
+    });
+
     it('aggregates recoveries and outcomes from providers implementing the contract', async () => {
       const durable = {
         ...mockLighterProvider,
@@ -252,10 +450,10 @@ describe('AggregatedPerpsProvider', () => {
       });
       // The non-durable provider contributes empty lists, never an error.
       expect(await aggregated.getPendingManualRecoveries()).toStrictEqual([
-        pending,
+        { ...pending, providerId: 'lighter' },
       ]);
       expect(await aggregated.getRecoveredDispatches()).toStrictEqual([
-        outcome,
+        { ...outcome, providerId: 'lighter' },
       ]);
       await aggregated.acknowledgeRecoveredDispatch('42:abcd');
       expect(
@@ -1418,6 +1616,81 @@ describe('AggregatedPerpsProvider', () => {
     });
   });
 
+  describe('Chase cancellation reconciliation routing', () => {
+    const params = (): ReconcileChaseOrderCancellationParams => ({
+      providerId: 'lighter',
+      handle: 'lighter-chase:100',
+      clientOrderId: '101',
+      owner: {
+        providerId: 'lighter',
+        walletAddress: '0xabc',
+        network: 'testnet',
+        accountIndex: 28,
+        apiKeyIndex: 7,
+      },
+      cancellation: { nonce: 209, txHash: 'b'.repeat(64), expiresAt: 110000 },
+    });
+    const unsupported: ReconcileChaseOrderCancellationResult = {
+      status: 'unsupported',
+      providerId: 'lighter',
+      handle: 'lighter-chase:100',
+      reason: 'Test capability unavailable',
+    };
+
+    it('routes once to the exact provider and preserves captured identity', async () => {
+      const reconcile = jest.fn().mockResolvedValue(unsupported);
+      mockLighterProvider.reconcileChaseOrderCancellation = reconcile;
+      const input = params();
+      const expected = structuredClone(input);
+      const pending = aggregatedProvider.reconcileChaseOrderCancellation(input);
+      input.owner.apiKeyIndex = 8;
+      input.cancellation.nonce = 210;
+      expect(await pending).toStrictEqual(unsupported);
+      expect(reconcile).toHaveBeenCalledTimes(1);
+      expect(reconcile).toHaveBeenCalledWith(expected);
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+      expect(mockLighterProvider.cancelOrder).not.toHaveBeenCalled();
+    });
+    it('reports unsupported without an ordinary cancellation fallback', async () => {
+      expect(
+        await aggregatedProvider.reconcileChaseOrderCancellation(params()),
+      ).toMatchObject({ status: 'unsupported', providerId: 'lighter' });
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+      expect(mockLighterProvider.cancelOrder).not.toHaveBeenCalled();
+    });
+    it('refuses a missing exact route rather than using the default provider', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      await expect(
+        aggregatedProvider.reconcileChaseOrderCancellation(params()),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+    });
+    it('refuses mismatched owner and route before provider calls', async () => {
+      const reconcile = jest.fn().mockResolvedValue(unsupported);
+      mockLighterProvider.reconcileChaseOrderCancellation = reconcile;
+      const input = params();
+      input.owner.providerId = 'hyperliquid';
+      await expect(
+        aggregatedProvider.reconcileChaseOrderCancellation(input),
+      ).rejects.toThrow(/matching owner/u);
+      expect(reconcile).not.toHaveBeenCalled();
+    });
+    it('fences a provider replacement during reconciliation', async () => {
+      const result = createDeferred<ReconcileChaseOrderCancellationResult>();
+      mockLighterProvider.reconcileChaseOrderCancellation = jest.fn(
+        () => result.promise,
+      );
+      const pending =
+        aggregatedProvider.reconcileChaseOrderCancellation(params());
+      aggregatedProvider.addProvider('lighter', createMockProvider('lighter'));
+      result.resolve(unsupported);
+      await expect(pending).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+      expect(mockLighterProvider.cancelOrder).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Provider Management', () => {
     it('adds new provider', () => {
       // Using 'lighter' as an existing valid provider type for this test
@@ -1726,6 +1999,10 @@ describe('AggregatedPerpsProvider', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: Object.freeze(['twap', 'scale', 'chase']),
+        supportedTriggerOrderTypes: Object.freeze([
+          'stop_market',
+          'take_profit_limit',
+        ]),
         supportedMarginModes: Object.freeze(['isolated', 'cross']),
       });
       mockHLProvider.getOrderCapabilities.mockResolvedValue(capabilities);
@@ -1744,6 +2021,19 @@ describe('AggregatedPerpsProvider', () => {
         status: 'ready',
         providerId: 'lighter',
         supportedStrategies: [],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_market',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'position-snapshot',
+          partialCoverage: {
+            single: true,
+            pair: 'equal-quantity-oco',
+            replacement: 'cancel-before-create',
+            recovery: 'explicit-current-position-intent',
+          },
+        },
       });
 
       await expect(
@@ -1755,6 +2045,19 @@ describe('AggregatedPerpsProvider', () => {
         status: 'ready',
         providerId: 'lighter',
         supportedStrategies: [],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_market',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'position-snapshot',
+          partialCoverage: {
+            single: true,
+            pair: 'equal-quantity-oco',
+            replacement: 'cancel-before-create',
+            recovery: 'explicit-current-position-intent',
+          },
+        },
       });
       expect(mockLighterProvider.getOrderCapabilities).toHaveBeenCalledWith({
         symbol: 'BTC',
