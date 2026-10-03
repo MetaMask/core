@@ -9,6 +9,8 @@ import type {
   PerpsActiveProviderMode,
   PerpsProvider,
   PerpsRecoveredDispatch,
+  ReconcileChaseOrderCancellationParams,
+  ReconcileChaseOrderCancellationResult,
   SwitchProviderResult,
   ToggleTestnetResult,
 } from '../../src/types/index.js';
@@ -258,6 +260,139 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
       fixture.controller.reviewScaleOrderGroups({ providerId: 'lighter' }),
     ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     expect(reviewScaleOrderGroups).not.toHaveBeenCalled();
+  });
+
+  describe('Chase cancellation reconciliation context', () => {
+    const params = (): ReconcileChaseOrderCancellationParams => ({
+      providerId: 'hyperliquid',
+      handle: 'original-chase',
+      clientOrderId: '101',
+      owner: {
+        providerId: 'hyperliquid',
+        walletAddress: ACCOUNT_A,
+        network: 'testnet',
+        accountIndex: 28,
+        apiKeyIndex: 7,
+      },
+      cancellation: { nonce: 209, txHash: 'b'.repeat(64), expiresAt: 110000 },
+    });
+    const unsupported: ReconcileChaseOrderCancellationResult = {
+      status: 'unsupported',
+      providerId: 'hyperliquid',
+      handle: 'original-chase',
+      reason: 'Test capability unavailable',
+    };
+
+    it('reports unsupported without falling back to ordinary cancellation', async () => {
+      const fixture = createFixture();
+      await fixture.controller.init();
+      expect(
+        await fixture.host.messenger.call(
+          'PerpsController:reconcileChaseOrderCancellation',
+          params(),
+        ),
+      ).toMatchObject({ status: 'unsupported', providerId: 'hyperliquid' });
+      expect(jest.mocked(fixture.provider).cancelOrder.mock.calls).toHaveLength(
+        0,
+      );
+    });
+    it.each(CONTEXT_CHANGES)(
+      'rejects stale reconciliation before readiness after $name changes',
+      async ({ change }) => {
+        const fixture = createFixture();
+        const reconcile = jest.fn().mockResolvedValue(unsupported);
+        Object.assign(fixture.provider, {
+          reconcileChaseOrderCancellation: reconcile,
+        });
+        const result =
+          fixture.controller.reconcileChaseOrderCancellation(params());
+        change(fixture);
+        await expect(result).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(
+          jest.mocked(fixture.provider).cancelOrder.mock.calls,
+        ).toHaveLength(0);
+      },
+    );
+    it.each(CONTEXT_CHANGES)(
+      'rejects stale reconciliation after provider await and $name changes',
+      async ({ change }) => {
+        const fixture = createFixture();
+        const result = createDeferred<ReconcileChaseOrderCancellationResult>();
+        const entered = createDeferred<void>();
+        const reconcile = jest.fn(async () => {
+          entered.resolve();
+          return result.promise;
+        });
+        Object.assign(fixture.provider, {
+          reconcileChaseOrderCancellation: reconcile,
+        });
+        await fixture.controller.init();
+        const pending = fixture.host.messenger.call(
+          'PerpsController:reconcileChaseOrderCancellation',
+          params(),
+        );
+        await entered.promise;
+        change(fixture);
+        result.resolve(unsupported);
+        await expect(pending).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        expect(reconcile).toHaveBeenCalledTimes(1);
+        expect(
+          jest.mocked(fixture.provider).cancelOrder.mock.calls,
+        ).toHaveLength(0);
+      },
+    );
+    it('captures exact caller identity before readiness', async () => {
+      const fixture = createFixture();
+      const input = params();
+      const expected = structuredClone(input);
+      const reconcile = jest.fn().mockResolvedValue(unsupported);
+      Object.assign(fixture.provider, {
+        reconcileChaseOrderCancellation: reconcile,
+      });
+      const pending = fixture.controller.reconcileChaseOrderCancellation(input);
+      input.owner.apiKeyIndex = 8;
+      input.cancellation.nonce = 210;
+      expect(await pending).toStrictEqual(unsupported);
+      expect(reconcile).toHaveBeenCalledWith(expected);
+    });
+    it('rejects a provider route different from the active context', async () => {
+      const fixture = createFixture();
+      const reconcile = jest.fn().mockResolvedValue(unsupported);
+      Object.assign(fixture.provider, {
+        reconcileChaseOrderCancellation: reconcile,
+      });
+      const input = params();
+      input.providerId = 'lighter';
+      input.owner.providerId = 'lighter';
+      await expect(
+        fixture.controller.reconcileChaseOrderCancellation(input),
+      ).rejects.toThrow(/active context/u);
+      expect(reconcile).not.toHaveBeenCalled();
+      expect(jest.mocked(fixture.provider).cancelOrder.mock.calls).toHaveLength(
+        0,
+      );
+    });
+    it('propagates a lost provider reply without retry or ordinary cancellation', async () => {
+      const fixture = createFixture();
+      const reconcile = jest
+        .fn()
+        .mockRejectedValue(new Error('reconciliation reply lost'));
+      Object.assign(fixture.provider, {
+        reconcileChaseOrderCancellation: reconcile,
+      });
+      await expect(
+        fixture.controller.reconcileChaseOrderCancellation(params()),
+      ).rejects.toThrow('reconciliation reply lost');
+      expect(reconcile).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(fixture.provider).cancelOrder.mock.calls).toHaveLength(
+        0,
+      );
+    });
   });
 
   describe.each([

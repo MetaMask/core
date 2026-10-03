@@ -6,6 +6,7 @@ import {
   LIGHTER_TRANSACTION_STATUS,
   LIGHTER_TX_EXPIRY_SLACK_MS,
   LIGHTER_NATIVE_PROBE_CANCEL_LIMIT,
+  LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS,
   LIGHTER_ORDER_TYPE_STOP_LOSS,
   LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL,
   LIGHTER_ORDER_EXPIRY_NONE,
@@ -36,6 +37,7 @@ import type {
   PerpsProvider,
   PerpsProviderType,
   GetChaseOrderOwnershipParams,
+  ReconcileChaseOrderCancellationParams,
   PerpsActiveProviderMode,
 } from '../../../src/types/index.js';
 import type {
@@ -34247,6 +34249,377 @@ describe('Lighter bounded Chase provider probe', () => {
       }),
     );
   };
+  describe('public Chase cancellation reconciliation without dispatch', () => {
+    const journalKey = `lighterChase:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28])}`;
+    const settled = async <Result>(
+      pending: Promise<Result>,
+    ): Promise<Result> => {
+      const outcome = pending.then(
+        (value) => ({ value }),
+        (error: unknown) => ({ error }),
+      );
+      await jest.advanceTimersByTimeAsync(
+        LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS + 1,
+      );
+      const result = await outcome;
+      if ('error' in result) {
+        throw result.error;
+      }
+      return result.value;
+    };
+    const retainedCancellation = async (
+      acknowledged = true,
+    ): Promise<{
+      deps: ReturnType<typeof diskDependencies>;
+      original: BuiltProvider;
+      restored: BuiltProvider;
+      retained: LighterChaseRecord;
+      params: ReconcileChaseOrderCancellationParams;
+    }> => {
+      const deps = diskDependencies();
+      const original = setup({ platformDependencies: deps });
+      const placed = await original.provider.placeOrder({
+        ...intent,
+        chaseIntervalMs: 120000,
+        chaseMaxDurationMs: 180000,
+      });
+      if (!placed.success || !placed.orderId) {
+        throw new Error(placed.error ?? 'Missing placement');
+      }
+      const initial = (await original.provider.getNativeChaseRecords())[0];
+      bindRetainedChaseLookup(original, initial, () => false);
+      if (!acknowledged) {
+        original.clientInstance.getTx.mockResolvedValue(null);
+        original.clientInstance.sendTx.mockRejectedValueOnce(
+          new Error('cancel reply lost'),
+        );
+      }
+      expect(
+        (
+          await settled(
+            original.provider.cancelOrder(cancelParams(placed.orderId)),
+          )
+        ).success,
+      ).toBe(false);
+      const retained = (await original.provider.getNativeChaseRecords())[0];
+      const child = retained.children[0];
+      const cancellation = child.cancellations[0];
+      if (
+        cancellation.nonce === undefined ||
+        !cancellation.txHash ||
+        !cancellation.expiresAt
+      ) {
+        throw new Error('Missing original cancellation identity');
+      }
+      const params: ReconcileChaseOrderCancellationParams = {
+        providerId: 'lighter',
+        handle: placed.orderId,
+        owner: {
+          providerId: 'lighter',
+          walletAddress: retained.intent.owner.wallet,
+          network: retained.intent.owner.network,
+          accountIndex: retained.intent.owner.accountIndex,
+          apiKeyIndex: retained.intent.owner.apiKeyIndex,
+        },
+        clientOrderId: child.clientOrderId,
+        cancellation: {
+          nonce: cancellation.nonce,
+          txHash: cancellation.txHash,
+          expiresAt: cancellation.expiresAt,
+        },
+      };
+      await original.provider.disconnect();
+      const restored = setup({ platformDependencies: deps });
+      bindRetainedChaseLookup(restored, retained, () => false);
+      restored.clientInstance.getTx.mockResolvedValue({
+        code: 200,
+        hash: cancellation.txHash,
+        accountIndex: 28,
+        apiKeyIndex: 7,
+        nonce: cancellation.nonce,
+        status: 2,
+      });
+      return { deps, original, restored, retained, params };
+    };
+    const expectNoDispatch = (built: BuiltProvider): void => {
+      expect(
+        built.calls.filter((call) => call.function.startsWith('_sign')),
+      ).toStrictEqual([]);
+      expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+      expect(
+        built.calls.filter((call) => call.function === '_signChangePubKey'),
+      ).toStrictEqual([]);
+    };
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it('retains one original cancellation when exact getTx failure downgrades acknowledgement and the child remains open', async () => {
+      const env = await retainedCancellation();
+      env.restored.clientInstance.getTx.mockResolvedValue({
+        code: 200,
+        hash: env.params.cancellation.txHash,
+        accountIndex: 28,
+        apiKeyIndex: 7,
+        nonce: env.params.cancellation.nonce,
+        status: LIGHTER_TRANSACTION_STATUS.Failed,
+      });
+      const { controller, host } = ownershipController(env.restored.provider);
+      try {
+        await controller.init();
+        const result = await settled(
+          host.messenger.call(
+            'PerpsController:reconcileChaseOrderCancellation',
+            env.params,
+          ),
+        );
+        expect(result).toMatchObject({
+          status: 'unresolved',
+          order: { status: 'termination_pending', restingOrderId: '9001' },
+        });
+        const current = (
+          await env.restored.provider.getNativeChaseRecords()
+        )[0];
+        expect(current.children[0].cancellations).toStrictEqual([
+          { ...env.retained.children[0].cancellations[0], phase: 'failed' },
+        ]);
+        expectNoDispatch(env.restored);
+        // Ordinary explicit cancellation retains its existing financial behavior.
+        bindRetainedChaseLookup(env.restored, current);
+        env.restored.clientInstance.getTx.mockImplementation(
+          async (hash: string) => ({
+            code: 200,
+            hash,
+            accountIndex: 28,
+            apiKeyIndex: 7,
+            nonce: Number(
+              env.restored.calls.find(
+                (call) => call.function === '_signCancelOrder',
+              )?.params[3],
+            ),
+            status: 2,
+          }),
+        );
+        expect(
+          (
+            await settled(
+              env.restored.provider.cancelOrder(
+                cancelParams(env.params.handle),
+              ),
+            )
+          ).success,
+        ).toBe(true);
+        expect(
+          env.restored.calls.filter(
+            (call) => call.function === '_signCancelOrder',
+          ),
+        ).toHaveLength(1);
+        expect(env.restored.clientInstance.sendTx).toHaveBeenCalledTimes(1);
+      } finally {
+        await env.restored.provider.disconnect();
+      }
+    });
+    it('settles delayed terminal evidence through the public messenger with unchanged original inventory', async () => {
+      const env = await retainedCancellation();
+      const visibleAt = Date.now() + 2000;
+      bindRetainedChaseLookup(
+        env.restored,
+        env.retained,
+        () => Date.now() >= visibleAt,
+      );
+      const { controller, host } = ownershipController(env.restored.provider);
+      try {
+        await controller.init();
+        expect(
+          await settled(
+            host.messenger.call(
+              'PerpsController:reconcileChaseOrderCancellation',
+              env.params,
+            ),
+          ),
+        ).toMatchObject({
+          status: 'settled',
+          providerId: 'lighter',
+          handle: env.params.handle,
+          order: { status: 'canceled', restingOrderId: null },
+        });
+        expect(
+          (await env.restored.provider.getNativeChaseRecords())[0].children[0]
+            .cancellations,
+        ).toStrictEqual(env.retained.children[0].cancellations);
+        expectNoDispatch(env.restored);
+      } finally {
+        await env.restored.provider.disconnect();
+      }
+    });
+    it.each([undefined, false])(
+      'keeps attempted cancellation with acknowledgement %s unresolved without replay',
+      async (acknowledged) => {
+        const env = await retainedCancellation(false);
+        env.retained.children[0].cancellations[0].acknowledged = acknowledged;
+        await env.deps.diskCache.setItem(
+          journalKey,
+          JSON.stringify({ version: 1, records: [env.retained] }),
+        );
+        env.restored.clientInstance.getTx.mockResolvedValue(null);
+        try {
+          expect(
+            await settled(
+              env.restored.provider.reconcileChaseOrderCancellation(env.params),
+            ),
+          ).toMatchObject({ status: 'unresolved' });
+          expect(
+            (await env.restored.provider.getNativeChaseRecords())[0].children[0]
+              .cancellations,
+          ).toHaveLength(1);
+          expectNoDispatch(env.restored);
+        } finally {
+          await env.restored.provider.disconnect();
+        }
+      },
+    );
+    it('keeps a lost exact venue reply unresolved without changing original inventory', async () => {
+      const env = await retainedCancellation();
+      env.restored.clientInstance.getTx.mockRejectedValue(
+        new Error('reconciliation reply lost'),
+      );
+      try {
+        expect(
+          await settled(
+            env.restored.provider.reconcileChaseOrderCancellation(env.params),
+          ),
+        ).toMatchObject({ status: 'unresolved' });
+        expect(
+          (await env.restored.provider.getNativeChaseRecords())[0].children[0]
+            .cancellations,
+        ).toStrictEqual(env.retained.children[0].cancellations);
+        expectNoDispatch(env.restored);
+      } finally {
+        await env.restored.provider.disconnect();
+      }
+    });
+    it.each([
+      'provider',
+      'wallet',
+      'network',
+      'account',
+      'key',
+      'handle',
+      'child',
+      'nonce',
+      'hash',
+      'expiry',
+    ] as const)(
+      'rejects wrong original %s without signing or transport',
+      async (field) => {
+        const env = await retainedCancellation();
+        const params = structuredClone(env.params);
+        if (field === 'provider') {
+          params.providerId = 'hyperliquid';
+        }
+        if (field === 'wallet') {
+          params.owner.walletAddress = `0x${'f'.repeat(40)}`;
+        }
+        if (field === 'network') {
+          params.owner.network = 'mainnet';
+        }
+        if (field === 'account') {
+          params.owner.accountIndex = 99;
+        }
+        if (field === 'key') {
+          params.owner.apiKeyIndex = 8;
+        }
+        if (field === 'handle') {
+          params.handle = 'lighter-chase:unknown';
+        }
+        if (field === 'child') {
+          params.clientOrderId = '102';
+        }
+        if (field === 'nonce') {
+          params.cancellation.nonce += 1;
+        }
+        if (field === 'hash') {
+          params.cancellation.txHash = 'c'.repeat(64);
+        }
+        if (field === 'expiry') {
+          params.cancellation.expiresAt += 1;
+        }
+        try {
+          await expect(
+            env.restored.provider.reconcileChaseOrderCancellation(params),
+          ).rejects.toThrow(/JSON|Chase/u);
+          expect(env.restored.clientInstance.getTx).not.toHaveBeenCalled();
+          expectNoDispatch(env.restored);
+        } finally {
+          await env.restored.provider.disconnect();
+        }
+      },
+    );
+    it.each([
+      'missing cancellation',
+      'malformed inventory',
+      'missing record',
+      'active chase',
+    ] as const)(
+      'rejects %s without venue observation or new cancellation',
+      async (failure) => {
+        const env = await retainedCancellation();
+        if (failure === 'missing cancellation') {
+          env.retained.children[0].cancellations = [];
+        }
+        if (failure === 'active chase') {
+          env.retained.status = 'active';
+          delete env.retained.stopReason;
+        }
+        await env.deps.diskCache.setItem(
+          journalKey,
+          failure === 'malformed inventory'
+            ? '{broken'
+            : JSON.stringify({
+                version: 1,
+                records: failure === 'missing record' ? [] : [env.retained],
+              }),
+        );
+        try {
+          await expect(
+            env.restored.provider.reconcileChaseOrderCancellation(env.params),
+          ).rejects.toThrow(/JSON|Chase/u);
+          expect(env.restored.clientInstance.getTx).not.toHaveBeenCalled();
+          expectNoDispatch(env.restored);
+        } finally {
+          await env.restored.provider.disconnect();
+        }
+      },
+    );
+    it('rejects a wallet switch during exact venue reconciliation and preserves pending state', async () => {
+      const env = await retainedCancellation();
+      env.restored.clientInstance.getTx.mockImplementation(async () => {
+        env.restored.getUserAddressMock.mockReturnValue(`0x${'f'.repeat(40)}`);
+        return {
+          code: 200,
+          hash: env.params.cancellation.txHash,
+          accountIndex: 28,
+          apiKeyIndex: 7,
+          nonce: env.params.cancellation.nonce,
+          status: 2,
+        };
+      });
+      try {
+        await expect(
+          env.restored.provider.reconcileChaseOrderCancellation(env.params),
+        ).rejects.toThrow(/session|owner|context|switched/iu);
+        const saved = JSON.parse(
+          (await env.deps.diskCache.getItem(journalKey)) ?? '',
+        ) as { records: LighterChaseRecord[] };
+        expect(saved.records[0].status).toBe('termination_pending');
+        expect(saved.records[0].children[0].cancellations).toStrictEqual(
+          env.retained.children[0].cancellations,
+        );
+        expectNoDispatch(env.restored);
+      } finally {
+        await env.restored.provider.disconnect();
+      }
+    });
+  });
   type AbsentChaseStops = {
     deps: ReturnType<typeof createMockInfrastructure>;
     orderId: string;

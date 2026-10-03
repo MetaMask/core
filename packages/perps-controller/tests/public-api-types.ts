@@ -7,6 +7,9 @@ import type {
   PerpsChaseOrderDispatch,
   PerpsChaseOrderOwnership,
   PerpsControllerGetChaseOrderOwnershipAction,
+  ReconcileChaseOrderCancellationParams,
+  ReconcileChaseOrderCancellationResult,
+  PerpsControllerReconcileChaseOrderCancellationAction,
   OrderResult,
   PositionProtectionReceipt,
   LighterCredentials,
@@ -578,6 +581,70 @@ export type ChaseOwnershipConsumerContracts = [
     IsExact<
       PerpsChaseOrderOwnership['status'],
       'available' | 'unavailable' | 'unsupported'
+    >
+  >,
+];
+
+export type ChaseCancellationReconciliationConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Parameters<
+        PerpsControllerReconcileChaseOrderCancellationAction['handler']
+      >,
+      [input: ReconcileChaseOrderCancellationParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<
+        PerpsControllerReconcileChaseOrderCancellationAction['handler']
+      >,
+      Promise<ReconcileChaseOrderCancellationResult>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerReconcileChaseOrderCancellationAction['type'],
+      'PerpsController:reconcileChaseOrderCancellation'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsController['reconcileChaseOrderCancellation']>,
+      [input: ReconcileChaseOrderCancellationParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<NonNullable<PerpsProvider['reconcileChaseOrderCancellation']>>,
+      Promise<ReconcileChaseOrderCancellationResult>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReconcileChaseOrderCancellationParams['owner'],
+      PerpsChaseOrderOwner
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReconcileChaseOrderCancellationParams['cancellation'],
+      { nonce: number; txHash: string; expiresAt: number }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReconcileChaseOrderCancellationResult['status'],
+      'settled' | 'unresolved' | 'unsupported'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Exclude<
+        ReconcileChaseOrderCancellationResult,
+        { status: 'unsupported' }
+      >['order'],
+      ChaseOrder
     >
   >,
 ];

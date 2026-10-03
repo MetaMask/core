@@ -15,6 +15,8 @@ import type {
   ChaseOrder,
   TwapOrder,
   FeeCalculationParams,
+  ReconcileChaseOrderCancellationParams,
+  ReconcileChaseOrderCancellationResult,
 } from '../../../src/types/index.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
 import { STRATEGY_ORDER_TYPES } from '../../../src/utils/orderTypes.js';
@@ -1611,6 +1613,81 @@ describe('AggregatedPerpsProvider', () => {
       expect(
         mockLighterProvider.approveSubscriptionBuilderFee,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Chase cancellation reconciliation routing', () => {
+    const params = (): ReconcileChaseOrderCancellationParams => ({
+      providerId: 'lighter',
+      handle: 'lighter-chase:100',
+      clientOrderId: '101',
+      owner: {
+        providerId: 'lighter',
+        walletAddress: '0xabc',
+        network: 'testnet',
+        accountIndex: 28,
+        apiKeyIndex: 7,
+      },
+      cancellation: { nonce: 209, txHash: 'b'.repeat(64), expiresAt: 110000 },
+    });
+    const unsupported: ReconcileChaseOrderCancellationResult = {
+      status: 'unsupported',
+      providerId: 'lighter',
+      handle: 'lighter-chase:100',
+      reason: 'Test capability unavailable',
+    };
+
+    it('routes once to the exact provider and preserves captured identity', async () => {
+      const reconcile = jest.fn().mockResolvedValue(unsupported);
+      mockLighterProvider.reconcileChaseOrderCancellation = reconcile;
+      const input = params();
+      const expected = structuredClone(input);
+      const pending = aggregatedProvider.reconcileChaseOrderCancellation(input);
+      input.owner.apiKeyIndex = 8;
+      input.cancellation.nonce = 210;
+      expect(await pending).toStrictEqual(unsupported);
+      expect(reconcile).toHaveBeenCalledTimes(1);
+      expect(reconcile).toHaveBeenCalledWith(expected);
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+      expect(mockLighterProvider.cancelOrder).not.toHaveBeenCalled();
+    });
+    it('reports unsupported without an ordinary cancellation fallback', async () => {
+      expect(
+        await aggregatedProvider.reconcileChaseOrderCancellation(params()),
+      ).toMatchObject({ status: 'unsupported', providerId: 'lighter' });
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+      expect(mockLighterProvider.cancelOrder).not.toHaveBeenCalled();
+    });
+    it('refuses a missing exact route rather than using the default provider', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      await expect(
+        aggregatedProvider.reconcileChaseOrderCancellation(params()),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+    });
+    it('refuses mismatched owner and route before provider calls', async () => {
+      const reconcile = jest.fn().mockResolvedValue(unsupported);
+      mockLighterProvider.reconcileChaseOrderCancellation = reconcile;
+      const input = params();
+      input.owner.providerId = 'hyperliquid';
+      await expect(
+        aggregatedProvider.reconcileChaseOrderCancellation(input),
+      ).rejects.toThrow(/matching owner/u);
+      expect(reconcile).not.toHaveBeenCalled();
+    });
+    it('fences a provider replacement during reconciliation', async () => {
+      const result = createDeferred<ReconcileChaseOrderCancellationResult>();
+      mockLighterProvider.reconcileChaseOrderCancellation = jest.fn(
+        () => result.promise,
+      );
+      const pending =
+        aggregatedProvider.reconcileChaseOrderCancellation(params());
+      aggregatedProvider.addProvider('lighter', createMockProvider('lighter'));
+      result.resolve(unsupported);
+      await expect(pending).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+      expect(mockLighterProvider.cancelOrder).not.toHaveBeenCalled();
     });
   });
 

@@ -591,6 +591,25 @@ Lighter's public TWAP lifecycle read refuses support until authoritative parent 
 and terminal semantics are established. Local children do not establish a complete
 TWAP schedule.
 
+`PerpsController:reconcileChaseOrderCancellation({handle, providerId, owner,
+clientOrderId, cancellation: {nonce, txHash, expiresAt}})` reconciles the latest
+already attempted cancellation of a stopped handle. Preserve the full original
+owner and exact latest child/cancellation transaction identity from durable history.
+Lighter observes venue evidence and persists management settlement under the existing
+owner lock and session fence. The service receives only observation, clock and
+session-check functions, so it cannot allocate a nonce, sign or send another
+cancellation even when an acknowledged cancellation becomes failed and the child
+remains open. Existing registered read authority may create an authentication client
+and read nonce metadata, but it never registers a key or submits a transaction.
+
+A proven terminal handle returns `settled` with its public `order`; uncertain
+visibility, missing acknowledgement or failed/lost venue replies return `unresolved`.
+A missing original cancellation, active handle, wrong original identity or malformed
+inventory rejects before venue observation. Providers without this operation return
+`unsupported`; aggregated routing never substitutes ordinary cancellation. A lost
+public reconciliation reply remains unresolved and grants no authority to replay
+`cancelOrder`. Ordinary explicit cancellation retains its existing behavior.
+
 `getNativeChaseRecords()` exposes exact local cleanup identities for diagnostics.
 `cancelOrder({orderType: 'chase', orderId: handle, symbol, providerId: 'lighter'})`
 explicitly terminates an owned handle. A wrong-symbol request leaves its active

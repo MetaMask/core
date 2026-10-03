@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `reconcileChaseOrderCancellation` to the controller, messenger and optional provider contract. Lighter reconciles an already attempted cancellation under its exact original owner, handle, child and transaction identity with local settlement writes but no new financial dispatch, even if acknowledgement becomes failure while the child remains open. Missing, malformed or stale original ownership rejects; unknown outcomes remain unresolved. Aggregated mode routes only the explicit provider and unsupported providers never fall back to ordinary cancellation ([#10638](https://github.com/MetaMask/core/pull/10638)).
+
 - Export `LIGHTER_SCALE_SETTLEMENT_WINDOW_MS`, `LIGHTER_SCALE_SETTLEMENT_POLL_MS`, `LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS` and `LIGHTER_CHASE_CANCEL_SETTLEMENT_POLL_MS` through the `constants` and `constants/lighterConfig` package entrypoints for shared settlement policy ([#10638](https://github.com/MetaMask/core/pull/10638)).
 
 - Support explicit independent Lighter partial TP/SL pairs, including captured full-position siblings, through cancellation-first durable per-leg dispatch. Expose supported pair linkages and role-bound protection receipts without changing native OCO defaults ([#10638](https://github.com/MetaMask/core/pull/10638)).

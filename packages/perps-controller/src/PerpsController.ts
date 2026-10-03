@@ -82,6 +82,8 @@ import type {
   CancelOrdersResult,
   ChaseOrder,
   GetChaseOrderOwnershipParams,
+  ReconcileChaseOrderCancellationParams,
+  ReconcileChaseOrderCancellationResult,
   PerpsChaseOrderOwnership,
   ChaseOrderMaxDistanceReached,
   ClosePositionParams,
@@ -937,6 +939,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getCachedUserDataForActiveProvider',
   'getChaseOrders',
   'getChaseOrderOwnership',
+  'reconcileChaseOrderCancellation',
   'getTwapOrders',
   'getUserDataSnapshot',
   'getCurrentNetwork',
@@ -3303,6 +3306,80 @@ export class PerpsController extends BaseController<
       };
     }
     const ownership = await provider.getChaseOrderOwnership(params);
+    assertCurrent();
+    if (this.getActiveProviderOrNull() !== provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return ownership;
+  }
+
+  /**
+   * Reconcile one retained exact Chase cancellation without any new cancellation.
+   * Unsupported providers are never routed to ordinary financial cancellation.
+   *
+   * @param input - Original handle, owner, child and transaction identity.
+   * @returns Proven terminal state, unresolved cleanup or unsupported capability.
+   * @throws On invalid ownership or stale provider/account/network lifetime.
+   */
+  async reconcileChaseOrderCancellation(
+    input: ReconcileChaseOrderCancellationParams,
+  ): Promise<ReconcileChaseOrderCancellationResult> {
+    const params = {
+      ...input,
+      owner: { ...input.owner },
+      cancellation: { ...input.cancellation },
+    };
+    if (
+      !params.providerId ||
+      !params.handle ||
+      !params.clientOrderId ||
+      params.owner.providerId !== params.providerId
+    ) {
+      throw new Error(
+        'Chase cancellation reconciliation requires an exact handle, child and matching owner/provider',
+      );
+    }
+    const issuedContext = this.#getActionContext();
+    const issuedGeneration = this.#lifecycleGeneration;
+    const issuedAccountGeneration = this.#selectedAccountGeneration;
+    const issuedInstance = this.activeProviderInstance;
+    const assertCurrent = (): void => {
+      if (
+        issuedContext !== this.#getActionContext() ||
+        issuedGeneration !== this.#lifecycleGeneration ||
+        issuedAccountGeneration !== this.#selectedAccountGeneration ||
+        (issuedInstance !== null &&
+          this.activeProviderInstance !== issuedInstance)
+      ) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+    };
+    let provider: PerpsProvider;
+    try {
+      provider = await this.#getActiveProviderWhenReady();
+    } catch (error) {
+      assertCurrent();
+      throw error;
+    }
+    assertCurrent();
+    if (
+      this.state.activeProvider !== 'aggregated' &&
+      params.providerId !== this.state.activeProvider
+    ) {
+      throw new Error(
+        'Chase cancellation reconciliation provider does not match the active context',
+      );
+    }
+    if (!provider.reconcileChaseOrderCancellation) {
+      return {
+        status: 'unsupported',
+        providerId: params.providerId,
+        handle: params.handle,
+        reason:
+          'Chase cancellation reconciliation is unavailable for this provider',
+      };
+    }
+    const ownership = await provider.reconcileChaseOrderCancellation(params);
     assertCurrent();
     if (this.getActiveProviderOrNull() !== provider) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);

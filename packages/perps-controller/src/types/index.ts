@@ -753,6 +753,33 @@ export type GetChaseOrderOwnershipParams = {
   owner?: PerpsChaseOrderOwner;
 };
 
+/** Reconcile only the exact already-attempted cancellation under its original owner. */
+export type ReconcileChaseOrderCancellationParams = {
+  handle: string;
+  providerId: PerpsProviderType;
+  owner: PerpsChaseOrderOwner;
+  clientOrderId: string;
+  cancellation: Pick<
+    Required<PerpsChaseOrderDispatch>,
+    'nonce' | 'txHash' | 'expiresAt'
+  >;
+};
+
+/** No result authorizes a new cancellation; uncertain or lost replies stay unresolved. */
+export type ReconcileChaseOrderCancellationResult =
+  | {
+      status: 'unsupported';
+      providerId: PerpsProviderType;
+      handle: string;
+      reason: string;
+    }
+  | {
+      status: 'settled' | 'unresolved';
+      providerId: PerpsProviderType;
+      handle: string;
+      order: ChaseOrder;
+    };
+
 /**
  * Validated durable local history for one exact handle. Available means every
  * locally recorded child is included, not that venue reconciliation is complete.
@@ -2436,6 +2463,10 @@ export type PerpsProvider = {
   getChaseOrderOwnership?(
     params: GetChaseOrderOwnershipParams,
   ): Promise<PerpsChaseOrderOwnership>;
+  /** Observe an exact retained cancellation without signing or dispatching a successor. */
+  reconcileChaseOrderCancellation?(
+    params: ReconcileChaseOrderCancellationParams,
+  ): Promise<ReconcileChaseOrderCancellationResult>;
   suspendChaseOrders?(): Promise<ChaseOrder[]>;
   closePosition(params: ClosePositionParams): Promise<OrderResult>;
   closePositions?(params: ClosePositionsParams): Promise<ClosePositionsResult>; // Optional: batch close for protocols that support it

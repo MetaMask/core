@@ -125,6 +125,8 @@ import type {
   ChaseOrder,
   ChaseOrderStatus,
   GetChaseOrderOwnershipParams,
+  ReconcileChaseOrderCancellationParams,
+  ReconcileChaseOrderCancellationResult,
   PerpsChaseOrderOwnership,
   PerpsChaseOrderDispatch,
 } from '../types/index.js';
@@ -12949,6 +12951,89 @@ export class LighterProvider implements PerpsProvider {
       ...(settled
         ? {}
         : { error: result.error ?? 'Lighter Chase cleanup remains pending' }),
+    };
+  }
+
+  /**
+   * Reconcile an original owned Chase cancellation using existing read authority.
+   * Never initialize a financial signer, allocate a nonce or submit a new cancel.
+   *
+   * @param input - Captured original owner, handle, child and cancellation identity.
+   * @returns Terminal management state or explicit unresolved cleanup.
+   */
+  async reconcileChaseOrderCancellation(
+    input: ReconcileChaseOrderCancellationParams,
+  ): Promise<ReconcileChaseOrderCancellationResult> {
+    const params = {
+      ...input,
+      owner: { ...input.owner },
+      cancellation: { ...input.cancellation },
+    };
+    if (
+      params.providerId !== 'lighter' ||
+      params.owner.providerId !== 'lighter' ||
+      !params.handle ||
+      !params.clientOrderId
+    ) {
+      throw new Error(
+        'Lighter Chase cancellation reconciliation requires an exact owner and provider route',
+      );
+    }
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    const owner: LighterChaseOwner = {
+      wallet: params.owner.walletAddress.toLowerCase(),
+      network: params.owner.network,
+      accountIndex: params.owner.accountIndex,
+      apiKeyIndex: params.owner.apiKeyIndex,
+    };
+    if (
+      owner.wallet !== this.#boundAddress ||
+      owner.network !== (this.#isTestnet ? 'testnet' : 'mainnet')
+    ) {
+      throw new Error(
+        'Lighter Chase original cancellation owner does not match the current context',
+      );
+    }
+    const record = await this.#chaseService.inspect(owner, params.handle, {
+      assertCurrent: () => this.#assertSession(generation),
+    });
+    this.#assertSession(generation);
+    if (!record || record.intent.owner.apiKeyIndex !== owner.apiKeyIndex) {
+      throw new Error('Unknown original owned Lighter Chase cancellation');
+    }
+    const accountIndex = await this.#ensureAccountIndex();
+    this.#assertSession(generation);
+    if (accountIndex !== owner.accountIndex) {
+      throw new Error(
+        'Lighter Chase original cancellation account does not match the current context',
+      );
+    }
+    const io = this.#chaseIo(record.intent, generation);
+    const result = await this.#chaseService.reconcileCancellation(
+      owner,
+      params.handle,
+      params.clientOrderId,
+      params.cancellation,
+      { assertCurrent: io.assertCurrent, now: io.now, observe: io.observe },
+    );
+    this.#assertSession(generation);
+    const timer = this.#chaseTimers.get(params.handle);
+    if (timer) {
+      clearTimeout(timer);
+      this.#chaseTimers.delete(params.handle);
+    }
+    const order = toLighterChaseOrder(result);
+    return {
+      status:
+        order.status !== 'active' &&
+        order.status !== 'termination_pending' &&
+        order.restingOrderId === null
+          ? 'settled'
+          : 'unresolved',
+      providerId: 'lighter',
+      handle: params.handle,
+      order,
     };
   }
 

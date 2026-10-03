@@ -29,6 +29,7 @@ import type {
   PerpsAgentAccount,
   PerpsAgentSigner,
   PerpsControllerClearAgentSignersAction,
+  PerpsControllerReconcileChaseOrderCancellationAction,
   PerpsControllerPrepareTradingWalletAction,
   PerpsControllerSetAgentSignerAction,
   PerpsTypedDataPayload,
@@ -80,6 +81,15 @@ describe('@metamask/perps-controller public API', () => {
     expect(typeof PerpsController.prototype.reconcileRecoveredDispatches).toBe(
       'function',
     );
+  });
+
+  it('exports observation-only exact Chase cancellation reconciliation and its messenger action', () => {
+    const action: PerpsControllerReconcileChaseOrderCancellationAction['type'] =
+      'PerpsController:reconcileChaseOrderCancellation';
+    expect(
+      typeof PerpsController.prototype.reconcileChaseOrderCancellation,
+    ).toBe('function');
+    expect(action).toBe('PerpsController:reconcileChaseOrderCancellation');
   });
 
   it('exports the trading configuration constants', () => {

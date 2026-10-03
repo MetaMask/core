@@ -33,6 +33,8 @@ import type {
   CancelOrdersResult,
   ChaseOrder,
   GetChaseOrderOwnershipParams,
+  ReconcileChaseOrderCancellationParams,
+  ReconcileChaseOrderCancellationResult,
   PerpsChaseOrderOwnership,
   ClosePositionParams,
   ClosePositionsParams,
@@ -714,6 +716,47 @@ export class AggregatedPerpsProvider implements PerpsProvider {
           handle: params.handle,
           reason: 'Durable Chase ownership is unavailable for this provider',
         };
+    if (this.#providers.get(params.providerId) !== provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return ownership;
+  }
+
+  /**
+   * Route observation-only reconciliation to exactly one named provider.
+   *
+   * @param input - Original handle, owner, child and cancellation identity.
+   * @returns Exact owning-provider settlement or unsupported, never ordinary cancel.
+   */
+  async reconcileChaseOrderCancellation(
+    input: ReconcileChaseOrderCancellationParams,
+  ): Promise<ReconcileChaseOrderCancellationResult> {
+    const params = {
+      ...input,
+      owner: { ...input.owner },
+      cancellation: { ...input.cancellation },
+    };
+    if (
+      !params.providerId ||
+      !params.handle ||
+      !params.clientOrderId ||
+      params.owner.providerId !== params.providerId
+    ) {
+      throw new Error(
+        'Chase cancellation reconciliation requires an exact handle, child and matching owner/provider',
+      );
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    const ownership: ReconcileChaseOrderCancellationResult =
+      provider.reconcileChaseOrderCancellation
+        ? await provider.reconcileChaseOrderCancellation(params)
+        : {
+            status: 'unsupported',
+            providerId: params.providerId,
+            handle: params.handle,
+            reason:
+              'Chase cancellation reconciliation is unavailable for this provider',
+          };
     if (this.#providers.get(params.providerId) !== provider) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }

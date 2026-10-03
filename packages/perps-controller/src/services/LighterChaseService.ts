@@ -36,6 +36,7 @@ import type {
   ChaseOrder,
   ChaseOrderStatus,
   PerpsPlatformDependencies,
+  ReconcileChaseOrderCancellationParams,
 } from '../types/index.js';
 import type { LighterChaseChildObservation } from '../utils/lighterChase.js';
 import {
@@ -555,7 +556,7 @@ export class LighterChaseService {
   async #observe(
     record: LighterChaseRecord,
     child: LighterChaseChild,
-    io: LighterChaseIo,
+    io: Pick<LighterChaseIo, 'assertCurrent' | 'observe'>,
   ): Promise<void> {
     const observed = await io.observe(child, async (dispatch, acknowledged) =>
       this.#recordEvidence(record, dispatch, acknowledged),
@@ -829,7 +830,7 @@ export class LighterChaseService {
     record: LighterChaseRecord,
     journal: Journal,
     child: LighterChaseChild,
-    io: LighterChaseIo,
+    io: Pick<LighterChaseIo, 'assertCurrent' | 'now' | 'observe'>,
   ): Promise<void> {
     const startedAt = io.now();
     const deadline = startedAt + LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS;
@@ -1199,6 +1200,77 @@ export class LighterChaseService {
         throw new Error('Unknown owned Lighter Chase handle');
       }
       await this.#stop(record, journal, io, reason);
+      return record;
+    });
+  }
+
+  /**
+   * Settle one original cancellation using observation only, even if its phase
+   * becomes failed. This path cannot allocate, sign or dispatch another attempt.
+   *
+   * @param owner - Exact original wallet/network/account/key owner.
+   * @param handle - Durable Chase handle whose stop was already requested.
+   * @param clientOrderId - Exact latest child selected by the caller.
+   * @param identity - Original cancellation transaction identity.
+   * @param io - Current observation authority with no financial transport.
+   * @returns Proven terminal state or retained unresolved cleanup.
+   */
+  async reconcileCancellation(
+    owner: LighterChaseOwner,
+    handle: string,
+    clientOrderId: string,
+    identity: ReconcileChaseOrderCancellationParams['cancellation'],
+    io: Pick<LighterChaseIo, 'assertCurrent' | 'now' | 'observe'>,
+  ): Promise<LighterChaseRecord> {
+    const capturedOwner = { ...owner };
+    const capturedIdentity = { ...identity };
+    return await this.#locked(capturedOwner, async () => {
+      const journal = await this.#read(capturedOwner, io);
+      const record = journal.records.find(
+        (entry) => entry.intent.handle === handle,
+      );
+      const child = record?.children.at(-1);
+      const cancellation = child?.cancellations.at(-1);
+      if (
+        !record ||
+        !child ||
+        !cancellation ||
+        record.intent.owner.apiKeyIndex !== capturedOwner.apiKeyIndex ||
+        record.status === 'active' ||
+        record.stopReason === undefined ||
+        child.clientOrderId !== clientOrderId ||
+        !['attempted', 'acknowledged', 'failed'].includes(cancellation.phase) ||
+        !Number.isSafeInteger(capturedIdentity.nonce) ||
+        capturedIdentity.nonce < 0 ||
+        !isLighterTxHash(capturedIdentity.txHash) ||
+        !isLighterTxExpiry(capturedIdentity.expiresAt) ||
+        cancellation.nonce !== capturedIdentity.nonce ||
+        cancellation.txHash !== capturedIdentity.txHash ||
+        cancellation.expiresAt !== capturedIdentity.expiresAt
+      ) {
+        throw new Error(
+          'Lighter Chase original cancellation ownership or identity mismatch',
+        );
+      }
+      if (!this.#requestStop(record, 'canceled')) {
+        return record;
+      }
+      await this.#write(capturedOwner, journal, io);
+      try {
+        await this.#awaitCancellationSettlement(record, journal, child, io);
+        if (this.#settled(record)) {
+          if (amount(record.executedSize).eq(record.intent.originalSize)) {
+            record.status = 'filled';
+          } else {
+            record.status =
+              record.stopReason === 'failed' ? 'failed' : 'canceled';
+          }
+        }
+      } catch (error) {
+        io.assertCurrent();
+        record.error = error instanceof Error ? error.message : String(error);
+      }
+      await this.#write(capturedOwner, journal, io);
       return record;
     });
   }

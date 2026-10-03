@@ -196,6 +196,19 @@ export type PerpsControllerGetChaseOrderOwnershipAction = {
 };
 
 /**
+ * Reconcile one retained exact Chase cancellation without any new cancellation.
+ * Unsupported providers are never routed to ordinary financial cancellation.
+ *
+ * @param input - Original handle, owner, child and transaction identity.
+ * @returns Proven terminal state, unresolved cleanup or unsupported capability.
+ * @throws On invalid ownership or stale provider/account/network lifetime.
+ */
+export type PerpsControllerReconcileChaseOrderCancellationAction = {
+  type: `PerpsController:reconcileChaseOrderCancellation`;
+  handler: PerpsController['reconcileChaseOrderCancellation'];
+};
+
+/**
  * Stop Chase repricing for app backgrounding. HyperLiquid leaves current
  * children resting. The bounded Lighter probe attempts exact cancellation and
  * reports canceled or termination_pending rather than a resting status.
@@ -1593,6 +1606,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetTwapOrdersAction
   | PerpsControllerGetChaseOrdersAction
   | PerpsControllerGetChaseOrderOwnershipAction
+  | PerpsControllerReconcileChaseOrderCancellationAction
   | PerpsControllerSuspendChaseOrdersAction
   | PerpsControllerCancelOrdersAction
   | PerpsControllerClosePositionAction
