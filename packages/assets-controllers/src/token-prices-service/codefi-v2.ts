@@ -264,6 +264,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x7a': 'eip155:122/erc20:0x0000000000000000000000000000000000000000', // Fuse Mainnet - Native symbol: FUSE
   '0x80': 'eip155:128/slip44:1010', // Huobi ECO Chain Mainnet - Native symbol: HT
   '0x89': 'eip155:137/slip44:966', // Polygon Mainnet - Native symbol: POL
+  '0x8a': 'eip155:138/slip44:60', // DeFi Oracle Meta Mainnet - Native symbol: ETH
   '0x8f': 'eip155:143/slip44:268435779', // Monad Mainnet - Native symbol: MON
   '0x92': 'eip155:146/slip44:10007', // Sonic Mainnet - Native symbol: S
   '0xc4': 'eip155:196/erc20:0x0000000000000000000000000000000000000000', // X Layer Mainnet - Native symbol: OKB
