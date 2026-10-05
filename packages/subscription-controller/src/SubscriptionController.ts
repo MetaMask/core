@@ -1361,8 +1361,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         'GeolocationController:getGeolocationData',
       );
       return (
-        country !== null &&
-        REFUND_ELIGIBLE_COUNTRIES.has(country.toUpperCase())
+        country !== null && REFUND_ELIGIBLE_COUNTRIES.has(country.toUpperCase())
       );
     } catch (error) {
       log('Failed to resolve geolocation for refund eligibility', error);
