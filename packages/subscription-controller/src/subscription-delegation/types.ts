@@ -18,9 +18,6 @@ export type { ChompIntentType };
 export const CASH_SUBSCRIPTION_DELEGATION_TYPE =
   'cash-subscription' as const satisfies ChompIntentType;
 
-export const SUBSCRIPTION_DELEGATION_APPROVAL_TYPE =
-  'subscription_delegation' as const;
-
 export const SUBSCRIPTION_DELEGATION_POLICY_VERSION = '1' as const;
 
 export type SubscriptionPermissionId = ChompIntentType;
@@ -86,33 +83,11 @@ export type PreparedSubscriptionDelegationBundle = {
   permissions: PreparedSubscriptionPermission[];
 };
 
-export type SubscriptionFundingRequest = {
-  useCase: 'subscription';
-  destinationAccount: Hex;
-  chainId: Hex;
-  targetToken: {
-    symbol: 'mUSD';
-    address: Hex;
-  };
-  targetAmount: string;
-};
-
-export type SubscriptionDelegationApprovalResult = {
-  fundingTransactionHash: Hex;
-};
-
 export type StartSubscriptionWithDelegationRequest = {
   product: ProductType;
   recurringInterval: RecurringInterval;
   chainId: Hex;
   payerAddress: Hex;
-  /**
-   * When `true`, skips the `ApprovalController:addRequest` consent and
-   * funding step and proceeds directly to signing, committing, and starting
-   * the subscription. Callers must have already obtained user consent and
-   * ensured the Money Account is funded.
-   */
-  skipApproval?: boolean;
 };
 
 export type PrepareAuthorizationBundleResult =
