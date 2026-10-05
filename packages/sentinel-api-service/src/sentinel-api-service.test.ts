@@ -11,6 +11,8 @@ import nock, { cleanAll as nockCleanAll } from 'nock';
 import {
   BASE_URL_TEMPLATE,
   ENVIRONMENT_DOMAIN,
+  NETWORK_STALE_TIME_MS,
+  NETWORKS_STALE_TIME_MS,
   NETWORKS_SUBDOMAIN,
   RPC_METHOD_SEND_RELAY,
   RPC_METHOD_SIMULATE,
@@ -39,6 +41,7 @@ import type {
 // ============================================================
 
 const CHAIN_ID_MAINNET = '0x1' as Hex;
+const CHAIN_ID_OPTIMISM = '0xa' as Hex;
 const CHAIN_ID_UNKNOWN = '0x539' as Hex; // 1337
 const MAINNET_SUBDOMAIN = 'ethereum-mainnet';
 const UUID = '11111111-1111-1111-1111-111111111111';
@@ -63,6 +66,7 @@ function buildUrl(
 
 const NETWORKS_URL = buildUrl(NETWORKS_SUBDOMAIN);
 const MAINNET_URL = buildUrl(MAINNET_SUBDOMAIN);
+const OPTIMISM_URL = buildUrl('optimism-mainnet');
 
 const MOCK_NETWORKS = {
   '1': {
@@ -81,6 +85,21 @@ const MOCK_NETWORKS = {
   '137': {
     network: 'polygon-mainnet',
   },
+};
+
+const MOCK_NETWORK = {
+  chainID: 10,
+  confirmations: true,
+  cubistSigners: [
+    '0xB01caEa8c6C47bbf4F4b4c5080Ca642043359C2E',
+    '0xB42F812A44c22cc6b861478900401ee759EbEAD6',
+  ],
+  name: 'Optimism Mainnet',
+  network: 'optimism-mainnet',
+  relayTransactions: true,
+  sendBundle: false,
+  simulationIncludeFees: true,
+  smartTransactions: true,
 };
 
 const MOCK_SIMULATION_RESPONSE = {
@@ -419,6 +438,160 @@ describe('SentinelApiService', () => {
 
       const result = await rootMessenger.call('SentinelApiService:getNetworks');
       expect(result).toStrictEqual(MOCK_NETWORKS);
+      service.destroy();
+    });
+
+    it('refetches the registry once the cache is stale', async () => {
+      const { service } = createService();
+      const now = Date.now();
+      const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      const scope = mockNetworks(2);
+
+      await service.getNetworks();
+      dateNowSpy.mockReturnValue(now + NETWORKS_STALE_TIME_MS - 1);
+      await service.getNetworks();
+      expect(scope.pendingMocks()).toHaveLength(1);
+
+      dateNowSpy.mockReturnValue(now + NETWORKS_STALE_TIME_MS + 1);
+      await service.getNetworks();
+      scope.done();
+
+      dateNowSpy.mockRestore();
+      service.destroy();
+    });
+  });
+
+  describe('getNetwork', () => {
+    it('returns the network configuration from the network subdomain', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(OPTIMISM_URL).get('/network').reply(200, MOCK_NETWORK);
+
+      const result = await service.getNetwork(CHAIN_ID_OPTIMISM);
+      expect(result).toStrictEqual(MOCK_NETWORK);
+      service.destroy();
+    });
+
+    it('caches the network configuration across calls', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const scope = nock(OPTIMISM_URL)
+        .get('/network')
+        .once()
+        .reply(200, MOCK_NETWORK);
+
+      const first = await service.getNetwork(CHAIN_ID_OPTIMISM);
+      const second = await service.getNetwork(CHAIN_ID_OPTIMISM);
+      expect(first).toStrictEqual(second);
+      scope.done();
+      service.destroy();
+    });
+
+    it('caches the network configuration per chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const mainnetNetwork = { ...MOCK_NETWORKS['1'], cubistSigners: [] };
+      nock(MAINNET_URL).get('/network').once().reply(200, mainnetNetwork);
+      nock(OPTIMISM_URL).get('/network').once().reply(200, MOCK_NETWORK);
+
+      expect(await service.getNetwork(CHAIN_ID_MAINNET)).toStrictEqual(
+        mainnetNetwork,
+      );
+      expect(await service.getNetwork(CHAIN_ID_OPTIMISM)).toStrictEqual(
+        MOCK_NETWORK,
+      );
+      service.destroy();
+    });
+
+    it('refetches the network configuration once the cache is stale', async () => {
+      const { service } = createService();
+      const now = Date.now();
+      const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      mockNetworks(2);
+      const scope = nock(OPTIMISM_URL)
+        .get('/network')
+        .twice()
+        .reply(200, MOCK_NETWORK);
+
+      await service.getNetwork(CHAIN_ID_OPTIMISM);
+      dateNowSpy.mockReturnValue(now + NETWORK_STALE_TIME_MS - 1);
+      await service.getNetwork(CHAIN_ID_OPTIMISM);
+      expect(scope.pendingMocks()).toHaveLength(1);
+
+      dateNowSpy.mockReturnValue(now + NETWORK_STALE_TIME_MS + 1);
+      await service.getNetwork(CHAIN_ID_OPTIMISM);
+      scope.done();
+
+      dateNowSpy.mockRestore();
+      service.destroy();
+    });
+
+    it('throws when the chain is not in the registry', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      await expect(service.getNetwork(CHAIN_ID_UNKNOWN)).rejects.toThrow(
+        new SentinelChainNotSupportedError(CHAIN_ID_UNKNOWN),
+      );
+      service.destroy();
+    });
+
+    it('throws HttpError on non-2xx response', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(OPTIMISM_URL).get('/network').once().reply(500);
+
+      await expect(service.getNetwork(CHAIN_ID_OPTIMISM)).rejects.toThrow(
+        HttpError,
+      );
+      service.destroy();
+    });
+
+    it('throws a validation error on a malformed response', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(OPTIMISM_URL)
+        .get('/network')
+        .once()
+        .reply(200, { ...MOCK_NETWORK, cubistSigners: ['not-an-address'] });
+
+      await expect(service.getNetwork(CHAIN_ID_OPTIMISM)).rejects.toThrow(
+        SentinelApiResponseValidationError,
+      );
+      service.destroy();
+    });
+
+    it('sends auth headers', async () => {
+      const { service, rootMessenger } = createService({
+        clientId: 'extension',
+      });
+      registerBearerToken(rootMessenger, async () => 'jwt-token');
+      mockNetworks();
+      const scope = nock(OPTIMISM_URL, {
+        reqheaders: {
+          'x-client-id': 'extension',
+          authorization: 'Bearer jwt-token',
+        },
+      })
+        .get('/network')
+        .reply(200, MOCK_NETWORK);
+
+      const result = await service.getNetwork(CHAIN_ID_OPTIMISM);
+      expect(result).toStrictEqual(MOCK_NETWORK);
+      scope.done();
+      service.destroy();
+    });
+
+    it('is callable via messenger action', async () => {
+      const { service, rootMessenger } = createService();
+      mockNetworks();
+      nock(OPTIMISM_URL).get('/network').reply(200, MOCK_NETWORK);
+
+      const result = await rootMessenger.call(
+        'SentinelApiService:getNetwork',
+        CHAIN_ID_OPTIMISM,
+      );
+      expect(result).toStrictEqual(MOCK_NETWORK);
       service.destroy();
     });
   });

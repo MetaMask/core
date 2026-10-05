@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getNetwork` method and `SentinelApiService:getNetwork` action to retrieve the configuration of a single network from the `/network` endpoint ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Responses are cached for 5 minutes per chain.
+  - Throws `SentinelChainNotSupportedError` if the chain is not in the supported-network registry.
+  - Add `cubistSigners` and `simulationIncludeFees` properties to the `SentinelNetwork` type.
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
