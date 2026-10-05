@@ -70,7 +70,10 @@ export function getIncompleteMetadataBackupEventProperties(
  */
 function getMetadataSchemaVersion(
   secretMetadata: SecretMetadata[],
-): IncompleteMetadataBackupEventProperties['metadata_schema_version'] | 'mixed' | 'none' {
+):
+  | IncompleteMetadataBackupEventProperties['metadata_schema_version']
+  | 'mixed'
+  | 'none' {
   if (secretMetadata.length === 0) {
     // No secret metadata found.
     return 'none';
@@ -157,7 +160,7 @@ export async function identifyIncompleteMetadataBackup({
       properties: eventProperties,
       sensitiveProperties: {},
       saveDataRecording: false,
-      hasProperties: false,
+      hasProperties: true,
     });
   } catch (error) {
     if (error instanceof InvalidPrimarySecretDataTypeError && properties) {

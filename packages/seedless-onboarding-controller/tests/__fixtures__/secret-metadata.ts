@@ -68,15 +68,18 @@ export const ImportedPrivateKey2 = {
  * @param mock - The secret metadata fields to encode.
  * @returns A fetched secret-data item whose payload matches the mock.
  */
-export function createFetchedSecretDataItem({
-  data,
-  timestamp,
-  itemId,
-  type = SecretType.Mnemonic,
-  dataType,
-  version,
-  createdAt,
-}: FetchedSecretDataItemMock): FetchedSecretDataItem {
+export function createFetchedSecretDataItem(
+  mock: FetchedSecretDataItemMock,
+): FetchedSecretDataItem {
+  const {
+    data,
+    timestamp,
+    itemId,
+    type = SecretType.Mnemonic,
+    dataType,
+    version,
+    createdAt,
+  } = mock;
   const metadata = new SecretMetadata(stringToBytes(data), {
     timestamp,
     type,
