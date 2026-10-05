@@ -5921,6 +5921,35 @@ describe('KeyringController', () => {
       );
     });
 
+    it('destroys and drops a created keyring if the transaction setup fails', async () => {
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+        async ({ controller }) => {
+          jest
+            .spyOn(MockKeyring.prototype, 'getAccounts')
+            .mockRejectedValue(new Error('getAccounts failed'));
+
+          await expect(
+            controller.withKeyring({ type: MockKeyring.type }, jest.fn(), {
+              createIfMissing: true,
+            }),
+          ).rejects.toThrow('getAccounts failed');
+
+          // The created keyring is destroyed and dropped: it is neither kept
+          // in memory nor written to the vault by a later persist.
+          expect(controller.getKeyringsByType(MockKeyring.type)).toHaveLength(
+            0,
+          );
+
+          await controller.persistAllKeyrings();
+          expect(controller.state.keyrings).toHaveLength(1);
+          const vaultEntries = parseVaultEntries(controller.state.vault);
+          expect(vaultEntries).toHaveLength(1);
+          expect(vaultEntries[0].type).toBe(KeyringTypes.hd);
+        },
+      );
+    });
+
     it('recreates keyrings removed during a failed transaction, at their original position', async () => {
       await withController(async ({ controller, encryptor }) => {
         const importedAccount = await controller.importAccountWithStrategy(

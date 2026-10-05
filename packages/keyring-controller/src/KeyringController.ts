@@ -3407,10 +3407,11 @@ export class KeyringController<
         );
       }
 
-      const wasNonEmpty = (await entry.keyring.getAccounts()).length > 0;
-
       // `undefined` when the transaction created the keyring; also serves
-      // as the "before" state for the change detection below. Cloned, as
+      // as the "before" state for the change detection below. Computed
+      // before the transaction starts: a failure here leaves the controller
+      // untouched, and must not be mistaken for a rollback with no
+      // snapshot, which would destroy a pre-existing keyring. Cloned, as
       // keyrings may return aliased internal state from `serialize()`.
       const snapshot: KeyringSnapshot | undefined = selected
         ? {
@@ -3422,6 +3423,11 @@ export class KeyringController<
         : undefined;
 
       try {
+        // Computed inside the transaction: the created keyring is already
+        // in `#keyrings` at this point, so even a `getAccounts` rejection
+        // before the operation runs must be rolled back.
+        const wasNonEmpty = (await entry.keyring.getAccounts()).length > 0;
+
         const result = await run(entry);
 
         const isEmpty = (await entry.keyring.getAccounts()).length === 0;
