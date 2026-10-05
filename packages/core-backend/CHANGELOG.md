@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `occurrenceFloor`, `includeNativeAssets`, and `includeRwaData` query options to `TokenApiClient.fetchTokenList` (`GET /tokens/{chainId}`) ([#10672](https://github.com/MetaMask/core/pull/10672))
+- Add `TokenApiClient.fetchV2SupportedNetworks` for Token API `GET /v2/supportedNetworks` ([#10672](https://github.com/MetaMask/core/pull/10672))
+
 ## [12.0.1]
 
 ### Changed

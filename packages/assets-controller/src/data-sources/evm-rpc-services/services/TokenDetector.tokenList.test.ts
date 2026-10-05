@@ -1,9 +1,31 @@
-import type { ChainId } from '../types/index.js';
-import { TokensApiClient } from './TokensApiClient.js';
+import { TokenApiClient } from '@metamask/core-backend';
+import type { ApiPlatformClientOptions } from '@metamask/core-backend';
+
+import type { MulticallClient } from '../clients/index.js';
 import type {
-  TokensApiClientConfig,
-  TokenListQueryClient,
-} from './TokensApiClient.js';
+  Address,
+  Asset,
+  BalanceOfRequest,
+  ChainId,
+} from '../types/index.js';
+import { TokenDetector } from './TokenDetector.js';
+
+/**
+ * Minimal structural type for the shared QueryClient method these tests use.
+ */
+type TokenListQueryClient = {
+  fetchQuery<TData>(options: {
+    queryKey: readonly unknown[];
+    queryFn: (context: { signal?: AbortSignal }) => Promise<TData>;
+    staleTime?: number;
+    gcTime?: number;
+  }): Promise<TData>;
+};
+
+type TestClientConfig = {
+  fetch?: typeof globalThis.fetch;
+  queryClient?: TokenListQueryClient;
+};
 
 // =============================================================================
 // CONSTANTS
@@ -119,15 +141,59 @@ function getTokenListUrl(
   return call[0];
 }
 
-function buildClient(config?: TokensApiClientConfig): TokensApiClient {
-  return new TokensApiClient(config);
+const TEST_ACCOUNT: Address = '0x1234567890123456789012345678901234567890';
+const TEST_ACCOUNT_ID = 'test-account-uuid';
+
+function createMulticallClient(): MulticallClient {
+  return {
+    batchBalanceOf: jest.fn(
+      async (_chainId: ChainId, requests: BalanceOfRequest[]) =>
+        requests.map((request) => ({
+          success: true,
+          tokenAddress: request.tokenAddress,
+          accountAddress: TEST_ACCOUNT,
+          balance: '1',
+        })),
+    ),
+  } as unknown as MulticallClient;
+}
+
+function buildClient(config?: TestClientConfig): {
+  fetchTokenList: (chainId: ChainId) => Promise<Address[]>;
+  detect: (chainId: ChainId) => Promise<Asset[]>;
+} {
+  if (config?.fetch) {
+    jest.spyOn(globalThis, 'fetch').mockImplementation(config.fetch);
+  }
+  const tokenApi = new TokenApiClient({
+    clientProduct: 'assets-controller',
+    queryClient: config?.queryClient as ApiPlatformClientOptions['queryClient'],
+  });
+  const detector = new TokenDetector(createMulticallClient(), tokenApi, {
+    cacheTokenList: config?.queryClient !== undefined,
+  });
+  return {
+    fetchTokenList: (chainId: ChainId) => detector.getTokensToCheck(chainId),
+    detect: async (chainId: ChainId) => {
+      const result = await detector.detectTokens(
+        chainId,
+        TEST_ACCOUNT_ID,
+        TEST_ACCOUNT,
+      );
+      return result.detectedAssets;
+    },
+  };
 }
 
 // =============================================================================
 // TESTS
 // =============================================================================
 
-describe('TokensApiClient', () => {
+describe('TokenDetector token list', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe('constructor', () => {
     it('uses globalThis.fetch by default', async () => {
       // The global spy returns `createMockResponse([])` for every URL.
@@ -138,8 +204,13 @@ describe('TokensApiClient', () => {
         .spyOn(globalThis, 'fetch')
         .mockResolvedValue(createMockResponse([]));
 
-      const client = new TokensApiClient();
-      await client.fetchTokenList(MAINNET_CHAIN_ID);
+      const detector = new TokenDetector(
+        createMulticallClient(),
+        new TokenApiClient({
+          clientProduct: 'assets-controller',
+        }),
+      );
+      await detector.getTokensToCheck(MAINNET_CHAIN_ID);
 
       expect(globalFetchSpy).toHaveBeenCalledTimes(1);
       expect(globalFetchSpy.mock.calls[0]?.[0]).toContain(
@@ -148,7 +219,7 @@ describe('TokensApiClient', () => {
       globalFetchSpy.mockRestore();
     });
 
-    it('uses the provided fetch function instead of globalThis.fetch', async () => {
+    it('uses fetch for supported networks, occurrence floors, and the token list', async () => {
       // With routing: supported-networks + floors + token-list = 3 total.
       const mockFetch = createMockFetch(createMockResponse([]));
       const client = buildClient({ fetch: mockFetch });
@@ -299,19 +370,18 @@ describe('TokensApiClient', () => {
         );
         const client = buildClient({ fetch: mockFetch });
 
-        const result = await client.fetchTokenList(MAINNET_CHAIN_ID);
+        const [asset] = await client.detect(MAINNET_CHAIN_ID);
 
-        expect(result).toStrictEqual([
-          {
+        expect(asset).toStrictEqual(
+          expect.objectContaining({
             address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             symbol: 'USDC',
             name: 'USD Coin',
             decimals: 6,
-            occurrences: 10,
             aggregators: ['coinGecko', 'oneInch', 'sushiSwap'],
-            iconUrl: 'https://example.com/usdc.png',
-          },
-        ]);
+            image: 'https://example.com/usdc.png',
+          }),
+        );
       });
 
       it('returns multiple entries when the API returns multiple tokens', async () => {
@@ -335,11 +405,11 @@ describe('TokensApiClient', () => {
         );
         const client = buildClient({ fetch: mockFetch });
 
-        const result = await client.fetchTokenList(MAINNET_CHAIN_ID);
+        const result = await client.detect(MAINNET_CHAIN_ID);
 
         expect(result).toHaveLength(2);
-        expect(result[0].symbol).toBe('USDC');
-        expect(result[1].symbol).toBe('USDT');
+        expect(result[0]?.symbol).toBe('USDC');
+        expect(result[1]?.symbol).toBe('USDT');
       });
 
       it('preserves the address as returned by the API', async () => {
@@ -358,7 +428,7 @@ describe('TokensApiClient', () => {
 
         const [entry] = await client.fetchTokenList(MAINNET_CHAIN_ID);
 
-        expect(entry.address).toBe(tokenAddress);
+        expect(entry).toBe(tokenAddress);
       });
     });
 
@@ -375,9 +445,9 @@ describe('TokensApiClient', () => {
         );
         const client = buildClient({ fetch: mockFetch });
 
-        const [entry] = await client.fetchTokenList(MAINNET_CHAIN_ID);
+        const [entry] = await client.detect(MAINNET_CHAIN_ID);
 
-        expect(entry.symbol).toBe('');
+        expect(entry?.symbol).toBe('');
       });
 
       it('defaults name to empty string when missing', async () => {
@@ -392,9 +462,9 @@ describe('TokensApiClient', () => {
         );
         const client = buildClient({ fetch: mockFetch });
 
-        const [entry] = await client.fetchTokenList(MAINNET_CHAIN_ID);
+        const [entry] = await client.detect(MAINNET_CHAIN_ID);
 
-        expect(entry.name).toBe('');
+        expect(entry?.name).toBe('');
       });
 
       it('defaults decimals to 18 when missing', async () => {
@@ -409,12 +479,12 @@ describe('TokensApiClient', () => {
         );
         const client = buildClient({ fetch: mockFetch });
 
-        const [entry] = await client.fetchTokenList(MAINNET_CHAIN_ID);
+        const [entry] = await client.detect(MAINNET_CHAIN_ID);
 
-        expect(entry.decimals).toBe(18);
+        expect(entry?.decimals).toBe(18);
       });
 
-      it('includes occurrences as undefined when not present in the response', async () => {
+      it('keeps the token when occurrences is omitted', async () => {
         const mockFetch = createMockFetch(
           createMockResponse([
             {
@@ -429,7 +499,7 @@ describe('TokensApiClient', () => {
 
         const [entry] = await client.fetchTokenList(MAINNET_CHAIN_ID);
 
-        expect(entry.occurrences).toBeUndefined();
+        expect(entry).toBe('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48');
       });
     });
 
@@ -625,8 +695,7 @@ describe('TokensApiClient', () => {
 
         const result = await client.fetchTokenList(MAINNET_CHAIN_ID);
 
-        expect(result).toHaveLength(1);
-        expect(result[0].symbol).toBe('USDC');
+        expect(result).toStrictEqual([token.address]);
       });
 
       it('returns token list for a chain in partialSupport', async () => {
@@ -707,7 +776,9 @@ describe('TokensApiClient', () => {
         const a = client.fetchTokenList(MAINNET_CHAIN_ID);
         const b = client.fetchTokenList(MAINNET_CHAIN_ID);
 
-        // Resolve the one shared in-flight request.
+        // TokenApiClient awaits a bearer token before calling fetch, so the
+        // shared in-flight request is not registered until the next turn.
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
         resolveSupportedNetworks?.(
           createMockResponse(DEFAULT_SUPPORTED_NETWORKS),
         );
@@ -733,14 +804,14 @@ describe('TokensApiClient', () => {
             queryFn,
           }: {
             queryKey: readonly unknown[];
-            queryFn: () => Promise<TData>;
+            queryFn: (context: { signal?: AbortSignal }) => Promise<TData>;
           }): Promise<TData> => {
             const key = JSON.stringify(queryKey);
             const cached = cache.get(key) as Promise<TData> | undefined;
             if (cached) {
               return cached;
             }
-            const pending = queryFn();
+            const pending = queryFn({ signal: undefined });
             cache.set(key, pending);
             return pending;
           },
