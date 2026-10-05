@@ -5526,9 +5526,9 @@
       "count": 11
     }
   },
-  "packages/sample-controllers/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+  "packages/sample-controllers/src/sample-gas-prices-controller.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 6
     }
   },
   "packages/sample-controllers/src/sample-gas-prices-controller.ts": {
