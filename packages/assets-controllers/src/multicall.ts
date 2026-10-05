@@ -928,11 +928,12 @@ export const getStakedBalancesForAddresses = async (
 
     // Step 2: For addresses with non-zero shares, convert to assets
     const nonZeroSharesData: { address: string; shares: BN }[] = [];
-    shareResults.forEach((result, index) => {
-      if (result.success) {
+    const result: Record<string, BN> = {};
+    shareResults.forEach((shareResult, index) => {
+      if (shareResult.success) {
         const sharesRaw = stakingContract.interface.decodeFunctionResult(
           GET_SHARES_FUNCTION,
-          result.returnData,
+          shareResult.returnData,
         )[0];
         const shares = new BN(sharesRaw.toString());
 
@@ -941,12 +942,17 @@ export const getStakedBalancesForAddresses = async (
             address: userAddresses[index],
             shares,
           });
+        } else {
+          // A successful read with zero shares is a genuine zero balance.
+          // Record it so that callers can distinguish it from a failed
+          // read, which leaves the address out of the result entirely.
+          result[userAddresses[index]] = new BN(0);
         }
       }
     });
 
     if (nonZeroSharesData.length === 0) {
-      return {};
+      return result;
     }
 
     // Step 3: Convert shares to assets for addresses with non-zero shares
@@ -964,7 +970,6 @@ export const getStakedBalancesForAddresses = async (
     const assetResults = await aggregate3(assetCalls, chainId, provider);
 
     // Step 4: Build final result mapping
-    const result: Record<string, BN> = {};
     assetResults.forEach((assetResult, index) => {
       if (assetResult.success) {
         const assetsRaw = stakingContract.interface.decodeFunctionResult(

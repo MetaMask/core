@@ -1343,14 +1343,17 @@ describe('multicall', () => {
 
       expect(result).toStrictEqual({
         [testAddresses[0]]: new BN('2000000000000000000'), // 2 ETH
-        // Address 2 not included since it has 0 shares
+        // Address 2 has 0 shares, which is a successful read of a genuine
+        // zero balance, so it is included with a zero value. Only failed
+        // reads are omitted, so callers can tell the two apart.
+        [testAddresses[1]]: new BN('0'),
       });
 
       // Should have been called twice - once for getShares, once for convertToAssets
       expect(provider.call).toHaveBeenCalledTimes(2);
     });
 
-    it('should return empty object when all addresses have zero shares', async () => {
+    it('should return zero balances when all addresses have zero shares', async () => {
       // Mock getShares calls - all addresses have zero shares
       jest.spyOn(provider, 'call').mockResolvedValueOnce(
         defaultAbiCoder.encode(
@@ -1370,7 +1373,10 @@ describe('multicall', () => {
         provider,
       );
 
-      expect(result).toStrictEqual({});
+      expect(result).toStrictEqual({
+        [testAddresses[0]]: new BN('0'),
+        [testAddresses[1]]: new BN('0'),
+      });
 
       // Should only have been called once for getShares
       expect(provider.call).toHaveBeenCalledTimes(1);
@@ -1553,7 +1559,10 @@ describe('multicall', () => {
       expect(result).toStrictEqual({
         [manyAddresses[0]]: new BN('2000000000000000000'), // 2 ETH
         [manyAddresses[2]]: new BN('1000000000000000000'), // 1 ETH
-        // Addresses 1 and 3 not included (zero shares)
+        // Addresses 1 and 3 have zero shares, a successful read of a
+        // genuine zero balance, so they are included with a zero value
+        [manyAddresses[1]]: new BN('0'),
+        [manyAddresses[3]]: new BN('0'),
       });
     });
   });

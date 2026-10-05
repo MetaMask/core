@@ -785,6 +785,12 @@ describe('TokenBalancesController', () => {
           [tokenAddress]: {
             [accountAddress]: new BN(balance),
           },
+          [NATIVE_TOKEN_ADDRESS]: {
+            [accountAddress]: new BN(0),
+          },
+        },
+        stakedBalances: {
+          [accountAddress]: new BN(0),
         },
       });
 
@@ -833,6 +839,12 @@ describe('TokenBalancesController', () => {
             [tokenAddress]: {
               [accountAddress]: new BN(balance),
             },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [accountAddress]: new BN(0),
+            },
+          },
+          stakedBalances: {
+            [accountAddress]: new BN(0),
           },
         });
 
@@ -881,6 +893,12 @@ describe('TokenBalancesController', () => {
           [tokenAddress]: {
             [accountAddress]: new BN(balance),
           },
+          [NATIVE_TOKEN_ADDRESS]: {
+            [accountAddress]: new BN(0),
+          },
+        },
+        stakedBalances: {
+          [accountAddress]: new BN(0),
         },
       });
 
@@ -949,6 +967,12 @@ describe('TokenBalancesController', () => {
           [tokenAddress]: {
             [accountAddress]: new BN(balance),
           },
+          [NATIVE_TOKEN_ADDRESS]: {
+            [accountAddress]: new BN(0),
+          },
+        },
+        stakedBalances: {
+          [accountAddress]: new BN(0),
         },
       });
 
@@ -1021,6 +1045,12 @@ describe('TokenBalancesController', () => {
           [tokenAddress]: {
             [accountAddress]: new BN(balance),
           },
+          [NATIVE_TOKEN_ADDRESS]: {
+            [accountAddress]: new BN(0),
+          },
+        },
+        stakedBalances: {
+          [accountAddress]: new BN(0),
         },
       });
 
@@ -1097,6 +1127,12 @@ describe('TokenBalancesController', () => {
           [tokenAddress]: {
             [accountAddress]: new BN(balance),
           },
+          [NATIVE_TOKEN_ADDRESS]: {
+            [accountAddress]: new BN(0),
+          },
+        },
+        stakedBalances: {
+          [accountAddress]: new BN(0),
         },
       });
 
@@ -1454,6 +1490,14 @@ describe('TokenBalancesController', () => {
             [account1]: new BN(balance1),
             [account2]: new BN(balance2),
           },
+          [NATIVE_TOKEN_ADDRESS]: {
+            [account1]: new BN(0),
+            [account2]: new BN(0),
+          },
+        },
+        stakedBalances: {
+          [account1]: new BN(0),
+          [account2]: new BN(0),
         },
       });
 
@@ -1529,12 +1573,14 @@ describe('TokenBalancesController', () => {
     });
 
     await waitFor(() => {
+      // Only the tracked token is seeded with a zero balance. The failed
+      // multicall returns no native or staked balance entries, and a
+      // failed read must not be reported as a zero balance (#10043), so
+      // no native or staking entries are added.
       expect(controller.state.tokenBalances).toStrictEqual({
         [account1]: {
           [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
             [tokenAddress]: '0x0',
-            [STAKING_CONTRACT_ADDRESS]: '0x0',
           },
         },
       });
@@ -1546,7 +1592,7 @@ describe('TokenBalancesController', () => {
     });
 
     await waitFor(() => {
-      expect(updateSpy).toHaveBeenCalledTimes(1); // Called once because native/staking balances are added
+      expect(updateSpy).toHaveBeenCalledTimes(1); // Called once because the tracked token balance is seeded
     });
   });
 
@@ -1586,6 +1632,14 @@ describe('TokenBalancesController', () => {
             [account1]: new BN(balance1),
             [account2]: new BN(balance2),
           },
+          [NATIVE_TOKEN_ADDRESS]: {
+            [account1]: new BN(0),
+            [account2]: new BN(0),
+          },
+        },
+        stakedBalances: {
+          [account1]: new BN(0),
+          [account2]: new BN(0),
         },
       });
 
@@ -1622,6 +1676,14 @@ describe('TokenBalancesController', () => {
             [account1]: new BN(balance1),
             [account2]: new BN(balance3),
           },
+          [NATIVE_TOKEN_ADDRESS]: {
+            [account1]: new BN(0),
+            [account2]: new BN(0),
+          },
+        },
+        stakedBalances: {
+          [account1]: new BN(0),
+          [account2]: new BN(0),
         },
       });
 
@@ -1687,6 +1749,12 @@ describe('TokenBalancesController', () => {
           [tokenAddress]: {
             [selectedAccount]: new BN(balance),
           },
+          [NATIVE_TOKEN_ADDRESS]: {
+            [selectedAccount]: new BN(0),
+          },
+        },
+        stakedBalances: {
+          [selectedAccount]: new BN(0),
         },
       });
 
@@ -2101,6 +2169,14 @@ describe('TokenBalancesController', () => {
             [tokenAddress2]: {
               [accountAddress2]: new BN(balance2),
             },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [accountAddress]: new BN(0),
+              [accountAddress2]: new BN(0),
+            },
+          },
+          stakedBalances: {
+            [accountAddress]: new BN(0),
+            [accountAddress2]: new BN(0),
           },
         });
 
@@ -2388,7 +2464,7 @@ describe('TokenBalancesController', () => {
   });
 
   describe('event publishing', () => {
-    it('should include zero staked balances in state change event when no staked balances are returned', async () => {
+    it('should include zero staked balances in state change event when a zero staked balance is returned', async () => {
       const accountAddress = '0x1111111111111111111111111111111111111111';
       const chainId = '0x1';
 
@@ -2423,8 +2499,13 @@ describe('TokenBalancesController', () => {
             '0xToken1': {
               [accountAddress]: new BN(100),
             },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [accountAddress]: new BN(0),
+            },
           },
-          stakedBalances: {}, // Empty staked balances
+          stakedBalances: {
+            [accountAddress]: new BN(0), // A returned zero staked balance
+          },
         });
 
       await controller.updateBalances({
@@ -2486,6 +2567,12 @@ describe('TokenBalancesController', () => {
               [accountAddress]: new BN(100),
             },
             // tokenAddress2 missing (failed call)
+            [NATIVE_TOKEN_ADDRESS]: {
+              [accountAddress]: new BN(0),
+            },
+          },
+          stakedBalances: {
+            [accountAddress]: new BN(0),
           },
         });
 
@@ -2536,6 +2623,10 @@ describe('TokenBalancesController', () => {
           tokenBalances: {
             [tokenAddress1]: { [accountAddress]: new BN(100) },
             [tokenAddress2]: { [accountAddress]: new BN(200) },
+            [NATIVE_TOKEN_ADDRESS]: { [accountAddress]: new BN(0) },
+          },
+          stakedBalances: {
+            [accountAddress]: new BN(0),
           },
         });
 
@@ -2672,6 +2763,9 @@ describe('TokenBalancesController', () => {
             [accountAddress]: new BN(100),
           },
         },
+        stakedBalances: {
+          [accountAddress]: new BN(0),
+        },
       });
 
     // Mock the controller to have no chains with tokens
@@ -2743,6 +2837,12 @@ describe('TokenBalancesController', () => {
             [accountAddress]: new BN(123456), // Only this token has a balance returned
           },
           // tokenAddress2, tokenAddress3, and detectedTokenAddress are missing from results
+          [NATIVE_TOKEN_ADDRESS]: {
+            [accountAddress]: new BN(0),
+          },
+        },
+        stakedBalances: {
+          [accountAddress]: new BN(0),
         },
       });
 
@@ -2810,14 +2910,14 @@ describe('TokenBalancesController', () => {
     });
 
     await waitFor(() => {
-      // Verify all tokens have zero balance
+      // Verify all tracked tokens have zero balance. No native or staking
+      // entries are added: the failed fetch returns none, and a failed
+      // read must not be reported as a zero balance (#10043).
       expect(controller.state.tokenBalances).toStrictEqual({
         [accountAddress]: {
           [chainId]: {
-            [NATIVE_TOKEN_ADDRESS]: '0x0',
             [tokenAddress1]: '0x0', // Zero balance when fetch fails
             [tokenAddress2]: '0x0', // Zero balance when fetch fails
-            [STAKING_CONTRACT_ADDRESS]: '0x0',
           },
         },
       });
@@ -2863,6 +2963,14 @@ describe('TokenBalancesController', () => {
             [account1]: new BN(500), // Only this account/token has balance returned
           },
           // account2/tokenAddress2 missing from results
+          [NATIVE_TOKEN_ADDRESS]: {
+            [account1]: new BN(0),
+            [account2]: new BN(0),
+          },
+        },
+        stakedBalances: {
+          [account1]: new BN(0),
+          [account2]: new BN(0),
         },
       });
 
@@ -2918,6 +3026,9 @@ describe('TokenBalancesController', () => {
           tokenBalances: {
             [tokenAddress]: {
               [accountAddress]: new BN('1000000000000000000'), // 1 DAI
+            },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [accountAddress]: new BN(0),
             },
           },
           stakedBalances: {
@@ -2980,6 +3091,10 @@ describe('TokenBalancesController', () => {
               [account1]: new BN('1000000000000000000'),
               [account2]: new BN('2000000000000000000'),
             },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [account1]: new BN(0),
+              [account2]: new BN(0),
+            },
           },
           stakedBalances: {
             [account1]: new BN('3000000000000000000'), // 3 ETH staked
@@ -3036,6 +3151,9 @@ describe('TokenBalancesController', () => {
           tokenBalances: {
             [tokenAddress]: {
               [accountAddress]: new BN('1000000000000000000'),
+            },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [accountAddress]: new BN(0),
             },
           },
           stakedBalances: {
@@ -3096,12 +3214,14 @@ describe('TokenBalancesController', () => {
       });
 
       await waitFor(() => {
+        // With no stakedBalances (and no native balance) returned, the
+        // staked and native reads are treated as failed and no zero
+        // balances are fabricated for them (#10043); only the token
+        // balance that was actually read is recorded.
         expect(controller.state.tokenBalances).toStrictEqual({
           [accountAddress]: {
             [chainId]: {
-              [NATIVE_TOKEN_ADDRESS]: '0x0',
               [tokenAddress]: toHex(new BN('1000000000000000000')),
-              [STAKING_CONTRACT_ADDRESS]: '0x0',
             },
           },
         });
@@ -3138,6 +3258,9 @@ describe('TokenBalancesController', () => {
           tokenBalances: {
             [tokenAddress]: {
               [accountAddress]: new BN('1000000000000000000'),
+            },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [accountAddress]: new BN(0),
             },
           },
         });
@@ -3373,6 +3496,12 @@ describe('TokenBalancesController', () => {
             [tokenAddressLowercase]: {
               [accountAddress]: new BN(100000), // 0x186a0
             },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [accountAddress]: new BN(0),
+            },
+          },
+          stakedBalances: {
+            [accountAddress]: new BN(0),
           },
         });
 
@@ -3449,6 +3578,12 @@ describe('TokenBalancesController', () => {
             [tokenAddress2Lower]: {
               [accountAddress]: new BN(1000),
             },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [accountAddress]: new BN(0),
+            },
+          },
+          stakedBalances: {
+            [accountAddress]: new BN(0),
           },
         });
 
@@ -3506,6 +3641,12 @@ describe('TokenBalancesController', () => {
             [tokenAddressFetched]: {
               [accountAddress]: new BN(100000),
             },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [accountAddress]: new BN(0),
+            },
+          },
+          stakedBalances: {
+            [accountAddress]: new BN(0),
           },
         });
 
@@ -3652,8 +3793,13 @@ describe('TokenBalancesController', () => {
             [tokenAddress]: {
               [selectedAccount]: new BN(balance),
             },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [selectedAccount]: new BN(0),
+            },
           },
-          stakedBalances: {},
+          stakedBalances: {
+            [selectedAccount]: new BN(0),
+          },
         });
 
       await controller.updateBalances({
