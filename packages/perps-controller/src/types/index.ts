@@ -1824,7 +1824,10 @@ export type FeeCalculationResult = {
 
   /**
    * Discount the `feeSource` winner applied, in basis points off the default
-   * MetaMask builder fee (e.g. 6500 for 65% off). `0` when `default` won.
+   * MetaMask builder fee (e.g. 6500 for 65% off). `0` when no reduction
+   * applied: when `default` won, or when `rewards` won with a 0% discount. A
+   * `feeSource` other than `default` therefore does not imply a discount; check
+   * this value instead.
    *
    * Already applied: `metamaskFeeRate` is `undiscountedMetamaskFeeRate`
    * reduced by this discount and floored to the tenth of a basis point the
