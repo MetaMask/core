@@ -4668,9 +4668,6 @@
     }
   },
   "packages/perps-controller/src/providers/LighterProvider.ts": {
-    "no-useless-return": {
-      "count": 5
-    },
     "typescript/prefer-nullish-coalescing": {
       "count": 1
     }
@@ -4765,21 +4762,6 @@
     }
   },
   "packages/perps-controller/tests/src/providers/LighterProvider.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 6
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 8
-    },
-    "typescript/no-unsafe-call": {
-      "count": 3
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 21
-    },
-    "typescript/no-unsafe-return": {
-      "count": 3
-    },
     "typescript/unbound-method": {
       "count": 5
     }

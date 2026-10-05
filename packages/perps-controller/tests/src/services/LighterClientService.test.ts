@@ -77,6 +77,131 @@ describe('LighterClientService', () => {
     global.fetch = fetchMock;
   });
 
+  describe('lossless native edit reads', () => {
+    const raw =
+      '{"code":200,"orders":[{"order_index":288230376151711745,"client_order_index":1,"market_index":1,"owner_account_index":28,"initial_base_amount":"0.001","remaining_base_amount":"0.001","filled_base_amount":"0","price":"90000","is_ask":false,"type":"limit","time_in_force":"good-till-time","reduce_only":0,"status":"open","order_expiry":0,"timestamp":1700000000}]}';
+    it('preserves a raw unquoted int64 venue identity in active reads', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: jest.fn().mockResolvedValue(raw),
+      });
+      const result = await buildService().getEditableOrders(28, 'auth');
+      expect(result.orders[0].orderIndex).toBe('288230376151711745');
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/accountActiveOrders?account_index=28'),
+        expect.any(Object),
+      );
+    });
+    it('reconciles with the documented client-order lookup rather than venue IDs', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: jest.fn().mockResolvedValue(raw),
+      });
+      await buildService().getEditableOrders(28, 'auth', ['1']);
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '/api/v1/accountOrders?account_index=28&client_order_indexes=1',
+        ),
+        expect.any(Object),
+      );
+      await expect(
+        buildService().getEditableOrders(28, 'auth', ['288230376151711745']),
+      ).rejects.toThrow(Error);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+    it('refuses distinct wire keys that collapse to the same financial identity', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: jest
+          .fn()
+          .mockResolvedValue(
+            raw.replace(
+              '"client_order_index":1',
+              '"client_order_index":1,"clientOrderIndex":2',
+            ),
+          ),
+      });
+      await expect(
+        buildService().getEditableOrders(28, 'auth'),
+      ).rejects.toThrow('Ambiguous Lighter response keys');
+    });
+    it.each(['1.00000000000000001', '1152921504606846976'])(
+      'rejects lossy or out-of-range order identity %s',
+      async (id) => {
+        fetchMock.mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: jest
+            .fn()
+            .mockResolvedValue(raw.replace('288230376151711745', id)),
+        });
+        await expect(
+          buildService().getEditableOrders(28, 'auth'),
+        ).rejects.toThrow(Error);
+      },
+    );
+  });
+
+  describe('post-only book reads', () => {
+    it('requests a bounded fresh public book and validates its full order identities', async () => {
+      const row = {
+        order_index: 5,
+        order_id: '5',
+        owner_account_index: 28,
+        initial_base_amount: '1',
+        remaining_base_amount: '1',
+        price: '100',
+        order_expiry: 0,
+        transaction_time: 1,
+      };
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          total_bids: 1,
+          total_asks: 0,
+          bids: [row],
+          asks: [],
+        }),
+      );
+      expect(await buildService().getOrderBookOrders(1)).toMatchObject({
+        totalBids: 1,
+        bids: [{ orderId: '5', ownerAccountIndex: 28 }],
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '/api/v1/orderBookOrders?market_id=1&limit=250',
+        ),
+        expect.anything(),
+      );
+    });
+    it.each([-1, 32768, 1.5])(
+      'refuses invalid market %s without transport',
+      async (id) => {
+        await expect(buildService().getOrderBookOrders(id)).rejects.toThrow(
+          'market',
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
+    it('rejects malformed public book levels', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          total_bids: 1,
+          total_asks: 0,
+          bids: [{ price: 'garbage' }],
+          asks: [],
+        }),
+      );
+      await expect(buildService().getOrderBookOrders(1)).rejects.toThrow(
+        'Lighter',
+      );
+    });
+  });
+
   describe('network resolution', () => {
     it('uses the testnet base URL in testnet mode', () => {
       expect(buildService(true).baseUrl).toBe(
@@ -308,6 +433,65 @@ describe('LighterClientService', () => {
       timestamp: 1700000000,
     };
 
+    it.each(['getActiveOrders', 'getInactiveOrders'] as const)(
+      'accepts zero native attached children with explicit parent linkage through %s',
+      async (method) => {
+        fetchMock.mockResolvedValue(
+          mockJsonResponse({
+            code: 200,
+            orders: [
+              {
+                ...order,
+                initial_base_amount: '0',
+                remaining_base_amount: '0',
+                type: 'stop-loss',
+                reduce_only: 1,
+                parent_order_index: 100,
+                trigger_price: '80000',
+                status: 'pending',
+              },
+            ],
+          }),
+        );
+        const result = await buildService()[method](28, 'auth-token');
+        expect(result.orders[0]).toMatchObject({
+          initialBaseAmount: '0',
+          parentOrderIndex: 100,
+          status: 'pending',
+        });
+      },
+    );
+
+    it.each([
+      { type: 'limit' },
+      { reduce_only: 0 },
+      { parent_order_index: undefined },
+      { parent_order_index: 0 },
+      { initial_base_amount: '-1' },
+    ])('refuses an unproven zero-size child: %j', async (invalid) => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          orders: [
+            {
+              ...order,
+              initial_base_amount: '0',
+              remaining_base_amount: '0',
+              type: 'stop-loss',
+              reduce_only: 1,
+              parent_order_index: 100,
+              trigger_price: '80000',
+              status: 'pending',
+              ...invalid,
+            },
+          ],
+        }),
+      );
+      await expect(
+        buildService().getActiveOrders(28, 'auth-token'),
+      ).rejects.toThrow('Invalid Lighter venue data');
+    });
+
     it.each(['0', '0.2', undefined])(
       'accepts reported filled amount %s',
       async (filledBaseAmount) => {
@@ -343,6 +527,52 @@ describe('LighterClientService', () => {
         ).rejects.toThrow('Invalid Lighter venue data');
       },
     );
+  });
+
+  describe('native TWAP exact reads', () => {
+    it('queries exact client IDs with explicit account and authorization', async () => {
+      fetchMock.mockResolvedValue(mockJsonResponse({ code: 200, orders: [] }));
+      await buildService().getOrdersByClientIds(28, 'auth-token', ['12', '34']);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://testnet.zklighter.elliot.ai/api/v1/accountOrders?account_index=28&client_order_indexes=12%2C34',
+        expect.objectContaining({ headers: { authorization: 'auth-token' } }),
+      );
+    });
+
+    it.each(
+      [
+        [],
+        ['1tail'],
+        ['281474976710656'],
+        ['01'],
+        ['1', '1'],
+        Array.from({ length: 21 }, (_, index) => String(index + 1)),
+      ].map((ids) => [ids]),
+    )(
+      'rejects invalid exact client ID lists %j before transport',
+      async (ids) => {
+        await expect(
+          buildService().getOrdersByClientIds(28, 'auth-token', ids),
+        ).rejects.toThrow('client order');
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it('queries unaggregated trades by exact order ID', async () => {
+      fetchMock.mockResolvedValue(mockJsonResponse({ code: 200, trades: [] }));
+      await buildService().getTrades(28, 'auth-token', {
+        limit: 100,
+        marketId: 4097,
+        orderIndex: '1152921504606846975',
+        aggregate: false,
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '&order_index=1152921504606846975&aggregate=false',
+        ),
+        expect.anything(),
+      );
+    });
   });
 
   describe('getTrades', () => {
@@ -737,6 +967,56 @@ describe('LighterClientService', () => {
         'Invalid Lighter venue data',
       );
     });
+
+    it.each([
+      { pending_order_count: -1 },
+      { position_tied_order_count: 0.5 },
+      { allocated_margin: '-1' },
+      { allocated_margin: '5USDC' },
+    ])(
+      'rejects malformed collateral and pending inventory fields %j',
+      async (change) => {
+        fetchMock.mockResolvedValue(
+          mockJsonResponse({
+            code: 200,
+            accounts: [
+              {
+                code: 200,
+                account_type: 0,
+                index: 28,
+                l1_address: '0xabc',
+                cancel_all_time: 0,
+                total_order_count: 0,
+                pending_order_count: 0,
+                status: 1,
+                collateral: '10000',
+                available_balance: '9000',
+                positions: [
+                  {
+                    market_id: 1,
+                    symbol: 'BTC',
+                    initial_margin_fraction: '20',
+                    open_order_count: 0,
+                    sign: 1,
+                    position: '0.1',
+                    avg_entry_price: '100000',
+                    position_value: '10000',
+                    unrealized_pnl: '0',
+                    realized_pnl: '0',
+                    liquidation_price: '80000',
+                    margin_mode: 1,
+                    ...change,
+                  },
+                ],
+              },
+            ],
+          }),
+        );
+        await expect(buildService().getAccountByIndex(28)).rejects.toThrow(
+          'Invalid Lighter venue data',
+        );
+      },
+    );
 
     it('queries the account by index', async () => {
       fetchMock.mockResolvedValue(

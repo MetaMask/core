@@ -225,11 +225,11 @@ function isFlagSet(flags: number, bit: number): boolean {
 /**
  * Whether a cloid carries the subscription program marker in its leading bytes.
  *
- * Only orders that had no cloid of their own get the program marker; an order
- * that already carried one (a Scale rung) keeps its own leading marker and
- * carries the subscription attribution in the flag byte instead. Decoders
- * should therefore key on {@link hasFeeReductionAppliedFlag}, and use this only
- * to tell the two layouts apart.
+ * Orders without their own cloid acquire this marker when a subscription
+ * discount applies. Position TP/SL also reserves this layout for correlation,
+ * with a zero flag byte when no discount applies. A Scale rung keeps its own
+ * leading marker and carries attribution in its flag byte. Marker presence
+ * alone therefore does not prove a discount; use {@link hasFeeReductionAppliedFlag}.
  *
  * @param clientOrderId - A venue client order ID, or nothing.
  * @returns True when the cloid starts with the subscription program id.
