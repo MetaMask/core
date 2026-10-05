@@ -1198,6 +1198,9 @@ export class PerpsController extends BaseController<
    *
    * - A toggle that fires immediately after init() always runs *after* the
    *   init hydration finishes (Bug 3).
+   * - A hydration started by a re-initialization (`toggleTestnet`,
+   *   `switchProvider`) waits for earlier toggles' writes, so its read sees
+   *   them instead of overwriting them.
    * - Concurrent toggles are serialised so the last PUT reflects all changes
    *   rather than racing with each other (Bug 4).
    *
@@ -1207,11 +1210,18 @@ export class PerpsController extends BaseController<
   #ausQueue: Promise<void> = Promise.resolve();
 
   /**
-   * Toggles made while an AUS hydration read is in flight, one list per
+   * Toggles made while an AUS hydration is queued or in flight, one list per
    * hydration. They are replayed onto the remote watchlist when it arrives,
    * so a late read does not drop changes the user already sees.
    */
   readonly #watchlistEditsDuringHydration = new Set<WatchlistEdit[]>();
+
+  /**
+   * Latest toggle number per `network:symbol` whose write is still pending,
+   * so a failed write is undone only when no later toggle of the same market
+   * has superseded it.
+   */
+  readonly #pendingWatchlistToggles = new Map<string, number>();
 
   #userDiskWrite: Promise<void> = Promise.resolve();
 
@@ -2355,11 +2365,20 @@ export class PerpsController extends BaseController<
 
         // Hydrate watchlist from AUS (non-blocking — transient failures are
         // caught inside and must not prevent init from completing).
-        // Assigning to #ausQueue ensures subsequent toggleWatchlistMarket
-        // calls wait for hydration before running their own GET-merge-PUT.
-        this.#ausQueue = this.#syncWatchlistFromRemote().catch(() => {
-          // Errors are already logged inside #syncWatchlistFromRemote.
-        });
+        // Chaining onto #ausQueue makes the read wait for earlier toggles'
+        // writes, and makes later toggles wait for hydration before running
+        // their own GET-merge-PUT. Toggles are recorded from the moment the
+        // hydration is queued, so one made while it waits is replayed too.
+        const editsDuringHydration: WatchlistEdit[] = [];
+        this.#watchlistEditsDuringHydration.add(editsDuringHydration);
+        this.#ausQueue = this.#ausQueue
+          .then(() => this.#syncWatchlistFromRemote(editsDuringHydration))
+          .catch(() => {
+            // Errors are already logged inside #syncWatchlistFromRemote.
+          })
+          .finally(() => {
+            this.#watchlistEditsDuringHydration.delete(editsDuringHydration);
+          });
 
         return; // Exit retry loop on success
       } catch (error) {
@@ -7146,6 +7165,12 @@ export class PerpsController extends BaseController<
     for (const edits of this.#watchlistEditsDuringHydration) {
       edits.push({ network: currentNetwork, symbol, add: !isWatchlisted });
     }
+    const toggleKey = `${currentNetwork}:${symbol}`;
+    const toggleNumber =
+      (this.#pendingWatchlistToggles.get(toggleKey) ?? 0) + 1;
+    this.#pendingWatchlistToggles.set(toggleKey, toggleNumber);
+    const isLatestToggle = (): boolean =>
+      this.#pendingWatchlistToggles.get(toggleKey) === toggleNumber;
 
     this.#getMetrics().trackPerpsEvent(PerpsAnalyticsEvent.UiInteraction, {
       [PERPS_EVENT_PROPERTY.INTERACTION_TYPE]:
@@ -7179,10 +7204,35 @@ export class PerpsController extends BaseController<
           action: isWatchlisted ? 'remove' : 'add',
         }),
       );
-      // Revert the optimistic update.
+      // A later toggle of the same market decides its state; its own write
+      // persists it.
+      if (!isLatestToggle()) {
+        return;
+      }
+      // Undo only this toggle. The list may have changed since it was made
+      // (hydration, other toggles), so restoring the earlier snapshot would
+      // discard those changes.
       this.update((state) => {
-        state.watchlistMarkets[currentNetwork] = currentWatchlist;
+        const watchlist = state.watchlistMarkets[currentNetwork];
+        if (isWatchlisted) {
+          if (!watchlist.includes(symbol)) {
+            // Back where it was, as far as the current list allows.
+            const index = Math.min(
+              currentWatchlist.indexOf(symbol),
+              watchlist.length,
+            );
+            watchlist.splice(index, 0, symbol);
+          }
+        } else {
+          state.watchlistMarkets[currentNetwork] = watchlist.filter(
+            (marketSymbol) => marketSymbol !== symbol,
+          );
+        }
       });
+    } finally {
+      if (isLatestToggle()) {
+        this.#pendingWatchlistToggles.delete(toggleKey);
+      }
     }
   }
 
@@ -7262,10 +7312,10 @@ export class PerpsController extends BaseController<
    *   the canonical owner that creates the initial blob.
    * - The host does not provide the AUS read or write action. Local state is
    *   then the only copy of the change. With the read but not the write, the
-   *   next hydration from AUS (the source of truth) to start after the toggle
+   *   next hydration from AUS (the source of truth) queued after the toggle
    *   replaces it. Every initialization hydrates: `init()` (including after
    *   `disconnect()`), `toggleTestnet()` and `switchProvider()`. A hydration
-   *   already in flight when the toggle is made keeps it.
+   *   already queued or in flight when the toggle is made keeps it.
    *
    * Throws on remote write failure so the caller can decide whether to revert.
    *
@@ -7366,15 +7416,20 @@ export class PerpsController extends BaseController<
    * controller initialisation.
    *
    * AUS is the source of truth; local state is used as an offline cache.
-   * Toggles made while the read is in flight are applied on top of the remote
-   * watchlist rather than overwritten by it.
+   * Toggles made since the hydration was queued are applied on top of the
+   * remote watchlist rather than overwritten by it.
    * This method also handles the one-time migration from local-only state to
    * AUS for users who had a watchlist before AUS sync was introduced.
    *
    * All remote errors are swallowed so a transient network failure does not
    * block the rest of `init()`.
+   *
+   * @param editsDuringHydration - Toggles recorded since this hydration was
+   * queued; the caller registers and removes the list.
    */
-  async #syncWatchlistFromRemote(): Promise<void> {
+  async #syncWatchlistFromRemote(
+    editsDuringHydration: WatchlistEdit[],
+  ): Promise<void> {
     const exchangeKey = resolveWatchlistExchangeKey(this.state.activeProvider);
     if (!exchangeKey) {
       this.#debugLog(
@@ -7384,8 +7439,6 @@ export class PerpsController extends BaseController<
       return;
     }
 
-    const editsDuringHydration: WatchlistEdit[] = [];
-    this.#watchlistEditsDuringHydration.add(editsDuringHydration);
     try {
       let prefs: NotificationPreferences | null;
       try {
@@ -7498,8 +7551,6 @@ export class PerpsController extends BaseController<
         ensureError(error, 'PerpsController.syncWatchlistFromRemote'),
         this.#getErrorContext('syncWatchlistFromRemote'),
       );
-    } finally {
-      this.#watchlistEditsDuringHydration.delete(editsDuringHydration);
     }
   }
 

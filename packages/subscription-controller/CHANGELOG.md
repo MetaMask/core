@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `SubscriptionControllerMessenger` now requires `GeolocationController:getGeolocationData` so `startSubscriptionWithCard` and `startSubscriptionWithCrypto` can resolve refund eligibility ([#10674](https://github.com/MetaMask/core/pull/10674))
   - Clients that construct this messenger must delegate `GeolocationController:getGeolocationData` before calling those actions.
 - Add `@metamask/geolocation-controller` `^2.0.0` as a dependency ([#10674](https://github.com/MetaMask/core/pull/10674))
+- **BREAKING:** `SubscriptionDelegationService:startSubscriptionWithDelegation` no longer requests an approval. Callers must obtain consent and initiate funding (for example, a `membershipSubscription` transaction) before calling. ([#10666](https://github.com/MetaMask/core/pull/10666))
+  - `skipApproval` is removed from `StartSubscriptionWithDelegationRequest`.
+
+### Removed
+
+- **BREAKING:** Remove the subscription delegation approval contracts. ([#10666](https://github.com/MetaMask/core/pull/10666))
+  - Remove `SUBSCRIPTION_DELEGATION_APPROVAL_TYPE`, `SubscriptionFundingRequest`, and `SubscriptionDelegationApprovalResult`.
+  - Remove `ApprovalResultMissing` and `InvalidFundingTransactionHash` from `SubscriptionDelegationServiceErrorMessage`.
+  - `SubscriptionDelegationServiceMessenger` no longer allows `ApprovalController:addRequest`. Clients that construct this messenger must stop delegating that action.
+- Remove the `@metamask/approval-controller` dependency. ([#10666](https://github.com/MetaMask/core/pull/10666))
 
 ## [12.0.1]
 
