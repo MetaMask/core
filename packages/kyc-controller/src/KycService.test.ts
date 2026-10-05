@@ -406,6 +406,9 @@ describe('KycService', () => {
         kycStatus: 'approved',
         vendor: 'sumsub',
         vendorStatus: 'GREEN',
+        consentStatus: 'given',
+        idOSStatus: 'active',
+        capabilityAuthorizationStatus: 'stored',
       };
       nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
       const { service } = getService();

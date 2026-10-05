@@ -225,6 +225,7 @@ const SessionStatusResponseStruct = type({
   vendorStatus: string(),
   consentStatus: optional(string()),
   idOSStatus: optional(string()),
+  capabilityAuthorizationStatus: optional(string()),
 });
 
 // Vendor customer subset — `type` (not `object`) keeps extra vendor fields from
