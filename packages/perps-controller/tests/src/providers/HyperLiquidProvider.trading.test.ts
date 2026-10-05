@@ -4271,6 +4271,15 @@ describe('HyperLiquidProvider', () => {
         expect(result.failureCount).toBe(1);
         expect(result.results[0].success).toBe(false);
         expect(result.results[0].error).toBe('API error');
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+          expect.any(Error),
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              operation: 'order_management',
+              action: 'cancel_order',
+            }),
+          }),
+        );
       });
 
       it('maps recognized per-status batch cancel rejections to a standardized code', async () => {

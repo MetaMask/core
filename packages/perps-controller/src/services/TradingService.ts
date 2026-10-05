@@ -496,7 +496,7 @@ export class TradingService {
           context.errorContext.method,
           {
             operation: PERPS_ERROR_OPERATION.OrderManagement,
-            action: PERPS_ERROR_ACTION.OrderPlacement,
+            action: PERPS_ERROR_ACTION.PlaceOrder,
           },
           {
             operation: 'reportOrderToDataLake',
@@ -795,7 +795,7 @@ export class TradingService {
           context.errorContext.method,
           {
             operation: PERPS_ERROR_OPERATION.OrderManagement,
-            action: PERPS_ERROR_ACTION.OrderPlacement,
+            action: PERPS_ERROR_ACTION.PlaceOrder,
           },
           {
             symbol: params.symbol,
@@ -1215,7 +1215,7 @@ export class TradingService {
           context.errorContext.method,
           {
             operation: PERPS_ERROR_OPERATION.PositionManagement,
-            action: PERPS_ERROR_ACTION.PositionClose,
+            action: PERPS_ERROR_ACTION.ClosePosition,
           },
           {
             operation: 'reportOrderToDataLake',
@@ -1675,7 +1675,7 @@ export class TradingService {
           context.errorContext.method,
           {
             operation: PERPS_ERROR_OPERATION.OrderManagement,
-            action: PERPS_ERROR_ACTION.OrderEdit,
+            action: PERPS_ERROR_ACTION.EditOrder,
           },
           {
             orderId: params.orderId,
@@ -1797,7 +1797,7 @@ export class TradingService {
               'cancelOrder',
               {
                 operation: PERPS_ERROR_OPERATION.OrderManagement,
-                action: PERPS_ERROR_ACTION.OrderCancellation,
+                action: PERPS_ERROR_ACTION.CancelOrder,
               },
               {
                 symbol: params.symbol,
@@ -1835,7 +1835,7 @@ export class TradingService {
           'cancelOrder',
           {
             operation: PERPS_ERROR_OPERATION.OrderManagement,
-            action: PERPS_ERROR_ACTION.OrderCancellation,
+            action: PERPS_ERROR_ACTION.CancelOrder,
           },
           { symbol: params.symbol },
         ),
@@ -2016,7 +2016,7 @@ export class TradingService {
             'cancelOrders',
             {
               operation: PERPS_ERROR_OPERATION.OrderManagement,
-              action: PERPS_ERROR_ACTION.OrderCancellation,
+              action: PERPS_ERROR_ACTION.CancelOrder,
             },
             {
               successCount: operationResult.successCount,
@@ -2036,7 +2036,7 @@ export class TradingService {
         ensureError(error, 'TradingService.cancelOrders'),
         this.#getErrorContext(context, 'cancelOrders', {
           operation: PERPS_ERROR_OPERATION.OrderManagement,
-          action: PERPS_ERROR_ACTION.OrderCancellation,
+          action: PERPS_ERROR_ACTION.CancelOrder,
         }),
       );
       throw error;
@@ -2190,7 +2190,7 @@ export class TradingService {
               'closePosition',
               {
                 operation: PERPS_ERROR_OPERATION.PositionManagement,
-                action: PERPS_ERROR_ACTION.PositionClose,
+                action: PERPS_ERROR_ACTION.ClosePosition,
               },
               {
                 symbol: params.symbol,
@@ -2238,7 +2238,7 @@ export class TradingService {
           context.errorContext.method,
           {
             operation: PERPS_ERROR_OPERATION.PositionManagement,
-            action: PERPS_ERROR_ACTION.PositionClose,
+            action: PERPS_ERROR_ACTION.ClosePosition,
           },
           {
             symbol: params.symbol,
@@ -2410,7 +2410,7 @@ export class TradingService {
             'closePositions',
             {
               operation: PERPS_ERROR_OPERATION.PositionManagement,
-              action: PERPS_ERROR_ACTION.PositionClose,
+              action: PERPS_ERROR_ACTION.ClosePosition,
             },
             {
               successCount: operationResult.successCount,
@@ -2434,7 +2434,7 @@ export class TradingService {
           'closePositions',
           {
             operation: PERPS_ERROR_OPERATION.PositionManagement,
-            action: PERPS_ERROR_ACTION.PositionClose,
+            action: PERPS_ERROR_ACTION.ClosePosition,
           },
           {
             symbols: params.symbols?.length ?? 0,
@@ -2615,7 +2615,7 @@ export class TradingService {
           'updatePositionTPSL',
           {
             operation: PERPS_ERROR_OPERATION.PositionManagement,
-            action: PERPS_ERROR_ACTION.PositionTpsl,
+            action: PERPS_ERROR_ACTION.PositionTpslUpdate,
           },
           {
             symbol: params.symbol,
@@ -2805,7 +2805,7 @@ export class TradingService {
           'updateMargin',
           {
             operation: PERPS_ERROR_OPERATION.PositionManagement,
-            action: PERPS_ERROR_ACTION.PositionMargin,
+            action: PERPS_ERROR_ACTION.UpdateMargin,
           },
           { symbol, amount },
         ),
@@ -3010,7 +3010,7 @@ export class TradingService {
           'flipPosition',
           {
             operation: PERPS_ERROR_OPERATION.PositionManagement,
-            action: PERPS_ERROR_ACTION.PositionFlip,
+            action: PERPS_ERROR_ACTION.FlipPosition,
           },
           { symbol: position.symbol },
         ),

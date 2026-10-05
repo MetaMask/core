@@ -1562,7 +1562,7 @@ describe('TradingService', () => {
           tags: expect.objectContaining({
             feature: 'perps',
             operation: 'order_management',
-            action: 'order_cancellation',
+            action: 'cancel_order',
           }),
           context: {
             name: 'TradingService',
@@ -1893,7 +1893,7 @@ describe('TradingService', () => {
           expect.objectContaining({
             tags: expect.objectContaining({
               operation: 'order_management',
-              action: 'order_cancellation',
+              action: 'cancel_order',
             }),
             context: {
               name: 'TradingService',
@@ -2004,7 +2004,7 @@ describe('TradingService', () => {
           expect.objectContaining({
             tags: expect.objectContaining({
               operation: 'order_management',
-              action: 'order_cancellation',
+              action: 'cancel_order',
             }),
             context: {
               name: 'TradingService',
@@ -2356,7 +2356,7 @@ describe('TradingService', () => {
         expect.objectContaining({
           tags: expect.objectContaining({
             operation: 'position_management',
-            action: 'position_close',
+            action: 'close_position',
           }),
           context: {
             name: 'TradingService',
@@ -2702,7 +2702,7 @@ describe('TradingService', () => {
           expect.objectContaining({
             tags: expect.objectContaining({
               operation: 'position_management',
-              action: 'position_close',
+              action: 'close_position',
             }),
             context: {
               name: 'TradingService',
@@ -2790,7 +2790,7 @@ describe('TradingService', () => {
           expect.objectContaining({
             tags: expect.objectContaining({
               operation: 'position_management',
-              action: 'position_close',
+              action: 'close_position',
             }),
             context: {
               name: 'TradingService',
@@ -3202,7 +3202,7 @@ describe('TradingService', () => {
         expect.objectContaining({
           tags: expect.objectContaining({
             operation: 'position_management',
-            action: 'position_tpsl',
+            action: 'position_tpsl_update',
           }),
           context: {
             name: 'TradingService',

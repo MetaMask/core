@@ -2474,12 +2474,14 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param error - The caught error.
    * @param method - The write that failed.
    * @param extra - Context for the log.
+   * @param errorTags - Bounded tags describing the failed write.
    * @returns The mapped error.
    */
   async #reportWriteError(
     error: unknown,
     method: string,
     extra: Record<string, unknown>,
+    errorTags: PerpsErrorTags,
   ): Promise<Error> {
     const signerFailure = await this.#handleSignerFailure(error, method, extra);
     if (signerFailure) {
@@ -2488,7 +2490,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const mappedError = this.#mapError(error);
     this.#deps.logger.error(
       mappedError,
-      await this.#getTradingErrorContext(method, mappedError, extra),
+      await this.#getTradingErrorContext(method, mappedError, extra, errorTags),
     );
     return mappedError;
   }
@@ -4959,6 +4961,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     method: string,
     error: Error,
     extra?: Record<string, unknown>,
+    errorTags?: PerpsErrorTags,
   ): Promise<{
     tags?: Record<string, string | number>;
     context?: { name: string; data: Record<string, unknown> };
@@ -4978,7 +4981,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         // Best-effort context enrichment only.
       }
     }
-    return this.#getErrorContext(method, contextExtra);
+    return this.#getErrorContext(method, contextExtra, errorTags);
   }
 
   /**
@@ -5874,7 +5877,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               },
               {
                 operation: PERPS_ERROR_OPERATION.OrderManagement,
-                action: PERPS_ERROR_ACTION.OrderPlacement,
+                action: PERPS_ERROR_ACTION.PlaceOrder,
               },
             ),
           );
@@ -5906,7 +5909,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
           {
             operation: PERPS_ERROR_OPERATION.OrderManagement,
-            action: PERPS_ERROR_ACTION.OrderPlacement,
+            action: PERPS_ERROR_ACTION.PlaceOrder,
           },
         ),
       );
@@ -5972,7 +5975,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             },
             {
               operation: PERPS_ERROR_OPERATION.OrderManagement,
-              action: PERPS_ERROR_ACTION.OrderPlacement,
+              action: PERPS_ERROR_ACTION.PlaceOrder,
             },
           ),
         );
@@ -5990,7 +5993,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
           {
             operation: PERPS_ERROR_OPERATION.OrderManagement,
-            action: PERPS_ERROR_ACTION.OrderPlacement,
+            action: PERPS_ERROR_ACTION.PlaceOrder,
           },
         ),
       );
@@ -6424,11 +6427,19 @@ export class HyperLiquidProvider implements PerpsProvider {
     } else {
       this.#deps.logger.error(
         mappedError,
-        await this.#getTradingErrorContext('placeOrder', mappedError, {
-          symbol,
-          orderType,
-          isBuy,
-        }),
+        await this.#getTradingErrorContext(
+          'placeOrder',
+          mappedError,
+          {
+            symbol,
+            orderType,
+            isBuy,
+          },
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.PlaceOrder,
+          },
+        ),
       );
     }
 
@@ -9040,11 +9051,19 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       return await this.#cancelChaseOrder(params);
     } catch (error) {
-      const mappedError = await this.#reportWriteError(error, 'cancelOrder', {
-        orderId: params.orderId,
-        coin: params.symbol,
-        orderType: params.orderType,
-      });
+      const mappedError = await this.#reportWriteError(
+        error,
+        'cancelOrder',
+        {
+          orderId: params.orderId,
+          coin: params.symbol,
+          orderType: params.orderType,
+        },
+        {
+          operation: PERPS_ERROR_OPERATION.OrderManagement,
+          action: PERPS_ERROR_ACTION.CancelOrder,
+        },
+      );
       return createErrorResult(mappedError, {
         success: false,
         orderId: params.orderId,
@@ -10185,7 +10204,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
           {
             operation: PERPS_ERROR_OPERATION.OrderManagement,
-            action: PERPS_ERROR_ACTION.OrderEdit,
+            action: PERPS_ERROR_ACTION.EditOrder,
           },
         ),
       );
@@ -10284,10 +10303,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         orderId: params.orderId,
       });
     } catch (error) {
-      const mappedError = await this.#reportWriteError(error, 'cancelOrder', {
-        orderId: params.orderId,
-        coin: params.symbol,
-      });
+      const mappedError = await this.#reportWriteError(
+        error,
+        'cancelOrder',
+        {
+          orderId: params.orderId,
+          coin: params.symbol,
+        },
+        {
+          operation: PERPS_ERROR_OPERATION.OrderManagement,
+          action: PERPS_ERROR_ACTION.CancelOrder,
+        },
+      );
       return createErrorResult(mappedError, {
         success: false,
         orderId: params.orderId,
@@ -10435,9 +10462,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         }
       }
     } catch (error) {
-      const mappedError = await this.#reportWriteError(error, 'cancelOrders', {
-        orderCount: params.length,
-      });
+      const mappedError = await this.#reportWriteError(
+        error,
+        'cancelOrders',
+        {
+          orderCount: params.length,
+        },
+        {
+          operation: PERPS_ERROR_OPERATION.OrderManagement,
+          action: PERPS_ERROR_ACTION.CancelOrder,
+        },
+      );
       for (const result of results) {
         if (
           !result.success &&
@@ -10820,7 +10855,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             },
             {
               operation: PERPS_ERROR_OPERATION.PositionManagement,
-              action: PERPS_ERROR_ACTION.PositionClose,
+              action: PERPS_ERROR_ACTION.ClosePosition,
             },
           ),
         );
@@ -11646,7 +11681,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             },
             {
               operation: PERPS_ERROR_OPERATION.PositionManagement,
-              action: PERPS_ERROR_ACTION.PositionTpsl,
+              action: PERPS_ERROR_ACTION.PositionTpslUpdate,
             },
           ),
         );
@@ -11892,7 +11927,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
           {
             operation: PERPS_ERROR_OPERATION.PositionManagement,
-            action: PERPS_ERROR_ACTION.PositionTpsl,
+            action: PERPS_ERROR_ACTION.PositionTpslUpdate,
           },
         ),
       );
@@ -12086,7 +12121,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
           {
             operation: PERPS_ERROR_OPERATION.PositionManagement,
-            action: PERPS_ERROR_ACTION.PositionClose,
+            action: PERPS_ERROR_ACTION.ClosePosition,
           },
         ),
       );

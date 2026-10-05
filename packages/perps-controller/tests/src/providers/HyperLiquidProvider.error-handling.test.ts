@@ -823,7 +823,15 @@ describe('HyperLiquidProvider', () => {
 
         expect(result.success).toBe(false);
         expect(result.error).toContain('Insufficient margin');
-        expect(mockPlatformDependencies.logger.error).toHaveBeenCalled();
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+          expect.any(Error),
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              operation: 'order_management',
+              action: 'place_order',
+            }),
+          }),
+        );
       });
 
       it('succeeds with market order without current price or usdAmount (uses fetched price)', async () => {
@@ -2193,6 +2201,10 @@ describe('HyperLiquidProvider', () => {
           expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
             expect.objectContaining({ message: expectedCode }),
             expect.objectContaining({
+              tags: expect.objectContaining({
+                operation: 'order_management',
+                action: 'cancel_order',
+              }),
               context: expect.objectContaining({
                 data: expect.objectContaining({
                   abstraction_mode: 'disabled',
