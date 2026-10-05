@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Increase the UKYC capability token lifetime from 4 hours to 72 hours
+- Increase the UKYC capability token lifetime from 4 hours to 72 hours ([#10679](https://github.com/MetaMask/core/pull/10679))
 
 ## [0.6.1]
 
