@@ -298,6 +298,54 @@ describe('KycService', () => {
     });
   });
 
+  describe('resetWrappingKeys', () => {
+    const encryptionSchema: EncryptionSchema = {
+      serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
+      jwtChain: 'jwt.chain.sig',
+    };
+    const response = {
+      sessionId: 'sid',
+      encryptionDataKey: encryptionSchema,
+      ukycCapabilityToken: {
+        ...encryptionSchema,
+        jwtChain: 'capability.jwt.chain',
+      },
+    };
+
+    it('posts wrapping-keys and returns encryption schemas', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid/wrapping-keys')
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.resetWrappingKeys({ sessionId: 'sid' }),
+      ).toStrictEqual(response);
+    });
+
+    it('url-encodes the session id', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/a%2Fb/wrapping-keys')
+        .reply(200, { ...response, sessionId: 'a/b' });
+      const { service } = getService();
+
+      expect(
+        await service.resetWrappingKeys({ sessionId: 'a/b' }),
+      ).toStrictEqual({ ...response, sessionId: 'a/b' });
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid/wrapping-keys')
+        .reply(200, { unexpected: true });
+      const { service } = getService();
+
+      await expect(
+        service.resetWrappingKeys({ sessionId: 'sid' }),
+      ).rejects.toThrow(/Malformed response received from wrapping keys API/u);
+    });
+  });
+
   describe('setAuthorizations', () => {
     const wrappedEncryptionDataKey = { nonce: 'nonce-1', data: 'data-1' };
     const wrappedUkycCapabilityToken = { nonce: 'nonce-2', data: 'data-2' };

@@ -170,6 +170,19 @@ export type KycServiceCreateUkycSessionAction = {
 };
 
 /**
+ * Reissues wrapping keys for an existing UKYC session
+ * (`POST /sessions/{sessionId}/wrapping-keys`).
+ *
+ * @param params - The session whose wrapping keys should be reset.
+ * @param params.sessionId - UKYC session id.
+ * @returns The session id and fresh encryption schemas.
+ */
+export type KycServiceResetWrappingKeysAction = {
+  type: `KycService:resetWrappingKeys`;
+  handler: KycService['resetWrappingKeys'];
+};
+
+/**
  * Submits the wrapped `data_encryption_key` and wrapped
  * `ukyc_capability_token` for a UKYC session. Both secrets are sealed with
  * `wrapEncryptionKey` against the encryption schemas returned by
@@ -235,6 +248,7 @@ export type KycServiceMethodActions =
   | KycServiceFetchIdosEnclaveJwksAction
   | KycServiceFetchIdosRelayJwksAction
   | KycServiceCreateUkycSessionAction
+  | KycServiceResetWrappingKeysAction
   | KycServiceSetAuthorizationsAction
   | KycServiceCreateJourneyAction
   | KycServiceGetSessionStatusAction
