@@ -298,12 +298,12 @@ function randomBytes(length: number): Uint8Array {
 }
 
 /**
- * Decodes unpadded base64url JWK coordinates.
+ * Decodes unpadded base64url, as used by JWK coordinates and JWT segments.
  *
  * @param value - Base64url string.
  * @returns Raw bytes.
  */
-function fromBase64Url(value: string): Uint8Array {
+export function fromBase64Url(value: string): Uint8Array {
   return base64ToBytes(
     value
       .replace(/-/gu, '+')

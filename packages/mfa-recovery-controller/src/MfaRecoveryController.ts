@@ -7,6 +7,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { bytesToHex } from '@metamask/utils';
 
+import { decodeAuthControllerToken } from './auth-controller-token.js';
 import {
   decodeHex,
   decryptFromPublic,
@@ -552,10 +553,11 @@ export class MfaRecoveryController extends BaseController<
       );
     }
 
+    const claims = decodeAuthControllerToken(pending.authControllerToken);
     const authControllerToken =
-      pending.authControllerToken.expiresAt <= this.#now()
-        ? await this.#authorizeMutation(mutation, payload)
-        : pending.authControllerToken;
+      claims && claims.exp > this.#now()
+        ? pending.authControllerToken
+        : await this.#authorizeMutation(mutation, payload);
     const writing = { ...pending, authControllerToken };
     const authorizedEscrows =
       mutation.operation === 'register'

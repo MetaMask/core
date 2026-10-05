@@ -59,19 +59,11 @@ export type Mutation = {
   requestHash: string;
 };
 
-export type AuthControllerToken = {
-  profileId: string;
-  requestHash: string;
-  twoFactor?: true;
-  identifiersHash?: string;
-  identifierOwnershipApproved?: true;
-  issuer: string;
-  /**
-   * Unix time in seconds.
-   */
-  expiresAt: number;
-  signature: string;
-};
+/**
+ * Hydra access token (compact JWT). Its `ext` claims bind it to one mutation:
+ * `aal`, `request_hash`, and `identifiers_hash`.
+ */
+export type AuthControllerToken = string;
 
 export type MutationReceipt = {
   mutationId: string;

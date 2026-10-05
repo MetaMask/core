@@ -1,3 +1,4 @@
+import { decodeAuthControllerToken } from './auth-controller-token.js';
 import { hash } from './crypto.js';
 import { MfaRecoveryError } from './errors.js';
 import { isMutationReceipt } from './escrow-utils.js';
@@ -8,7 +9,6 @@ import {
 } from './identifier-auth.js';
 import { assertSameAudienceIds } from './state-machine.js';
 import type {
-  AuthControllerToken,
   Identifier,
   Mutation,
   MutationReceipt,
@@ -110,16 +110,14 @@ export async function assertValidPendingOperation(
   if (pending.phase === 'authorizing') {
     return;
   }
+  const token = decodeAuthControllerToken(pending.authControllerToken);
   if (
-    !isAuthControllerToken(pending.authControllerToken) ||
-    pending.authControllerToken.profileId !== mutation.profileId ||
-    pending.authControllerToken.requestHash !== mutation.requestHash ||
-    (mutation.operation !== 'register' &&
-      pending.authControllerToken.twoFactor !== true) ||
+    token?.sub !== mutation.profileId ||
+    token.ext.requestHash !== mutation.requestHash ||
+    (mutation.operation !== 'register' && (token.ext.aal ?? 0) < 2) ||
     ((mutation.operation === 'register' ||
       mutation.operation === 'updateIdentifiers') &&
-      (pending.authControllerToken.identifierOwnershipApproved !== true ||
-        typeof pending.authControllerToken.identifiersHash !== 'string')) ||
+      token.ext.identifiersHash === undefined) ||
     !isMutationReceiptArray(pending.receipts)
   ) {
     throwInvalidPendingOperation();
@@ -199,26 +197,6 @@ function isIdentifier(value: unknown): value is Identifier {
     typeof value.namespace === 'string' &&
     typeof value.value === 'string' &&
     Object.prototype.hasOwnProperty.call(value, 'verifier')
-  );
-}
-
-function isAuthControllerToken(value: unknown): value is AuthControllerToken {
-  if (!isRecord(value)) {
-    return false;
-  }
-  return (
-    typeof value.profileId === 'string' &&
-    typeof value.requestHash === 'string' &&
-    (value.twoFactor === undefined || value.twoFactor === true) &&
-    (value.identifiersHash === undefined ||
-      typeof value.identifiersHash === 'string') &&
-    (value.identifierOwnershipApproved === undefined ||
-      value.identifierOwnershipApproved === true) &&
-    typeof value.issuer === 'string' &&
-    typeof value.expiresAt === 'number' &&
-    Number.isInteger(value.expiresAt) &&
-    value.expiresAt >= 0 &&
-    typeof value.signature === 'string'
   );
 }
 
