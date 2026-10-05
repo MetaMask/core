@@ -2959,6 +2959,22 @@ describe('PerpsController', () => {
       await expect(
         depositController.depositWithConfirmation({ amount: '100' }),
       ).rejects.toThrow('Deposit service failed');
+      expect(depositInfrastructure.logger.error).toHaveBeenCalledWith(
+        mockError,
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            feature: 'perps',
+            operation: 'financial_operations',
+            action: 'financial_deposit',
+          }),
+          context: {
+            name: 'PerpsController',
+            data: expect.objectContaining({
+              method: 'depositWithConfirmation',
+            }),
+          },
+        }),
+      );
     });
 
     it('propagates NetworkController:findNetworkClientIdByChainId errors', async () => {

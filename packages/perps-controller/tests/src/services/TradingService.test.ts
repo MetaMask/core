@@ -1559,9 +1559,18 @@ describe('TradingService', () => {
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'Order already filled' }),
         expect.objectContaining({
-          controller: 'TradingService',
-          method: 'cancelOrder',
-          symbol: 'BTC',
+          tags: expect.objectContaining({
+            feature: 'perps',
+            operation: 'order_management',
+            action: 'order_cancellation',
+          }),
+          context: {
+            name: 'TradingService',
+            data: expect.objectContaining({
+              method: 'cancelOrder',
+              symbol: 'BTC',
+            }),
+          },
         }),
       );
     });
@@ -1881,14 +1890,22 @@ describe('TradingService', () => {
           new Error(
             'cancelOrders batch failure: 2/2 failed (2 reported) - BTC/order-1: rate limit; ETH/order-2: not found',
           ),
-          {
-            controller: 'TradingService',
-            method: 'cancelOrders',
-            successCount: 0,
-            failureCount: 2,
-            reportedFailureCount: 2,
-            cancelAll: true,
-          },
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              operation: 'order_management',
+              action: 'order_cancellation',
+            }),
+            context: {
+              name: 'TradingService',
+              data: expect.objectContaining({
+                method: 'cancelOrders',
+                successCount: 0,
+                failureCount: 2,
+                reportedFailureCount: 2,
+                cancelAll: true,
+              }),
+            },
+          }),
         ],
       ]);
     });
@@ -1984,14 +2001,22 @@ describe('TradingService', () => {
           new Error(
             'cancelOrders batch failure: 2/2 failed (1 reported) - ETH/order-2: rate limit',
           ),
-          {
-            controller: 'TradingService',
-            method: 'cancelOrders',
-            successCount: 0,
-            failureCount: 2,
-            reportedFailureCount: 1,
-            cancelAll: true,
-          },
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              operation: 'order_management',
+              action: 'order_cancellation',
+            }),
+            context: {
+              name: 'TradingService',
+              data: expect.objectContaining({
+                method: 'cancelOrders',
+                successCount: 0,
+                failureCount: 2,
+                reportedFailureCount: 1,
+                cancelAll: true,
+              }),
+            },
+          }),
         ],
       ]);
     });
@@ -2329,9 +2354,17 @@ describe('TradingService', () => {
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'Insufficient liquidity' }),
         expect.objectContaining({
-          controller: 'TradingService',
-          method: 'closePosition',
-          symbol: 'BTC',
+          tags: expect.objectContaining({
+            operation: 'position_management',
+            action: 'position_close',
+          }),
+          context: {
+            name: 'TradingService',
+            data: expect.objectContaining({
+              method: 'closePosition',
+              symbol: 'BTC',
+            }),
+          },
         }),
       );
     });
@@ -2666,15 +2699,23 @@ describe('TradingService', () => {
           new Error(
             'closePositions batch failure: 2/2 failed (2 reported) - BTC: insufficient liquidity; ETH: min size',
           ),
-          {
-            controller: 'TradingService',
-            method: 'closePositions',
-            successCount: 0,
-            failureCount: 2,
-            reportedFailureCount: 2,
-            symbols: 0,
-            closeAll: true,
-          },
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              operation: 'position_management',
+              action: 'position_close',
+            }),
+            context: {
+              name: 'TradingService',
+              data: expect.objectContaining({
+                method: 'closePositions',
+                successCount: 0,
+                failureCount: 2,
+                reportedFailureCount: 2,
+                symbols: 0,
+                closeAll: true,
+              }),
+            },
+          }),
         ],
       ]);
     });
@@ -2746,15 +2787,23 @@ describe('TradingService', () => {
           new Error(
             'closePositions batch failure: 2/2 failed (1 reported) - ETH: min size',
           ),
-          {
-            controller: 'TradingService',
-            method: 'closePositions',
-            successCount: 0,
-            failureCount: 2,
-            reportedFailureCount: 1,
-            symbols: 0,
-            closeAll: true,
-          },
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              operation: 'position_management',
+              action: 'position_close',
+            }),
+            context: {
+              name: 'TradingService',
+              data: expect.objectContaining({
+                method: 'closePositions',
+                successCount: 0,
+                failureCount: 2,
+                reportedFailureCount: 1,
+                symbols: 0,
+                closeAll: true,
+              }),
+            },
+          }),
         ],
       ]);
     });
@@ -3151,9 +3200,17 @@ describe('TradingService', () => {
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'TPSL provider failure' }),
         expect.objectContaining({
-          controller: 'TradingService',
-          method: 'updatePositionTPSL',
-          symbol: 'BTC',
+          tags: expect.objectContaining({
+            operation: 'position_management',
+            action: 'position_tpsl',
+          }),
+          context: {
+            name: 'TradingService',
+            data: expect.objectContaining({
+              method: 'updatePositionTPSL',
+              symbol: 'BTC',
+            }),
+          },
         }),
       );
     });
