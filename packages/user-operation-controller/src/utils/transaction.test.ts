@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { TransactionParams } from '../../../transaction-controller/src/index.js';
 import {
   TransactionStatus,

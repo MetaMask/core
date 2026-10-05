@@ -4,6 +4,8 @@ import { errorCodes } from '@metamask/rpc-errors';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import { EventEmitter } from 'stream';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
 
 import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants.js';
 import * as BundlerHelper from './helpers/Bundler.js';
@@ -33,12 +35,12 @@ import {
   validateUpdateUserOperationResponse,
 } from './utils/validation.js';
 
-jest.mock('./utils/gas');
-jest.mock('./utils/gas-fees');
-jest.mock('./utils/validation');
-jest.mock('./helpers/Bundler');
-jest.mock('./helpers/PendingUserOperationTracker');
-jest.mock('./helpers/SnapSmartContractAccount');
+vi.mock('./utils/gas');
+vi.mock('./utils/gas-fees');
+vi.mock('./utils/validation');
+vi.mock('./helpers/Bundler');
+vi.mock('./helpers/PendingUserOperationTracker');
+vi.mock('./helpers/SnapSmartContractAccount');
 
 const CHAIN_ID_MOCK = '0x5';
 const USER_OPERATION_HASH_MOCK = '0x123';
@@ -99,12 +101,12 @@ const ADD_USER_OPERATION_OPTIONS_MOCK: AddUserOperationOptions = {
  */
 function createMessengerMock() {
   return {
-    call: jest.fn(),
-    publish: jest.fn(),
-    registerActionHandler: jest.fn(),
-    registerMethodActionHandlers: jest.fn(),
-    registerInitialEventPayload: jest.fn(),
-  } as unknown as jest.Mocked<UserOperationControllerMessenger>;
+    call: vi.fn(),
+    publish: vi.fn(),
+    registerActionHandler: vi.fn(),
+    registerMethodActionHandlers: vi.fn(),
+    registerInitialEventPayload: vi.fn(),
+  } as unknown as Mocked<UserOperationControllerMessenger>;
 }
 
 /**
@@ -114,10 +116,10 @@ function createMessengerMock() {
  */
 function createSmartContractAccountMock() {
   return {
-    prepareUserOperation: jest.fn(),
-    updateUserOperation: jest.fn(),
-    signUserOperation: jest.fn(),
-  } as jest.Mocked<SmartContractAccount>;
+    prepareUserOperation: vi.fn(),
+    updateUserOperation: vi.fn(),
+    signUserOperation: vi.fn(),
+  } as Mocked<SmartContractAccount>;
 }
 
 /**
@@ -127,9 +129,9 @@ function createSmartContractAccountMock() {
  */
 function createBundlerMock() {
   return {
-    estimateUserOperationGas: jest.fn(),
-    sendUserOperation: jest.fn(),
-  } as unknown as jest.Mocked<BundlerHelper.Bundler>;
+    estimateUserOperationGas: vi.fn(),
+    sendUserOperation: vi.fn(),
+  } as unknown as Mocked<BundlerHelper.Bundler>;
 }
 
 /**
@@ -139,10 +141,10 @@ function createBundlerMock() {
  */
 function createPendingUserOperationTrackerMock() {
   return {
-    startPolling: jest.fn(),
-    setIntervalLength: jest.fn(),
+    startPolling: vi.fn(),
+    setIntervalLength: vi.fn(),
     hub: new EventEmitter(),
-  } as unknown as jest.Mocked<PendingUserOperationTrackerHelper.PendingUserOperationTracker>;
+  } as unknown as Mocked<PendingUserOperationTrackerHelper.PendingUserOperationTracker>;
 }
 
 /**
@@ -158,13 +160,13 @@ describe('UserOperationController', () => {
   const bundlerMock = createBundlerMock();
   const pendingUserOperationTrackerMock =
     createPendingUserOperationTrackerMock();
-  const approvalControllerAddRequestMock = jest.fn();
-  const networkControllerGetClientByIdMock = jest.fn();
-  const resultCallbackSuccessMock = jest.fn();
-  const resultCallbackErrorMock = jest.fn();
-  const getGasFeeEstimates = jest.fn();
-  const updateGasMock = jest.mocked(updateGas);
-  const updateGasFeesMock = jest.mocked(updateGasFees);
+  const approvalControllerAddRequestMock = vi.fn();
+  const networkControllerGetClientByIdMock = vi.fn();
+  const resultCallbackSuccessMock = vi.fn();
+  const resultCallbackErrorMock = vi.fn();
+  const getGasFeeEstimates = vi.fn();
+  const updateGasMock = vi.mocked(updateGas);
+  const updateGasFeesMock = vi.mocked(updateGasFees);
 
   const optionsMock = {
     entrypoint: ENTRYPOINT_MOCK,
@@ -172,31 +174,36 @@ describe('UserOperationController', () => {
     messenger,
   };
 
-  const validateAddUserOperationRequestMock = jest.mocked(
+  const validateAddUserOperationRequestMock = vi.mocked(
     validateAddUserOperationRequest,
   );
 
-  const validateAddUserOperationOptionsMock = jest.mocked(
+  const validateAddUserOperationOptionsMock = vi.mocked(
     validateAddUserOperationOptions,
   );
 
-  const validatePrepareUserOperationResponseMock = jest.mocked(
+  const validatePrepareUserOperationResponseMock = vi.mocked(
     validatePrepareUserOperationResponse,
   );
 
-  const validateUpdateUserOperationResponseMock = jest.mocked(
+  const validateUpdateUserOperationResponseMock = vi.mocked(
     validateUpdateUserOperationResponse,
   );
 
-  const validateSignUserOperationResponseMock = jest.mocked(
+  const validateSignUserOperationResponseMock = vi.mocked(
     validateSignUserOperationResponse,
   );
 
   beforeEach(() => {
-    jest.spyOn(BundlerHelper, 'Bundler').mockReturnValue(bundlerMock);
-    jest
-      .spyOn(PendingUserOperationTrackerHelper, 'PendingUserOperationTracker')
-      .mockReturnValue(pendingUserOperationTrackerMock);
+    vi.spyOn(BundlerHelper, 'Bundler').mockImplementation(function () {
+      return bundlerMock;
+    });
+    vi.spyOn(
+      PendingUserOperationTrackerHelper,
+      'PendingUserOperationTracker',
+    ).mockImplementation(function () {
+      return pendingUserOperationTrackerMock;
+    });
 
     smartContractAccount.prepareUserOperation.mockResolvedValue(
       PREPARE_USER_OPERATION_RESPONSE_MOCK,
@@ -280,7 +287,7 @@ describe('UserOperationController', () => {
         },
       });
 
-      const result = jest
+      const result = vi
         .mocked(PendingUserOperationTrackerHelper.PendingUserOperationTracker)
         .mock.calls[0][0].getUserOperations();
 
@@ -346,7 +353,7 @@ describe('UserOperationController', () => {
     it('emits added event', async () => {
       const controller = new UserOperationController(optionsMock);
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       controller.hub.on('user-operation-added', listener);
 
       const { id, hash } = await addUserOperation(
@@ -819,7 +826,7 @@ describe('UserOperationController', () => {
     });
 
     it('uses snap smart contract account if no smart contract account provided', async () => {
-      const prepareMock = jest.spyOn(
+      const prepareMock = vi.spyOn(
         SnapSmartContractAccount.prototype,
         'prepareUserOperation',
       );
@@ -1313,7 +1320,7 @@ describe('UserOperationController', () => {
   describe('on PendingUserOperationTracker events', () => {
     describe('on user operation confirmed', () => {
       it('bubbles event', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         const controller = new UserOperationController(optionsMock);
 
@@ -1329,7 +1336,7 @@ describe('UserOperationController', () => {
       });
 
       it('emits id confirmed event', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         const controller = new UserOperationController(optionsMock);
 
@@ -1350,7 +1357,7 @@ describe('UserOperationController', () => {
 
     describe('on user operation failed', () => {
       it('bubbles event', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         const errorMock = new Error(ERROR_MESSAGE_MOCK);
 
         const controller = new UserOperationController(optionsMock);
@@ -1371,7 +1378,7 @@ describe('UserOperationController', () => {
       });
 
       it('emits id failed event', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         const errorMock = new Error(ERROR_MESSAGE_MOCK);
 
         const controller = new UserOperationController(optionsMock);
