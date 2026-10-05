@@ -1420,5 +1420,10 @@
     "TS2741": {
       "count": 1
     }
+  },
+  "tests/vitest/helpers.ts": {
+    "TS6307": {
+      "count": 1
+    }
   }
 }

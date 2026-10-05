@@ -1,8 +1,9 @@
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import { createDeferredPromise } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { jestAdvanceTime } from '../../../tests/helpers.js';
+import { jestAdvanceTime } from '../../../tests/vitest/helpers.js';
 import { StaticIntervalPollingController } from './StaticIntervalPollingController.js';
 
 const TICK_TIME = 5;
@@ -28,7 +29,7 @@ class ChildBlockTrackerPollingController extends StaticIntervalPollingController
     resolve: () => void;
   }[] = [];
 
-  _executePoll = jest.fn().mockImplementation(() => {
+  _executePoll = vi.fn().mockImplementation(() => {
     const { promise, reject, resolve } = createDeferredPromise({
       suppressUnhandledRejection: true,
     });
@@ -41,7 +42,7 @@ describe('StaticIntervalPollingController', () => {
   let mockMessenger: Messenger<MockAnyNamespace, never, never>;
   let controller: ChildBlockTrackerPollingController;
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers();
     mockMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
     controller = new ChildBlockTrackerPollingController({
       messenger: mockMessenger,
@@ -53,7 +54,7 @@ describe('StaticIntervalPollingController', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('startPolling', () => {
@@ -311,7 +312,7 @@ describe('StaticIntervalPollingController', () => {
     it('should publish "pollingComplete" callback function set by "onPollingCompleteByNetworkClientId" when polling stops', async () => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pollingComplete: any = jest.fn();
+      const pollingComplete: any = vi.fn();
       controller.onPollingComplete(
         { networkClientId: 'mainnet' },
         pollingComplete,
