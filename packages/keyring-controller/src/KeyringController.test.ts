@@ -5943,7 +5943,8 @@ describe('KeyringController', () => {
 
           await controller.persistAllKeyrings();
           expect(controller.state.keyrings).toHaveLength(1);
-          const vaultEntries = parseVaultEntries(controller.state.vault);
+          expect(controller.state.vault).toBeDefined();
+          const vaultEntries = parseVaultEntries(controller.state.vault as string);
           expect(vaultEntries).toHaveLength(1);
           expect(vaultEntries[0].type).toBe(KeyringTypes.hd);
         },
