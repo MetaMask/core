@@ -17,7 +17,7 @@ import {
   EthScope,
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
-import { KeyringType } from '@metamask/keyring-api/v2';
+import { AccountCreationType, KeyringType } from '@metamask/keyring-api/v2';
 import {
   KeyringControllerState,
   KeyringTypes,
@@ -32,6 +32,10 @@ import type {
 } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { CaipChainId } from '@metamask/utils';
+import {
+  WatchOnlyKeyring,
+  WatchOnlyKeyringV1Adapter,
+} from '@metamask/watch-only-keyring';
 import type { Version4Options } from 'uuid';
 import { v4 as uuidV4 } from 'uuid';
 
@@ -1034,6 +1038,172 @@ describe('AccountsController', () => {
               metadata: {
                 id: 'mock-keyring-v2-id',
                 name: 'mock-keyring-v2-name',
+              },
+            },
+          ],
+        };
+
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {},
+              selectedAccount: '',
+            },
+            accountIdByAddress: {},
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        expect(accountsController.listMultichainAccounts()).toStrictEqual([]);
+      });
+
+      it('add watch-only accounts', async () => {
+        const watchOnlyAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+
+        const watchOnlyKeyring = new WatchOnlyKeyring();
+        const [watchOnlyAccount] = await watchOnlyKeyring.createAccounts({
+          type: AccountCreationType.AddressImport,
+          address: watchOnlyAddress,
+        });
+
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            new WatchOnlyKeyringV1Adapter(watchOnlyKeyring),
+          ]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringType.WatchOnly,
+              accounts: [watchOnlyAddress],
+              metadata: {
+                id: 'mock-watch-only-keyring-id',
+                name: 'mock-watch-only-keyring-name',
+              },
+            },
+          ],
+        };
+
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {},
+              selectedAccount: '',
+            },
+            accountIdByAddress: {},
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listMultichainAccounts();
+
+        // The watch-only account is read from the keyring itself: it keeps
+        // the keyring's account ID and exposes no signing methods.
+        expect(accounts).toHaveLength(1);
+        expect(accounts[0]).toMatchObject({
+          id: watchOnlyAccount.id,
+          address: watchOnlyAddress,
+          methods: [],
+          type: EthAccountType.Eoa,
+          scopes: [EthScope.Eoa],
+          options: {},
+          metadata: {
+            name: '',
+            keyring: { type: KeyringType.WatchOnly },
+          },
+        });
+        expect(accounts[0].metadata.importTime).toStrictEqual(
+          expect.any(Number),
+        );
+        expect(accounts[0].metadata.lastSelected).toStrictEqual(
+          expect.any(Number),
+        );
+      });
+
+      it('handles the event when the watch-only keyring does not hold the address', async () => {
+        const watchOnlyAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+
+        const watchOnlyKeyring = new WatchOnlyKeyring();
+
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            new WatchOnlyKeyringV1Adapter(watchOnlyKeyring),
+          ]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringType.WatchOnly,
+              accounts: [watchOnlyAddress],
+              metadata: {
+                id: 'mock-watch-only-keyring-id',
+                name: 'mock-watch-only-keyring-name',
+              },
+            },
+          ],
+        };
+
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {},
+              selectedAccount: '',
+            },
+            accountIdByAddress: {},
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        expect(accountsController.listMultichainAccounts()).toStrictEqual([]);
+      });
+
+      it('handles when no WatchOnlyKeyring instance matches for a watch-only keyring type', () => {
+        const watchOnlyAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            // Plain object — does NOT pass instanceof KeyringV1Adapter
+            { lookupByAddress: jest.fn() },
+          ]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringType.WatchOnly,
+              accounts: [watchOnlyAddress],
+              metadata: {
+                id: 'mock-watch-only-keyring-id',
+                name: 'mock-watch-only-keyring-name',
               },
             },
           ],
@@ -3357,6 +3527,64 @@ describe('AccountsController', () => {
           snap: {
             id: mockSnapV2SnapId,
           },
+        },
+      });
+    });
+
+    it('update accounts with watch-only accounts', async () => {
+      const watchOnlyAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+
+      const watchOnlyKeyring = new WatchOnlyKeyring();
+      const [watchOnlyAccount] = await watchOnlyKeyring.createAccounts({
+        type: AccountCreationType.AddressImport,
+        address: watchOnlyAddress,
+      });
+
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [
+            {
+              type: KeyringType.WatchOnly,
+              accounts: [watchOnlyAddress],
+              metadata: {
+                id: 'mock-watch-only-keyring-id',
+                name: 'mock-watch-only-keyring-name',
+              },
+            },
+          ],
+        }),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          new WatchOnlyKeyringV1Adapter(watchOnlyKeyring),
+        ]),
+      );
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+          accountIdByAddress: {},
+        },
+        messenger,
+      });
+
+      await accountsController.updateAccounts();
+
+      const accounts = accountsController.listMultichainAccounts();
+      expect(accounts).toHaveLength(1);
+      expect(accounts[0]).toMatchObject({
+        id: watchOnlyAccount.id,
+        address: watchOnlyAddress,
+        methods: [],
+        metadata: {
+          name: 'Watch-only Account 1',
+          keyring: { type: KeyringType.WatchOnly },
         },
       });
     });

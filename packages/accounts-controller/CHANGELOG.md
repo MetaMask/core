@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Filter out MPC accounts when replicating `KeyringController` state ([#10577](https://github.com/MetaMask/core/pull/10577))
   - Those accounts are treated differently with their own "account-like" controller.
+- Add support for watch-only accounts (`KeyringType.WatchOnly`): watch-only accounts are now synced directly from the watch-only keyring (like Snap keyring v2 accounts), keeping the keyring's account IDs and their empty list of signing methods, instead of being re-created as EVM accounts without signing methods ([#10571](https://github.com/MetaMask/core/pull/10571))
+  - Watch-only accounts are named "Watch-only Account" by default, and `keyringTypeToName` no longer throws for the watch-only keyring type
+  - Export a new `isWatchOnlyKeyringType` utility
 
 ### Changed
 
