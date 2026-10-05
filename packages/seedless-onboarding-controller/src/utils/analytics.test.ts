@@ -27,11 +27,9 @@ function expectTrackedEvent(
   {
     name,
     properties,
-    hasProperties,
   }: {
     name: string;
     properties: IncompleteMetadataBackupEventProperties;
-    hasProperties: boolean;
   },
 ): void {
   expect(trackEvent).toHaveBeenCalledTimes(1);
@@ -40,7 +38,7 @@ function expectTrackedEvent(
     properties,
     sensitiveProperties: {},
     saveDataRecording: false,
-    hasProperties,
+    hasProperties: true,
   });
 }
 
@@ -99,7 +97,6 @@ describe('identifyIncompleteMetadataBackup', () => {
         number_of_imported_wallets: 1,
         number_of_imported_accounts: 1,
       },
-      hasProperties: false,
     });
     expect(logFn).not.toHaveBeenCalled();
   });
@@ -155,7 +152,6 @@ describe('identifyIncompleteMetadataBackup', () => {
         number_of_imported_wallets: 1,
         number_of_imported_accounts: 0,
       },
-      hasProperties: false,
     });
     expect(logFn).not.toHaveBeenCalled();
   });
@@ -206,7 +202,6 @@ describe('identifyIncompleteMetadataBackup', () => {
       expectTrackedEvent(trackEvent, {
         name: SeedlessPrimarySrpMissingEventName,
         properties: properties as IncompleteMetadataBackupEventProperties,
-        hasProperties: true,
       });
       expect(getPrimaryKeyringSeedPhraseFn).not.toHaveBeenCalled();
       expect(logFn).not.toHaveBeenCalled();
@@ -300,7 +295,6 @@ describe('identifyIncompleteMetadataBackup', () => {
         number_of_imported_wallets: 0,
         number_of_imported_accounts: 0,
       },
-      hasProperties: true,
     });
     expect(logFn).toHaveBeenCalledWith(
       'Error tracking incomplete metadata backup event',
