@@ -1,3 +1,5 @@
+import { afterEach } from '@jest/globals';
+
 // If the code-under-test sets `process.exitCode`, the test process can exit with that code without
 // any error messages.
 // This ensures that an error message is shown explaining the reason for the failure. We can unset

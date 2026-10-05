@@ -7722,32 +7722,8 @@
       "count": 2
     }
   },
-  "tests/helpers.ts": {
-    "id-length": {
-      "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "tests/scripts-setup.ts": {
-    "jest/require-top-level-describe": {
-      "count": 1
-    }
-  },
-  "tests/setupAfterEnv/matchers.ts": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    }
-  },
-  "tests/setupAfterEnv/nock.ts": {
-    "jest/require-top-level-describe": {
+  "tests/vitest/setup-after-env.ts": {
+    "vitest/require-top-level-describe": {
       "count": 2
     }
   },
