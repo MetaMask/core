@@ -404,6 +404,24 @@ describe('applyFeeResolution', () => {
     expect(priced.feeRate).toBeCloseTo(0.0012, 10);
     expect(priced.metamaskFeeAmount).toBeCloseTo(0.75, 10);
     expect(priced.feeAmount).toBeCloseTo(1.2, 10);
+    expect(priced.feeSource).toBe('subscription');
+  });
+
+  it('reports the rewards source when a rewards discount won', () => {
+    const priced = applyFeeResolution({
+      fees,
+      resolution: {
+        // A 65% rewards discount off the 10-bip default.
+        feeBips: 3.5,
+        discountBips: 6500,
+        source: 'rewards',
+        subscription: createStatus({ eligible: false, reason: 'no-source' }),
+      },
+      amount: '1000',
+    });
+
+    expect(priced.metamaskFeeRate).toBeCloseTo(0.00035, 10);
+    expect(priced.feeSource).toBe('rewards');
   });
 
   it('zeroes the MetaMask component on a full waiver', () => {
@@ -467,6 +485,7 @@ describe('applyFeeResolution', () => {
     // The full 10-bip builder fee, not the 5-bip rate the provider carried.
     expect(priced.metamaskFeeRate).toBeCloseTo(0.001, 10);
     expect(priced.feeRate).toBeCloseTo(0.00145, 10);
+    expect(priced.feeSource).toBe('default');
   });
 
   it.each(['-1000', '0'])(
@@ -574,6 +593,7 @@ describe('applyFeeResolution', () => {
     });
 
     expect(priced.metamaskFeeRate).toBe(0);
+    expect(priced.feeSource).toBe('subscription');
     // The previously quoted amounts are left as the provider reported them.
     expect(priced.metamaskFeeAmount).toBe(fees.metamaskFeeAmount);
   });

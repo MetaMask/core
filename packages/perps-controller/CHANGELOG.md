@@ -7,13 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `PerpsAccountSigner.getChainId`. When set, HyperLiquid user-signed actions (builder fee approval, withdrawals, transfers) are signed for the chain it returns instead of chain 1, so a wallet that only signs for its connected chain does not switch chains ([#10643](https://github.com/MetaMask/core/pull/10643))
+- Add optional `feeSource` to `FeeCalculationResult`, reporting which fee source (`default`, `rewards` or `subscription`) won the fee resolution the quoted MetaMask fee was priced from, so clients can attribute the discount shown in a fee preview without re-deriving it from the rates ([#10650](https://github.com/MetaMask/core/pull/10650))
+  - Absent when the quote was not re-priced from a fee resolution, for example a placement that carries no MetaMask builder fee
+  - `rewards` can carry a 0% discount, so check `metamaskFeeRate` before presenting it as a reduction
+
 ### Changed
 
 - **BREAKING:** `OrderFill.pnl` is optional when the venue omits realized PnL. Consumers must preserve missing amounts as unknown when aggregating or displaying fills; only a reported `'0'` is zero ([#10605](https://github.com/MetaMask/core/pull/10605))
+- `HyperLiquidProvider.getExchangeClient` initializes the provider's SDK clients before returning the exchange client, so it signs L1 actions with the provider's agent ([#10643](https://github.com/MetaMask/core/pull/10643))
 
 ### Fixed
 
 - Accept Lighter trades that omit position-sign flags, preserve omitted account PnL as unknown, and reject known reductions without realized PnL. Retain side-only fill directions when lifecycle context is ambiguous ([#10605](https://github.com/MetaMask/core/pull/10605))
+- Detect a revoked or expired HyperLiquid agent that the venue answers with "Must deposit before performing actions" ([#10643](https://github.com/MetaMask/core/pull/10643))
+  - The provider then checks `extraAgents` for the agent that signed the answered request. When it is missing or past its `validUntil`, the write fails with `KEYRING_LOCKED`, the agent is dropped and `onAgentRejected` is called. Requests signed by the main account, or by a wallet of an earlier network or session, are not checked
+  - When the agent is still listed (an account with no funds), or the list cannot be read, the venue error is returned as before
+- Sign a HyperLiquid L1 action the SDK queued before a network switch with the agent of the network it was queued on, not the new network's ([#10643](https://github.com/MetaMask/core/pull/10643))
+- Attribute a HyperLiquid "User or API Wallet ... does not exist" rejection to the network of the request it answers, so an agent used on both networks is dropped, and `onAgentRejected` called, only for that network ([#10643](https://github.com/MetaMask/core/pull/10643))
+- Stop asking again for a HyperLiquid builder fee approval the venue refused for a reason signing again cannot fix, such as "Builder has insufficient balance to be approved" ([#10643](https://github.com/MetaMask/core/pull/10643))
+  - Until the provider disconnects, the approval is not requested again: orders are sent as after any failed approval, TP/SL updates fail with `TPSL_UPDATE_FAILED`, and `prepareTradingWallet` returns the venue error
+- Stop reporting HyperLiquid WebSocket transport failures (a closed or terminated socket, request timeout or abort) during the unified-account setup as errors ([#10651](https://github.com/MetaMask/core/pull/10651))
+  - After such a failure, provider entry waits one minute before running the setup again instead of retrying every time; `reconnect()` or `disconnect()` ends the wait, and trading and withdraw still run the setup
+  - Venue rejections, signing failures and other setup errors are still reported
+- Degrade without logging an error when the host does not provide an optional messenger action, whether it is unregistered or not delegated to `PerpsController` ([#10665](https://github.com/MetaMask/core/pull/10665))
+  - `SubscriptionController:getBenefits` (fee waiver): an undelegated action now reads as no subscription source, as an unregistered one already did, instead of logging an error when no injected `subscription` source is wired
+  - `NetworkController:getState` / `getNetworkClientById` (rewards discount): no discount instead of an error
+  - `AuthenticationController:getBearerToken` (data-lake report): skipped instead of logged and retried; a report skipped for a missing account or token now also ends its trace
+  - `AuthenticatedUserStorageService:getNotificationPreferences` / `putNotificationPreferences` (watchlist sync): the local watchlist is kept instead of logging an error and reverting the toggle. AUS stays the source of truth: with the read but not the write, a toggle is replaced by the next hydration from AUS that starts after it, which every initialization runs (`init()`, including after `disconnect()`, `toggleTestnet()` and `switchProvider()`)
+  - Only a missing handler for the exact action called counts. A delegated handler that fails is still reported, including when it fails on a missing handler for another action (such as AUS missing `AuthenticationController:getBearerToken`, or a `NetworkController` read missing the other one), and so is a failure of the injected `rewards` dependency. The exceptions are unchanged: when an injected `subscription` source is wired, a failing `SubscriptionController:getBenefits` handler still falls back to it, and so does a `registerAddress` handler that throws synchronously (an asynchronous `registerAddress` rejection skips registration)
+  - The "Chain ID not found" error for the rewards discount now includes the `getNetworkClientById` failure that caused it
+  - `RemoteFeatureFlagController:getState` in the constructor and `startEligibilityMonitoring`, `GeolocationController`, `KeyringController` and `TransactionController` are unchanged and still report errors
+- Keep watchlist toggles made while the AuthenticatedUserStorageService hydration read is in flight, applying them on top of the remote watchlist instead of overwriting them with it, unless another initialization starts before it resolves ([#10665](https://github.com/MetaMask/core/pull/10665))
 
 ## [19.0.0]
 

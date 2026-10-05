@@ -59,7 +59,7 @@
     "@metamask/keyring-controller": "^28.1.0",
     "@metamask/logging-controller": "^10.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/network-controller": "^37.0.0",
+    "@metamask/network-controller": "^37.0.1",
     "@metamask/utils": "^12.0.0",
     "jsonschema": "^1.4.1",
     "lodash-es": "^4.18.1",

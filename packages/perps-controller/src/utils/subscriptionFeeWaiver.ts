@@ -373,7 +373,8 @@ export function quantizeBuilderFeeTenthsBps(discountBips: number): number {
  * placement carries a MetaMask builder fee at all, or undefined when it does not
  * report one. Distinguishes a genuine zero (a TWAP, for instance) from the zero
  * a concurrent fully-waived submit leaves in provider state.
- * @returns The quote with its MetaMask component and totals re-priced.
+ * @returns The quote with its MetaMask component and totals re-priced, tagged
+ * with the fee source they were priced from.
  */
 export function applyFeeResolution(params: {
   fees: FeeCalculationResult;
@@ -430,6 +431,7 @@ export function applyFeeResolution(params: {
     ...fees,
     metamaskFeeRate,
     feeRate,
+    feeSource: resolution.source,
     ...(notional !== undefined && {
       metamaskFeeAmount: notional * metamaskFeeRate,
       feeAmount: notional * feeRate,

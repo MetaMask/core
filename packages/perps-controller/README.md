@@ -70,9 +70,11 @@ increase or reduce the existing position.
 
 By default the controller signs through the `KeyringController:*` messenger
 actions. A client without a keyring passes `accountSigner` in its platform
-dependencies (`signTypedData`, `signPersonalMessage`, optional `isReady` and
-`requiresSignatureConfirmation`); the signing address still comes from the
-selected account, and a signer that is not ready fails with `KEYRING_LOCKED`.
+dependencies (`signTypedData`, `signPersonalMessage`, optional `isReady`,
+`requiresSignatureConfirmation` and `getChainId`); the signing address still
+comes from the selected account, and a signer that is not ready fails with
+`KEYRING_LOCKED`. HyperLiquid user-signed actions are signed for the chain
+`getChainId` returns, or for chain 1 without it.
 
 HyperLiquid L1 actions (orders, cancels, leverage, ...) can be signed by a
 client-owned agent key: return it from
@@ -81,7 +83,10 @@ account and network with `PerpsController:setAgentSigner`. User-signed actions
 (builder fee, withdrawals) stay on the main account, and approving the agent
 is the client's job. When the venue rejects an agent (revoked or expired), the
 write fails with `KEYRING_LOCKED`, the agent is dropped and
-`providerCredentials.hyperliquid.onAgentRejected` is called. Call
+`providerCredentials.hyperliquid.onAgentRejected` is called. A "Must deposit
+before performing actions" answer to a request the agent signed counts as a
+rejection only when `extraAgents` no longer lists the agent, which needs a
+named agent. Call
 `PerpsController:clearAgentSigners` when the agent key locks.
 
 `PerpsController:prepareTradingWallet` runs the setup that needs signatures
