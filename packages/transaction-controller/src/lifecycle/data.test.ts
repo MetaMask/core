@@ -333,7 +333,10 @@ describe('addTransactionData', () => {
 
     it('uses isSwapsDisabled = false when disableSwaps is undefined', async () => {
       const { request } = buildLifecycleMocks();
-      request.constructorOptions.disableSwaps = undefined;
+
+      // Simulate a JavaScript consumer omitting the required option.
+      (request.constructorOptions as { disableSwaps?: boolean }).disableSwaps =
+        undefined;
 
       await addTransactionData(request);
 
