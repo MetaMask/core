@@ -67,7 +67,7 @@ function makeExportContext(
         case 'AccountsController:getAccount':
           return messengerActions.getAccount?.(...args);
         default:
-          return undefined;
+          return;
       }
     }),
   } as unknown as AccountTreeControllerMessenger;
@@ -108,7 +108,7 @@ function makeImportContext(
             Promise.resolve()
           );
         default:
-          return undefined;
+          return;
       }
     }),
   } as unknown as AccountTreeControllerMessenger;

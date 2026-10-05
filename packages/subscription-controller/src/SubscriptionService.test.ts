@@ -700,6 +700,111 @@ describe('SubscriptionService', () => {
       });
     });
 
+    it('accepts a last invoice without updatedAt', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              trialedProducts: [],
+              subscriptions: [
+                {
+                  id: 'sub_money_account_plus_123',
+                  products: [
+                    {
+                      name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+                      unitAmount: 999,
+                      unitDecimals: 2,
+                      currency: 'usd',
+                    },
+                  ],
+                  status: SUBSCRIPTION_STATUSES.active,
+                  interval: RECURRING_INTERVALS.month,
+                  paymentMethod: {
+                    type: PAYMENT_TYPES.byCrypto,
+                    crypto: {
+                      payerAddress:
+                        '0x123456789012345678901234567890123456abcd',
+                      chainId: '0x1',
+                      tokenSymbol: 'pvmUSD',
+                    },
+                  },
+                  lastInvoice: {
+                    id: 'in_123',
+                    status: 'SUCCEEDED',
+                  },
+                },
+              ],
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.subscriptions[0].lastInvoice).toStrictEqual({
+          id: 'in_123',
+          status: 'SUCCEEDED',
+        });
+      });
+    });
+
+    it('accepts a card payment method without displayBrand', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              trialedProducts: [],
+              subscriptions: [
+                {
+                  ...MOCK_SUBSCRIPTION,
+                  paymentMethod: {
+                    type: PAYMENT_TYPES.byCard,
+                    card: {
+                      brand: 'visa',
+                      last4: '1234',
+                    },
+                  },
+                },
+              ],
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.subscriptions[0].paymentMethod).toStrictEqual({
+          type: PAYMENT_TYPES.byCard,
+          card: {
+            brand: 'visa',
+            last4: '1234',
+          },
+        });
+      });
+    });
+
+    it('accepts the awaiting_funds subscription status', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              trialedProducts: [],
+              subscriptions: [
+                {
+                  ...MOCK_SUBSCRIPTION,
+                  status: 'awaiting_funds',
+                },
+              ],
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.subscriptions[0].status).toBe(
+          SUBSCRIPTION_STATUSES.awaitingFunds,
+        );
+      });
+    });
+
     it('rejects unsupported payment execution error codes', async () => {
       await withMockSubscriptionService(async ({ service, fetchMock }) => {
         fetchMock.mockResolvedValue(
@@ -1404,9 +1509,34 @@ describe('SubscriptionService', () => {
 
     it('should start crypto subscription successfully', async () => {
       await withMockSubscriptionService(async ({ service, fetchMock }) => {
-        const response = {
-          subscriptionId: 'sub_crypto_123',
-          status: SUBSCRIPTION_STATUSES.active,
+        // The Subscription API returns the created subscription (same shape
+        // as `GET /subscriptions` items), not a `{ subscriptionId, status }`
+        // envelope.
+        const response: Subscription = {
+          id: 'sub_crypto_123',
+          products: [
+            {
+              name: PRODUCT_TYPES.SHIELD,
+              currency: 'usd',
+              unitAmount: 900,
+              unitDecimals: 2,
+            },
+          ],
+          status: SUBSCRIPTION_STATUSES.provisional,
+          interval: RECURRING_INTERVALS.month,
+          currentPeriodStart: '2024-01-01T00:00:00Z',
+          currentPeriodEnd: '2024-02-01T00:00:00Z',
+          paymentMethod: {
+            type: PAYMENT_TYPES.byCrypto,
+            crypto: {
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              chainId: '0x1',
+              tokenSymbol: 'USDC',
+            },
+          },
+          billingCycles: 3,
+          isEligibleForSupport: true,
+          cancelType: CANCEL_TYPES.ALLOWED_IMMEDIATE,
         };
 
         fetchMock.mockResolvedValue(createMockResponse({ jsonData: response }));
@@ -1415,6 +1545,73 @@ describe('SubscriptionService', () => {
           await service.startSubscriptionWithCrypto(MOCK_CRYPTO_REQUEST);
 
         expect(result).toStrictEqual(response);
+      });
+    });
+
+    it('passes through additional subscription fields returned by the API', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              id: 'sub_crypto_123',
+              products: [
+                {
+                  name: PRODUCT_TYPES.SHIELD,
+                  currency: 'usd',
+                  unitAmount: 900,
+                  unitDecimals: 2,
+                },
+              ],
+              status: SUBSCRIPTION_STATUSES.awaitingFunds,
+              interval: RECURRING_INTERVALS.month,
+              currentPeriodStart: '2024-01-01T00:00:00Z',
+              currentPeriodEnd: '2024-02-01T00:00:00Z',
+              originalPeriodStart: '2024-01-01T00:00:00Z',
+              renewalCount: 0,
+              createdAt: '2024-01-01T00:00:00Z',
+              rewardAccountId:
+                'eip155:1:0x0000000000000000000000000000000000000001',
+              paymentMethod: {
+                type: PAYMENT_TYPES.byCrypto,
+                crypto: {
+                  payerAddress: '0x0000000000000000000000000000000000000001',
+                  chainId: '0x1',
+                  tokenSymbol: 'USDC',
+                  tokenAddress: '0x0000000000000000000000000000000000000002',
+                  authMethod: CRYPTO_AUTH_METHODS.ERC20_APPROVAL,
+                  isVaultShareToken: false,
+                },
+              },
+              isEligibleForSupport: true,
+              cancelType: CANCEL_TYPES.ALLOWED_IMMEDIATE,
+            },
+          }),
+        );
+
+        const result =
+          await service.startSubscriptionWithCrypto(MOCK_CRYPTO_REQUEST);
+
+        expect(result).toMatchObject({
+          id: 'sub_crypto_123',
+          status: SUBSCRIPTION_STATUSES.awaitingFunds,
+        });
+      });
+    });
+
+    it('rejects a response that is not a subscription', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptionId: 'sub_crypto_123',
+              status: SUBSCRIPTION_STATUSES.active,
+            },
+          }),
+        );
+
+        await expect(
+          service.startSubscriptionWithCrypto(MOCK_CRYPTO_REQUEST),
+        ).rejects.toThrow('id');
       });
     });
 
@@ -2322,8 +2519,24 @@ describe('SubscriptionService', () => {
         fetchMock.mockResolvedValue(
           createMockResponse({
             jsonData: {
-              subscriptionId: 'sub_money_account',
-              status: SUBSCRIPTION_STATUSES.active,
+              ...MOCK_SUBSCRIPTION,
+              id: 'sub_money_account',
+              products: [
+                {
+                  name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+                  currency: 'usd',
+                  unitAmount: 499,
+                  unitDecimals: 2,
+                },
+              ],
+              paymentMethod: {
+                type: PAYMENT_TYPES.byCrypto,
+                crypto: {
+                  payerAddress: '0x0000000000000000000000000000000000000001',
+                  chainId: '0x8f',
+                  tokenSymbol: 'pvmUSD',
+                },
+              },
             },
           }),
         );

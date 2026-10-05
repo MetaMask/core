@@ -1,5 +1,9 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
+  ConfigRegistryControllerGetStateAction,
+  ConfigRegistryControllerStateChangedEvent,
+} from '@metamask/config-registry-controller';
+import type {
   GeolocationControllerGetGeolocationDataAction,
   GeolocationData,
 } from '@metamask/geolocation-controller';
@@ -34,7 +38,8 @@ import type {
  */
 type AnalyticsControllerTestActions =
   | AnalyticsControllerActions
-  | GeolocationControllerGetGeolocationDataAction;
+  | GeolocationControllerGetGeolocationDataAction
+  | ConfigRegistryControllerGetStateAction;
 
 type SetupControllerOptions = {
   state: AnalyticsControllerState;
@@ -69,6 +74,41 @@ type SetupControllerReturn = {
   controller: AnalyticsController;
   messenger: AnalyticsControllerMessenger;
 };
+
+/**
+ * Registers a no-op `ConfigRegistryController:getState` action handler on a
+ * root messenger and delegates it to a child messenger.
+ *
+ * @param rootMessenger - The root messenger to register the handler on.
+ * @param childMessenger - The child messenger to delegate the action to.
+ */
+function registerConfigRegistryMock(
+  rootMessenger: Messenger<
+    MockAnyNamespace,
+    AnalyticsControllerTestActions,
+    AnalyticsControllerEvents
+  >,
+  childMessenger: Messenger<
+    'AnalyticsController',
+    AnalyticsControllerTestActions,
+    AnalyticsControllerEvents,
+    typeof rootMessenger
+  >,
+): void {
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getState',
+    () => ({
+      configs: { networks: {}, eventsConfig: null },
+      version: null,
+      lastFetched: null,
+      etag: null,
+    }),
+  );
+  rootMessenger.delegate({
+    actions: ['ConfigRegistryController:getState'],
+    messenger: childMessenger,
+  });
+}
 
 /**
  * Builds complete geolocation data from a partial fixture.
@@ -147,6 +187,8 @@ async function setupController(
     namespace: 'AnalyticsController',
     parent: rootMessenger,
   });
+
+  registerConfigRegistryMock(rootMessenger, analyticsControllerMessenger);
 
   if (!omitGeolocationAction) {
     rootMessenger.registerActionHandler(
@@ -632,6 +674,8 @@ describe('AnalyticsController', () => {
         parent: rootMessenger,
       });
 
+      registerConfigRegistryMock(rootMessenger, messenger);
+
       // Create controller without isAnonymousEventsFeatureEnabled to test default value
       const controller = new AnalyticsController({
         messenger,
@@ -686,6 +730,8 @@ describe('AnalyticsController', () => {
         parent: rootMessenger,
       });
 
+      registerConfigRegistryMock(rootMessenger, messenger);
+
       expect(() => {
         // eslint-disable-next-line no-new
         new AnalyticsController({
@@ -717,6 +763,8 @@ describe('AnalyticsController', () => {
         namespace: 'AnalyticsController',
         parent: rootMessenger,
       });
+
+      registerConfigRegistryMock(rootMessenger, messenger);
 
       expect(() => {
         // eslint-disable-next-line no-new
@@ -750,6 +798,8 @@ describe('AnalyticsController', () => {
         namespace: 'AnalyticsController',
         parent: rootMessenger,
       });
+
+      registerConfigRegistryMock(rootMessenger, messenger);
 
       expect(() => {
         // eslint-disable-next-line no-new
@@ -828,6 +878,8 @@ describe('AnalyticsController', () => {
         parent: rootMessenger,
       });
 
+      registerConfigRegistryMock(rootMessenger, messenger);
+
       const controller = new AnalyticsController({
         messenger,
         platformAdapter: mockAdapter,
@@ -866,6 +918,8 @@ describe('AnalyticsController', () => {
         namespace: 'AnalyticsController',
         parent: rootMessenger,
       });
+
+      registerConfigRegistryMock(rootMessenger, messenger);
 
       const controller = new AnalyticsController({
         messenger,
@@ -907,6 +961,8 @@ describe('AnalyticsController', () => {
         namespace: 'AnalyticsController',
         parent: rootMessenger,
       });
+
+      registerConfigRegistryMock(rootMessenger, messenger);
 
       const controller = new AnalyticsController({
         messenger,
@@ -1012,6 +1068,8 @@ describe('AnalyticsController', () => {
         parent: rootMessenger,
       });
 
+      registerConfigRegistryMock(rootMessenger, messenger);
+
       const controller = new AnalyticsController({
         messenger,
         platformAdapter: mockAdapter,
@@ -1027,6 +1085,286 @@ describe('AnalyticsController', () => {
       expect(controller).toBeDefined();
       expect(mockAdapter.onSetupCompleted).toHaveBeenCalledTimes(1);
       expect(controller.state.analyticsId).toBeDefined();
+    });
+  });
+
+  describe('fetchEventsConfig (via init)', () => {
+    const analyticsId = '77777777-7777-4777-a777-777777777777';
+
+    function buildConfigRegistryState(
+      eventsConfig: Record<string, unknown> | null = null,
+    ): ReturnType<ConfigRegistryControllerGetStateAction['handler']> {
+      return {
+        configs: {
+          networks: {},
+          eventsConfig,
+        },
+        version: null,
+        lastFetched: null,
+        etag: null,
+        eventsConfigEtag: null,
+      } as unknown as ReturnType<
+        ConfigRegistryControllerGetStateAction['handler']
+      >;
+    }
+
+    it('loads events config from ConfigRegistryController state during init', async () => {
+      const remoteEventsConfig = {
+        schemaVersion: '1.0.0',
+        version: '4a1153d78e32ac8f9975c5fe40e3526a19497525',
+        timestamp: 1761829548000,
+        events: {
+          SomeEvent: [AnalyticsPurpose.Product],
+          MarketingEvent: [AnalyticsPurpose.Marketing],
+        },
+      };
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerTestActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerTestActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({ namespace: 'AnalyticsController', parent: rootMessenger });
+
+      rootMessenger.registerActionHandler(
+        'ConfigRegistryController:getState',
+        () => buildConfigRegistryState(remoteEventsConfig),
+      );
+      rootMessenger.delegate({
+        actions: ['ConfigRegistryController:getState'],
+        messenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: createMockAdapter(),
+        state: { ...getDefaultAnalyticsControllerState(), analyticsId },
+      });
+
+      await controller.init();
+
+      expect(controller.state.eventsConfig).toStrictEqual(remoteEventsConfig);
+    });
+
+    it('skips update when ConfigRegistryController has no eventsConfig', async () => {
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerTestActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerTestActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({ namespace: 'AnalyticsController', parent: rootMessenger });
+
+      rootMessenger.registerActionHandler(
+        'ConfigRegistryController:getState',
+        () => buildConfigRegistryState(null),
+      );
+      rootMessenger.delegate({
+        actions: ['ConfigRegistryController:getState'],
+        messenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: createMockAdapter(),
+        state: { ...getDefaultAnalyticsControllerState(), analyticsId },
+      });
+
+      await controller.init();
+
+      expect(controller.state.eventsConfig).toBeUndefined();
+    });
+
+    it('skips update when remote version matches current version', async () => {
+      const existingEventsConfig = {
+        schemaVersion: '1.0.0',
+        version: '4a1153d78e32ac8f9975c5fe40e3526a19497525',
+        timestamp: 1761829548000,
+        events: { OldEvent: [AnalyticsPurpose.Product] },
+      };
+
+      const remoteEventsConfig = {
+        ...existingEventsConfig,
+        events: { NewEvent: [AnalyticsPurpose.Product] },
+      };
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerTestActions,
+        AnalyticsControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerTestActions,
+        AnalyticsControllerEvents,
+        typeof rootMessenger
+      >({ namespace: 'AnalyticsController', parent: rootMessenger });
+
+      rootMessenger.registerActionHandler(
+        'ConfigRegistryController:getState',
+        () => buildConfigRegistryState(remoteEventsConfig),
+      );
+      rootMessenger.delegate({
+        actions: ['ConfigRegistryController:getState'],
+        messenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: createMockAdapter(),
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId,
+          eventsConfig: existingEventsConfig,
+        },
+      });
+
+      await controller.init();
+
+      // Events config was not updated because version matches
+      expect(controller.state.eventsConfig?.events).toStrictEqual(
+        existingEventsConfig.events,
+      );
+    });
+
+    it('refreshes events config when ConfigRegistryController state changes', async () => {
+      type TestEvents =
+        | AnalyticsControllerEvents
+        | ConfigRegistryControllerStateChangedEvent;
+
+      const initialEventsConfig = {
+        schemaVersion: '1.0.0',
+        version: '4a1153d78e32ac8f9975c5fe40e3526a19497525',
+        timestamp: 1761829548000,
+        events: { OldEvent: [AnalyticsPurpose.Product] },
+      };
+
+      const updatedEventsConfig = {
+        schemaVersion: '1.0.0',
+        version: 'b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1',
+        timestamp: 1761829549000,
+        events: { NewEvent: [AnalyticsPurpose.Marketing] },
+      };
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerTestActions,
+        TestEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerTestActions,
+        TestEvents,
+        typeof rootMessenger
+      >({ namespace: 'AnalyticsController', parent: rootMessenger });
+
+      let currentEventsConfig: Record<string, unknown> | null =
+        initialEventsConfig;
+      rootMessenger.registerActionHandler(
+        'ConfigRegistryController:getState',
+        () => buildConfigRegistryState(currentEventsConfig),
+      );
+      rootMessenger.delegate({
+        actions: ['ConfigRegistryController:getState'],
+        events: ['ConfigRegistryController:stateChanged'],
+        messenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: createMockAdapter(),
+        state: { ...getDefaultAnalyticsControllerState(), analyticsId },
+      });
+
+      await controller.init();
+      expect(controller.state.eventsConfig).toStrictEqual(initialEventsConfig);
+
+      currentEventsConfig = updatedEventsConfig;
+      rootMessenger.publish(
+        'ConfigRegistryController:stateChanged',
+        buildConfigRegistryState(updatedEventsConfig),
+        [],
+      );
+
+      // Allow the async fetch callback to complete
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(controller.state.eventsConfig).toStrictEqual(updatedEventsConfig);
+    });
+
+    it('skips refresh when ConfigRegistryController state changes but eventsConfig version is unchanged', async () => {
+      type TestEvents =
+        | AnalyticsControllerEvents
+        | ConfigRegistryControllerStateChangedEvent;
+
+      const eventsConfig = {
+        schemaVersion: '1.0.0',
+        version: '4a1153d78e32ac8f9975c5fe40e3526a19497525',
+        timestamp: 1761829548000,
+        events: { SomeEvent: [AnalyticsPurpose.Product] },
+      };
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AnalyticsControllerTestActions,
+        TestEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+
+      const messenger = new Messenger<
+        'AnalyticsController',
+        AnalyticsControllerTestActions,
+        TestEvents,
+        typeof rootMessenger
+      >({ namespace: 'AnalyticsController', parent: rootMessenger });
+
+      const getStateMock = jest.fn(() =>
+        buildConfigRegistryState(eventsConfig),
+      );
+      rootMessenger.registerActionHandler(
+        'ConfigRegistryController:getState',
+        getStateMock,
+      );
+      rootMessenger.delegate({
+        actions: ['ConfigRegistryController:getState'],
+        events: ['ConfigRegistryController:stateChanged'],
+        messenger,
+      });
+
+      const controller = new AnalyticsController({
+        messenger,
+        platformAdapter: createMockAdapter(),
+        state: { ...getDefaultAnalyticsControllerState(), analyticsId },
+      });
+
+      await controller.init();
+      const eventsConfigAfterInit = controller.state.eventsConfig;
+
+      // Publish a state change with the same eventsConfig version
+      rootMessenger.publish(
+        'ConfigRegistryController:stateChanged',
+        buildConfigRegistryState(eventsConfig),
+        [],
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // eventsConfig state should not have changed since version is unchanged
+      expect(controller.state.eventsConfig).toStrictEqual(
+        eventsConfigAfterInit,
+      );
     });
   });
 
@@ -2651,7 +2989,7 @@ describe('AnalyticsController', () => {
               messageId: 'different-message-id',
               timestamp: '2026-01-01T00:00:00.000Z',
             },
-          } as unknown as AnalyticsControllerState['eventQueue'],
+          },
         },
         platformAdapter: mockAdapter,
         isEventQueuePersistenceEnabled: true,
@@ -2728,7 +3066,7 @@ describe('AnalyticsController', () => {
               timestamp: '2026-01-01T00:00:00.000Z',
               context: 'invalid',
             },
-          } as unknown as AnalyticsControllerState['eventQueue'],
+          },
         },
         platformAdapter: mockAdapter,
         isEventQueuePersistenceEnabled: true,
@@ -4548,7 +4886,7 @@ describe('AnalyticsController', () => {
             events: {
               [productEvent]: [],
             },
-          } as unknown as AnalyticsControllerState['eventsConfig'],
+          },
         },
         platformAdapter: adapter,
         isGeolocationEnabled: false,
@@ -5627,7 +5965,7 @@ describe('AnalyticsController', () => {
               messageId: 'identify',
               timestamp: '2026-01-01T00:00:01.000Z',
             },
-          } as unknown as AnalyticsControllerState['eventQueue'],
+          },
         },
         isGeolocationEnabled: false,
         isEventQueuePersistenceEnabled: true,
@@ -5868,7 +6206,7 @@ describe('AnalyticsController', () => {
               eventPurposes: [AnalyticsPurpose.Marketing],
               eventsConfigVersion,
             },
-          } as unknown as AnalyticsControllerState['preConsentEventQueue'],
+          },
         },
         platformAdapter: adapter,
         isGeolocationEnabled: false,
@@ -5897,7 +6235,7 @@ describe('AnalyticsController', () => {
           eventsConfig,
           preConsentEventQueue: {
             invalid: 'not-an-event',
-          } as unknown as AnalyticsControllerState['preConsentEventQueue'],
+          },
         },
         isGeolocationEnabled: false,
         isPreConsentQueueEnabled: true,

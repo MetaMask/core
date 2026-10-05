@@ -33,7 +33,7 @@ import type { Messenger, ExtractEventPayload } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { isCaipChainId } from '@metamask/utils';
 import type { CaipChainId } from '@metamask/utils';
-import type { WritableDraft } from 'immer/dist/internal.js';
+import type { WritableDraft } from 'immer';
 import { cloneDeep } from 'lodash-es';
 
 import { AccountsControllerMethodActions } from './AccountsController-method-action-types.js';
@@ -53,7 +53,7 @@ import {
   getUUIDFromAddressOfNormalAccount,
   isHdKeyringType,
   isHdSnapKeyringAccount,
-  isMoneyKeyringType,
+  isSkippedKeyringType,
   isSnapKeyringType,
   isSnapKeyringV2Type,
   keyringTypeToName,
@@ -680,9 +680,11 @@ export class AccountsController extends BaseController<
 
     const { keyrings } = this.messenger.call('KeyringController:getState');
     for (const keyring of keyrings) {
-      // Money accounts are not treated as real accounts, they are owned by the `MoneyAccountController`, so
-      // we need to filter them out here.
-      if (isMoneyKeyringType(keyring.type)) {
+      const { type } = keyring;
+
+      // Skipped accounts (Money or MPC) are not treated as real accounts, they are owned by their
+      // respective controllers, so we need to filter them out here.
+      if (isSkippedKeyringType(type)) {
         continue;
       }
 
@@ -1006,9 +1008,9 @@ export class AccountsController extends BaseController<
     // Go over all keyring changes and create patches out of it.
     const addresses = new Set<string>();
     for (const keyring of keyrings) {
-      // Money accounts are not treated as real accounts, they are owned by the `MoneyAccountController`, so
-      // we need to filter them out here.
-      if (isMoneyKeyringType(keyring.type)) {
+      // Skipped accounts (Money or MPC) are not treated as real accounts, they are owned by their
+      // respective controllers, so we need to filter them out here.
+      if (isSkippedKeyringType(keyring.type)) {
         continue;
       }
 
@@ -1066,9 +1068,7 @@ export class AccountsController extends BaseController<
           );
 
           if (account) {
-            const accounts = Object.values(
-              internalAccounts.accounts,
-            ) as InternalAccount[];
+            const accounts = Object.values(internalAccounts.accounts);
 
             // If it's the first account, we need to select it.
             const lastSelected =
@@ -1143,9 +1143,7 @@ export class AccountsController extends BaseController<
       // If the account no longer exists (or none is selected), we need to re-select another one.
       const { internalAccounts } = state;
       if (!internalAccounts.accounts[previouslySelectedAccount]) {
-        const accounts = Object.values(
-          internalAccounts.accounts,
-        ) as InternalAccount[];
+        const accounts = Object.values(internalAccounts.accounts);
 
         // Get the lastly selected account (according to the current accounts).
         const lastSelectedAccount = this.#getLastSelectedAccount(accounts);

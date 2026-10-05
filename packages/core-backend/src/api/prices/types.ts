@@ -62,11 +62,42 @@ export type V1ExchangeRatesResponse = {
 // SUPPORTED NETWORKS TYPES
 // ============================================================================
 
-/** Price supported networks response */
-export type PriceSupportedNetworksResponse = {
-  fullSupport: string[];
-  partialSupport: string[];
+/**
+ * Price v1 supported networks response (`/v1/supportedNetworks`).
+ * Chain IDs are decimal numbers.
+ */
+export type PriceV1SupportedNetworksResponse = {
+  /** Chains supported by every spot price endpoint. */
+  fullSupport: number[];
+  /** Chains supported only by specific spot price endpoints. */
+  partialSupport: {
+    spotPricesV2: number[];
+  };
 };
+
+/**
+ * Price v2 supported networks response (`/v2/supportedNetworks`).
+ * Chain IDs are CAIP-2 strings (e.g. `eip155:1`).
+ *
+ * Note: `partialSupport` is an object keyed by endpoint, not an array.
+ */
+export type PriceV2SupportedNetworksResponse = {
+  /** Chains supported by every spot price endpoint. */
+  fullSupport: string[];
+  /** Chains supported only by specific spot price endpoints. */
+  partialSupport: {
+    spotPricesV2: string[];
+    spotPricesV3: string[];
+  };
+};
+
+/**
+ * Price supported networks response.
+ *
+ * @deprecated Use `PriceV2SupportedNetworksResponse` (or
+ * `PriceV1SupportedNetworksResponse` for the v1 endpoint) instead.
+ */
+export type PriceSupportedNetworksResponse = PriceV2SupportedNetworksResponse;
 
 // ============================================================================
 // HISTORICAL PRICES TYPES

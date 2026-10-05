@@ -72,6 +72,8 @@ export default createConfig({
         'packages/*/jest.config.cjs',
         'packages/*/jest.config.e2e.cjs',
         'packages/*/jest.environment.cjs',
+        'packages/*/jest.config.integration.cjs',
+        'packages/*/jest.config.unit.cjs',
         '**/*.test.ts',
         '**/test/**',
         '**/tests/**',
@@ -80,6 +82,41 @@ export default createConfig({
       rules: {
         'node/no-sync': 'off',
         'node/no-process-env': 'off',
+      },
+    },
+
+    {
+      files: ['packages/advanced-chart-core/**'],
+      env: { browser: true },
+    },
+
+    {
+      files: [
+        'packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts',
+        'packages/foundryup/src/cli.ts',
+        'packages/java-tron-up/src/bin/java-tron-up.ts',
+        'packages/messenger-cli/src/cli.ts',
+        'packages/platform-api-docs/src/cli.ts',
+      ],
+      rules: {
+        'n/hashbang': 'off',
+      },
+    },
+
+    {
+      files: ['scripts/**/*.ts'],
+      rules: {
+        'import/extensions': [
+          'error',
+          'ignorePackages',
+          {
+            checkTypeImports: true,
+            pattern: {
+              ts: 'ignorePackages',
+              js: 'never',
+            },
+          },
+        ],
       },
     },
   ],

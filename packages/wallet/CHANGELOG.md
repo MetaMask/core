@@ -9,9 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/claims-controller` from `^1.0.2` to `^1.0.3` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/shield-controller` from `^7.0.3` to `^7.0.4` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/subscription-controller` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [16.0.1]
+
+### Changed
+
+- Bump `@metamask/config-registry-controller` from `^4.0.0` to `^5.0.0` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+
+## [16.0.0]
+
+### Changed
+
+- **BREAKING:** Grant `SubscriptionController` access to `SeedlessOnboardingController:getIsUserAuthenticated` ([#10622](https://github.com/MetaMask/core/pull/10622))
+  - Clients must delegate this action to the Wallet messenger.
+- **BREAKING:** Wire up `ConfigRegistryApiService:fetchEventsConfig` action handler in `configRegistryController` initialization ([#10448](https://github.com/MetaMask/core/pull/10448))
+  - The messenger passed to Wallet must support this action.
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/subscription-controller` from `^11.0.0` to `^12.0.0` ([#10655](https://github.com/MetaMask/core/pull/10655))
+
+## [15.1.0]
+
+### Changed
+
+- Grant `SubscriptionDelegationService` access to the additional messenger actions required by `SubscriptionDelegationService:startSubscriptionWithDelegation` ([#10339](https://github.com/MetaMask/core/pull/10339))
+  - `ApprovalController:addRequest`, `MoneyAccountUpgradeController:forceUpgradeAccount`, `SubscriptionController:getState`, `SubscriptionController:getSubscriptions`, and `SubscriptionController:startSubscriptionWithCrypto`
+  - Hosts that supply their own root messenger must allow these actions and register `MoneyAccountUpgradeController` before calling `SubscriptionDelegationService:startSubscriptionWithDelegation`.
 - Bump `@metamask/claims-controller` from `^1.0.1` to `^1.0.2` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/shield-controller` from `^7.0.2` to `^7.0.3` ([#10459](https://github.com/MetaMask/core/pull/10459))
-- Bump `@metamask/subscription-controller` from `^10.0.0` to `^10.0.1` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/subscription-controller` from `^10.0.0` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459), [#10570](https://github.com/MetaMask/core/pull/10570))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
 
 ## [15.0.1]
 
@@ -303,7 +333,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.1...HEAD
+[16.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.0...@metamask/wallet@16.0.1
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.1.0...@metamask/wallet@16.0.0
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.1...@metamask/wallet@15.1.0
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.0...@metamask/wallet@15.0.1
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.1...@metamask/wallet@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@14.0.0...@metamask/wallet@14.0.1

@@ -315,9 +315,7 @@ function isNativeBalanceCreated(
  */
 function getEvents(response: SimulationResponse): ParsedEvent[] {
   /* istanbul ignore next */
-  const logs = extractLogs(
-    response.transactions[0]?.callTrace ?? ({} as SimulationResponseCallTrace),
-  );
+  const logs = extractLogs(response.transactions[0]?.callTrace ?? {});
 
   log('Extracted logs', logs);
 
@@ -329,7 +327,7 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
 
       if (!event) {
         log('Failed to parse log', currentLog);
-        return undefined;
+        return;
       }
 
       /* istanbul ignore next */
@@ -340,12 +338,12 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
       /* istanbul ignore if */
       if (!inputs) {
         log('Failed to find inputs for event', event);
-        return undefined;
+        return;
       }
 
       if (!SUPPORTED_EVENTS.includes(event.name)) {
         log('Ignoring unsupported event', event.name, event);
-        return undefined;
+        return;
       }
 
       log('Normalizing event args', event.name, event);
@@ -360,7 +358,7 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
         abi: event.abi,
       };
     })
-    .filter((parsedEvent) => parsedEvent !== undefined) as ParsedEvent[];
+    .filter((parsedEvent) => parsedEvent !== undefined);
 }
 
 /**
@@ -464,7 +462,7 @@ async function getTokenBalanceChanges(
       );
 
       if (!balanceChange) {
-        return undefined;
+        return;
       }
 
       return {
@@ -472,7 +470,7 @@ async function getTokenBalanceChanges(
         ...balanceChange,
       };
     })
-    .filter((change) => change !== undefined) as SimulationTokenBalanceChange[];
+    .filter((change) => change !== undefined);
 }
 
 /**

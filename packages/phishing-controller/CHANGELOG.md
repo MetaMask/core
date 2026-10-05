@@ -9,8 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
+
+## [18.2.0]
+
+### Added
+
+- Add optional request-source attribution parameters to `PhishingController.scanUrl` and `bulkScanUrls`, emitting an `x-request-source` header. ([#10357](https://github.com/MetaMask/core/pull/10357))
+
+### Changed
+
 - Bump `@types/punycode` from `^2.1.0` to `^2.1.4` ([#10441](https://github.com/MetaMask/core/pull/10441))
 - Bump `punycode` from `^2.1.1` to `^2.3.1` ([#10441](https://github.com/MetaMask/core/pull/10441))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+- Bump `ethereum-cryptography` from `^2.1.2` to `^2.2.1` ([#10485](https://github.com/MetaMask/core/pull/10485))
 
 ## [18.1.1]
 
@@ -690,7 +702,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.0...HEAD
+[18.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.1...@metamask/phishing-controller@18.2.0
 [18.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.0...@metamask/phishing-controller@18.1.1
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.0.0...@metamask/phishing-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.1...@metamask/phishing-controller@18.0.0

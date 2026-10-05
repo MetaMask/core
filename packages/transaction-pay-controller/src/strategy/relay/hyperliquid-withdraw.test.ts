@@ -101,7 +101,7 @@ describe('submitHyperliquidWithdraw', () => {
     signTypedMessageMock = jest.fn().mockResolvedValue(SIGNATURE_MOCK);
 
     messenger.registerActionHandler(
-      'KeyringController:signTypedMessage' as never,
+      'KeyringController:signTypedMessage',
       signTypedMessageMock,
     );
 
@@ -112,9 +112,7 @@ describe('submitHyperliquidWithdraw', () => {
 
   afterEach(() => {
     try {
-      messenger.unregisterActionHandler(
-        'KeyringController:signTypedMessage' as never,
-      );
+      messenger.unregisterActionHandler('KeyringController:signTypedMessage');
     } catch {
       // already unregistered
     }

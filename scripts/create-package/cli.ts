@@ -1,6 +1,6 @@
 import yargs from 'yargs';
 
-import type { CommandModule } from './commands.js';
+import type { CommandModule } from './commands.ts';
 
 /**
  * The entry point of `create-package`, a yargs application for creating new

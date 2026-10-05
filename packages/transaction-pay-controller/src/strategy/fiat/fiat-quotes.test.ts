@@ -52,7 +52,7 @@ const TRANSACTION_MOCK = {
 } as TransactionMeta;
 
 const REQUIRED_TOKEN_MOCK: TransactionPayRequiredToken = {
-  address: '0x2222222222222222222222222222222222222222' as Hex,
+  address: '0x2222222222222222222222222222222222222222',
   allowUnderMinimum: false,
   amountFiat: '12',
   amountHuman: '12',
@@ -189,7 +189,7 @@ function getRequest({
         };
         const fiatPayment: TransactionFiatPayment = {};
         callback(fiatPayment);
-        return undefined;
+        return;
       }
 
       if (action === 'RemoteFeatureFlagController:getState') {
@@ -598,7 +598,7 @@ describe('getFiatQuotes', () => {
               callback: (fp: TransactionFiatPayment) => void;
             };
             callback(fiatPaymentState);
-            return undefined;
+            return;
           }
 
           if (action === 'RemoteFeatureFlagController:getState') {
@@ -661,7 +661,7 @@ describe('getFiatQuotes', () => {
               callback: (fp: TransactionFiatPayment) => void;
             };
             callback(fiatPaymentState);
-            return undefined;
+            return;
           }
 
           if (action === 'RemoteFeatureFlagController:getState') {
@@ -748,7 +748,7 @@ describe('getFiatQuotes', () => {
       'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da';
 
     const MUSD_TOKEN_MOCK: TransactionPayRequiredToken = {
-      address: '0x3333333333333333333333333333333333333333' as Hex,
+      address: '0x3333333333333333333333333333333333333333',
       allowUnderMinimum: false,
       amountFiat: '10',
       amountHuman: '10',
@@ -758,7 +758,7 @@ describe('getFiatQuotes', () => {
       balanceHuman: '0',
       balanceRaw: '0',
       balanceUsd: '0',
-      chainId: '0x8f' as Hex,
+      chainId: '0x8f',
       decimals: 6,
       skipIfBalance: false,
       symbol: 'MUSD',
@@ -808,7 +808,7 @@ describe('getFiatQuotes', () => {
             };
             const fiatPayment: TransactionFiatPayment = {};
             callback(fiatPayment);
-            return undefined;
+            return;
           }
 
           if (action === 'RemoteFeatureFlagController:getState') {
@@ -1029,7 +1029,7 @@ describe('getFiatQuotes', () => {
             MUSD_TOKEN_MOCK,
             {
               ...MUSD_TOKEN_MOCK,
-              address: '0x4444444444444444444444444444444444444444' as Hex,
+              address: '0x4444444444444444444444444444444444444444',
             },
           ],
         }).request,

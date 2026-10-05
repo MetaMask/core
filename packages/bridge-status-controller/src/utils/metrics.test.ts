@@ -1116,7 +1116,7 @@ describe('metrics utils', () => {
           ...getQuotesReceivedProperties(null),
           custom_slippage: true,
           slippage_limit: 3.5,
-        } as never,
+        },
       );
 
       expect(result.custom_slippage).toBe(true);
@@ -1191,7 +1191,7 @@ describe('metrics utils', () => {
         error: {
           message: 'Error message',
           name: 'Error',
-        } as TransactionError,
+        },
       };
       const result = getEVMTxPropertiesFromTransactionMeta(
         failedTransactionMeta,
@@ -1210,7 +1210,7 @@ describe('metrics utils', () => {
         error: {
           message: 'reverted',
           name: 'Error',
-        } as TransactionError,
+        },
       };
       const result = getEVMTxPropertiesFromTransactionMeta(failedWithHash);
       expect(result.source_hash_present).toBe(true);

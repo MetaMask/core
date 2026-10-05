@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [82.0.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/assets-controller` from `^18.0.0` to `^18.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/assets-controllers` from `^112.1.1` to `^112.1.2` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [82.0.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^17.0.0` to `^18.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
+- Bump `@metamask/assets-controllers` from `^112.1.0` to `^112.1.1` ([#10648](https://github.com/MetaMask/core/pull/10648))
+
+## [82.0.0]
+
+### Changed
+
+- **BREAKING:** Rename `recurring_buy` FeatureId to `recurring_order` ([#10631](https://github.com/MetaMask/core/pull/10631))
+- Bump `@metamask/assets-controllers` from `^112.0.4` to `^112.1.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
+
+## [81.4.0]
+
+### Added
+
+- Add `DiscountType.SUBSCRIPTION` (`'subscription'`) for subscription-based quote discounts. ([#10560](https://github.com/MetaMask/core/pull/10560))
+
+### Changed
+
+- Bump `@ethersproject/bignumber` from `^5.7.0` to `^5.8.0` ([#10479](https://github.com/MetaMask/core/pull/10479))
+- Bump `@ethersproject/constants` from `^5.7.0` to `^5.8.0` ([#10481](https://github.com/MetaMask/core/pull/10481))
+- Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@ethersproject/address` from `^5.7.0` to `^5.8.0` ([#10478](https://github.com/MetaMask/core/pull/10478))
+
+## [81.3.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+- Bump `@metamask/assets-controller` from `^16.1.2` to `^17.0.0` ([#10474](https://github.com/MetaMask/core/pull/10474))
+
 ## [81.3.2]
 
 ### Changed
@@ -2083,7 +2127,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.2...HEAD
+[82.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.1...@metamask/bridge-controller@82.0.2
+[82.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.0...@metamask/bridge-controller@82.0.1
+[82.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.4.0...@metamask/bridge-controller@82.0.0
+[81.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.3...@metamask/bridge-controller@81.4.0
+[81.3.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.2...@metamask/bridge-controller@81.3.3
 [81.3.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.1...@metamask/bridge-controller@81.3.2
 [81.3.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.3.0...@metamask/bridge-controller@81.3.1
 [81.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.2.0...@metamask/bridge-controller@81.3.0

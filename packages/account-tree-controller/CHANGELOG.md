@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.1]
+
+### Changed
+
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
 ## [11.0.0]
 
 ### Added
@@ -733,7 +740,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.0.1...HEAD
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.0.0...@metamask/account-tree-controller@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@10.0.1...@metamask/account-tree-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@10.0.0...@metamask/account-tree-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@9.0.0...@metamask/account-tree-controller@10.0.0

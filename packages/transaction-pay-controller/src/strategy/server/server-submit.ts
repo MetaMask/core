@@ -19,10 +19,17 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { accountSupports7702 } from '../../utils/7702.js';
 import {
   getServerPollingInterval,
   getServerPollingTimeout,
 } from '../../utils/feature-flags.js';
+import type { GasPayment } from '../../utils/gas-payment.js';
+import {
+  GasPaymentMode,
+  logGasPaymentOutcome,
+  resolveGasPayment,
+} from '../../utils/gas-payment.js';
 import { getNetworkClientId } from '../../utils/provider.js';
 import {
   getLiveTokenBalance,
@@ -204,7 +211,18 @@ async function submitTransactionSteps(
     messenger,
   );
 
-  if (quote.original.gasless) {
+  const gasPayment = resolveGasPayment({
+    isDelegated: quote.original.gasless,
+    isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
+    sourceTokenAddress: quote.request.sourceTokenAddress,
+    sponsorship: {
+      accountSupports7702: accountSupports7702(messenger, quote.request.from),
+      request: quote.request,
+      transaction,
+    },
+  });
+
+  if (gasPayment.mode === GasPaymentMode.Delegation) {
     await submitViaServerExecute(
       quote,
       stepTransactions,
@@ -217,6 +235,7 @@ async function submitTransactionSteps(
       stepTransactions,
       messenger,
       transaction,
+      gasPayment,
     );
   }
 }
@@ -498,11 +517,11 @@ async function prependPostQuoteTransactions(
     );
   } else {
     prependedParams = {
-      data: transaction.txParams.data as Hex | undefined,
+      data: transaction.txParams.data,
       from: transaction.txParams.from,
       to: transaction.txParams.to,
-      value: transaction.txParams.value as Hex | undefined,
-    } as TransactionParams;
+      value: transaction.txParams.value,
+    };
   }
 
   // Ensure the prepended tx carries the same fee caps as the quote steps so
@@ -538,7 +557,7 @@ async function buildDelegatedOriginalParams(
 
   return {
     data: delegation.data,
-    from: transaction.txParams.from as Hex,
+    from: transaction.txParams.from,
     to: delegation.to,
     value: delegation.value,
   };
@@ -670,14 +689,13 @@ async function submitViaTransactionController(
   stepTransactions: StepTransaction[],
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
+  gasPayment: GasPayment,
 ): Promise<void> {
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { from, sourceChainId } = quote.request;
   const { gasLimits, is7702 } = quote.original.client;
+  const { excludeNativeTokenForFee, gasFeeToken } = gasPayment;
 
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
-  const gasFeeToken = quote.fees.isSourceGasFeeToken
-    ? sourceTokenAddress
-    : undefined;
 
   log('Submitting via TransactionController', {
     from,
@@ -714,7 +732,9 @@ async function submitViaTransactionController(
       const { params, type } = stepTransactions[0];
 
       const addTransactionOptions = {
+        excludeNativeTokenForFee,
         gasFeeToken,
+        isGasFeeSponsored: gasPayment.isGasFeeSponsored,
         isInternal: true,
         networkClientId,
         origin: ORIGIN_METAMASK,
@@ -765,7 +785,9 @@ async function submitViaTransactionController(
               disableSequential: true,
               gasLimit7702,
             }),
+        excludeNativeTokenForFee,
         gasFeeToken,
+        isGasFeeSponsored: gasPayment.isGasFeeSponsored,
         isInternal: true,
         networkClientId,
         origin: ORIGIN_METAMASK,
@@ -792,6 +814,11 @@ async function submitViaTransactionController(
   );
 
   log('Server transactions confirmed', transactionIds);
+
+  logGasPaymentOutcome(
+    gasPayment,
+    transactionIds.map((txId) => getTransaction(txId, messenger)),
+  );
 
   const lastId = transactionIds.at(-1);
   const sourceHash = lastId

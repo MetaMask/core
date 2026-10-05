@@ -1,5 +1,3 @@
-#!/usr/bin/env -S node --require "./node_modules/tsx/dist/preflight.cjs" --import "./node_modules/tsx/dist/loader.mjs"
-
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import type { Dir } from 'node:fs';

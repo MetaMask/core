@@ -120,7 +120,7 @@ describe('wallet_requestExecutionPermissions', () => {
   });
 
   it('supports null rules', async () => {
-    params[0].rules = null as never;
+    params[0].rules = null;
 
     await callMethod();
 

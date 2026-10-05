@@ -10,6 +10,7 @@ import type { PerpsPlatformDependencies } from '../types/index.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
 import { ensureError } from '../utils/errorUtils.js';
+import { isMissingActionHandlerError } from './missingActionHandler.js';
 import type { ServiceContext } from './ServiceContext.js';
 
 /**
@@ -43,10 +44,27 @@ export class DataLakeService {
   /**
    * Get bearer token via DI authentication controller
    *
-   * @returns The bearer token string for API authentication.
+   * @returns The bearer token string for API authentication, or undefined when
+   * the host does not provide `AuthenticationController:getBearerToken`.
    */
-  async #getBearerToken(): Promise<string> {
-    return this.#messenger.call('AuthenticationController:getBearerToken');
+  async #getBearerToken(): Promise<string | undefined> {
+    try {
+      return await this.#messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+    } catch (error) {
+      // Reporting is optional: a host without authentication skips it rather
+      // than logging and retrying a call that can never succeed.
+      if (
+        isMissingActionHandlerError(
+          error,
+          'AuthenticationController:getBearerToken',
+        )
+      ) {
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -139,6 +157,12 @@ export class DataLakeService {
           hasToken: Boolean(token),
           action,
           symbol,
+        });
+        // Not retried, so close the trace opened on the first attempt.
+        this.#deps.tracer.endTrace({
+          name: PerpsTraceNames.DataLakeReport,
+          id: traceId,
+          data: { success: false, error: 'No account or token available' },
         });
         return { success: false, error: 'No account or token available' };
       }

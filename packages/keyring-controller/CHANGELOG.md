@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KeyringTypes.mpc` ([#10577](https://github.com/MetaMask/core/pull/10577))
+
 ### Changed
 
 - Changed `withKeyring` and `withKeyringV2` transactions to snapshot and diff only the operated keyring, instead of every keyring ([#10407](https://github.com/MetaMask/core/pull/10407))
@@ -16,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Keyrings that a failed operation did not touch now keep their in-memory instances: `destroy()` is no longer invoked on them, and references previously obtained (e.g. via `getKeyringsByType` or `getKeyringForAccount`) remain valid after a rollback.
   - Unsupported keyrings are no longer re-attempted when an operation rolls back.
   - A keyring that fails to destroy during a rollback no longer aborts it: the failure is logged, the rollback completes, and the error of the failed operation is still the one thrown.
+- Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
+- Bump `ethereumjs-wallet` from `^1.0.1` to `^1.0.2` ([#10486](https://github.com/MetaMask/core/pull/10486))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `ulid` from `^2.3.0` to `^2.4.0` ([#10533](https://github.com/MetaMask/core/pull/10533))
 
 ## [28.1.0]
 

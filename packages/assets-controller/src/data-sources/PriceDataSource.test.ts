@@ -6,7 +6,7 @@ import type {
   DataRequest,
   Context,
   Caip19AssetId,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
 } from '../types.js';
 import { normalizeAssetId } from '../utils/index.js';
 import type { PriceDataSourceOptions } from './PriceDataSource.js';
@@ -31,7 +31,7 @@ type MockApiClient = {
 type SetupResult = {
   controller: PriceDataSource;
   apiClient: MockApiClient;
-  getAssetsState: () => AssetsControllerStateInternal;
+  getAssetsState: () => AssetsControllerState;
   assetsUpdateHandler: jest.Mock;
 };
 
@@ -52,7 +52,7 @@ function createMockAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 function createDataRequest(
@@ -76,7 +76,6 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn().mockReturnValue({ assetsPrice: {} }),
     ...overrides,
   };
 }
@@ -84,13 +83,17 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
 function createMockApiClient(
   priceResponse: Record<string, unknown> = {},
   supportedNetworks: string[] = ['eip155:1'],
+  partialSupportNetworks: string[] = [],
 ): MockApiClient {
   return {
     prices: {
       fetchV3SpotPrices: jest.fn().mockResolvedValue(priceResponse),
       fetchPriceV2SupportedNetworks: jest.fn().mockResolvedValue({
         fullSupport: supportedNetworks,
-        partialSupport: [],
+        partialSupport: {
+          spotPricesV2: [],
+          spotPricesV3: partialSupportNetworks,
+        },
       }),
     },
   };
@@ -119,6 +122,8 @@ function setupController(
     getSelectedCurrency?: () => SupportedCurrency;
     pollInterval?: number;
     supportedNetworks?: string[];
+    partialSupportNetworks?: string[];
+    getAssetsState?: () => AssetsControllerState;
   } = {},
 ): SetupResult {
   const {
@@ -127,14 +132,26 @@ function setupController(
     getSelectedCurrency = (): SupportedCurrency => 'usd',
     pollInterval,
     supportedNetworks = ['eip155:1'],
+    partialSupportNetworks = [],
+    getAssetsState: getAssetsStateOverride,
   } = options;
 
-  const apiClient = createMockApiClient(priceResponse, supportedNetworks);
+  const apiClient = createMockApiClient(
+    priceResponse,
+    supportedNetworks,
+    partialSupportNetworks,
+  );
+
+  const getAssetsState =
+    getAssetsStateOverride ??
+    ((): AssetsControllerState =>
+      ({ assetsBalance: balanceState }) as AssetsControllerState);
 
   const controllerOptions: PriceDataSourceOptions = {
     queryApiClient:
       apiClient as unknown as PriceDataSourceOptions['queryApiClient'],
     getSelectedCurrency,
+    getAssetsState,
   };
 
   if (pollInterval) {
@@ -143,8 +160,6 @@ function setupController(
 
   const controller = new PriceDataSource(controllerOptions);
 
-  const getAssetsState = (): AssetsControllerStateInternal =>
-    ({ assetsBalance: balanceState }) as AssetsControllerStateInternal;
   const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
 
   return {
@@ -181,14 +196,11 @@ describe('PriceDataSource', () => {
   });
 
   it('fetch returns empty response when no assets in balance state', async () => {
-    const { controller, getAssetsState } = setupController({
+    const { controller } = setupController({
       balanceState: {},
     });
 
-    const response = await controller.fetch(
-      createDataRequest(),
-      getAssetsState,
-    );
+    const response = await controller.fetch(createDataRequest());
 
     expect(response).toStrictEqual({});
 
@@ -196,10 +208,10 @@ describe('PriceDataSource', () => {
   });
 
   it('fetch retrieves prices for assets in balance state', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -207,10 +219,7 @@ describe('PriceDataSource', () => {
       },
     });
 
-    const response = await controller.fetch(
-      createDataRequest(),
-      getAssetsState,
-    );
+    const response = await controller.fetch(createDataRequest());
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       [MOCK_NATIVE_ASSET],
@@ -230,11 +239,11 @@ describe('PriceDataSource', () => {
   });
 
   it('fetch skips malformed asset IDs in balance state and still fetches prices for valid assets', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
           'not-a-valid-caip19': { amount: '999' },
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -242,10 +251,7 @@ describe('PriceDataSource', () => {
       },
     });
 
-    const response = await controller.fetch(
-      createDataRequest(),
-      getAssetsState,
-    );
+    const response = await controller.fetch(createDataRequest());
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       [MOCK_NATIVE_ASSET],
@@ -268,8 +274,7 @@ describe('PriceDataSource', () => {
     // Generate 120 distinct mock asset IDs to exceed the 50-item batch limit.
     const assetIds = Array.from(
       { length: 120 },
-      (_, i) =>
-        `eip155:1/erc20:0x${String(i).padStart(40, '0')}` as Caip19AssetId,
+      (_, i) => `eip155:1/erc20:0x${String(i).padStart(40, '0')}`,
     );
     const priceResponse = Object.fromEntries(
       assetIds.map((id) => [id, createMockPriceData(100)]),
@@ -278,14 +283,13 @@ describe('PriceDataSource', () => {
       assetIds.map((id) => [id, { amount: '1' }]),
     );
 
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       balanceState: { 'mock-account-id': balanceState },
       priceResponse,
     });
 
     const response = await controller.fetch(
       createDataRequest({ chainIds: [] }),
-      getAssetsState,
     );
 
     // With 120 assets and a batch size of 50, the API should be called three times.
@@ -306,11 +310,11 @@ describe('PriceDataSource', () => {
   });
 
   it('fetch uses custom currency', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       getSelectedCurrency: () => 'eur',
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -318,7 +322,7 @@ describe('PriceDataSource', () => {
       },
     });
 
-    await controller.fetch(createDataRequest(), getAssetsState);
+    await controller.fetch(createDataRequest());
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       expect.anything(),
@@ -329,13 +333,13 @@ describe('PriceDataSource', () => {
   });
 
   it('fetch filters by account ID', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
         'other-account-id': {
-          [MOCK_TOKEN_ASSET]: { amount: '1000000' },
+          [MOCK_TOKEN_ASSET]: { amount: '1000' },
         },
       },
       priceResponse: {
@@ -343,7 +347,7 @@ describe('PriceDataSource', () => {
       },
     });
 
-    await controller.fetch(createDataRequest(), getAssetsState);
+    await controller.fetch(createDataRequest());
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       [MOCK_NATIVE_ASSET],
@@ -356,11 +360,11 @@ describe('PriceDataSource', () => {
   it('fetch filters by chain ID', async () => {
     const polygonAsset =
       'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
-          [polygonAsset]: { amount: '5000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+          [polygonAsset]: { amount: '250' },
         },
       },
       priceResponse: {
@@ -369,10 +373,99 @@ describe('PriceDataSource', () => {
       supportedNetworks: ['eip155:1', 'eip155:137'],
     });
 
-    await controller.fetch(
-      createDataRequest({ chainIds: [CHAIN_POLYGON] }),
-      getAssetsState,
+    await controller.fetch(createDataRequest({ chainIds: [CHAIN_POLYGON] }));
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [polygonAsset],
+      expect.anything(),
     );
+
+    controller.destroy();
+  });
+
+  it('fetch includes assets on partialSupport.spotPricesV3 networks', async () => {
+    const polygonAsset =
+      'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
+    const { controller, apiClient } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+          [polygonAsset]: { amount: '250' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+        [polygonAsset]: createMockPriceData(0.5),
+      },
+      supportedNetworks: ['eip155:1'],
+      partialSupportNetworks: ['eip155:137'],
+    });
+
+    await controller.fetch(
+      createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+    );
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      expect.arrayContaining([MOCK_NATIVE_ASSET, polygonAsset]),
+      expect.anything(),
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch excludes assets only listed under partialSupport.spotPricesV2', async () => {
+    const polygonAsset =
+      'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
+    const { controller, apiClient } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+          [polygonAsset]: { amount: '250' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+      },
+    });
+    apiClient.prices.fetchPriceV2SupportedNetworks.mockResolvedValue({
+      fullSupport: ['eip155:1'],
+      partialSupport: {
+        spotPricesV2: ['eip155:137'],
+        spotPricesV3: [],
+      },
+    });
+
+    await controller.fetch(
+      createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+    );
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [MOCK_NATIVE_ASSET],
+      expect.anything(),
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch tolerates a legacy array-shaped partialSupport', async () => {
+    const polygonAsset =
+      'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
+    const { controller, apiClient } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [polygonAsset]: { amount: '250' },
+        },
+      },
+      priceResponse: {
+        [polygonAsset]: createMockPriceData(0.5),
+      },
+    });
+    apiClient.prices.fetchPriceV2SupportedNetworks.mockResolvedValue({
+      fullSupport: ['eip155:1'],
+      partialSupport: ['eip155:137'],
+    });
+
+    await controller.fetch(createDataRequest({ chainIds: [CHAIN_POLYGON] }));
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       [polygonAsset],
@@ -389,10 +482,10 @@ describe('PriceDataSource', () => {
     const tronStakedAsset =
       'tron:0x2b6653dc/slip44:195-staked-for-bandwidth' as Caip19AssetId;
 
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
           [tronBandwidthAsset]: { amount: '1000' },
           [tronEnergyAsset]: { amount: '5000' },
           [tronStakedAsset]: { amount: '10000' },
@@ -403,7 +496,7 @@ describe('PriceDataSource', () => {
       },
     });
 
-    await controller.fetch(createDataRequest({ chainIds: [] }), getAssetsState);
+    await controller.fetch(createDataRequest({ chainIds: [] }));
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       [MOCK_NATIVE_ASSET],
@@ -414,11 +507,11 @@ describe('PriceDataSource', () => {
   });
 
   it('fetch skips assets with invalid market data', async () => {
-    const { controller, getAssetsState } = setupController({
+    const { controller } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
-          [MOCK_TOKEN_ASSET]: { amount: '1000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+          [MOCK_TOKEN_ASSET]: { amount: '1000' },
         },
       },
       priceResponse: {
@@ -429,7 +522,6 @@ describe('PriceDataSource', () => {
 
     const response = await controller.fetch(
       createDataRequest({ chainIds: [] }),
-      getAssetsState,
     );
 
     expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toBeDefined();
@@ -439,10 +531,10 @@ describe('PriceDataSource', () => {
   });
 
   it('fetch handles API errors gracefully', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
     });
@@ -451,10 +543,7 @@ describe('PriceDataSource', () => {
       new Error('API Error'),
     );
 
-    const response = await controller.fetch(
-      createDataRequest(),
-      getAssetsState,
-    );
+    const response = await controller.fetch(createDataRequest());
 
     expect(response).toStrictEqual({});
 
@@ -462,16 +551,13 @@ describe('PriceDataSource', () => {
   });
 
   it('fetch handles getState error gracefully', async () => {
-    const { controller } = setupController();
+    const { controller } = setupController({
+      getAssetsState: (): never => {
+        throw new Error('State Error');
+      },
+    });
 
-    const getAssetsStateThatThrows = (): never => {
-      throw new Error('State Error');
-    };
-
-    const response = await controller.fetch(
-      createDataRequest(),
-      getAssetsStateThatThrows,
-    );
+    const response = await controller.fetch(createDataRequest());
 
     expect(response).toStrictEqual({});
 
@@ -479,25 +565,22 @@ describe('PriceDataSource', () => {
   });
 
   it('subscribe performs initial fetch', async () => {
-    const { controller, assetsUpdateHandler, getAssetsState } = setupController(
-      {
-        balanceState: {
-          'mock-account-id': {
-            [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
-          },
-        },
-        priceResponse: {
-          [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+    const { controller, assetsUpdateHandler } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
-    );
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+      },
+    });
 
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
       onAssetsUpdate: assetsUpdateHandler,
-      getAssetsState,
     });
 
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
@@ -513,11 +596,11 @@ describe('PriceDataSource', () => {
   });
 
   it('subscribe polls at specified interval', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       pollInterval: 5000,
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -528,7 +611,6 @@ describe('PriceDataSource', () => {
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest(),
-      getAssetsState,
       isUpdate: false,
       onAssetsUpdate: jest.fn(),
     });
@@ -542,11 +624,11 @@ describe('PriceDataSource', () => {
   });
 
   it('subscribe uses request updateInterval when provided', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       pollInterval: 60000,
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -559,7 +641,6 @@ describe('PriceDataSource', () => {
       request: createDataRequest({ updateInterval: 10000 }),
       isUpdate: false,
       onAssetsUpdate: jest.fn(),
-      getAssetsState,
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
@@ -577,10 +658,10 @@ describe('PriceDataSource', () => {
   });
 
   it('subscribe update refreshes request and fetches missing prices', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -593,7 +674,6 @@ describe('PriceDataSource', () => {
       request: createDataRequest(),
       isUpdate: false,
       onAssetsUpdate: jest.fn(),
-      getAssetsState,
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
@@ -604,7 +684,6 @@ describe('PriceDataSource', () => {
       request: createDataRequest({ chainIds: [CHAIN_POLYGON] }),
       isUpdate: true,
       onAssetsUpdate: jest.fn(),
-      getAssetsState,
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
@@ -614,14 +693,6 @@ describe('PriceDataSource', () => {
 
   it('subscribe update fetches newly held assets that have no price yet', async () => {
     let balanceState: Record<string, Record<string, { amount: string }>> = {};
-    const { controller, apiClient, assetsUpdateHandler } = setupController({
-      balanceState: {},
-      priceResponse: {
-        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
-        [MOCK_TOKEN_ASSET]: createMockPriceData(1),
-      },
-    });
-
     const getAssetsState = jest.fn(() => ({
       assetsBalance: balanceState,
       assetsPrice: {},
@@ -630,13 +701,19 @@ describe('PriceDataSource', () => {
       assetPreferences: {},
       selectedCurrency: 'usd' as const,
     }));
+    const { controller, apiClient, assetsUpdateHandler } = setupController({
+      getAssetsState,
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+        [MOCK_TOKEN_ASSET]: createMockPriceData(1),
+      },
+    });
 
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
       onAssetsUpdate: assetsUpdateHandler,
-      getAssetsState,
     });
 
     // Initial subscribe had no balances, so no price API call.
@@ -656,7 +733,6 @@ describe('PriceDataSource', () => {
       request: createDataRequest(),
       isUpdate: true,
       onAssetsUpdate: assetsUpdateHandler,
-      getAssetsState,
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalled();
@@ -674,13 +750,6 @@ describe('PriceDataSource', () => {
 
   it('subscribe update swallows onAssetsUpdate errors without throwing', async () => {
     let balanceState: Record<string, Record<string, { amount: string }>> = {};
-    const { controller } = setupController({
-      balanceState: {},
-      priceResponse: {
-        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
-      },
-    });
-
     const getAssetsState = jest.fn(() => ({
       assetsBalance: balanceState,
       assetsPrice: {},
@@ -689,13 +758,18 @@ describe('PriceDataSource', () => {
       assetPreferences: {},
       selectedCurrency: 'usd' as const,
     }));
+    const { controller } = setupController({
+      getAssetsState,
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+      },
+    });
 
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
       onAssetsUpdate: jest.fn(),
-      getAssetsState,
     });
 
     balanceState = {
@@ -712,7 +786,6 @@ describe('PriceDataSource', () => {
         onAssetsUpdate: jest
           .fn()
           .mockRejectedValue(new Error('handler failed')),
-        getAssetsState,
       }),
     ).toBeUndefined();
 
@@ -720,19 +793,16 @@ describe('PriceDataSource', () => {
   });
 
   it('subscribe does not report when no prices fetched', async () => {
-    const { controller, assetsUpdateHandler, getAssetsState } = setupController(
-      {
-        balanceState: {},
-        priceResponse: {},
-      },
-    );
+    const { controller, assetsUpdateHandler } = setupController({
+      balanceState: {},
+      priceResponse: {},
+    });
 
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
       onAssetsUpdate: assetsUpdateHandler,
-      getAssetsState,
     });
 
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
@@ -741,11 +811,11 @@ describe('PriceDataSource', () => {
   });
 
   it('unsubscribe stops polling', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       pollInterval: 5000,
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -758,7 +828,6 @@ describe('PriceDataSource', () => {
       request: createDataRequest(),
       isUpdate: false,
       onAssetsUpdate: jest.fn(),
-      getAssetsState,
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
@@ -972,10 +1041,10 @@ describe('PriceDataSource', () => {
   });
 
   it('skips fetching prices for assets fetched within the freshness TTL', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -984,22 +1053,22 @@ describe('PriceDataSource', () => {
     });
 
     // First fetch — asset is stale, API is called
-    await controller.fetch(createDataRequest(), getAssetsState);
+    await controller.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
     // Second fetch immediately after — asset is fresh, API is NOT called again
-    await controller.fetch(createDataRequest(), getAssetsState);
+    await controller.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
     controller.destroy();
   });
 
   it('re-fetches prices after the freshness TTL expires', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       pollInterval: 10_000,
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -1007,13 +1076,13 @@ describe('PriceDataSource', () => {
       },
     });
 
-    await controller.fetch(createDataRequest(), getAssetsState);
+    await controller.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
     // Advance past the TTL (pollInterval = 10s is used as freshness TTL)
     await jest.advanceTimersByTimeAsync(11_000);
 
-    await controller.fetch(createDataRequest(), getAssetsState);
+    await controller.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
 
     controller.destroy();
@@ -1030,11 +1099,11 @@ describe('PriceDataSource', () => {
 
     jest.setSystemTime(fetchLatencyMs);
 
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       pollInterval,
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -1049,7 +1118,6 @@ describe('PriceDataSource', () => {
       request: createDataRequest(),
       isUpdate: false,
       onAssetsUpdate: jest.fn(),
-      getAssetsState,
     });
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
@@ -1058,7 +1126,7 @@ describe('PriceDataSource', () => {
     // the poll interval but above the capped TTL (9000ms), so the asset is
     // stale and must be re-fetched rather than skipped.
     jest.setSystemTime(pollInterval);
-    await controller.fetch(createDataRequest(), getAssetsState);
+    await controller.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
 
     controller.destroy();
@@ -1153,10 +1221,10 @@ describe('PriceDataSource', () => {
   });
 
   it('freshness is per-asset — stale assets are fetched while fresh ones are skipped', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -1166,7 +1234,7 @@ describe('PriceDataSource', () => {
     });
 
     // Fetch only MOCK_NATIVE_ASSET via balance state
-    await controller.fetch(createDataRequest(), getAssetsState);
+    await controller.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       [MOCK_NATIVE_ASSET],
@@ -1194,10 +1262,10 @@ describe('PriceDataSource', () => {
   });
 
   it('destroy clears the freshness cache', async () => {
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
         },
       },
       priceResponse: {
@@ -1205,7 +1273,7 @@ describe('PriceDataSource', () => {
       },
     });
 
-    await controller.fetch(createDataRequest(), getAssetsState);
+    await controller.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
     controller.destroy();
@@ -1216,18 +1284,17 @@ describe('PriceDataSource', () => {
       queryApiClient:
         apiClient as unknown as PriceDataSourceOptions['queryApiClient'],
       getSelectedCurrency: (): SupportedCurrency => 'usd',
+      getAssetsState: (): AssetsControllerState =>
+        ({
+          assetsBalance: {
+            'mock-account-id': {
+              [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+            },
+          },
+        }) as AssetsControllerState,
     });
 
-    const getAssetsState2 = (): AssetsControllerStateInternal =>
-      ({
-        assetsBalance: {
-          'mock-account-id': {
-            [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
-          },
-        },
-      }) as unknown as AssetsControllerStateInternal;
-
-    await controller2.fetch(createDataRequest(), getAssetsState2);
+    await controller2.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
 
     controller2.destroy();
@@ -1237,12 +1304,12 @@ describe('PriceDataSource', () => {
     const polygonAsset =
       'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
 
-    const { controller, apiClient, getAssetsState } = setupController({
+    const { controller, apiClient } = setupController({
       pollInterval: 5000,
       balanceState: {
         'mock-account-id': {
-          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
-          [polygonAsset]: { amount: '5000000000000000000' },
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+          [polygonAsset]: { amount: '250' },
         },
       },
       priceResponse: {
@@ -1257,7 +1324,6 @@ describe('PriceDataSource', () => {
       request: createDataRequest(),
       isUpdate: false,
       onAssetsUpdate: jest.fn(),
-      getAssetsState,
     });
 
     await controller.subscribe({
@@ -1265,7 +1331,6 @@ describe('PriceDataSource', () => {
       request: createDataRequest({ chainIds: [CHAIN_POLYGON] }),
       isUpdate: false,
       onAssetsUpdate: jest.fn(),
-      getAssetsState,
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);

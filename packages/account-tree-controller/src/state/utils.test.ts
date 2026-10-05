@@ -111,7 +111,7 @@ describe('deepFreeze', () => {
   it('prevents mutation of frozen objects in strict mode', () => {
     const obj = deepFreeze({ a: { b: 1 } });
     expect(() => {
-      (obj.a as { b: number }).b = 99;
+      obj.a.b = 99;
     }).toThrow(TypeError);
   });
 });

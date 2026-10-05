@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [29.0.3]
+
+### Changed
+
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `firebase` from `^11.2.0` to `^11.10.0` ([#10530](https://github.com/MetaMask/core/pull/10530))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
 ## [29.0.2]
 
 ### Changed
@@ -958,7 +966,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.3...HEAD
+[29.0.3]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.2...@metamask/notification-services-controller@29.0.3
 [29.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.1...@metamask/notification-services-controller@29.0.2
 [29.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.0...@metamask/notification-services-controller@29.0.1
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@28.0.1...@metamask/notification-services-controller@29.0.0

@@ -135,9 +135,11 @@ export const MfaEnrollResponseStruct = type({
   passkey_create_data: optional(sensitive(string())),
 });
 
-export const MfaEnrollCompleteResponseStruct = type({
-  status: literal('enrolled'),
-});
+/**
+ * Enrollment returns the same assertion as verification, proving the
+ * credential just enrolled.
+ */
+export const MfaEnrollCompleteResponseStruct = MfaVerifyCompleteResponseStruct;
 
 export const MfaVerifyResponseStruct = type({
   flow_id: string(),

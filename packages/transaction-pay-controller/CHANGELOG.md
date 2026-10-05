@@ -9,9 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/assets-controller` from `^16.1.1` to `^16.1.2` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/assets-controller` from `^18.0.0` to `^18.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/ramps-controller` from `^26.1.0` to `^26.2.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+### Fixed
+
+- Always set `excludeNativeTokenForFee` when origin gas is priced in the source token, so the fee shown in the quote is the fee the user is charged ([#10404](https://github.com/MetaMask/core/pull/10404))
+  - Previously only the across strategy opted in, so for the relay and server strategies the `TransactionController` re-checked the native balance at publish time and silently dropped the gas fee token, billing the user in native token instead.
+
+## [30.0.1]
+
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^26.0.1` to `^26.1.0` ([#10569](https://github.com/MetaMask/core/pull/10569))
+- Bump `@metamask/assets-controller` from `^17.0.0` to `^18.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
+
+## [30.0.0]
+
+### Changed
+
+- **BREAKING:** Read token metadata, balances, and prices directly from `AssetsController` state ([#10461](https://github.com/MetaMask/core/pull/10461))
+  - Consumers must delegate `AccountsController:getState`, `AssetsController:getState`, and `AssetsController:stateChange` to the Pay messenger, and unified asset state must be populated before using Pay.
+  - The `assetsUnifyState` feature flag branching and the `AssetsController:getStateForTransactionPay` action are no longer used, and the four separate asset `stateChange` subscriptions are replaced by a single `AssetsController:stateChange`.
+  - Replaced the `@metamask/assets-controllers` dependency with `@metamask/accounts-controller`.
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@metamask/ramps-controller` from `^26.0.0` to `^26.0.1` ([#10541](https://github.com/MetaMask/core/pull/10541))
+
+## [29.2.3]
+
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^25.1.1` to `^26.0.0` ([#10489](https://github.com/MetaMask/core/pull/10489))
+
+## [29.2.2]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^16.1.1` to `^17.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459), [#10474](https://github.com/MetaMask/core/pull/10474))
+- Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
 - Bump `@metamask/assets-controllers` from `^112.0.3` to `^112.0.4` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/ramps-controller` from `^25.1.0` to `^25.1.1` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
 
 ## [29.2.1]
 
@@ -1632,7 +1673,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.1...HEAD
+[30.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.0...@metamask/transaction-pay-controller@30.0.1
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.3...@metamask/transaction-pay-controller@30.0.0
+[29.2.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.2...@metamask/transaction-pay-controller@29.2.3
+[29.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.1...@metamask/transaction-pay-controller@29.2.2
 [29.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.2.0...@metamask/transaction-pay-controller@29.2.1
 [29.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.1.1...@metamask/transaction-pay-controller@29.2.0
 [29.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.1.0...@metamask/transaction-pay-controller@29.1.1

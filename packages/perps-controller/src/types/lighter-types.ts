@@ -299,14 +299,6 @@ export type LighterTxResult = {
 // ============================================================================
 
 /**
- * Signs an EIP-191 personal message and resolves with the 65-byte signature
- * as a 0x-prefixed hex string. Injected for headless use; when a messenger
- * is available the wallet service routes through
- * `KeyringController:signPersonalMessage` instead.
- */
-export type LighterPersonalSigner = (message: string) => Promise<string>;
-
-/**
  * Lighter auth/config passed at construction time.
  */
 export type LighterAuthConfig = {
@@ -316,10 +308,6 @@ export type LighterAuthConfig = {
   accountIndex?: number;
   /** API key slot to register/use (0-254). */
   apiKeyIndex?: number;
-  /** L1 address owning the Lighter account. */
-  l1Address?: string;
-  /** Headless personal_sign implementation for L1 ChangePubKey approval. */
-  personalSigner?: LighterPersonalSigner;
 };
 
 // ============================================================================
@@ -630,7 +618,7 @@ export type LighterWsTrade = {
   bidAccountId: number;
   isMakerAsk: boolean;
   timestamp: number;
-  /** Realized pnl per side — same wire shape as the REST trade payload. */
+  /** Realized pnl per side; may be omitted on opens or adds, as in REST trades. */
   askAccountPnl?: string;
   bidAccountPnl?: string;
   /** Fees, present when nonzero; unit unproven — see LighterRestTrade. */
@@ -638,6 +626,7 @@ export type LighterWsTrade = {
   makerFee?: number | string;
   takerPositionSizeBefore?: string;
   makerPositionSizeBefore?: string;
+  /** Whether the side's position sign changed; omission is unknown. */
   takerPositionSignChanged?: boolean;
   makerPositionSignChanged?: boolean;
 };
@@ -669,9 +658,9 @@ export type LighterRestTrade = {
   bidAccountId: number;
   isMakerAsk: boolean;
   timestamp: number;
-  /** Realized pnl for the ask-side account, signed USDC; may be omitted on opens from flat. */
+  /** Realized pnl for the ask-side account, signed USDC; may be omitted on opens or adds. */
   askAccountPnl?: string;
-  /** Realized pnl for the bid-side account, signed USDC; may be omitted on opens from flat. */
+  /** Realized pnl for the bid-side account, signed USDC; may be omitted on opens or adds. */
   bidAccountPnl?: string;
   /**
    * Taker/maker fees, present when nonzero. The official model types them
@@ -683,9 +672,9 @@ export type LighterRestTrade = {
   /** Position size (absolute) of each side before the trade executed. */
   takerPositionSizeBefore: string;
   makerPositionSizeBefore: string;
-  /** Whether the side's position sign changed (crossed or left zero). */
-  takerPositionSignChanged: boolean;
-  makerPositionSignChanged: boolean;
+  /** Whether the side's position sign changed (crossed or left zero); omission is unknown. */
+  takerPositionSignChanged?: boolean;
+  makerPositionSignChanged?: boolean;
 };
 
 /**

@@ -20,6 +20,9 @@ const config = {
       teams: ['@MetaMask/confirmations'],
       initializationPath: 'address-book-controller',
     },
+    'advanced-chart-core': {
+      teams: ['@MetaMask/metamask-assets', '@MetaMask/perps'],
+    },
     'ai-controllers': {
       teams: ['@MetaMask/social-ai'],
     },
@@ -265,6 +268,9 @@ const config = {
     },
     'preferences-controller': {
       teams: ['@MetaMask/core-platform'],
+    },
+    'profile-controller': {
+      teams: ['@MetaMask/accounts-engineers'],
     },
     'profile-metrics-controller': {
       teams: ['@MetaMask/mobile-platform', '@MetaMask/extension-platform'],
