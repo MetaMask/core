@@ -6,6 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type {
   ChompApiServiceGetDerivedIdentitiesAction,
+  ChompApiServiceGetIntentsByAddressAction,
   DerivedIdentity,
 } from '@metamask/chomp-api-service';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -30,6 +31,7 @@ import deepEqual from 'fast-deep-equal';
 
 import { getMoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
+import type { MfaMigrationControllerCreateMfaAccountAction } from './mfa-migration-controller-create-mfa-account.js';
 import type { MoneyAccountControllerUseMpcKeyringAction } from './money-account-controller-mpc-keyring.js';
 import type { MoneyAccountLifecycleControllerMethodActions } from './money-account-lifecycle-controller-method-action-types.js';
 import type { MoneyAccountUpgradeControllerGetRegistrationStatusAction } from './money-account-upgrade-controller-registration-status.js';
@@ -71,7 +73,11 @@ export function getDefaultMoneyAccountLifecycleControllerState(): MoneyAccountLi
   };
 }
 
-const MESSENGER_EXPOSED_METHODS = ['init', 'getMoneyAccountIdentity'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'init',
+  'getMoneyAccountIdentity',
+  'startMigration',
+] as const;
 
 export type MoneyAccountIdentity = Pick<
   DerivedIdentity,
@@ -90,7 +96,9 @@ export type MoneyAccountLifecycleControllerActions =
 
 type AllowedActions =
   | ChompApiServiceGetDerivedIdentitiesAction
+  | ChompApiServiceGetIntentsByAddressAction
   | KeyringControllerGetStateAction
+  | MfaMigrationControllerCreateMfaAccountAction
   | MoneyAccountControllerGetMoneyAccountAction
   | MoneyAccountControllerUseMpcKeyringAction
   | MoneyAccountUpgradeControllerGetRegistrationStatusAction
@@ -139,6 +147,8 @@ export class MoneyAccountLifecycleController extends BaseController<
   #derivedIdentities?: DerivedIdentity[];
 
   readonly #registrationsInFlight = new Set<string>();
+
+  #isMigrationInFlight = false;
 
   constructor({
     messenger,
@@ -241,6 +251,112 @@ export class MoneyAccountLifecycleController extends BaseController<
 
     const { currentAddress, previousAddresses, status } = lifecycle.identity;
     return { currentAddress, previousAddresses, status };
+  }
+
+  /**
+   * Starts migrating the primary Money Account from its SFA address to a new
+   * MFA address.
+   *
+   * Reads the profile's identities fresh from CHOMP and records them, then
+   * only proceeds when no identity is migrating and the Money Account is a
+   * valid SFA. Asks the MFA Migration Controller to create the MFA account,
+   * and checks that its address is fresh for CHOMP: not part of any identity,
+   * and without intents.
+   *
+   * Linking the MFA address to the Money Account and completing the migration
+   * steps are not implemented yet, so this always throws once the checks
+   * pass.
+   *
+   * @throws If a migration is already in flight, the checks fail, or the
+   * migration is reached.
+   */
+  async startMigration(): Promise<void> {
+    if (this.#isMigrationInFlight) {
+      throw new Error('A Money Account migration is already in progress');
+    }
+
+    this.#isMigrationInFlight = true;
+    try {
+      await this.#startMigration();
+    } finally {
+      this.#isMigrationInFlight = false;
+    }
+  }
+
+  async #startMigration(): Promise<void> {
+    if (
+      !this.#isEnabled(
+        this.messenger.call('RemoteFeatureFlagController:getState')
+          .remoteFeatureFlags,
+      ) ||
+      !isWalletReady(this.messenger.call('KeyringController:getState'))
+    ) {
+      throw new Error('Money Account migration is not available');
+    }
+
+    const moneyAccount = this.messenger.call(
+      'MoneyAccountController:getMoneyAccount',
+    );
+    if (!moneyAccount) {
+      throw new Error('There is no Money Account to migrate');
+    }
+
+    const { identities } = await this.messenger.call(
+      'ChompApiService:getDerivedIdentities',
+    );
+    this.#derivedIdentities = identities;
+    this.#updateMoneyAccountLifecycle({ isRehydrating: false });
+
+    if (identities.some(({ status }) => status === 'MIGRATING')) {
+      throw new Error('A Money Account identity is already migrating');
+    }
+
+    const lifecycle = getMoneyAccountLifecycle(
+      moneyAccount.address,
+      identities,
+    );
+    if (lifecycle.type !== 'sfa') {
+      throw new Error(
+        `Money Account ${moneyAccount.address} cannot be migrated while it is '${lifecycle.type}'`,
+      );
+    }
+
+    const mfaAddress = await this.messenger.call(
+      'MfaMigrationController:createMfaAccount',
+    );
+    await this.#assertFreshForChomp(mfaAddress, identities);
+
+    // TODO: Link the MFA address to the Money Account and drive the migration
+    // steps from `migration.missingSteps`.
+    throw new Error(
+      `Migrating Money Account ${moneyAccount.address} to ${mfaAddress} is not implemented yet`,
+    );
+  }
+
+  async #assertFreshForChomp(
+    mfaAddress: Hex,
+    identities: DerivedIdentity[],
+  ): Promise<void> {
+    const normalizedAddress = mfaAddress.toLowerCase();
+    const isInIdentity = identities.some(
+      ({ currentAddress, previousAddresses }) =>
+        [currentAddress, ...previousAddresses].some(
+          (address) => address.toLowerCase() === normalizedAddress,
+        ),
+    );
+    if (isInIdentity) {
+      throw new Error(
+        `MFA account ${mfaAddress} is already part of a Money Account identity`,
+      );
+    }
+
+    const intents = await this.messenger.call(
+      'ChompApiService:getIntentsByAddress',
+      mfaAddress,
+    );
+    if (intents.length > 0) {
+      throw new Error(`MFA account ${mfaAddress} already has CHOMP intents`);
+    }
   }
 
   #sync(): void {
