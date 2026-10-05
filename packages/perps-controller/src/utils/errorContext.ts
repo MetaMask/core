@@ -15,13 +15,13 @@ export const PERPS_ERROR_ACTION = {
   ConnectionConnection: 'connection_connection',
   FinancialDeposit: 'financial_deposit',
   FinancialWithdrawal: 'financial_withdrawal',
-  OrderPlacement: 'order_placement',
-  OrderEdit: 'order_edit',
-  OrderCancellation: 'order_cancellation',
-  PositionClose: 'position_close',
-  PositionTpsl: 'position_tpsl',
-  PositionMargin: 'position_margin',
-  PositionFlip: 'position_flip',
+  PlaceOrder: 'place_order',
+  EditOrder: 'edit_order',
+  CancelOrder: 'cancel_order',
+  ClosePosition: 'close_position',
+  PositionTpslUpdate: 'position_tpsl_update',
+  UpdateMargin: 'update_margin',
+  FlipPosition: 'flip_position',
 } as const;
 
 export type PerpsErrorAction =

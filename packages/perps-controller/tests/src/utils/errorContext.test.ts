@@ -6,6 +6,21 @@ import {
 } from '../../../src/utils/errorContext.js';
 
 describe('createPerpsErrorContext', () => {
+  it('defines the shared dashboard action vocabulary', () => {
+    expect(PERPS_ERROR_ACTION).toStrictEqual({
+      ConnectionConnection: 'connection_connection',
+      FinancialDeposit: 'financial_deposit',
+      FinancialWithdrawal: 'financial_withdrawal',
+      PlaceOrder: 'place_order',
+      EditOrder: 'edit_order',
+      CancelOrder: 'cancel_order',
+      ClosePosition: 'close_position',
+      PositionTpslUpdate: 'position_tpsl_update',
+      UpdateMargin: 'update_margin',
+      FlipPosition: 'flip_position',
+    });
+  });
+
   it('builds the standard logger payload', () => {
     expect(
       createPerpsErrorContext({
@@ -74,7 +89,7 @@ describe('createPerpsErrorContext', () => {
       method: 'cancelOrder',
       errorTags: {
         operation: PERPS_ERROR_OPERATION.OrderManagement,
-        action: PERPS_ERROR_ACTION.OrderCancellation,
+        action: PERPS_ERROR_ACTION.CancelOrder,
       },
       data: {
         accountId: 'eip155:1:0x123',
@@ -86,7 +101,7 @@ describe('createPerpsErrorContext', () => {
     expect(result.tags).toStrictEqual({
       feature: 'perps',
       operation: 'order_management',
-      action: 'order_cancellation',
+      action: 'cancel_order',
     });
     expect(result.context?.data).toMatchObject({
       accountId: 'eip155:1:0x123',
