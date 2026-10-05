@@ -6,7 +6,7 @@ import fs from 'fs/promises';
  */
 export type TscDiagnostic = {
   filePath?: string | undefined;
-  fileLine?: string | undefined;
+  fileLoc?: string | undefined;
   code: string;
   message: string;
 };
@@ -16,7 +16,7 @@ export type TscDiagnostic = {
  */
 export type TscError = TscDiagnostic & {
   filePath: string;
-  fileLine: string;
+  fileLoc: string;
 };
 
 /**
@@ -43,7 +43,7 @@ export type TscSuppressions = Record<string, Record<string, Suppression>>;
  */
 export type UnsuppressedError = {
   filePath: string;
-  fileLine: string;
+  fileLoc: string;
   code: string;
   count: number;
   suppressedCount: number;
@@ -83,7 +83,7 @@ export type TscSuppressionsReport = {
  * Lines that elaborate on a diagnostic are indented, so they never match.
  */
 const DIAGNOSTIC_REGEXP =
-  /^((?<filePath>[^\s(][^(]*)\((?<fileLine>\d+),\d+\): )?error (?<code>TS\d+): (?<message>.*)$/u;
+  /^((?<filePath>[^\s(][^(]*)\((?<fileLoc>\d+),\d+\): )?error (?<code>TS\d+): (?<message>.*)$/u;
 
 /**
  * Orders two strings by code unit, so that the suppressions file is written the
@@ -126,7 +126,7 @@ export function parseTscOutput(lines: Iterable<string>): TscDiagnostic[] {
     const match = DIAGNOSTIC_REGEXP.exec(line);
     if (match?.groups) {
       diagnostics.push({
-        fileLine: match.groups.fileLine,
+        fileLoc: match.groups.fileLoc,
         filePath: match.groups.filePath,
         code: String(match.groups.code),
         message: String(match.groups.message),
@@ -309,7 +309,7 @@ export function compareErrorsToSuppressions({
   // report can show what was actually found.
   const groups = new Map<
     string,
-    { filePath: string; fileLine: string; code: string; messages: string[] }
+    { filePath: string; fileLoc: string; code: string; messages: string[] }
   >();
   for (const error of errors) {
     const group = groups.get(buildKey(error.filePath, error.code));
@@ -318,7 +318,7 @@ export function compareErrorsToSuppressions({
     } else {
       groups.set(buildKey(error.filePath, error.code), {
         filePath: error.filePath,
-        fileLine: error.fileLine,
+        fileLoc: error.fileLoc,
         code: error.code,
         messages: [error.message],
       });
@@ -326,12 +326,12 @@ export function compareErrorsToSuppressions({
   }
 
   const unsuppressedErrors: UnsuppressedError[] = [];
-  for (const { filePath, fileLine, code, messages } of groups.values()) {
+  for (const { filePath, fileLoc, code, messages } of groups.values()) {
     const suppressedCount = suppressions[filePath]?.[code]?.count ?? 0;
     if (messages.length > suppressedCount) {
       unsuppressedErrors.push({
         filePath,
-        fileLine,
+        fileLoc,
         code,
         count: messages.length,
         suppressedCount,
@@ -419,7 +419,7 @@ export function printReport(report: TscSuppressionsReport): void {
     console.log('❌ Detected type errors that are not suppressed:\n');
     for (const error of report.unsuppressedErrors) {
       console.log(
-        `  ${error.filePath}:${error.fileLine}: ${error.code} (${error.count} found, ${error.suppressedCount} suppressed)`,
+        `  ${error.filePath}:${error.fileLoc}: ${error.code} (${error.count} found, ${error.suppressedCount} suppressed)`,
       );
       for (const message of error.messages) {
         console.log(`    - ${message}`);

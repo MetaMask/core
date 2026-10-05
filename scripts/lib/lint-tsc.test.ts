@@ -26,7 +26,7 @@ const { lintTsc } = await import('./lint-tsc.ts');
 
 const ERROR = {
   filePath: 'a.ts',
-  fileLine: '1',
+  fileLoc: '1',
   code: 'TS2322',
   message: 'Nope.',
 };
@@ -119,7 +119,7 @@ describe('lintTsc', () => {
       unsuppressedErrors: [
         {
           filePath: 'a.ts',
-          fileLine: '1',
+          fileLoc: '1',
           code: 'TS2322',
           count: 1,
           suppressedCount: 0,
