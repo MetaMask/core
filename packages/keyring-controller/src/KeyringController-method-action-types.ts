@@ -373,10 +373,8 @@ export type KeyringControllerSubmitPasswordAction = {
  * function execution, or rolls back the changes if an error
  * is thrown.
  *
- * The operation must only mutate the keyring it is given: the transaction
- * snapshots, persists, and rolls back only the selected keyring. Changes
- * made to other keyrings (e.g. through references obtained from
- * deprecated direct-access methods) are neither persisted nor rolled back.
+ * Only the selected keyring is snapshotted, persisted, and rolled back:
+ * the operation must not mutate other keyrings.
  *
  * @param selector - Keyring selector object.
  * @param operation - Function to execute with the selected keyring.
@@ -448,10 +446,8 @@ export type KeyringControllerWithKeyringUnsafeAction = {
  * function execution, or rolls back the changes if an error
  * is thrown.
  *
- * The operation must only mutate the keyring it is given: the transaction
- * snapshots, persists, and rolls back only the selected keyring. Changes
- * made to other keyrings (e.g. through references obtained from
- * deprecated direct-access methods) are neither persisted nor rolled back.
+ * Only the selected keyring is snapshotted, persisted, and rolled back:
+ * the operation must not mutate other keyrings.
  *
  * @param selector - Keyring selector object.
  * @param operation - Function to execute with the wrapped V2 keyring.
