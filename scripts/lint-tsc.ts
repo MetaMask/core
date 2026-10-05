@@ -2,6 +2,6 @@
  * Entry point file for the `lint:tsc:check` and `lint:tsc:suppress` scripts.
  */
 
-import { lintTsc } from './lib/lint-tsc.ts';
+import { lintTscSuppressions } from './lib/lint-tsc-suppressions.ts';
 
-await lintTsc(process.argv.slice(2));
+await lintTscSuppressions(process.argv.slice(2));
