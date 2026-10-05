@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `isEligibleForRefund` on `StartSubscriptionRequest` and `StartCryptoSubscriptionRequest`
+  - When the caller provides it, `SubscriptionController` sends that value and skips the geolocation check.
+  - When omitted, the controller sets it from geolocation (EU 27 + EEA), or `false` if the lookup fails.
+
+### Changed
+
+- **BREAKING:** `SubscriptionControllerMessenger` now requires `GeolocationController:getGeolocationData` so `startSubscriptionWithCard` and `startSubscriptionWithCrypto` can resolve refund eligibility
+  - Clients that construct this messenger must delegate `GeolocationController:getGeolocationData` before calling those actions.
+- Add `@metamask/geolocation-controller` `^2.0.0` as a dependency
+
 ## [12.0.1]
 
 ### Changed

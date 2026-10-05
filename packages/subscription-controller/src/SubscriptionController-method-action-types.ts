@@ -88,6 +88,9 @@ export type SubscriptionControllerUnCancelSubscriptionAction = {
  * `isTrialRequested` on the request is ignored and overwritten from pricing
  * (`trialPeriodDays > 0`) and `trialedProducts`.
  *
+ * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
+ * from geolocation (EU/EEA), or `false` if the lookup fails.
+ *
  * @param request - The start subscription request.
  * @returns The checkout session response.
  */
@@ -104,6 +107,9 @@ export type SubscriptionControllerStartSubscriptionWithCardAction = {
  *
  * `isTrialRequested` on the request is ignored and overwritten from pricing
  * (`trialPeriodDays > 0`) and `trialedProducts`.
+ *
+ * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
+ * from geolocation (EU/EEA), or `false` if the lookup fails.
  *
  * @param request - The start crypto subscription request.
  * @returns The start crypto subscription response.

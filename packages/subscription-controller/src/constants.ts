@@ -118,3 +118,43 @@ export const ACTIVE_SUBSCRIPTION_STATUSES = [
   SUBSCRIPTION_STATUSES.trialing,
   SUBSCRIPTION_STATUSES.provisional,
 ] as string[];
+
+/**
+ * ISO 3166-1 alpha-2 country codes eligible for refund (EU 27 + EEA).
+ *
+ * Used to set `isEligibleForRefund` when starting a subscription.
+ */
+export const REFUND_ELIGIBLE_COUNTRIES: ReadonlySet<string> = new Set([
+  // EU 27
+  'AT',
+  'BE',
+  'BG',
+  'HR',
+  'CY',
+  'CZ',
+  'DK',
+  'EE',
+  'FI',
+  'FR',
+  'DE',
+  'GR',
+  'HU',
+  'IE',
+  'IT',
+  'LV',
+  'LT',
+  'LU',
+  'MT',
+  'NL',
+  'PL',
+  'PT',
+  'RO',
+  'SK',
+  'SI',
+  'ES',
+  'SE',
+  // EEA (non-EU)
+  'IS',
+  'LI',
+  'NO',
+]);

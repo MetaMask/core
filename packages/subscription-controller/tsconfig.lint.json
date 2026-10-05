@@ -39,6 +39,9 @@
       "path": "../delegation-controller/tsconfig.lint.json"
     },
     {
+      "path": "../geolocation-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../money-account-balance-service/tsconfig.lint.json"
     },
     {
