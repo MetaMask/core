@@ -307,11 +307,10 @@ describe('compareErrorsToSuppressions', () => {
       unsuppressedErrors: [
         {
           filePath: 'a.ts',
-          fileLoc: '12',
           code: 'TS2322',
           count: 1,
           suppressedCount: 0,
-          messages: ['Nope.'],
+          occurrences: [{ fileLoc: '12', message: 'Nope.' }],
         },
       ],
       staleSuppressions: [],
@@ -330,11 +329,10 @@ describe('compareErrorsToSuppressions', () => {
     expect(report.unsuppressedErrors).toStrictEqual([
       {
         filePath: 'a.ts',
-        fileLoc: '12',
         code: 'TS2322',
         count: 1,
         suppressedCount: 0,
-        messages: ['Nope.'],
+        occurrences: [{ fileLoc: '12', message: 'Nope.' }],
       },
     ]);
   });
@@ -351,11 +349,13 @@ describe('compareErrorsToSuppressions', () => {
     expect(report.unsuppressedErrors).toStrictEqual([
       {
         filePath: 'a.ts',
-        fileLoc: '12',
         code: 'TS2322',
         count: 2,
         suppressedCount: 1,
-        messages: ['One.', 'Two.'],
+        occurrences: [
+          { fileLoc: '12', message: 'One.' },
+          { fileLoc: '40', message: 'Two.' },
+        ],
       },
     ]);
     expect(report.didPass).toBe(false);
@@ -497,16 +497,18 @@ describe('printReport', () => {
     );
   });
 
-  it('prints each unsuppressed error along with its messages', () => {
+  it('prints each unsuppressed error along with where it occurred', () => {
     printReport({
       unsuppressedErrors: [
         {
           filePath: 'a.ts',
-          fileLoc: '12',
           code: 'TS2322',
           count: 2,
           suppressedCount: 1,
-          messages: ['One.', 'Two.'],
+          occurrences: [
+            { fileLoc: '12', message: 'One.' },
+            { fileLoc: '40', message: 'Two.' },
+          ],
         },
       ],
       staleSuppressions: [],
@@ -514,10 +516,9 @@ describe('printReport', () => {
     });
 
     const output = jest.mocked(console.log).mock.calls.flat().join('\n');
-    expect(output).toContain('a.ts:12');
-    expect(output).toContain('TS2322');
-    expect(output).toContain('One.');
-    expect(output).toContain('Two.');
+    expect(output).toContain('a.ts: TS2322');
+    expect(output).toContain('Line 12: One.');
+    expect(output).toContain('Line 40: Two.');
   });
 
   it('prints each stale suppression', () => {

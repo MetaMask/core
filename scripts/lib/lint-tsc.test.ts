@@ -119,11 +119,10 @@ describe('lintTsc', () => {
       unsuppressedErrors: [
         {
           filePath: 'a.ts',
-          fileLoc: '1',
           code: 'TS2322',
           count: 1,
           suppressedCount: 0,
-          messages: ['Nope.'],
+          occurrences: [{ fileLoc: '1', message: 'Nope.' }],
         },
       ],
       staleSuppressions: [],
