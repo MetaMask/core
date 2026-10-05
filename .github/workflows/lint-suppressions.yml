@@ -26,6 +26,8 @@ jobs:
           fetch-depth: 2
       - name: Run yarn lint:suppressions
         run: yarn lint:suppressions
+        env:
+          BASE_REF: HEAD^1
       - name: Require clean working directory
         shell: bash
         run: |

@@ -139,13 +139,13 @@ describe('lintSuppressions', () => {
 
   beforeEach(() => {
     originalProcess = globalThis.process;
-    // The exit code is reset because another test file may have set it.
-    // `GITHUB_ACTIONS` is cleared because this suite runs in CI, where it is
-    // set, which would otherwise send every test down the CI path.
+    // The exit code is reset because another test file may have set it, and
+    // `BASE_REF` cleared so that the environment cannot send a test that is not
+    // about it down the path that reads it.
     globalThis.process = {
       ...globalThis.process,
       exitCode: undefined,
-      env: { ...globalThis.process.env, GITHUB_ACTIONS: undefined },
+      env: { ...globalThis.process.env, BASE_REF: undefined },
     };
     jest.spyOn(console, 'log').mockReturnValue(undefined);
     mockGit();
@@ -156,8 +156,8 @@ describe('lintSuppressions', () => {
     globalThis.process = originalProcess;
   });
 
-  it('reads the baseline from the first parent of the merge commit CI checks out', async () => {
-    process.env.GITHUB_ACTIONS = 'true';
+  it('reads the baseline from the ref the environment names, as CI does', async () => {
+    process.env.BASE_REF = 'HEAD^1';
 
     await lintSuppressions([]);
 
@@ -171,9 +171,26 @@ describe('lintSuppressions', () => {
       ['show', 'HEAD^1:tsc-suppressions.json'],
       expect.anything(),
     );
+    expect(execa).not.toHaveBeenCalledWith(
+      'git',
+      expect.arrayContaining(['merge-base']),
+      expect.anything(),
+    );
   });
 
-  it('takes the merge base when running outside of CI, where a merge commit means something else', async () => {
+  it('ignores the ref the environment names when it is empty', async () => {
+    process.env.BASE_REF = '';
+
+    await lintSuppressions([]);
+
+    expect(execa).toHaveBeenCalledWith(
+      'git',
+      ['merge-base', 'HEAD', 'origin/main'],
+      expect.anything(),
+    );
+  });
+
+  it('takes the merge base when the environment names no ref', async () => {
     await lintSuppressions([]);
 
     expect(jest.mocked(execa)).toHaveBeenCalledWith(

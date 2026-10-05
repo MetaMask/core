@@ -28,10 +28,15 @@ const SUPPRESSIONS_FILE_NAMES = [
 ];
 
 /**
- * The branch this work is destined for when there is no merge commit to read it
- * from, as there is not when running this locally.
+ * The variable through which CI supplies the ref to measure against, saving the
+ * script from working out what the branch is being merged into.
  */
-const FALLBACK_BASE_REF = 'origin/main';
+const BASE_REF_ENV_VAR = 'BASE_REF';
+
+/**
+ * The branch this work is destined for when nothing says otherwise.
+ */
+const FALLBACK_TARGET_REF = 'origin/main';
 
 /**
  * Problems that are knowingly ignored, counted by file and then by the rule or
@@ -113,19 +118,19 @@ export function printAddedSuppressions(
 /**
  * Finds the commit holding the suppressions files to measure against.
  *
- * CI checks a pull request out as the merge of the branch into its base, so the
- * base is its first parent, and the files in the working tree already have the
- * base's own changes folded in. A merge commit made by hand is the other way
- * round, its first parent being the branch, so the shape of the commit is not
- * enough to go on and only CI's checkout is taken at face value. Anywhere else
- * the merge base with the target branch stands in for it.
+ * CI says so outright through `BASE_REF`, as it is the one that knows: it checks
+ * a pull request out as the merge of the branch into its base, which makes the
+ * base the merge commit's first parent and leaves the working tree with the
+ * base's own changes already folded in. With nothing set, as when this is run by
+ * hand, the merge base with the target branch stands in for it.
  *
  * @param targetRef - The branch this work is destined for.
  * @returns The ref to read the baseline from.
  */
 async function resolveBaseRef(targetRef: string): Promise<string> {
-  if (process.env.GITHUB_ACTIONS === 'true') {
-    return 'HEAD^1';
+  const baseRef = process.env[BASE_REF_ENV_VAR];
+  if (baseRef !== undefined && baseRef !== '') {
+    return baseRef;
   }
 
   const { stdout } = await execa('git', ['merge-base', 'HEAD', targetRef], {
@@ -142,12 +147,13 @@ async function resolveBaseRef(targetRef: string): Promise<string> {
  * one rather than fix it. This closes that hatch: measured against the base
  * branch, these files may only shrink.
  *
- * Pass a branch to measure against one other than `origin/main`.
+ * Pass a branch to measure against one other than `origin/main`, or set
+ * `BASE_REF` to name the base commit outright.
  *
  * @param argv - The arguments passed to this script.
  */
 export async function lintSuppressions(argv: readonly string[]): Promise<void> {
-  const baseRef = await resolveBaseRef(argv[0] ?? FALLBACK_BASE_REF);
+  const baseRef = await resolveBaseRef(argv[0] ?? FALLBACK_TARGET_REF);
   let didPass = true;
 
   for (const fileName of SUPPRESSIONS_FILE_NAMES) {
