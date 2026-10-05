@@ -244,7 +244,7 @@ describe('subscriptionController', () => {
       }),
     );
     const serviceMessenger = subscriptionService.getMessenger(rootMessenger);
-    const fetchFunction = jest.fn(async (url: string) => {
+    const fetchFunction = jest.fn(async (url: string, _init?: RequestInit) => {
       if (url === SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card')) {
         return new globalThis.Response(
           JSON.stringify({
@@ -322,9 +322,16 @@ describe('subscriptionController', () => {
       SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card'),
       expect.objectContaining({
         method: 'POST',
-        body: expect.stringContaining('"isEligibleForRefund":true'),
       }),
     );
+    const cardRequest = fetchFunction.mock.calls.find(
+      ([url]) => url === SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card'),
+    );
+    const body = cardRequest?.[1]?.body;
+    if (typeof body !== 'string') {
+      throw new Error('Expected card subscription request body to be a string');
+    }
+    expect(JSON.parse(body)).toMatchObject({ isEligibleForRefund: true });
   });
 
   it('forwards dual-product initial state to the controller', () => {
