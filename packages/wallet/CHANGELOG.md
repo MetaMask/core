@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Grant `SubscriptionController` access to `GeolocationController:getGeolocationData`
+- **BREAKING:** Grant `SubscriptionController` access to `GeolocationController:getGeolocationData` ([#10674](https://github.com/MetaMask/core/pull/10674))
   - The wallet does not construct `GeolocationController`. Clients must register that action on the Wallet messenger.
 - Bump `@metamask/claims-controller` from `^1.0.2` to `^1.0.3` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/shield-controller` from `^7.0.3` to `^7.0.4` ([#10662](https://github.com/MetaMask/core/pull/10662))
