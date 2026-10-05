@@ -44,6 +44,11 @@ export type AuthenticationControllerBeginCredentialEnrollmentAction = {
 /**
  * Completes credential enrollment and refreshes the credential cache.
  *
+ * The server returns an assertion for the new credential, which opens a
+ * verification session like `completeCredentialVerification`, replacing
+ * any earlier one. If that exchange fails, the earlier session is kept:
+ * the credential is enrolled either way.
+ *
  * A cache-refresh failure does not undo successful enrollment. Email
  * enrollment invalidates the primary SRP session *after* refresh so the
  * credentials call can reuse the still-valid access token; the next token
@@ -90,6 +95,12 @@ export type AuthenticationControllerCompleteCredentialVerificationAction = {
 /**
  * Returns the active verification token when it meets the requested
  * freshness.
+ *
+ * Low-level: features should go through the client MFA kit
+ * (`verifyOrEnroll`), which reuses a matching session without showing any
+ * screen and checks which method proved it. Read the token directly only
+ * from code that cannot show UI, and treat `null` as "let the UI layer
+ * ask".
  *
  * @param request - Optional maximum session age in milliseconds, measured
  * from when the token was obtained. Zero always requires a new ceremony.

@@ -157,6 +157,20 @@ export function unknownWalletError(address: string): Error {
 }
 
 /**
+ * HyperLiquid's rejection of a write for an account with no funds. The venue
+ * also answers an L1 action signed by a revoked or expired agent this way,
+ * naming the main account the agent was approved for.
+ *
+ * @param address - The main account the venue names.
+ * @returns The venue error.
+ */
+export function mustDepositError(address: string): Error {
+  return new Error(
+    `Must deposit before performing actions. User: ${address.toLowerCase()}`,
+  );
+}
+
+/**
  * Sign through a wallet the way the HyperLiquid SDK does: a failure is
  * wrapped with the wallet's error as its cause.
  *

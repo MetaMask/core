@@ -52,6 +52,7 @@ export { MetaMetricsEventName, MetaMetricsEventCategory } from './constants.js';
 export {
   getSmartTransactionMetricsProperties,
   getSmartTransactionMetricsSensitiveProperties,
+  getErrorData,
 } from './utils.js';
 
 // Feature flag selectors

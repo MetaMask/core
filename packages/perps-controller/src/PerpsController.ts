@@ -58,6 +58,7 @@ import { DepositService } from './services/DepositService.js';
 import { EligibilityService } from './services/EligibilityService.js';
 import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
 import { MarketDataService } from './services/MarketDataService.js';
+import { isMissingActionHandlerError } from './services/missingActionHandler.js';
 import { isProviderOnTestnet } from './services/providerNetwork.js';
 import { RewardsIntegrationService } from './services/RewardsIntegrationService.js';
 import type { ServiceContext } from './services/ServiceContext.js';
@@ -255,6 +256,39 @@ export function resolveWatchlistExchangeKey(
     hyperliquid: 'hyperliquid',
   };
   return map[activeProvider] ?? null;
+}
+
+/** A watchlist toggle, recorded so it can be replayed onto a remote list. */
+type WatchlistEdit = {
+  network: 'testnet' | 'mainnet';
+  symbol: string;
+  add: boolean;
+};
+
+/**
+ * Apply watchlist toggles, in order, on top of a watchlist.
+ *
+ * @param watchlist - The watchlist to start from.
+ * @param watchlist.testnet - Testnet symbols.
+ * @param watchlist.mainnet - Mainnet symbols.
+ * @param edits - Toggles to apply.
+ * @returns A new watchlist with the toggles applied.
+ */
+function applyWatchlistEdits(
+  watchlist: { testnet: string[]; mainnet: string[] },
+  edits: WatchlistEdit[],
+): { testnet: string[]; mainnet: string[] } {
+  const result = {
+    testnet: [...watchlist.testnet],
+    mainnet: [...watchlist.mainnet],
+  };
+  for (const { network, symbol, add } of edits) {
+    const rest = result[network].filter(
+      (marketSymbol) => marketSymbol !== symbol,
+    );
+    result[network] = add ? [...rest, symbol] : rest;
+  }
+  return result;
 }
 
 // PaymentToken: minimal interface for deposit flow (replaces mobile-only AssetType)
@@ -1164,6 +1198,9 @@ export class PerpsController extends BaseController<
    *
    * - A toggle that fires immediately after init() always runs *after* the
    *   init hydration finishes (Bug 3).
+   * - A hydration started by a re-initialization (`toggleTestnet`,
+   *   `switchProvider`) waits for earlier toggles' writes, so its read sees
+   *   them instead of overwriting them.
    * - Concurrent toggles are serialised so the last PUT reflects all changes
    *   rather than racing with each other (Bug 4).
    *
@@ -1171,6 +1208,20 @@ export class PerpsController extends BaseController<
    * a failed operation does not stall subsequent ones.
    */
   #ausQueue: Promise<void> = Promise.resolve();
+
+  /**
+   * Toggles made while an AUS hydration is queued or in flight, one list per
+   * hydration. They are replayed onto the remote watchlist when it arrives,
+   * so a late read does not drop changes the user already sees.
+   */
+  readonly #watchlistEditsDuringHydration = new Set<WatchlistEdit[]>();
+
+  /**
+   * Latest toggle number per `network:symbol` whose write is still pending,
+   * so a failed write is undone only when no later toggle of the same market
+   * has superseded it.
+   */
+  readonly #pendingWatchlistToggles = new Map<string, number>();
 
   #userDiskWrite: Promise<void> = Promise.resolve();
 
@@ -2314,11 +2365,20 @@ export class PerpsController extends BaseController<
 
         // Hydrate watchlist from AUS (non-blocking — transient failures are
         // caught inside and must not prevent init from completing).
-        // Assigning to #ausQueue ensures subsequent toggleWatchlistMarket
-        // calls wait for hydration before running their own GET-merge-PUT.
-        this.#ausQueue = this.#syncWatchlistFromRemote().catch(() => {
-          // Errors are already logged inside #syncWatchlistFromRemote.
-        });
+        // Chaining onto #ausQueue makes the read wait for earlier toggles'
+        // writes, and makes later toggles wait for hydration before running
+        // their own GET-merge-PUT. Toggles are recorded from the moment the
+        // hydration is queued, so one made while it waits is replayed too.
+        const editsDuringHydration: WatchlistEdit[] = [];
+        this.#watchlistEditsDuringHydration.add(editsDuringHydration);
+        this.#ausQueue = this.#ausQueue
+          .then(() => this.#syncWatchlistFromRemote(editsDuringHydration))
+          .catch(() => {
+            // Errors are already logged inside #syncWatchlistFromRemote.
+          })
+          .finally(() => {
+            this.#watchlistEditsDuringHydration.delete(editsDuringHydration);
+          });
 
         return; // Exit retry loop on success
       } catch (error) {
@@ -6091,6 +6151,10 @@ export class PerpsController extends BaseController<
    * - `NO_ACCOUNT_SELECTED` when no account is selected;
    * - `PROVIDER_LIFECYCLE_STALE` when the provider disconnected or the account
    * changed during setup;
+   * - the venue's message when HyperLiquid refused the builder fee approval
+   * for a reason signing again cannot fix (for example "Builder has
+   * insufficient balance to be approved"); it is not logged, and the
+   * approval is not asked for again until the provider disconnects;
    * - otherwise the message of the error that stopped setup, which is logged.
    * @throws Like the other provider-backed actions, `CLIENT_NOT_INITIALIZED`
    * before `init`, and `CLIENT_REINITIALIZING` or `PROVIDER_NOT_AVAILABLE`
@@ -7098,6 +7162,15 @@ export class PerpsController extends BaseController<
         state.watchlistMarkets[currentNetwork] = [...currentWatchlist, symbol];
       }
     });
+    for (const edits of this.#watchlistEditsDuringHydration) {
+      edits.push({ network: currentNetwork, symbol, add: !isWatchlisted });
+    }
+    const toggleKey = `${currentNetwork}:${symbol}`;
+    const toggleNumber =
+      (this.#pendingWatchlistToggles.get(toggleKey) ?? 0) + 1;
+    this.#pendingWatchlistToggles.set(toggleKey, toggleNumber);
+    const isLatestToggle = (): boolean =>
+      this.#pendingWatchlistToggles.get(toggleKey) === toggleNumber;
 
     this.#getMetrics().trackPerpsEvent(PerpsAnalyticsEvent.UiInteraction, {
       [PERPS_EVENT_PROPERTY.INTERACTION_TYPE]:
@@ -7131,10 +7204,35 @@ export class PerpsController extends BaseController<
           action: isWatchlisted ? 'remove' : 'add',
         }),
       );
-      // Revert the optimistic update.
+      // A later toggle of the same market decides its state; its own write
+      // persists it.
+      if (!isLatestToggle()) {
+        return;
+      }
+      // Undo only this toggle. The list may have changed since it was made
+      // (hydration, other toggles), so restoring the earlier snapshot would
+      // discard those changes.
       this.update((state) => {
-        state.watchlistMarkets[currentNetwork] = currentWatchlist;
+        const watchlist = state.watchlistMarkets[currentNetwork];
+        if (isWatchlisted) {
+          if (!watchlist.includes(symbol)) {
+            // Back where it was, as far as the current list allows.
+            const index = Math.min(
+              currentWatchlist.indexOf(symbol),
+              watchlist.length,
+            );
+            watchlist.splice(index, 0, symbol);
+          }
+        } else {
+          state.watchlistMarkets[currentNetwork] = watchlist.filter(
+            (marketSymbol) => marketSymbol !== symbol,
+          );
+        }
       });
+    } finally {
+      if (isLatestToggle()) {
+        this.#pendingWatchlistToggles.delete(toggleKey);
+      }
     }
   }
 
@@ -7212,6 +7310,12 @@ export class PerpsController extends BaseController<
    * - The remote preferences blob does not yet exist (returns `null` / 404).
    *   In that case, `NotificationServicesController.createOnChainTriggers` is
    *   the canonical owner that creates the initial blob.
+   * - The host does not provide the AUS read or write action. Local state is
+   *   then the only copy of the change. With the read but not the write, the
+   *   next hydration from AUS (the source of truth) queued after the toggle
+   *   replaces it. Every initialization hydrates: `init()` (including after
+   *   `disconnect()`), `toggleTestnet()` and `switchProvider()`. A hydration
+   *   already queued or in flight when the toggle is made keeps it.
    *
    * Throws on remote write failure so the caller can decide whether to revert.
    *
@@ -7229,9 +7333,26 @@ export class PerpsController extends BaseController<
       return;
     }
 
-    const prefs = await this.messenger.call(
-      'AuthenticatedUserStorageService:getNotificationPreferences',
-    );
+    let prefs: NotificationPreferences | null;
+    try {
+      prefs = await this.messenger.call(
+        'AuthenticatedUserStorageService:getNotificationPreferences',
+      );
+    } catch (error) {
+      if (
+        !isMissingActionHandlerError(
+          error,
+          'AuthenticatedUserStorageService:getNotificationPreferences',
+        )
+      ) {
+        throw error;
+      }
+      this.#debugLog(
+        'PerpsController: Skipping AUS watchlist write — AuthenticatedUserStorageService not provided',
+        { exchangeKey, network },
+      );
+      return;
+    }
 
     if (!prefs) {
       this.#debugLog(
@@ -7262,10 +7383,26 @@ export class PerpsController extends BaseController<
       },
     };
 
-    await this.messenger.call(
-      'AuthenticatedUserStorageService:putNotificationPreferences',
-      nextPrefs,
-    );
+    try {
+      await this.messenger.call(
+        'AuthenticatedUserStorageService:putNotificationPreferences',
+        nextPrefs,
+      );
+    } catch (error) {
+      if (
+        !isMissingActionHandlerError(
+          error,
+          'AuthenticatedUserStorageService:putNotificationPreferences',
+        )
+      ) {
+        throw error;
+      }
+      this.#debugLog(
+        'PerpsController: Skipping AUS watchlist write — AuthenticatedUserStorageService not provided',
+        { exchangeKey, network },
+      );
+      return;
+    }
 
     this.#debugLog('PerpsController: Watchlist synced to AUS', {
       exchangeKey,
@@ -7279,13 +7416,20 @@ export class PerpsController extends BaseController<
    * controller initialisation.
    *
    * AUS is the source of truth; local state is used as an offline cache.
+   * Toggles made since the hydration was queued are applied on top of the
+   * remote watchlist rather than overwritten by it.
    * This method also handles the one-time migration from local-only state to
    * AUS for users who had a watchlist before AUS sync was introduced.
    *
    * All remote errors are swallowed so a transient network failure does not
    * block the rest of `init()`.
+   *
+   * @param editsDuringHydration - Toggles recorded since this hydration was
+   * queued; the caller registers and removes the list.
    */
-  async #syncWatchlistFromRemote(): Promise<void> {
+  async #syncWatchlistFromRemote(
+    editsDuringHydration: WatchlistEdit[],
+  ): Promise<void> {
     const exchangeKey = resolveWatchlistExchangeKey(this.state.activeProvider);
     if (!exchangeKey) {
       this.#debugLog(
@@ -7296,9 +7440,25 @@ export class PerpsController extends BaseController<
     }
 
     try {
-      const prefs = await this.messenger.call(
-        'AuthenticatedUserStorageService:getNotificationPreferences',
-      );
+      let prefs: NotificationPreferences | null;
+      try {
+        prefs = await this.messenger.call(
+          'AuthenticatedUserStorageService:getNotificationPreferences',
+        );
+      } catch (error) {
+        if (
+          !isMissingActionHandlerError(
+            error,
+            'AuthenticatedUserStorageService:getNotificationPreferences',
+          )
+        ) {
+          throw error;
+        }
+        this.#debugLog(
+          'PerpsController: AuthenticatedUserStorageService not provided — using local watchlist',
+        );
+        return;
+      }
 
       if (!prefs) {
         this.#debugLog(
@@ -7344,24 +7504,46 @@ export class PerpsController extends BaseController<
               watchlistMarkets: nextWatchlistMarkets,
             },
           };
-          await this.messenger.call(
-            'AuthenticatedUserStorageService:putNotificationPreferences',
-            nextPrefs,
-          );
+          try {
+            await this.messenger.call(
+              'AuthenticatedUserStorageService:putNotificationPreferences',
+              nextPrefs,
+            );
+          } catch (error) {
+            if (
+              !isMissingActionHandlerError(
+                error,
+                'AuthenticatedUserStorageService:putNotificationPreferences',
+              )
+            ) {
+              throw error;
+            }
+            this.#debugLog(
+              'PerpsController: Skipping AUS watchlist migration — putNotificationPreferences not provided',
+              { exchangeKey },
+            );
+            return;
+          }
           this.#debugLog('PerpsController: Local watchlist migrated to AUS', {
             exchangeKey,
           });
         }
       } else {
-        // AUS has an entry for this exchange — hydrate local state from it.
+        // AUS has an entry for this exchange — hydrate local state from it,
+        // keeping any toggle made while the read was in flight.
+        const hydrated = applyWatchlistEdits(
+          remoteExchangeWatchlist,
+          editsDuringHydration,
+        );
         this.update((state) => {
-          state.watchlistMarkets.testnet = remoteExchangeWatchlist.testnet;
-          state.watchlistMarkets.mainnet = remoteExchangeWatchlist.mainnet;
+          state.watchlistMarkets.testnet = hydrated.testnet;
+          state.watchlistMarkets.mainnet = hydrated.mainnet;
         });
         this.#debugLog('PerpsController: Watchlist hydrated from AUS', {
           exchangeKey,
-          testnetCount: remoteExchangeWatchlist.testnet.length,
-          mainnetCount: remoteExchangeWatchlist.mainnet.length,
+          testnetCount: hydrated.testnet.length,
+          mainnetCount: hydrated.mainnet.length,
+          replayedToggles: editsDuringHydration.length,
         });
       }
     } catch (error) {
