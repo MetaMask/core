@@ -1,120 +1,96 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
-import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { stringToBytes } from '@metamask/utils';
 
+import {
+  createFetchedSecretDataItem,
+  createSecretMetadata,
+  createSecretMetadataFromMock,
+  ImportedSRP1,
+  PrimarySRP2,
+  PrivateKey1,
+  SRP1,
+  SRP2,
+} from '../../tests/__fixtures__/secret-metadata.js';
 import { SecretType } from '../constants.js';
 import { InvalidPrimarySecretDataTypeError } from '../errors.js';
-import { SecretMetadata } from '../SecretMetadata.js';
 import {
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
-  parseAndSortSecretMetadata,
+  parseAndValidateSecretMetadataBackup,
+  parseSecretMetadata,
 } from './secret-data-utils.js';
 
-function createSecretMetadata(
-  data: string,
-  options: {
-    dataType?: EncAccountDataType;
-    itemId?: string;
-    storageVersion?: 'v1' | 'v2';
-    timestamp?: number;
-    type?: SecretType;
-  } = {},
-): SecretMetadata {
-  return new SecretMetadata(stringToBytes(data), options);
-}
-
-function createFetchedSecretDataItem({
-  data,
-  timestamp,
-  itemId,
-  type = SecretType.Mnemonic,
-  dataType,
-  version,
-  createdAt,
-}: {
-  data: string;
-  timestamp: number;
-  itemId?: string;
-  type?: SecretType;
-  dataType?: EncAccountDataType;
-  version?: 'v1' | 'v2';
-  createdAt?: string;
-}): FetchedSecretDataItem {
-  const metadata = new SecretMetadata(stringToBytes(data), {
-    timestamp,
-    type,
-    ...(dataType === undefined ? {} : { dataType }),
-  });
-
-  return {
-    data: metadata.toBytes(),
-    itemId,
-    version: version ?? (dataType === undefined ? 'v1' : 'v2'),
-    dataType,
-    createdAt,
-  } as FetchedSecretDataItem;
-}
-
 describe('secret data utilities', () => {
-  describe('parseAndSortSecretMetadata', () => {
-    it('sorts legacy metadata by timestamp and promotes the first mnemonic', () => {
-      const results = parseAndSortSecretMetadata([
+  describe('parseSecretMetadata', () => {
+    it('sorts primary SRP items ahead of older secrets', () => {
+      const results = parseSecretMetadata([
         createFetchedSecretDataItem({
-          data: 'private key',
-          timestamp: 50,
+          ...PrivateKey1,
           itemId: 'private-key',
-          type: SecretType.PrivateKey,
         }),
         createFetchedSecretDataItem({
-          data: 'second srp',
-          timestamp: 200,
-          itemId: 'srp-2',
+          ...ImportedSRP1,
+          timestamp: 1,
+          itemId: 'imported-srp',
         }),
         createFetchedSecretDataItem({
-          data: 'first srp',
-          timestamp: 100,
-          itemId: 'srp-1',
+          ...PrimarySRP2,
+          timestamp: 300,
+          itemId: 'primary-srp',
         }),
       ]);
 
+      expect(results.map((result) => result.itemId)).toStrictEqual([
+        'primary-srp',
+        'imported-srp',
+        'private-key',
+      ]);
+    });
+
+    it('keeps timestamp order when no primary mnemonic is tagged', () => {
+      const results = parseSecretMetadata([
+        createFetchedSecretDataItem({
+          ...ImportedSRP1,
+          itemId: 'imported-srp',
+        }),
+      ]);
+
+      expect(results.map((result) => result.itemId)).toStrictEqual([
+        'imported-srp',
+      ]);
+    });
+  });
+
+  describe('parseAndValidateSecretMetadataBackup', () => {
+    it('sorts legacy metadata by timestamp and promotes the first mnemonic', () => {
+      const results = parseAndValidateSecretMetadataBackup([
+        createFetchedSecretDataItem(PrivateKey1),
+        createFetchedSecretDataItem(SRP2),
+        createFetchedSecretDataItem(SRP1),
+      ]);
+
       expect(results.map((result) => result.data)).toStrictEqual([
-        stringToBytes('first srp'),
-        stringToBytes('private key'),
-        stringToBytes('second srp'),
+        stringToBytes(SRP1.data),
+        stringToBytes(PrivateKey1.data),
+        stringToBytes(SRP2.data),
       ]);
     });
 
     it('keeps an explicitly tagged primary mnemonic first', () => {
-      const results = parseAndSortSecretMetadata([
-        createFetchedSecretDataItem({
-          data: 'imported srp',
-          timestamp: 1,
-          itemId: 'imported-srp',
-          dataType: EncAccountDataType.ImportedSrp,
-        }),
-        createFetchedSecretDataItem({
-          data: 'primary srp',
-          timestamp: 2,
-          itemId: 'primary-srp',
-          dataType: EncAccountDataType.PrimarySrp,
-        }),
+      const results = parseAndValidateSecretMetadataBackup([
+        createFetchedSecretDataItem(ImportedSRP1),
+        createFetchedSecretDataItem(PrimarySRP2),
       ]);
 
-      expect(results[0]?.data).toStrictEqual(stringToBytes('primary srp'));
+      expect(results[0]?.data).toStrictEqual(stringToBytes(PrimarySRP2.data));
       expect(results[0]?.dataType).toBe(EncAccountDataType.PrimarySrp);
     });
 
     it('throws when no mnemonic can be used as the primary secret', () => {
       expect(() =>
-        parseAndSortSecretMetadata([
-          createFetchedSecretDataItem({
-            data: 'imported srp',
-            timestamp: 1,
-            itemId: 'imported-srp',
-            dataType: EncAccountDataType.ImportedSrp,
-          }),
+        parseAndValidateSecretMetadataBackup([
+          createFetchedSecretDataItem(ImportedSRP1),
         ]),
       ).toThrow(
         new InvalidPrimarySecretDataTypeError([EncAccountDataType.ImportedSrp]),
@@ -125,26 +101,16 @@ describe('secret data utilities', () => {
   describe('getDataTypeMigrationUpdates', () => {
     it('classifies legacy items in their existing order', () => {
       const updates = getDataTypeMigrationUpdates([
-        createSecretMetadata('first srp', {
-          itemId: 'srp-1',
-          timestamp: 100,
-        }),
-        createSecretMetadata('second srp', {
-          itemId: 'srp-2',
-          timestamp: 200,
-        }),
-        createSecretMetadata('private key', {
-          itemId: 'private-key',
-          timestamp: 300,
-          type: SecretType.PrivateKey,
-        }),
+        createSecretMetadataFromMock(SRP1),
+        createSecretMetadataFromMock(SRP2),
+        createSecretMetadataFromMock(PrivateKey1),
       ]);
 
       expect(updates).toStrictEqual([
-        { itemId: 'srp-1', dataType: EncAccountDataType.PrimarySrp },
-        { itemId: 'srp-2', dataType: EncAccountDataType.ImportedSrp },
+        { itemId: SRP1.itemId, dataType: EncAccountDataType.PrimarySrp },
+        { itemId: SRP2.itemId, dataType: EncAccountDataType.ImportedSrp },
         {
-          itemId: 'private-key',
+          itemId: PrivateKey1.itemId,
           dataType: EncAccountDataType.ImportedPrivateKey,
         },
       ]);
@@ -152,7 +118,7 @@ describe('secret data utilities', () => {
 
     it('preserves an existing primary and skips items outside the migration', () => {
       const updates = getDataTypeMigrationUpdates([
-        createSecretMetadata('primary srp', {
+        createSecretMetadata(SRP1.data, {
           dataType: EncAccountDataType.PrimarySrp,
           itemId: 'primary-srp',
           storageVersion: 'v1',

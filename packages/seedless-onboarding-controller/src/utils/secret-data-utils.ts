@@ -17,13 +17,15 @@ export type SecretBackupData = Omit<SocialBackupsMetadata, 'hash'> & {
 };
 
 /**
- * Parse, sort, and validate secret metadata fetched from the metadata store.
+ * Parse and sort secret metadata fetched from the metadata store.
+ *
+ * Primary SRP items are ordered first, then remaining items by client
+ * timestamp (oldest first). This does not require a primary mnemonic.
  *
  * @param secretDataItems - The encrypted metadata items fetched from storage.
- * @returns The parsed and ordered secret metadata.
- * @throws If no mnemonic can be used as the primary secret.
+ * @returns The parsed secret metadata in sort order.
  */
-export function parseAndSortSecretMetadata(
+export function parseSecretMetadata(
   secretDataItems: FetchedSecretDataItem[],
 ): SecretMetadata[] {
   const results: SecretMetadata[] = secretDataItems.map((item) =>
@@ -38,23 +40,60 @@ export function parseAndSortSecretMetadata(
   // Sort: PrimarySrp first, then by client timestamp (oldest first).
   results.sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
 
-  const primaryIndex = results.findIndex(
-    (result) =>
-      SecretMetadata.matchesType(result, SecretType.Mnemonic) &&
-      (result.dataType === undefined ||
-        result.dataType === null ||
-        result.dataType === EncAccountDataType.PrimarySrp),
+  return results;
+}
+
+/**
+ * A mnemonic can be the primary secret when it is untagged or explicitly
+ * tagged as the primary SRP.
+ *
+ * @param secret - The secret metadata to check.
+ * @returns Whether the secret can be selected as the primary mnemonic.
+ */
+export function isPrimarySecretCandidate(secret: SecretMetadata): boolean {
+  return (
+    SecretMetadata.matchesType(secret, SecretType.Mnemonic) &&
+    (secret.dataType === undefined ||
+      secret.dataType === null ||
+      secret.dataType === EncAccountDataType.PrimarySrp)
   );
+}
+
+/**
+ * Validate that parsed secret metadata contains a primary mnemonic, and move
+ * that mnemonic to the front.
+ *
+ * @param secretMetadata - Parsed secret metadata.
+ * @returns The same array with the primary mnemonic at index 0.
+ * @throws If no mnemonic can be used as the primary secret.
+ */
+export function validateSecretMetadataBackup(
+  secretMetadata: SecretMetadata[],
+): SecretMetadata[] {
+  const primaryIndex = secretMetadata.findIndex(isPrimarySecretCandidate);
   if (primaryIndex === -1) {
-    throw InvalidPrimarySecretDataTypeError.fromSecretMetadata(results);
+    throw InvalidPrimarySecretDataTypeError.fromSecretMetadata(secretMetadata);
   }
 
   if (primaryIndex !== 0) {
-    const [primary] = results.splice(primaryIndex, 1);
-    results.unshift(primary);
+    const [primary] = secretMetadata.splice(primaryIndex, 1);
+    secretMetadata.unshift(primary);
   }
 
-  return results;
+  return secretMetadata;
+}
+
+/**
+ * Parse, sort, and validate a secret metadata backup.
+ *
+ * @param secretDataItems - The encrypted metadata items fetched from storage.
+ * @returns The parsed and ordered secret metadata.
+ * @throws If no mnemonic can be used as the primary secret.
+ */
+export function parseAndValidateSecretMetadataBackup(
+  secretDataItems: FetchedSecretDataItem[],
+): SecretMetadata[] {
+  return validateSecretMetadataBackup(parseSecretMetadata(secretDataItems));
 }
 
 /**

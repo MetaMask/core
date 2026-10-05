@@ -77,7 +77,7 @@ import {
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
   parseVaultData,
-  parseAndSortSecretMetadata,
+  parseAndValidateSecretMetadataBackup,
   serializeVaultData,
 } from './utils/index.js';
 import type { SecretBackupData } from './utils/index.js';
@@ -1361,7 +1361,7 @@ export class SeedlessOnboardingController<
 
     // user must have at least one secret data
     if (secretDataItems?.length > 0) {
-      return parseAndSortSecretMetadata(secretDataItems);
+      return parseAndValidateSecretMetadataBackup(secretDataItems);
     }
 
     throw new Error(SeedlessOnboardingControllerErrorMessage.NoSecretDataFound);

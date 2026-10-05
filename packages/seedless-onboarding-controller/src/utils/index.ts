@@ -10,7 +10,7 @@ export type { SecretBackupData } from './secret-data-utils.js';
 export {
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
-  parseAndSortSecretMetadata,
+  parseAndValidateSecretMetadataBackup,
 } from './secret-data-utils.js';
 export {
   compareAndGetLatestToken,
