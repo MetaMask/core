@@ -99,14 +99,14 @@ export function printAddedSuppressions(
     return;
   }
 
-  console.log(`❌ Detected problems added to ${fileName}:\n`);
+  console.log(`❌ Detected suppressions added to ${fileName}:\n`);
   for (const suppression of added) {
     console.log(
       `  ${suppression.filePath}: ${suppression.rule} (${suppression.count} suppressed, was ${suppression.baseCount})`,
     );
   }
   console.log(
-    '\nSuppressions may only be removed, never added. Fix these problems rather than suppressing them.',
+    '\nSuppressions may only be removed, never added. Fix the errors rather than suppressing them.',
   );
 }
 
