@@ -106,7 +106,7 @@ describe('subscriptionController', () => {
     expect(instance.getIntervalLength()).toBe(5 * 60 * 1_000);
   });
 
-  it('delegates SubscriptionService actions, performSignOut, and getIsUserAuthenticated', () => {
+  it('delegates SubscriptionService actions, performSignOut, getGeolocationData, and getIsUserAuthenticated', () => {
     const parent = getRootMessenger();
     const delegateSpy = jest.spyOn(parent, 'delegate');
     const messenger = subscriptionController.getMessenger(parent);
@@ -130,6 +130,7 @@ describe('subscriptionController', () => {
         'SubscriptionService:getBillingPortalUrl',
         'SubscriptionService:getBenefits',
         'AuthenticationController:performSignOut',
+        'GeolocationController:getGeolocationData',
         'SeedlessOnboardingController:getIsUserAuthenticated',
       ],
     });
@@ -232,6 +233,16 @@ describe('subscriptionController', () => {
       'AuthenticationController:performSignOut',
       jest.fn(),
     );
+    registerActionHandler(
+      rootMessenger,
+      'GeolocationController',
+      'GeolocationController:getGeolocationData',
+      async () => ({
+        country: 'DE',
+        region: 'BE',
+        timezone: 'Europe/Berlin',
+      }),
+    );
     const serviceMessenger = subscriptionService.getMessenger(rootMessenger);
     const fetchFunction = jest.fn(async (url: string) => {
       if (url === SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card')) {
@@ -309,7 +320,10 @@ describe('subscriptionController', () => {
     );
     expect(fetchFunction).toHaveBeenCalledWith(
       SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card'),
-      expect.objectContaining({ method: 'POST' }),
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('"isEligibleForRefund":true'),
+      }),
     );
   });
 
