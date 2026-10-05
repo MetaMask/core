@@ -104,8 +104,6 @@ export enum SubscriptionDelegationServiceErrorMessage {
   ChompMissingDelegationHash = 'CHOMP verify response did not include a delegation hash',
   ChompDelegationHashMismatch = 'CHOMP verify response delegation hash does not match the locally computed hash',
   ChainMismatch = 'Subscription delegation chain does not match the Money Account chain',
-  ApprovalResultMissing = 'Subscription delegation approval result is missing',
-  InvalidFundingTransactionHash = 'Subscription funding transaction hash is invalid',
   ReusableDelegationInvalid = 'Reusable subscription delegation is missing or invalid',
   TrialEligibilityChanged = 'Subscription trial eligibility changed after authorization',
   ChompIntentNotActive = 'CHOMP subscription intent is not active',

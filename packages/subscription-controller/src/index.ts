@@ -208,14 +208,11 @@ export type {
   SignedSubscriptionDelegation,
   StartSubscriptionWithDelegationRequest,
   StartSubscriptionWithDelegationResult,
-  SubscriptionDelegationApprovalResult,
   SubscriptionDelegationTypedData,
-  SubscriptionFundingRequest,
   SubscriptionPermissionId,
   UnsignedSubscriptionDelegation,
 } from './subscription-delegation/types.js';
 export {
   CASH_SUBSCRIPTION_DELEGATION_TYPE,
-  SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
   SUBSCRIPTION_DELEGATION_POLICY_VERSION,
 } from './subscription-delegation/types.js';
