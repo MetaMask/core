@@ -13,16 +13,13 @@ jobs:
     name: Lint suppressions
     if: ${{ github.event_name != 'merge_group' && !contains(github.event.pull_request.labels.*.name, 'allow-new-suppressions') }}
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [24.x]
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
           persist-credentials: false
-          node-version: ${{ matrix.node-version }}
+          node-version: 24.x
           fetch-depth: 2
       - name: Run yarn lint:suppressions
         run: yarn lint:suppressions
