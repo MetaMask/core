@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 /**
  * The file in which the type errors that are knowingly ignored are recorded.
  */
-export const SUPPRESSIONS_FILE_NAME = 'tsc-suppressions.json';
+export const TSC_SUPPRESSIONS_FILE_NAME = 'tsc-suppressions.json';
 
 /**
  * A diagnostic reported by `tsc`. Most belong to a file; those that report a

@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import {
-  SUPPRESSIONS_FILE_NAME,
+  TSC_SUPPRESSIONS_FILE_NAME,
   addSuppressions,
   compareErrorsToSuppressions,
   isTscError,
@@ -35,7 +35,7 @@ const REPO_ROOT = path.join(
  * @param argv - The arguments passed to this script.
  */
 export async function lintTsc(argv: readonly string[]): Promise<void> {
-  const suppressionsFilePath = path.join(REPO_ROOT, SUPPRESSIONS_FILE_NAME);
+  const suppressionsFilePath = path.join(REPO_ROOT, TSC_SUPPRESSIONS_FILE_NAME);
 
   // `lines` has execa split the output for us, rather than buffering it all
   // into one string only to split it again here.
@@ -99,7 +99,7 @@ export async function lintTsc(argv: readonly string[]): Promise<void> {
       .flatMap((byCode) => Object.values(byCode))
       .reduce((sum, { count }) => sum + count, 0);
     console.log(
-      `✅ Updated ${SUPPRESSIONS_FILE_NAME}: now suppressing ${total} type error(s) across ${Object.keys(suppressions).length} file(s).`,
+      `✅ Updated ${TSC_SUPPRESSIONS_FILE_NAME}: now suppressing ${total} type error(s) across ${Object.keys(suppressions).length} file(s).`,
     );
     return;
   }

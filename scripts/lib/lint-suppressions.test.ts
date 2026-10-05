@@ -5,7 +5,7 @@ jest.unstable_mockModule('execa', () => ({
 }));
 
 jest.unstable_mockModule('./tsc-suppressions.ts', () => ({
-  SUPPRESSIONS_FILE_NAME: 'tsc-suppressions.json',
+  TSC_SUPPRESSIONS_FILE_NAME: 'tsc-suppressions.json',
   readSuppressions: jest.fn(),
 }));
 

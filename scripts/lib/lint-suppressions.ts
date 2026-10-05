@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import {
-  SUPPRESSIONS_FILE_NAME as TSC_SUPPRESSIONS_FILE_NAME,
+  TSC_SUPPRESSIONS_FILE_NAME,
   readSuppressions,
 } from './tsc-suppressions.ts';
 
