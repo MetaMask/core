@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix `RpcBalanceFetcher` reporting a failed native or staked balance read as a successful zero balance, which erased the previously known balance ([#10043](https://github.com/MetaMask/core/issues/10043))
+- Fix `RpcBalanceFetcher` reporting a failed native or staked balance read as a successful zero balance, which erased the previously known balance ([#10671](https://github.com/MetaMask/core/pull/10671))
   - A balance entry that is missing from the multicall result is now reported with `success: false` instead of `success: true` with a zero value, matching how failed ERC-20 reads are already reported. `getStakedBalancesForAddresses` now returns an explicit zero balance for every address whose shares were read successfully, so a genuine zero balance remains distinguishable from a failed read.
 
 ## [112.1.2]
