@@ -160,7 +160,6 @@ import type {
   PerpsAgentAccount,
   PerpsAgentSigner,
   PerpsPlatformDependencies,
-  PerpsLogger,
   PerpsActiveProviderMode,
   PerpsAnalyticsProperties,
   PerpsAttributionContext,
@@ -187,6 +186,16 @@ import {
   TransactionStatus,
 } from './types/transactionTypes.js';
 import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
+import {
+  PERPS_ERROR_ACTION,
+  PERPS_ERROR_COMPONENT,
+  PERPS_ERROR_OPERATION,
+  createPerpsErrorContext,
+} from './utils/errorContext.js';
+import type {
+  PerpsErrorTags,
+  PerpsLoggerOptions,
+} from './utils/errorContext.js';
 import { ensureError } from './utils/errorUtils.js';
 import { parseAssetName } from './utils/hyperLiquidAdapter.js';
 import { captureScaleOrderParams } from './utils/lighterScaleOrders.js';
@@ -205,8 +214,11 @@ import {
 import type { DiskCacheUserEntry } from './utils/perpsDiskPersistence.js';
 import { wait } from './utils/wait.js';
 
-/** Derived type for logger options from PerpsLogger interface */
-type PerpsLoggerOptions = Parameters<PerpsLogger['error']>[1];
+const CONNECTION_ERROR_TAGS: PerpsErrorTags = {
+  operation: PERPS_ERROR_OPERATION.ConnectionManagement,
+  component: PERPS_ERROR_COMPONENT.ConnectionManager,
+  action: PERPS_ERROR_ACTION.ConnectionConnection,
+};
 
 function cloneUserDataSnapshot(
   snapshot: PerpsUserDataSnapshot,
@@ -2185,11 +2197,15 @@ export class PerpsController extends BaseController<
         // Log error to Sentry but continue pausing remaining channels
         this.#logError(
           ensureError(error, 'PerpsController.withStreamPause'),
-          this.#getErrorContext('withStreamPause', {
-            operation: 'pause',
-            channel: String(channel),
-            pausedChannels: pausedChannels.join(','),
-          }),
+          this.#getErrorContext(
+            'withStreamPause',
+            {
+              operation: 'pause',
+              channel: String(channel),
+              pausedChannels: pausedChannels.join(','),
+            },
+            CONNECTION_ERROR_TAGS,
+          ),
         );
       }
     }
@@ -2206,11 +2222,15 @@ export class PerpsController extends BaseController<
           // Log error to Sentry but continue resuming remaining channels
           this.#logError(
             ensureError(error, 'PerpsController.withStreamPause'),
-            this.#getErrorContext('withStreamPause', {
-              operation: 'resume',
-              channel: String(channel),
-              pausedChannels: pausedChannels.join(','),
-            }),
+            this.#getErrorContext(
+              'withStreamPause',
+              {
+                operation: 'resume',
+                channel: String(channel),
+                pausedChannels: pausedChannels.join(','),
+              },
+              CONNECTION_ERROR_TAGS,
+            ),
           );
         }
       }
@@ -2406,10 +2426,14 @@ export class PerpsController extends BaseController<
 
         this.#logError(
           lastError,
-          this.#getErrorContext('performInitialization', {
-            attempt,
-            maxAttempts,
-          }),
+          this.#getErrorContext(
+            'performInitialization',
+            {
+              attempt,
+              maxAttempts,
+            },
+            CONNECTION_ERROR_TAGS,
+          ),
         );
 
         // If not the last attempt, wait before retrying (exponential backoff)
@@ -2585,7 +2609,11 @@ export class PerpsController extends BaseController<
     } else {
       this.#logError(
         error instanceof Error ? error : new Error(String(error)),
-        this.#getErrorContext('createProviders.lighter'),
+        this.#getErrorContext(
+          'createProviders.lighter',
+          undefined,
+          CONNECTION_ERROR_TAGS,
+        ),
       );
     }
   }
@@ -2649,6 +2677,7 @@ export class PerpsController extends BaseController<
    *
    * @param method - The method name where the error occurred
    * @param extra - Optional additional context fields (becomes searchable context data)
+   * @param errorTags - Optional bounded tags used by error dashboards
    * @returns PerpsLoggerOptions with tags (searchable) and context (searchable)
    * @private
    * @example
@@ -2659,21 +2688,16 @@ export class PerpsController extends BaseController<
   #getErrorContext(
     method: string,
     extra?: Record<string, unknown>,
+    errorTags?: PerpsErrorTags,
   ): PerpsLoggerOptions {
-    return {
-      tags: {
-        feature: PERPS_CONSTANTS.FeatureName,
-        provider: this.state.activeProvider,
-        network: this.state.isTestnet ? 'testnet' : 'mainnet',
-      },
-      context: {
-        name: 'PerpsController',
-        data: {
-          method,
-          ...extra,
-        },
-      },
-    };
+    return createPerpsErrorContext({
+      contextName: 'PerpsController',
+      method,
+      provider: this.state.activeProvider,
+      network: this.state.isTestnet ? 'testnet' : 'mainnet',
+      errorTags,
+      data: extra,
+    });
   }
 
   /**
@@ -3846,10 +3870,11 @@ export class PerpsController extends BaseController<
       };
     } catch (error) {
       // Check if user denied/cancelled the transaction
-      const errorMessage = ensureError(
+      const depositError = ensureError(
         error,
         'PerpsController.initiateDeposit',
-      ).message;
+      );
+      const errorMessage = depositError.message;
       const userCancelled =
         errorMessage.includes('User denied') ||
         errorMessage.includes('User rejected') ||
@@ -3857,6 +3882,17 @@ export class PerpsController extends BaseController<
         errorMessage.includes('User canceled');
 
       if (!userCancelled) {
+        this.#logError(
+          depositError,
+          this.#getErrorContext(
+            'depositWithConfirmation',
+            { placeOrder: placeOrder === true },
+            {
+              operation: PERPS_ERROR_OPERATION.FinancialOperations,
+              action: PERPS_ERROR_ACTION.FinancialDeposit,
+            },
+          ),
+        );
         // Only track actual errors, not user cancellations
         this.update((state) => {
           state.lastDepositTransactionId = null;
@@ -5258,9 +5294,13 @@ export class PerpsController extends BaseController<
       };
       this.#logError(
         ensureError(error, 'PerpsController.performMarketDataPreload'),
-        this.#getErrorContext('performMarketDataPreload', {
-          message: 'Background preload failed',
-        }),
+        this.#getErrorContext(
+          'performMarketDataPreload',
+          {
+            message: 'Background preload failed',
+          },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
     } finally {
       this.#options.infrastructure.tracer.endTrace({
@@ -5558,9 +5598,13 @@ export class PerpsController extends BaseController<
       };
       this.#logError(
         ensureError(error, 'PerpsController.performUserDataPreload'),
-        this.#getErrorContext('performUserDataPreload', {
-          message: 'Background user data preload failed',
-        }),
+        this.#getErrorContext(
+          'performUserDataPreload',
+          {
+            message: 'Background user data preload failed',
+          },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
     } finally {
       this.#options.infrastructure.tracer.endTrace({
@@ -5779,7 +5823,10 @@ export class PerpsController extends BaseController<
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.getWithdrawalRoutes'),
-        this.#getErrorContext('getWithdrawalRoutes'),
+        this.#getErrorContext('getWithdrawalRoutes', undefined, {
+          operation: PERPS_ERROR_OPERATION.FinancialOperations,
+          action: PERPS_ERROR_ACTION.FinancialWithdrawal,
+        }),
       );
       // Return empty array if provider is not available
       return [];
@@ -6063,7 +6110,11 @@ export class PerpsController extends BaseController<
 
       this.#logError(
         ensureError(error, 'PerpsController.switchProvider'),
-        this.#getErrorContext('switchProvider', { providerId }),
+        this.#getErrorContext(
+          'switchProvider',
+          { providerId },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
 
       // Attempt to reinitialize the previous provider via init(),
@@ -6087,9 +6138,13 @@ export class PerpsController extends BaseController<
         });
         this.#logError(
           ensureError(reinitError, 'PerpsController.switchProvider.rollback'),
-          this.#getErrorContext('switchProvider.rollback', {
-            previousProvider,
-          }),
+          this.#getErrorContext(
+            'switchProvider.rollback',
+            {
+              previousProvider,
+            },
+            CONNECTION_ERROR_TAGS,
+          ),
         );
       }
 
@@ -6208,9 +6263,13 @@ export class PerpsController extends BaseController<
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.reconnect'),
-        this.#getErrorContext('reconnect', {
-          operation: 'websocket_reconnect',
-        }),
+        this.#getErrorContext(
+          'reconnect',
+          {
+            operation: 'websocket_reconnect',
+          },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
     }
   }
@@ -6235,9 +6294,13 @@ export class PerpsController extends BaseController<
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToPrices'),
-        this.#getErrorContext('subscribeToPrices', {
-          symbols: params.symbols?.join(','),
-        }),
+        this.#getErrorContext(
+          'subscribeToPrices',
+          {
+            symbols: params.symbols?.join(','),
+          },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
       return () => {
         // No-op
@@ -6263,9 +6326,13 @@ export class PerpsController extends BaseController<
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToPositions'),
-        this.#getErrorContext('subscribeToPositions', {
-          accountId: params.accountId,
-        }),
+        this.#getErrorContext(
+          'subscribeToPositions',
+          {
+            accountId: params.accountId,
+          },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
       return () => {
         // No-op
@@ -6291,9 +6358,13 @@ export class PerpsController extends BaseController<
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToOrderFills'),
-        this.#getErrorContext('subscribeToOrderFills', {
-          accountId: params.accountId,
-        }),
+        this.#getErrorContext(
+          'subscribeToOrderFills',
+          {
+            accountId: params.accountId,
+          },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
       return () => {
         // No-op
@@ -6323,9 +6394,13 @@ export class PerpsController extends BaseController<
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToTwapOrders'),
-        this.#getErrorContext('subscribeToTwapOrders', {
-          accountId: params.accountId,
-        }),
+        this.#getErrorContext(
+          'subscribeToTwapOrders',
+          {
+            accountId: params.accountId,
+          },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
       return () => {
         // No-op
@@ -6351,9 +6426,13 @@ export class PerpsController extends BaseController<
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToOrders'),
-        this.#getErrorContext('subscribeToOrders', {
-          accountId: params.accountId,
-        }),
+        this.#getErrorContext(
+          'subscribeToOrders',
+          {
+            accountId: params.accountId,
+          },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
       return () => {
         // No-op
@@ -6394,9 +6473,13 @@ export class PerpsController extends BaseController<
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToAccount'),
-        this.#getErrorContext('subscribeToAccount', {
-          accountId: params.accountId,
-        }),
+        this.#getErrorContext(
+          'subscribeToAccount',
+          {
+            accountId: params.accountId,
+          },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
       return () => {
         // No-op
@@ -6423,10 +6506,14 @@ export class PerpsController extends BaseController<
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToOrderBook'),
-        this.#getErrorContext('subscribeToOrderBook', {
-          symbol: params.symbol,
-          levels: params.levels,
-        }),
+        this.#getErrorContext(
+          'subscribeToOrderBook',
+          {
+            symbol: params.symbol,
+            levels: params.levels,
+          },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
       return () => {
         // No-op
@@ -6452,11 +6539,15 @@ export class PerpsController extends BaseController<
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToCandles'),
-        this.#getErrorContext('subscribeToCandles', {
-          symbol: params.symbol,
-          interval: params.interval,
-          duration: params.duration,
-        }),
+        this.#getErrorContext(
+          'subscribeToCandles',
+          {
+            symbol: params.symbol,
+            interval: params.interval,
+            duration: params.duration,
+          },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
       return () => {
         // No-op
@@ -6483,9 +6574,13 @@ export class PerpsController extends BaseController<
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToOICaps'),
-        this.#getErrorContext('subscribeToOICaps', {
-          accountId: params.accountId,
-        }),
+        this.#getErrorContext(
+          'subscribeToOICaps',
+          {
+            accountId: params.accountId,
+          },
+          CONNECTION_ERROR_TAGS,
+        ),
       );
       return () => {
         // No-op
@@ -6505,7 +6600,11 @@ export class PerpsController extends BaseController<
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.setLiveDataConfig'),
-        this.#getErrorContext('setLiveDataConfig'),
+        this.#getErrorContext(
+          'setLiveDataConfig',
+          undefined,
+          CONNECTION_ERROR_TAGS,
+        ),
       );
     }
   }
@@ -6802,9 +6901,13 @@ export class PerpsController extends BaseController<
       } catch (error) {
         this.#logError(
           ensureError(error, 'PerpsController.disconnect.initialization'),
-          this.#getErrorContext('disconnect', {
-            operation: 'awaitInitialization',
-          }),
+          this.#getErrorContext(
+            'disconnect',
+            {
+              operation: 'awaitInitialization',
+            },
+            CONNECTION_ERROR_TAGS,
+          ),
         );
       }
     }
@@ -6816,7 +6919,7 @@ export class PerpsController extends BaseController<
       } catch (error) {
         this.#logError(
           ensureError(error, 'PerpsController.disconnect'),
-          this.#getErrorContext('disconnect'),
+          this.#getErrorContext('disconnect', undefined, CONNECTION_ERROR_TAGS),
         );
       }
     }

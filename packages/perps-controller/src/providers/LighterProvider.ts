@@ -86,7 +86,6 @@ import {
   parseLighterStrictDecimal,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { hasErrorInCauseChain } from '../services/causeChain.js';
@@ -236,6 +235,16 @@ import type {
   LighterWsMarketStat,
   LighterWsMarketStatsMessage,
 } from '../types/lighter-types.js';
+import {
+  PERPS_ERROR_ACTION,
+  PERPS_ERROR_COMPONENT,
+  PERPS_ERROR_OPERATION,
+  createPerpsErrorContext,
+} from '../utils/errorContext.js';
+import type {
+  PerpsErrorTags,
+  PerpsLoggerOptions,
+} from '../utils/errorContext.js';
 import { ensureError, isKeyringLockedError } from '../utils/errorUtils.js';
 import {
   adaptAccountStateFromLighter,
@@ -1949,24 +1958,19 @@ export class LighterProvider implements PerpsProvider {
   readonly #getErrorContext = (
     method: string,
     extra?: Record<string, unknown>,
-  ): {
-    tags?: Record<string, string | number>;
-    context?: { name: string; data: Record<string, unknown> };
-  } => {
-    return {
-      tags: {
-        feature: PERPS_CONSTANTS.FeatureName,
-        provider: 'LighterProvider',
-        network: this.#isTestnet ? 'testnet' : 'mainnet',
+    errorTags?: PerpsErrorTags,
+  ): PerpsLoggerOptions => {
+    return createPerpsErrorContext({
+      contextName: `LighterProvider.${method}`,
+      method,
+      provider: 'LighterProvider',
+      network: this.#isTestnet ? 'testnet' : 'mainnet',
+      errorTags,
+      data: {
+        isTestnet: this.#isTestnet,
+        ...extra,
       },
-      context: {
-        name: `LighterProvider.${method}`,
-        data: {
-          isTestnet: this.#isTestnet,
-          ...extra,
-        },
-      },
-    };
+    });
   };
 
   // ============================================================================
@@ -2099,7 +2103,11 @@ export class LighterProvider implements PerpsProvider {
       );
       this.#deps.logger.error(
         error,
-        this.#getErrorContext('prepareTradingWallet'),
+        this.#getErrorContext('prepareTradingWallet', undefined, {
+          operation: PERPS_ERROR_OPERATION.ConnectionManagement,
+          component: PERPS_ERROR_COMPONENT.ConnectionManager,
+          action: PERPS_ERROR_ACTION.ConnectionConnection,
+        }),
       );
       return { ready: false, error: error.message };
     }

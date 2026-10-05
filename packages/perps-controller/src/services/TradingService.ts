@@ -34,6 +34,15 @@ import type {
   PerpsPlatformDependencies,
   PerpsFeeResolution,
 } from '../types/index.js';
+import {
+  PERPS_ERROR_ACTION,
+  PERPS_ERROR_OPERATION,
+  createPerpsErrorContext,
+} from '../utils/errorContext.js';
+import type {
+  PerpsErrorTags,
+  PerpsLoggerOptions,
+} from '../utils/errorContext.js';
 import { ensureError } from '../utils/errorUtils.js';
 import { captureScaleOrderParams } from '../utils/lighterScaleOrders.js';
 import {
@@ -122,19 +131,26 @@ export class TradingService {
   /**
    * Error context helper for consistent logging
    *
+   * @param context - The active service context.
    * @param method - The method name.
+   * @param errorTags - Bounded tags used by error dashboards.
    * @param additionalContext - The additional context value.
    * @returns The resulting string value.
    */
   #getErrorContext(
+    context: ServiceContext,
     method: string,
+    errorTags: PerpsErrorTags,
     additionalContext?: Record<string, unknown>,
-  ): Record<string, unknown> {
-    return {
-      controller: 'TradingService',
+  ): PerpsLoggerOptions {
+    return createPerpsErrorContext({
+      contextName: 'TradingService',
       method,
-      ...additionalContext,
-    };
+      provider: context.tracingContext.provider,
+      network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
+      errorTags,
+      data: additionalContext,
+    });
   }
 
   /**
@@ -475,21 +491,18 @@ export class TradingService {
     }).catch((error) => {
       this.#deps.logger.error(
         ensureError(error, 'TradingService.handleOrderSuccess'),
-        {
-          tags: {
-            feature: PERPS_CONSTANTS.FeatureName,
-            provider: context.tracingContext.provider,
-            network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
+        this.#getErrorContext(
+          context,
+          context.errorContext.method,
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.OrderPlacement,
           },
-          context: {
-            name: context.errorContext.controller,
-            data: {
-              method: context.errorContext.method,
-              operation: 'reportOrderToDataLake',
-              symbol: params.symbol,
-            },
+          {
+            operation: 'reportOrderToDataLake',
+            symbol: params.symbol,
           },
-        },
+        ),
       );
     });
   }
@@ -775,21 +788,21 @@ export class TradingService {
 
       // withFeeDiscount handles fee discount cleanup automatically
 
-      this.#deps.logger.error(ensureError(error, 'TradingService.placeOrder'), {
-        tags: {
-          feature: PERPS_CONSTANTS.FeatureName,
-          provider: context.tracingContext.provider,
-          network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
-        },
-        context: {
-          name: context.errorContext.controller,
-          data: {
-            method: context.errorContext.method,
+      this.#deps.logger.error(
+        ensureError(error, 'TradingService.placeOrder'),
+        this.#getErrorContext(
+          context,
+          context.errorContext.method,
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.OrderPlacement,
+          },
+          {
             symbol: params.symbol,
             orderType: params.orderType,
           },
-        },
-      });
+        ),
+      );
 
       traceData = {
         success: false,
@@ -1197,21 +1210,18 @@ export class TradingService {
     }).catch((error) => {
       this.#deps.logger.error(
         ensureError(error, 'TradingService.handleDataLakeReporting'),
-        {
-          tags: {
-            feature: PERPS_CONSTANTS.FeatureName,
-            provider: context.tracingContext.provider,
-            network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
+        this.#getErrorContext(
+          context,
+          context.errorContext.method,
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.PositionClose,
           },
-          context: {
-            name: context.errorContext.controller,
-            data: {
-              method: context.errorContext.method,
-              operation: 'reportOrderToDataLake',
-              symbol,
-            },
+          {
+            operation: 'reportOrderToDataLake',
+            symbol,
           },
-        },
+        ),
       );
     });
   }
@@ -1658,20 +1668,20 @@ export class TradingService {
           error instanceof Error ? error.message : 'Unknown error',
       });
 
-      this.#deps.logger.error(ensureError(error, 'TradingService.editOrder'), {
-        tags: {
-          feature: PERPS_CONSTANTS.FeatureName,
-          provider: context.tracingContext.provider,
-          network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
-        },
-        context: {
-          name: context.errorContext.controller,
-          data: {
-            method: context.errorContext.method,
+      this.#deps.logger.error(
+        ensureError(error, 'TradingService.editOrder'),
+        this.#getErrorContext(
+          context,
+          context.errorContext.method,
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.OrderEdit,
+          },
+          {
             orderId: params.orderId,
           },
-        },
-      });
+        ),
+      );
 
       traceData = {
         success: false,
@@ -1782,11 +1792,19 @@ export class TradingService {
         if (!isSignerUnavailable(result.error)) {
           this.#deps.logger.error(
             ensureError(result.error, 'TradingService.cancelOrder'),
-            this.#getErrorContext('cancelOrder', {
-              symbol: params.symbol,
-              orderId: params.orderId,
-              providerError: result.error ?? 'Unknown error',
-            }),
+            this.#getErrorContext(
+              context,
+              'cancelOrder',
+              {
+                operation: PERPS_ERROR_OPERATION.OrderManagement,
+                action: PERPS_ERROR_ACTION.OrderCancellation,
+              },
+              {
+                symbol: params.symbol,
+                orderId: params.orderId,
+                providerError: result.error ?? 'Unknown error',
+              },
+            ),
           );
         }
 
@@ -1812,7 +1830,15 @@ export class TradingService {
 
       this.#deps.logger.error(
         ensureError(error, 'TradingService.cancelOrder'),
-        this.#getErrorContext('cancelOrder', { symbol: params.symbol }),
+        this.#getErrorContext(
+          context,
+          'cancelOrder',
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.OrderCancellation,
+          },
+          { symbol: params.symbol },
+        ),
       );
 
       traceData = {
@@ -1985,12 +2011,20 @@ export class TradingService {
           new Error(
             `cancelOrders batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed (${reportedFailures.length} reported) - ${failureSummary}`,
           ),
-          this.#getErrorContext('cancelOrders', {
-            successCount: operationResult.successCount,
-            failureCount: operationResult.failureCount,
-            reportedFailureCount: reportedFailures.length,
-            cancelAll: params.cancelAll,
-          }),
+          this.#getErrorContext(
+            context,
+            'cancelOrders',
+            {
+              operation: PERPS_ERROR_OPERATION.OrderManagement,
+              action: PERPS_ERROR_ACTION.OrderCancellation,
+            },
+            {
+              successCount: operationResult.successCount,
+              failureCount: operationResult.failureCount,
+              reportedFailureCount: reportedFailures.length,
+              cancelAll: params.cancelAll,
+            },
+          ),
         );
       }
 
@@ -2000,7 +2034,10 @@ export class TradingService {
         error instanceof Error ? error : new Error(String(error));
       this.#deps.logger.error(
         ensureError(error, 'TradingService.cancelOrders'),
-        this.#getErrorContext('cancelOrders'),
+        this.#getErrorContext(context, 'cancelOrders', {
+          operation: PERPS_ERROR_OPERATION.OrderManagement,
+          action: PERPS_ERROR_ACTION.OrderCancellation,
+        }),
       );
       throw error;
     } finally {
@@ -2148,10 +2185,18 @@ export class TradingService {
         if (!isSignerUnavailable(result.error)) {
           this.#deps.logger.error(
             ensureError(result.error, 'TradingService.closePosition'),
-            this.#getErrorContext('closePosition', {
-              symbol: params.symbol,
-              providerError: result.error ?? 'Unknown error',
-            }),
+            this.#getErrorContext(
+              context,
+              'closePosition',
+              {
+                operation: PERPS_ERROR_OPERATION.PositionManagement,
+                action: PERPS_ERROR_ACTION.PositionClose,
+              },
+              {
+                symbol: params.symbol,
+                providerError: result.error ?? 'Unknown error',
+              },
+            ),
           );
         }
       }
@@ -2188,20 +2233,17 @@ export class TradingService {
 
       this.#deps.logger.error(
         ensureError(error, 'TradingService.closePosition'),
-        {
-          tags: {
-            feature: PERPS_CONSTANTS.FeatureName,
-            provider: context.tracingContext.provider,
-            network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
+        this.#getErrorContext(
+          context,
+          context.errorContext.method,
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.PositionClose,
           },
-          context: {
-            name: context.errorContext.controller,
-            data: {
-              method: context.errorContext.method,
-              symbol: params.symbol,
-            },
+          {
+            symbol: params.symbol,
           },
-        },
+        ),
       );
 
       throw error;
@@ -2363,13 +2405,21 @@ export class TradingService {
           new Error(
             `closePositions batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed (${reportedFailures.length} reported) - ${failureSummary}`,
           ),
-          this.#getErrorContext('closePositions', {
-            successCount: operationResult.successCount,
-            failureCount: operationResult.failureCount,
-            reportedFailureCount: reportedFailures.length,
-            symbols: params.symbols?.length ?? 0,
-            closeAll: params.closeAll,
-          }),
+          this.#getErrorContext(
+            context,
+            'closePositions',
+            {
+              operation: PERPS_ERROR_OPERATION.PositionManagement,
+              action: PERPS_ERROR_ACTION.PositionClose,
+            },
+            {
+              successCount: operationResult.successCount,
+              failureCount: operationResult.failureCount,
+              reportedFailureCount: reportedFailures.length,
+              symbols: params.symbols?.length ?? 0,
+              closeAll: params.closeAll,
+            },
+          ),
         );
       }
 
@@ -2379,10 +2429,18 @@ export class TradingService {
         error instanceof Error ? error : new Error(String(error));
       this.#deps.logger.error(
         ensureError(error, 'TradingService.closePositions'),
-        this.#getErrorContext('closePositions', {
-          symbols: params.symbols?.length ?? 0,
-          closeAll: params.closeAll,
-        }),
+        this.#getErrorContext(
+          context,
+          'closePositions',
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.PositionClose,
+          },
+          {
+            symbols: params.symbols?.length ?? 0,
+            closeAll: params.closeAll,
+          },
+        ),
       );
       throw error;
     } finally {
@@ -2552,11 +2610,19 @@ export class TradingService {
 
       this.#deps.logger.error(
         ensureError(error, 'TradingService.updatePositionTPSL'),
-        this.#getErrorContext('updatePositionTPSL', {
-          symbol: params.symbol,
-          hasTakeProfit: Boolean(params.takeProfitPrice),
-          hasStopLoss: Boolean(params.stopLossPrice),
-        }),
+        this.#getErrorContext(
+          context,
+          'updatePositionTPSL',
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.PositionTpsl,
+          },
+          {
+            symbol: params.symbol,
+            hasTakeProfit: Boolean(params.takeProfitPrice),
+            hasStopLoss: Boolean(params.stopLossPrice),
+          },
+        ),
       );
 
       throw error;
@@ -2734,7 +2800,15 @@ export class TradingService {
 
       this.#deps.logger.error(
         ensureError(error, 'TradingService.updateMargin'),
-        this.#getErrorContext('updateMargin', { symbol, amount }),
+        this.#getErrorContext(
+          context,
+          'updateMargin',
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.PositionMargin,
+          },
+          { symbol, amount },
+        ),
       );
 
       // Track failure analytics
@@ -2931,7 +3005,15 @@ export class TradingService {
 
       this.#deps.logger.error(
         ensureError(error, 'TradingService.flipPosition'),
-        this.#getErrorContext('flipPosition', { symbol: position.symbol }),
+        this.#getErrorContext(
+          context,
+          'flipPosition',
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.PositionFlip,
+          },
+          { symbol: position.symbol },
+        ),
       );
 
       // Track failure analytics with direction-specific flip action
