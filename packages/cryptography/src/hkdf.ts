@@ -26,7 +26,7 @@ export async function hkdfSha256(
   info: BufferSource,
   keyLength: number,
   options?: HkdfOptions,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   return hkdf(ikm, 'SHA-256', salt, info, keyLength, options);
 }
 
@@ -46,7 +46,7 @@ export async function hkdfSha384(
   info: BufferSource,
   keyLength: number,
   options?: HkdfOptions,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   return hkdf(ikm, 'SHA-384', salt, info, keyLength, options);
 }
 
@@ -66,7 +66,7 @@ export async function hkdfSha512(
   info: BufferSource,
   keyLength: number,
   options?: HkdfOptions,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   return hkdf(ikm, 'SHA-512', salt, info, keyLength, options);
 }
 
@@ -88,10 +88,10 @@ async function hkdf(
   info: BufferSource,
   keyLength: number,
   options: HkdfOptions = {},
-): Promise<Uint8Array> {
-  if (ikm.byteLength === 0) {
+): Promise<Uint8Array<ArrayBuffer>> {
+  if (ikm.byteLength === 0 && !options.unsafeInputKeyingMaterial) {
     throw new Error(
-      `Unsafe input keying material length: IKM must not be zero bytes for HKDF-${hash}.`,
+      `Unsafe input keying material length: IKM must not be zero bytes for HKDF-${hash}. To bypass this check, set the \`unsafeInputKeyingMaterial\` option to \`true\`.`,
     );
   }
 

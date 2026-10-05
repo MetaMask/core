@@ -115,6 +115,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/platform-api-docs`](packages/platform-api-docs)
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
+- [`@metamask/profile-controller`](packages/profile-controller)
 - [`@metamask/profile-metrics-controller`](packages/profile-metrics-controller)
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
 - [`@metamask/ramps-controller`](packages/ramps-controller)
@@ -224,6 +225,7 @@ linkStyle default opacity:0.5
   platform_api_docs(["@metamask/platform-api-docs"]);
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
+  profile_controller(["@metamask/profile-controller"]);
   profile_metrics_controller(["@metamask/profile-metrics-controller"]);
   profile_sync_controller(["@metamask/profile-sync-controller"]);
   ramps_controller(["@metamask/ramps-controller"]);
@@ -269,6 +271,7 @@ linkStyle default opacity:0.5
   ai_controllers --> base_controller;
   ai_controllers --> messenger;
   analytics_controller --> base_controller;
+  analytics_controller --> config_registry_controller;
   analytics_controller --> geolocation_controller;
   analytics_controller --> messenger;
   analytics_controller --> utils;
@@ -293,6 +296,7 @@ linkStyle default opacity:0.5
   assets_controller --> core_backend;
   assets_controller --> keyring_controller;
   assets_controller --> messenger;
+  assets_controller --> multichain_transactions_controller;
   assets_controller --> network_controller;
   assets_controller --> network_enablement_controller;
   assets_controller --> permission_controller;
@@ -611,6 +615,12 @@ linkStyle default opacity:0.5
   polling_controller --> messenger;
   preferences_controller --> base_controller;
   preferences_controller --> messenger;
+  profile_controller --> base_controller;
+  profile_controller --> base_data_service;
+  profile_controller --> controller_utils;
+  profile_controller --> messenger;
+  profile_controller --> profile_sync_controller;
+  profile_controller --> utils;
   profile_metrics_controller --> accounts_controller;
   profile_metrics_controller --> base_controller;
   profile_metrics_controller --> controller_utils;
@@ -623,6 +633,7 @@ linkStyle default opacity:0.5
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> base_controller;
   profile_sync_controller --> controller_utils;
+  profile_sync_controller --> cryptography;
   profile_sync_controller --> keyring_controller;
   profile_sync_controller --> messenger;
   profile_sync_controller --> seedless_onboarding_controller;
@@ -705,7 +716,6 @@ linkStyle default opacity:0.5
   solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   storage_service --> utils;
-  subscription_controller --> approval_controller;
   subscription_controller --> authenticated_user_storage;
   subscription_controller --> base_controller;
   subscription_controller --> base_data_service;
@@ -719,6 +729,7 @@ linkStyle default opacity:0.5
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
   subscription_controller --> remote_feature_flag_controller;
+  subscription_controller --> seedless_onboarding_controller;
   subscription_controller --> transaction_controller;
   subscription_controller --> utils;
   transaction_controller --> accounts_controller;

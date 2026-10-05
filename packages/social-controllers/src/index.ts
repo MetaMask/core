@@ -28,11 +28,15 @@ export type {
 export { SocialService } from './SocialService.js';
 
 export type {
+  SocialServiceBlockAction,
+  SocialServiceFetchBlockedContentAction,
+  SocialServiceFetchBlockedProfilesAction,
   SocialServiceFetchClosedPositionsAction,
   SocialServiceFetchFeedAction,
   SocialServiceFetchFollowersAction,
   SocialServiceFetchTokenFeedAction,
   SocialServiceFetchFollowingAction,
+  SocialServiceFetchMyFollowersAction,
   SocialServiceFetchLeaderboardAction,
   SocialServiceFetchOpenPositionsAction,
   SocialServiceFetchPositionByIdAction,
@@ -62,11 +66,18 @@ export type {
 } from './SocialRealtimeService.js';
 export type {
   AuthorComment,
+  BlockedContent,
+  BlockedContentResponse,
+  BlockedContentType,
+  BlockedProfile,
+  BlockedProfilesResponse,
+  BlockOptions,
   CommentEngagement,
   CommentReaction,
   CommentReactionProfile,
   CopytradedAllTime,
   CreateSwapCommentOptions,
+  FetchBlockedListOptions,
   FeedActorSummary,
   FeedItem,
   FeedPagination,

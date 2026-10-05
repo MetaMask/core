@@ -51,7 +51,7 @@
       "path": "../remote-feature-flag-controller/tsconfig.lint.json"
     },
     {
-      "path": "../approval-controller/tsconfig.lint.json"
+      "path": "../seedless-onboarding-controller/tsconfig.lint.json"
     }
   ]
 }

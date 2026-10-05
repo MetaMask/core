@@ -7,14 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.1]
+
 ### Changed
 
+- Bump `@metamask/account-tree-controller` from `^11.0.0` to `^11.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** `PriceSupportedNetworksResponse` now matches the real `/v2/supportedNetworks` response, with `partialSupport` typed as `{ spotPricesV2: string[]; spotPricesV3: string[] }` instead of `string[]` ([#10582](https://github.com/MetaMask/core/pull/10582))
 - Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
 - Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^33.0.0` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418), [#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@tanstack/query-core` from `^5.62.16` to `^5.103.2` ([#9324](https://github.com/MetaMask/core/pull/9324), [#10511](https://github.com/MetaMask/core/pull/10511))
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
 - Bump `cockatiel` from `^3.1.2` to `^3.2.1` ([#10436](https://github.com/MetaMask/core/pull/10436))
 - Bump `@metamask/account-tree-controller` from `^10.0.1` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
+### Deprecated
+
+- Deprecate `PriceSupportedNetworksResponse` in favor of `PriceV2SupportedNetworksResponse` ([#10582](https://github.com/MetaMask/core/pull/10582))
 
 ## [11.0.0]
 
@@ -469,7 +483,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.0...@metamask/core-backend@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@11.0.0...@metamask/core-backend@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.1...@metamask/core-backend@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.0...@metamask/core-backend@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.1...@metamask/core-backend@10.0.0

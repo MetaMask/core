@@ -180,6 +180,10 @@ function resolveEntryPoint(packageRoot: string): {
   const srcEntry = join(packageRoot, 'src', 'daemon', 'daemon-entry.ts');
   return {
     entryPath: srcEntry,
-    args: ['--import', 'tsx'],
+    args: [
+      '--import',
+      '../../scripts/resolver/register.ts',
+      '--experimental-transform-types',
+    ],
   };
 }
