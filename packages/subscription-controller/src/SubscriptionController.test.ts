@@ -2827,11 +2827,7 @@ describe('SubscriptionController', () => {
               pricing: MOCK_PRICE_INFO_RESPONSE,
             },
           },
-          async ({
-            rootMessenger,
-            mockService,
-            mockGetGeolocationData,
-          }) => {
+          async ({ rootMessenger, mockService, mockGetGeolocationData }) => {
             mockService.getSubscriptions.mockResolvedValue(
               MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
             );
@@ -3696,11 +3692,7 @@ describe('SubscriptionController', () => {
               pricing: MOCK_PRICE_INFO_RESPONSE,
             },
           },
-          async ({
-            rootMessenger,
-            mockService,
-            mockGetGeolocationData,
-          }) => {
+          async ({ rootMessenger, mockService, mockGetGeolocationData }) => {
             mockService.getSubscriptions
               .mockResolvedValueOnce(MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE)
               .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);

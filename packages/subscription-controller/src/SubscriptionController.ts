@@ -3,9 +3,9 @@ import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
 } from '@metamask/base-controller';
+import type { GeolocationControllerGetGeolocationDataAction } from '@metamask/geolocation-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { GeolocationControllerGetGeolocationDataAction } from '@metamask/geolocation-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { SeedlessOnboardingControllerGetIsUserAuthenticatedAction } from '@metamask/seedless-onboarding-controller';
 import { TransactionType } from '@metamask/transaction-controller';
@@ -1361,8 +1361,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         'GeolocationController:getGeolocationData',
       );
       return (
-        country != null &&
-        REFUND_ELIGIBLE_COUNTRIES.has(country.toUpperCase())
+        country != null && REFUND_ELIGIBLE_COUNTRIES.has(country.toUpperCase())
       );
     } catch (error) {
       log('Failed to resolve geolocation for refund eligibility', error);
