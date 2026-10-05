@@ -23,7 +23,7 @@ jest.unstable_mockModule('./tsc-suppressions.ts', () => ({
 
 const { execa } = await import('execa');
 const tscSuppressions = await import('./tsc-suppressions.ts');
-const { lintTsc } = await import('./lint-tsc.ts');
+const { lintTscSuppressions } = await import('./lint-tsc-suppressions.ts');
 
 const ERROR = { filePath: 'a.ts', code: 'TS2322', message: 'Nope.' };
 
@@ -46,7 +46,7 @@ function mockTscRun(lines: string[], exitCode = 1): void {
   jest.mocked(tscSuppressions.isTscError).mockReturnValue(true);
 }
 
-describe('lintTsc', () => {
+describe('lintTscSuppressions', () => {
   let originalProcess: typeof globalThis.process;
 
   beforeEach(() => {
@@ -67,7 +67,7 @@ describe('lintTsc', () => {
       .mocked(tscSuppressions.compareErrorsToSuppressions)
       .mockReturnValue(PASSING_REPORT);
 
-    await lintTsc([]);
+    await lintTscSuppressions([]);
 
     expect(execa).toHaveBeenCalledWith(
       'tsc',
@@ -86,7 +86,7 @@ describe('lintTsc', () => {
       .mocked(tscSuppressions.compareErrorsToSuppressions)
       .mockReturnValue(PASSING_REPORT);
 
-    await lintTsc([]);
+    await lintTscSuppressions([]);
 
     expect(tscSuppressions.parseTscOutput).toHaveBeenCalledWith([
       'a.ts(1,1): error TS2322: Nope.',
@@ -103,7 +103,7 @@ describe('lintTsc', () => {
       .mocked(tscSuppressions.compareErrorsToSuppressions)
       .mockReturnValue(PASSING_REPORT);
 
-    await lintTsc([]);
+    await lintTscSuppressions([]);
 
     expect(tscSuppressions.printReport).toHaveBeenCalledWith(PASSING_REPORT);
     expect(process.exitCode).toBeUndefined();
@@ -125,7 +125,7 @@ describe('lintTsc', () => {
       didPass: false,
     });
 
-    await lintTsc([]);
+    await lintTscSuppressions([]);
 
     expect(process.exitCode).toBe(1);
   });
@@ -140,7 +140,7 @@ describe('lintTsc', () => {
       .mocked(tscSuppressions.compareErrorsToSuppressions)
       .mockReturnValue(PASSING_REPORT);
 
-    await lintTsc([]);
+    await lintTscSuppressions([]);
 
     expect(tscSuppressions.parseTscOutput).toHaveBeenCalledWith([]);
   });
@@ -153,7 +153,7 @@ describe('lintTsc', () => {
     jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
     jest.mocked(tscSuppressions.isTscError).mockReturnValue(true);
 
-    await expect(lintTsc([])).rejects.toThrow(
+    await expect(lintTscSuppressions([])).rejects.toThrow(
       '`tsc` failed for a reason other than the type errors it reported.',
     );
     expect(tscSuppressions.compareErrorsToSuppressions).not.toHaveBeenCalled();
@@ -165,7 +165,7 @@ describe('lintTsc', () => {
       .mocked(tscSuppressions.compareErrorsToSuppressions)
       .mockReturnValue(PASSING_REPORT);
 
-    await lintTsc([]);
+    await lintTscSuppressions([]);
 
     expect(tscSuppressions.printReport).toHaveBeenCalledWith(PASSING_REPORT);
   });
@@ -189,7 +189,7 @@ describe('lintTsc', () => {
           diagnostic.filePath !== undefined,
       );
 
-    await expect(lintTsc([])).rejects.toThrow(
+    await expect(lintTscSuppressions([])).rejects.toThrow(
       '`tsc` failed for a reason other than the type errors it reported.',
     );
     expect(tscSuppressions.compareErrorsToSuppressions).not.toHaveBeenCalled();
@@ -201,7 +201,7 @@ describe('lintTsc', () => {
     jest.mocked(tscSuppressions.readSuppressions).mockResolvedValue({});
     jest.mocked(tscSuppressions.addSuppressions).mockReturnValue(suppressions);
 
-    await lintTsc(['--suppress-all']);
+    await lintTscSuppressions(['--suppress-all']);
 
     expect(tscSuppressions.addSuppressions).toHaveBeenCalledWith({
       suppressions: {},
@@ -222,7 +222,7 @@ describe('lintTsc', () => {
     jest.mocked(tscSuppressions.readSuppressions).mockResolvedValue(existing);
     jest.mocked(tscSuppressions.pruneSuppressions).mockReturnValue(pruned);
 
-    await lintTsc(['--prune-suppressions']);
+    await lintTscSuppressions(['--prune-suppressions']);
 
     expect(tscSuppressions.addSuppressions).not.toHaveBeenCalled();
     expect(tscSuppressions.pruneSuppressions).toHaveBeenCalledWith({
@@ -242,7 +242,7 @@ describe('lintTsc', () => {
     jest.mocked(tscSuppressions.addSuppressions).mockReturnValue(added);
     jest.mocked(tscSuppressions.pruneSuppressions).mockReturnValue(pruned);
 
-    await lintTsc(['--suppress-all', '--prune-suppressions']);
+    await lintTscSuppressions(['--suppress-all', '--prune-suppressions']);
 
     expect(tscSuppressions.pruneSuppressions).toHaveBeenCalledWith({
       suppressions: added,
