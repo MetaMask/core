@@ -582,17 +582,18 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Creates a UKYC session, wraps the `data_encryption_key` and
+   * Creates or reuses a UKYC session, wraps the `data_encryption_key` and
    * `ukyc_capability_token` against the returned encryption schemas, and
-   * submits both via authorizations. Stores `sumsub.sessionId`.
-   * kyc-api returns the existing session if one with the same vendor and canonicalUserId already exists.
+   * submits both via authorizations. Stores the resulting session status.
+   * kyc-api returns the existing session if one with the same vendor and
+   * canonicalUserId already exists.
    *
    * @param params - Vendor and country used to create the session.
    * @param params.vendor - Identity vendor for the UKYC session.
    * @param params.geoCountry - ISO 3166-1 alpha-3 country of residence.
-   * @returns The created session.
+   * @returns The created or refreshed session status.
    */
-  async #createUkycSession(params: {
+  async #upsertUkycSessionAndAuthorizations(params: {
     vendor: KycVendor;
     geoCountry: string;
   }): Promise<KycSessionStatus> {
