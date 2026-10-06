@@ -82,6 +82,10 @@ import type {
   CancelOrdersParams,
   CancelOrdersResult,
   ChaseOrder,
+  GetChaseOrderOwnershipParams,
+  ReconcileChaseOrderCancellationParams,
+  ReconcileChaseOrderCancellationResult,
+  PerpsChaseOrderOwnership,
   ChaseOrderMaxDistanceReached,
   ClosePositionParams,
   ClosePositionsParams,
@@ -127,6 +131,11 @@ import type {
   ScalePriceLadderUnavailableReason,
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
+  AttachedOrderGroup,
+  PerpsRecoveryVenueReview,
+  ScaleOrderGroup,
+  ResolveRecoveryProtectionParams,
+  PerpsRecoveryProtectionResult,
   Position,
   SubscribeAccountParams,
   SubscribeCandlesParams,
@@ -180,6 +189,7 @@ import {
 import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
 import { ensureError } from './utils/errorUtils.js';
 import { parseAssetName } from './utils/hyperLiquidAdapter.js';
+import { captureScaleOrderParams } from './utils/lighterScaleOrders.js';
 import {
   clonePerpsMarketData,
   compileMarketPattern,
@@ -962,6 +972,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getCachedMarketDataForActiveProvider',
   'getCachedUserDataForActiveProvider',
   'getChaseOrders',
+  'getChaseOrderOwnership',
+  'reconcileChaseOrderCancellation',
   'getTwapOrders',
   'getUserDataSnapshot',
   'getCurrentNetwork',
@@ -986,6 +998,13 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPositions',
   'getSelectedOrderType',
   'getRecoveredDispatches',
+  'getAttachedOrderGroups',
+  'reviewAttachedOrderGroups',
+  'getScaleOrderGroups',
+  'reviewScaleOrderGroups',
+  'reconcileRecoveredDispatches',
+  'reviewRecoveryVenue',
+  'resolveRecoveryProtection',
   'acknowledgeRecoveredDispatch',
   'getTradeConfiguration',
   'getRecentlyViewedMarkets',
@@ -1360,6 +1379,7 @@ export class PerpsController extends BaseController<
     // preload-scoped account handler is torn down on disconnect, so it cannot
     // carry this.
     const forgetRegisteredTradingAddresses = (): void => {
+      this.#selectedAccountGeneration += 1;
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
       // Clearing alone only guarantees the *next preview* re-registers. An
       // order submitted straight after a switch, with no preview in between,
@@ -2512,6 +2532,7 @@ export class PerpsController extends BaseController<
   protected registerLighterProvider(
     LighterProviderClass: new (opts: {
       isTestnet: boolean;
+      chaseTestnetProbe?: boolean;
       platformDependencies: PerpsPlatformDependencies;
       messenger: PerpsControllerMessenger;
       lighterAuthConfig: LighterAuthConfig;
@@ -2526,6 +2547,9 @@ export class PerpsController extends BaseController<
       this.#options.clientConfig?.providerCredentials?.lighter ?? {};
     const lighterProvider = new LighterProviderClass({
       isTestnet: lighterIsTestnet,
+      ...(lighterIsTestnet && lighter.chaseTestnetProbe === true
+        ? { chaseTestnetProbe: true }
+        : {}),
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
       signerBridge: lighter.signerBridge,
@@ -2898,7 +2922,7 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Get strategy capabilities through the active provider route used by order
+   * Get order capabilities through the active provider route used by order
    * placement. The query waits for in-flight initialization and reports an
    * explicit unavailable status when no provider route can answer reliably.
    *
@@ -3034,13 +3058,17 @@ export class PerpsController extends BaseController<
   /**
    * Build a Scale price ladder using the active provider's venue rules.
    *
-   * @param params - Market, ladder bounds, count, and optional explicit route.
-   * @returns Provider-normalized prices or a typed unavailable result.
-   * @throws When the provider cannot normalize the requested ladder.
+   * @param params - Market, ladder bounds, count, optional sizing and explicit route.
+   * @returns Provider-normalized prices with sizingPreview when supported, or a typed unavailable result.
+   * @throws When bounds or sizing violate the provider's venue rules.
    */
   async getScalePriceLadder(
     params: GetScalePriceLadderParams,
   ): Promise<PerpsScalePriceLadder> {
+    const intent = {
+      ...params,
+      sizing: params.sizing === undefined ? undefined : { ...params.sizing },
+    };
     let activeProvider: PerpsProvider;
     try {
       activeProvider = await this.#getActiveProviderWhenReady();
@@ -3051,13 +3079,13 @@ export class PerpsController extends BaseController<
       });
       return this.#getUnavailableScalePriceLadder(
         'provider_unavailable',
-        params.providerId,
+        intent.providerId,
       );
     }
 
     const resolvedProviderId =
-      params.providerId ?? this.#getDirectProviderId(activeProvider);
-    if (this.#hasConflictingProviderRoute(params.providerId, activeProvider)) {
+      intent.providerId ?? this.#getDirectProviderId(activeProvider);
+    if (this.#hasConflictingProviderRoute(intent.providerId, activeProvider)) {
       return this.#getUnavailableScalePriceLadder(
         'provider_not_routable',
         resolvedProviderId,
@@ -3070,7 +3098,7 @@ export class PerpsController extends BaseController<
       );
     }
 
-    const result = await activeProvider.getScalePriceLadder(params);
+    const result = await activeProvider.getScalePriceLadder(intent);
     if (
       result.status === 'unavailable' &&
       result.providerId === undefined &&
@@ -3173,15 +3201,25 @@ export class PerpsController extends BaseController<
    * @returns The order result with order ID and status.
    */
   async placeOrder(params: OrderParams): Promise<OrderResult> {
+    let capturedParams: OrderParams;
+    try {
+      capturedParams = captureScaleOrderParams(params);
+    } catch (error) {
+      return {
+        success: false,
+        error: ensureError(error, 'PerpsController.captureScaleOrderParams')
+          .message,
+      };
+    }
     const provider = await this.#resolveRoutedOrderProvider({
-      orderType: params.orderType,
-      providerId: params.providerId,
+      orderType: capturedParams.orderType,
+      providerId: capturedParams.providerId,
     });
     this.#ensureTradingServiceDeps();
 
     const result = await this.#tradingService.placeOrder({
       provider,
-      params,
+      params: capturedParams,
       context: this.#createServiceContext('placeOrder', {
         saveTradeConfiguration: (symbol: string, leverage: number) =>
           this.saveTradeConfiguration(symbol, leverage),
@@ -3191,7 +3229,7 @@ export class PerpsController extends BaseController<
     });
 
     if (result.success) {
-      this.clearPendingTradeConfiguration(params.symbol);
+      this.clearPendingTradeConfiguration(capturedParams.symbol);
     }
 
     return result;
@@ -3267,8 +3305,152 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Stop Chase repricing for app backgrounding without cancelling the current
-   * resting children.
+   * Observe durable ownership for an exact Chase handle through one provider.
+   * Starts no signing, transport, continuation, cancellation or durable writes.
+   * Original owner/child IDs are observations, never permission for cleanup in
+   * a different context. Providers without durable history report unsupported.
+   *
+   * @param input - Opaque handle, explicit route and optional original owner.
+   * @returns Complete local child history, unsupported, or explicit absence.
+   * @throws On corrupt storage or account/network/provider/lifetime changes.
+   */
+  async getChaseOrderOwnership(
+    input: GetChaseOrderOwnershipParams,
+  ): Promise<PerpsChaseOrderOwnership> {
+    const params = {
+      ...input,
+      owner: input.owner ? { ...input.owner } : undefined,
+    };
+    if (!params.providerId || !params.handle) {
+      throw new Error(
+        'Chase ownership requires an exact handle and explicit provider',
+      );
+    }
+    const issuedContext = this.#getActionContext();
+    const issuedGeneration = this.#lifecycleGeneration;
+    const issuedAccountGeneration = this.#selectedAccountGeneration;
+    const issuedInstance = this.activeProviderInstance;
+    const assertCurrent = (): void => {
+      if (
+        issuedContext !== this.#getActionContext() ||
+        issuedGeneration !== this.#lifecycleGeneration ||
+        issuedAccountGeneration !== this.#selectedAccountGeneration ||
+        (issuedInstance !== null &&
+          this.activeProviderInstance !== issuedInstance)
+      ) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+    };
+    let provider: PerpsProvider;
+    try {
+      provider = await this.#getActiveProviderWhenReady();
+    } catch (error) {
+      assertCurrent();
+      throw error;
+    }
+    assertCurrent();
+    if (
+      this.state.activeProvider !== 'aggregated' &&
+      params.providerId !== this.state.activeProvider
+    ) {
+      throw new Error(
+        'Chase ownership provider does not match the active context',
+      );
+    }
+    if (!provider.getChaseOrderOwnership) {
+      return {
+        status: 'unsupported',
+        providerId: params.providerId,
+        handle: params.handle,
+        reason: 'Durable Chase ownership is unavailable for this provider',
+      };
+    }
+    const ownership = await provider.getChaseOrderOwnership(params);
+    assertCurrent();
+    if (this.getActiveProviderOrNull() !== provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return ownership;
+  }
+
+  /**
+   * Reconcile one retained exact Chase cancellation without any new cancellation.
+   * Unsupported providers are never routed to ordinary financial cancellation.
+   *
+   * @param input - Original handle, owner, child and transaction identity.
+   * @returns Proven terminal state, unresolved cleanup or unsupported capability.
+   * @throws On invalid ownership or stale provider/account/network lifetime.
+   */
+  async reconcileChaseOrderCancellation(
+    input: ReconcileChaseOrderCancellationParams,
+  ): Promise<ReconcileChaseOrderCancellationResult> {
+    const params = {
+      ...input,
+      owner: { ...input.owner },
+      cancellation: { ...input.cancellation },
+    };
+    if (
+      !params.providerId ||
+      !params.handle ||
+      !params.clientOrderId ||
+      params.owner.providerId !== params.providerId
+    ) {
+      throw new Error(
+        'Chase cancellation reconciliation requires an exact handle, child and matching owner/provider',
+      );
+    }
+    const issuedContext = this.#getActionContext();
+    const issuedGeneration = this.#lifecycleGeneration;
+    const issuedAccountGeneration = this.#selectedAccountGeneration;
+    const issuedInstance = this.activeProviderInstance;
+    const assertCurrent = (): void => {
+      if (
+        issuedContext !== this.#getActionContext() ||
+        issuedGeneration !== this.#lifecycleGeneration ||
+        issuedAccountGeneration !== this.#selectedAccountGeneration ||
+        (issuedInstance !== null &&
+          this.activeProviderInstance !== issuedInstance)
+      ) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+    };
+    let provider: PerpsProvider;
+    try {
+      provider = await this.#getActiveProviderWhenReady();
+    } catch (error) {
+      assertCurrent();
+      throw error;
+    }
+    assertCurrent();
+    if (
+      this.state.activeProvider !== 'aggregated' &&
+      params.providerId !== this.state.activeProvider
+    ) {
+      throw new Error(
+        'Chase cancellation reconciliation provider does not match the active context',
+      );
+    }
+    if (!provider.reconcileChaseOrderCancellation) {
+      return {
+        status: 'unsupported',
+        providerId: params.providerId,
+        handle: params.handle,
+        reason:
+          'Chase cancellation reconciliation is unavailable for this provider',
+      };
+    }
+    const ownership = await provider.reconcileChaseOrderCancellation(params);
+    assertCurrent();
+    if (this.getActiveProviderOrNull() !== provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return ownership;
+  }
+
+  /**
+   * Stop Chase repricing for app backgrounding. HyperLiquid leaves current
+   * children resting. The bounded Lighter probe attempts exact cancellation and
+   * reports canceled or termination_pending rather than a resting status.
    *
    * @returns Chase snapshots after suspension.
    * @throws If an aggregated provider cannot suspend every active venue. Other
@@ -4001,7 +4183,10 @@ export class PerpsController extends BaseController<
   /**
    * List TP/SL protection changes the active provider parked for
    * explicit manual re-establishment. Providers without durable
-   * settlement state return an empty list.
+   * settlement state return an empty list. Lighter includes previous-key and
+   * pre-initialization journals for the selected wallet/account, waits for any
+   * in-flight key selection and keeps failed-setup obligations visible. A
+   * current-key update does not clear an earlier key's unfinished journal.
    *
    * @returns Pending manual-recovery entries.
    */
@@ -4014,11 +4199,57 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Review native attached lifecycle through provider-owned read authority.
+   *
+   * @returns Exact venue identities without financial replay or key registration.
+   */
+  async reviewAttachedOrderGroups(): Promise<AttachedOrderGroup[]> {
+    const issuedContext = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    const groups = (await provider.reviewAttachedOrderGroups?.()) ?? [];
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return groups;
+  }
+
+  /**
+   * List durable attached identities for the selected provider and account.
+   *
+   * @returns Stored intent without venue writes, signer setup or automatic replay.
+   */
+  async getAttachedOrderGroups(): Promise<AttachedOrderGroup[]> {
+    const issuedContext = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    const groups = (await provider.getAttachedOrderGroups?.()) ?? [];
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return groups;
+  }
+
+  /**
    * READ-ONLY list of the active provider's recovered-dispatch outcomes
    * (previously ambiguous submissions later resolved). Providers without
-   * durable dispatch state return an empty list.
+   * durable dispatch state return an empty list. Lighter scans the bounded
+   * local trading-slot range, including skipped keys, without signing or
+   * changing quarantine. After controller initialization, this works before
+   * Lighter signer initialization and after signer setup failure; an in-flight
+   * selection settles first. Preserve opaque recovery IDs exactly. Raw pending
+   * dispatches report unknown with acknowledgeable:false and cannot be cleared
+   * by acknowledgment, including current-session in-flight submissions. Listing
+   * starts no background reconciliation. A later financial action re-checks
+   * authoritative state for all account slots before dispatch and remains
+   * blocked while an obligation is unresolved.
    *
-   * @returns Pending recovered-dispatch outcomes.
+   * @returns Pending recovered-dispatch outcomes, with their original key slot
+   * when supplied by the provider.
    */
   async getRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
     const provider = await this.#getActiveProviderWhenReady();
@@ -4029,21 +4260,258 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Execute an explicit successor for one selected durable protection obligation.
+   *
+   * @param params - Owning provider, opaque source ID and new protection intent.
+   * @returns Settled, unresolved or unsupported recovery result.
+   */
+  async resolveRecoveryProtection(
+    params: ResolveRecoveryProtectionParams,
+  ): Promise<PerpsRecoveryProtectionResult> {
+    const issuedContext = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    if (this.state.activeProvider === 'aggregated' && !params.providerId) {
+      throw new Error('Protection recovery requires an explicit provider');
+    }
+    if (
+      params.providerId &&
+      this.state.activeProvider !== 'aggregated' &&
+      params.providerId !== this.state.activeProvider
+    ) {
+      throw new Error(
+        'Protection recovery provider does not match the active context',
+      );
+    }
+    const providerId = params.providerId ?? this.state.activeProvider;
+    if (providerId === 'aggregated') {
+      throw new Error('Protection recovery requires an explicit provider');
+    }
+    if (!provider.resolveRecoveryProtection) {
+      return {
+        status: 'unsupported',
+        providerId,
+        success: false,
+        error: 'Selected protection recovery is unavailable for this provider',
+      };
+    }
+    const traceId = uuidv4();
+    this.#options.infrastructure.tracer.trace({
+      name: PerpsTraceNames.UpdateTpsl,
+      op: PerpsTraceOperations.PositionManagement,
+      id: traceId,
+      tags: { provider: providerId },
+    });
+    try {
+      const result = await provider.resolveRecoveryProtection(params);
+      if (issuedContext !== this.#getActionContext()) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+      if (result.status === 'settled' && result.success) {
+        this.update((state) => {
+          state.lastUpdateTimestamp = Date.now();
+        });
+      }
+      this.#options.infrastructure.tracer.addBreadcrumb({
+        category: 'perps.recovery',
+        message: 'Explicit protection recovery completed',
+        level: result.status === 'settled' ? 'info' : 'warning',
+        data: { providerId, status: result.status },
+      });
+      return result;
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.resolveRecoveryProtection'),
+        this.#getErrorContext('resolveRecoveryProtection'),
+      );
+      throw error;
+    } finally {
+      this.#options.infrastructure.tracer.endTrace({
+        name: PerpsTraceNames.UpdateTpsl,
+        id: traceId,
+      });
+    }
+  }
+
+  /**
+   * Read durable Scale groups without placing or replaying any child.
+   * @returns Groups belonging to the issuing controller context.
+   */
+  async getScaleOrderGroups(): Promise<ScaleOrderGroup[]> {
+    const context = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (context !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    const groups = (await provider.getScaleOrderGroups?.()) ?? [];
+    if (context !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return groups;
+  }
+
+  /**
+   * Reconcile durable Scale groups for an explicitly selected provider.
+   * @param params - Issuing provider route.
+   * @param params.providerId - Provider to review.
+   * @returns Fresh durable groups; never replays placement.
+   */
+  async reviewScaleOrderGroups(
+    params: { providerId?: PerpsProviderType } = {},
+  ): Promise<ScaleOrderGroup[]> {
+    const context = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (context !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    if (this.state.activeProvider === 'aggregated' && !params.providerId) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    if (
+      params.providerId &&
+      this.state.activeProvider !== 'aggregated' &&
+      params.providerId !== this.state.activeProvider
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    if (!provider.reviewScaleOrderGroups) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    const groups = await provider.reviewScaleOrderGroups(params);
+    if (context !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return groups;
+  }
+
+  /**
+   * Review fresh venue positions and orders for one issuing provider context.
+   * Auth signing may be required; registration and financial writes are forbidden.
+   *
+   * @param params - Owning provider route.
+   * @param params.providerId - Explicit provider identifier.
+   * @returns Strict venue review or honest unsupported capability.
+   */
+  async reviewRecoveryVenue(
+    params: { providerId?: PerpsProviderType } = {},
+  ): Promise<PerpsRecoveryVenueReview> {
+    const issuedContext = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    if (this.state.activeProvider === 'aggregated' && !params.providerId) {
+      throw new Error('Recovery review requires an explicit provider');
+    }
+    if (
+      params.providerId &&
+      this.state.activeProvider !== 'aggregated' &&
+      params.providerId !== this.state.activeProvider
+    ) {
+      throw new Error(
+        'Recovery review provider does not match the active context',
+      );
+    }
+    if (!provider.reviewRecoveryVenue) {
+      const providerId = params.providerId ?? this.state.activeProvider;
+      if (providerId === 'aggregated') {
+        throw new Error('Recovery review requires an explicit provider');
+      }
+      return {
+        status: 'unsupported',
+        providerId,
+        reason:
+          'Authoritative recovery review is unavailable for this provider',
+      };
+    }
+    const review = await provider.reviewRecoveryVenue(params);
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return review;
+  }
+
+  /**
+   * Explicit non-financial reconciliation with local persistence. Never signs,
+   * retries or acknowledges dispatches. Unsupported providers return their local
+   * listed state, or an empty list when neither capability is available.
+   * Rejects account, network or provider changes while controller readiness,
+   * reconciliation or fallback listing completes. Provider rejections propagate
+   * unchanged.
+   *
+   * @returns Newly scoped pending and recovered dispatches.
+   */
+  async reconcileRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const issuedContext = this.#getActionContext();
+    const provider = await this.#getActiveProviderWhenReady();
+    if (this.#getActionContext() !== issuedContext) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    const dispatches = provider.reconcileRecoveredDispatches
+      ? await provider.reconcileRecoveredDispatches()
+      : ((await provider.getRecoveredDispatches?.()) ?? []);
+    if (this.#getActionContext() !== issuedContext) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return dispatches;
+  }
+
+  /**
    * Acknowledge ONE recovered-dispatch outcome by its stable id, after
    * refreshing venue state. Throws when the active provider has no
-   * durable dispatch state or the id no longer matches.
+   * durable dispatch state or the id no longer matches. Lighter scopes IDs to
+   * wallet/network/account/key and accepts legacy IDs only when unambiguous
+   * across local account ledgers. Acknowledgment removes one stored outcome,
+   * never an unresolved dispatch or a TP/SL journal, and authorizes no retry.
+   * Rejects account, network, provider or lifecycle changes while readiness or
+   * acknowledgment completes. A stale rejection after provider success does
+   * not undo removal in the issuing account. Re-list outcomes before acting
+   * again. Provider rejections propagate unchanged.
    *
-   * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+   * @param recoveryId - Opaque stable id from {@link getRecoveredDispatches}.
    * @returns Resolves when the outcome is acknowledged.
    */
   async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
-    const provider = await this.#getActiveProviderWhenReady();
+    const issuedContext = this.#getActionContext();
+    const issuedGeneration = this.#lifecycleGeneration;
+    const issuedInstance =
+      this.isInitialized || this.isCurrentlyReinitializing()
+        ? this.activeProviderInstance
+        : null;
+    const isIssuingLifetimeStale = (): boolean =>
+      issuedGeneration !== this.#lifecycleGeneration ||
+      issuedContext !== this.#getActionContext() ||
+      (issuedInstance !== null &&
+        this.getActiveProviderOrNull() !== issuedInstance);
+    let provider: PerpsProvider;
+    try {
+      provider = await this.#getActiveProviderWhenReady();
+    } catch (error) {
+      if (isIssuingLifetimeStale()) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+      throw error;
+    }
+    if (
+      isIssuingLifetimeStale() ||
+      this.getActiveProviderOrNull() !== provider
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
     if (!provider.acknowledgeRecoveredDispatch) {
       throw new Error(
         'The active perps provider has no recovered dispatches to acknowledge',
       );
     }
-    return provider.acknowledgeRecoveredDispatch(recoveryId);
+    await provider.acknowledgeRecoveredDispatch(recoveryId);
+    if (
+      isIssuingLifetimeStale() ||
+      this.getActiveProviderOrNull() !== provider
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
   }
 
   /**
@@ -4340,6 +4808,9 @@ export class PerpsController extends BaseController<
   #userPreloadQueued = false;
 
   #lifecycleGeneration = 0;
+
+  // Account events also fence round trips that finish at the original address.
+  #selectedAccountGeneration = 0;
 
   readonly #userSnapshotRequests = new Map<
     string,
@@ -5240,12 +5711,26 @@ export class PerpsController extends BaseController<
   async validateOrder(
     params: OrderParams,
   ): Promise<{ isValid: boolean; error?: string }> {
+    let capturedParams: OrderParams;
+    try {
+      capturedParams = captureScaleOrderParams(params);
+    } catch (error) {
+      return {
+        isValid: false,
+        error: ensureError(error, 'PerpsController.captureScaleOrderParams')
+          .message,
+      };
+    }
     const provider = await this.#resolveRoutedOrderProvider({
-      orderType: params.orderType,
-      providerId: params.providerId,
+      orderType: capturedParams.orderType,
+      providerId: capturedParams.providerId,
     });
     const context = this.#createServiceContext('validateOrder');
-    return this.#marketDataService.validateOrder({ provider, params, context });
+    return this.#marketDataService.validateOrder({
+      provider,
+      params: capturedParams,
+      context,
+    });
   }
 
   /**

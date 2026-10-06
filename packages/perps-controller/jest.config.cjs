@@ -26,6 +26,31 @@ module.exports = {
     },
   }),
 
+  // Node 22 cannot require the SDK's ESM entrypoint through Jest. Compile the
+  // real SDK and its ESM dependencies with the existing TypeScript transformer.
+  transform: {
+    ...baseConfig.transform,
+    '^.+\\.js$': [
+      'ts-jest',
+      {
+        // ts-jest follows Jest's supportsStaticESM flag: CommonJS on Node 22,
+        // native ESM when Node 24 loads the SDK through require(esm).
+        useESM: true,
+        tsconfig: {
+          allowJs: true,
+          checkJs: false,
+          module: 'ESNext',
+          moduleResolution: 'Node',
+          verbatimModuleSyntax: false,
+          ignoreDeprecations: '6.0',
+        },
+      },
+    ],
+  },
+  transformIgnorePatterns: [
+    '/node_modules/(?!@nktkas/(?:hyperliquid|rews)/|@noble/hashes/)',
+  ],
+
   // Coverage is collected from real source files. Barrel files are excluded
   // because they only re-export the tested modules.
   // Applied after merge to fully replace (not concat) the base array.

@@ -42,6 +42,7 @@ import {
   PERFORMANCE_CONFIG,
   PERPS_CONSTANTS,
   PROVIDER_CONFIG,
+  SUBSCRIPTION_CLOID_CONFIG,
   TP_SL_CONFIG,
   WITHDRAWAL_CONSTANTS,
 } from '../constants/perpsConfig.js';
@@ -248,6 +249,7 @@ import {
   resolvePositionTriggerSummaryPrice,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
+import { assertExpectedPosition } from '../utils/positionProtection.js';
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
@@ -316,6 +318,26 @@ const HISTORICAL_ORDER_STATUS_BY_SDK_STATUS = {
  */
 const isStatusObject = (status: unknown): status is Record<string, unknown> =>
   typeof status === 'object' && status !== null;
+
+/**
+ * Allocate an unmarked protection identity without reusing this operation's IDs.
+ *
+ * @param allocated - IDs already allocated for replacement or restoration.
+ * @returns A unique client ID with the subscription layout and no fee flag.
+ */
+const createUnmarkedProtectionCloid = (allocated: Set<string>): Hex => {
+  const unmarkedFlags = 0;
+  const flags = unmarkedFlags.toString(16).padStart(2, '0');
+  const entropy = uuidv4()
+    .replace(/-/gu, '')
+    .slice(0, SUBSCRIPTION_CLOID_CONFIG.EntropyHexLength);
+  const cloid: Hex = `0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}${flags}${entropy}`;
+  if (allocated.has(cloid)) {
+    throw new Error('Duplicate TP/SL client order identity');
+  }
+  allocated.add(cloid);
+  return cloid;
+};
 
 type ScaleBulkOrderResponse = {
   status: 'ok';
@@ -1931,13 +1953,13 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Return provider-owned strategy and margin-mode support for a routed
-   * market. HyperLiquid metadata has no per-market strategy flags. This
-   * provider advertises its implemented strategies uniformly after confirming
-   * the routed market exists; margin modes follow the market's metadata.
+   * Return provider-owned standalone trigger, strategy and margin-mode support
+   * for a routed market. HyperLiquid advertises its implemented trigger types
+   * and strategies uniformly after confirming the routed market exists;
+   * margin modes follow the market's metadata.
    *
    * @param params - Required market route context.
-   * @returns Supported strategy order types and margin modes.
+   * @returns Supported standalone trigger types, strategies and margin modes.
    */
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
@@ -2832,12 +2854,15 @@ export class HyperLiquidProvider implements PerpsProvider {
    * block remains the safety net.
    *
    * @param userAddress - The wallet address to check.
+   * @param infoClient - Optional captured reader for an operation-scoped probe.
    * @returns True only when Hyperliquid reports a multi-sig signer set.
    * @private
    */
-  async #isHyperliquidMultiSigAccount(userAddress: string): Promise<boolean> {
+  async #isHyperliquidMultiSigAccount(
+    userAddress: string,
+    infoClient = this.#clientService.getInfoClient(),
+  ): Promise<boolean> {
     try {
-      const infoClient = this.#clientService.getInfoClient();
       const signers = await infoClient.userToMultiSigSigners({
         user: userAddress,
       });
@@ -6383,6 +6408,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async placeOrder(params: OrderParams, retryCount = 0): Promise<OrderResult> {
+    if (params.expectedScaleLadder !== undefined) {
+      return {
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
+      };
+    }
     // Hoisted so the retry path in the catch block can use the fetched price
     // even when the caller (e.g. flipPosition) omits currentPrice from params.
     let effectivePrice: number | undefined;
@@ -9268,14 +9299,17 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param exchangeClient - Client that owns the orders.
    * @param requests - Venue cancel requests.
+   * @param onError - Optional operation-specific failure classifier.
    * @returns Order IDs that may still be resting.
    */
   async #cancelOrderRequests(
     exchangeClient: ExchangeClient,
     requests: ExchangeCancelRequest[],
+    onError?: (error: unknown) => void | Promise<void>,
   ): Promise<number[]> {
-    return (await this.#cancelOrderRequestBatch(exchangeClient, requests))
-      .remainingOrderIds;
+    return (
+      await this.#cancelOrderRequestBatch(exchangeClient, requests, onError)
+    ).remainingOrderIds;
   }
 
   /**
@@ -9376,11 +9410,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param exchangeClient - Client that owns the orders.
    * @param requests - Venue cancel requests.
+   * @param onError - Optional operation-specific failure classifier.
    * @returns IDs that may still rest and IDs this call confirmed it cancelled.
    */
   async #cancelOrderRequestBatch(
     exchangeClient: ExchangeClient,
     requests: ExchangeCancelRequest[],
+    onError?: (error: unknown) => void | Promise<void>,
   ): Promise<CancelOrderBatchOutcome> {
     if (requests.length === 0) {
       return {
@@ -9431,6 +9467,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return await classifyStatuses(statuses, result);
     } catch (error) {
+      await onError?.(error);
       // The SDK throws when any entry failed, with every entry's status.
       const statuses = getCancelStatusesFromError(error, requests.length);
       if (statuses) {
@@ -9514,103 +9551,137 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Recover IDs omitted from waiting trigger acknowledgements.
+   * Preserve the raw statuses carried by the SDK's bulk rejection.
    *
-   * HyperLiquid does not preserve submission order in `frontendOpenOrders`, so
-   * each unresolved leg is matched by its submitted trigger attributes and
-   * accepted only when exactly one new order qualifies.
+   * @param error - SDK exchange error.
+   * @returns Exact reported statuses, or undefined for no authoritative batch.
+   */
+  #readProtectionErrorStatuses(error: unknown): unknown[] | undefined {
+    const response =
+      error instanceof Error && hasProperty(error, 'response')
+        ? error.response
+        : undefined;
+    return isStatusObject(response) &&
+      isStatusObject(response.response) &&
+      response.response.type === 'order' &&
+      isStatusObject(response.response.data) &&
+      Array.isArray(response.response.data.statuses)
+      ? response.response.data.statuses
+      : undefined;
+  }
+
+  /**
+   * Distinguish a venue rejection from ambiguous transport failure.
    *
-   * @param params - Reconciliation parameters.
-   * @param params.outcomes - Classified placement responses.
-   * @param params.orders - Submitted TP/SL orders.
-   * @param params.previousOrderIds - Order IDs observed before submission.
-   * @param params.dexName - DEX queried for the placement.
-   * @param params.symbol - Market the triggers protect.
-   * @returns Outcomes enriched with unambiguous exchange order IDs.
+   * @param error - SDK exchange error.
+   * @returns Whether the venue authoritatively rejected the entire action.
+   */
+  #isDefinitiveProtectionRejection(error: unknown): boolean {
+    const response =
+      error instanceof Error && hasProperty(error, 'response')
+        ? error.response
+        : undefined;
+    return (
+      isStatusObject(response) &&
+      response.status === 'err' &&
+      typeof response.response === 'string'
+    );
+  }
+
+  /**
+   * Apply both signer invalidation and account-shape classification to writes.
+   *
+   * @param error - Failed protection write.
+   * @returns Actionable error retaining the venue message when unmapped.
+   */
+  async #classifyProtectionWriteError(error: unknown): Promise<Error> {
+    return (
+      (await this.#classifySignerFailure(error)) ??
+      (isHyperLiquidMultiSigRequiredError(error)
+        ? new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED)
+        : ensureError(error, 'HyperLiquidProvider.updatePositionTPSL'))
+    );
+  }
+
+  /**
+   * Correlate protection outcomes only by final signed cloid and market.
+   * Unknown/truncated acknowledgements never acquire ownership from book shape.
+   *
+   * @param params - Captured request identities and scoped status reader.
+   * @param params.outcomes - Classified SDK statuses, possibly truncated.
+   * @param params.orders - Exact signed orders, including final cloids.
+   * @param params.userAddress - Captured submitting account.
+   * @param params.infoClient - Captured venue reader.
+   * @param params.assertScope - Account/network/lifecycle fence.
+   * @param params.symbol - Requested venue market.
+   * @returns Ordered outcomes with exact identities where resolved.
    */
   async #reconcileTpslOrderPlacementOutcomes(params: {
     outcomes: TpslOrderPlacementOutcome[];
     orders: SDKOrderParams[];
-    previousOrderIds: ReadonlySet<string>;
-    dexName: string | null;
+    userAddress: Hex;
+    infoClient: InfoClient;
+    assertScope: () => Promise<void>;
     symbol: string;
   }): Promise<TpslOrderPlacementOutcome[]> {
-    if (
-      !params.outcomes.some(
-        (outcome) =>
-          outcome.state === 'waitingForTrigger' &&
-          outcome.orderId === undefined,
-      )
-    ) {
-      return params.outcomes;
+    const correlated: TpslOrderPlacementOutcome[] = [];
+    for (const [index, order] of params.orders.entries()) {
+      const outcome = params.outcomes[index] ?? { state: 'unknown' as const };
+      if (outcome.state === 'rejected' || outcome.orderId !== undefined) {
+        correlated.push(outcome);
+        continue;
+      }
+      let resolved = outcome;
+      if (order.c !== undefined) {
+        await params.assertScope();
+        try {
+          const status = await params.infoClient.orderStatus({
+            user: params.userAddress,
+            oid: order.c,
+          });
+          await params.assertScope();
+          if (status.status === 'order') {
+            const row = status.order.order;
+            if (
+              row.coin === params.symbol &&
+              row.cloid?.toLowerCase() === order.c.toLowerCase() &&
+              Number.isSafeInteger(row.oid) &&
+              row.oid > 0
+            ) {
+              let state: TpslOrderPlacementOutcome['state'] = 'unknown';
+              if (status.order.status === 'filled') {
+                state = 'filled';
+              } else if (status.order.status === 'open') {
+                state = 'resting';
+              } else if (
+                hasProperty(
+                  HISTORICAL_ORDER_STATUS_BY_SDK_STATUS,
+                  status.order.status,
+                )
+              ) {
+                const terminal =
+                  HISTORICAL_ORDER_STATUS_BY_SDK_STATUS[status.order.status];
+                if (terminal === 'canceled' || terminal === 'rejected') {
+                  state = 'rejected';
+                }
+              }
+              resolved = { orderId: String(row.oid), state };
+            }
+          }
+        } catch {
+          await params.assertScope();
+        }
+      }
+      correlated.push(resolved);
     }
-
-    try {
-      const appearedOrders = (
-        await this.#fetchOpenOrders({ dexName: params.dexName })
-      ).filter(
-        (order) =>
-          order.coin === params.symbol &&
-          order.reduceOnly &&
-          order.isTrigger &&
-          !params.previousOrderIds.has(order.oid.toString()),
-      );
-      const claimedOrderIds = new Set<number>();
-
-      return params.outcomes.map((outcome, index) => {
-        if (
-          outcome.orderId !== undefined ||
-          outcome.state !== 'waitingForTrigger'
-        ) {
-          return outcome;
-        }
-
-        const submittedOrder = params.orders[index];
-        const trigger = hasProperty(submittedOrder.t, 'trigger')
-          ? submittedOrder.t.trigger
-          : undefined;
-        if (
-          !isStatusObject(trigger) ||
-          !hasProperty(trigger, 'triggerPx') ||
-          (typeof trigger.triggerPx !== 'string' &&
-            typeof trigger.triggerPx !== 'number') ||
-          !hasProperty(trigger, 'tpsl') ||
-          (trigger.tpsl !== 'tp' && trigger.tpsl !== 'sl')
-        ) {
-          return outcome;
-        }
-        const submittedSize = parseFloat(String(submittedOrder.s));
-        const submittedTriggerPrice = parseFloat(String(trigger.triggerPx));
-        const expectedOrderType =
-          trigger.tpsl === 'tp' ? 'Take Profit' : 'Stop';
-        const candidates = appearedOrders.filter(
-          (order) =>
-            !claimedOrderIds.has(order.oid) &&
-            (order.side === 'B') === submittedOrder.b &&
-            parseFloat(order.sz) === submittedSize &&
-            parseFloat(order.triggerPx) === submittedTriggerPrice &&
-            order.orderType.includes(expectedOrderType),
-        );
-        if (candidates.length !== 1) {
-          return outcome;
-        }
-
-        claimedOrderIds.add(candidates[0].oid);
-        return { ...outcome, orderId: candidates[0].oid.toString() };
-      });
-    } catch (error) {
-      this.#deps.debugLogger.log(
-        'Could not reconcile TP/SL placement order IDs',
-        {
-          error: ensureError(
-            error,
-            'HyperLiquidProvider.reconcileTpslOrderPlacementOutcomes',
-          ).message,
-          symbol: params.symbol,
-        },
-      );
-      return params.outcomes;
-    }
+    const ids = correlated.flatMap((outcome) =>
+      outcome.orderId ? [outcome.orderId] : [],
+    );
+    return correlated.map((outcome) =>
+      outcome.orderId && ids.filter((id) => id === outcome.orderId).length > 1
+        ? { state: 'unknown' }
+        : outcome,
+    );
   }
 
   /**
@@ -9696,8 +9767,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param orders - The SDK order payloads about to be submitted.
    * @param generatedCloids - Cloids this package generated for these orders and
-   * may therefore re-stamp. Only the Scale ladder supplies any; every other path
-   * either has no cloid or carries the caller's own.
+   * may therefore re-stamp. Scale ladders and position TP/SL supply these;
+   * other paths have no cloid or carry the caller's own.
    * @param marksSubscriptionCloid - Overrides the live fee resolution for a
    * chase replacement, which runs after that resolution has been cleared.
    * @returns The same payloads, with cloids marked when subscription won.
@@ -9713,6 +9784,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     const marks = marksSubscriptionCloid ?? this.#isSubscriptionFeeSource();
     if (!marks) {
       // Any other source leaves the id exactly as the caller built it.
+      // Position TP/SL already reserves the subscription layout with flag00;
+      // the program marker alone never implies a fee reduction.
       return orders;
     }
 
@@ -10760,7 +10833,38 @@ export class HyperLiquidProvider implements PerpsProvider {
   async updatePositionTPSL(
     params: UpdatePositionTPSLParams,
   ): Promise<OrderResult> {
+    const expectedPosition =
+      params.expectedPosition === undefined
+        ? undefined
+        : { ...params.expectedPosition };
     try {
+      if (
+        params.partialPairLinkage !== undefined &&
+        (params.partialPairLinkage !== 'independent' ||
+          !params.takeProfitPrice ||
+          !params.stopLossPrice ||
+          (params.takeProfitSize === undefined &&
+            params.stopLossSize === undefined))
+      ) {
+        throw new Error(
+          'Hyperliquid partial pair linkage requires an independently sized TP/SL pair',
+        );
+      }
+
+      const lifecycle = this.#lifecycleGeneration;
+      const isTestnet = this.#clientService.isTestnetMode();
+      const userAddress = await this.#walletService.getUserAddressWithDefault();
+      const assertScope = async (): Promise<void> => {
+        const current = await this.#walletService.getUserAddressWithDefault();
+        this.#assertProviderLifecycleCurrent(lifecycle, 'updatePositionTPSL');
+        if (
+          current.toLowerCase() !== userAddress.toLowerCase() ||
+          this.#clientService.isTestnetMode() !== isTestnet
+        ) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+        }
+      };
+      await assertScope();
       this.#deps.debugLogger.log('Updating position TP/SL:', params);
 
       const {
@@ -10806,6 +10910,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
 
+      await assertScope();
+      assertExpectedPosition(expectedPosition, position);
       if (!position) {
         throw new Error(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
       }
@@ -10834,8 +10940,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Holding the exchange client reference is not itself a write; it is only
       // used below, after the trading setup has run.
       const infoClient = this.#clientService.getInfoClient();
-      const exchangeClient = this.#clientService.getExchangeClient();
-      const userAddress = await this.#walletService.getUserAddressWithDefault();
+      await assertScope();
 
       // Extract DEX name for API calls (main DEX = null)
       const { dex: dexName } = parseAssetName(symbol);
@@ -10954,7 +11059,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
       // Previously: queryUserDataAcrossDexs queried ALL DEXs (20 weight × N DEXs = 40+ weight)
       let cancelRequests: ExchangeCancelRequest[] = [];
-      const orderIdsBeforePlacement = new Set<string>();
       const restorablePositionTpslOrders: RestorableTpslOrder[] = [];
       const restorableStandaloneTpslOrders: RestorableTpslOrder[] = [];
 
@@ -11060,9 +11164,6 @@ export class HyperLiquidProvider implements PerpsProvider {
           user: userAddress,
           dex: dexName ?? undefined,
         });
-        openOrders.forEach((order) =>
-          orderIdsBeforePlacement.add(order.oid.toString()),
-        );
 
         // Orders that belong to a pending parent order (normalTpsl children) are
         // also listed at the top level, so collect their IDs to exclude them:
@@ -11098,9 +11199,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#deps.debugLogger.log(
           'Using WebSocket cache for TP/SL orders lookup',
           { cachedOrdersCount: cachedOrders.length },
-        );
-        cachedOrders.forEach((order) =>
-          orderIdsBeforePlacement.add(order.orderId),
         );
 
         // Filter using normalized Order type properties, matching the REST fallback criteria:
@@ -11181,6 +11279,68 @@ export class HyperLiquidProvider implements PerpsProvider {
         orders.push(slOrder);
       }
 
+      const generatedCloids = new Set<string>();
+      for (const order of orders) {
+        order.c = createUnmarkedProtectionCloid(generatedCloids);
+      }
+      const assertCurrentPosition = async (): Promise<void> => {
+        await assertScope();
+        if (expectedPosition) {
+          const state = await infoClient.clearinghouseState({
+            user: userAddress,
+            ...(dexName ? { dex: dexName } : {}),
+          });
+          await assertScope();
+          const current = state.assetPositions.find(
+            (entry) => entry.position.coin === symbol,
+          );
+          assertExpectedPosition(
+            expectedPosition,
+            current
+              ? {
+                  size: current.position.szi,
+                  entryPrice: current.position.entryPx ?? '',
+                }
+              : undefined,
+          );
+        }
+      };
+      await assertCurrentPosition();
+      // These operation-local reads run inside the SDK signing semaphore.
+      // The extra round trips deliberately serialize with the signed write,
+      // preventing stale account-shape/position dispatch after wallet prompts.
+      const assertWritableScope = async (): Promise<void> => {
+        await assertScope();
+        const isMultiSig = await this.#isHyperliquidMultiSigAccount(
+          userAddress,
+          infoClient,
+        );
+        await assertScope();
+        if (isMultiSig) {
+          throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
+        }
+      };
+      let cancelGuardFailure: unknown;
+      const exchangeClient = this.#clientService.getExchangeClient(async () => {
+        try {
+          await assertWritableScope();
+          await assertCurrentPosition();
+        } catch (error) {
+          cancelGuardFailure = error;
+          throw error;
+        }
+      });
+      const recoveryExchangeClient =
+        this.#clientService.getExchangeClient(assertWritableScope);
+      let replacementMayHaveDispatched = false;
+      const replacementExchangeClient = this.#clientService.getExchangeClient(
+        async () => {
+          await assertWritableScope();
+          await assertCurrentPosition();
+          replacementMayHaveDispatched = true;
+        },
+      );
+
       const rollbackRequiresBuilderFee = [
         ...restorablePositionTpslOrders,
         ...restorableStandaloneTpslOrders,
@@ -11199,6 +11359,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       const builderOrderContext = builderFeeSetupContext
         ? await this.#getBuilderOrderContext(builderFeeSetupContext)
         : undefined;
+
+      const sentOrders = this.#applySubscriptionCloid(orders, generatedCloids);
+      if (
+        new Set(sentOrders.map((order) => order.c)).size !== sentOrders.length
+      ) {
+        throw new Error('Duplicate final TP/SL client order identity');
+      }
 
       const restoreCancelledProtection = async (
         cancelledOrderIds: Set<number>,
@@ -11226,74 +11393,84 @@ export class HyperLiquidProvider implements PerpsProvider {
             continue;
           }
 
+          const restorationOrders = entries.map((entry) => ({
+            ...entry.order,
+            c: createUnmarkedProtectionCloid(generatedCloids),
+          }));
+          const sentRestorationOrders = this.#applySubscriptionCloid(
+            restorationOrders,
+            new Set(restorationOrders.map((order) => order.c)),
+          );
+          let statuses: unknown[];
+          let restorationFailure: Error | undefined;
           try {
-            const result = await exchangeClient.order({
-              orders: this.#applySubscriptionCloid(
-                entries.map((entry) => entry.order),
-              ),
+            // Restore the exact pre-call reduce-only intent. Scope and account
+            // shape are still probed after signing, but the requested new
+            // protection's position precondition does not apply to rollback.
+            await assertScope();
+            const result = await recoveryExchangeClient.order({
+              orders: sentRestorationOrders,
               grouping: protection.grouping,
               ...(entries.some((entry) => entry.chargesMetamaskBuilderFee) &&
                 builderOrderContext && { builder: builderOrderContext }),
             });
-            const statuses = result.response?.data?.statuses ?? [];
-            const rawOutcomes = statuses
-              .slice(0, entries.length)
-              .map((status) => this.#readTpslOrderPlacementOutcome(status));
-            const outcomes = await this.#reconcileTpslOrderPlacementOutcomes({
-              outcomes: rawOutcomes,
-              orders: entries.map((entry) => entry.order),
-              previousOrderIds: new Set([
-                ...orderIdsBeforePlacement,
-                ...Array.from(cancelledOrderIds, String),
-              ]),
-              dexName,
-              symbol,
-            });
-            restoredOrderIds.push(
-              ...outcomes.flatMap((outcome) =>
-                outcome.orderId ? [outcome.orderId] : [],
-              ),
-            );
-            if (
-              result.status !== 'ok' ||
-              statuses.length !== entries.length ||
-              outcomes.some(
-                (outcome) =>
-                  outcome.state === 'rejected' || outcome.state === 'unknown',
-              )
-            ) {
-              success = false;
-              this.#deps.logger.error(
-                new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
-                this.#getErrorContext(
-                  'updatePositionTPSL > restoreCancelledProtection',
-                  { symbol, grouping: protection.grouping, statuses },
-                ),
-              );
-            }
+            statuses = result.response?.data?.statuses ?? [];
           } catch (error) {
+            const failure = await this.#classifyProtectionWriteError(error);
+            restorationFailure = failure;
+            statuses =
+              this.#readProtectionErrorStatuses(error) ??
+              (this.#isDefinitiveProtectionRejection(error)
+                ? entries.map(() => ({ error: failure.message }))
+                : []);
+            this.#deps.debugLogger.log(
+              'Protection restoration requires reconciliation',
+              { symbol, error: failure.message },
+            );
+          }
+          await assertScope();
+          const outcomes = await this.#reconcileTpslOrderPlacementOutcomes({
+            outcomes: statuses
+              .slice(0, entries.length)
+              .map((status) => this.#readTpslOrderPlacementOutcome(status)),
+            orders: sentRestorationOrders,
+            userAddress,
+            infoClient,
+            assertScope,
+            symbol,
+          });
+          await assertScope();
+          restoredOrderIds.push(
+            ...outcomes.flatMap((outcome) =>
+              outcome.orderId ? [outcome.orderId] : [],
+            ),
+          );
+          if (
+            outcomes.some(
+              (outcome) =>
+                outcome.state === 'rejected' || outcome.state === 'unknown',
+            )
+          ) {
             success = false;
-            // A signer that could not sign is retryable, not a defect; the
-            // caller still learns the protection was lost.
-            if (
-              !(await this.#handleSignerFailure(error, 'updatePositionTPSL', {
-                symbol,
-                grouping: protection.grouping,
-              }))
-            ) {
+            const signerFailure =
+              restorationFailure &&
+              (await this.#isSignerFailure(restorationFailure));
+            await assertScope();
+            if (!signerFailure) {
               this.#deps.logger.error(
-                ensureError(
-                  error,
-                  'HyperLiquidProvider.updatePositionTPSL.restoreCancelledProtection',
-                ),
-                this.#getErrorContext(
-                  'updatePositionTPSL > restoreCancelledProtection',
-                  { symbol, grouping: protection.grouping },
-                ),
+                restorationFailure ??
+                  new Error(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST),
+                this.#getErrorContext('updatePositionTPSL', {
+                  symbol,
+                  stage: 'restoration',
+                  protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+                  childOrderIds: restoredOrderIds,
+                }),
               );
             }
           }
         }
+        await assertScope();
         return { restoredOrderIds, success };
       };
 
@@ -11308,9 +11485,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Cancel before placing for both position-bound and standalone partial
       // triggers. A place-first partial update leaves both trigger sets live
       // during the cancellation round trip and can reduce more than requested.
+      await assertCurrentPosition();
       const oldCancellation = await this.#cancelOrderRequestBatch(
         exchangeClient,
         cancelRequests,
+        async (error) => {
+          if (cancelGuardFailure !== undefined) {
+            throw await this.#classifyProtectionWriteError(cancelGuardFailure);
+          }
+          if (isHyperLiquidMultiSigRequiredError(error)) {
+            throw await this.#classifyProtectionWriteError(error);
+          }
+        },
       );
       // The signer could not sign the cancel. With nothing cancelled the old
       // protection is still in place, and a clear keeps only what it could
@@ -11326,6 +11512,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
       }
 
+      await assertScope();
+
       // Clearing has no replacement batch to preserve. A partial cancellation
       // is reported so the caller can retry the same clear operation.
       if (orders.length === 0) {
@@ -11337,6 +11525,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
         return {
           success: true,
+          childOrderIds: [],
           // No orderId since we only cancelled orders, didn't place new ones
         };
       }
@@ -11364,6 +11553,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             },
           );
         }
+        await assertScope();
         return createProtectionLostResult(possiblyLiveOrderIds);
       }
       oldCancellation.cancelledOrderIds.forEach((orderId) =>
@@ -11407,42 +11597,57 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
       }
 
-      let result: Awaited<ReturnType<ExchangeClient['order']>>;
+      let placementStatuses: unknown[];
+      let placementFailure: Error | undefined;
+      let responseAccepted = false;
       try {
-        result = await exchangeClient.order({
-          orders: this.#applySubscriptionCloid(orders),
+        // Old protection may already be cancelled. A failed position read
+        // belongs to recovery, which reports loss if safe restoration is
+        // impossible instead of returning a pre-mutation refresh error.
+        await assertCurrentPosition();
+        const result = await replacementExchangeClient.order({
+          orders: sentOrders,
           grouping: isPartialTpsl ? 'na' : 'positionTpsl',
           ...(replacementChargesMetamaskBuilderFee &&
             builderOrderContext && { builder: builderOrderContext }),
         });
+        placementStatuses = result.response?.data?.statuses ?? [];
+        responseAccepted = result.status === 'ok';
       } catch (error) {
-        // Classify first, so a rejected agent is dropped (and reported) before
-        // the restoration signs.
-        const signerFailure = await this.#classifySignerFailure(error);
-        const restoration = await restoreCancelledProtection(
-          confirmedCancelledOldOrderIds,
-        );
-        if (!restoration.success) {
-          return createProtectionLostResult(restoration.restoredOrderIds);
-        }
-        if (signerFailure) {
-          this.#logRetryableSignerFailure('updatePositionTPSL', { symbol });
-          return createErrorResult(signerFailure, {
+        // Drop and report a rejected agent before restoration signs.
+        placementFailure = await this.#classifyProtectionWriteError(error);
+        await assertScope();
+        const statuses = this.#readProtectionErrorStatuses(error);
+        if (statuses !== undefined) {
+          placementStatuses = statuses;
+        } else if (
+          replacementMayHaveDispatched &&
+          !this.#isDefinitiveProtectionRejection(error)
+        ) {
+          // Arbitrary transport/HTTP failures do not prove non-processing.
+          placementStatuses = [];
+        } else {
+          const restoration = await restoreCancelledProtection(
+            confirmedCancelledOldOrderIds,
+          );
+          if (!restoration.success) {
+            return createProtectionLostResult(restoration.restoredOrderIds);
+          }
+          return createErrorResult(placementFailure, {
             success: false,
-            ...(restoration.restoredOrderIds.length > 0 && {
-              childOrderIds: restoration.restoredOrderIds,
-            }),
+            ...(restoration.restoredOrderIds.length > 0
+              ? { childOrderIds: restoration.restoredOrderIds }
+              : {}),
           });
         }
-        throw error;
       }
 
-      const placementStatuses = result.response?.data?.statuses ?? [];
+      await assertScope();
       const initialPlacementOutcomes = placementStatuses
         .slice(0, orders.length)
         .map((status) => this.#readTpslOrderPlacementOutcome(status));
       const placementAccepted =
-        result.status === 'ok' &&
+        responseAccepted &&
         placementStatuses.length === orders.length &&
         initialPlacementOutcomes.every(
           (outcome) =>
@@ -11452,24 +11657,71 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
 
       if (placementAccepted) {
+        // Only response-correlated IDs form a receipt. A waitingForTrigger
+        // acknowledgement without an ID cannot be attributed from book changes.
+        const childOrderIds: string[] = [];
+        let identitiesValid = true;
+        for (const [index, outcome] of initialPlacementOutcomes.entries()) {
+          const cloid = sentOrders[index]?.c;
+          let { orderId } = outcome;
+          if (cloid === undefined) {
+            identitiesValid = false;
+            continue;
+          }
+          // One exact-ID lookup verifies immediate correlation. An unknown
+          // index is uncertainty, not a reason to repeat the same read in a tight loop.
+          await assertScope();
+          try {
+            const status = await infoClient.orderStatus({
+              user: userAddress,
+              oid: cloid,
+            });
+            await assertScope();
+            if (status.status === 'order') {
+              const row = status.order.order;
+              if (
+                row.coin !== symbol ||
+                row.cloid?.toLowerCase() !== cloid.toLowerCase() ||
+                !Number.isSafeInteger(row.oid) ||
+                row.oid <= 0 ||
+                (orderId !== undefined && orderId !== String(row.oid))
+              ) {
+                identitiesValid = false;
+              } else {
+                orderId = String(row.oid);
+              }
+            }
+          } catch {
+            // Read failure cannot invent an ID; stale scopes cannot return receipts.
+            await assertScope();
+          }
+          if (orderId !== undefined) {
+            childOrderIds.push(orderId);
+          }
+        }
+        const completeReceipt =
+          identitiesValid &&
+          childOrderIds.length === orders.length &&
+          childOrderIds.every((id) => Number(id) > 0) &&
+          new Set(childOrderIds).size === childOrderIds.length;
         return {
           success: true,
           orderId: 'TP/SL orders placed',
+          ...(completeReceipt ? { childOrderIds } : {}),
         };
       }
 
       const placementOutcomes = await this.#reconcileTpslOrderPlacementOutcomes(
         {
           outcomes: initialPlacementOutcomes,
-          orders,
-          previousOrderIds: new Set([
-            ...orderIdsBeforePlacement,
-            ...Array.from(confirmedCancelledOldOrderIds, String),
-          ]),
-          dexName,
+          orders: sentOrders,
+          userAddress,
+          infoClient,
+          assertScope,
           symbol,
         },
       );
+      await assertScope();
       const restingReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
         (outcome.state === 'resting' ||
           outcome.state === 'waitingForTrigger') &&
@@ -11480,22 +11732,53 @@ export class HyperLiquidProvider implements PerpsProvider {
       const filledReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
         outcome.state === 'filled' && outcome.orderId ? [outcome.orderId] : [],
       );
+      const inFlightOrderIds = placementOutcomes.flatMap((outcome) =>
+        outcome.state === 'unknown' && outcome.orderId ? [outcome.orderId] : [],
+      );
       const hasUnresolvedWaitingTrigger = placementOutcomes.some(
         (outcome) =>
-          outcome.state === 'waitingForTrigger' &&
+          (outcome.state === 'waitingForTrigger' ||
+            outcome.state === 'unknown') &&
           outcome.orderId === undefined,
       );
+      await assertScope();
+      let cleanupFailure: Error | undefined;
       const remainingReplacementIds = await this.#cancelOrderRequests(
-        exchangeClient,
+        recoveryExchangeClient,
         restingReplacementOrderIds.map((orderId) => ({
           a: assetId,
           o: Number(orderId),
         })),
+        async (error) => {
+          if (
+            isHyperLiquidMultiSigRequiredError(error) ||
+            (error instanceof Error &&
+              error.message === PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED)
+          ) {
+            // Old protection has already changed. Classification must not
+            // throw away this batch's still-live replacement identities.
+            cleanupFailure = await this.#classifyProtectionWriteError(error);
+          }
+        },
       );
+      await assertScope();
       const recoverableOrderIds = [
         ...filledReplacementOrderIds,
+        ...inFlightOrderIds,
         ...remainingReplacementIds.map(String),
       ];
+      if (cleanupFailure && recoverableOrderIds.length > 0) {
+        this.#deps.logger.error(
+          cleanupFailure,
+          this.#getErrorContext('updatePositionTPSL', {
+            symbol,
+            stage: 'cleanup',
+            protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            childOrderIds: recoverableOrderIds,
+          }),
+        );
+        return createProtectionLostResult(recoverableOrderIds);
+      }
       if (hasUnresolvedWaitingTrigger) {
         return createProtectionLostResult(recoverableOrderIds);
       }
@@ -11506,24 +11789,30 @@ export class HyperLiquidProvider implements PerpsProvider {
         if (!restoration.success) {
           return createProtectionLostResult(restoration.restoredOrderIds);
         }
+        return createErrorResult(
+          placementFailure ?? new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
+          {
+            success: false,
+            ...(restoration.restoredOrderIds.length > 0
+              ? { childOrderIds: restoration.restoredOrderIds }
+              : {}),
+          },
+        );
       }
       // A filled replacement may have changed or closed the position, while
       // an uncancelled replacement may still protect it. Restoring the old
       // whole-position triggers in either case risks stale or duplicate
       // protection, so return those IDs for caller reconciliation instead.
-      if (recoverableOrderIds.length > 0) {
-        if (!isPartialTpsl) {
-          return createProtectionLostResult(recoverableOrderIds);
-        }
-        return createErrorResult(
-          new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
-          {
-            success: false,
-            childOrderIds: recoverableOrderIds,
-          },
-        );
+      if (!isPartialTpsl) {
+        return createProtectionLostResult(recoverableOrderIds);
       }
-      throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+      return createErrorResult(
+        new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
+        {
+          success: false,
+          childOrderIds: recoverableOrderIds,
+        },
+      );
     } catch (error) {
       const signerFailure = await this.#handleSignerFailure(
         error,
@@ -14222,6 +14511,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: OrderParams,
   ): Promise<{ isValid: boolean; error?: string }> {
     try {
+      if (params.expectedScaleLadder !== undefined) {
+        return {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
+        };
+      }
       // Basic parameter validation
       const basicValidation = validateOrderParams({
         coin: params.symbol,

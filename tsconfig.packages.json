@@ -13,6 +13,12 @@
      * `jest.config.packages.cjs`.
      */
     "paths": {
+      "@metamask/perps-controller/constants/*": [
+        "${configDir}/../perps-controller/src/constants/*.ts"
+      ],
+      "@metamask/perps-controller/utils/*": [
+        "${configDir}/../perps-controller/src/utils/*.ts"
+      ],
       "@metamask/json-rpc-engine/v2": [
         "${configDir}/../json-rpc-engine/src/v2/index.ts"
       ],
