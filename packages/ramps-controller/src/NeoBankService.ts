@@ -72,6 +72,13 @@ export type NeoBankAutorampResponse = {
   recipient_account?: {
     address?: string;
   };
+  /**
+   * Some MoonPay autoramp responses put the destination under `recipient`
+   * instead of `recipient_account`.
+   */
+  recipient?: {
+    address?: string;
+  };
   // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
   deposit_rails?: unknown[];
 };
@@ -210,7 +217,8 @@ export function mapNeoBankAutorampToRemoteSnapshot(
       response.wallet_address !== undefined &&
       response.wallet_address.length > 0
         ? response.wallet_address
-        : response.recipient_account?.address,
+        : (response.recipient_account?.address ??
+          response.recipient?.address),
     status: response.status,
     depositRailsSummary,
   };
@@ -576,12 +584,17 @@ export class NeoBankService {
         status?: unknown;
         source_amount?: unknown;
         destination_amount?: unknown;
+        created_at?: unknown;
       };
       if (typeof record.status !== 'string') {
         throw new Error(
           'Malformed response received from neo-bank autoramp transactions API',
         );
       }
+      const createdAt =
+        typeof record.created_at === 'string' && record.created_at.length > 0
+          ? record.created_at
+          : undefined;
       return {
         id: record.id,
         autorampId:
@@ -591,6 +604,7 @@ export class NeoBankService {
         status: record.status,
         sourceAmount: readAmount(record.source_amount),
         destinationAmount: readAmount(record.destination_amount),
+        createdAt,
       };
     });
   }

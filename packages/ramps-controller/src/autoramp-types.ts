@@ -48,4 +48,6 @@ export type AutorampTransactionSummary = {
   sourceAmount?: string;
   /** Destination amount decimal string, when present (mUSD). */
   destinationAmount?: string;
+  /** MoonPay `created_at` when present, for newest-first client selection. */
+  createdAt?: string;
 };

@@ -5,6 +5,7 @@ import type { MockAnyNamespace } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
 
 import {
+  extractPixDepositInstructions,
   mapNeoBankAutorampToRemoteSnapshot,
   NeoBankService,
 } from './NeoBankService.js';
@@ -123,6 +124,19 @@ describe('NeoBankService', () => {
       });
     });
 
+    it('falls back to recipient.address when recipient_account is absent', () => {
+      expect(
+        mapNeoBankAutorampToRemoteSnapshot({
+          id: 'ar-1',
+          customer_id: 'cust-1',
+          status: 'Pending',
+          recipient: { address: '0xfrom-recipient-field' },
+        }),
+      ).toMatchObject({
+        walletAddress: '0xfrom-recipient-field',
+      });
+    });
+
     it('marks deposit rails not ready when Approved without rails', () => {
       expect(
         mapNeoBankAutorampToRemoteSnapshot({
@@ -132,6 +146,36 @@ describe('NeoBankService', () => {
         }),
       ).toMatchObject({
         depositRailsSummary: { ready: false },
+      });
+    });
+  });
+
+  describe('extractPixDepositInstructions', () => {
+    it('returns null for a non-array deposit_rails value', () => {
+      expect(extractPixDepositInstructions(undefined)).toBeNull();
+      expect(extractPixDepositInstructions(null)).toBeNull();
+    });
+
+    it('skips non-object rails and non-Pix rails', () => {
+      expect(
+        extractPixDepositInstructions([
+          null,
+          'skip',
+          { type: 'Iban', br_code: 'iban' },
+          { type: 'Pix', br_code: '', instruction: 'Pay' },
+          {
+            type: 'Pix',
+            br_code: '00020126',
+            instruction: 'Pay with PIX',
+            pix_key: 'pix@example.com',
+            expires_at: '2026-12-01T00:00:00Z',
+          },
+        ]),
+      ).toStrictEqual({
+        brCode: '00020126',
+        instruction: 'Pay with PIX',
+        pixKey: 'pix@example.com',
+        expiresAt: '2026-12-01T00:00:00Z',
       });
     });
   });
@@ -348,6 +392,19 @@ describe('NeoBankService', () => {
 
       expect(await service.getPixDepositInstructions('ar-1')).toBeNull();
     });
+
+    it('throws when the autoramp response is not an object', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, null);
+
+      const service = createService();
+
+      await expect(service.getPixDepositInstructions('ar-1')).rejects.toThrow(
+        'Malformed response received from neo-bank autoramp API',
+      );
+    });
   });
 
   describe('listAutorampTransactions', () => {
@@ -361,6 +418,7 @@ describe('NeoBankService', () => {
               id: 'tx-1',
               autoramp_id: 'ar-1',
               status: 'Completed',
+              created_at: '2026-06-01T00:00:00Z',
               source_amount: {
                 amount: '100.00',
                 currency: { type: 'Fiat', code: 'BRL' },
@@ -386,9 +444,36 @@ describe('NeoBankService', () => {
           status: 'Completed',
           sourceAmount: '100.00',
           destinationAmount: '18.00',
+          createdAt: '2026-06-01T00:00:00Z',
         },
       ]);
       expect(scope.isDone()).toBe(true);
+    });
+
+    it('throws when a transaction is missing an id', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query((query) => query.autoramp_id === 'ar-1')
+        .reply(200, { items: [{ status: 'Completed' }] });
+
+      const service = createService();
+
+      await expect(service.listAutorampTransactions('ar-1')).rejects.toThrow(
+        'Malformed response received from neo-bank autoramp transactions API',
+      );
+    });
+
+    it('throws when a transaction is missing status', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query((query) => query.autoramp_id === 'ar-1')
+        .reply(200, { items: [{ id: 'tx-1' }] });
+
+      const service = createService();
+
+      await expect(service.listAutorampTransactions('ar-1')).rejects.toThrow(
+        'Malformed response received from neo-bank autoramp transactions API',
+      );
     });
   });
 
