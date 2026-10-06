@@ -60,6 +60,16 @@ function isChompIntentType(value: string): value is ChompIntentType {
   return (CHOMP_INTENT_TYPES as string[]).includes(value);
 }
 
+// === LOCAL DEV FAULT INJECTION ===
+// Set to `true` to make chomping always fail: `createIntents` throws before
+// any network call, so mUSD transferred onto a Money Account is never vaulted
+// onto vmUSD, leaving it "unchomped" (e.g. for testing unchomped-mUSD rescue
+// flows). All other CHOMP methods (withdrawals, service details, etc.) are
+// unaffected. Flip back to `false` to restore normal behavior.
+// NOTE: Remove before merging.
+const DEV_FAIL_CHOMPING = true;
+// === END LOCAL DEV FAULT INJECTION ===
+
 // === GENERAL ===
 
 /**
@@ -586,6 +596,17 @@ export class ChompApiService extends BaseDataService<
   async createIntents(
     intents: SendIntentParams[],
   ): Promise<SendIntentResponse[]> {
+    // === LOCAL DEV FAULT INJECTION ===
+    // Intentionally fails chomping so that mUSD transferred onto a Money
+    // Account is never vaulted onto vmUSD, leaving it "unchomped" for testing
+    // unchomped-mUSD rescue flows. See `DEV_FAIL_CHOMPING` above.
+    if (DEV_FAIL_CHOMPING) {
+      throw new Error(
+        '[DEV FAULT INJECTION] ChompApiService:createIntents intentionally failed: mUSD will NOT be chomped onto vmUSD.',
+      );
+    }
+    // === END LOCAL DEV FAULT INJECTION ===
+
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:createIntents`, intents],
       staleTime: 0,
