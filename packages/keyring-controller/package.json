@@ -59,6 +59,7 @@
     "@metamask/eth-simple-keyring": "^13.0.0",
     "@metamask/keyring-api": "^24.0.0",
     "@metamask/keyring-internal-api": "^12.0.0",
+    "@metamask/keyring-sdk": "npm:@metamask-previews/keyring-sdk@3.1.0-1b5404e",
     "@metamask/messenger": "^3.0.0",
     "@metamask/utils": "^12.0.0",
     "async-mutex": "^0.5.0",

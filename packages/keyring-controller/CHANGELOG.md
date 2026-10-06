@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add atomic keyring builder support: a `KeyringBuilder` can now declare `atomic: true` to receive a `KeyringBuilderContext`, whose `update` callback commits state mutations on the built keyring's behalf — the controller lock is held only for that short commit window, while long-running keyring operations run entirely outside it ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+  - The declaration is enforced at the construction choke point: a builder declaring `atomic: true` whose result is not an `AtomicKeyring` (from `@metamask/keyring-sdk`) throws an explicit error.
+  - Updates from keyrings no longer registered with the controller are rejected with an explicit error.
 - Add `KeyringTypes.mpc` ([#10577](https://github.com/MetaMask/core/pull/10577))
 
 ### Changed

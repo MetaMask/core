@@ -20,6 +20,8 @@ import type {
   KeyringType,
 } from '@metamask/keyring-api/v2';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
+import type { AtomicKeyring, AtomicUpdater } from '@metamask/keyring-sdk';
+import { isAtomicKeyring } from '@metamask/keyring-sdk';
 import type { Keyring, KeyringClass } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
@@ -230,7 +232,7 @@ export type KeyringControllerOptions<
     EncryptionResultConstraint<SupportedKeyDerivationOptions> =
     DefaultEncryptionResult<SupportedKeyDerivationOptions>,
 > = {
-  keyringBuilders?: { (): EthKeyring; type: string }[];
+  keyringBuilders?: KeyringBuilder[];
   keyringV2Builders?: KeyringV2Builder[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string; keyringsMetadata?: KeyringMetadata[] };
@@ -592,12 +594,37 @@ export type KeyringSelectorV2<SelectedKeyring extends KeyringV2 = KeyringV2> =
     };
 
 /**
- * Keyring builder.
+ * Context passed to keyring builders that declare `atomic: true`.
  */
-export type KeyringBuilder = {
-  (): Keyring;
-  type: string;
+export type KeyringBuilderContext = {
+  /**
+   * Commit a state mutation on behalf of an atomic keyring: acquires the
+   * controller lock, verifies the keyring is still registered, runs the
+   * action, writes the vault if and only if the serialized state changed,
+   * then releases — the lock is held only for that short commit window.
+   */
+  update: AtomicUpdater;
 };
+
+/**
+ * Keyring builder.
+ *
+ * The `atomic: true` variant receives a {@link KeyringBuilderContext} and
+ * must produce an `AtomicKeyring` that uses the context's `update` as its
+ * updater. Legacy builders are called with zero arguments, exactly as
+ * before.
+ */
+export type KeyringBuilder =
+  | {
+      (): Keyring;
+      type: string;
+      atomic?: undefined;
+    }
+  | {
+      (context: KeyringBuilderContext): Keyring;
+      type: string;
+      atomic: true;
+    };
 
 /**
  * A builder that wraps a legacy `Keyring` into a `KeyringV2` adapter.
@@ -833,7 +860,7 @@ export class KeyringController<
 
   readonly #vaultOperationMutex = new Mutex();
 
-  readonly #keyringBuilders: { (): EthKeyring; type: string }[];
+  readonly #keyringBuilders: KeyringBuilder[];
 
   readonly #keyringV2Builders: KeyringV2Builder[];
 
@@ -2476,9 +2503,7 @@ export class KeyringController<
    * @param type - The type of keyring to get the builder for.
    * @returns The keyring builder, or undefined if none exists.
    */
-  #getKeyringBuilderForType(
-    type: string,
-  ): { (): EthKeyring; type: string } | undefined {
+  #getKeyringBuilderForType(type: string): KeyringBuilder | undefined {
     return this.#keyringBuilders.find(
       (keyringBuilder) => keyringBuilder.type === type,
     );
@@ -2655,7 +2680,7 @@ export class KeyringController<
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const hdKeyringBuilder = this.#getKeyringBuilderForType(KeyringTypes.hd)!;
 
-    const hdKeyring = hdKeyringBuilder();
+    const hdKeyring = this.#buildKeyring(hdKeyringBuilder);
     // @ts-expect-error @metamask/eth-hd-keyring correctly handles
     // Uint8Array seed phrases in the `deserialize` method.
     await hdKeyring.deserialize({
@@ -3132,6 +3157,63 @@ export class KeyringController<
   }
 
   /**
+   * Commit a state mutation on behalf of an atomic keyring. This is the
+   * `update` callback injected into declared-atomic keyring builders, via
+   * the builder context.
+   *
+   * Stateless: the calling keyring is the first parameter, so a single
+   * function serves every keyring. Acquires the controller lock, verifies
+   * the keyring is still registered, runs the action, writes the vault if
+   * and only if the serialized state changed, then releases — the lock is
+   * held only for that short commit window. Long-running work runs inside
+   * the keyring's own write lock, entirely outside the controller mutex.
+   *
+   * @param keyring - The atomic keyring committing the state mutation.
+   * @param action - The state mutation to commit.
+   * @throws If the keyring is no longer registered with the controller, or
+   * if the action or the vault write throws.
+   */
+  async #atomicUpdate(
+    keyring: AtomicKeyring,
+    action: () => void | Promise<void>,
+  ): Promise<void> {
+    await this.#withControllerLock(async () => {
+      // Load-bearing, not defensive: detached keyrings cannot write the
+      // vault. Proceeding would silently write a vault without them, and
+      // update actions queued behind the controller lock during a lock or
+      // a restore would commit past it, to a fresh instance they never
+      // belonged to.
+      const keyringRef: object = keyring;
+      if (!this.#keyrings.some((entry) => entry.keyring === keyringRef)) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.AtomicUpdateKeyringDetached,
+        );
+      }
+
+      const before = JSON.stringify(await this.#getSessionState());
+      await action();
+      const after = JSON.stringify(await this.#getSessionState());
+      if (before !== after) {
+        await this.#updateVault();
+      }
+    });
+  }
+
+  /**
+   * Call a keyring builder: declared-atomic builders receive the
+   * controller's `update` callback via the builder context; legacy builders
+   * are called with zero arguments, exactly as before.
+   *
+   * @param builder - The keyring builder to call.
+   * @returns The built keyring.
+   */
+  #buildKeyring(builder: KeyringBuilder): Keyring {
+    return builder.atomic === true
+      ? builder({ update: this.#atomicUpdate.bind(this) })
+      : builder();
+  }
+
+  /**
    * Instantiate, initialize and return a keyring of the given `type` using the
    * given `opts`. The keyring is built using the keyring builder registered
    * for the given `type`.
@@ -3165,7 +3247,20 @@ export class KeyringController<
       );
     }
 
-    const keyring = keyringBuilder();
+    // Declared-atomic builders receive the controller's `update` callback
+    // via the builder context; legacy builders are called exactly as
+    // before.
+    const keyring = this.#buildKeyring(keyringBuilder);
+
+    // The declaration is enforced against the instance brand, at the
+    // construction choke point: a builder declaring `atomic: true` must
+    // produce an atomic keyring.
+    if (keyringBuilder.atomic === true && !isAtomicKeyring(keyring)) {
+      throw new KeyringControllerError(
+        `${KeyringControllerErrorMessage.AtomicKeyringBuilderMismatch}. Keyring type: ${type}`,
+      );
+    }
+
     if (data) {
       // @ts-expect-error Enforce data type after updating clients
       await keyring.deserialize(data);
