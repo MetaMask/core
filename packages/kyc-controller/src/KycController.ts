@@ -79,7 +79,7 @@ export type KycProviderFlowStatus = (typeof KYC_PROVIDER_FLOW_STATUSES)[number];
 // UKYC session. The storage-and-auth spec requires the token's `expires_at` to
 // cover the KYC session's expected lifetime — including the provider journey —
 // rather than a fixed short window, so this is a session-scoped window.
-const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
+const UKYC_CAPABILITY_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
 // How often to poll UKYC session status until a terminal `finalStatus`.
 const SESSION_STATUS_POLL_INTERVAL_MS = 15_000;

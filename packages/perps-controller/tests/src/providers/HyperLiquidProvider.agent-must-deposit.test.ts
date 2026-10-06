@@ -26,6 +26,7 @@ import {
   setUpAccountSignerSuite,
 } from '../../helpers/hyperLiquidAccountSignerFixture.js';
 import type { AccountSignerFixture } from '../../helpers/hyperLiquidAccountSignerFixture.js';
+import { createFrontendOpenOrder } from '../../helpers/providerMocks.js';
 import { createDeferred } from '../../helpers/serviceMocks.js';
 
 // The SDK ships ES modules only; the provider reaches it through the mocked
@@ -171,6 +172,141 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
     );
     return { ...built, getAgentSigner, onAgentRejected, extraAgents };
   }
+
+  it.each([false, true])(
+    'awaits replacement signer classification before restoration, accountChanged=%s',
+    async (accountChanged) => {
+      const asked = createDeferred<void>();
+      const listing = createDeferred<ListedAgent[]>();
+      const built = await createPreparedAgentProvider(async () => {
+        asked.resolve();
+        return await listing.promise;
+      });
+      const replacementAgent = {
+        address: OTHER_AGENT_ADDRESS,
+        signTypedData: jest.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
+      };
+      built.getAgentSigner.mockResolvedValue(replacementAgent);
+      built.infoClient.frontendOpenOrders.mockResolvedValue([
+        createFrontendOpenOrder({
+          side: 'A',
+          oid: 456,
+          orderType: 'Take Profit Market',
+          isTrigger: true,
+          triggerPx: '58000',
+          triggerCondition: 'Price above 58000',
+          reduceOnly: true,
+          isPositionTpsl: true,
+        }),
+      ]);
+      built.exchangeClient.cancel.mockResolvedValue(cancelAnswer(['success']));
+      built.exchangeClient.order.mockImplementationOnce(
+        async () =>
+          await built.signAndSend(L1_PAYLOAD, mustDepositAnswer(MAIN_ADDRESS)),
+      );
+
+      const updating = built.accountSignerProvider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+      });
+      await asked.promise;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      const writesWhileClassifying =
+        built.exchangeClient.order.mock.calls.length;
+      const restorationSignedEarly =
+        replacementAgent.signTypedData.mock.calls.length;
+      if (accountChanged) {
+        built.selectAccount(OTHER_MAIN_ADDRESS);
+      }
+      listing.resolve([]);
+      const result = await updating;
+
+      expect(writesWhileClassifying).toBe(1);
+      expect(restorationSignedEarly).toBe(0);
+      expect(result).toStrictEqual(
+        accountChanged
+          ? {
+              success: false,
+              error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+            }
+          : {
+              success: false,
+              error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              childOrderIds: ['123'],
+            },
+      );
+      expect(built.exchangeClient.order).toHaveBeenCalledTimes(
+        accountChanged ? 1 : 2,
+      );
+      expect(replacementAgent.signTypedData).toHaveBeenCalledTimes(
+        accountChanged ? 0 : 1,
+      );
+      expect(built.onAgentRejected.mock.calls).toStrictEqual([
+        [MAINNET_ACCOUNT, AGENT_ADDRESS],
+      ]);
+    },
+  );
+
+  it('awaits the cancellation error callback before returning a mixed multisig and agent rejection', async () => {
+    const asked = createDeferred<void>();
+    const listing = createDeferred<ListedAgent[]>();
+    const built = await createPreparedAgentProvider(async () => {
+      asked.resolve();
+      return await listing.promise;
+    });
+    built.infoClient.frontendOpenOrders.mockResolvedValue(
+      [456, 457].map((oid) =>
+        createFrontendOpenOrder({
+          side: 'A',
+          oid,
+          orderType: 'Take Profit Market',
+          isTrigger: true,
+          triggerPx: '58000',
+          triggerCondition: 'Price above 58000',
+          reduceOnly: true,
+          isPositionTpsl: true,
+        }),
+      ),
+    );
+    built.exchangeClient.cancel.mockImplementation(
+      async () =>
+        await built.signAndSend(
+          L1_PAYLOAD,
+          cancelAnswer([
+            { error: 'Multi-sig required' },
+            { error: mustDepositError(MAIN_ADDRESS).message },
+          ]),
+        ),
+    );
+    let settled = false;
+
+    const updating = built.accountSignerProvider
+      .updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '60000',
+      })
+      .then((result) => {
+        settled = true;
+        return result;
+      });
+    await asked.promise;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    const settledWhileClassifying = settled;
+    listing.resolve([]);
+    const result = await updating;
+
+    expect(settledWhileClassifying).toBe(false);
+    expect(result).toStrictEqual({
+      success: false,
+      error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+    });
+    expect(built.exchangeClient.order).not.toHaveBeenCalled();
+    expect(built.extraAgents).toHaveBeenCalledTimes(1);
+    expect(built.onAgentRejected.mock.calls).toStrictEqual([
+      [MAINNET_ACCOUNT, AGENT_ADDRESS],
+    ]);
+    expect(loggerError).not.toHaveBeenCalled();
+  });
 
   describe.each([
     {

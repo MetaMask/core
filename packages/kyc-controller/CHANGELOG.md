@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `KycController.startSession` now throws if no existing session is found and `aal2Token` is not provided ([#10632](https://github.com/MetaMask/core/pull/10632))
   - Pass `aal2Token` whenever `startSession` may need to create a new UKYC session
   - Reusing the session already in state, or the latest vendor session, does not require `aal2Token`
+- Increase the UKYC capability token lifetime from 4 hours to 72 hours ([#10679](https://github.com/MetaMask/core/pull/10679))
 
 ## [0.6.1]
 
