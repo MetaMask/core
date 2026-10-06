@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Initial release ([#10627](https://github.com/MetaMask/core/pull/10627))
   - Add `MoneyAccountLifecycleController` and `getDefaultMoneyAccountLifecycleControllerState`
   - Add `init` method, also exposed through the messenger as `MoneyAccountLifecycleController:init`
     - Fetches derived identities from CHOMP while the client's `isEnabled` hook returns `true` and the wallet is unlocked with an HD keyring, refetching on unlock and when the remote feature flag values change
