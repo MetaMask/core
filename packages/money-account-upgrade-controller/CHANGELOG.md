@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `upgradeSuccessorAccount(address, predecessorAddress)` method and `MoneyAccountUpgradeController:upgradeSuccessorAccount` messenger action, which upgrades `address` as the successor of an existing Money Account
+  - Associating the address with the CHOMP profile also links it to `predecessorAddress`, which starts the Money Account migration on CHOMP.
+  - Skips the recorded-upgrade shortcut, like `forceUpgradeAccount`.
+  - Link rejections that can never succeed are thrown as terminal step errors. A predecessor with a withdrawal in progress is not terminal, and the step error's `cause` carries the `PREDECESSOR_HAS_OPEN_WITHDRAWALS` CHOMP error code.
+- Add `MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction` type
+
 ### Changed
 
+- **BREAKING:** The `MoneyAccountUpgradeControllerMessenger` must now also allow the `ChompApiService:getDerivedIdentityByAddress` action
 - **BREAKING:** The `MoneyAccountUpgradeControllerMessenger` must now allow the `ChompApiService:createAddressChallenge` and `ChompApiService:associateAddressV2` actions, and no longer uses `ChompApiService:associateAddress` ([#10687](https://github.com/MetaMask/core/pull/10687))
 - The `associate-address` upgrade step now uses CHOMP's v2 address association: it signs a single-use SIWE challenge from `POST /v2/auth/address/challenge` instead of a `CHOMP Authentication {timestamp}` message, and submits it to `POST /v2/auth/address` ([#10687](https://github.com/MetaMask/core/pull/10687))
   - A challenge that expired or was replaced while signing is retried once with a fresh challenge.
