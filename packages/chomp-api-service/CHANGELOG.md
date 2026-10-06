@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `ChompApiError`, thrown for non-2xx responses, which exposes the CHOMP error code from the response body as `code`
 - Add `AssociationPurpose`, `CreateAddressChallengeParams`, `CreateAddressChallengeResponse`, `AssociateAddressV2Params`, `ChompApiServiceCreateAddressChallengeAction`, and `ChompApiServiceAssociateAddressV2Action` types
 
+### Removed
+
+- **BREAKING:** Remove the `associateAddress` method and `ChompApiService:associateAddress` messenger action (`POST /v1/auth/address`), along with the `AssociateAddressParams` and `ChompApiServiceAssociateAddressAction` types
+  - CHOMP is retiring v1 address association. Use `createAddressChallenge` followed by `associateAddressV2` instead.
+
 ## [6.0.1]
 
 ### Changed

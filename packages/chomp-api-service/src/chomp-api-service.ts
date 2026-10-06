@@ -33,7 +33,6 @@ import type { QueryClientConfig } from '@tanstack/query-core';
 
 import type { ChompApiServiceMethodActions } from './chomp-api-service-method-action-types.js';
 import type {
-  AssociateAddressParams,
   AssociateAddressResponse,
   AssociateAddressV2Params,
   CreateAddressChallengeParams,
@@ -126,7 +125,6 @@ async function createChompApiError(
  * messenger.
  */
 const MESSENGER_EXPOSED_METHODS = [
-  'associateAddress',
   'createAddressChallenge',
   'associateAddressV2',
   'getAssociatedAddresses',
@@ -430,49 +428,6 @@ export class ChompApiService extends BaseDataService<
       'AuthenticationController:getBearerToken',
     );
     return this.#headersForToken(token);
-  }
-
-  /**
-   * Associates an address with a CHOMP profile.
-   *
-   * POST /v1/auth/address
-   *
-   * @param params - The association params containing signature, timestamp,
-   * and address.
-   * @returns The profile association result: `status: 'created'` for a new
-   * association, `status: 'active'` when the address was already associated
-   * with the authenticated profile. Throws on 409, which indicates the
-   * address is associated with a different profile.
-   */
-  async associateAddress(
-    params: AssociateAddressParams,
-  ): Promise<AssociateAddressResponse> {
-    const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:associateAddress`, params],
-      staleTime: 0,
-      queryFn: async () => {
-        const headers = await this.#authHeaders();
-        const response = await fetch(
-          new URL('/v1/auth/address', this.#baseUrl),
-          {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(params),
-          },
-        );
-
-        if (!response.ok) {
-          throw await createChompApiError(
-            response,
-            `POST /v1/auth/address failed with status '${response.status}'`,
-          );
-        }
-
-        return response.json();
-      },
-    });
-
-    return create(jsonResponse, AssociateAddressResponseStruct);
   }
 
   /**
