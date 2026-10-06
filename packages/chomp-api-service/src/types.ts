@@ -220,6 +220,79 @@ export type CreateWithdrawalResponse = {
   success: true;
 };
 
+// === DERIVED IDENTITY TYPES ===
+
+/**
+ * A step that must exist before a migration link counts as complete.
+ * `SUCCESSOR_SUBSCRIPTION_INTENT` and `TRANSFER_INTENT_PVMUSD` are only
+ * required for premium subscribers.
+ */
+export type MigrationStep =
+  | 'SUCCESSOR_DEPOSIT_INTENT'
+  | 'SUCCESSOR_WITHDRAWAL_INTENT'
+  | 'SUCCESSOR_SUBSCRIPTION_INTENT'
+  | 'SUCCESSOR_MONITORED'
+  | 'ROOT_DELEGATION'
+  | 'TRANSFER_INTENT_MUSD'
+  | 'TRANSFER_INTENT_VMUSD'
+  | 'TRANSFER_INTENT_PVMUSD';
+
+/**
+ * The settlement status of a Money Account identity chain. `NONE` is never
+ * returned as an entry: a profile with no Money Account has no identities.
+ */
+export type DerivedIdentityStatus = 'NONE' | 'MIGRATING' | 'DONE';
+
+/**
+ * The latest link of an identity chain while it is migrating.
+ */
+export type DerivedIdentityMigration = {
+  from: Hex;
+  to: Hex;
+  requiredSteps: MigrationStep[];
+  completedSteps: MigrationStep[];
+  missingSteps: MigrationStep[];
+};
+
+/**
+ * One Money Account over time: a chain of addresses joined by links.
+ * Addresses are lowercased.
+ */
+export type DerivedIdentity = {
+  /** The tip of the chain. Stays on the old address while migrating. */
+  currentAddress: Hex;
+  /** Earlier addresses, from the immediate predecessor backwards. */
+  previousAddresses: Hex[];
+  status: DerivedIdentityStatus;
+  migration: DerivedIdentityMigration | null;
+};
+
+/**
+ * Returned by GET /v1/money-account/identities.
+ */
+export type DerivedIdentitiesResponse = {
+  identities: DerivedIdentity[];
+};
+
+export type DerivedIdentityAddressRole =
+  | 'CURRENT'
+  | 'PREVIOUS'
+  | 'PENDING_SUCCESSOR';
+
+/**
+ * Returned by GET /v1/money-account/identities/address/:address. Addresses
+ * are lowercased.
+ */
+export type AddressIdentityResponse = {
+  identity: DerivedIdentity;
+  address: {
+    address: Hex;
+    role: DerivedIdentityAddressRole;
+    predecessor: Hex | null;
+    successor: Hex | null;
+  };
+};
+
 // === SERVICE DETAILS TYPES ===
 
 export type ServiceDetailsSupportedToken = {

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getDerivedIdentities` method, also expose it through the messenger as `ChompApiService:getDerivedIdentities`
+- Add `getDerivedIdentityByAddress` method, and expose it through the messenger as `ChompApiService:getDerivedIdentityByAddress`
+- Add `AddressIdentityResponse`, `DerivedIdentitiesResponse`, `DerivedIdentity`, `DerivedIdentityAddressRole`, `DerivedIdentityMigration`, `DerivedIdentityStatus`, `MigrationStep`, `ChompApiServiceGetDerivedIdentitiesAction`, and `ChompApiServiceGetDerivedIdentityByAddressAction` types
 - Add `createAddressChallenge` method for `POST /v2/auth/address/challenge`, and expose it through the messenger as `ChompApiService:createAddressChallenge` ([#10687](https://github.com/MetaMask/core/pull/10687))
   - Returns a single-use SIWE message bound to the profile, chain, purpose and address. The `ASSOCIATE_SUCCESSOR` purpose takes a `predecessorAddress` to link the address as the successor of an existing Money Account.
 - Add `associateAddressV2` method for `POST /v2/auth/address`, and expose it through the messenger as `ChompApiService:associateAddressV2` ([#10687](https://github.com/MetaMask/core/pull/10687))
