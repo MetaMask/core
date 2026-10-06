@@ -73,6 +73,47 @@ describe('crypto', () => {
     );
   });
 
+  describe('identifier sort order', () => {
+    // The escrow sorts by UTF-8 byte order (Rust `String` ordering). Any other
+    // order changes `identifiersHash` and the escrow rejects the mutation.
+    const identifier = (value: string): Identifier => ({
+      type: 'passkey',
+      namespace: 'metamask.io',
+      value,
+      verifier: null,
+    });
+    const sortedValues = (values: string[]): string[] =>
+      (
+        canonicalizeIdentifiers(values.map(identifier)) as { value: string }[]
+      ).map((item) => item.value);
+
+    it('puts uppercase before lowercase, unlike locale order', () => {
+      // base64url credential ids are mixed case; localeCompare would put
+      // `a2V5LTE` first.
+      expect(sortedValues(['a2V5LTE', 'Zm9vLTI'])).toStrictEqual([
+        'Zm9vLTI',
+        'a2V5LTE',
+      ]);
+      expect(sortedValues(['Zm9vLTI', 'a2V5LTE'])).toStrictEqual([
+        'Zm9vLTI',
+        'a2V5LTE',
+      ]);
+    });
+
+    it('orders by UTF-8 bytes rather than UTF-16 code units', () => {
+      // U+FF21 is EF BC A1 in UTF-8 and U+1F600 is F0 9F 98 80, so U+FF21
+      // sorts first. In UTF-16 U+1F600 (D83D DE00) would sort first.
+      expect(sortedValues(['\u{1F600}', '\uFF21'])).toStrictEqual([
+        '\uFF21',
+        '\u{1F600}',
+      ]);
+    });
+
+    it('orders a shorter identifier before its extension', () => {
+      expect(sortedValues(['abc', 'ab'])).toStrictEqual(['ab', 'abc']);
+    });
+  });
+
   it('round-trips wrap encryption to a wrap public key', () => {
     const wrapKey = generateSigningKey();
     const ephemeral = generateSigningKey();

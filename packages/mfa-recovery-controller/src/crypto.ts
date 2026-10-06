@@ -39,10 +39,32 @@ export function hash(value: unknown): Hex {
 }
 
 /**
+ * Orders two strings by their UTF-8 bytes. The escrow sorts identifiers the same
+ * way (Rust `String` ordering), so this must not be locale or UTF-16 aware.
+ *
+ * @param left - First string.
+ * @param right - Second string.
+ * @returns Negative, zero, or positive like `Array.prototype.sort` expects.
+ */
+function compareUtf8(left: string, right: string): number {
+  const leftBytes = stringToBytes(left);
+  const rightBytes = stringToBytes(right);
+  const shared = Math.min(leftBytes.length, rightBytes.length);
+  for (let index = 0; index < shared; index += 1) {
+    const difference = (leftBytes[index] ?? 0) - (rightBytes[index] ?? 0);
+    if (difference !== 0) {
+      return difference;
+    }
+  }
+  return leftBytes.length - rightBytes.length;
+}
+
+/**
  * Canonical identifier list bound into AuthController `identifiersHash`.
  *
  * @param identifiers - Identifier set.
- * @returns Sorted identifier records including verifier material.
+ * @returns Identifier records including verifier material, sorted by the UTF-8
+ * bytes of their canonical JSON.
  */
 export function canonicalizeIdentifiers(identifiers: Identifier[]): unknown {
   return [...identifiers]
@@ -53,7 +75,7 @@ export function canonicalizeIdentifiers(identifiers: Identifier[]): unknown {
       verifier: identifier.verifier,
     }))
     .sort((left, right) =>
-      canonicalize(left).localeCompare(canonicalize(right)),
+      compareUtf8(canonicalize(left), canonicalize(right)),
     );
 }
 
