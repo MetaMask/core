@@ -16,7 +16,7 @@ import { SecretType } from '../constants.js';
 import type { IncompleteMetadataBackupEventProperties } from './analytics.js';
 import {
   getIncompleteMetadataBackupEventProperties,
-  identifyIncompleteMetadataBackup,
+  trackIncompleteMetadataBackupEvents,
   SeedlessPrimarySrpMismatchEventName,
   SeedlessPrimarySrpMissingEventName,
 } from './analytics.js';
@@ -57,7 +57,7 @@ describe('identifyIncompleteMetadataBackup', () => {
     const trackEvent = jest.fn();
     const logFn = jest.fn();
 
-    await identifyIncompleteMetadataBackup({
+    await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn,
       trackEvent,
@@ -83,7 +83,7 @@ describe('identifyIncompleteMetadataBackup', () => {
     const trackEvent = jest.fn();
     const logFn = jest.fn();
 
-    await identifyIncompleteMetadataBackup({
+    await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn,
       trackEvent,
@@ -114,7 +114,7 @@ describe('identifyIncompleteMetadataBackup', () => {
     const trackEvent = jest.fn();
     const logFn = jest.fn();
 
-    await identifyIncompleteMetadataBackup({
+    await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn,
       trackEvent,
@@ -138,7 +138,7 @@ describe('identifyIncompleteMetadataBackup', () => {
     const trackEvent = jest.fn();
     const logFn = jest.fn();
 
-    await identifyIncompleteMetadataBackup({
+    await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn,
       trackEvent,
@@ -192,7 +192,7 @@ describe('identifyIncompleteMetadataBackup', () => {
       const trackEvent = jest.fn();
       const logFn = jest.fn();
 
-      await identifyIncompleteMetadataBackup({
+      await trackIncompleteMetadataBackupEvents({
         fetchAllSecretDataFn,
         getPrimaryKeyringSeedPhraseFn,
         trackEvent,
@@ -214,7 +214,7 @@ describe('identifyIncompleteMetadataBackup', () => {
     const trackEvent = jest.fn();
     const logFn = jest.fn();
 
-    await identifyIncompleteMetadataBackup({
+    await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn: jest.fn(),
       trackEvent,
@@ -238,7 +238,7 @@ describe('identifyIncompleteMetadataBackup', () => {
     const trackEvent = jest.fn();
     const logFn = jest.fn();
 
-    await identifyIncompleteMetadataBackup({
+    await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn: jest.fn(),
       trackEvent,
@@ -261,7 +261,7 @@ describe('identifyIncompleteMetadataBackup', () => {
     const trackEvent = jest.fn();
     const logFn = jest.fn();
 
-    await identifyIncompleteMetadataBackup({
+    await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn,
       trackEvent,
@@ -281,7 +281,7 @@ describe('identifyIncompleteMetadataBackup', () => {
     const trackEvent = jest.fn().mockRejectedValue(trackError);
     const logFn = jest.fn();
 
-    await identifyIncompleteMetadataBackup({
+    await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
       getPrimaryKeyringSeedPhraseFn: jest.fn(),
       trackEvent,

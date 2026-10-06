@@ -5,7 +5,7 @@ export {
   assertIsSeedlessOnboardingUserAuthenticated,
   assertIsValidPassword,
 } from './assertions.js';
-export { identifyIncompleteMetadataBackup } from './analytics.js';
+export { trackIncompleteMetadataBackupEvents } from './analytics.js';
 export type { SecretBackupData } from './secret-data-utils.js';
 export {
   getDataTypeMigrationUpdates,

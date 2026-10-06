@@ -5217,7 +5217,7 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should identify a primary SRP mismatch after global password unlock', async () => {
+    it('should identify a primary SRP mismatch when explicitly requested', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -5291,7 +5291,11 @@ describe('SeedlessOnboardingController', () => {
               globalPassword: GLOBAL_PASSWORD,
             },
           );
-          await new Promise((resolve) => setTimeout(resolve, 10));
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:identifyIncompleteMetadataBackup',
+            GLOBAL_PASSWORD,
+          );
 
           expect(exportSeedPhrase).toHaveBeenCalledWith({
             password: GLOBAL_PASSWORD,
@@ -5303,6 +5307,19 @@ describe('SeedlessOnboardingController', () => {
           );
         },
       );
+    });
+
+    it('should throw if identifyIncompleteMetadataBackup is called while locked', async () => {
+      await withController(async ({ baseMessenger }) => {
+        await expect(
+          baseMessenger.call(
+            'SeedlessOnboardingController:identifyIncompleteMetadataBackup',
+            GLOBAL_PASSWORD,
+          ),
+        ).rejects.toThrow(
+          SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+        );
+      });
     });
 
     it('should throw if key not set', async () => {

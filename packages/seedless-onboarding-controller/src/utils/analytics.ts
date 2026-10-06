@@ -114,7 +114,7 @@ function getMetadataSchemaVersion(
  * @returns A promise that resolves after identification and best-effort
  * telemetry have completed.
  */
-export async function identifyIncompleteMetadataBackup({
+export async function trackIncompleteMetadataBackupEvents({
   fetchAllSecretDataFn,
   getPrimaryKeyringSeedPhraseFn,
   trackEvent,
