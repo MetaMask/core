@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `createAddressChallenge` method for `POST /v2/auth/address/challenge`, and expose it through the messenger as `ChompApiService:createAddressChallenge`
+  - Returns a single-use SIWE message bound to the profile, chain, purpose and address. The `ASSOCIATE_SUCCESSOR` purpose takes a `predecessorAddress` to link the address as the successor of an existing Money Account.
+- Add `associateAddressV2` method for `POST /v2/auth/address`, and expose it through the messenger as `ChompApiService:associateAddressV2`
+  - Submits the signed challenge message to associate the address, and for `ASSOCIATE_SUCCESSOR` atomically links it to its predecessor.
+- Add `ChompApiError`, thrown for non-2xx responses, which exposes the CHOMP error code from the response body as `code`
+- Add `AssociationPurpose`, `CreateAddressChallengeParams`, `CreateAddressChallengeResponse`, `AssociateAddressV2Params`, `ChompApiServiceCreateAddressChallengeAction`, and `ChompApiServiceAssociateAddressV2Action` types
+
 ## [6.0.1]
 
 ### Changed

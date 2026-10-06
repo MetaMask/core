@@ -23,6 +23,8 @@ import {
 import type { Hex } from '@metamask/utils';
 import {
   bytesToHex,
+  hasProperty,
+  isObject,
   sha256,
   stringToBytes,
   StrictHexStruct,
@@ -33,6 +35,9 @@ import type { ChompApiServiceMethodActions } from './chomp-api-service-method-ac
 import type {
   AssociateAddressParams,
   AssociateAddressResponse,
+  AssociateAddressV2Params,
+  CreateAddressChallengeParams,
+  CreateAddressChallengeResponse,
   ProfileAddressEntry,
   ChompIntentType,
   CreateUpgradeParams,
@@ -68,6 +73,52 @@ function isChompIntentType(value: string): value is ChompIntentType {
  */
 export const serviceName = 'ChompApiService';
 
+// === ERRORS ===
+
+/**
+ * Thrown when the CHOMP API responds with a non-2xx status.
+ */
+export class ChompApiError extends HttpError {
+  /**
+   * The CHOMP error code from the response body (e.g.
+   * `PREDECESSOR_HAS_OPEN_WITHDRAWALS`), if one was provided.
+   */
+  readonly code: string | undefined;
+
+  /**
+   * Construct a CHOMP API error.
+   *
+   * @param status - The HTTP response status.
+   * @param message - The error message.
+   * @param code - The CHOMP error code from the response body.
+   */
+  constructor(status: number, message: string, code?: string) {
+    super(status, message);
+    this.name = 'ChompApiError';
+    this.code = code;
+  }
+}
+
+/**
+ * Builds a {@link ChompApiError} from a non-2xx response, reading the CHOMP
+ * error code from the response body when there is one.
+ *
+ * @param response - The non-2xx response.
+ * @param message - The error message.
+ * @returns The error to throw.
+ */
+async function createChompApiError(
+  response: Response,
+  message: string,
+): Promise<ChompApiError> {
+  const body: unknown = await response.json().catch(() => undefined);
+  const code =
+    isObject(body) && hasProperty(body, 'code') && typeof body.code === 'string'
+      ? body.code
+      : undefined;
+  return new ChompApiError(response.status, message, code);
+}
+
 // === MESSENGER ===
 
 /**
@@ -76,6 +127,8 @@ export const serviceName = 'ChompApiService';
  */
 const MESSENGER_EXPOSED_METHODS = [
   'associateAddress',
+  'createAddressChallenge',
+  'associateAddressV2',
   'getAssociatedAddresses',
   'createUpgrade',
   'getUpgrades',
@@ -148,6 +201,12 @@ const AssociateAddressResponseStruct = type({
   profileId: optional(string()),
   address: StrictHexStruct,
   status: enums(['active', 'created']),
+});
+
+const CreateAddressChallengeResponseStruct = type({
+  challengeId: string(),
+  message: string(),
+  expiresAt: string(),
 });
 
 /**
@@ -403,9 +462,105 @@ export class ChompApiService extends BaseDataService<
         );
 
         if (!response.ok) {
-          throw new HttpError(
-            response.status,
+          throw await createChompApiError(
+            response,
             `POST /v1/auth/address failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, AssociateAddressResponseStruct);
+  }
+
+  /**
+   * Requests a single-use challenge for associating an address through the v2
+   * flow. Sign the returned `message` exactly as received, using
+   * `personal_sign` with the address being associated, then submit it with
+   * {@link ChompApiService.associateAddressV2} before `expiresAt`. Requesting
+   * a new challenge for the same address replaces the previous one.
+   *
+   * POST /v2/auth/address/challenge
+   *
+   * Each call issues a new challenge, so the result is never cached.
+   *
+   * @param params - The address to associate and the association purpose.
+   * `ASSOCIATE_SUCCESSOR` also requires the predecessor address.
+   * @returns The challenge ID, the message to sign, and when it expires.
+   */
+  async createAddressChallenge(
+    params: CreateAddressChallengeParams,
+  ): Promise<CreateAddressChallengeResponse> {
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:createAddressChallenge`, params],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(
+          new URL('/v2/auth/address/challenge', this.#baseUrl),
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(params),
+          },
+        );
+
+        if (!response.ok) {
+          throw await createChompApiError(
+            response,
+            `POST /v2/auth/address/challenge failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, CreateAddressChallengeResponseStruct);
+  }
+
+  /**
+   * Associates an address with a CHOMP profile by submitting the signature of
+   * a challenge from {@link ChompApiService.createAddressChallenge}. The
+   * address, purpose and predecessor come from the challenge. For
+   * `ASSOCIATE_SUCCESSOR`, the association and the link to the predecessor
+   * are written atomically.
+   *
+   * POST /v2/auth/address
+   *
+   * @param params - The challenge ID and its signature.
+   * @returns The profile association result: `status: 'created'` when the
+   * association or link was written, `status: 'active'` when the address was
+   * already associated with the authenticated profile. Throws on 400
+   * `CHALLENGE_INVALID_OR_EXPIRED` (request a new challenge), on 409 when the
+   * address is associated with a different profile, and on link validation
+   * errors.
+   */
+  async associateAddressV2(
+    params: AssociateAddressV2Params,
+  ): Promise<AssociateAddressResponse> {
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:associateAddressV2`, params],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(
+          new URL('/v2/auth/address', this.#baseUrl),
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(params),
+          },
+        );
+
+        if (!response.ok) {
+          throw await createChompApiError(
+            response,
+            `POST /v2/auth/address failed with status '${response.status}'`,
           );
         }
 
@@ -450,8 +605,8 @@ export class ChompApiService extends BaseDataService<
         );
 
         if (!response.ok) {
-          throw new HttpError(
-            response.status,
+          throw await createChompApiError(
+            response,
             `GET /v1/auth/address failed with status '${response.status}'`,
           );
         }
@@ -490,8 +645,8 @@ export class ChompApiService extends BaseDataService<
         );
 
         if (!response.ok) {
-          throw new HttpError(
-            response.status,
+          throw await createChompApiError(
+            response,
             `POST /v1/account-upgrade failed with status '${response.status}'`,
           );
         }
@@ -523,8 +678,8 @@ export class ChompApiService extends BaseDataService<
         );
 
         if (!response.ok) {
-          throw new HttpError(
-            response.status,
+          throw await createChompApiError(
+            response,
             `Get upgrades request failed with status '${response.status}'`,
           );
         }
@@ -562,8 +717,8 @@ export class ChompApiService extends BaseDataService<
         );
 
         if (!response.ok) {
-          throw new HttpError(
-            response.status,
+          throw await createChompApiError(
+            response,
             `POST /v1/intent/verify-delegation failed with status '${response.status}'`,
           );
         }
@@ -598,8 +753,8 @@ export class ChompApiService extends BaseDataService<
         });
 
         if (!response.ok) {
-          throw new HttpError(
-            response.status,
+          throw await createChompApiError(
+            response,
             `POST /v1/intent failed with status '${response.status}'`,
           );
         }
@@ -635,8 +790,8 @@ export class ChompApiService extends BaseDataService<
         );
 
         if (!response.ok) {
-          throw new HttpError(
-            response.status,
+          throw await createChompApiError(
+            response,
             `Get intents request failed with status '${response.status}'`,
           );
         }
@@ -675,8 +830,8 @@ export class ChompApiService extends BaseDataService<
         });
 
         if (!response.ok) {
-          throw new HttpError(
-            response.status,
+          throw await createChompApiError(
+            response,
             `POST /v1/withdrawal failed with status '${response.status}'`,
           );
         }
@@ -708,8 +863,8 @@ export class ChompApiService extends BaseDataService<
         const response = await fetch(url, { headers });
 
         if (!response.ok) {
-          throw new HttpError(
-            response.status,
+          throw await createChompApiError(
+            response,
             `GET /v1/chomp failed with status '${response.status}'`,
           );
         }

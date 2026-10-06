@@ -1,4 +1,4 @@
-export { ChompApiService } from './chomp-api-service.js';
+export { ChompApiError, ChompApiService } from './chomp-api-service.js';
 export type {
   ChompApiServiceMessenger,
   ChompApiServiceActions,
@@ -9,6 +9,8 @@ export type {
 } from './chomp-api-service.js';
 export type {
   ChompApiServiceAssociateAddressAction,
+  ChompApiServiceAssociateAddressV2Action,
+  ChompApiServiceCreateAddressChallengeAction,
   ChompApiServiceGetAssociatedAddressesAction,
   ChompApiServiceCreateUpgradeAction,
   ChompApiServiceGetUpgradesAction,
@@ -22,8 +24,12 @@ export type {
   AccountUpgradeStatus,
   AssociateAddressParams,
   AssociateAddressResponse,
+  AssociateAddressV2Params,
+  AssociationPurpose,
   AuthorizationData,
   ChompIntentType,
+  CreateAddressChallengeParams,
+  CreateAddressChallengeResponse,
   CreateUpgradeParams,
   CreateUpgradeResponse,
   CreateWithdrawalParams,
