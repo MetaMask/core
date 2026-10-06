@@ -33,6 +33,7 @@ import type {
   PerpsAnalyticsProperties,
   PerpsPlatformDependencies,
   PerpsFeeResolution,
+  PerpsTraceStatus,
 } from '../types/index.js';
 import {
   PERPS_ERROR_ACTION,
@@ -95,6 +96,17 @@ function isSilentFlipResult(error: string | undefined): boolean {
     isSignerUnavailable(error) ||
     error === PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND
   );
+}
+
+/**
+ * Convert an operation result into the bounded terminal trace status that
+ * platform adapters map to their tracing SDK.
+ *
+ * @param success - Whether the traced operation completed successfully.
+ * @returns The terminal trace status.
+ */
+function getTraceStatus(success: boolean | undefined): PerpsTraceStatus {
+  return success === true ? 'ok' : 'error';
 }
 
 /**
@@ -641,7 +653,7 @@ export class TradingService {
         message: 'Order execution started',
         level: 'info',
         data: {
-          payment_token: paymentToken,
+          pay_token_symbol: paymentToken,
           market: params.symbol,
           orderType: params.orderType,
         },
@@ -658,12 +670,12 @@ export class TradingService {
           market: params.symbol,
           leverage: String(params.leverage ?? 1),
           isTestnet: String(context.tracingContext.isTestnet),
-          payment_token: paymentToken,
+          pay_token_symbol: paymentToken,
         },
         data: {
           isBuy: params.isBuy,
           orderPrice: params.price ?? '',
-          payment_token: paymentToken,
+          pay_token_symbol: paymentToken,
         },
       });
 
@@ -720,7 +732,7 @@ export class TradingService {
           level: 'warning',
           data: {
             thresholdMs: PERPS_CONSTANTS.PlaceOrderTimeoutMs,
-            payment_token: paymentToken,
+            pay_token_symbol: paymentToken,
             market: params.symbol,
             orderType: params.orderType,
           },
@@ -833,6 +845,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.PlaceOrder,
         id: traceId,
+        status: getTraceStatus(traceData?.success),
         data: traceData,
       });
     }
@@ -1707,6 +1720,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.EditOrder,
         id: traceId,
+        status: getTraceStatus(traceData?.success),
         data: traceData,
       });
     }
@@ -1865,6 +1879,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.CancelOrder,
         id: traceId,
+        status: getTraceStatus(traceData?.success),
         data: traceData,
       });
     }
@@ -2079,6 +2094,11 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.CancelOrder,
         id: traceId,
+        status: getTraceStatus(operationResult?.success),
+        data: {
+          success: operationResult?.success === true,
+          ...(operationError ? { error: operationError.message } : {}),
+        },
       });
     }
   }
@@ -2267,6 +2287,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.ClosePosition,
         id: traceId,
+        status: getTraceStatus(traceData?.success),
         data: traceData,
       });
     }
@@ -2490,6 +2511,11 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.ClosePosition,
         id: traceId,
+        status: getTraceStatus(operationResult?.success),
+        data: {
+          success: operationResult?.success === true,
+          ...(operationError ? { error: operationError.message } : {}),
+        },
       });
     }
   }
@@ -2718,6 +2744,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.UpdateTpsl,
         id: traceId,
+        status: getTraceStatus(traceData?.success),
         data: traceData,
       });
     }
@@ -2804,6 +2831,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.UpdateMargin,
         id: traceId,
+        status: getTraceStatus(result.success),
         data: { success: result.success, error: result.error ?? '' },
       });
 
@@ -2840,6 +2868,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.UpdateMargin,
         id: traceId,
+        status: 'error',
         data: { success: false, error: errorMessage },
       });
 
@@ -3027,6 +3056,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.FlipPosition,
         id: traceId,
+        status: getTraceStatus(result.success),
         data: { success: result.success ?? false, error: result.error ?? '' },
       });
 
@@ -3074,6 +3104,7 @@ export class TradingService {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.FlipPosition,
         id: traceId,
+        status: 'error',
         data: { success: false, error: errorMessage },
       });
 

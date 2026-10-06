@@ -1022,14 +1022,19 @@ describe('TradingService', () => {
           name: expect.any(String),
           id: 'mock-trace-id',
           tags: expect.objectContaining({
-            payment_token: 'perps_balance',
+            pay_token_symbol: 'perps_balance',
           }),
         }),
       );
-      expect(mockDeps.tracer.endTrace).toHaveBeenCalled();
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'ok',
+          data: expect.objectContaining({ success: true }),
+        }),
+      );
     });
 
-    it('adds payment_token tag for order trace (perps_balance when not tradeWithToken)', async () => {
+    it('adds pay_token_symbol tag for order trace (perps_balance when not tradeWithToken)', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',
         isBuy: true,
@@ -1056,13 +1061,13 @@ describe('TradingService', () => {
       expect(mockDeps.tracer.trace).toHaveBeenCalledWith(
         expect.objectContaining({
           tags: expect.objectContaining({
-            payment_token: 'perps_balance',
+            pay_token_symbol: 'perps_balance',
           }),
         }),
       );
     });
 
-    it('adds payment_token tag for order trace (token symbol when tradeWithToken)', async () => {
+    it('adds pay_token_symbol tag for order trace (token symbol when tradeWithToken)', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',
         isBuy: true,
@@ -1096,7 +1101,7 @@ describe('TradingService', () => {
       expect(mockDeps.tracer.trace).toHaveBeenCalledWith(
         expect.objectContaining({
           tags: expect.objectContaining({
-            payment_token: 'ETH',
+            pay_token_symbol: 'ETH',
           }),
         }),
       );
@@ -1127,6 +1132,12 @@ describe('TradingService', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe('Insufficient margin');
       expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalled();
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'error',
+          data: expect.objectContaining({ success: false }),
+        }),
+      );
     });
 
     it('handles provider exception during order placement', async () => {
