@@ -40,4 +40,6 @@ export enum KeyringControllerErrorMessage {
   EncryptionKeyNotSet = 'KeyringController - Encryption key not set',
   KeyringV2NotSupported = 'KeyringController - The selected keyring does not support the KeyringV2 API.',
   CannotRemovePrimaryKeyring = 'KeyringController - Cannot remove the primary keyring',
+  AtomicUpdateKeyringDetached = 'KeyringController - Cannot update an atomic keyring that is no longer registered with the controller.',
+  AtomicKeyringBuilderMismatch = 'KeyringController - A builder declared `atomic: true` but did not produce an atomic keyring.',
 }
