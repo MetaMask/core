@@ -51,6 +51,17 @@ type ApiTokenListItem = {
   iconUrl?: string;
 };
 
+/**
+ * Token-list calls TokenDetector makes. `TokenApiClient` satisfies this, and
+ * tests can pass an object with only these methods.
+ */
+type TokenListApi = Pick<
+  TokenApiClient,
+  | 'fetchV2SupportedNetworks'
+  | 'fetchV1SuggestedOccurrenceFloors'
+  | 'fetchTokenList'
+>;
+
 const log = createModuleLogger(projectLogger, 'TokenDetector');
 
 const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
@@ -64,11 +75,6 @@ export type TokenDetectorConfig = {
   defaultTimeoutMs?: number;
   /** Polling interval in ms (default: 3 minutes) */
   pollingInterval?: number;
-  /**
-   * When true, cache the per-chain token list on the shared QueryClient.
-   * `RpcDataSource` sets this because it uses `queryApiClient.token`.
-   */
-  cacheTokenList?: boolean;
 };
 
 /**
@@ -96,13 +102,9 @@ export type OnDetectionUpdateCallback = (result: TokenDetectionResult) => void;
 export class TokenDetector extends StaticIntervalPollingControllerOnly<DetectionPollingInput>() {
   readonly #multicallClient: MulticallClient;
 
-  readonly #tokenApi: TokenApiClient;
+  readonly #tokenApi: TokenListApi;
 
-  readonly #cacheTokenList: boolean;
-
-  readonly #config: Required<
-    Omit<TokenDetectorConfig, 'pollingInterval' | 'cacheTokenList'>
-  >;
+  readonly #config: Required<Omit<TokenDetectorConfig, 'pollingInterval'>>;
 
   readonly #tokenListCache: Map<ChainId, TokenListEntry[]> = new Map();
 
@@ -110,13 +112,12 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
 
   constructor(
     multicallClient: MulticallClient,
-    tokenApi: TokenApiClient,
+    tokenApi: TokenListApi,
     config?: TokenDetectorConfig,
   ) {
     super();
     this.#multicallClient = multicallClient;
     this.#tokenApi = tokenApi;
-    this.#cacheTokenList = config?.cacheTokenList ?? false;
     this.#config = {
       tokenDetectionEnabled:
         config?.tokenDetectionEnabled ?? ((): boolean => true),
@@ -458,8 +459,8 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
           includeRwaData: true,
         },
         {
-          staleTime: this.#cacheTokenList ? TOKEN_LIST_STALE_TIME_MS : 0,
-          gcTime: this.#cacheTokenList ? TOKEN_LIST_GC_TIME_MS : 0,
+          staleTime: TOKEN_LIST_STALE_TIME_MS,
+          gcTime: TOKEN_LIST_GC_TIME_MS,
           retry: false,
         },
       );

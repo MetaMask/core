@@ -334,7 +334,6 @@ export class RpcDataSource extends AbstractDataSource<
         pollingInterval: detectionInterval,
         tokenDetectionEnabled: this.#tokenDetectionEnabled,
         useExternalService: this.#useExternalService,
-        cacheTokenList: true,
       },
     );
     // Sync throw in the detector would reject the poll tick if uncaught.

@@ -1,4 +1,3 @@
-import type { TokenApiClient } from '@metamask/core-backend';
 import { numberToHex } from '@metamask/utils';
 
 import type { MulticallClient } from '../clients/index.js';
@@ -115,7 +114,7 @@ async function withController<ReturnValue>(
   const mockTokenApi = createMockTokenApi(tokenListByChain);
   const controller = new TokenDetector(
     mockMulticallClient,
-    mockTokenApi as unknown as TokenApiClient,
+    mockTokenApi,
     config,
   );
 

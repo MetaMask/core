@@ -168,9 +168,7 @@ function buildClient(config?: TestClientConfig): {
     clientProduct: 'assets-controller',
     queryClient: config?.queryClient as ApiPlatformClientOptions['queryClient'],
   });
-  const detector = new TokenDetector(createMulticallClient(), tokenApi, {
-    cacheTokenList: config?.queryClient !== undefined,
-  });
+  const detector = new TokenDetector(createMulticallClient(), tokenApi);
   return {
     fetchTokenList: (chainId: ChainId) => detector.getTokenList(chainId),
   };
@@ -894,18 +892,16 @@ describe('TokenDetector token list', () => {
         expect(getTokenListUrl(mockFetch)).not.toMatch(/[?&]first=/u);
       });
 
-      it('falls back to direct fetch when no queryClient is provided', async () => {
+      it('reuses the token list when no query client is provided', async () => {
         const mockFetch = createMockFetch(createMockResponse([]));
         const client = buildClient({ fetch: mockFetch });
 
         await client.fetchTokenList(MAINNET_CHAIN_ID);
         await client.fetchTokenList(MAINNET_CHAIN_ID);
 
-        // Without a queryClient there is no token-list cache:
-        // call 1: supported-networks + floors + token-list = 3
-        // call 2: both caches hit + 1 token-list = 1
-        // total = 4
-        expect(mockFetch).toHaveBeenCalledTimes(4);
+        // TokenApiClient keeps its own QueryClient, so the second call hits
+        // the supported-networks, floors, and token-list caches.
+        expect(mockFetch).toHaveBeenCalledTimes(3);
       });
     });
   });
