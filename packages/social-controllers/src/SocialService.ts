@@ -1003,6 +1003,7 @@ export class SocialService extends BaseDataService<
    *
    * Calls `GET ${baseUrl}/users/me/followers`. The caller is identified
    * server-side from the JWT sub claim carried in the Authorization header.
+   * something something
    *
    * @returns The followers response.
    */
