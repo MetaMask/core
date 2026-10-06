@@ -68,7 +68,7 @@ export const KYC_STATUSES = {
 /**
  * `finalStatus` values that end session-status polling.
  */
-export const TERMINAL_SESSION_STATUSES: ReadonlySet<string> = new Set([
+export const FINAL_STATUSES_TO_STOP_POLLING: ReadonlySet<string> = new Set([
   KYC_STATUSES.approved,
   KYC_STATUSES.rejected,
   KYC_STATUSES.retry,
@@ -96,7 +96,7 @@ export const CAPABILITY_AUTHORIZATION_STATUSES = {
  * Capability-authorization statuses that require submitting a capability
  * authorization token (`new` or `expired`).
  */
-export const CAPABILITY_AUTHORIZATION_SUBMIT_STATUSES: ReadonlySet<string> =
+export const CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH: ReadonlySet<string> =
   new Set([
     CAPABILITY_AUTHORIZATION_STATUSES.new,
     CAPABILITY_AUTHORIZATION_STATUSES.expired,
@@ -107,7 +107,7 @@ export const CAPABILITY_AUTHORIZATION_SUBMIT_STATUSES: ReadonlySet<string> =
  * refreshed. Once KYC has a finished decision, the capability token is no
  * longer needed.
  */
-export const CAPABILITY_AUTHORIZATION_SKIP_FINAL_STATUSES: ReadonlySet<string> =
+export const FINAL_STATUSES_TO_SKIP_AUTH_REFRESH: ReadonlySet<string> =
   new Set([KYC_STATUSES.approved, KYC_STATUSES.rejected]);
 
 /**
@@ -153,13 +153,13 @@ export function needsCapabilityAuthorizationRefresh(
   sessionStatus: KycSessionStatus,
 ): boolean {
   if (
-    CAPABILITY_AUTHORIZATION_SKIP_FINAL_STATUSES.has(sessionStatus.finalStatus)
+    FINAL_STATUSES_TO_SKIP_AUTH_REFRESH.has(sessionStatus.finalStatus)
   ) {
     return false;
   }
   return (
     sessionStatus.capabilityAuthorizationStatus !== undefined &&
-    CAPABILITY_AUTHORIZATION_SUBMIT_STATUSES.has(
+    CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH.has(
       sessionStatus.capabilityAuthorizationStatus,
     )
   );

@@ -28,7 +28,10 @@ import {
   areSessionDisclaimersCompleted,
   consentRecordsFromAcceptedList,
 } from './sessionDisclaimers.js';
-import { TERMINAL_SESSION_STATUSES } from './types.js';
+import {
+  needsCapabilityAuthorizationRefresh,
+  FINAL_STATUSES_TO_STOP_POLLING,
+} from './types.js';
 import type {
   KycConsentRecord,
   KycDisclaimer,
@@ -497,7 +500,7 @@ export class KycController extends BaseController<
     if (!this.state.sessionStatus) {
       throw new Error('No session was found');
     }
-    if (!TERMINAL_SESSION_STATUSES.has(this.state.sessionStatus.finalStatus)) {
+    if (!FINAL_STATUSES_TO_STOP_POLLING.has(this.state.sessionStatus.finalStatus)) {
       this.startSessionStatusPolling();
     }
     return this.state.sessionStatus;
@@ -570,7 +573,7 @@ export class KycController extends BaseController<
         });
       }
 
-      if (TERMINAL_SESSION_STATUSES.has(sessionStatus.finalStatus)) {
+      if (FINAL_STATUSES_TO_STOP_POLLING.has(sessionStatus.finalStatus)) {
         this.#stopSessionStatusPolling();
         return true;
       }

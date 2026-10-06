@@ -45,6 +45,7 @@ export type {
   FetchSessionDisclaimersByCountryParams,
   FetchSessionDisclaimersBySessionIdParams,
   GetSessionStatusParams,
+  ResetWrappingKeysParams,
   VendorCustomerResponse,
   JwksResponse,
   KycServiceActions,
@@ -72,6 +73,7 @@ export type {
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetSessionStatusForVendorAction,
+  KycServiceResetWrappingKeysAction,
   KycServiceSetAuthorizationsAction,
   KycServiceSubmitSessionDisclaimersAction,
   KycServiceSubmitVendorDisclaimersAction,
@@ -104,6 +106,14 @@ export type {
   KycMoonpayVendorDisclaimersAccepted,
   KycVendorDisclaimersAccepted,
   KycVendorSigning,
+} from './types.js';
+export {
+  FINAL_STATUSES_TO_SKIP_AUTH_REFRESH,
+  CAPABILITY_AUTHORIZATION_STATUSES,
+  CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH,
+  KYC_STATUSES,
+  needsCapabilityAuthorizationRefresh,
+  FINAL_STATUSES_TO_STOP_POLLING,
 } from './types.js';
 export type {
   KycSumSubLaunchParams,
