@@ -838,21 +838,9 @@ export class SeedlessOnboardingController<
 
       this.#setUnlocked();
 
-      // Identify incomplete metadata backup after successful unlock
-      // Run this async to avoid blocking the main thread
-      identifyIncompleteMetadataBackup({
-        fetchAllSecretDataFn: () =>
-          this.toprfClient.fetchAllSecretDataItems({
-            decKey: deserializedVaultData.toprfEncryptionKey,
-            authKeyPair: deserializedVaultData.toprfAuthKeyPair,
-          }),
-        getPrimaryKeyringSeedPhraseFn: () =>
-          this.messenger.call('KeyringController:exportSeedPhrase', {
-            password,
-          }),
-        trackEvent: (event) =>
-          this.messenger.call('AnalyticsController:trackEvent', event),
-        logFn: log,
+      this.#identifyIncompleteMetadataBackup({
+        deserializedVaultData,
+        password,
       });
     });
   }
@@ -993,6 +981,15 @@ export class SeedlessOnboardingController<
         accessTokenBeforeUnlock,
         decryptedVaultData.accessToken,
       );
+
+      // Identify the PrimarySRP mismatch case here.
+      // Users with the missing PrimarySRP cannot restore the wallet in another device.
+      // But users with the **PrimarySRP mismatch** case can restore the wallet in another device.
+      // So we need to track the PrimarySRP mismatch event here.
+      this.#identifyIncompleteMetadataBackup({
+        deserializedVaultData: decryptedVaultData,
+        password: globalPassword,
+      });
     } catch (error) {
       if (isAuthTokenError(error)) {
         throw error;
@@ -2458,6 +2455,36 @@ export class SeedlessOnboardingController<
     } catch {
       return true; // Consider unauthenticated user as having expired tokens
     }
+  }
+
+  /**
+   * Identify an incomplete or mismatched primary SRP backup after unlocking.
+   *
+   * @param params - The parameters used to identify the incomplete backup.
+   * @param params.deserializedVaultData - The decrypted vault data.
+   * @param params.password - The password used to export the local primary SRP.
+   */
+  #identifyIncompleteMetadataBackup({
+    deserializedVaultData,
+    password,
+  }: {
+    deserializedVaultData: DeserializedVaultData;
+    password: string;
+  }): void {
+    identifyIncompleteMetadataBackup({
+      fetchAllSecretDataFn: () =>
+        this.toprfClient.fetchAllSecretDataItems({
+          decKey: deserializedVaultData.toprfEncryptionKey,
+          authKeyPair: deserializedVaultData.toprfAuthKeyPair,
+        }),
+      getPrimaryKeyringSeedPhraseFn: () =>
+        this.messenger.call('KeyringController:exportSeedPhrase', {
+          password,
+        }),
+      trackEvent: (event) =>
+        this.messenger.call('AnalyticsController:trackEvent', event),
+      logFn: log,
+    });
   }
 }
 
