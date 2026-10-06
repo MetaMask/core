@@ -316,10 +316,10 @@ describe('quote gas estimation', () => {
       messenger,
       transactions: [
         {
-          chainId: '0x1' as Hex,
-          data: '0xaaaa' as Hex,
-          from: '0x1234567890123456789012345678901234567891' as Hex,
-          to: '0x1111111111111111111111111111111111111111' as Hex,
+          chainId: '0x1',
+          data: '0xaaaa',
+          from: '0x1234567890123456789012345678901234567891',
+          to: '0x1111111111111111111111111111111111111111',
         },
       ],
     });

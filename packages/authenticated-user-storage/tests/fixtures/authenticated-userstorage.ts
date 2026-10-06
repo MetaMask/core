@@ -5,6 +5,10 @@ import {
   MOCK_ASSETS_WATCHLIST_URL,
   MOCK_DELEGATIONS_URL,
   MOCK_DELEGATION_RESPONSE,
+  MOCK_MARKETING_CONSENT,
+  MOCK_MARKETING_CONSENT_URL,
+  MOCK_IDENTITY_SHARING_CONSENT,
+  MOCK_IDENTITY_SHARING_CONSENT_URL,
   MOCK_NOTIFICATION_PREFERENCES,
   MOCK_NOTIFICATION_PREFERENCES_URL,
 } from '../mocks/authenticated-userstorage.js';
@@ -67,6 +71,62 @@ export function handleMockPutNotificationPreferences(
 ): nock.Scope {
   const reply = mockReply ?? { status: 200 };
   const interceptor = nock(MOCK_NOTIFICATION_PREFERENCES_URL).persist().put('');
+
+  if (callback) {
+    return interceptor.reply(reply.status, async (uri, requestBody) => {
+      return callback(uri, requestBody);
+    });
+  }
+  return interceptor.reply(reply.status, reply.body);
+}
+
+export function handleMockGetMarketingConsent(
+  mockReply?: MockReply,
+): nock.Scope {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_MARKETING_CONSENT,
+  };
+  return nock(MOCK_MARKETING_CONSENT_URL)
+    .persist()
+    .get('')
+    .reply(reply.status, reply.body);
+}
+
+export function handleMockPutMarketingConsent(
+  mockReply?: MockReply,
+  callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
+): nock.Scope {
+  const reply = mockReply ?? { status: 200 };
+  const interceptor = nock(MOCK_MARKETING_CONSENT_URL).persist().put('');
+
+  if (callback) {
+    return interceptor.reply(reply.status, async (uri, requestBody) => {
+      return callback(uri, requestBody);
+    });
+  }
+  return interceptor.reply(reply.status, reply.body);
+}
+
+export function handleMockGetIdentitySharingConsent(
+  mockReply?: MockReply,
+): nock.Scope {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_IDENTITY_SHARING_CONSENT,
+  };
+  return nock(MOCK_IDENTITY_SHARING_CONSENT_URL)
+    .persist()
+    .get('')
+    .reply(reply.status, reply.body);
+}
+
+export function handleMockPutIdentitySharingConsent(
+  mockReply?: MockReply,
+  callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
+): nock.Scope {
+  const reply = mockReply ?? { status: 200 };
+  const interceptor = nock(MOCK_IDENTITY_SHARING_CONSENT_URL).persist().put('');
 
   if (callback) {
     return interceptor.reply(reply.status, async (uri, requestBody) => {

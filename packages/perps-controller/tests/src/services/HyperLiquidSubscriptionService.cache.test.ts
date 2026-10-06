@@ -77,6 +77,9 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => ({
     symbol,
     dex: null,
   })),
+  buildHyperLiquidFillId: jest.requireActual(
+    '../../../src/utils/hyperLiquidAdapter',
+  ).buildHyperLiquidFillId,
 }));
 
 // Mock DevLogger
@@ -1417,7 +1420,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // through the standard subscribeToAccount path. The default mock
       // resolves userAbstraction = 'unifiedAccount' so the initial subscribe
       // already records that mode and folds spot. Setting back to
-      // dexAbstraction should flip the fold off and re-notify.
+      // disabled should flip the fold off and re-notify.
       mockClientService.getInfoClient = jest.fn(() => ({
         spotClearinghouseState: mockSpotClearinghouseState,
         userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
@@ -1432,9 +1435,9 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(accountCallback).toHaveBeenCalled();
       accountCallback.mockClear();
 
-      // Switch the recorded mode to dexAbstraction (no fold). Account state
+      // Switch the recorded mode to disabled (no fold). Account state
       // hash flips because spendable/withdrawable drop the folded spot.
-      service.setUserAbstractionMode('0x123', 'dexAbstraction');
+      service.setUserAbstractionMode('0x123', 'disabled');
       await jest.runAllTimersAsync();
 
       expect(accountCallback).toHaveBeenCalled();
@@ -1450,13 +1453,13 @@ describe('HyperLiquidSubscriptionService', () => {
     it('does not seal the spot cache when userAbstraction fails, so the next refresh retries', async () => {
       // Without this guard, a transient userAbstraction failure leaves
       // #cachedSpotStateUserAddress set, the early-return in #ensureSpotState
-      // takes the fast path forever, and Standard / dexAbstraction users
+      // takes the fast path forever, and Standard / default users
       // keep seeing spot folded into availableToTradeBalance via the
       // fail-open Unified default.
       const userAbstractionMock = jest
         .fn()
         .mockRejectedValueOnce(new Error('transient HL outage'))
-        .mockResolvedValueOnce('dexAbstraction');
+        .mockResolvedValueOnce('disabled');
 
       mockClientService.getInfoClient = jest.fn(() => ({
         spotClearinghouseState: mockSpotClearinghouseState,
@@ -1482,7 +1485,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // a subsequent refresh failure must not force pointless retries.
       const userAbstractionMock = jest
         .fn()
-        .mockResolvedValueOnce('dexAbstraction')
+        .mockResolvedValueOnce('disabled')
         .mockRejectedValueOnce(new Error('transient HL outage'));
 
       mockClientService.getInfoClient = jest.fn(() => ({

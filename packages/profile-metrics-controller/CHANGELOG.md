@@ -7,12 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.3]
+
 ### Changed
 
-- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.1.0` ([#10462](https://github.com/MetaMask/core/pull/10462), [#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [5.1.2]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.3.1` to `^33.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
+## [5.1.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.3.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220), [#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
-- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^72.0.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262), [#10386](https://github.com/MetaMask/core/pull/10386), [#10423](https://github.com/MetaMask/core/pull/10423))
 - Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
 
 ## [5.1.0]
 
@@ -268,7 +284,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.3...HEAD
+[5.1.3]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.2...@metamask/profile-metrics-controller@5.1.3
+[5.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.1...@metamask/profile-metrics-controller@5.1.2
+[5.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.0...@metamask/profile-metrics-controller@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.0.0...@metamask/profile-metrics-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.4...@metamask/profile-metrics-controller@5.0.0
 [4.0.4]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.3...@metamask/profile-metrics-controller@4.0.4

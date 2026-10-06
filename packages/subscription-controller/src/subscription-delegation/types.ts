@@ -1,17 +1,116 @@
-import type { Hex } from '@metamask/utils';
+import type { ChompIntentType } from '@metamask/chomp-api-service';
+import type { Hex, Json } from '@metamask/utils';
 
 import { PRODUCT_TYPES } from '../types.js';
-import type { RecurringInterval } from '../types.js';
+import type {
+  ProductType,
+  RecurringInterval,
+  StartCryptoSubscriptionResponse,
+} from '../types.js';
+
+export type { ChompIntentType };
 
 /**
  * Storage / CHOMP metadata type for cash-subscription delegations.
  *
- * Defined locally so this package does not depend on an unreleased
- * `@metamask/chomp-api-service` intent type. Production CHOMP intent
- * registration still requires a follow-up chomp-api-service release that
- * accepts `'cash-subscription'`.
+ * The `'cash-subscription'` member of {@link ChompIntentType}.
  */
-export const CASH_SUBSCRIPTION_DELEGATION_TYPE = 'cash-subscription' as const;
+export const CASH_SUBSCRIPTION_DELEGATION_TYPE =
+  'cash-subscription' as const satisfies ChompIntentType;
+
+export const SUBSCRIPTION_DELEGATION_POLICY_VERSION = '1' as const;
+
+export type SubscriptionPermissionId = ChompIntentType;
+
+export type MoneyAccountAuthorizationReason =
+  | 'controller-not-ready'
+  | 'address-not-associated'
+  | 'eip7702-not-active'
+  | 'monitoring-list-missing'
+  | 'configuration-changed';
+
+export type UnsignedSubscriptionDelegation = {
+  delegate: Hex;
+  delegator: Hex;
+  authority: Hex;
+  caveats: {
+    enforcer: Hex;
+    terms: Hex;
+    args: Hex;
+  }[];
+  salt: Hex;
+};
+
+export type SignedSubscriptionDelegation = UnsignedSubscriptionDelegation & {
+  signature: Hex;
+};
+
+export type SubscriptionDelegationTypedData = {
+  types: Record<string, { name: string; type: string }[]>;
+  primaryType: string;
+  domain: {
+    chainId: number;
+    name: string;
+    version: string;
+    verifyingContract: Hex;
+  };
+  message: Json;
+};
+
+export type DecodedPermission = {
+  tokenAddress: Hex;
+  delegateAddress: Hex;
+  periodAmount: string;
+  periodDuration: number;
+  startDate: number;
+  maxNativeValue: '0';
+};
+
+export type PreparedSubscriptionPermission = {
+  id: SubscriptionPermissionId;
+  owner: 'money-account' | 'subscription';
+  disposition: 'new' | 'reused';
+  delegation: UnsignedSubscriptionDelegation;
+  typedData: SubscriptionDelegationTypedData;
+  decodedAuthority: DecodedPermission;
+  existingDelegationHash?: Hex;
+};
+
+export type PreparedSubscriptionDelegationBundle = {
+  policyVersion: string;
+  account: Hex;
+  chainId: Hex;
+  permissions: PreparedSubscriptionPermission[];
+};
+
+export type StartSubscriptionWithDelegationRequest = {
+  product: ProductType;
+  recurringInterval: RecurringInterval;
+  chainId: Hex;
+  payerAddress: Hex;
+};
+
+export type PrepareAuthorizationBundleResult =
+  | {
+      status: 'prepared';
+      bundle: PreparedSubscriptionDelegationBundle;
+    }
+  | {
+      status: 'money-account-authorization-required';
+      reasons: MoneyAccountAuthorizationReason[];
+    };
+
+export type CommitAuthorizationBundleRequest = {
+  bundle: PreparedSubscriptionDelegationBundle;
+  signedPaymentDelegation: SignedSubscriptionDelegation;
+};
+
+export type CommitAuthorizationBundleResult = {
+  paymentDelegationHash: Hex;
+};
+
+export type StartSubscriptionWithDelegationResult =
+  StartCryptoSubscriptionResponse;
 
 /**
  * Request to prepare a cash-subscription delegation.
@@ -37,10 +136,8 @@ export type PrepareSubscriptionDelegationRequest = {
    */
   checkBalance?: boolean;
   /**
-   * When true, skips CHOMP verify/intent interactions. Required for alpha
-   * until `@metamask/chomp-api-service` accepts `'cash-subscription'` intent
-   * metadata. Defaults to false (production path; unsupported until that
-   * follow-up release).
+   * When true, skips CHOMP verify and intent registration. The returned
+   * delegation hash is computed locally. Defaults to false.
    */
   skipChompInteractions?: boolean;
 };
@@ -76,6 +173,6 @@ export type MoneyAccountBalanceCheckResult = {
  * Delegation Framework enforcers used by cash-subscription delegations.
  */
 export type SubscriptionDelegationEnforcers = {
-  valueLte: Hex;
   erc20TokenPeriodTransfer: Hex;
+  allowedCalldata: Hex;
 };

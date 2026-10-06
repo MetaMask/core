@@ -128,7 +128,7 @@ describe('Validation Utils', () => {
             messageData: {
               data: [],
               from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-            } as MessageParamsTyped,
+            },
             request: REQUEST_MOCK,
             version: SignTypedDataVersion.V1,
           }),
@@ -176,7 +176,7 @@ describe('Validation Utils', () => {
               messageData: {
                 data: 'uh oh',
                 from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-              } as MessageParamsTyped,
+              },
               request: REQUEST_MOCK,
               version,
             }),

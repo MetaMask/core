@@ -25,6 +25,11 @@ import {
   getRelayPollingInterval,
   getRelayPollingTimeout,
 } from '../../utils/feature-flags.js';
+import type { GasPayment } from '../../utils/gas-payment.js';
+import {
+  logGasPaymentOutcome,
+  resolveGasPayment,
+} from '../../utils/gas-payment.js';
 import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
 import { getNetworkClientId } from '../../utils/provider.js';
 import {
@@ -398,7 +403,7 @@ async function resolveSettledAmount({
   let settlementHash: Hex | undefined;
 
   if (hasPolledTargetHash) {
-    settlementHash = completion.targetHash as Hex;
+    settlementHash = completion.targetHash;
   } else if (isSameChain && submittedSourceHash !== FALLBACK_HASH) {
     settlementHash = submittedSourceHash;
   }
@@ -574,9 +579,9 @@ function normalizeParams(
 /**
  * Validate the source token balance is sufficient for the relay deposit.
  *
- * Reads the live balance from TokenBalancesController and compares it against
- * the quote's required source amount to prevent submitting transactions that
- * will revert on-chain due to insufficient balance.
+ * Reads the live balance from the network and compares it against the quote's
+ * required source amount to prevent submitting transactions that will revert
+ * on-chain due to insufficient balance.
  *
  * @param quote - Relay quote containing the required source amount.
  * @param messenger - Controller messenger.
@@ -817,7 +822,7 @@ async function buildDelegatedOriginalParams(
 
   return {
     data: delegation.data,
-    from: transaction.txParams.from as Hex,
+    from: transaction.txParams.from,
     maxFeePerGas: relayParams?.maxFeePerGas,
     maxPriorityFeePerGas: relayParams?.maxPriorityFeePerGas,
     to: delegation.to,
@@ -881,21 +886,23 @@ async function submitViaTransactionController(
 
   let result: { result: Promise<string> } | undefined;
 
-  const isSourceGasFeeSponsored =
-    transaction.isGasFeeSponsored &&
-    quote.request.sourceChainId === transaction.chainId &&
-    quote.request.targetChainId === transaction.chainId &&
-    accountSupports7702(messenger, from);
+  const gasPayment = resolveGasPayment({
+    isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
+    sourceTokenAddress,
+    sponsorship: {
+      accountSupports7702: accountSupports7702(messenger, from),
+      request: quote.request,
+      transaction,
+    },
+  });
 
-  const gasFeeToken =
-    !isSourceGasFeeSponsored && quote.fees.isSourceGasFeeToken
-      ? sourceTokenAddress
-      : undefined;
+  const { excludeNativeTokenForFee, gasFeeToken } = gasPayment;
 
   log('Submitting transactions', {
     isPostQuote,
     gasFeeToken,
     allParamsCount: allParams.length,
+    gasPaymentMode: gasPayment.mode,
   });
 
   const isSameChain =
@@ -940,11 +947,12 @@ async function submitViaTransactionController(
       'TransactionController:addTransaction',
       transactionParams,
       {
+        excludeNativeTokenForFee,
         gasFeeToken,
         networkClientId,
         origin: ORIGIN_METAMASK,
         isInternal: true,
-        isGasFeeSponsored: isSourceGasFeeSponsored,
+        isGasFeeSponsored: gasPayment.isGasFeeSponsored,
         requireApproval: false,
         type: getRelayDepositType(getEffectiveTransactionType(transaction)),
       },
@@ -955,7 +963,7 @@ async function submitViaTransactionController(
       buildRelayTransactionBatchRequest({
         allParams,
         authorizationList: batchAuthorizationList,
-        isGasFeeSponsored: isSourceGasFeeSponsored,
+        gasPayment,
         messenger,
         normalizedParams,
         quote,
@@ -983,6 +991,11 @@ async function submitViaTransactionController(
 
   log('All transactions confirmed', transactionIds);
 
+  logGasPaymentOutcome(
+    gasPayment,
+    transactionIds.map((txId) => getTransaction(txId, messenger)),
+  );
+
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
 
   if (!hash) {
@@ -1008,7 +1021,7 @@ function mapSignedQuoteAuthorizationList(
 function buildRelayTransactionBatchRequest({
   allParams,
   authorizationList,
-  isGasFeeSponsored,
+  gasPayment,
   messenger,
   normalizedParams,
   quote,
@@ -1016,18 +1029,15 @@ function buildRelayTransactionBatchRequest({
 }: {
   allParams: TransactionParams[];
   authorizationList?: AuthorizationList;
-  isGasFeeSponsored: boolean | undefined;
+  gasPayment: GasPayment;
   messenger: TransactionPayControllerMessenger;
   normalizedParams: TransactionParams[];
   quote: TransactionPayQuote<RelayQuote>;
   transaction: TransactionMeta;
 }): TransactionBatchRequest {
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { from, sourceChainId } = quote.request;
   const { metamask } = quote.original;
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
-  const gasFeeToken = quote.fees?.isSourceGasFeeToken
-    ? sourceTokenAddress
-    : undefined;
   const gasLimit7702 = getGasLimit7702(quote);
 
   return {
@@ -1036,12 +1046,13 @@ function buildRelayTransactionBatchRequest({
     disable7702: !gasLimit7702,
     disableHook: Boolean(gasLimit7702),
     disableSequential: Boolean(gasLimit7702),
-    gasFeeToken,
+    excludeNativeTokenForFee: gasPayment.excludeNativeTokenForFee,
+    gasFeeToken: gasPayment.gasFeeToken,
     gasLimit7702,
     networkClientId,
     origin: ORIGIN_METAMASK,
     isInternal: true,
-    isGasFeeSponsored,
+    isGasFeeSponsored: gasPayment.isGasFeeSponsored,
     overwriteUpgrade: true,
     requireApproval: false,
     transactions: buildRelayBatchTransactions({

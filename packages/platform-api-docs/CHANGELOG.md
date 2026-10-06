@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `execa` from `^5.0.0` to `^10.0.1` ([#10330](https://github.com/MetaMask/core/pull/10330), [#10332](https://github.com/MetaMask/core/pull/10332))
+- Bump `yargs` from `^17.7.2` to `^17.7.3` ([#10446](https://github.com/MetaMask/core/pull/10446))
+- Bump `@docusaurus/core` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
+- Bump `@docusaurus/plugin-content-docs` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
+- Bump `@docusaurus/preset-classic` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
+- Bump `@docusaurus/theme-common` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
+- Bump `@docusaurus/types` from `^3.10.1` to `^3.10.2` ([#10510](https://github.com/MetaMask/core/pull/10510))
+- Bump `react` from `^19.0.0` to `^19.3.0` ([#10534](https://github.com/MetaMask/core/pull/10534))
+- Bump `react-dom` from `^19.0.0` to `^19.3.0` ([#10534](https://github.com/MetaMask/core/pull/10534))
+
 ## [0.2.1]
 
 ### Changed
@@ -29,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Speed up documentation generation by loading source files in bulk instead of one at a time ([#9990](https://github.com/MetaMask/core/pull/9990))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+### Fixed
+
+- Link a capability to its source rather than to the build output compiled from it, where both are available ([#10085](https://github.com/MetaMask/core/pull/10085))
 
 ## [0.1.0]
 

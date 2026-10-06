@@ -81,11 +81,32 @@ export type LighterSignCreateOrderWireParams = [
   nonce: number,
 ];
 
-export type LighterSignCreateGroupedOrdersWireParams = [
+/** Native OTO/OCO use two orders; OTOCO uses a parent and two children. */
+export type LighterSignCreateGroupedOrdersWireParams =
+  | [
+      accountIndex: number,
+      groupingType: 1 | 2,
+      orderCount: 2,
+      ...orders: LighterGroupedOrderWireParams,
+      nonce: number,
+    ]
+  | [
+      accountIndex: number,
+      groupingType: 3,
+      orderCount: 3,
+      ...parentAndFirstChild: LighterGroupedOrderWireParams,
+      ...secondChild: LighterCreateOrderWireParams,
+      nonce: number,
+    ];
+
+/** Seven-argument ModifyOrder ABI of the pinned embedded signer. */
+export type LighterSignModifyOrderWireParams = [
   accountIndex: number,
-  groupingType: number,
-  orderCount: 2,
-  ...orders: LighterGroupedOrderWireParams,
+  marketIndex: number,
+  orderIndex: string,
+  baseAmount: number,
+  price: number,
+  triggerPrice: number,
   nonce: number,
 ];
 
@@ -150,6 +171,10 @@ export type LighterSignerOperationMap = {
     LighterSignCreateGroupedOrdersWireParams,
     LighterTxResult
   >;
+  _signModifyOrder: LighterSignerOperationDefinition<
+    LighterSignModifyOrderWireParams,
+    LighterTxResult
+  >;
   _signCancelOrder: LighterSignerOperationDefinition<
     LighterSignCancelOrderWireParams,
     LighterTxResult
@@ -192,6 +217,8 @@ export type LighterCreateClientParams = {
   accountIndex: number;
   apiKeyIndex: number;
   nonce: number;
+  /** Expected Core wallet binding. Hosts must reject a different selected account. */
+  walletAddress?: string;
 };
 
 /**
@@ -203,6 +230,32 @@ export type LighterCreateClientParams = {
  * - Node (e2e): in-process `WebAssembly.instantiate` via Go's `wasm_exec.js`.
  */
 export type LighterSignerBridge = {
+  /**
+   * Return requested slots whose keys can be restored from local storage or
+   * wallet-owned deterministic derivation. This must never generate unrelated
+   * random keys for slots reported as recoverable. Core still verifies the
+   * derived public key against the venue before reusing any registration.
+   * When both discovery hooks exist, Core uses this hook exclusively;
+   * getStoredKeyIndices is the fallback only when this hook is absent.
+   */
+  getRecoverableKeyIndices?(params: {
+    chainId: number;
+    accountIndex: number;
+    apiKeyIndices: number[];
+    walletAddress?: string;
+  }): Promise<number[]>;
+  /**
+   * Opt in to device-key recovery. Return only requested slots whose private
+   * keys are persisted locally for this network and account. No key material
+   * crosses this boundary. Core verifies public-key ownership before reuse.
+   */
+  getStoredKeyIndices?(params: {
+    chainId: number;
+    accountIndex: number;
+    apiKeyIndices: number[];
+    walletAddress?: string;
+  }): Promise<number[]>;
+
   /**
    * Create or restore the client-owned venue signer. The implementation owns
    * key generation and persistence; Core never receives the seed or private
@@ -299,14 +352,6 @@ export type LighterTxResult = {
 // ============================================================================
 
 /**
- * Signs an EIP-191 personal message and resolves with the 65-byte signature
- * as a 0x-prefixed hex string. Injected for headless use; when a messenger
- * is available the wallet service routes through
- * `KeyringController:signPersonalMessage` instead.
- */
-export type LighterPersonalSigner = (message: string) => Promise<string>;
-
-/**
  * Lighter auth/config passed at construction time.
  */
 export type LighterAuthConfig = {
@@ -316,10 +361,6 @@ export type LighterAuthConfig = {
   accountIndex?: number;
   /** API key slot to register/use (0-254). */
   apiKeyIndex?: number;
-  /** L1 address owning the Lighter account. */
-  l1Address?: string;
-  /** Headless personal_sign implementation for L1 ChangePubKey approval. */
-  personalSigner?: LighterPersonalSigner;
 };
 
 // ============================================================================
@@ -441,6 +482,11 @@ export type LighterApiPosition = {
   symbol: string;
   initialMarginFraction: string;
   openOrderCount: number;
+  /** Optional in legacy captures; live mode changes require authoritative counts. */
+  pendingOrderCount?: number;
+  positionTiedOrderCount?: number;
+  /** Isolated collateral allocated to this market, in USDC. */
+  allocatedMargin?: string;
   /** 1 = long, -1 = short (sign convention per API). */
   sign: number;
   position: string;
@@ -630,7 +676,7 @@ export type LighterWsTrade = {
   bidAccountId: number;
   isMakerAsk: boolean;
   timestamp: number;
-  /** Realized pnl per side — same wire shape as the REST trade payload. */
+  /** Realized pnl per side; may be omitted on opens or adds, as in REST trades. */
   askAccountPnl?: string;
   bidAccountPnl?: string;
   /** Fees, present when nonzero; unit unproven — see LighterRestTrade. */
@@ -638,6 +684,7 @@ export type LighterWsTrade = {
   makerFee?: number | string;
   takerPositionSizeBefore?: string;
   makerPositionSizeBefore?: string;
+  /** Whether the side's position sign changed; omission is unknown. */
   takerPositionSignChanged?: boolean;
   makerPositionSignChanged?: boolean;
 };
@@ -656,6 +703,9 @@ export type LighterWsTradesMessage = {
  * One trade from `GET /api/v1/trades` (post-camelization).
  */
 export type LighterRestTrade = {
+  tradeIdStr?: string;
+  bidIdStr?: string;
+  askIdStr?: string;
   tradeId: number;
   txHash: string;
   type: string;
@@ -669,9 +719,9 @@ export type LighterRestTrade = {
   bidAccountId: number;
   isMakerAsk: boolean;
   timestamp: number;
-  /** Realized pnl for the ask-side account, signed USDC; may be omitted on opens from flat. */
+  /** Realized pnl for the ask-side account, signed USDC; may be omitted on opens or adds. */
   askAccountPnl?: string;
-  /** Realized pnl for the bid-side account, signed USDC; may be omitted on opens from flat. */
+  /** Realized pnl for the bid-side account, signed USDC; may be omitted on opens or adds. */
   bidAccountPnl?: string;
   /**
    * Taker/maker fees, present when nonzero. The official model types them
@@ -683,9 +733,9 @@ export type LighterRestTrade = {
   /** Position size (absolute) of each side before the trade executed. */
   takerPositionSizeBefore: string;
   makerPositionSizeBefore: string;
-  /** Whether the side's position sign changed (crossed or left zero). */
-  takerPositionSignChanged: boolean;
-  makerPositionSignChanged: boolean;
+  /** Whether the side's position sign changed (crossed or left zero); omission is unknown. */
+  takerPositionSignChanged?: boolean;
+  makerPositionSignChanged?: boolean;
 };
 
 /**
@@ -700,6 +750,10 @@ export type LighterTradesResponse = {
 
 /** Query parameters supported by the Lighter trades endpoint. */
 export type LighterTradesQuery = {
+  /** Exact uint60 order ID; a number would lose precision for large IDs. */
+  orderIndex?: string;
+  /** False preserves individual trade identities for reconciliation. */
+  aggregate?: boolean;
   limit: number;
   cursor?: string;
   from?: number;
@@ -783,6 +837,15 @@ export type LighterApiOrder = {
   ownerAccountIndex: number;
   initialBaseAmount: string;
   remainingBaseAmount: string;
+  /** Executed base amount; zero remaining does not imply a fill on cancellation. */
+  filledBaseAmount?: string;
+  filledQuoteAmount?: string;
+  clientOrderId?: string;
+  /** Venue order nonce, independent of the signing API key transaction nonce. */
+  nonce?: number;
+  createdAt?: number;
+  updatedAt?: number;
+  transactionTime?: number;
   price: string;
   isAsk: boolean;
   type: string;
@@ -806,6 +869,21 @@ export type LighterApiOrder = {
   toCancelOrderId0?: string;
   toTriggerOrderId0?: string;
   toTriggerOrderId1?: string;
+};
+
+/** Edit-only reader preserves venue int64 identities instead of rounding them. */
+export type LighterEditableOrder = Omit<
+  LighterApiOrder,
+  'orderIndex' | 'parentOrderIndex'
+> & {
+  orderIndex: number | string;
+  parentOrderIndex?: number | string;
+};
+
+export type LighterEditableOrdersResponse = {
+  code: number;
+  message?: string;
+  orders: LighterEditableOrder[];
 };
 
 /**
@@ -900,4 +978,24 @@ export type LighterTransferHistoryResponse = {
   message?: string;
   transfers: LighterTransferHistoryItem[];
   cursor?: string;
+};
+
+/** Public native book rows; individual orders permit exact own-order subtraction. */
+export type LighterBookOrder = {
+  orderIndex: number;
+  orderId: string;
+  ownerAccountIndex: number;
+  initialBaseAmount: string;
+  remainingBaseAmount: string;
+  price: string;
+  orderExpiry: number;
+  transactionTime: number;
+};
+
+export type LighterOrderBookOrdersResponse = {
+  code: number;
+  totalBids: number;
+  totalAsks: number;
+  bids: LighterBookOrder[];
+  asks: LighterBookOrder[];
 };

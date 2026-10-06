@@ -62,6 +62,7 @@ import {
   adaptPositionFromSDK,
   adaptOrderFromSDK,
   adaptAccountStateFromSDK,
+  buildHyperLiquidFillId,
   parseAssetName,
 } from '../utils/hyperLiquidAdapter.js';
 import { processBboData } from '../utils/hyperLiquidOrderBookProcessor.js';
@@ -76,6 +77,15 @@ import {
 } from '../utils/orderTypes.js';
 import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
+
+/**
+ * What the service needs from the wallet: the account, and the wallet
+ * adapters it (re)initializes the SDK clients with.
+ */
+type SubscriptionWallet = Pick<
+  HyperLiquidWalletService,
+  'createWalletAdapter' | 'getUserAddressWithDefault'
+>;
 
 /**
  * Cap on *terminal* TWAP schedules retained per account from the venue's
@@ -109,7 +119,7 @@ export class HyperLiquidSubscriptionService {
   // Service dependencies
   readonly #clientService: HyperLiquidClientService;
 
-  readonly #walletService: HyperLiquidWalletService;
+  readonly #walletService: SubscriptionWallet;
 
   // HIP-3 feature flag support
   #hip3Enabled: boolean;
@@ -457,7 +467,7 @@ export class HyperLiquidSubscriptionService {
 
   constructor(
     clientService: HyperLiquidClientService,
-    walletService: HyperLiquidWalletService,
+    walletService: SubscriptionWallet,
     platformDependencies: PerpsPlatformDependencies,
     hip3Enabled?: boolean,
     enabledDexs?: string[],
@@ -772,7 +782,7 @@ export class HyperLiquidSubscriptionService {
           .then((enabledDexs) => {
             this.#enabledDexs = enabledDexs;
             this.#discoveredDexNames = enabledDexs;
-            return undefined;
+            return;
           })
           .catch(() => this.#dexDiscoveryPromise ?? Promise.resolve())
       : this.#dexDiscoveryPromise;
@@ -2181,7 +2191,7 @@ export class HyperLiquidSubscriptionService {
           this.#deps.debugLogger.log(
             `webData3 subscription established for OI caps (main + HIP-3)`,
           );
-          return undefined;
+          return;
         })
         .catch((error) => {
           this.#logErrorUnlessClearing(
@@ -2205,7 +2215,7 @@ export class HyperLiquidSubscriptionService {
             `User data subscriptions established for ${dexsToSubscribe.length} DEX(s)`,
           );
           resolve();
-          return undefined;
+          return;
         })
         .catch((error) => {
           this.#logErrorUnlessClearing(
@@ -2944,8 +2954,13 @@ export class HyperLiquidSubscriptionService {
         }
         const orderFills: OrderFill[] = data.fills.map((fill) => {
           const oid = fill.oid.toString();
+          // Same execution id the REST path builds, so a client merging
+          // history with this stream recognises one execution reported
+          // twice, and keeps two executions that merely look alike.
+          const fillId = buildHyperLiquidFillId(fill);
           return {
             orderId: oid,
+            ...(fillId === undefined ? {} : { fillId }),
             symbol: fill.coin,
             side: fill.side,
             size: fill.sz,
@@ -3724,7 +3739,7 @@ export class HyperLiquidSubscriptionService {
         this.#cachedPriceData ??= new Map<string, PriceUpdate>();
 
         // Store raw snapshot for the main DEX so market fetches can reuse it without REST.
-        this.#allMidsSnapshots.set('', data.mids as Record<string, string>);
+        this.#allMidsSnapshots.set('', data.mids);
 
         const subscribedSymbols = new Set<string>();
 
@@ -3779,7 +3794,7 @@ export class HyperLiquidSubscriptionService {
         if (this.#cachedPriceData && this.#cachedPriceData.size > 0) {
           this.#notifyAllPriceSubscribers();
         }
-        return undefined;
+        return;
       })
       .catch((error) => {
         // Clear the promise on error so it can be retried
@@ -3929,7 +3944,7 @@ export class HyperLiquidSubscriptionService {
         this.#deps.debugLogger.log(
           'HyperLiquid: Global fastAssetCtxs subscription established',
         );
-        return undefined;
+        return;
       })
       .catch((error) => {
         // Clear the promise on error so it can be retried
@@ -4073,7 +4088,7 @@ export class HyperLiquidSubscriptionService {
         this.#deps.debugLogger.log(
           `HyperLiquid: Market data subscription established for ${symbol}`,
         );
-        return undefined;
+        return;
       })
       .catch((error) => {
         if (this.#pendingActiveAssetPromises.get(symbol) === promise) {
@@ -4226,7 +4241,7 @@ export class HyperLiquidSubscriptionService {
     return new Promise<void>((resolve, reject) => {
       subscriptionClient
         .allMids({ dex }, (data: AllMidsWsEvent) => {
-          this.#allMidsSnapshots.set(dex, data.mids as Record<string, string>);
+          this.#allMidsSnapshots.set(dex, data.mids);
         })
         .then((sub) => {
           // If a newer subscription already won the race, discard this one (#28141)
@@ -4239,7 +4254,7 @@ export class HyperLiquidSubscriptionService {
             `allMids subscription established for DEX: ${dex}`,
           );
           resolve();
-          return undefined;
+          return;
         })
         .catch((error) => {
           this.#logErrorUnlessClearing(
@@ -4446,7 +4461,7 @@ export class HyperLiquidSubscriptionService {
             }`,
           );
           resolve();
-          return undefined;
+          return;
         })
         .catch((error) => {
           this.#logErrorUnlessClearing(
@@ -4583,7 +4598,7 @@ export class HyperLiquidSubscriptionService {
         this.#deps.debugLogger.log(
           `HyperLiquid: BBO subscription established for ${symbol}`,
         );
-        return undefined;
+        return;
       })
       .catch((error) => {
         if (this.#pendingBboPromises.get(symbol) === promise) {
@@ -4699,13 +4714,13 @@ export class HyperLiquidSubscriptionService {
               this.#getErrorContext('subscribeToOrderBook.cleanup', { symbol }),
             );
           }
-          return undefined;
+          return;
         }
         subscription = sub;
         this.#deps.debugLogger.log(
           `HyperLiquid: Order book subscription established for ${symbol}`,
         );
-        return undefined;
+        return;
       })
       .catch((error) => {
         this.#logErrorUnlessClearing(

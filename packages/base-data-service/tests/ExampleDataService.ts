@@ -4,14 +4,22 @@ import {
   StorageServiceRemoveItemAction,
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
-import { object, number, string, array } from '@metamask/superstruct';
 import {
-  CaipAssetType,
+  object,
+  number,
+  string,
+  array,
+  Infer,
+  nullable,
+  optional,
+} from '@metamask/superstruct';
+import {
   CaipAssetTypeStruct,
   Duration,
   inMilliseconds,
   Json,
 } from '@metamask/utils';
+import type { CancelOptions } from '@tanstack/query-core';
 import { ConstantBackoff } from 'cockatiel';
 
 import {
@@ -42,13 +50,6 @@ export type ExampleMessenger = Messenger<
   ExampleDataServiceEvents
 >;
 
-export type GetAssetsResponse = {
-  assetId: CaipAssetType;
-  decimals: number;
-  name: string;
-  symbol: string;
-}[];
-
 const GetAssetsResponseStruct = array(
   object({
     assetId: CaipAssetTypeStruct,
@@ -57,6 +58,8 @@ const GetAssetsResponseStruct = array(
     symbol: string(),
   }),
 );
+
+export type GetAssetsResponse = Infer<typeof GetAssetsResponseStruct>;
 
 export type GetActivityResponse = {
   data: Json[];
@@ -69,6 +72,19 @@ export type GetActivityResponse = {
   };
 };
 
+export const AddFollowerResponseStruct = object({
+  followed: array(
+    object({
+      profileId: string(),
+      address: string(),
+      name: string(),
+      imageUrl: optional(nullable(string())),
+    }),
+  ),
+});
+
+export type AddFollowerResponse = Infer<typeof AddFollowerResponseStruct>;
+
 export type PageParam =
   | {
       before: string;
@@ -76,7 +92,12 @@ export type PageParam =
   | { after: string }
   | null;
 
-const MESSENGER_EXPOSED_METHODS = ['getAssets', 'getActivity'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'getAssets',
+  'getActivity',
+  'addFollower',
+  'createDataDeletionTask',
+] as const;
 
 export class ExampleDataService extends BaseDataService<
   typeof serviceName,
@@ -85,6 +106,10 @@ export class ExampleDataService extends BaseDataService<
   readonly #accountsBaseUrl = 'https://accounts.api.cx.metamask.io';
 
   readonly #tokensBaseUrl = 'https://tokens.api.cx.metamask.io';
+
+  readonly #socialBaseUrl = 'https://social.api.cx.metamask.io';
+
+  readonly #segmentRegulationsUrl = 'https://proxy.example.com/v1beta';
 
   constructor(
     messenger: ExampleMessenger,
@@ -131,6 +156,22 @@ export class ExampleDataService extends BaseDataService<
     });
   }
 
+  async refreshAssets(
+    assets: string[],
+    cancelOptions?: CancelOptions,
+  ): Promise<GetAssetsResponse> {
+    // Cancel any in-flight fetch so that its response cannot win the shared
+    // query key after the refresh completes.
+    await this.cancelQueries(
+      {
+        queryKey: [`${this.name}:getAssets`, assets],
+      },
+      cancelOptions,
+    );
+
+    return this.getAssets(assets);
+  }
+
   async getActivity(
     address: string,
     page?: PageParam,
@@ -169,6 +210,75 @@ export class ExampleDataService extends BaseDataService<
       },
       page,
     );
+  }
+
+  async addFollower(
+    followerId: string,
+    globalId?: string,
+  ): Promise<AddFollowerResponse> {
+    return this.executeMutation({
+      mutationKey: [`${this.name}:addFollower`, followerId],
+      globalId,
+      mutationFn: async () => {
+        const url = new URL(`${this.#socialBaseUrl}/api/v1/users/me/follows`);
+
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ followerId }),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Mutation failed with status code: ${response.status}.`,
+          );
+        }
+
+        return response.json();
+      },
+      gcTime: inMilliseconds(1, Duration.Day),
+      responseStruct: AddFollowerResponseStruct,
+    });
+  }
+
+  async createDataDeletionTask(
+    analyticsId: string,
+    segmentSourceId: string,
+    globalId?: string,
+  ): Promise<{
+    status: 'ok' | 'error';
+    regulateId: string;
+  }> {
+    return this.executeMutation({
+      mutationKey: [
+        `${this.name}:createDataDeletionTask`,
+        analyticsId,
+        segmentSourceId,
+      ],
+      globalId,
+      mutationFn: async () => {
+        const url = `${this.#segmentRegulationsUrl}/regulations/sources/${segmentSourceId}`;
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            regulationType: 'DELETE_ONLY',
+            subjectType: 'USER_ID',
+            subjectIds: [analyticsId],
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Creating data deletion task failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+      gcTime: inMilliseconds(1, Duration.Day),
+    });
   }
 
   destroy(): void {

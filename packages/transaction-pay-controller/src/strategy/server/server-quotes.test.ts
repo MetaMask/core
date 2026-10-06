@@ -16,10 +16,7 @@ import {
   getSlippage,
   isEIP7702Chain,
 } from '../../utils/feature-flags.js';
-import {
-  getGasStationCostInSourceTokenRaw,
-  getGasStationEligibility,
-} from '../../utils/gas-station.js';
+import { resolveGasStationCost } from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import {
@@ -27,9 +24,10 @@ import {
   getTokenBalance,
   getTokenFiatRate,
 } from '../../utils/token.js';
+import { TradeType } from '../../utils/trade-type.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
-import { ServerProviderName, ServerTradeType } from './types.js';
+import { ServerProviderName } from './types.js';
 
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
@@ -38,7 +36,13 @@ jest.mock('../../utils/feature-flags', () => ({
   isEIP7702Chain: jest.fn(),
 }));
 jest.mock('./server-api');
-jest.mock('../../utils/gas-station');
+// `resolveGasPayment` is a pure resolver, so keep the real implementation and
+// only stub the gas station lookup that performs network work. This lets the
+// sponsorship and gas-fee-token modes be exercised for real.
+jest.mock('../../utils/gas-payment', () => ({
+  ...jest.requireActual('../../utils/gas-payment'),
+  resolveGasStationCost: jest.fn(),
+}));
 jest.mock('../../utils/gas');
 jest.mock('../../utils/quote-gas');
 jest.mock('../../utils/token');
@@ -57,7 +61,7 @@ const SOURCE_ACCOUNT_TRANSFER_DATA_MOCK =
 
 const TRANSACTION_META_MOCK = { txParams: {} } as TransactionMeta;
 const COMPLEX_TRANSACTION_META_MOCK = {
-  txParams: { data: '0x1234' as Hex },
+  txParams: { data: '0x1234' },
 } as TransactionMeta;
 
 const QUOTE_REQUEST_MOCK: QuoteRequest = {
@@ -109,15 +113,23 @@ const REJECTED_RESULT_MOCK = {
   provider: ServerProviderName.Relay,
 };
 
+const CONTRACT_CALL_TRANSACTION_MOCK = {
+  nestedTransactions: [
+    { data: '0x1234', to: '0xcontract' },
+    { data: '0x5678', to: '0xcontract' },
+  ],
+  txParams: {},
+} as TransactionMeta;
+
 const DELEGATION_RESULT_MOCK = {
   authorizationList: [
     {
-      address: '0x9990000000000000000000000000000000000000' as Hex,
-      chainId: '0x1' as Hex,
-      nonce: '0x2' as Hex,
-      r: '0x3' as Hex,
-      s: '0x4' as Hex,
-      yParity: '0x1' as Hex,
+      address: '0x9990000000000000000000000000000000000000',
+      chainId: '0x1',
+      nonce: '0x2',
+      r: '0x3',
+      s: '0x4',
+      yParity: '0x1',
     },
   ],
   data: '0x111' as Hex,
@@ -150,14 +162,14 @@ describe('server-quotes', () => {
     } as never);
     jest
       .mocked(getNativeToken)
-      .mockReturnValue('0x0000000000000000000000000000000000000000' as never);
+      .mockReturnValue('0x0000000000000000000000000000000000000000');
     jest.mocked(getTokenBalance).mockReturnValue('0');
     jest.mocked(calculateGasCost).mockReturnValue({
       fiat: '0',
       human: '0',
       raw: '0',
       usd: '0',
-    } as never);
+    });
     jest.mocked(getGasFee).mockReturnValue({
       estimatedBaseFee: undefined,
       maxFeePerGas: '1000000000',
@@ -168,16 +180,12 @@ describe('server-quotes', () => {
       totalGasEstimate: '0x5208',
       totalGasLimit: '0x7530',
     } as never);
-    jest.mocked(getGasStationEligibility).mockReturnValue({
-      chainSupportsGasStation: false,
-      isDisabledChain: false,
-    } as never);
     jest
-      .mocked(getGasStationCostInSourceTokenRaw)
-      .mockResolvedValue(undefined as never);
+      .mocked(resolveGasStationCost)
+      .mockResolvedValue({ isAvailable: false });
   });
 
-  it('maps standard transactions to EXPECTED_OUTPUT quote requests', async () => {
+  it('maps transactions without bundled calls to EXACT_INPUT quote requests', async () => {
     await getServerQuotes({
       accountSupports7702: true,
       messenger,
@@ -190,8 +198,8 @@ describe('server-quotes', () => {
       {
         source: { chainId: 1, token: SOURCE_TOKEN_ADDRESS_MOCK },
         target: { chainId: 2, token: TARGET_TOKEN_ADDRESS_MOCK },
-        amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
-        tradeType: ServerTradeType.ExpectedOutput,
+        amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
+        tradeType: TradeType.ExactInput,
         sender: FROM_MOCK,
         recipient: FROM_MOCK,
         slippage: 50,
@@ -214,7 +222,7 @@ describe('server-quotes', () => {
       messenger,
       expect.objectContaining({
         amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
-        tradeType: ServerTradeType.ExactInput,
+        tradeType: TradeType.ExactInput,
       }),
       undefined,
     );
@@ -290,6 +298,26 @@ describe('server-quotes', () => {
           },
         ],
       }),
+      undefined,
+    );
+  });
+
+  it('omits authorizationList when the delegation does not carry one', async () => {
+    getDelegationTransactionMock.mockResolvedValue({
+      ...DELEGATION_RESULT_MOCK,
+      authorizationList: [],
+    });
+
+    await getServerQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: COMPLEX_TRANSACTION_META_MOCK,
+    });
+
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+      messenger,
+      expect.not.objectContaining({ authorizationList: expect.anything() }),
       undefined,
     );
   });
@@ -413,7 +441,7 @@ describe('server-quotes', () => {
           },
           targetNetwork: { fiat: '0', usd: '0' },
         },
-        isInputBased: false,
+        isInputBased: true,
         original: {
           client: {
             gasLimits: [],
@@ -463,6 +491,32 @@ describe('server-quotes', () => {
       human: quote.input.formatted,
       raw: quote.input.raw,
       usd: '1.5',
+    });
+  });
+
+  it('computes targetAmount fiat and usd from the target token fiat rate', async () => {
+    jest.mocked(getTokenFiatRate).mockReturnValue({
+      fiatRate: '2',
+      usdRate: '1.5',
+    });
+
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(getTokenFiatRate).toHaveBeenCalledWith(
+      messenger,
+      QUOTE_REQUEST_MOCK.targetTokenAddress,
+      QUOTE_REQUEST_MOCK.targetChainId,
+    );
+
+    // Output is `0.123`, so fiat is `0.123 * 2` and USD is `0.123 * 1.5`.
+    expect(result[0].targetAmount).toStrictEqual({
+      fiat: '0.246',
+      usd: '0.1845',
     });
   });
 
@@ -522,14 +576,107 @@ describe('server-quotes', () => {
     };
 
     beforeEach(() => {
-      jest.mocked(calculateGasCost).mockReturnValue(GAS_ESTIMATE_MOCK as never);
+      jest.mocked(calculateGasCost).mockReturnValue(GAS_ESTIMATE_MOCK);
       jest.mocked(getTokenBalance).mockReturnValue('999999999999999999999');
-      jest.mocked(getGasStationEligibility).mockReturnValue({
-        chainSupportsGasStation: true,
-        isDisabledChain: false,
-      } as never);
+      jest
+        .mocked(resolveGasStationCost)
+        .mockResolvedValue({ isAvailable: true });
       fetchServerQuoteMock.mockResolvedValue({
         results: [NON_GASLESS_RESULT_MOCK],
+      });
+    });
+
+    describe('sponsored same-chain route', () => {
+      const SPONSORED_TRANSACTION_MOCK = {
+        chainId: '0x1',
+        isGasFeeSponsored: true,
+        txParams: {},
+      } as TransactionMeta;
+
+      // Sponsorship only applies when the quote never leaves the parent
+      // transaction's chain.
+      const SAME_CHAIN_REQUEST_MOCK: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        sourceChainId: '0x1',
+        targetChainId: '0x1',
+      };
+
+      it('zeroes source network fees', async () => {
+        const result = await getServerQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [SAME_CHAIN_REQUEST_MOCK],
+          transaction: SPONSORED_TRANSACTION_MOCK,
+        });
+
+        expect(result[0].fees.sourceNetwork.estimate).toStrictEqual(
+          expect.objectContaining({ raw: '0' }),
+        );
+        expect(result[0].fees.sourceNetwork.max).toStrictEqual(
+          expect.objectContaining({ raw: '0' }),
+        );
+      });
+
+      it('reports a zero gas limit in 7702 mode', async () => {
+        const result = await getServerQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [SAME_CHAIN_REQUEST_MOCK],
+          transaction: SPONSORED_TRANSACTION_MOCK,
+        });
+
+        // Sponsored transactions go through the EIP-7702 gas station hook, so
+        // no user-paid gas is required.
+        expect(result[0].original.client.gasLimits).toStrictEqual([0]);
+        expect(result[0].original.client.is7702).toBe(true);
+      });
+
+      it('skips gas estimation entirely', async () => {
+        await getServerQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [SAME_CHAIN_REQUEST_MOCK],
+          transaction: SPONSORED_TRANSACTION_MOCK,
+        });
+
+        expect(jest.mocked(estimateQuoteGasLimits)).not.toHaveBeenCalled();
+        expect(jest.mocked(resolveGasStationCost)).not.toHaveBeenCalled();
+      });
+
+      it('does not zero fees when the route is cross-chain', async () => {
+        const result = await getServerQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: SPONSORED_TRANSACTION_MOCK,
+        });
+
+        expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
+      });
+
+      it('does not zero fees when the account cannot sign 7702 authorizations', async () => {
+        const result = await getServerQuotes({
+          accountSupports7702: false,
+          messenger,
+          requests: [SAME_CHAIN_REQUEST_MOCK],
+          transaction: SPONSORED_TRANSACTION_MOCK,
+        });
+
+        expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
+      });
+
+      it('does not zero fees when the parent transaction is not sponsored', async () => {
+        const result = await getServerQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [SAME_CHAIN_REQUEST_MOCK],
+          transaction: {
+            ...SPONSORED_TRANSACTION_MOCK,
+            isGasFeeSponsored: false,
+          } as TransactionMeta,
+        });
+
+        expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
       });
     });
 
@@ -549,10 +696,9 @@ describe('server-quotes', () => {
 
     it('returns estimate and max when gas station is not supported', async () => {
       jest.mocked(getTokenBalance).mockReturnValue('0');
-      jest.mocked(getGasStationEligibility).mockReturnValue({
-        chainSupportsGasStation: false,
-        isDisabledChain: false,
-      } as never);
+      jest
+        .mocked(resolveGasStationCost)
+        .mockResolvedValue({ isAvailable: false });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -567,8 +713,8 @@ describe('server-quotes', () => {
     it('returns estimate and max when gas station cost is unavailable', async () => {
       jest.mocked(getTokenBalance).mockReturnValue('0');
       jest
-        .mocked(getGasStationCostInSourceTokenRaw)
-        .mockResolvedValue(undefined as never);
+        .mocked(resolveGasStationCost)
+        .mockResolvedValue({ amount: undefined, isAvailable: true });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -591,8 +737,8 @@ describe('server-quotes', () => {
       jest.mocked(getTokenBalance).mockReturnValue('0');
 
       jest
-        .mocked(getGasStationCostInSourceTokenRaw)
-        .mockResolvedValue(GAS_FEE_TOKEN_COST as never);
+        .mocked(resolveGasStationCost)
+        .mockResolvedValue({ amount: GAS_FEE_TOKEN_COST, isAvailable: true });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -642,8 +788,8 @@ describe('server-quotes', () => {
                 {
                   type: 'transaction' as const,
                   chainId: 1,
-                  data: '0xdef' as Hex,
-                  to: '0x4560000000000000000000000000000000000000' as Hex,
+                  data: '0xdef',
+                  to: '0x4560000000000000000000000000000000000000',
                   value: '0',
                 },
               ],
@@ -701,8 +847,8 @@ describe('server-quotes', () => {
                 {
                   type: 'transaction' as const,
                   chainId: 1,
-                  data: '0xdef' as Hex,
-                  to: '0x4560000000000000000000000000000000000000' as Hex,
+                  data: '0xdef',
+                  to: '0x4560000000000000000000000000000000000000',
                   value: '0',
                 },
               ],
@@ -755,6 +901,10 @@ describe('server-quotes', () => {
   });
 
   describe('processMoneyAccountPostQuote', () => {
+    const DEPOSIT_AMOUNT_RAW_MOCK = '1500000';
+    // transfer(TOKEN_TRANSFER_RECIPIENT_MOCK, DEPOSIT_AMOUNT_RAW_MOCK)
+    const MONEY_ACCOUNT_TRANSFER_DATA_MOCK =
+      '0xa9059cbb0000000000000000000000005678901234567890123456789012345678901234000000000000000000000000000000000000000000000000000000000016e360' as Hex;
     const OVERRIDE_CALL_MOCK = {
       data: '0xoverride' as Hex,
       to: '0xcccc000000000000000000000000000000000000' as Hex,
@@ -765,16 +915,18 @@ describe('server-quotes', () => {
       getControllerStateMock.mockReturnValue({
         transactionData: {
           [TRANSACTION_META_MOCK.id]: {
-            tokens: [{ amountHuman: '1.5' }],
+            tokens: [
+              { amountHuman: '1.5', amountRaw: DEPOSIT_AMOUNT_RAW_MOCK },
+            ],
           },
         },
-      } as never);
+      });
 
       getPaymentOverrideDataMock.mockResolvedValue({
         calls: [OVERRIDE_CALL_MOCK],
         recipient: TOKEN_TRANSFER_RECIPIENT_MOCK,
         authorizationList: undefined,
-      } as never);
+      });
     });
 
     it('adds override calls and transfer call to server quote body when isPostQuote + MoneyAccount', async () => {
@@ -802,12 +954,66 @@ describe('server-quotes', () => {
       );
     });
 
+    it('prices the quote as exact output on the deposit amount', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          amount: DEPOSIT_AMOUNT_RAW_MOCK,
+          tradeType: TradeType.ExactOutput,
+        }),
+        undefined,
+      );
+    });
+
+    it('transfers the deposit amount rather than the source token amount', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          calls: [
+            {
+              data: MONEY_ACCOUNT_TRANSFER_DATA_MOCK,
+              to: QUOTE_REQUEST_MOCK.targetTokenAddress,
+              value: '0x0',
+            },
+            OVERRIDE_CALL_MOCK,
+          ],
+        }),
+        undefined,
+      );
+    });
+
     it('falls back to request.from as recipient when getPaymentOverrideData returns no recipient', async () => {
       getPaymentOverrideDataMock.mockResolvedValue({
         calls: [OVERRIDE_CALL_MOCK],
         recipient: undefined,
         authorizationList: undefined,
-      } as never);
+      });
 
       await getServerQuotes({
         accountSupports7702: true,
@@ -854,7 +1060,7 @@ describe('server-quotes', () => {
             yParity: '0x1' as Hex,
           },
         ],
-      } as never);
+      });
 
       await getServerQuotes({
         accountSupports7702: true,
@@ -885,7 +1091,7 @@ describe('server-quotes', () => {
     it('falls back to 0 amount when transactionData has no tokens', async () => {
       getControllerStateMock.mockReturnValue({
         transactionData: {},
-      } as never);
+      });
 
       await getServerQuotes({
         accountSupports7702: true,
@@ -915,7 +1121,7 @@ describe('server-quotes', () => {
         ],
         recipient: TOKEN_TRANSFER_RECIPIENT_MOCK,
         authorizationList: undefined,
-      } as never);
+      });
 
       await getServerQuotes({
         accountSupports7702: true,
@@ -949,7 +1155,7 @@ describe('server-quotes', () => {
         calls: [],
         recipient: undefined,
         authorizationList: undefined,
-      } as never);
+      });
 
       await getServerQuotes({
         accountSupports7702: true,

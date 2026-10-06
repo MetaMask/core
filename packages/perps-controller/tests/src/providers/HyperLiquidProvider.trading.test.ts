@@ -1,7 +1,11 @@
 /* eslint-disable */
-jest.mock('@nktkas/hyperliquid', () => ({}));
+// The provider checks cancel errors against the SDK's error class.
+jest.mock('@nktkas/hyperliquid', () => ({
+  HyperliquidError: class MockHyperliquidError extends Error {},
+}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
+import { HyperliquidError } from '@nktkas/hyperliquid';
 
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
@@ -33,6 +37,10 @@ import {
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
+import {
+  hasFeeReductionAppliedFlag,
+  isSubscriptionProgramCloid,
+} from '../../../src/utils/subscriptionFeeWaiver.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
@@ -339,9 +347,6 @@ const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
   agentSetAbstraction: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
   ...overrides,
 });
 
@@ -455,8 +460,8 @@ describe('HyperLiquidProvider', () => {
       getUserAddressWithDefault: jest
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isKeyringUnlocked: jest.fn().mockReturnValue(true),
-      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -4295,6 +4300,45 @@ describe('HyperLiquidProvider', () => {
         );
       });
 
+      it('keeps the orders the venue cancelled when the SDK throws for a failed entry', async () => {
+        const statuses = ['success', { error: 'multi-sig required' }];
+        const sdkError = Object.assign(
+          new HyperliquidError('cancel 1: multi-sig required'),
+          {
+            name: 'ApiRequestError',
+            response: {
+              status: 'ok',
+              response: { type: 'cancel', data: { statuses } },
+            },
+          },
+        );
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            cancel: jest.fn().mockRejectedValue(sdkError),
+          }),
+        );
+
+        const result = await provider.cancelOrders([
+          { orderId: '123', symbol: 'BTC' },
+          { orderId: '456', symbol: 'ETH' },
+        ]);
+
+        expect(result).toStrictEqual({
+          success: true,
+          successCount: 1,
+          failureCount: 1,
+          results: [
+            { orderId: '123', symbol: 'BTC', success: true },
+            {
+              orderId: '456',
+              symbol: 'ETH',
+              success: false,
+              error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+            },
+          ],
+        });
+      });
+
       it('rejects a non-ok batch response even when its statuses say success', async () => {
         mockClientService.getExchangeClient = jest.fn().mockReturnValue(
           createMockExchangeClient({
@@ -4872,6 +4916,143 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.updatePositionTPSL(updateParams);
 
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('ADR 0064 subscription cloid marking on replace and batch paths', () => {
+    const subscriptionResolution = {
+      feeBips: 0,
+      discountBips: 10000,
+      source: 'subscription' as const,
+      subscription: { eligible: true, reason: 'eligible' as const },
+      subscriptionWaiverKind: 'full' as const,
+    };
+
+    const rewardsResolution = {
+      feeBips: 6.5,
+      discountBips: 3500,
+      source: 'rewards' as const,
+      subscription: { eligible: false, reason: 'not-entitled' as const },
+    };
+
+    const editParams = {
+      orderId: '123',
+      newOrder: {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.2',
+        price: '52000',
+        orderType: 'limit',
+      } as OrderParams,
+    };
+
+    it('leaves the replacement cloid unmarked because modify charges no builder fee', () => {
+      // `modify` carries no builder field, so no MetaMask fee is charged on the
+      // action. Marking it would report a reduction on an order that paid
+      // nothing; the replacement inherits the resting order's attribution.
+      return (async () => {
+        provider.setUserFeeResolution(subscriptionResolution);
+
+        const result = await provider.editOrder(editParams);
+
+        expect(result.success).toBe(true);
+        const modifyCalls = (
+          mockClientService.getExchangeClient().modify as jest.Mock
+        ).mock.calls;
+        expect(modifyCalls.length).toBeGreaterThan(0);
+        modifyCalls.forEach(([payload]) => {
+          const cloid = (payload as { order: { c?: string } }).order.c;
+          expect(hasFeeReductionAppliedFlag(cloid)).toBe(false);
+          expect(isSubscriptionProgramCloid(cloid)).toBe(false);
+        });
+      })();
+    });
+
+    it('marks the cloid on the batch close path', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '1500', accountValue: '11500' },
+            withdrawable: '10000',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '1.5',
+                  entryPx: '50000',
+                  positionValue: '75000',
+                  unrealizedPnl: '100',
+                  marginUsed: '1000',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                },
+                type: 'oneWay',
+              },
+              {
+                position: {
+                  coin: 'ETH',
+                  szi: '-2.0',
+                  entryPx: '3000',
+                  positionValue: '6000',
+                  unrealizedPnl: '50',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '3300',
+                },
+                type: 'oneWay',
+              },
+            ],
+            crossMarginSummary: {
+              accountValue: '11500',
+              totalMarginUsed: '1500',
+            },
+          }),
+          meta: jest.fn().mockResolvedValue({
+            universe: [
+              { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+              { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+            ],
+          }),
+          allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
+          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        }),
+      );
+      provider.setUserFeeResolution(subscriptionResolution);
+
+      await provider.closePositions({ closeAll: true });
+
+      const batchOrders = (
+        mockClientService.getExchangeClient().order as jest.Mock
+      ).mock.calls.flatMap(
+        (call) => (call[0] as { orders: { c?: string }[] }).orders,
+      );
+      expect(batchOrders.length).toBeGreaterThan(0);
+      batchOrders.forEach((order) => {
+        expect(hasFeeReductionAppliedFlag(order.c)).toBe(true);
+      });
+      // Every order in the batch still needs its own id.
+      expect(new Set(batchOrders.map((order) => order.c)).size).toBe(
+        batchOrders.length,
+      );
+    });
+
+    it('leaves the cloid unmarked when any other fee source wins', async () => {
+      provider.setUserFeeResolution(rewardsResolution);
+
+      const result = await provider.editOrder(editParams);
+
+      expect(result.success).toBe(true);
+      const modifyCalls = (
+        mockClientService.getExchangeClient().modify as jest.Mock
+      ).mock.calls;
+      expect(modifyCalls.length).toBeGreaterThan(0);
+      modifyCalls.forEach(([payload]) => {
+        expect(
+          hasFeeReductionAppliedFlag(
+            (payload as { order: { c?: string } }).order.c,
+          ),
+        ).toBe(false);
+      });
     });
   });
 });

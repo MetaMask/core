@@ -38,7 +38,6 @@ export type PairSocialIdentifierParams = {
    */
   email?: string;
 };
-
 /**
  * Claim names accepted by `POST /api/v2/oidc/token`. Only `email` is
  * supported; `email_verified` is set by the server when email is present.
@@ -86,6 +85,11 @@ export type AccessToken = {
   obtainedAt: number;
 };
 
+export type ProfileIdentifier = {
+  id: string;
+  type: string;
+};
+
 export type UserProfile = {
   /**
    * The "Identifier" used to log in with.
@@ -106,6 +110,11 @@ export type UserProfile = {
    * Server MetaMetrics ID. Allows grouping of user events cross platform.
    */
   metaMetricsId: string;
+  /**
+   * All identifiers attached to this profile (SRP, social, MFA).
+   * Absent on sessions stored before this field existed.
+   */
+  pairedIdentifierIds?: ProfileIdentifier[];
 };
 
 /**

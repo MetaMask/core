@@ -273,14 +273,14 @@ describe('createPermissionDecodersForContracts', () => {
 });
 
 describe('getTermsByEnforcer', () => {
-  const ENFORCER: Hex = '0x9999999999999999999999999999999999999999' as Hex;
-  const OTHER: Hex = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
-  const TERMS: Hex = '0x1234' as Hex;
+  const ENFORCER: Hex = '0x9999999999999999999999999999999999999999';
+  const OTHER: Hex = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  const TERMS: Hex = '0x1234';
 
   it('returns the terms when exactly one matching caveat exists', () => {
     const caveats: Caveat<Hex>[] = [
-      { enforcer: OTHER, terms: '0x00' as Hex, args: '0x' as Hex },
-      { enforcer: ENFORCER, terms: TERMS, args: '0x' as Hex },
+      { enforcer: OTHER, terms: '0x00', args: '0x' },
+      { enforcer: ENFORCER, terms: TERMS, args: '0x' },
     ];
 
     expect(getTermsByEnforcer({ caveats, enforcer: ENFORCER })).toBe(TERMS);
@@ -288,7 +288,7 @@ describe('getTermsByEnforcer', () => {
 
   it('throws for zero matches', () => {
     const caveats: Caveat<Hex>[] = [
-      { enforcer: OTHER, terms: '0x00' as Hex, args: '0x' as Hex },
+      { enforcer: OTHER, terms: '0x00', args: '0x' },
     ];
     expect(() => getTermsByEnforcer({ caveats, enforcer: ENFORCER })).toThrow(
       'Invalid caveats',
@@ -297,7 +297,7 @@ describe('getTermsByEnforcer', () => {
 
   it('throws for zero matches if throwIfNotFound is true', () => {
     const caveats: Caveat<Hex>[] = [
-      { enforcer: OTHER, terms: '0x00' as Hex, args: '0x' as Hex },
+      { enforcer: OTHER, terms: '0x00', args: '0x' },
     ];
     expect(() =>
       getTermsByEnforcer({
@@ -310,7 +310,7 @@ describe('getTermsByEnforcer', () => {
 
   it('returns null for zero matches if throwIfNotFound is false', () => {
     const caveats: Caveat<Hex>[] = [
-      { enforcer: OTHER, terms: '0x00' as Hex, args: '0x' as Hex },
+      { enforcer: OTHER, terms: '0x00', args: '0x' },
     ];
     expect(
       getTermsByEnforcer({
@@ -323,8 +323,8 @@ describe('getTermsByEnforcer', () => {
 
   it('throws for multiple matches', () => {
     const caveats: Caveat<Hex>[] = [
-      { enforcer: ENFORCER, terms: TERMS, args: '0x' as Hex },
-      { enforcer: ENFORCER, terms: TERMS, args: '0x' as Hex },
+      { enforcer: ENFORCER, terms: TERMS, args: '0x' },
+      { enforcer: ENFORCER, terms: TERMS, args: '0x' },
     ];
     expect(() => getTermsByEnforcer({ caveats, enforcer: ENFORCER })).toThrow(
       'Invalid caveats',
@@ -333,8 +333,8 @@ describe('getTermsByEnforcer', () => {
 
   it('throws for multiple matches if throwIfNotFound is true', () => {
     const caveats: Caveat<Hex>[] = [
-      { enforcer: ENFORCER, terms: TERMS, args: '0x' as Hex },
-      { enforcer: ENFORCER, terms: TERMS, args: '0x' as Hex },
+      { enforcer: ENFORCER, terms: TERMS, args: '0x' },
+      { enforcer: ENFORCER, terms: TERMS, args: '0x' },
     ];
     expect(() =>
       getTermsByEnforcer({

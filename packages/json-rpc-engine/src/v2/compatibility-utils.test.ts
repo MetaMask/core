@@ -32,7 +32,7 @@ describe('compatibility-utils', () => {
     it('produces a mutable clone of a frozen object', () => {
       const request = Object.freeze({
         jsonrpc,
-        method: 'test_method' as string,
+        method: 'test_method',
         params: Object.freeze([1, 2, 3]),
         id: 1,
       });

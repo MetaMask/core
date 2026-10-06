@@ -30,14 +30,36 @@ export class MfaError extends Error {
   }
 }
 
+/**
+ * The credential cannot be enrolled because an equivalent one already exists:
+ * `email_already_enrolled` (this profile already has a verified email),
+ * `email_socially_verified` (the email is verified through a social login), or
+ * `credential_already_enrolled` (the email or passkey is enrolled on another
+ * profile; the profiles must be paired or the credential removed).
+ */
 export class CredentialAlreadyEnrolledError extends MfaError {
   constructor(
-    code: 'credential_already_enrolled' | 'email_already_enrolled',
+    code:
+      | 'credential_already_enrolled'
+      | 'email_already_enrolled'
+      | 'email_socially_verified',
     message: string,
     status = HTTP_STATUS_CODES.CONFLICT,
   ) {
     super(code, message, { status });
     this.name = 'CredentialAlreadyEnrolledError';
+  }
+}
+
+/**
+ * The profile already has a credential that proves AAL2, so enrolling another
+ * requires an `aal:2` access token; the client must complete a verification
+ * and retry with the same flow.
+ */
+export class StepUpRequiredError extends MfaError {
+  constructor(message: string, status = HTTP_STATUS_CODES.FORBIDDEN) {
+    super('aal2_required', message, { status });
+    this.name = 'StepUpRequiredError';
   }
 }
 
@@ -145,10 +167,10 @@ export class MfaUnavailableError extends MfaError {
   }
 }
 
-export class ElevatedTokenInvalidError extends MfaError {
+export class VerificationTokenInvalidError extends MfaError {
   constructor(message: string) {
-    super('elevated_token_invalid', message);
-    this.name = 'ElevatedTokenInvalidError';
+    super('verification_token_invalid', message);
+    this.name = 'VerificationTokenInvalidError';
   }
 }
 

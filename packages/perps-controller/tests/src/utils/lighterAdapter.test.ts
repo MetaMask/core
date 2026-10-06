@@ -46,6 +46,7 @@ describe('lighterAdapter', () => {
       expect(market).toStrictEqual({
         name: 'BTC',
         szDecimals: 5,
+        priceDecimals: 1,
         maxLeverage: 25,
         marginTableId: 0,
         minimumOrderSize: 10,
@@ -179,7 +180,7 @@ describe('lighterAdapter', () => {
         adaptPositionFromLighter({
           ...position,
           position: '0',
-          sign: 0 as number,
+          sign: 0,
         }),
       ).toThrow('Invalid Lighter venue data');
       expect(
@@ -342,6 +343,70 @@ describe('lighterAdapter', () => {
       makerPositionSignChanged: true,
     };
 
+    describe('omitted venue fill context', () => {
+      it.each([true, false])(
+        'normalizes omitted fields for maker=%s',
+        (isMaker) => {
+          for (const isAsk of [true, false]) {
+            for (const [before, size, pnl, expected] of [
+              ['0', '1', undefined, isAsk ? 'Open Short' : 'Open Long'],
+              ['2', '1', undefined, isAsk ? 'Sell' : 'Buy'],
+              ['2', '1', '0', isAsk ? 'Sell' : 'Buy'],
+              ['2', '1', '-1', isAsk ? 'Close Long' : 'Close Short'],
+              ['2', '2', '1', isAsk ? 'Close Long' : 'Close Short'],
+              ['2', '3', '-1', isAsk ? 'Long > Short' : 'Short > Long'],
+            ] as const) {
+              const trade = {
+                ...REAL_TRADE,
+                isMakerAsk: isAsk === isMaker,
+                size,
+                makerPositionSizeBefore: isMaker ? before : '9',
+                takerPositionSizeBefore: isMaker ? '9' : before,
+                makerPositionSignChanged: undefined,
+                takerPositionSignChanged: undefined,
+                askAccountPnl: isAsk ? pnl : '123',
+                bidAccountPnl: isAsk ? '123' : pnl,
+              };
+
+              const fill = adaptFillFromLighterTrade(
+                trade,
+                'SOL',
+                isAsk ? 28 : 7,
+              );
+
+              expect(fill.direction).toBe(expected);
+              expect(fill.pnl).toBe(pnl);
+              expect(Object.hasOwn(fill, 'pnl')).toBe(pnl !== undefined);
+            }
+          }
+        },
+      );
+
+      it.each([null, 'false', 0])(
+        'rejects malformed supplied sign flag %s',
+        (flag) => {
+          for (const isMaker of [true, false]) {
+            const trade = {
+              ...REAL_TRADE,
+              isMakerAsk: isMaker,
+              makerPositionSignChanged: flag,
+              takerPositionSignChanged: flag,
+            };
+
+            expect(() =>
+              adaptFillFromLighterTrade(
+                trade as unknown as Parameters<
+                  typeof adaptFillFromLighterTrade
+                >[0],
+                'SOL',
+                28,
+              ),
+            ).toThrow('Invalid Lighter venue data');
+          }
+        },
+      );
+    });
+
     it('adapts the real venue payload: a taker sell of the full position is Close Long', () => {
       const fill = adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 28);
       expect(fill).toMatchObject({
@@ -358,6 +423,31 @@ describe('lighterAdapter', () => {
         feeToken: 'USDC',
         timestamp: 1786878754951,
       });
+    });
+
+    it('carries the venue trade id as the execution identifier', () => {
+      const fill = adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 28);
+      expect(fill.fillId).toBe('9509524');
+    });
+
+    it('gives distinct fillIds to two executions of one order sharing timestamp, size and price', () => {
+      // One resting order matched twice. Order id, timestamp, size and price
+      // are identical; only the venue trade id separates the executions.
+      const first = adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 28);
+      const second = adaptFillFromLighterTrade(
+        { ...REAL_TRADE, tradeId: REAL_TRADE.tradeId + 1 },
+        'SOL',
+        28,
+      );
+
+      expect(first.orderId).toBe(second.orderId);
+      expect(first.timestamp).toBe(second.timestamp);
+      expect(first.size).toBe(second.size);
+      expect(first.price).toBe(second.price);
+      expect(first.fillId).not.toBe(second.fillId);
+      expect(
+        new Map([first, second].map((fill) => [fill.fillId, fill])).size,
+      ).toBe(2);
     });
 
     it('adapts the counterparty: a buy from a flat position is Open Long', () => {
@@ -524,14 +614,54 @@ describe('lighterAdapter', () => {
       );
     });
 
-    it('rejects missing account pnl for an existing position', () => {
-      expect(() =>
-        adaptFillFromLighterTrade(
-          { ...REAL_TRADE, askAccountPnl: undefined },
-          'SOL',
-          28,
-        ),
-      ).toThrow('Invalid Lighter venue data');
+    it.each([true, false])(
+      'preserves missing reduction pnl as unknown for maker=%s',
+      (isMaker) => {
+        for (const isAsk of [true, false]) {
+          for (const size of ['0.133', '0.2']) {
+            const trade = {
+              ...REAL_TRADE,
+              size,
+              isMakerAsk: isAsk === isMaker,
+              makerPositionSizeBefore: isMaker ? '0.133' : '0',
+              takerPositionSizeBefore: isMaker ? '0' : '0.133',
+              makerPositionSignChanged: isMaker,
+              takerPositionSignChanged: !isMaker,
+              askAccountPnl: isAsk ? undefined : '123',
+              bidAccountPnl: isAsk ? '123' : undefined,
+            };
+
+            const fill = adaptFillFromLighterTrade(
+              trade,
+              'SOL',
+              isAsk ? 28 : 7,
+            );
+
+            const closeDirection = isAsk ? 'Close Long' : 'Close Short';
+            const flipDirection = isAsk ? 'Long > Short' : 'Short > Long';
+            expect(fill.direction).toBe(
+              size === '0.133' ? closeDirection : flipDirection,
+            );
+            expect(fill.startPosition).toBe(isAsk ? '0.133' : '-0.133');
+            expect(fill).not.toHaveProperty('pnl');
+          }
+        }
+      },
+    );
+
+    it('preserves unknown pnl with a supplied unchanged-sign flag', () => {
+      const fill = adaptFillFromLighterTrade(
+        {
+          ...REAL_TRADE,
+          askAccountPnl: undefined,
+          takerPositionSignChanged: false,
+        },
+        'SOL',
+        28,
+      );
+
+      expect(fill.direction).toBe('Sell');
+      expect(fill).not.toHaveProperty('pnl');
     });
 
     it.each([
@@ -554,7 +684,8 @@ describe('lighterAdapter', () => {
 
         const fill = adaptFillFromLighterTrade(trade, 'SOL', isAsk ? 28 : 7);
 
-        expect(fill).toMatchObject({ pnl: '0', direction, startPosition: '0' });
+        expect(fill).toMatchObject({ direction, startPosition: '0' });
+        expect(fill).not.toHaveProperty('pnl');
       },
     );
 
@@ -577,7 +708,7 @@ describe('lighterAdapter', () => {
       },
     );
 
-    it('accepts omitted counterparty pnl while requiring the selected account pnl', () => {
+    it('uses the selected participant pnl independently of the counterparty', () => {
       expect(
         adaptFillFromLighterTrade(
           { ...REAL_TRADE, bidAccountPnl: undefined },
@@ -697,6 +828,35 @@ describe('lighterAdapter', () => {
         providerId: 'lighter',
       });
       expect(parseFloat(adapted.filledSize)).toBeCloseTo(0.2, 10);
+    });
+
+    it.each(['0', '0.2'])(
+      'preserves reported filled size %s when cancellation clears the remaining size',
+      (filledBaseAmount) => {
+        const canceledOrder = {
+          ...order,
+          status: 'canceled',
+          remainingBaseAmount: '0',
+          filledBaseAmount,
+        };
+
+        const adapted = adaptOrderFromLighter(canceledOrder, 'BTC');
+
+        expect(adapted).toMatchObject({
+          status: 'canceled',
+          originalSize: '0.5',
+          remainingSize: '0',
+          filledSize: filledBaseAmount,
+        });
+      },
+    );
+
+    it('prefers the reported filled size for open orders', () => {
+      const openOrder = { ...order, filledBaseAmount: '0.1' };
+
+      const adapted = adaptOrderFromLighter(openOrder, 'BTC');
+
+      expect(adapted.filledSize).toBe('0.1');
     });
 
     it('maps ask orders to sell side', () => {

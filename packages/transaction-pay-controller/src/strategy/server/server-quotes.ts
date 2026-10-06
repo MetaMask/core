@@ -28,17 +28,15 @@ import {
   isEIP7702Chain,
 } from '../../utils/feature-flags.js';
 import {
-  getGasStationCostInSourceTokenRaw,
-  getGasStationEligibility,
-} from '../../utils/gas-station.js';
+  GasPaymentMode,
+  resolveGasPayment,
+  resolveGasStationCost,
+} from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
-import {
-  getNativeToken,
-  getTokenBalance,
-  getTokenFiatRate,
-} from '../../utils/token.js';
+import { getTokenFiatRate } from '../../utils/token.js';
+import { getQuotePricing, TradeType } from '../../utils/trade-type.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
 import type {
@@ -47,7 +45,6 @@ import type {
   ServerQuoteResult,
   ServerTransactionStep,
 } from './types.js';
-import { ServerTradeType } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-quotes');
 const TOKEN_TRANSFER_FOUR_BYTE = '0xa9059cbb';
@@ -60,6 +57,19 @@ const ZERO_FIAT_VALUE = { fiat: '0', usd: '0' };
 type FulfilledServerQuoteResult = ServerQuoteResult & {
   quote: NonNullable<ServerQuoteResult['quote']>;
 };
+
+/**
+ * A quote request whose pricing is not yet decided.
+ *
+ * The pricing basis depends on whether calls end up bundled into the request,
+ * so it is derived once the calls are known. A step that bundles calls may pin
+ * `amount` itself, in which case that amount wins.
+ */
+type ServerQuoteRequestDraft = Omit<
+  ServerQuoteRequest,
+  'amount' | 'tradeType'
+> &
+  Partial<Pick<ServerQuoteRequest, 'amount'>>;
 
 type SourceNetworkCost = Pick<
   TransactionPayFees['sourceNetwork'],
@@ -128,7 +138,9 @@ async function getQuotesForRequest(
           result,
           quoteRequest,
           messenger,
-          body.tradeType === ServerTradeType.ExactInput,
+          body.tradeType === TradeType.ExactInput,
+          transaction,
+          accountSupports7702,
         ),
       ),
     );
@@ -165,10 +177,6 @@ async function buildServerQuoteRequest(
     targetTokenAddress,
   } = normalizedRequest;
 
-  const useExactInput =
-    (isMaxAmount ?? false) ||
-    (isPostQuote ?? false) ||
-    Boolean(normalizedRequest.isHyperliquidSource);
   const singleData = getSingleTransactionData(transaction);
   const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
   const isTokenTransfer =
@@ -186,13 +194,9 @@ async function buildServerQuoteRequest(
     accountSupports7702 &&
     isEIP7702Chain(messenger, sourceChainId);
 
-  const body: ServerQuoteRequest = {
+  const body: ServerQuoteRequestDraft = {
     source: { chainId: Number(sourceChainId), token: sourceTokenAddress },
     target: { chainId: Number(targetChainId), token: targetTokenAddress },
-    amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
-    tradeType: useExactInput
-      ? ServerTradeType.ExactInput
-      : ServerTradeType.ExpectedOutput,
     sender: from,
     recipient,
     slippage: Math.round(
@@ -243,7 +247,20 @@ async function buildServerQuoteRequest(
     }
   }
 
-  return body;
+  const pricing = getQuotePricing({
+    hasCalls: Boolean(body.calls?.length),
+    sourceTokenAmount,
+    targetAmountMinimum,
+    transaction,
+  });
+
+  return {
+    ...body,
+    // A step that bundled its own calls has already pinned the amount those
+    // calls consume, so it wins over the derived amount.
+    amount: body.amount ?? pricing.amount,
+    tradeType: pricing.tradeType,
+  };
 }
 
 function normalizeAuthorizationList(
@@ -262,7 +279,7 @@ function normalizeAuthorizationList(
 async function processMoneyAccountPostQuote(
   transaction: TransactionMeta,
   request: QuoteRequest,
-  body: ServerQuoteRequest,
+  body: ServerQuoteRequestDraft,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
   const { transactionData: transactionDataList } = messenger.call(
@@ -288,13 +305,15 @@ async function processMoneyAccountPostQuote(
   }
 
   const fundingRecipient = recipient ?? request.from;
+  const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
 
-  body.tradeType = ServerTradeType.ExactInput;
-  body.amount = request.sourceTokenAmount;
+  // The bundled calls transfer exactly this amount, so pin it rather than
+  // letting the amount be derived from the request.
+  body.amount = rawAmount;
 
   body.calls = [
     {
-      data: buildTransferData(fundingRecipient, request.sourceTokenAmount),
+      data: buildTransferData(fundingRecipient, rawAmount),
       to: request.targetTokenAddress,
       value: '0x0',
     },
@@ -328,16 +347,20 @@ async function normalizeQuote(
   quoteRequest: QuoteRequest,
   messenger: TransactionPayControllerMessenger,
   isInputBased: boolean,
+  transaction: TransactionMeta,
+  accountSupports7702: boolean,
 ): Promise<TransactionPayQuote<ServerQuote>> {
   const { quote } = result;
   const { gasless } = quote;
   const transactionSteps = quote.steps.filter(isTransactionStep);
   const isSignatureOnly = transactionSteps.length === 0;
   const sourceNetwork = await calculateSourceNetworkCost({
+    accountSupports7702,
     gasless: gasless || isSignatureOnly,
     messenger,
     quoteRequest,
     steps: transactionSteps,
+    transaction,
   });
 
   const sourceFiatRate = getTokenFiatRate(
@@ -349,6 +372,12 @@ async function normalizeQuote(
   const usdToFiatRate = sourceFiatRate
     ? new BigNumber(sourceFiatRate.fiatRate).dividedBy(sourceFiatRate.usdRate)
     : new BigNumber(1);
+
+  const targetFiatRate = getTokenFiatRate(
+    messenger,
+    quoteRequest.targetTokenAddress,
+    quoteRequest.targetChainId,
+  );
 
   const metaMask = getFiatValueFromUsd(
     new BigNumber(quote.fees.metamask),
@@ -409,22 +438,34 @@ async function normalizeQuote(
     },
     strategy: TransactionPayStrategy.Server,
     targetAmount: {
-      fiat: '0',
-      usd: '0',
+      fiat: targetFiatRate
+        ? new BigNumber(quote.output.formatted)
+            .multipliedBy(targetFiatRate.fiatRate)
+            .toString(10)
+        : '0',
+      usd: targetFiatRate
+        ? new BigNumber(quote.output.formatted)
+            .multipliedBy(targetFiatRate.usdRate)
+            .toString(10)
+        : '0',
     },
   };
 }
 
 async function calculateSourceNetworkCost({
+  accountSupports7702,
   gasless,
   messenger,
   quoteRequest,
   steps,
+  transaction,
 }: {
+  accountSupports7702: boolean | undefined;
   gasless: boolean;
   messenger: TransactionPayControllerMessenger;
   quoteRequest: QuoteRequest;
   steps: ServerTransactionStep[];
+  transaction: TransactionMeta;
 }): Promise<SourceNetworkCost> {
   const noFees = {
     estimate: ZERO_AMOUNT,
@@ -435,12 +476,31 @@ async function calculateSourceNetworkCost({
     maxPriorityFeePerGas: undefined,
   };
 
-  if (gasless) {
+  const { from, sourceChainId, sourceTokenAddress } = quoteRequest;
+
+  const gasPayment = resolveGasPayment({
+    isDelegated: gasless,
+    sourceTokenAddress,
+    sponsorship: {
+      accountSupports7702,
+      request: quoteRequest,
+      transaction,
+    },
+  });
+
+  if (gasPayment.mode === GasPaymentMode.Delegation) {
     log('Zeroing source network fees for gasless quote');
     return noFees;
   }
 
-  const { from, sourceChainId, sourceTokenAddress } = quoteRequest;
+  if (gasPayment.mode === GasPaymentMode.Sponsored) {
+    log('Zeroing source network fees for sponsored same-chain server route');
+
+    // Gas limit is zero as sponsored transactions go through the EIP-7702
+    // gas station hook and do not require user-paid gas.
+    return { ...noFees, gasLimits: [0], is7702: true };
+  }
+
   const firstStep = steps[0];
   const chainIdHex = toHex(firstStep.chainId);
 
@@ -486,42 +546,16 @@ async function calculateSourceNetworkCost({
     messenger,
   });
 
-  const nativeBalance = getTokenBalance(
-    messenger,
-    from,
-    sourceChainId,
-    getNativeToken(sourceChainId),
-  );
-
   const fees = { maxFeePerGas, maxPriorityFeePerGas };
 
-  if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
-    return { estimate, gasLimits, is7702, max, ...fees };
-  }
-
-  const eligibility = getGasStationEligibility(messenger, sourceChainId);
-
-  if (eligibility.isDisabledChain || !eligibility.chainSupportsGasStation) {
-    log('Skipping gas station for source network', {
-      isDisabledChain: eligibility.isDisabledChain,
-      sourceChainId,
-      supportsGasStation: eligibility.chainSupportsGasStation,
-    });
-    return { estimate, gasLimits, is7702, max, ...fees };
-  }
-
-  log('Checking gas fee tokens due to insufficient native balance', {
-    max: max.raw,
-    nativeBalance,
-  });
-
-  const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
+  const gasStationCost = await resolveGasStationCost({
     firstStepData: {
       data: firstStep.data,
       to: firstStep.to,
-      value: firstStep.value as Hex,
+      value: firstStep.value,
     },
     messenger,
+    nativeGasCostRaw: max.raw,
     request: {
       from,
       sourceChainId,
@@ -531,18 +565,20 @@ async function calculateSourceNetworkCost({
     totalItemCount: steps.length,
   });
 
-  if (!gasFeeTokenCost) {
+  if (!gasStationCost.amount) {
     return { estimate, gasLimits, is7702, max, ...fees };
   }
 
-  log('Using gas fee token for source network', { gasFeeTokenCost });
+  log('Using gas fee token for source network', {
+    gasFeeTokenCost: gasStationCost.amount,
+  });
 
   return {
-    estimate: gasFeeTokenCost,
+    estimate: gasStationCost.amount,
     gasLimits,
     is7702,
     isSourceGasFeeToken: true,
-    max: gasFeeTokenCost,
+    max: gasStationCost.amount,
     ...fees,
   };
 }

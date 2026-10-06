@@ -20,7 +20,6 @@ import {
   type,
 } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
-import { Duration, inMilliseconds } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import { alpha2ToAlpha3 } from './countryCodes.js';
@@ -366,21 +365,7 @@ export type GetSessionStatusParams = {
  * `fetch` when provided), and the auth bearer token and geolocation come from
  * other controllers via the messenger.
  *
- * It extends {@link BaseDataService}, so read-only endpoints are routed through
- * `fetchQuery`: they are wrapped in the shared service policy (retries, circuit
- * breaker) and their results are exposed via the service's `QueryClient`.
- * `fetchDisclaimers` and `fetchJwks` are cached with a `staleTime`;
- * session-scoped disclaimer and status-polling reads opt out of caching
- * (`staleTime`/`gcTime` of `0`) so they never serve a stale result.
- *
- * Write endpoints (every `POST`) deliberately bypass `fetchQuery`. The query
- * cache is built for idempotent reads: it deduplicates concurrent requests
- * sharing a `queryKey`, retains responses for replay, and publishes them on the
- * messenger via `cacheUpdated`. None of that is safe for calls that create
- * sessions, customers, or consents — two overlapping `createVendorCustomer`
- * calls would collapse into a single `POST`, and session tokens would be
- * broadcast as cache payloads. Writes therefore call `#requestJson` directly,
- * which also means they are not retried by the service policy.
+ * HTTP endpoints call `#requestJson` (via the injected or native `fetch`).
  */
 export class KycService extends BaseDataService<
   typeof serviceName,
@@ -502,16 +487,12 @@ export class KycService extends BaseDataService<
   }): Promise<KycDisclaimer[]> {
     const url = new URL(`/vendors/${vendor}/disclaimers`, this.#baseUrl);
     url.searchParams.set('country', country);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchVendorDisclaimers`, vendor, country],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      staleTime: inMilliseconds(5, Duration.Minute),
-    });
+    const data = await this.#requestJson(url, { method: 'GET' });
     return this.#validateResponse(
       data,
       DisclaimersResponseStruct,
       'disclaimers',
-    ) as KycDisclaimer[];
+    );
   }
 
   /**
@@ -613,12 +594,7 @@ export class KycService extends BaseDataService<
 
     const url = new URL('/disclaimers', this.#baseUrl);
     url.searchParams.set('country', country);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchSessionDisclaimersByCountry`, country],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      staleTime: 0,
-      gcTime: 0,
-    });
+    const data = await this.#requestJson(url, { method: 'GET' });
     return this.#validateResponse(
       data,
       GlobalDisclaimersResponseStruct,
@@ -644,13 +620,7 @@ export class KycService extends BaseDataService<
       `/sessions/${encodeURIComponent(sessionId)}/disclaimers`,
       this.#baseUrl,
     );
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchSessionDisclaimersBySessionId`, sessionId],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      // Consent state can change after a POST, so always re-fetch.
-      staleTime: 0,
-      gcTime: 0,
-    });
+    const data = await this.#requestJson(url, { method: 'GET' });
     return this.#validateResponse(
       data,
       SessionDisclaimersResponseStruct,
@@ -691,17 +661,15 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Fetches a well-known JWKS from `baseUrl`, caching the result for an hour.
+   * Fetches a well-known JWKS from `baseUrl`.
    *
    * @param baseUrl - Host base URL that serves `/.well-known/jwks.json`.
-   * @param queryName - Cache query-key segment.
    * @param responseLabel - Label used in malformed-response errors.
    * @param missingConfigMessage - Error thrown when `baseUrl` is empty.
    * @returns The JWKS keys.
    */
   async #fetchWellKnownJwks(
     baseUrl: string,
-    queryName: string,
     responseLabel: string,
     missingConfigMessage: string,
   ): Promise<JwksResponse> {
@@ -709,12 +677,11 @@ export class KycService extends BaseDataService<
       throw new Error(missingConfigMessage);
     }
     const url = new URL(UKYC_JWKS_PATH, baseUrl);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:${queryName}`, baseUrl],
-      queryFn: async () =>
-        this.#requestJson(url, { method: 'GET' }, { authenticated: false }),
-      staleTime: inMilliseconds(1, Duration.Hour),
-    });
+    const data = await this.#requestJson(
+      url,
+      { method: 'GET' },
+      { authenticated: false },
+    );
     return this.#validateResponse(data, JwksResponseStruct, responseLabel);
   }
 
@@ -731,7 +698,6 @@ export class KycService extends BaseDataService<
   async fetchIdosEnclaveJwks(): Promise<JwksResponse> {
     return this.#fetchWellKnownJwks(
       this.#idosEnclaveBaseUrl,
-      'fetchIdosEnclaveJwks',
       'idOS enclave JWKS',
       'KycService: idosEnclaveBaseUrl is not configured; cannot fetch JWKS to verify the encryptionDataKey schema.',
     );
@@ -749,7 +715,6 @@ export class KycService extends BaseDataService<
   async fetchIdosRelayJwks(): Promise<JwksResponse> {
     return this.#fetchWellKnownJwks(
       this.#idosRelayBaseUrl,
-      'fetchIdosRelayJwks',
       'idOS relay JWKS',
       'KycService: idosRelayBaseUrl is not configured; cannot fetch JWKS to verify the ukycCapabilityToken schema.',
     );
@@ -858,13 +823,7 @@ export class KycService extends BaseDataService<
       `/sessions/${encodeURIComponent(params.sessionId)}/status`,
       this.#baseUrl,
     );
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:getSessionStatus`, params.sessionId],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      // Status is polled for a terminal decision, so it must always be fresh.
-      staleTime: 0,
-      gcTime: 0,
-    });
+    const data = await this.#requestJson(url, { method: 'GET' });
     return this.#validateResponse(
       data,
       SessionStatusResponseStruct,
@@ -887,12 +846,7 @@ export class KycService extends BaseDataService<
       this.#baseUrl,
     );
     try {
-      const data = await this.fetchQuery({
-        queryKey: [`${this.name}:getSessionStatusForVendor`, vendor],
-        queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-        staleTime: 0,
-        gcTime: 0,
-      });
+      const data = await this.#requestJson(url, { method: 'GET' });
       if (data === null) {
         return null;
       }
@@ -946,12 +900,9 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Performs a single JSON request.
+   * Performs a single JSON request via `fetch`.
    *
-   * Read endpoints pass this as the `queryFn` to {@link fetchQuery}, which
-   * wraps it in the shared service policy (retries, circuit breaker). Write
-   * endpoints call it directly, so they are executed exactly once. Requests
-   * are authenticated with the wallet bearer token by default; pass
+   * Requests are authenticated with the wallet bearer token by default; pass
    * `{ authenticated: false }` for calls to services that do not expect it
    * (e.g. the idOS enclave or idOS relay JWKS endpoints).
    *

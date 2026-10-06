@@ -31,6 +31,12 @@ import {
 } from '@metamask/superstruct';
 
 import {
+  LIGHTER_MAX_BASE_AMOUNT,
+  LIGHTER_MAX_CLIENT_ORDER_INDEX,
+  LIGHTER_MAX_ORDER_ID,
+  LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT,
+} from '../constants/lighterConfig.js';
+import {
   getLighterHttpEndpoint,
   LIGHTER_DATA_INTEGRITY_PREFIX,
   LIGHTER_HTTP_TIMEOUT_MS,
@@ -40,11 +46,13 @@ import type {
   LighterAccountResponse,
   LighterAccountsByL1AddressResponse,
   LighterActiveOrdersResponse,
+  LighterEditableOrdersResponse,
   LighterApiKeysResponse,
   LighterNetwork,
   LighterNextNonceResponse,
   LighterTxLookupResponse,
   LighterOrderBookMeta,
+  LighterOrderBookOrdersResponse,
   LighterOrderBookDetailsResponse,
   LighterOrderBooksResponse,
   LighterCandlesResponse,
@@ -59,6 +67,7 @@ import type {
   LighterTransferHistoryResponse,
   LighterWithdrawHistoryResponse,
 } from '../types/lighter-types.js';
+import { parseLighterLosslessJson } from '../utils/lighterLosslessJson.js';
 
 /**
  * Duration market metadata stays cached before a refetch.
@@ -135,6 +144,9 @@ const PositionStruct = type({
   symbol: string(),
   initialMarginFraction: NonNegativeDecimalStringStruct,
   openOrderCount: NonNegativeIntegerStruct,
+  pendingOrderCount: optional(NonNegativeIntegerStruct),
+  positionTiedOrderCount: optional(NonNegativeIntegerStruct),
+  allocatedMargin: optional(NonNegativeDecimalStringStruct),
   sign: SafeIntegerStruct,
   position: NonNegativeDecimalStringStruct,
   avgEntryPrice: NonNegativeDecimalStringStruct,
@@ -231,30 +243,63 @@ const MarketDetailStruct = refine(
   'positive margin fractions for tradable markets',
   hasValidMarketMarginFractions,
 );
-const OrderStruct = type({
-  orderIndex: NonNegativeIntegerStruct,
-  clientOrderIndex: NonNegativeIntegerStruct,
-  marketIndex: NonNegativeIntegerStruct,
-  ownerAccountIndex: NonNegativeIntegerStruct,
-  initialBaseAmount: PositiveDecimalStringStruct,
-  remainingBaseAmount: NonNegativeDecimalStringStruct,
-  price: PositiveDecimalStringStruct,
-  isAsk: boolean(),
-  type: string(),
-  timeInForce: string(),
-  reduceOnly: union([FiniteNumberStruct, boolean()]),
-  status: string(),
-  orderExpiry: SafeIntegerStruct,
-  timestamp: NonNegativeIntegerStruct,
-  triggerPrice: optional(NonNegativeDecimalStringStruct),
-  orderId: optional(string()),
-  parentOrderIndex: optional(NonNegativeIntegerStruct),
-  parentOrderId: optional(string()),
-  toCancelOrderId0: optional(string()),
-  toTriggerOrderId0: optional(string()),
-  toTriggerOrderId1: optional(string()),
-});
+const OrderStruct = refine(
+  type({
+    orderIndex: NonNegativeIntegerStruct,
+    clientOrderIndex: NonNegativeIntegerStruct,
+    marketIndex: NonNegativeIntegerStruct,
+    ownerAccountIndex: NonNegativeIntegerStruct,
+    initialBaseAmount: NonNegativeDecimalStringStruct,
+    remainingBaseAmount: NonNegativeDecimalStringStruct,
+    filledBaseAmount: optional(NonNegativeDecimalStringStruct),
+    filledQuoteAmount: optional(NonNegativeDecimalStringStruct),
+    clientOrderId: optional(string()),
+    nonce: optional(SafeIntegerStruct),
+    createdAt: optional(NonNegativeIntegerStruct),
+    updatedAt: optional(NonNegativeIntegerStruct),
+    transactionTime: optional(NonNegativeIntegerStruct),
+    price: PositiveDecimalStringStruct,
+    isAsk: boolean(),
+    type: string(),
+    timeInForce: string(),
+    reduceOnly: union([FiniteNumberStruct, boolean()]),
+    status: string(),
+    orderExpiry: SafeIntegerStruct,
+    timestamp: NonNegativeIntegerStruct,
+    triggerPrice: optional(NonNegativeDecimalStringStruct),
+    orderId: optional(string()),
+    parentOrderIndex: optional(NonNegativeIntegerStruct),
+    parentOrderId: optional(string()),
+    toCancelOrderId0: optional(string()),
+    toTriggerOrderId0: optional(string()),
+    toTriggerOrderId1: optional(string()),
+  }),
+  'positive order size or explicitly linked zero-size reduce-only trigger',
+  (order) => {
+    if (Number(order.initialBaseAmount) > 0) {
+      return true;
+    }
+    const hasParent =
+      (order.parentOrderIndex !== undefined && order.parentOrderIndex > 0) ||
+      (typeof order.parentOrderId === 'string' &&
+        /^[1-9]\d*$/u.test(order.parentOrderId));
+    return (
+      hasParent &&
+      (order.reduceOnly === 1 || order.reduceOnly === true) &&
+      [
+        'stop-loss',
+        'stop-loss-limit',
+        'take-profit',
+        'take-profit-limit',
+      ].includes(order.type) &&
+      Number(order.triggerPrice) > 0
+    );
+  },
+);
 const TradeStruct = type({
+  tradeIdStr: optional(string()),
+  bidIdStr: optional(string()),
+  askIdStr: optional(string()),
   tradeId: NonNegativeIntegerStruct,
   txHash: string(),
   type: string(),
@@ -274,11 +319,53 @@ const TradeStruct = type({
   makerFee: optional(NonNegativeFinancialNumberStruct),
   takerPositionSizeBefore: NonNegativeDecimalStringStruct,
   makerPositionSizeBefore: NonNegativeDecimalStringStruct,
-  takerPositionSignChanged: boolean(),
-  makerPositionSignChanged: boolean(),
+  takerPositionSignChanged: optional(boolean()),
+  makerPositionSignChanged: optional(boolean()),
+});
+
+const BookOrderStruct = type({
+  orderIndex: NonNegativeIntegerStruct,
+  orderId: string(),
+  ownerAccountIndex: NonNegativeIntegerStruct,
+  initialBaseAmount: PositiveDecimalStringStruct,
+  remainingBaseAmount: PositiveDecimalStringStruct,
+  price: PositiveDecimalStringStruct,
+  orderExpiry: NonNegativeIntegerStruct,
+  transactionTime: NonNegativeIntegerStruct,
+});
+
+const LosslessOrderIndexStruct = define<number | string>(
+  'exact nonnegative native order identity',
+  (value) => {
+    if (typeof value === 'number') {
+      return Number.isSafeInteger(value) && value >= 0;
+    }
+    return (
+      typeof value === 'string' &&
+      /^(?:0|[1-9]\d*)$/u.test(value) &&
+      value.length <= 19 &&
+      BigInt(value) <= BigInt(LIGHTER_MAX_ORDER_ID)
+    );
+  },
+);
+const EditableOrderStruct = type({
+  ...OrderStruct.schema,
+  orderIndex: LosslessOrderIndexStruct,
+  parentOrderIndex: optional(LosslessOrderIndexStruct),
+});
+const EditableOrdersStruct = type({
+  ...BaseResponseStruct.schema,
+  orders: array(EditableOrderStruct),
 });
 
 const ResponseStructs = {
+  orderBookOrders: type({
+    code: SafeIntegerStruct,
+    totalBids: NonNegativeIntegerStruct,
+    totalAsks: NonNegativeIntegerStruct,
+    bids: array(BookOrderStruct),
+    asks: array(BookOrderStruct),
+  }),
   orderBooks: type({
     ...BaseResponseStruct.schema,
     orderBooks: array(MarketStruct),
@@ -450,17 +537,30 @@ function toCamelKey(key: string): string {
  * follow camelCase conventions (see types/lighter-types.ts).
  *
  * @param value - Parsed JSON value.
+ * @param rejectCollisions - Refuse distinct wire keys that camelize to one identity.
  * @returns The value with camelCase keys.
  */
-export function convertKeysToCamelCase(value: unknown): unknown {
+export function convertKeysToCamelCase(
+  value: unknown,
+  rejectCollisions = false,
+): unknown {
   if (Array.isArray(value)) {
-    return value.map(convertKeysToCamelCase);
+    return value.map((entry) =>
+      convertKeysToCamelCase(entry, rejectCollisions),
+    );
   }
   if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (
+      rejectCollisions &&
+      new Set(entries.map(([key]) => toCamelKey(key))).size !== entries.length
+    ) {
+      throw new Error('Ambiguous Lighter response keys');
+    }
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+      entries.map(([key, entry]) => [
         toCamelKey(key),
-        convertKeysToCamelCase(entry),
+        convertKeysToCamelCase(entry, rejectCollisions),
       ]),
     );
   }
@@ -528,6 +628,24 @@ export class LighterClientService {
     this.#marketsCache = response.orderBooks;
     this.#marketsCacheTime = now;
     return response.orderBooks;
+  }
+
+  /**
+   * Read a new public native order book snapshot without a local cache.
+   *
+   * @param marketId - Native signed int16 market ID.
+   * @returns Up to 250 individual orders on each side.
+   */
+  async getOrderBookOrders(
+    marketId: number,
+  ): Promise<LighterOrderBookOrdersResponse> {
+    if (!Number.isSafeInteger(marketId) || marketId < 0 || marketId > 32767) {
+      throw new Error('Invalid Lighter market ID');
+    }
+    return await this.#get<LighterOrderBookOrdersResponse>(
+      `/api/v1/orderBookOrders?market_id=${marketId}&limit=250`,
+      ResponseStructs.orderBookOrders,
+    );
   }
 
   /**
@@ -654,6 +772,85 @@ export class LighterClientService {
   }
 
   /**
+   * Fetch exact client IDs. Venue retention is the last 10K active orders or
+   * last 1K inactive orders within 24 hours; omission is not absence proof.
+   *
+   * @param accountIndex - Explicit verified account owner.
+   * @param authToken - Matching account read authority.
+   * @param clientOrderIds - Unique canonical 48-bit client IDs, at most twenty.
+   * @returns Matching rows, subject to venue retention limits.
+   */
+  async getOrdersByClientIds(
+    accountIndex: number,
+    authToken: string,
+    clientOrderIds: readonly string[],
+  ): Promise<LighterActiveOrdersResponse> {
+    if (!Number.isSafeInteger(accountIndex) || accountIndex < 0) {
+      throw new Error('Invalid Lighter account index');
+    }
+    if (
+      clientOrderIds.length === 0 ||
+      clientOrderIds.length > LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT ||
+      new Set(clientOrderIds).size !== clientOrderIds.length ||
+      clientOrderIds.some(
+        (id) =>
+          typeof id !== 'string' ||
+          !/^[1-9]\d*$/u.test(id) ||
+          BigInt(id) > BigInt(LIGHTER_MAX_CLIENT_ORDER_INDEX),
+      )
+    ) {
+      throw new Error('Invalid Lighter client order IDs');
+    }
+    return await this.#get<LighterActiveOrdersResponse>(
+      `/api/v1/accountOrders?account_index=${accountIndex}&client_order_indexes=${encodeURIComponent(clientOrderIds.join(','))}`,
+      ResponseStructs.activeOrders,
+      { authorization: authToken },
+    );
+  }
+
+  /**
+   * Read active targets or exact client-correlated lifecycle rows without rounding int64 venue IDs.
+   * Uses the saved accountOrders contract, which accepts client IDs, not venue order IDs.
+   *
+   * @param accountIndex - Verified owner account.
+   * @param authToken - Existing registered read authority.
+   * @param clientOrderIds - Exact client identities once an active target is known.
+   * @returns Validated lossless order observations. Missing rows are never terminal proof.
+   */
+  async getEditableOrders(
+    accountIndex: number,
+    authToken: string,
+    clientOrderIds?: readonly string[],
+  ): Promise<LighterEditableOrdersResponse> {
+    if (
+      !Number.isSafeInteger(accountIndex) ||
+      accountIndex < 0 ||
+      accountIndex > Number(LIGHTER_MAX_BASE_AMOUNT) ||
+      (clientOrderIds &&
+        (clientOrderIds.length === 0 ||
+          clientOrderIds.length > LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT ||
+          new Set(clientOrderIds).size !== clientOrderIds.length ||
+          clientOrderIds.some(
+            (id) =>
+              !/^[1-9]\d*$/u.test(id) ||
+              id.length > 15 ||
+              BigInt(id) > BigInt(LIGHTER_MAX_BASE_AMOUNT),
+          )))
+    ) {
+      throw new Error('Invalid Lighter editable-order identity');
+    }
+    const path = clientOrderIds
+      ? `/api/v1/accountOrders?account_index=${accountIndex}&client_order_indexes=${encodeURIComponent(clientOrderIds.join(','))}`
+      : `/api/v1/accountActiveOrders?account_index=${accountIndex}`;
+    return await this.#request(
+      path,
+      { method: 'GET', headers: { authorization: authToken } },
+      EditableOrdersStruct,
+      true,
+    );
+  }
+
+  /**
    * Fetch historical (inactive) orders: filled and canceled lifecycle
    * states, newest first (auth token required).
    *
@@ -751,12 +948,22 @@ export class LighterClientService {
     authToken: string,
     query: LighterTradesQuery,
   ): Promise<LighterTradesResponse> {
-    const { limit, cursor, from, marketId } = query;
+    const { limit, cursor, from, marketId, orderIndex, aggregate } = query;
+    if (
+      orderIndex !== undefined &&
+      (typeof orderIndex !== 'string' ||
+        !/^[1-9]\d*$/u.test(orderIndex) ||
+        BigInt(orderIndex) > BigInt(LIGHTER_MAX_ORDER_ID))
+    ) {
+      throw new Error('Invalid Lighter exact trade order index');
+    }
     return await this.#get<LighterTradesResponse>(
       `/api/v1/trades?sort_by=timestamp&sort_dir=desc&limit=${limit}&account_index=${accountIndex}&market_type=perp${
         cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`
       }${from === undefined ? '' : `&from=${from}`}${
         marketId === undefined ? '' : `&market_id=${marketId}`
+      }${orderIndex === undefined ? '' : `&order_index=${orderIndex}`}${
+        aggregate === undefined ? '' : `&aggregate=${String(aggregate)}`
       }`,
       ResponseStructs.trades,
       { authorization: authToken },
@@ -871,6 +1078,7 @@ export class LighterClientService {
     path: string,
     init: { method: string; headers?: Record<string, string>; body?: string },
     responseStruct: Struct<Result, unknown>,
+    lossless = false,
   ): Promise<Result> => {
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
@@ -887,7 +1095,12 @@ export class LighterClientService {
         signal: controller.signal,
       });
 
-      const payload: unknown = convertKeysToCamelCase(await response.json());
+      const payload: unknown = convertKeysToCamelCase(
+        lossless
+          ? parseLighterLosslessJson(await response.text())
+          : await response.json(),
+        lossless,
+      );
       assert(payload, BaseResponseStruct);
 
       // Lighter returns HTTP 200 with an application-level error code, and

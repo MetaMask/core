@@ -27,11 +27,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checkpoints ([#10148](https://github.com/MetaMask/core/pull/10148))
 
 ### Changed
-
 - **BREAKING:** `changePassword` is now lifecycle-aware: it writes `seedlessOperationLifecycle` with the shared `REMOTE_PASSWORD_PENDING`, `LOCAL_STATE_PENDING`, and `LOCAL_PASSWORD_PENDING` phases and rejects a concurrent change with `PasswordChangeInProgress` ([#10148](https://github.com/MetaMask/core/pull/10148))
   - Clients must not start a second password change while a lifecycle is unfinished, and must drive the lifecycle to completion by calling `completePasswordChange`. See the [client integration guide](./docs/0002-seedless-password-change-recovery-client-guide.md).
 - **BREAKING:** `clearState` now returns a promise and waits for in-flight controller operations before clearing state. It also clears the in-memory decrypted vault data to prevent a completed operation from restoring cleared state ([#10148](https://github.com/MetaMask/core/pull/10148))
+
+## [11.0.1]
+
+### Changed
+
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+
+### Fixed
+
+- Prevent initial TOPRF seed phrase backup retries from skipping the remote metadata write after a partial failure ([#10419](https://github.com/MetaMask/core/pull/10419))
+- Reject duplicate TOPRF key and seed phrase backup attempts when a vault already exists ([#10419](https://github.com/MetaMask/core/pull/10419))
 
 ### Removed
 
@@ -470,7 +480,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@11.0.1...HEAD
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@11.0.0...@metamask/seedless-onboarding-controller@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.1.1...@metamask/seedless-onboarding-controller@11.0.0
 [10.1.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.1.0...@metamask/seedless-onboarding-controller@10.1.1
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.3...@metamask/seedless-onboarding-controller@10.1.0

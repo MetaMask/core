@@ -5,6 +5,10 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
+  ConfigRegistryControllerGetStateAction,
+  ConfigRegistryControllerStateChangedEvent,
+} from '@metamask/config-registry-controller';
+import type {
   GeolocationControllerGetGeolocationDataAction,
   GeolocationData,
 } from '@metamask/geolocation-controller';
@@ -119,10 +123,8 @@ export type AnalyticsControllerState = {
 
   /**
    * Cached event-purpose configuration. Optional for backward compatibility.
-   *
-   * Phase 1 does not load this from a remote source. Until a later phase wires
-   * that up, classification uses the persisted config. Unlisted names are
-   * product-only.
+   * Loaded from ConfigRegistryController state during init. Unlisted events
+   * default to product-only.
    */
   eventsConfig?: AnalyticsEventsConfig;
 
@@ -170,6 +172,15 @@ export type AnalyticsControllerState = {
    * This is only used when the event fragments feature is enabled.
    */
   eventFragments?: AnalyticsEventFragments;
+
+  /**
+   * Marketing campaign cookie ID set when the user arrives via a marketing
+   * campaign. Cleared automatically when the user calls
+   * {@link AnalyticsController.optOutOfMarketing} or
+   * {@link AnalyticsController.resetMarketingConsentDecision}. Optional for backward
+   * compatibility with persisted state that predates this field.
+   */
+  marketingCampaignCookieId?: string | null;
 };
 
 /**
@@ -267,6 +278,7 @@ export function getDefaultAnalyticsControllerState(): Omit<
     consentDecisionMade: false,
     optedInToMarketing: false,
     marketingConsentDecisionMade: false,
+    marketingCampaignCookieId: null,
   };
 }
 
@@ -331,6 +343,12 @@ const analyticsControllerMetadata = {
     includeInDebugSnapshot: false,
     usedInUi: false,
   },
+  marketingCampaignCookieId: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
+  },
 } satisfies StateMetadata<AnalyticsControllerState>;
 
 // === MESSENGER ===
@@ -345,6 +363,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'optInToMarketing',
   'optOutOfMarketing',
   'resetMarketingConsentDecision',
+  'setMarketingCampaignCookieId',
   'createEventFragment',
   'upsertEventFragment',
   'updateEventFragment',
@@ -371,7 +390,9 @@ export type AnalyticsControllerActions =
 /**
  * Actions from other messengers that {@link AnalyticsControllerMessenger} calls.
  */
-type AllowedActions = GeolocationControllerGetGeolocationDataAction;
+type AllowedActions =
+  | GeolocationControllerGetGeolocationDataAction
+  | ConfigRegistryControllerGetStateAction;
 
 /**
  * Event emitted when the state of the {@link AnalyticsController} changes.
@@ -389,7 +410,7 @@ export type AnalyticsControllerEvents = AnalyticsControllerStateChangeEvent;
 /**
  * Events from other messengers that {@link AnalyticsControllerMessenger} subscribes to.
  */
-type AllowedEvents = never;
+type AllowedEvents = ConfigRegistryControllerStateChangedEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -721,9 +742,9 @@ export class AnalyticsController extends BaseController<
   /**
    * In-memory event-purpose lookup from persisted state.
    */
-  readonly #eventPurposes: Map<string, AnalyticsPurpose[]>;
+  #eventPurposes: Map<string, AnalyticsPurpose[]>;
 
-  readonly #eventsConfigVersion: string | undefined;
+  #eventsConfigVersion: string | undefined;
 
   /**
    * The in-flight (or settled) initialization promise. Set on the first
@@ -874,6 +895,16 @@ export class AnalyticsController extends BaseController<
 
     await this.#fetchEventsConfig();
 
+    this.messenger.subscribe(
+      'ConfigRegistryController:stateChanged',
+      () => {
+        this.#fetchEventsConfig().catch(
+          /* istanbul ignore next */ () => undefined,
+        );
+      },
+      (state) => state.configs.eventsConfig?.version,
+    );
+
     // Resolve geolocation only when the user is already opted in to product or
     // marketing analytics. For undecided or opted-out users it is deferred to
     // {@link optIn} / {@link optInToMarketing}. Awaited so that an already-opted-in
@@ -1012,13 +1043,38 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
-   * Load event-purpose configuration.
-   *
-   * Phase 1 stub. Persisted configuration remains authoritative until a remote
-   * source is wired up.
+   * Load event-purpose configuration from ConfigRegistryController state.
+   * Updates in-memory purposes map and persisted state when the version differs.
    */
   async #fetchEventsConfig(): Promise<void> {
-    // Intentionally empty until an events-config source is wired up.
+    const eventsConfigState = this.messenger.call(
+      'ConfigRegistryController:getState',
+    );
+
+    const remoteEventsConfig = eventsConfigState.configs.eventsConfig;
+    if (!remoteEventsConfig) {
+      return;
+    }
+
+    const candidate: AnalyticsEventsConfig = {
+      schemaVersion: remoteEventsConfig.schemaVersion,
+      version: remoteEventsConfig.version,
+      timestamp: remoteEventsConfig.timestamp,
+      events: remoteEventsConfig.events as Record<string, AnalyticsPurpose[]>,
+    };
+
+    if (
+      !isAnalyticsEventsConfig(candidate) ||
+      candidate.version === this.#eventsConfigVersion
+    ) {
+      return;
+    }
+
+    this.#eventPurposes = new Map(Object.entries(candidate.events));
+    this.#eventsConfigVersion = candidate.version;
+    this.update((state) => {
+      state.eventsConfig = candidate;
+    });
   }
 
   #purposesFromName(name: string): AnalyticsPurpose[] {
@@ -1133,6 +1189,7 @@ export class AnalyticsController extends BaseController<
 
   #replaceQueue(field: AnalyticsQueue, nextQueue: Record<string, Json>): void {
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state[field] = nextQueue as never;
     });
   }
@@ -1273,10 +1330,11 @@ export class AnalyticsController extends BaseController<
   #enqueueEvent(queuedEvent: AnalyticsQueuedEvent): void {
     const eventQueue: Record<string, Json> = {
       ...(this.state.eventQueue ?? {}),
-      [queuedEvent.messageId]: queuedEvent as unknown as Json,
+      [queuedEvent.messageId]: queuedEvent,
     };
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventQueue = eventQueue as never;
     });
 
@@ -1371,7 +1429,7 @@ export class AnalyticsController extends BaseController<
 
       if (this.#hasAllowedPurpose(purposes)) {
         const refreshedEvent = this.#refreshQueuedEventConsent(queuedEvent);
-        remainingQueue[messageId] = refreshedEvent as unknown as Json;
+        remainingQueue[messageId] = refreshedEvent;
         eventsToSend.push(refreshedEvent);
       }
     }
@@ -1401,6 +1459,7 @@ export class AnalyticsController extends BaseController<
     const { [messageId]: _deletedEvent, ...eventQueue } = currentEventQueue;
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventQueue = eventQueue as never;
     });
   }
@@ -1464,15 +1523,13 @@ export class AnalyticsController extends BaseController<
 
       if (field === AnalyticsQueue.EventQueue) {
         if (isAllowed) {
-          nextQueue[messageId] = this.#refreshQueuedEventConsent(
-            queuedEvent,
-          ) as unknown as Json;
+          nextQueue[messageId] = this.#refreshQueuedEventConsent(queuedEvent);
         }
       }
 
       if (field === AnalyticsQueue.PreConsentEventQueue) {
         if (isAllowed || this.#hasUndecidedPurpose(purposes)) {
-          nextQueue[messageId] = queuedEvent as unknown as Json;
+          nextQueue[messageId] = queuedEvent;
         }
       }
     }
@@ -1488,10 +1545,11 @@ export class AnalyticsController extends BaseController<
   #enqueuePreConsentEvent(queuedEvent: AnalyticsQueuedEvent): void {
     const preConsentEventQueue: Record<string, Json> = {
       ...(this.state.preConsentEventQueue ?? {}),
-      [queuedEvent.messageId]: queuedEvent as unknown as Json,
+      [queuedEvent.messageId]: queuedEvent,
     };
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.preConsentEventQueue = preConsentEventQueue as never;
     });
   }
@@ -1546,6 +1604,7 @@ export class AnalyticsController extends BaseController<
 
     if (!this.#isPreConsentQueueEnabled) {
       this.update((state) => {
+        // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
         state.preConsentEventQueue = {} as never;
       });
       return;
@@ -1567,7 +1626,7 @@ export class AnalyticsController extends BaseController<
       if (this.#hasAllowedPurpose(purposes)) {
         replay.push(queuedEvent);
       } else if (this.#hasUndecidedPurpose(purposes)) {
-        keep[messageId] = queuedEvent as unknown as Json;
+        keep[messageId] = queuedEvent;
       }
     }
 
@@ -1660,6 +1719,7 @@ export class AnalyticsController extends BaseController<
     }
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventFragments = eventFragments as never;
     });
   }
@@ -1704,6 +1764,7 @@ export class AnalyticsController extends BaseController<
     };
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventFragments = eventFragments as never;
     });
 
@@ -1728,6 +1789,7 @@ export class AnalyticsController extends BaseController<
     const { [id]: _deletedFragment, ...eventFragments } = currentEventFragments;
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventFragments = eventFragments as never;
     });
   }
@@ -1754,6 +1816,7 @@ export class AnalyticsController extends BaseController<
     }
 
     this.update((state) => {
+      // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       state.eventFragments = eventFragments as never;
     });
   }
@@ -1780,7 +1843,7 @@ export class AnalyticsController extends BaseController<
     }
 
     this.update((state) => {
-      state.eventFragments = {} as never;
+      state.eventFragments = {};
     });
   }
 
@@ -2289,6 +2352,7 @@ export class AnalyticsController extends BaseController<
     this.update((state) => {
       state.optedInToMarketing = false;
       state.marketingConsentDecisionMade = true;
+      state.marketingCampaignCookieId = null;
     });
 
     this.#pruneAllForConsent();
@@ -2303,8 +2367,26 @@ export class AnalyticsController extends BaseController<
     this.update((state) => {
       state.optedInToMarketing = false;
       state.marketingConsentDecisionMade = false;
+      state.marketingCampaignCookieId = null;
     });
 
     this.#pruneAllForConsent();
+  }
+
+  /**
+   * Set the marketing campaign cookie ID.
+   *
+   * Stores the ID of the marketing campaign cookie (e.g. a Google Analytics
+   * client ID) that was active when the user arrived. Pass `null` to clear it.
+   * The value is automatically cleared by {@link optOutOfMarketing} and
+   * {@link resetMarketingConsentDecision}.
+   *
+   * @param marketingCampaignCookieId - The marketing campaign cookie ID, or
+   * `null` to clear it.
+   */
+  setMarketingCampaignCookieId(marketingCampaignCookieId: string | null): void {
+    this.update((state) => {
+      state.marketingCampaignCookieId = marketingCampaignCookieId;
+    });
   }
 }

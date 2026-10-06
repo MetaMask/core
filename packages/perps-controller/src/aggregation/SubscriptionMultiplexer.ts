@@ -15,7 +15,6 @@ import type {
   PerpsLogger,
   PriceUpdate,
   Position,
-  OrderFill,
   Order,
   AccountState,
   SubscribePricesParams,
@@ -73,20 +72,24 @@ export type MultiplexedPositionsParams = {
  * Parameters for multiplexed order fill subscriptions
  */
 export type MultiplexedOrderFillsParams = {
+  /** Report provider errors without emitting a fabricated empty snapshot. */
+  onError?: SubscribeOrderFillsParams['onError'];
   /** Provider instances to subscribe through */
   providers: [PerpsProviderType, PerpsProvider][];
   /** Callback to receive aggregated order fill updates */
-  callback: (fills: OrderFill[], isSnapshot?: boolean) => void;
+  callback: SubscribeOrderFillsParams['callback'];
 };
 
 /**
  * Parameters for multiplexed order subscriptions
  */
 export type MultiplexedOrdersParams = {
+  /** Report provider errors without emitting a fabricated empty snapshot. */
+  onError?: SubscribeOrdersParams['onError'];
   /** Provider instances to subscribe through */
   providers: [PerpsProviderType, PerpsProvider][];
   /** Callback to receive aggregated order updates */
-  callback: (orders: Order[]) => void;
+  callback: SubscribeOrdersParams['callback'];
 };
 
 /**
@@ -324,6 +327,7 @@ export class SubscriptionMultiplexer {
     for (const [providerId, provider] of providers) {
       try {
         const subscribeParams: SubscribeOrderFillsParams = {
+          onError: (error) => params.onError?.(error, providerId),
           callback: (fills, isSnapshot) => {
             // Tag fills with providerId
             const taggedFills = fills.map((fill) => ({
@@ -332,7 +336,7 @@ export class SubscriptionMultiplexer {
             }));
 
             // For fills, we don't aggregate - emit immediately with tags
-            callback(taggedFills, isSnapshot);
+            callback(taggedFills, isSnapshot, providerId);
           },
         };
 
@@ -376,6 +380,7 @@ export class SubscriptionMultiplexer {
     for (const [providerId, provider] of providers) {
       try {
         const subscribeParams: SubscribeOrdersParams = {
+          onError: (error) => params.onError?.(error, providerId),
           callback: (orders) => {
             // Tag orders with providerId and cache
             const taggedOrders = orders.map((order) => ({
@@ -386,7 +391,7 @@ export class SubscriptionMultiplexer {
 
             // Emit aggregated orders from all providers
             const allOrders = this.#aggregateOrders();
-            callback(allOrders);
+            callback(allOrders, providerId);
           },
         };
 

@@ -122,7 +122,7 @@ describe('wallet_getCapabilities', () => {
   });
 
   it('throws if wrong length', async () => {
-    params[0] = '0x123' as never;
+    params[0] = '0x123';
 
     await expect(callMethod()).rejects.toMatchInlineSnapshot(`
             [Error: Invalid params

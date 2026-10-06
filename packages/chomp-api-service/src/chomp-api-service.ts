@@ -34,6 +34,7 @@ import type {
   AssociateAddressParams,
   AssociateAddressResponse,
   ProfileAddressEntry,
+  ChompIntentType,
   CreateUpgradeParams,
   CreateUpgradeResponse,
   UpgradeEntry,
@@ -46,6 +47,18 @@ import type {
   VerifyDelegationParams,
   VerifyDelegationResponse,
 } from './types.js';
+
+const CHOMP_INTENT_TYPES: ChompIntentType[] = [
+  'cash-deposit',
+  'cash-withdrawal',
+  'cash-deposit-premium',
+  'cash-withdrawal-premium',
+  'cash-subscription',
+];
+
+function isChompIntentType(value: string): value is ChompIntentType {
+  return (CHOMP_INTENT_TYPES as string[]).includes(value);
+}
 
 // === GENERAL ===
 
@@ -200,7 +213,7 @@ const SendIntentResponseArrayStruct = array(
       allowance: StrictHexStruct,
       tokenSymbol: string(),
       tokenAddress: StrictHexStruct,
-      type: enums(['cash-deposit', 'cash-withdrawal']),
+      type: enums(CHOMP_INTENT_TYPES),
     }),
     createdAt: string(),
   }),
@@ -216,7 +229,7 @@ const IntentEntryArrayStruct = array(
       allowance: StrictHexStruct,
       tokenAddress: StrictHexStruct,
       tokenSymbol: string(),
-      type: enums(['cash-deposit', 'cash-withdrawal']),
+      type: string(),
     }),
   }),
 );
@@ -233,7 +246,11 @@ const ServiceDetailsProtocolStruct = type({
     }),
   ),
   adapterAddress: StrictHexStruct,
-  intentTypes: array(enums(['cash-deposit', 'cash-withdrawal'])),
+  intentTypes: coerce(
+    array(enums(CHOMP_INTENT_TYPES)),
+    array(string()),
+    (intentTypes) => intentTypes.filter(isChompIntentType),
+  ),
 });
 
 const ServiceDetailsResponseStruct = type({
@@ -244,7 +261,10 @@ const ServiceDetailsResponseStruct = type({
     StrictHexStruct,
     type({
       autoDepositDelegate: StrictHexStruct,
-      protocol: record(string(), ServiceDetailsProtocolStruct),
+      protocol: type({
+        vedaProtocol: ServiceDetailsProtocolStruct,
+        vedaPremiumProtocol: optional(ServiceDetailsProtocolStruct),
+      }),
     }),
   ),
 });
@@ -596,12 +616,17 @@ export class ChompApiService extends BaseDataService<
    *
    * GET /v1/intent/account/:address
    *
+   * Callers use the result to decide whether an intent already exists, so it
+   * is always fetched fresh (`staleTime: 0`).
+   *
    * @param address - The address to look up intents for.
-   * @returns The array of intents for the address.
+   * @returns The array of intents for the address, omitting any with an
+   * intent type this service does not recognise.
    */
   async getIntentsByAddress(address: Hex): Promise<IntentEntry[]> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getIntentsByAddress`, address],
+      staleTime: 0,
       queryFn: async () => {
         const headers = await this.#authHeaders();
         const response = await fetch(
@@ -620,7 +645,10 @@ export class ChompApiService extends BaseDataService<
       },
     });
 
-    return create(jsonResponse, IntentEntryArrayStruct);
+    return create(jsonResponse, IntentEntryArrayStruct).filter(
+      (intent): intent is IntentEntry =>
+        isChompIntentType(intent.metadata.type),
+    );
   }
 
   /**

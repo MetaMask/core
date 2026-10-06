@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [37.0.1]
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^11.1.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
-- Bump `@metamask/analytics-controller` from `^3.0.0` to `^3.1.0` ([#10301](https://github.com/MetaMask/core/pull/10301))
+- Bump `immer` from `^9.0.6` to `^11.1.18` ([#10331](https://github.com/MetaMask/core/pull/10331), [#10382](https://github.com/MetaMask/core/pull/10382))
+- Bump `@metamask/analytics-controller` from `^3.0.0` to `^4.0.0` ([#10301](https://github.com/MetaMask/core/pull/10301), [#10411](https://github.com/MetaMask/core/pull/10411), [#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/config-registry-controller` from `^4.0.0` to `^5.0.0` ([#10658](https://github.com/MetaMask/core/pull/10658))
 
 ## [37.0.0]
 
@@ -1310,7 +1314,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@37.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@37.0.1...HEAD
+[37.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@37.0.0...@metamask/network-controller@37.0.1
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@36.0.0...@metamask/network-controller@37.0.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@35.0.1...@metamask/network-controller@36.0.0
 [35.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@35.0.0...@metamask/network-controller@35.0.1

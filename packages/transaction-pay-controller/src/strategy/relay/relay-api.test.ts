@@ -18,14 +18,14 @@ const mockOkResponse = (body: unknown): jest.SpyInstance =>
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => body,
-  } as Response);
+  });
 
 const mockErrorResponse = (status: number, body: unknown): jest.SpyInstance =>
   fetchMock.mockResolvedValueOnce({
     ok: false,
     status,
     json: async () => body,
-  } as Response);
+  });
 
 const QUOTE_URL_MOCK = 'https://proxy.test/relay/quote';
 const EXECUTE_URL_MOCK = 'https://proxy.test/relay/execute';
@@ -130,7 +130,7 @@ describe('relay-api', () => {
         json: async () => {
           throw new Error('not json');
         },
-      } as Response);
+      });
 
       await expect(
         fetchRelayQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),

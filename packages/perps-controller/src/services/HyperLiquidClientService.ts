@@ -6,7 +6,10 @@ import {
   SubscriptionClient,
   WebSocketTransport,
 } from '@nktkas/hyperliquid';
-import type { HistoricalOrdersResponse } from '@nktkas/hyperliquid';
+import type {
+  HistoricalOrdersResponse,
+  IRequestTransport,
+} from '@nktkas/hyperliquid';
 
 import {
   CandlePeriod,
@@ -23,10 +26,12 @@ import { WebSocketConnectionState } from '../types/index.js';
 import type {
   SubscribeCandlesParams,
   PerpsPlatformDependencies,
+  PerpsTypedDataPayload,
 } from '../types/index.js';
 import type { CandleData } from '../types/perps-types.js';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
 import { ensureError, isAbortError } from '../utils/errorUtils.js';
+import { createGuardedHyperLiquidClient } from '../utils/guardedHyperLiquidClient.js';
 import { getPerpsConnectionAttemptContext } from '../utils/perpsConnectionAttemptContext.js';
 
 /**
@@ -45,21 +50,23 @@ export type ValidCandleInterval = CandlePeriod;
  * Extracted for reuse across initialize(), toggleTestnet(), and ensureSubscriptionClient() methods.
  */
 export type HyperLiquidWalletParams = {
-  signTypedData: (params: {
-    domain: {
-      name: string;
-      version: string;
-      chainId: number;
-      verifyingContract: Hex;
-    };
-    types: {
-      [key: string]: { name: string; type: string }[];
-    };
-    primaryType: string;
-    message: Record<string, unknown>;
-  }) => Promise<Hex>;
+  /** The main account; the SDK recognizes the wallet and keys nonces by it. */
+  address: Hex;
+  signTypedData: (params: PerpsTypedDataPayload) => Promise<Hex>;
   getChainId?: () => Promise<number>;
+  /** The chain user-signed actions are signed for. When omitted, the SDK uses 1. */
+  signatureChainId?: () => Promise<Hex>;
 };
+
+/**
+ * Told of an exchange request, the venue's answer (undefined when the request
+ * failed before one) and the wallet the request was signed with.
+ */
+type ExchangeRequestListener = (
+  payload: unknown,
+  answer: unknown,
+  wallet: HyperLiquidWalletParams,
+) => void;
 
 // WebSocketConnectionState is now imported from controllers/types
 // Re-export for backward compatibility with existing consumers
@@ -83,6 +90,8 @@ export class HyperLiquidClientService {
   #wsTransport?: WebSocketTransport;
 
   #httpTransport?: HttpTransport;
+
+  readonly #onExchangeRequest?: ExchangeRequestListener;
 
   #walletParams?: HyperLiquidWalletParams;
 
@@ -124,12 +133,25 @@ export class HyperLiquidClientService {
   // Platform dependencies for logging
   readonly #deps: PerpsPlatformDependencies;
 
+  /**
+   * @param deps - Platform dependencies.
+   * @param options - Options.
+   * @param options.isTestnet - Start on testnet.
+   * @param options.onExchangeRequest - Called with every exchange request's
+   * payload, the venue's answer (undefined when the request failed before
+   * one) and the wallet the exchange client signs with, before the SDK
+   * checks the answer.
+   */
   constructor(
     deps: PerpsPlatformDependencies,
-    options: { isTestnet?: boolean } = {},
+    options: {
+      isTestnet?: boolean;
+      onExchangeRequest?: ExchangeRequestListener;
+    } = {},
   ) {
     this.#deps = deps;
     this.#isTestnet = options.isTestnet ?? false;
+    this.#onExchangeRequest = options.onExchangeRequest;
   }
 
   /**
@@ -363,11 +385,57 @@ export class HyperLiquidClientService {
     if (effectiveWallet) {
       this.#exchangeClient = new ExchangeClient({
         wallet: effectiveWallet as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- Type widening for SDK compatibility
-        transport: this.#httpTransport,
+        transport: this.#reportingExchangeRequests(
+          this.#httpTransport,
+          effectiveWallet,
+        ),
+        ...(effectiveWallet.signatureChainId && {
+          signatureChainId: effectiveWallet.signatureChainId,
+        }),
       });
     } else {
       this.#exchangeClient = undefined;
     }
+  }
+
+  /**
+   * The transport the exchange client sends through, reporting each exchange
+   * request and its answer to `onExchangeRequest` when it is set.
+   *
+   * @param transport - The HTTP transport.
+   * @param wallet - The wallet the exchange client signs with.
+   * @returns The transport to send exchange requests through.
+   */
+  #reportingExchangeRequests(
+    transport: HttpTransport,
+    wallet: HyperLiquidWalletParams,
+  ): IRequestTransport {
+    const onExchangeRequest = this.#onExchangeRequest;
+    if (!onExchangeRequest) {
+      return transport;
+    }
+    return {
+      isTestnet: transport.isTestnet,
+      request: async <Response>(
+        endpoint: 'info' | 'exchange',
+        payload: unknown,
+        signal?: AbortSignal,
+      ): Promise<Response> => {
+        let response: Response | undefined;
+        try {
+          response = await transport.request<Response>(
+            endpoint,
+            payload,
+            signal,
+          );
+          return response;
+        } finally {
+          if (endpoint === 'exchange') {
+            onExchangeRequest(payload, response, wallet);
+          }
+        }
+      },
+    };
   }
 
   /**
@@ -442,14 +510,30 @@ export class HyperLiquidClientService {
   /**
    * Get the exchange client
    *
-   * @returns The initialized ExchangeClient instance.
+   * @param beforeDispatch - Optional operation-local fence after SDK signing.
+   * @returns The initialized client, or an isolated guarded client.
    */
-  public getExchangeClient(): ExchangeClient {
+  public getExchangeClient(
+    beforeDispatch?: () => Promise<void>,
+  ): ExchangeClient {
     if (!this.#exchangeClient) {
       this.ensureInitialized();
       throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
     }
-    return this.#exchangeClient;
+    if (!beforeDispatch) {
+      return this.#exchangeClient;
+    }
+    const wallet = this.#walletParams;
+    const onExchangeRequest = this.#onExchangeRequest;
+    return createGuardedHyperLiquidClient(
+      this.#exchangeClient,
+      beforeDispatch,
+      (payload) => {
+        if (wallet) {
+          onExchangeRequest?.(payload, undefined, wallet);
+        }
+      },
+    );
   }
 
   /**

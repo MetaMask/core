@@ -10,6 +10,7 @@ import {
   MfaRateLimitedError,
   MfaUnavailableError,
   MfaVerificationFailedError,
+  StepUpRequiredError,
   TooManyAttemptsError,
 } from '../../errors.js';
 import {
@@ -97,12 +98,12 @@ describe('MFA services', () => {
     );
   });
 
-  it('completes passkey and email enrollment', async () => {
+  it('completes passkey and email enrollment and returns the assertion', async () => {
     mockFetch
       .mockResolvedValueOnce(response(MOCK_MFA_ENROLL_COMPLETE_RESPONSE))
       .mockResolvedValueOnce(response(MOCK_MFA_ENROLL_COMPLETE_RESPONSE));
 
-    await mfaEnrollComplete(Env.PRD, 'access-token', {
+    const passkeyCompletion = await mfaEnrollComplete(Env.PRD, 'access-token', {
       credential_type: 'passkey',
       flow_id: 'flow-id',
       passkey_attestation: registration,
@@ -113,10 +114,26 @@ describe('MFA services', () => {
       otp_code: '123456',
     });
 
+    expect(passkeyCompletion).toStrictEqual({
+      token: MOCK_MFA_ENROLL_COMPLETE_RESPONSE.token,
+      expiresIn: 900,
+    });
     const firstBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const secondBody = JSON.parse(mockFetch.mock.calls[1][1].body);
     expect(firstBody.passkey_attestation).toBe(JSON.stringify(registration));
     expect(secondBody.otp_code).toBe('123456');
+  });
+
+  it('rejects an enrollment response without an assertion', async () => {
+    mockFetch.mockResolvedValueOnce(response({ expires_in: 900 }));
+
+    await expect(
+      mfaEnrollComplete(Env.PRD, 'access-token', {
+        credential_type: 'email_otp',
+        flow_id: 'flow-id',
+        otp_code: '123456',
+      }),
+    ).rejects.toMatchObject({ mfaCode: 'invalid_response' });
   });
 
   it('begins and completes passkey verification', async () => {
@@ -226,12 +243,22 @@ describe('MFA services', () => {
         status: 'revoked',
       }),
     ).toBeNull();
+  });
+
+  it('keeps email credentials listed without an address', () => {
     expect(
       toEnrolledCredential({
         credential_type: 'email_otp',
-        status: 'pending',
+        status: 'active',
       }),
-    ).toBeNull();
+    ).toStrictEqual({ type: 'email_otp', status: 'active', verified: true });
+    expect(
+      toEnrolledCredential({
+        credential_type: 'email_otp',
+        status: 'active',
+        email: { verified: true },
+      }),
+    ).toStrictEqual({ type: 'email_otp', status: 'active', verified: true });
   });
 
   it('derives email verification from status when the server omits it', () => {
@@ -259,7 +286,9 @@ describe('MFA services', () => {
   it.each([
     ['credential_already_enrolled', CredentialAlreadyEnrolledError, 409],
     ['email_already_enrolled', CredentialAlreadyEnrolledError, 409],
+    ['email_socially_verified', CredentialAlreadyEnrolledError, 409],
     ['credential_not_enrolled', CredentialNotEnrolledError, 409],
+    ['aal2_required', StepUpRequiredError, 403],
     ['flow_expired', MfaFlowExpiredError, 400],
     ['invalid_flow', MfaFlowExpiredError, 400],
     ['mfa_identity_missing', MfaIdentityMissingError, 409],
@@ -321,6 +350,39 @@ describe('MFA services', () => {
       mfaCode: 'otp_resend_cooldown',
       retryAfterMs: undefined,
     });
+  });
+
+  it('prefers the retry_after_seconds field over the Retry-After header', async () => {
+    mockFetch.mockResolvedValueOnce(
+      response(
+        {
+          code: 'otp_resend_cooldown',
+          message: 'Wait before retrying',
+          retry_after_seconds: 42,
+        },
+        { status: 429, headers: { 'Retry-After': '5' } },
+      ),
+    );
+
+    await expect(
+      mfaVerify(Env.PRD, 'access-token', { credential_type: 'email_otp' }),
+    ).rejects.toMatchObject({
+      mfaCode: 'otp_resend_cooldown',
+      retryAfterMs: 42_000,
+    });
+  });
+
+  it('passes multi_primary_srp through with its status', async () => {
+    mockFetch.mockResolvedValueOnce(
+      response(
+        { code: 'multi_primary_srp', message: 'Enrollment blocked' },
+        { status: 403 },
+      ),
+    );
+
+    await expect(
+      mfaEnroll(Env.PRD, 'access-token', { credential_type: 'passkey' }),
+    ).rejects.toMatchObject({ mfaCode: 'multi_primary_srp', status: 403 });
   });
 
   it('maps code-less 429 and 502 responses by status', async () => {

@@ -1065,9 +1065,9 @@ export class EarnController extends BaseController<
       throw new Error('Selected network client id not found');
     }
 
-    const gasLimit = !transactionData.gasLimit
-      ? undefined
-      : toHex(transactionData.gasLimit);
+    const gasLimit = transactionData.gasLimit
+      ? toHex(transactionData.gasLimit)
+      : undefined;
 
     const txHash = await this.#addTransactionFn(
       {
@@ -1143,9 +1143,9 @@ export class EarnController extends BaseController<
       throw new Error('Selected network client id not found');
     }
 
-    const gasLimit = !transactionData.gasLimit
-      ? undefined
-      : toHex(transactionData.gasLimit);
+    const gasLimit = transactionData.gasLimit
+      ? toHex(transactionData.gasLimit)
+      : undefined;
 
     const txHash = await this.#addTransactionFn(
       {
@@ -1221,9 +1221,9 @@ export class EarnController extends BaseController<
       throw new Error('Selected network client id not found');
     }
 
-    const gasLimit = !transactionData.gasLimit
-      ? undefined
-      : toHex(transactionData.gasLimit);
+    const gasLimit = transactionData.gasLimit
+      ? toHex(transactionData.gasLimit)
+      : undefined;
 
     const txHash = await this.#addTransactionFn(
       {

@@ -85,12 +85,12 @@ const ORIGINAL_QUOTE_MOCK = {
         {
           data: {
             chainId: 1,
-            data: '0x1234' as Hex,
+            data: '0x1234',
             from: FROM_MOCK,
             gas: '21000',
             maxFeePerGas: '25000000000',
             maxPriorityFeePerGas: '1000000000',
-            to: '0xfedcb' as Hex,
+            to: '0xfedcb',
             value: '1234',
           },
           status: 'complete',
@@ -222,7 +222,7 @@ describe('Relay Submit Utils', () => {
     successfulFetchMock.mockResolvedValue({
       ok: true,
       json: async () => STATUS_RESPONSE_MOCK,
-    } as Response);
+    });
 
     request = cloneDeep(REQUEST_MOCK);
     request.messenger = messenger;
@@ -352,7 +352,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.predictDeposit,
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -369,7 +369,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.perpsDeposit,
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -386,7 +386,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.simpleSend,
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -403,7 +403,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.musdConversion,
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -427,7 +427,7 @@ describe('Relay Submit Utils', () => {
           ...request.transaction,
           type: TransactionType.batch,
           nestedTransactions: [{ type: nestedType }],
-        } as TransactionMeta;
+        };
 
         await submitRelayQuotes(request);
 
@@ -446,7 +446,7 @@ describe('Relay Submit Utils', () => {
         ...request.transaction,
         type: TransactionType.batch,
         nestedTransactions: [{ type: TransactionType.tokenMethodApprove }],
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -468,6 +468,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
+          excludeNativeTokenForFee: true,
           gasFeeToken: TOKEN_ADDRESS_MOCK,
         }),
       );
@@ -630,7 +631,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         txParams: { from: moneyAccountFrom },
-      } as TransactionMeta;
+      };
 
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
       request.quotes[0].original.request = {
@@ -703,7 +704,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.predictDeposit,
-      } as TransactionMeta;
+      };
 
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
@@ -730,7 +731,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.perpsDeposit,
-      } as TransactionMeta;
+      };
 
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
@@ -765,6 +766,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
+          excludeNativeTokenForFee: true,
           gasFeeToken: TOKEN_ADDRESS_MOCK,
         }),
       );
@@ -820,7 +822,7 @@ describe('Relay Submit Utils', () => {
       successfulFetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ status: 'pending' }),
-      } as Response);
+      });
 
       await submitRelayQuotes(request);
 
@@ -856,7 +858,7 @@ describe('Relay Submit Utils', () => {
           ...STATUS_RESPONSE_MOCK,
           txHashes: [],
         }),
-      } as Response);
+      });
 
       const result = await submitRelayQuotes(request);
 
@@ -925,7 +927,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({ status }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           `Relay: Request failed with status: ${status}`,
@@ -937,7 +939,7 @@ describe('Relay Submit Utils', () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => ({ status: 'unknown_status' }),
-      } as Response);
+      });
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
         'Relay: Unrecognized status: unknown_status',
@@ -951,11 +953,11 @@ describe('Relay Submit Utils', () => {
           .mockResolvedValueOnce({
             ok: true,
             json: async () => ({ status: pendingStatus }),
-          } as Response)
+          })
           .mockResolvedValue({
             ok: true,
             json: async () => STATUS_RESPONSE_MOCK,
-          } as Response);
+          });
 
         await submitRelayQuotes(request);
 
@@ -975,7 +977,7 @@ describe('Relay Submit Utils', () => {
         .mockResolvedValue({
           ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
-        } as Response);
+        });
 
       const result = await submitRelayQuotes(request);
 
@@ -1008,7 +1010,7 @@ describe('Relay Submit Utils', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ status: 'pending' }),
-        } as Response)
+        })
         .mockImplementation(() => {
           jest.spyOn(Date, 'now').mockReturnValue(200);
           return Promise.resolve({
@@ -1028,11 +1030,11 @@ describe('Relay Submit Utils', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ status: 'pending' }),
-        } as Response)
+        })
         .mockResolvedValue({
           ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
-        } as Response);
+        });
 
       await submitRelayQuotes(request);
 
@@ -1046,11 +1048,11 @@ describe('Relay Submit Utils', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ status: 'pending' }),
-        } as Response)
+        })
         .mockResolvedValue({
           ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
-        } as Response);
+        });
 
       await submitRelayQuotes(request);
 
@@ -1095,7 +1097,7 @@ describe('Relay Submit Utils', () => {
           ...STATUS_RESPONSE_MOCK,
           txHashes: [],
         }),
-      } as Response);
+      });
 
       const result = await submitRelayQuotes(request);
       expect(result.transactionHash).toBe('0x0');
@@ -1119,9 +1121,9 @@ describe('Relay Submit Utils', () => {
       };
 
       const PAYMENT_OVERRIDE_TX_MOCK: BatchTransactionParams = {
-        to: '0xpaymentoverride' as Hex,
-        data: '0xpaymentoverride' as Hex,
-        value: '0x0' as Hex,
+        to: '0xpaymentoverride',
+        data: '0xpaymentoverride',
+        value: '0x0',
       };
 
       beforeEach(() => {
@@ -1192,7 +1194,7 @@ describe('Relay Submit Utils', () => {
         request.quotes[0].original.details.currencyOut.minimumAmount = '530000';
         submitMoneyAccountVaultDepositMock.mockResolvedValue({
           transactionHash:
-            '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex,
+            '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
         });
         successfulFetchMock.mockResolvedValueOnce({
           ok: true,
@@ -1201,7 +1203,7 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [FALLBACK_HASH],
           }),
-        } as Response);
+        });
 
         await submitRelayQuotes(request);
 
@@ -1241,8 +1243,8 @@ describe('Relay Submit Utils', () => {
           ...request.quotes[0].original.steps[0].items[0],
           data: {
             ...request.quotes[0].original.steps[0].items[0].data,
-            data: '0xapprove' as Hex,
-            to: '0xapproveTarget' as Hex,
+            data: '0xapprove',
+            to: '0xapproveTarget',
           },
         });
 
@@ -1270,14 +1272,14 @@ describe('Relay Submit Utils', () => {
         request.transaction = {
           ...request.transaction,
           type: TransactionType.simpleSend,
-        } as TransactionMeta;
+        };
 
         request.quotes[0].original.steps[0].items.push({
           ...request.quotes[0].original.steps[0].items[0],
           data: {
             ...request.quotes[0].original.steps[0].items[0].data,
-            data: '0xapprove' as Hex,
-            to: '0xapproveTarget' as Hex,
+            data: '0xapprove',
+            to: '0xapproveTarget',
           },
         });
 
@@ -1316,9 +1318,9 @@ describe('Relay Submit Utils', () => {
           id: ORIGINAL_TRANSACTION_ID_MOCK,
           txParams: {
             from: FROM_MOCK,
-            to: '0xrecipient' as Hex,
-            data: '0xorigdata' as Hex,
-            value: '0x100' as Hex,
+            to: '0xrecipient',
+            data: '0xorigdata',
+            value: '0x100',
           },
           type: TransactionType.simpleSend,
         } as TransactionMeta;
@@ -1371,8 +1373,8 @@ describe('Relay Submit Utils', () => {
           ...request.quotes[0].original.steps[0].items[0],
           data: {
             ...request.quotes[0].original.steps[0].items[0].data,
-            data: '0xapprove' as Hex,
-            to: '0xapproveTarget' as Hex,
+            data: '0xapprove',
+            to: '0xapproveTarget',
           },
         });
 
@@ -1405,7 +1407,7 @@ describe('Relay Submit Utils', () => {
         request.transaction = {
           ...request.transaction,
           type: TransactionType.predictDeposit,
-        } as TransactionMeta;
+        };
 
         await submitRelayQuotes(request);
 
@@ -1764,7 +1766,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
-        } as Response);
+        });
 
         const result = await submitRelayQuotes(request);
 
@@ -1852,7 +1854,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({ status: 'refund' }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: refund',
@@ -1874,7 +1876,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({ status: 'refunded' }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: refunded',
@@ -1892,7 +1894,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({ status: 'pending' }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: timeout',
@@ -1923,10 +1925,8 @@ describe('Relay Submit Utils', () => {
       });
 
       it('uses fallback data and value when step item data/value are undefined', async () => {
-        request.quotes[0].original.steps[0].items[0].data.data =
-          undefined as unknown as Hex;
-        request.quotes[0].original.steps[0].items[0].data.value =
-          undefined as unknown as string;
+        request.quotes[0].original.steps[0].items[0].data.data = undefined;
+        request.quotes[0].original.steps[0].items[0].data.value = undefined;
 
         await submitRelayQuotes(request);
 
@@ -2013,7 +2013,7 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [TARGET_HASH_MOCK],
           }),
-        } as Response);
+        });
       });
 
       it('resolves settled amount from on-chain Transfer log and submits vault deposit', async () => {
@@ -2070,7 +2070,7 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [FALLBACK_HASH],
           }),
-        } as Response);
+        });
 
         await submitRelayQuotes(request);
 
@@ -2095,7 +2095,7 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [FALLBACK_HASH],
           }),
-        } as Response);
+        });
 
         await submitRelayQuotes(request);
 
@@ -2137,7 +2137,7 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [FALLBACK_HASH],
           }),
-        } as Response);
+        });
         request.quotes[0].original.details.currencyOut.minimumAmount = '';
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
@@ -2180,14 +2180,14 @@ describe('Relay Submit Utils', () => {
       describe('post-quote flow', () => {
         const DEPOSIT_CALLS_MOCK: BatchTransactionParams[] = [
           {
-            to: '0xapprove0000000000000000000000000000001' as Hex,
-            data: '0xapprove' as Hex,
-            value: '0x0' as Hex,
+            to: '0xapprove0000000000000000000000000000001',
+            data: '0xapprove',
+            value: '0x0',
           },
           {
-            to: '0xteller00000000000000000000000000000001' as Hex,
-            data: '0xdeposit' as Hex,
-            value: '0x0' as Hex,
+            to: '0xteller00000000000000000000000000000001',
+            data: '0xdeposit',
+            value: '0x0',
           },
         ];
 
@@ -2197,7 +2197,7 @@ describe('Relay Submit Utils', () => {
             transactionData: {
               [ORIGINAL_TRANSACTION_ID_MOCK]: {},
             },
-          } as never);
+          });
           getPaymentOverrideDataMock.mockResolvedValue({
             calls: DEPOSIT_CALLS_MOCK,
           });
@@ -2278,6 +2278,148 @@ describe('Relay Submit Utils', () => {
             expect.objectContaining({ depositCalls: undefined }),
           );
         });
+      });
+    });
+
+    describe('promoted subsidized max Money Account routing', () => {
+      const PROMOTED_TARGET_RAW_MOCK = '99000000';
+      const PROMOTED_EMBEDDED_DATA_MOCK = '0xembedded' as Hex;
+      const PROMOTED_EMBEDDED_TO_MOCK =
+        '0xteller00000000000000000000000000000001' as Hex;
+      const RECIPIENT_MOCK = '0xrecip0000000000000000000000000000000001' as Hex;
+      const TARGET_HASH_MOCK =
+        '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as Hex;
+      const NON_ATOMIC_ON_CHAIN_AMOUNT_MOCK = '535000';
+      const NON_ATOMIC_MINIMUM_AMOUNT_MOCK = '530000';
+      const VAULT_HASH_MOCK =
+        '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex;
+      const NON_ATOMIC_TARGET_CHAIN_ID_MOCK = '0x2797' as Hex;
+      const NON_ATOMIC_TARGET_TOKEN_ADDRESS_MOCK =
+        '0xtoken000000000000000000000000000000001' as Hex;
+
+      /**
+       * Configure `request.quotes[0]` as an atomic promoted subsidized max
+       * Money Account quote, matching the T4 promotion output: request carries
+       * `atomic: true`, `isMaxAmount: true`, subsidy `amountUsd: 1`, and the
+       * embedded second-leg call for `99000000` is inlined into the Relay
+       * steps.
+       */
+      const configureAtomicPromotedMaQuote = (): void => {
+        const quote = request.quotes[0];
+        quote.request.atomic = true;
+        quote.request.isMaxAmount = true;
+        quote.original.metamask.isExecute = true;
+        quote.original.details.currencyOut.amount = PROMOTED_TARGET_RAW_MOCK;
+        quote.original.fees = {
+          ...(quote.original.fees ?? {}),
+          subsidized: { amountUsd: '1' },
+        } as RelayQuote['fees'];
+        // The atomic promotion embeds the final MA-vault call directly in the
+        // Relay quote steps, so submission must forward *these* calls (not
+        // the stale parent calldata) to the Relay execute helper.
+        quote.original.steps[0].items[0].data = {
+          ...quote.original.steps[0].items[0].data,
+          data: PROMOTED_EMBEDDED_DATA_MOCK,
+          to: PROMOTED_EMBEDDED_TO_MOCK,
+          value: '0',
+        };
+      };
+
+      /**
+       * Configure `request.quotes[0]` as a non-subsidized non-atomic max
+       * Money Account quote — the pre-existing behaviour where the vault
+       * helper is invoked once after Relay settlement.
+       */
+      const configureNonAtomicMaxMaQuote = (): void => {
+        const quote = request.quotes[0];
+        quote.request.atomic = false;
+        quote.request.isMaxAmount = true;
+        quote.request.recipient = RECIPIENT_MOCK;
+        quote.request.targetChainId = NON_ATOMIC_TARGET_CHAIN_ID_MOCK;
+        quote.request.targetTokenAddress = NON_ATOMIC_TARGET_TOKEN_ADDRESS_MOCK;
+        quote.original.details.currencyOut = {
+          ...quote.original.details.currencyOut,
+          currency: {
+            ...quote.original.details.currencyOut.currency,
+            decimals: 6,
+          },
+          minimumAmount: NON_ATOMIC_MINIMUM_AMOUNT_MOCK,
+        };
+      };
+
+      it('atomic success: submits Relay execution once with the promoted embedded calls and skips the vault helper', async () => {
+        configureAtomicPromotedMaQuote();
+        submitViaRelayExecuteMock.mockResolvedValue(FALLBACK_HASH);
+
+        await submitRelayQuotes(request);
+
+        // Vault helper is NOT called separately - the vault calls are already
+        // embedded in the promoted Relay quote's steps and submitted atomically.
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledTimes(0);
+
+        // Relay execute is invoked exactly once with the promoted quote's
+        // embedded calldata, not any stale parent calldata.
+        expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
+        const [executedQuote, , , executedAllParams] =
+          submitViaRelayExecuteMock.mock.calls[0];
+        expect(executedQuote.request.atomic).toBe(true);
+        expect(executedQuote.request.isMaxAmount).toBe(true);
+        expect(executedAllParams).toStrictEqual([
+          expect.objectContaining({
+            data: PROMOTED_EMBEDDED_DATA_MOCK,
+            to: PROMOTED_EMBEDDED_TO_MOCK,
+            from: FROM_MOCK,
+          }),
+        ]);
+      });
+
+      it('non-atomic success: still invokes the vault helper exactly once with the settled amount', async () => {
+        configureNonAtomicMaxMaQuote();
+        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+          transactionHash: VAULT_HASH_MOCK,
+        });
+        getTransferredAmountFromTxHashMock.mockResolvedValue({
+          amountRaw: NON_ATOMIC_ON_CHAIN_AMOUNT_MOCK,
+          blockNumber: undefined,
+        });
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            inTxHashes: [SOURCE_HASH_MOCK],
+            txHashes: [TARGET_HASH_MOCK],
+          }),
+        });
+
+        await submitRelayQuotes(request);
+
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledTimes(1);
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sourceAmountRaw: NON_ATOMIC_ON_CHAIN_AMOUNT_MOCK,
+            moneyAccountAddress: RECIPIENT_MOCK,
+          }),
+        );
+      });
+
+      it('non-atomic failure: does not invoke the vault helper when Relay reports a failed status', async () => {
+        configureNonAtomicMaxMaQuote();
+        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+          transactionHash: VAULT_HASH_MOCK,
+        });
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            status: 'failure',
+            inTxHashes: [SOURCE_HASH_MOCK],
+          }),
+        });
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Relay: Request failed with status: failure',
+        );
+
+        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledTimes(0);
       });
     });
   });

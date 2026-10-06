@@ -226,6 +226,22 @@ export type AnalyticsControllerResetMarketingConsentDecisionAction = {
 };
 
 /**
+ * Set the marketing campaign cookie ID.
+ *
+ * Stores the ID of the marketing campaign cookie (e.g. a Google Analytics
+ * client ID) that was active when the user arrived. Pass `null` to clear it.
+ * The value is automatically cleared by {@link optOutOfMarketing} and
+ * {@link resetMarketingConsentDecision}.
+ *
+ * @param marketingCampaignCookieId - The marketing campaign cookie ID, or
+ * `null` to clear it.
+ */
+export type AnalyticsControllerSetMarketingCampaignCookieIdAction = {
+  type: `AnalyticsController:setMarketingCampaignCookieId`;
+  handler: AnalyticsController['setMarketingCampaignCookieId'];
+};
+
+/**
  * Union of all AnalyticsController action types.
  */
 export type AnalyticsControllerMethodActions =
@@ -243,4 +259,5 @@ export type AnalyticsControllerMethodActions =
   | AnalyticsControllerResetConsentDecisionAction
   | AnalyticsControllerOptInToMarketingAction
   | AnalyticsControllerOptOutOfMarketingAction
-  | AnalyticsControllerResetMarketingConsentDecisionAction;
+  | AnalyticsControllerResetMarketingConsentDecisionAction
+  | AnalyticsControllerSetMarketingCampaignCookieIdAction;

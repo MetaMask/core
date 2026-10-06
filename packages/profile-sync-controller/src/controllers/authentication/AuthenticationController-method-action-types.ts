@@ -20,6 +20,106 @@ export type AuthenticationControllerRequestProfilePairingAction = {
   handler: AuthenticationController['requestProfilePairing'];
 };
 
+/**
+ * Refreshes credentials enrolled on the canonical profile.
+ *
+ * @returns The current supported credentials.
+ */
+export type AuthenticationControllerRefreshEnrolledCredentialsAction = {
+  type: `AuthenticationController:refreshEnrolledCredentials`;
+  handler: AuthenticationController['refreshEnrolledCredentials'];
+};
+
+/**
+ * Begins enrollment of a passkey or email OTP credential.
+ *
+ * @param request - Credential, optional email address, and trace reason.
+ * @returns A challenge for the client-owned ceremony.
+ */
+export type AuthenticationControllerBeginCredentialEnrollmentAction = {
+  type: `AuthenticationController:beginCredentialEnrollment`;
+  handler: AuthenticationController['beginCredentialEnrollment'];
+};
+
+/**
+ * Completes credential enrollment and refreshes the credential cache.
+ *
+ * The server returns an assertion for the new credential, which opens a
+ * verification session like `completeCredentialVerification`, replacing
+ * any earlier one. If that exchange fails, the earlier session is kept:
+ * the credential is enrolled either way.
+ *
+ * A cache-refresh failure does not undo successful enrollment. Email
+ * enrollment invalidates the primary SRP session *after* refresh so the
+ * credentials call can reuse the still-valid access token; the next token
+ * fetch then includes the newly verified email claim. That invalidation
+ * happens even if the session ends mid-request: the enrollment succeeded
+ * on the server, so a token cached across a lock must not be reused
+ * without the new claim.
+ *
+ * @param request - Flow identifier, platform or email proof, and trace reason.
+ * @returns The refreshed credentials, or the existing cache if refresh fails.
+ */
+export type AuthenticationControllerCompleteCredentialEnrollmentAction = {
+  type: `AuthenticationController:completeCredentialEnrollment`;
+  handler: AuthenticationController['completeCredentialEnrollment'];
+};
+
+/**
+ * Begins verification with an enrolled credential.
+ *
+ * @param request - Credential type and trace reason.
+ * @returns A challenge for the client-owned ceremony.
+ */
+export type AuthenticationControllerBeginCredentialVerificationAction = {
+  type: `AuthenticationController:beginCredentialVerification`;
+  handler: AuthenticationController['beginCredentialVerification'];
+};
+
+/**
+ * Completes verification and opens a short-lived verification session.
+ *
+ * The assertion returned by the MFA service is exchanged at Hydra for an
+ * access token. Its assurance level is not checked: the services receiving
+ * the token enforce their own requirements. The token itself never enters
+ * controller state.
+ *
+ * @param request - Flow identifier, platform or email proof, and trace reason.
+ * @returns The verification token.
+ */
+export type AuthenticationControllerCompleteCredentialVerificationAction = {
+  type: `AuthenticationController:completeCredentialVerification`;
+  handler: AuthenticationController['completeCredentialVerification'];
+};
+
+/**
+ * Returns the active verification token when it meets the requested
+ * freshness.
+ *
+ * Low-level: features should go through the client MFA kit
+ * (`verifyOrEnroll`), which reuses a matching session without showing any
+ * screen and checks which method proved it. Read the token directly only
+ * from code that cannot show UI, and treat `null` as "let the UI layer
+ * ask".
+ *
+ * @param request - Optional maximum session age in milliseconds, measured
+ * from when the token was obtained. Zero always requires a new ceremony.
+ * @returns A live verification token, or null when no reusable session
+ * exists.
+ */
+export type AuthenticationControllerGetVerificationTokenAction = {
+  type: `AuthenticationController:getVerificationToken`;
+  handler: AuthenticationController['getVerificationToken'];
+};
+
+/**
+ * Clears every in-memory verification session and its expiration timer.
+ */
+export type AuthenticationControllerClearVerificationSessionAction = {
+  type: `AuthenticationController:clearVerificationSession`;
+  handler: AuthenticationController['clearVerificationSession'];
+};
+
 export type AuthenticationControllerPerformSignOutAction = {
   type: `AuthenticationController:performSignOut`;
   handler: AuthenticationController['performSignOut'];
@@ -139,6 +239,13 @@ export type AuthenticationControllerIsSignedInAction = {
 export type AuthenticationControllerMethodActions =
   | AuthenticationControllerPerformSignInAction
   | AuthenticationControllerRequestProfilePairingAction
+  | AuthenticationControllerRefreshEnrolledCredentialsAction
+  | AuthenticationControllerBeginCredentialEnrollmentAction
+  | AuthenticationControllerCompleteCredentialEnrollmentAction
+  | AuthenticationControllerBeginCredentialVerificationAction
+  | AuthenticationControllerCompleteCredentialVerificationAction
+  | AuthenticationControllerGetVerificationTokenAction
+  | AuthenticationControllerClearVerificationSessionAction
   | AuthenticationControllerPerformSignOutAction
   | AuthenticationControllerClearStateAction
   | AuthenticationControllerGetBearerTokenAction

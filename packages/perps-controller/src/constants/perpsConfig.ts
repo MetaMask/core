@@ -417,6 +417,66 @@ export const SUBSCRIPTION_BENEFITS_CACHE = {
 } as const;
 
 /**
+ * Client order ID marking for the ADR 0064 subscription fee waiver.
+ *
+ * A HyperLiquid cloid is 16 bytes. When the subscription source wins the fee
+ * comparison, the order's cloid is stamped so the fill can be attributed to the
+ * subscription program off the existing HL fill fan-out, with no dedicated
+ * builder address and no per-user approval:
+ *
+ * ```
+ * 0x <program marker: 4 bytes> <flags: 1 byte> <entropy: 11 bytes>
+ * ```
+ *
+ * The flag byte follows the leading marker rather than replacing it, so the
+ * marking composes with the cloid the Scale ladder already builds: a Scale rung
+ * keeps its own `4d4d5343` marker and its rung index, and only the flag byte is
+ * claimed, leaving group recovery and cancel-by-cloid intact.
+ *
+ * `ProgramId` is isolated in this one constant so every marking and decoding
+ * path reads the marker from a single place; see its own documentation below
+ * for the registered value and how it is encoded.
+ */
+export const SUBSCRIPTION_CLOID_CONFIG = {
+  /**
+   * Reserved program marker, 4 bytes as lowercase hex without the `0x`.
+   *
+   * The registry assigns perps subscriptions program_id `0x0100`, from the
+   * `0x0000`–`0x00FF`-adjacent range reserved for core protocol features. It is
+   * a 2-byte id, zero-extended big-endian into this 4-byte marker field so the
+   * rest of the layout — flag byte at a fixed offset, 11 bytes of entropy — is
+   * unchanged. No previously released client emitted a cloid starting with
+   * these bytes, and it cannot collide with the Scale marker (`4d4d5343`),
+   * which is what makes the decoder safe against historical fills.
+   */
+  ProgramId: '00000100',
+
+  /** Hex characters in the leading program marker (4 bytes). */
+  ProgramIdHexLength: 8,
+
+  /** Hex characters of trailing entropy in a marked cloid (11 bytes). */
+  EntropyHexLength: 22,
+} as const;
+
+/**
+ * Flag bits carried in the flag byte of a subscription-marked cloid.
+ */
+export const SUBSCRIPTION_CLOID_FLAGS = {
+  /** Bit 0 — a subscription fee reduction was applied to this order. */
+  FeeReductionApplied: 0x01,
+} as const;
+
+/**
+ * Remote feature flag that gates the subscription fee-waiver source.
+ *
+ * ADR 0064 Milestone 8 requires the subscription source to be killable on its
+ * own, without touching VIP, season, or the default builder fee. Absent or
+ * malformed, the flag reads as enabled so an unreachable flag service cannot
+ * silently drop a benefit the user pays for.
+ */
+export const SUBSCRIPTION_FEE_WAIVER_FLAG = 'perpsSubscriptionFeeWaiverEnabled';
+
+/**
  * Terminal API configuration.
  * The full endpoint URL is injected at runtime via
  * `PerpsPlatformDependencies.terminalApi.marketDataUrl` from each client build

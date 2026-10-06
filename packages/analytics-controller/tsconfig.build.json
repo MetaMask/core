@@ -16,6 +16,9 @@
     },
     {
       "path": "../utils/tsconfig.build.json"
+    },
+    {
+      "path": "../config-registry-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]
