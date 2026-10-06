@@ -11,6 +11,7 @@ import { associateAddressStep } from './associate-address.js';
 
 const MOCK_ADDRESS = '0xAbCdEf1234567890AbCdEf1234567890AbCdEf12' as Hex;
 const MOCK_ADDRESS_LOWERCASE = MOCK_ADDRESS.toLowerCase() as Hex;
+const MOCK_OTHER_ADDRESS = '0x9999999999999999999999999999999999999999' as Hex;
 const MOCK_CHAIN_ID = '0x1' as Hex;
 const MOCK_DELEGATE = '0x1111111111111111111111111111111111111111' as Hex;
 const MOCK_DELEGATOR_IMPL = '0x2222222222222222222222222222222222222222' as Hex;
@@ -22,18 +23,29 @@ const MOCK_REDEEMER_ENFORCER =
 const MOCK_VALUE_LTE_ENFORCER =
   '0x7777777777777777777777777777777777777777' as Hex;
 const MOCK_SIGNATURE = '0xdeadbeefcafebabe';
-const MOCK_NOW = new Date('2026-04-17T12:00:00.000Z').getTime();
+const MOCK_CHALLENGE = {
+  challengeId: '7b1e6f0c-1f3a-4d2b-9c8e-2a4b6c8d0e1f',
+  message: 'chomp.example.com wants you to sign in with your Ethereum account',
+  expiresAt: '2026-04-17T12:05:00.000Z',
+};
+const MOCK_SECOND_CHALLENGE = {
+  challengeId: '0d9c8b7a-6f5e-4d3c-2b1a-0f9e8d7c6b5a',
+  message: 'a second challenge message',
+  expiresAt: '2026-04-17T12:06:00.000Z',
+};
 
 /**
- * Builds the error `ChompApiService.associateAddress` throws on a 409.
+ * Builds the error `ChompApiService` throws for a non-2xx response.
  *
- * @returns An `Error` carrying `httpStatus: 409`, matching `HttpError` from
- * `@metamask/controller-utils`.
+ * @param httpStatus - The HTTP status of the response.
+ * @param code - The CHOMP error code from the response body, if any.
+ * @returns An `Error` carrying `httpStatus` and `code`, matching
+ * `ChompApiError` from `@metamask/chomp-api-service`.
  */
-function conflictError(): Error {
+function chompError(httpStatus: number, code?: string): Error {
   return Object.assign(
-    new Error("POST /v1/auth/address failed with status '409'"),
-    { httpStatus: 409 },
+    new Error(`POST /v2/auth/address failed with status '${httpStatus}'`),
+    { httpStatus, code },
   );
 }
 
@@ -42,7 +54,8 @@ type AllEvents = MessengerEvents<MoneyAccountUpgradeControllerMessenger>;
 
 type Mocks = {
   signPersonalMessage: jest.Mock;
-  associateAddress: jest.Mock;
+  createAddressChallenge: jest.Mock;
+  associateAddressV2: jest.Mock;
   getAssociatedAddresses: jest.Mock;
 };
 
@@ -52,7 +65,8 @@ function setup(): {
 } {
   const mocks: Mocks = {
     signPersonalMessage: jest.fn().mockResolvedValue(MOCK_SIGNATURE),
-    associateAddress: jest.fn().mockResolvedValue({
+    createAddressChallenge: jest.fn().mockResolvedValue(MOCK_CHALLENGE),
+    associateAddressV2: jest.fn().mockResolvedValue({
       profileId: 'profile-1',
       address: MOCK_ADDRESS_LOWERCASE,
       status: 'created',
@@ -68,8 +82,12 @@ function setup(): {
     mocks.signPersonalMessage,
   );
   rootMessenger.registerActionHandler(
-    'ChompApiService:associateAddress',
-    mocks.associateAddress,
+    'ChompApiService:createAddressChallenge',
+    mocks.createAddressChallenge,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:associateAddressV2',
+    mocks.associateAddressV2,
   );
   rootMessenger.registerActionHandler(
     'ChompApiService:getAssociatedAddresses',
@@ -83,7 +101,8 @@ function setup(): {
   rootMessenger.delegate({
     actions: [
       'KeyringController:signPersonalMessage',
-      'ChompApiService:associateAddress',
+      'ChompApiService:createAddressChallenge',
+      'ChompApiService:associateAddressV2',
       'ChompApiService:getAssociatedAddresses',
     ],
     events: [],
@@ -112,15 +131,6 @@ async function run(
 }
 
 describe('associateAddressStep', () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(MOCK_NOW);
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
   it('is named "associate-address"', () => {
     expect(associateAddressStep.name).toBe('associate-address');
   });
@@ -138,8 +148,8 @@ describe('associateAddressStep', () => {
 
   it('returns "already-done" without signing or submitting when the address is already associated', async () => {
     const { messenger, mocks } = setup();
-    // CHOMP lowercases stored addresses; the step receives a checksummed one,
-    // so this also covers the case-insensitive match.
+    // CHOMP lowercases stored addresses; the step receives a checksummed
+    // one, so this also covers the case-insensitive match.
     mocks.getAssociatedAddresses.mockResolvedValue([
       {
         profileId: 'profile-1',
@@ -151,8 +161,9 @@ describe('associateAddressStep', () => {
     const result = await run(messenger);
 
     expect(result).toBe('already-done');
+    expect(mocks.createAddressChallenge).not.toHaveBeenCalled();
     expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
-    expect(mocks.associateAddress).not.toHaveBeenCalled();
+    expect(mocks.associateAddressV2).not.toHaveBeenCalled();
   });
 
   it('proceeds with association when only other addresses are associated', async () => {
@@ -160,7 +171,7 @@ describe('associateAddressStep', () => {
     mocks.getAssociatedAddresses.mockResolvedValue([
       {
         profileId: 'profile-1',
-        address: '0x9999999999999999999999999999999999999999',
+        address: MOCK_OTHER_ADDRESS,
         status: 'active',
       },
     ]);
@@ -168,29 +179,39 @@ describe('associateAddressStep', () => {
     const result = await run(messenger);
 
     expect(result).toBe('completed');
-    expect(mocks.associateAddress).toHaveBeenCalled();
+    expect(mocks.associateAddressV2).toHaveBeenCalled();
   });
 
-  it('signs the CHOMP Authentication message with the given address', async () => {
+  it('requests an ASSOCIATE challenge for the address', async () => {
+    const { messenger, mocks } = setup();
+
+    await run(messenger);
+
+    expect(mocks.createAddressChallenge).toHaveBeenCalledWith({
+      address: MOCK_ADDRESS,
+      purpose: 'ASSOCIATE',
+    });
+  });
+
+  it('signs the challenge message exactly as returned, with the given address', async () => {
     const { messenger, mocks } = setup();
 
     await run(messenger);
 
     expect(mocks.signPersonalMessage).toHaveBeenCalledWith({
-      data: `CHOMP Authentication ${MOCK_NOW}`,
+      data: MOCK_CHALLENGE.message,
       from: MOCK_ADDRESS,
     });
   });
 
-  it('submits the signature, timestamp, and address to the CHOMP API', async () => {
+  it('submits the challenge ID and signature to the CHOMP API', async () => {
     const { messenger, mocks } = setup();
 
     await run(messenger);
 
-    expect(mocks.associateAddress).toHaveBeenCalledWith({
+    expect(mocks.associateAddressV2).toHaveBeenCalledWith({
+      challengeId: MOCK_CHALLENGE.challengeId,
       signature: MOCK_SIGNATURE,
-      timestamp: MOCK_NOW,
-      address: MOCK_ADDRESS,
     });
   });
 
@@ -204,7 +225,7 @@ describe('associateAddressStep', () => {
 
   it('returns "already-done" when the association was created concurrently', async () => {
     const { messenger, mocks } = setup();
-    mocks.associateAddress.mockResolvedValue({
+    mocks.associateAddressV2.mockResolvedValue({
       address: MOCK_ADDRESS_LOWERCASE,
       status: 'active',
     });
@@ -222,12 +243,47 @@ describe('associateAddressStep', () => {
 
     expect(result).toBe('completed');
     expect(mocks.signPersonalMessage).toHaveBeenCalled();
-    expect(mocks.associateAddress).toHaveBeenCalled();
+    expect(mocks.associateAddressV2).toHaveBeenCalled();
+  });
+
+  it('signs a fresh challenge once when the first is invalid or expired', async () => {
+    const { messenger, mocks } = setup();
+    mocks.createAddressChallenge
+      .mockResolvedValueOnce(MOCK_CHALLENGE)
+      .mockResolvedValueOnce(MOCK_SECOND_CHALLENGE);
+    mocks.associateAddressV2.mockRejectedValueOnce(
+      chompError(400, 'CHALLENGE_INVALID_OR_EXPIRED'),
+    );
+
+    const result = await run(messenger);
+
+    expect(result).toBe('completed');
+    expect(mocks.signPersonalMessage).toHaveBeenLastCalledWith({
+      data: MOCK_SECOND_CHALLENGE.message,
+      from: MOCK_ADDRESS,
+    });
+    expect(mocks.associateAddressV2).toHaveBeenLastCalledWith({
+      challengeId: MOCK_SECOND_CHALLENGE.challengeId,
+      signature: MOCK_SIGNATURE,
+    });
+  });
+
+  it('throws a non-terminal error when the fresh challenge is also invalid', async () => {
+    const { messenger, mocks } = setup();
+    mocks.associateAddressV2.mockRejectedValue(
+      chompError(400, 'CHALLENGE_INVALID_OR_EXPIRED'),
+    );
+
+    const error = await run(messenger).catch((thrown: unknown) => thrown);
+
+    expect(error).toMatchObject({ code: 'CHALLENGE_INVALID_OR_EXPIRED' });
+    expect(error).not.toMatchObject({ terminal: true });
+    expect(mocks.createAddressChallenge).toHaveBeenCalledTimes(2);
   });
 
   it('returns "already-done" when a conflict turns out to be a same-profile race', async () => {
     const { messenger, mocks } = setup();
-    mocks.associateAddress.mockRejectedValue(conflictError());
+    mocks.associateAddressV2.mockRejectedValue(chompError(409));
     // First lookup (pre-check) misses; second (disambiguation) finds it.
     mocks.getAssociatedAddresses
       .mockResolvedValueOnce([])
@@ -246,8 +302,7 @@ describe('associateAddressStep', () => {
 
   it('throws a terminal error when the address belongs to another profile', async () => {
     const { messenger, mocks } = setup();
-    mocks.associateAddress.mockRejectedValue(conflictError());
-    mocks.getAssociatedAddresses.mockResolvedValue([]);
+    mocks.associateAddressV2.mockRejectedValue(chompError(409));
 
     const error = await run(messenger).catch((thrown: unknown) => thrown);
 
@@ -260,7 +315,7 @@ describe('associateAddressStep', () => {
 
   it('rethrows the original, non-terminal conflict when the disambiguating lookup also fails', async () => {
     const { messenger, mocks } = setup();
-    mocks.associateAddress.mockRejectedValue(conflictError());
+    mocks.associateAddressV2.mockRejectedValue(chompError(409));
     mocks.getAssociatedAddresses
       .mockResolvedValueOnce([])
       .mockRejectedValueOnce(new Error('lookup failed'));
@@ -268,9 +323,19 @@ describe('associateAddressStep', () => {
     const error = await run(messenger).catch((thrown: unknown) => thrown);
 
     expect((error as Error).message).toBe(
-      "POST /v1/auth/address failed with status '409'",
+      "POST /v2/auth/address failed with status '409'",
     );
     expect(error).not.toMatchObject({ terminal: true });
+  });
+
+  it('propagates errors from requesting the challenge and does not sign', async () => {
+    const { messenger, mocks } = setup();
+    mocks.createAddressChallenge.mockRejectedValue(
+      new Error('challenge failed'),
+    );
+
+    await expect(run(messenger)).rejects.toThrow('challenge failed');
+    expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
   });
 
   it('propagates errors from signing and does not submit to the API', async () => {
@@ -278,12 +343,12 @@ describe('associateAddressStep', () => {
     mocks.signPersonalMessage.mockRejectedValue(new Error('signing failed'));
 
     await expect(run(messenger)).rejects.toThrow('signing failed');
-    expect(mocks.associateAddress).not.toHaveBeenCalled();
+    expect(mocks.associateAddressV2).not.toHaveBeenCalled();
   });
 
   it('propagates errors from the CHOMP API', async () => {
     const { messenger, mocks } = setup();
-    mocks.associateAddress.mockRejectedValue(new Error('api failed'));
+    mocks.associateAddressV2.mockRejectedValue(new Error('api failed'));
 
     await expect(run(messenger)).rejects.toThrow('api failed');
   });
