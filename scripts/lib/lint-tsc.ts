@@ -34,9 +34,7 @@ const REPO_ROOT = path.join(
  *
  * @param argv - The arguments passed to this script.
  */
-export async function lintTscSuppressions(
-  argv: readonly string[],
-): Promise<void> {
+export async function lintTsc(argv: readonly string[]): Promise<void> {
   const suppressionsFilePath = path.join(REPO_ROOT, TSC_SUPPRESSIONS_FILE_NAME);
 
   // `lines` has execa split the output for us, rather than buffering it all
