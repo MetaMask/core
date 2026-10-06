@@ -839,7 +839,7 @@ export class SeedlessOnboardingController<
 
       this.#setUnlocked();
 
-      this.identifyIncompleteMetadataBackup(password);
+      this.#identifyIncompleteMetadataBackup(password);
     });
   }
 
@@ -855,24 +855,7 @@ export class SeedlessOnboardingController<
   async identifyIncompleteMetadataBackup(password: string): Promise<void> {
     this.#assertIsUnlocked();
 
-    // `#setUnlocked` is only called after the decrypted vault data is cached.
-    const deserializedVaultData =
-      this.#cachedDecryptedVaultData as DeserializedVaultData;
-
-    await trackIncompleteMetadataBackupEvents({
-      fetchAllSecretDataFn: () =>
-        this.toprfClient.fetchAllSecretDataItems({
-          decKey: deserializedVaultData.toprfEncryptionKey,
-          authKeyPair: deserializedVaultData.toprfAuthKeyPair,
-        }),
-      getPrimaryKeyringSeedPhraseFn: () =>
-        this.messenger.call('KeyringController:exportSeedPhrase', {
-          password,
-        }),
-      trackEvent: (event) =>
-        this.messenger.call('AnalyticsController:trackEvent', event),
-      logFn: log,
-    });
+    await this.#identifyIncompleteMetadataBackup(password);
   }
 
   /**
@@ -2476,6 +2459,28 @@ export class SeedlessOnboardingController<
     } catch {
       return true; // Consider unauthenticated user as having expired tokens
     }
+  }
+
+  async #identifyIncompleteMetadataBackup(password: string): Promise<void> {
+    const deserializedVaultData =
+      this.#cachedDecryptedVaultData as DeserializedVaultData;
+
+    console.log('identifyIncompleteMetadataBackup::deserializedVaultData', deserializedVaultData);
+
+    await trackIncompleteMetadataBackupEvents({
+      fetchAllSecretDataFn: () =>
+        this.toprfClient.fetchAllSecretDataItems({
+          decKey: deserializedVaultData.toprfEncryptionKey,
+          authKeyPair: deserializedVaultData.toprfAuthKeyPair,
+        }),
+      getPrimaryKeyringSeedPhraseFn: () =>
+        this.messenger.call('KeyringController:exportSeedPhrase', {
+          password,
+        }),
+      trackEvent: (event) =>
+        this.messenger.call('AnalyticsController:trackEvent', event),
+      logFn: log,
+    });
   }
 }
 
