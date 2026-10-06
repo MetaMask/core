@@ -9,6 +9,9 @@
       "path": "../base-controller/tsconfig.lint.json"
     },
     {
+      "path": "../chomp-api-service/tsconfig.lint.json"
+    },
+    {
       "path": "../messenger/tsconfig.lint.json"
     },
     {
