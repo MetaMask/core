@@ -48,6 +48,20 @@ export type ChompApiServiceAssociateAddressV2Action = {
 };
 
 /**
+ * Removes an address association from the authenticated profile. For an
+ * address linked as a successor, this cancels the migration and unfreezes
+ * its predecessor, which is only allowed while the migration is not `DONE`.
+ *
+ * DELETE /v1/auth/address
+ *
+ * @param address - The address to disassociate.
+ */
+export type ChompApiServiceDisassociateAddressAction = {
+  type: `ChompApiService:disassociateAddress`;
+  handler: ChompApiService['disassociateAddress'];
+};
+
+/**
  * Fetches the addresses associated with the authenticated profile.
  *
  * GET /v1/auth/address
@@ -175,6 +189,7 @@ export type ChompApiServiceGetServiceDetailsAction = {
 export type ChompApiServiceMethodActions =
   | ChompApiServiceCreateAddressChallengeAction
   | ChompApiServiceAssociateAddressV2Action
+  | ChompApiServiceDisassociateAddressAction
   | ChompApiServiceGetAssociatedAddressesAction
   | ChompApiServiceCreateUpgradeAction
   | ChompApiServiceGetUpgradesAction

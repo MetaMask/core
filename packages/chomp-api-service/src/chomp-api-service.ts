@@ -58,6 +58,8 @@ const CHOMP_INTENT_TYPES: ChompIntentType[] = [
   'cash-deposit-premium',
   'cash-withdrawal-premium',
   'cash-subscription',
+  'cash-migration-root',
+  'cash-migration-transfer',
 ];
 
 function isChompIntentType(value: string): value is ChompIntentType {
@@ -127,6 +129,7 @@ async function createChompApiError(
 const MESSENGER_EXPOSED_METHODS = [
   'createAddressChallenge',
   'associateAddressV2',
+  'disassociateAddress',
   'getAssociatedAddresses',
   'createUpgrade',
   'getUpgrades',
@@ -524,6 +527,43 @@ export class ChompApiService extends BaseDataService<
     });
 
     return create(jsonResponse, AssociateAddressResponseStruct);
+  }
+
+  /**
+   * Removes an address association from the authenticated profile. For an
+   * address linked as a successor, this cancels the migration and unfreezes
+   * its predecessor, which is only allowed while the migration is not `DONE`.
+   *
+   * DELETE /v1/auth/address
+   *
+   * @param address - The address to disassociate.
+   */
+  async disassociateAddress(address: Hex): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:disassociateAddress`, address],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(
+          new URL('/v1/auth/address', this.#baseUrl),
+          {
+            method: 'DELETE',
+            headers,
+            body: JSON.stringify({ address }),
+          },
+        );
+
+        if (!response.ok) {
+          throw await createChompApiError(
+            response,
+            `DELETE /v1/auth/address failed with status '${response.status}'`,
+          );
+        }
+
+        return null;
+      },
+    });
   }
 
   /**

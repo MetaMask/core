@@ -185,6 +185,34 @@ describe('ChompApiService', () => {
     });
   });
 
+  describe('disassociateAddress', () => {
+    it('sends a DELETE with auth headers and the address', async () => {
+      const scope = nock(BASE_URL)
+        .delete('/v1/auth/address', { address: '0xabc' })
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .matchHeader('Content-Type', 'application/json')
+        .reply(204);
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call('ChompApiService:disassociateAddress', '0xabc');
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('throws a ChompApiError carrying the CHOMP error code', async () => {
+      nock(BASE_URL)
+        .delete('/v1/auth/address')
+        .reply(409, { code: 'MIGRATION_DONE' });
+      const { service } = createService();
+
+      await expect(service.disassociateAddress('0xabc')).rejects.toMatchObject({
+        httpStatus: 409,
+        code: 'MIGRATION_DONE',
+        message: "DELETE /v1/auth/address failed with status '409'",
+      });
+    });
+  });
+
   describe('getAssociatedAddresses', () => {
     const addressEntry = {
       profileId: 'p1',
@@ -614,6 +642,8 @@ describe('ChompApiService', () => {
       'cash-deposit-premium',
       'cash-withdrawal-premium',
       'cash-subscription',
+      'cash-migration-root',
+      'cash-migration-transfer',
     ] as const) {
       it(`accepts and returns the "${type}" intent type`, async () => {
         const params = [
@@ -706,6 +736,8 @@ describe('ChompApiService', () => {
       'cash-deposit-premium',
       'cash-withdrawal-premium',
       'cash-subscription',
+      'cash-migration-root',
+      'cash-migration-transfer',
     ] as const) {
       it(`accepts and returns the "${type}" intent type`, async () => {
         const response = [
