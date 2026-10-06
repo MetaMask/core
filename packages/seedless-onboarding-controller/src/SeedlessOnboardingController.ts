@@ -2465,8 +2465,6 @@ export class SeedlessOnboardingController<
     const deserializedVaultData =
       this.#cachedDecryptedVaultData as DeserializedVaultData;
 
-    console.log('identifyIncompleteMetadataBackup::deserializedVaultData', deserializedVaultData);
-
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn: () =>
         this.toprfClient.fetchAllSecretDataItems({
