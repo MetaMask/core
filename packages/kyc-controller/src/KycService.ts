@@ -333,6 +333,12 @@ export type CreateUkycSessionParams = {
    * `moonPayUserId`); optional / omitted for other vendors.
    */
   vendorMetadata?: Record<string, unknown>;
+  /**
+   * AAL2 authentication token sent as the `Authorization` bearer value for
+   * `POST /sessions`. Other KYC requests continue to use the wallet bearer
+   * token.
+   */
+  aal2Token: string;
 };
 
 /**
@@ -731,24 +737,39 @@ export class KycService extends BaseDataService<
    * the read-only `ukyc_capability_token` and submit them via
    * {@link KycService.setAuthorizations}.
    *
+   * Session creation is authenticated with `params.aal2Token` as the
+   * `Authorization` bearer value, instead of the wallet bearer token.
+   *
    * @param params - The session parameters.
+   * @param params.aal2Token - AAL2 authentication token used as the
+   * Authorization bearer value.
    * @returns The UKYC session id and encryption schemas.
    */
   async createUkycSession(
     params: CreateUkycSessionParams,
   ): Promise<UkycSessionResponse> {
+    if (!params.aal2Token) {
+      throw new Error(
+        'KycService.createUkycSession: aal2Token is required to authenticate session creation.',
+      );
+    }
+
     const url = new URL('/sessions', this.#baseUrl);
-    const data = await this.#requestJson(url, {
-      method: 'POST',
-      body: JSON.stringify({
-        vendorId: params.vendor ?? 'moonpay',
-        vendorUserId: 'mockedId',
-        jwtToken: 'mock-jwt-token', // TODO: Remove this from the kyc-api
-        sessionClientPublicKey: params.sessionClientPublicKey,
-        residenceCountry: params.residenceCountry,
-        vendorMetadata: params.vendorMetadata ?? {},
-      }),
-    });
+    const data = await this.#requestJson(
+      url,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          vendorId: params.vendor ?? 'moonpay',
+          vendorUserId: 'mockedId',
+          jwtToken: 'mock-jwt-token', // TODO: Remove this from the kyc-api
+          sessionClientPublicKey: params.sessionClientPublicKey,
+          residenceCountry: params.residenceCountry,
+          vendorMetadata: params.vendorMetadata ?? {},
+        }),
+      },
+      { bearerToken: params.aal2Token },
+    );
     return this.#validateResponse(
       data,
       UkycSessionResponseStruct,
@@ -904,21 +925,24 @@ export class KycService extends BaseDataService<
    *
    * Requests are authenticated with the wallet bearer token by default; pass
    * `{ authenticated: false }` for calls to services that do not expect it
-   * (e.g. the idOS enclave or idOS relay JWKS endpoints).
+   * (e.g. the idOS enclave or idOS relay JWKS endpoints). Pass `bearerToken`
+   * to send that value instead of the wallet bearer token.
    *
    * @param url - The request URL.
    * @param init - The request init (method, body).
    * @param options - Request options.
    * @param options.authenticated - Whether to attach the bearer token. Defaults
    * to `true`.
+   * @param options.bearerToken - Authorization bearer value. When omitted, the
+   * wallet bearer token from `AuthenticationController:getBearerToken` is used.
    * @returns The parsed JSON response.
    */
   async #requestJson(
     url: URL,
     init: RequestInit,
-    options: { authenticated?: boolean } = {},
+    options: { authenticated?: boolean; bearerToken?: string } = {},
   ): Promise<Json> {
-    const { authenticated = true } = options;
+    const { authenticated = true, bearerToken } = options;
 
     const headers: Record<string, string> = {};
 
@@ -929,16 +953,16 @@ export class KycService extends BaseDataService<
     }
 
     if (authenticated) {
-      const bearerToken = await this.messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-      if (!bearerToken) {
+      const resolvedBearerToken =
+        bearerToken ??
+        (await this.messenger.call('AuthenticationController:getBearerToken'));
+      if (!resolvedBearerToken) {
         throw new Error(
           'Unable to obtain an authentication bearer token — is the wallet signed in?',
         );
       }
-      assert(bearerToken, string());
-      headers.Authorization = `Bearer ${bearerToken}`;
+      assert(resolvedBearerToken, string());
+      headers.Authorization = `Bearer ${resolvedBearerToken}`;
     }
 
     const response = await this.#fetch(url.toString(), {
