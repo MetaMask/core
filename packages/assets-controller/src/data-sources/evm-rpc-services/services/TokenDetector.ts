@@ -169,8 +169,18 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
    * @returns Array of token contract addresses.
    */
   async getTokensToCheck(chainId: ChainId): Promise<Address[]> {
-    const tokenList = await this.#fetchAndCacheTokenList(chainId);
+    const tokenList = await this.getTokenList(chainId);
     return tokenList.map((entry) => entry.address as Address);
+  }
+
+  /**
+   * Fetch the mapped token list for a chain.
+   *
+   * @param chainId - Chain ID in hex format.
+   * @returns Token list entries, including fields the address list drops.
+   */
+  async getTokenList(chainId: ChainId): Promise<TokenListEntry[]> {
+    return this.#fetchAndCacheTokenList(chainId);
   }
 
   async detectTokens(
