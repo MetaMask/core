@@ -9,7 +9,8 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
-  ChompApiServiceAssociateAddressAction,
+  ChompApiServiceAssociateAddressV2Action,
+  ChompApiServiceCreateAddressChallengeAction,
   ChompApiServiceCreateIntentsAction,
   ChompApiServiceCreateUpgradeAction,
   ChompApiServiceGetAssociatedAddressesAction,
@@ -138,7 +139,8 @@ export type MoneyAccountUpgradeControllerActions =
 type AllowedActions =
   | AuthenticatedUserStorageServiceCreateDelegationAction
   | AuthenticatedUserStorageServiceListDelegationsAction
-  | ChompApiServiceAssociateAddressAction
+  | ChompApiServiceAssociateAddressV2Action
+  | ChompApiServiceCreateAddressChallengeAction
   | ChompApiServiceCreateIntentsAction
   | ChompApiServiceCreateUpgradeAction
   | ChompApiServiceGetAssociatedAddressesAction
