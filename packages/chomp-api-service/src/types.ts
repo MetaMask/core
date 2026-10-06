@@ -32,12 +32,6 @@ export type SignedDelegation = {
 
 // === PARAMS TYPES ===
 
-export type AssociateAddressParams = {
-  signature: Hex;
-  timestamp: number;
-  address: Hex;
-};
-
 /**
  * Why an address is being associated through the v2 flow. `ASSOCIATE` creates
  * a normal association, while `ASSOCIATE_SUCCESSOR` also links the address to
@@ -108,7 +102,7 @@ export type CreateWithdrawalParams = {
 // === RESPONSE TYPES ===
 
 /**
- * Returned by POST /v1/auth/address and POST /v2/auth/address.
+ * Returned by POST /v2/auth/address.
  *
  * `profileId` is only included when the address was newly associated
  * (`status: 'created'`). When the address was already associated with the

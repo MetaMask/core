@@ -6,23 +6,6 @@
 import type { ChompApiService } from './chomp-api-service.js';
 
 /**
- * Associates an address with a CHOMP profile.
- *
- * POST /v1/auth/address
- *
- * @param params - The association params containing signature, timestamp,
- * and address.
- * @returns The profile association result: `status: 'created'` for a new
- * association, `status: 'active'` when the address was already associated
- * with the authenticated profile. Throws on 409, which indicates the
- * address is associated with a different profile.
- */
-export type ChompApiServiceAssociateAddressAction = {
-  type: `ChompApiService:associateAddress`;
-  handler: ChompApiService['associateAddress'];
-};
-
-/**
  * Requests a single-use challenge for associating an address through the v2
  * flow. Sign the returned `message` exactly as received, using
  * `personal_sign` with the address being associated, then submit it with
@@ -190,7 +173,6 @@ export type ChompApiServiceGetServiceDetailsAction = {
  * Union of all ChompApiService action types.
  */
 export type ChompApiServiceMethodActions =
-  | ChompApiServiceAssociateAddressAction
   | ChompApiServiceCreateAddressChallengeAction
   | ChompApiServiceAssociateAddressV2Action
   | ChompApiServiceGetAssociatedAddressesAction

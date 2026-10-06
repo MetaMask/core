@@ -8,7 +8,6 @@ export type {
   ChompApiServiceGranularCacheUpdatedEvent,
 } from './chomp-api-service.js';
 export type {
-  ChompApiServiceAssociateAddressAction,
   ChompApiServiceAssociateAddressV2Action,
   ChompApiServiceCreateAddressChallengeAction,
   ChompApiServiceGetAssociatedAddressesAction,
@@ -22,7 +21,6 @@ export type {
 } from './chomp-api-service-method-action-types.js';
 export type {
   AccountUpgradeStatus,
-  AssociateAddressParams,
   AssociateAddressResponse,
   AssociateAddressV2Params,
   AssociationPurpose,
