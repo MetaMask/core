@@ -1,11 +1,9 @@
-# Cubist MFA recovery integration test sequence
+# Cubist MFA recovery sequence
 
-Harness flow for `runMfaRecoveryCubistTest` in MetaMask Mobile (Developer
-Options, Cubist gamma/beta/prod). Mobile drives one `MfaRecoveryController`
-against a single Cubist escrow (`id: cubist`) through three mutations, reading
-the secret back after each one. The general controller design is in
-[ARCHITECTURE.md](./ARCHITECTURE.md); treat the TypeScript in `src/` as the
-source of truth if a diagram drifts.
+How a client drives one `MfaRecoveryController` against a single Cubist escrow
+(`id: cubist`) through three mutations, reading the secret back after each one.
+The general controller design is in [ARCHITECTURE.md](./ARCHITECTURE.md); treat
+the TypeScript in `src/` as the source of truth if a diagram drifts.
 
 - Versions: `0 → 1` (register), `1 → 2` (update secret), `2 → 3` (update
   identifiers).
@@ -22,70 +20,67 @@ Sections:
 ```mermaid
 sequenceDiagram
   autonumber
-  participant Mobile as Mobile (runMfaRecoveryCubistTest)
+  participant Client
   participant C as MfaRecoveryController
   participant Escrow as Cubist escrow
 
-  Note over Mobile: createRecoveryContext<br/>SIWE login, OIDC token, CubeSigner session
+  Note over Client: SIWE login, OIDC token, CubeSigner session
 
-  Mobile->>C: register(secret, [siwe, passkey])
+  Client->>C: register(secret, [siwe, passkey])
   C->>Escrow: applyMutation register, expectedVersion 0, newVersion 1
   Escrow-->>C: receipt version 1
-  Mobile->>C: authenticateIdentifier(siwe)
-  Mobile->>C: getRecoverySecret(session)
+  Client->>C: authenticateIdentifier(siwe)
+  Client->>C: getRecoverySecret(session)
   C->>Escrow: getSecret
-  Escrow-->>Mobile: secret, epoch 1
+  Escrow-->>Client: secret, epoch 1
 
-  Mobile->>C: updateRecoverySecret(passkey, newSecret, epoch 1)
+  Client->>C: updateRecoverySecret(passkey, newSecret, epoch 1)
   C->>Escrow: applyMutation, newVersion 2
-  Mobile->>C: authenticateIdentifier(passkey)
-  Mobile->>C: getRecoverySecret(session)
-  Escrow-->>Mobile: newSecret, epoch 2
+  Client->>C: authenticateIdentifier(passkey)
+  Client->>C: getRecoverySecret(session)
+  Escrow-->>Client: newSecret, epoch 2
 
-  Mobile->>C: updateIdentifiers(siwe, [siwe, replacementPasskey], epoch 2)
+  Client->>C: updateIdentifiers(siwe, [siwe, replacementPasskey], epoch 2)
   C->>Escrow: applyMutation, newVersion 3
-  Mobile->>C: authenticateIdentifier(replacementPasskey)
-  Mobile->>C: getRecoverySecret(session)
-  Escrow-->>Mobile: same secret, epoch 3
+  Client->>C: authenticateIdentifier(replacementPasskey)
+  Client->>C: getRecoverySecret(session)
+  Escrow-->>Client: same secret, epoch 3
 ```
 
-Each step only runs if the previous read returned the expected secret.
+Each mutation uses the epoch returned by the previous read.
 
 ## Setup (outside the controller)
 
 The controller does not call the Authentication API, the MPC token service,
-the Recovery Registration API, or CubeSigner. Mobile does all of this before
-constructing the controller (see
+the Recovery Registration API, or CubeSigner. The client does all of this
+before constructing the controller (see
 [Cubist store sequence](./ARCHITECTURE.md#cubist-store-sequence)).
 
 ```mermaid
 sequenceDiagram
   autonumber
-  participant UI as Developer Options
-  participant Mobile as Mobile (runMfaRecoveryCubistTest)
+  participant Client
   participant AuthAPI as Authentication API
   participant Token as MPC token service
   participant Reg as Recovery Registration API
   participant Cubist as CubeSigner
 
-  UI->>Mobile: run test
-  Mobile->>AuthAPI: SIWE login (JwtBearerAuth, primary account signs)
-  AuthAPI-->>Mobile: accessToken
-  Note over Mobile: StubAuthProvider: profileId = accessToken sub
-  Mobile->>Token: POST /token { user: profileId } (x-api-key)
-  Token-->>Mobile: minted JWT
-  Mobile->>Reg: POST /v1/recovery/registration/oidc-token (Bearer minted JWT)
-  Reg-->>Mobile: idToken, expiresAt
-  Mobile->>Cubist: createOidcSession(orgId, idToken, scopes)
-  Cubist-->>Mobile: session
-  Note over Mobile: new CubistEscrowProvider(client, wrap/receipt keys)<br/>new MfaRecoveryController(StubAuthProvider,<br/>SIWE + software passkey identifier auth,<br/>[escrow], passthrough encryptor)
+  Client->>AuthAPI: SIWE login (JwtBearerAuth, primary account signs)
+  AuthAPI-->>Client: accessToken
+  Note over Client: profileId = accessToken sub
+  Client->>Token: POST /token { user: profileId } (x-api-key)
+  Token-->>Client: minted JWT
+  Client->>Reg: POST /v1/recovery/registration/oidc-token (Bearer minted JWT)
+  Reg-->>Client: idToken, expiresAt
+  Client->>Cubist: createOidcSession(orgId, idToken, scopes)
+  Cubist-->>Client: session
+  Note over Client: new CubistEscrowProvider(client, wrap/receipt keys)<br/>new MfaRecoveryController(authProvider,<br/>SIWE + passkey identifier auth,<br/>[escrow], pendingOperationEncryptor)
 ```
 
 **Notes**
 
 - `POST /token` is the MPC service's development-only token route. It is not
   mounted in production builds.
-- `StubAuthProvider` and `passthroughEncryptor` come from `tests/stubs.ts`.
 
 ## Write path: `#mutate`
 
@@ -101,18 +96,18 @@ mutation is `resume()` only (see
 ```mermaid
 sequenceDiagram
   autonumber
-  participant Mobile as Mobile
+  participant Client
   participant C as MfaRecoveryController
-  participant Auth as authProvider (StubAuthProvider)
+  participant Auth as authProvider
   participant Id as identifierAuthProvider
   participant Enc as pendingOperationEncryptor
   participant Escrow as Cubist escrow
 
-  Mobile->>C: register / updateRecoverySecret / updateIdentifiers
+  Client->>C: register / updateRecoverySecret / updateIdentifiers
   C->>C: withLock
   C->>Enc: decrypt pendingOperation
   alt pending exists
-    C-->>Mobile: throw pending_mutation
+    C-->>Client: throw pending_mutation
   else no pending
     Enc-->>C: null
   end
@@ -136,7 +131,7 @@ sequenceDiagram
 
   C->>Escrow: isAvailable()
   alt userGet() fails
-    C-->>Mobile: throw escrow_unavailable (pending stays authorizing)
+    C-->>Client: throw escrow_unavailable (pending stays authorizing)
   else available
     Escrow-->>C: userGet() succeeds
   end
@@ -152,7 +147,7 @@ sequenceDiagram
     Escrow-->>C: challenge id, expiresAt
     C->>C: sign(proofPrivateKey, hash([token, challengeId, requestHash]))
     opt challenge or signing fails
-      C-->>Mobile: throw identifier_auth_failed
+      C-->>Client: throw identifier_auth_failed
     end
   end
 
@@ -168,12 +163,12 @@ sequenceDiagram
   Note over Escrow: C2F cubist_secret_escrow<br/>register sends identifierAuthorization null
   alt applyMutation rejects
     C->>Enc: encrypt writing, receipts []
-    C-->>Mobile: throw incomplete_mutation (call resume)
+    C-->>Client: throw incomplete_mutation (call resume)
   else receipt returned
     Escrow-->>C: receipt { mutationId, requestHash, escrowId, version, receiptKeyId, signature }
     C->>C: verifyReceipt with pinned receipt public key
     alt receipt invalid
-      C-->>Mobile: throw invalid_receipt (pending stays writing)
+      C-->>Client: throw invalid_receipt (pending stays writing)
     else valid
       C->>Enc: encrypt writing with receipt
       C->>C: clear pendingOperation (every escrow has a valid receipt)
@@ -191,8 +186,8 @@ sequenceDiagram
 
 - `newVersion` must be `expectedVersion + 1`; the escrow rejects a mismatch.
 - The secret is wrapped per escrow only at `applyMutation`
-  (`#payloadForEscrow`); pending state keeps the hex secret. In this harness
-  the encryptor is a JSON passthrough.
+  (`#payloadForEscrow`); pending state keeps the hex secret, protected by
+  `pendingOperationEncryptor`.
 - Receipts are checked by `verifyMutationReceipt` (`src/escrow-utils.ts`),
   which requires a matching `escrowId` and then calls the provider's
   `verifyReceipt` (`src/escrow-providers/cubist-escrow-provider.ts`).
@@ -209,27 +204,27 @@ also [Read sequence](./ARCHITECTURE.md#read-sequence-getrecoverysecret).
 ```mermaid
 sequenceDiagram
   autonumber
-  participant Mobile as Mobile
+  participant Client
   participant C as MfaRecoveryController
   participant Id as identifierAuthProvider
   participant Escrow as Cubist escrow
 
-  Mobile->>C: authenticateIdentifier(identifier)
+  Client->>C: authenticateIdentifier(identifier)
   C->>C: requestId = randomId(), ephemeral key pkE
   Note over C: requestHash = hash({ operation: getRecoverySecret, requestId, pkE })
   C->>C: generateSigningKey() proof key
   C->>Id: getKeyBoundIdentifierToken(identifier, proofPublicKey, requestHash)
   Id-->>C: key-bound token
-  C-->>Mobile: session { token, proofPrivateKey, requestId, ephemeralPrivateKey, pkE }
+  C-->>Client: session { token, proofPrivateKey, requestId, ephemeralPrivateKey, pkE }
 
-  Mobile->>C: getRecoverySecret(session)
+  Client->>C: getRecoverySecret(session)
   C->>C: withLock, recompute requestHash
   alt token.requestHash differs
-    C-->>Mobile: throw invalid_identifier_session
+    C-->>Client: throw invalid_identifier_session
   end
   C->>Escrow: isAvailable()
   alt unavailable
-    C-->>Mobile: throw no_available_escrow
+    C-->>Client: throw no_available_escrow
   end
   C->>Escrow: generateChallenge()
   Escrow-->>C: challenge
@@ -240,11 +235,11 @@ sequenceDiagram
   C->>C: decryptFromPublic(ephemeralPrivateKey, wrapPublicKey, ciphertext)
   C->>C: selectHighestConsistentVersion
   alt no successful reply
-    C-->>Mobile: throw read_failed
+    C-->>Client: throw read_failed
   else replies at highest version disagree
-    C-->>Mobile: throw replica_corruption
+    C-->>Client: throw replica_corruption
   else ok
-    C-->>Mobile: { recoverySecret, epoch: version }
+    C-->>Client: { recoverySecret, epoch: version }
   end
 ```
 
@@ -256,4 +251,3 @@ sequenceDiagram
 - Per-escrow failures (`generateChallenge` or `getSecret` rejecting,
   `wrap_key_mismatch`, a failed decrypt) only drop that reply. With one escrow, any of them surfaces as
   `read_failed`.
-- Mobile compares the returned bytes to the secret it last wrote.
