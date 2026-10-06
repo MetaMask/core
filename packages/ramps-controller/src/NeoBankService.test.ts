@@ -397,7 +397,7 @@ describe('NeoBankService', () => {
       nock(STAGING_BASE)
         .get('/neobank/autoramps/ar-1')
         .query(true)
-        .reply(200, null);
+        .reply(200, 'null', { 'Content-Type': 'application/json' });
 
       const service = createService();
 
