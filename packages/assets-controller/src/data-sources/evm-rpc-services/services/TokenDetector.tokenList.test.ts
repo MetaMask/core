@@ -170,7 +170,8 @@ function buildClient(config?: TestClientConfig): {
   });
   const detector = new TokenDetector(createMulticallClient(), tokenApi);
   return {
-    fetchTokenList: (chainId: ChainId) => detector.getTokenList(chainId),
+    fetchTokenList: (chainId: ChainId) =>
+      detector.fetchAndCacheTokenList(chainId),
   };
 }
 

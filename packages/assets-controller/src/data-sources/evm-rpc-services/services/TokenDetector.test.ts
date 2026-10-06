@@ -394,6 +394,99 @@ describe('TokenDetector', () => {
         },
       );
     });
+
+    it('reuses the last supported-networks list when a later refresh fails', async () => {
+      const tokenList = createMockTokenList([
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        { tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList } },
+        async ({ controller, mockTokenApi }) => {
+          expect(
+            await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+          ).toStrictEqual([TEST_TOKEN_1]);
+
+          mockTokenApi.fetchV2SupportedNetworks.mockRejectedValueOnce(
+            new Error('Token API 503'),
+          );
+
+          expect(
+            await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+          ).toStrictEqual([TEST_TOKEN_1]);
+          expect(mockTokenApi.fetchTokenList).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
+    it('returns no tokens when the first supported-networks fetch fails', async () => {
+      const tokenList = createMockTokenList([
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        { tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList } },
+        async ({ controller, mockTokenApi }) => {
+          mockTokenApi.fetchV2SupportedNetworks.mockRejectedValueOnce(
+            new Error('Token API 503'),
+          );
+
+          expect(
+            await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+          ).toStrictEqual([]);
+          expect(mockTokenApi.fetchTokenList).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('keeps a chain unsupported when a failed refresh follows a list that omitted it', async () => {
+      const tokenList = createMockTokenList([
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        {
+          tokenListByChain: {
+            [MAINNET_CHAIN_ID]: tokenList,
+            [POLYGON_CHAIN_ID]: tokenList,
+          },
+        },
+        async ({ controller, mockTokenApi }) => {
+          mockTokenApi.fetchV2SupportedNetworks.mockResolvedValueOnce({
+            fullSupport: ['eip155:1'],
+            partialSupport: [],
+          });
+
+          expect(
+            await controller.getTokensToCheck(POLYGON_CHAIN_ID),
+          ).toStrictEqual([]);
+
+          mockTokenApi.fetchV2SupportedNetworks.mockRejectedValueOnce(
+            new Error('Token API 503'),
+          );
+
+          expect(
+            await controller.getTokensToCheck(POLYGON_CHAIN_ID),
+          ).toStrictEqual([]);
+          expect(mockTokenApi.fetchTokenList).not.toHaveBeenCalled();
+        },
+      );
+    });
   });
 
   describe('detectTokens', () => {

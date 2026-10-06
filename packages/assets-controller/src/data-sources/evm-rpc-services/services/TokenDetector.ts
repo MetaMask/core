@@ -108,6 +108,12 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
 
   readonly #tokenListCache: Map<ChainId, TokenListEntry[]> = new Map();
 
+  /**
+   * Last successful `/v2/supportedNetworks` CAIP chain IDs.
+   * A failed refresh leaves this in place so detection can continue.
+   */
+  #supportedChainIds: Set<string> | undefined;
+
   #onDetectionUpdate: OnDetectionUpdateCallback | undefined;
 
   constructor(
@@ -170,18 +176,30 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
    * @returns Array of token contract addresses.
    */
   async getTokensToCheck(chainId: ChainId): Promise<Address[]> {
-    const tokenList = await this.getTokenList(chainId);
+    const tokenList = await this.fetchAndCacheTokenList(chainId);
     return tokenList.map((entry) => entry.address as Address);
   }
 
   /**
-   * Fetch the mapped token list for a chain.
+   * Fetch the mapped token list for a chain and keep it for metadata lookups.
    *
    * @param chainId - Chain ID in hex format.
    * @returns Token list entries, including fields the address list drops.
    */
-  async getTokenList(chainId: ChainId): Promise<TokenListEntry[]> {
-    return this.#fetchAndCacheTokenList(chainId);
+  async fetchAndCacheTokenList(chainId: ChainId): Promise<TokenListEntry[]> {
+    try {
+      const list = await this.#fetchTokenList(chainId);
+      this.#tokenListCache.set(chainId, list);
+      return list;
+    } catch (error) {
+      const cached = this.#tokenListCache.get(chainId);
+      log('Failed to fetch token list; using stale cache', {
+        chainId,
+        cachedCount: cached?.length ?? 0,
+        error,
+      });
+      return cached ?? [];
+    }
   }
 
   async detectTokens(
@@ -273,22 +291,6 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
       ...result,
       timestamp,
     };
-  }
-
-  async #fetchAndCacheTokenList(chainId: ChainId): Promise<TokenListEntry[]> {
-    try {
-      const list = await this.#fetchTokenList(chainId);
-      this.#tokenListCache.set(chainId, list);
-      return list;
-    } catch (error) {
-      const cached = this.#tokenListCache.get(chainId);
-      log('Failed to fetch token list; using stale cache', {
-        chainId,
-        cachedCount: cached?.length ?? 0,
-        error,
-      });
-      return cached ?? [];
-    }
   }
 
   #processBalanceResponses(
@@ -392,9 +394,10 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
    * - `GET /v1/suggestedOccurrenceFloors`
    * - `GET /tokens/{chainId}`
    *
-   * Returns `[]` when the chain is unsupported or a request fails. Linea
-   * mainnet keeps entries flagged by `lineaTeam` or seen by at least 3
-   * aggregators.
+   * Returns `[]` when the chain is unsupported, supported networks have never
+   * loaded, or the token-list request fails. A failed refresh of
+   * `/v2/supportedNetworks` reuses the last successful list. Linea mainnet
+   * keeps entries flagged by `lineaTeam` or seen by at least 3 aggregators.
    *
    * @param hexChainId - Chain ID in hex format (for example `'0x1'`).
    * @returns Token list entries, or an empty array.
@@ -408,21 +411,21 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
   }
 
   async #isSupportedChain(hexChainId: ChainId): Promise<boolean> {
+    const caipChainId = `eip155:${convertHexToDecimal(hexChainId)}`;
     try {
       const data = await this.#tokenApi.fetchV2SupportedNetworks({
         staleTime: SUPPORTED_NETWORKS_CACHE_TTL_MS,
         gcTime: SUPPORTED_NETWORKS_CACHE_TTL_MS,
         retry: false,
       });
-      const caipChainId = `eip155:${convertHexToDecimal(hexChainId)}`;
-      const supported = new Set([
+      this.#supportedChainIds = new Set([
         ...(data.fullSupport ?? []),
         ...(data.partialSupport ?? []),
       ]);
-      return supported.has(caipChainId);
     } catch {
-      return false;
+      // Leave `#supportedChainIds` unchanged. The first failure has no list yet.
     }
+    return this.#supportedChainIds?.has(caipChainId) ?? false;
   }
 
   async #getOccurrenceFloor(hexChainId: ChainId): Promise<number> {
