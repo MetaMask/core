@@ -31,6 +31,7 @@ describe('parseTscOutput', () => {
     expect(parseTscOutput(lines)).toStrictEqual([
       {
         filePath: 'packages/foo/src/foo.test.ts',
+        fileLoc: '12',
         code: 'TS2322',
         message: "Type 'string' is not assignable to type 'number'.",
       },
@@ -56,6 +57,7 @@ describe('parseTscOutput', () => {
     expect(parseTscOutput(lines)).toStrictEqual([
       {
         filePath: 'packages/foo/src/foo.test.ts',
+        fileLoc: '12',
         code: 'TS2769',
         message: 'No overload matches this call.',
       },
@@ -78,6 +80,7 @@ describe('parseTscOutput', () => {
     ).toStrictEqual([
       {
         filePath: undefined,
+        fileLoc: undefined,
         code: 'TS6053',
         message: "File 'nope.ts' not found.",
       },
@@ -92,7 +95,12 @@ describe('parseTscOutput', () => {
 describe('isTscError', () => {
   it('treats a diagnostic that belongs to a file as a type error', () => {
     expect(
-      isTscError({ filePath: 'a.ts', code: 'TS2322', message: 'Nope.' }),
+      isTscError({
+        filePath: 'a.ts',
+        fileLoc: '12',
+        code: 'TS2322',
+        message: 'Nope.',
+      }),
     ).toBe(true);
   });
 
@@ -118,9 +126,9 @@ describe('compareStrings', () => {
 describe('buildSuppressions', () => {
   it('counts errors by file and then by error code', () => {
     const errors = [
-      { filePath: 'b.ts', code: 'TS2322', message: 'One.' },
-      { filePath: 'b.ts', code: 'TS2322', message: 'Two.' },
-      { filePath: 'b.ts', code: 'TS7005', message: 'Three.' },
+      { filePath: 'b.ts', fileLoc: '12', code: 'TS2322', message: 'One.' },
+      { filePath: 'b.ts', fileLoc: '40', code: 'TS2322', message: 'Two.' },
+      { filePath: 'b.ts', fileLoc: '56', code: 'TS7005', message: 'Three.' },
     ];
 
     expect(buildSuppressions(errors)).toStrictEqual({
@@ -133,9 +141,9 @@ describe('buildSuppressions', () => {
 
   it('sorts files and error codes so the file stays stable across runs', () => {
     const errors = [
-      { filePath: 'b.ts', code: 'TS7005', message: 'One.' },
-      { filePath: 'a.ts', code: 'TS2322', message: 'Two.' },
-      { filePath: 'b.ts', code: 'TS2322', message: 'Three.' },
+      { filePath: 'b.ts', fileLoc: '12', code: 'TS7005', message: 'One.' },
+      { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'Two.' },
+      { filePath: 'b.ts', fileLoc: '40', code: 'TS2322', message: 'Three.' },
     ];
 
     const suppressions = buildSuppressions(errors);
@@ -157,7 +165,14 @@ describe('addSuppressions', () => {
     expect(
       addSuppressions({
         suppressions: {},
-        errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'Nope.' }],
+        errors: [
+          {
+            filePath: 'a.ts',
+            fileLoc: '12',
+            code: 'TS2322',
+            message: 'Nope.',
+          },
+        ],
       }),
     ).toStrictEqual({ 'a.ts': { TS2322: { count: 1 } } });
   });
@@ -167,8 +182,8 @@ describe('addSuppressions', () => {
       addSuppressions({
         suppressions: { 'a.ts': { TS2322: { count: 1 } } },
         errors: [
-          { filePath: 'a.ts', code: 'TS2322', message: 'One.' },
-          { filePath: 'a.ts', code: 'TS2322', message: 'Two.' },
+          { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'One.' },
+          { filePath: 'a.ts', fileLoc: '40', code: 'TS2322', message: 'Two.' },
         ],
       }),
     ).toStrictEqual({ 'a.ts': { TS2322: { count: 2 } } });
@@ -178,7 +193,9 @@ describe('addSuppressions', () => {
     expect(
       addSuppressions({
         suppressions: { 'a.ts': { TS2322: { count: 5 } } },
-        errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'One.' }],
+        errors: [
+          { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'One.' },
+        ],
       }),
     ).toStrictEqual({ 'a.ts': { TS2322: { count: 5 } } });
   });
@@ -195,7 +212,9 @@ describe('addSuppressions', () => {
   it('sorts what it writes', () => {
     const suppressions = addSuppressions({
       suppressions: { 'b.ts': { TS7005: { count: 1 } } },
-      errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'Nope.' }],
+      errors: [
+        { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'Nope.' },
+      ],
     });
 
     expect(Object.keys(suppressions)).toStrictEqual(['a.ts', 'b.ts']);
@@ -207,7 +226,9 @@ describe('pruneSuppressions', () => {
     expect(
       pruneSuppressions({
         suppressions: { 'a.ts': { TS2322: { count: 5 } } },
-        errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'One.' }],
+        errors: [
+          { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'One.' },
+        ],
       }),
     ).toStrictEqual({ 'a.ts': { TS2322: { count: 1 } } });
   });
@@ -227,7 +248,9 @@ describe('pruneSuppressions', () => {
         suppressions: {
           'a.ts': { TS2322: { count: 1 }, TS7005: { count: 1 } },
         },
-        errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'One.' }],
+        errors: [
+          { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'One.' },
+        ],
       }),
     ).toStrictEqual({ 'a.ts': { TS2322: { count: 1 } } });
   });
@@ -237,8 +260,8 @@ describe('pruneSuppressions', () => {
       pruneSuppressions({
         suppressions: { 'a.ts': { TS2322: { count: 1 } } },
         errors: [
-          { filePath: 'a.ts', code: 'TS2322', message: 'One.' },
-          { filePath: 'a.ts', code: 'TS2322', message: 'Two.' },
+          { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'One.' },
+          { filePath: 'a.ts', fileLoc: '40', code: 'TS2322', message: 'Two.' },
         ],
       }),
     ).toStrictEqual({ 'a.ts': { TS2322: { count: 1 } } });
@@ -251,8 +274,8 @@ describe('pruneSuppressions', () => {
         'a.ts': { TS2322: { count: 1 } },
       },
       errors: [
-        { filePath: 'a.ts', code: 'TS2322', message: 'One.' },
-        { filePath: 'b.ts', code: 'TS2322', message: 'Two.' },
+        { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'One.' },
+        { filePath: 'b.ts', fileLoc: '40', code: 'TS2322', message: 'Two.' },
       ],
     });
 
@@ -263,7 +286,9 @@ describe('pruneSuppressions', () => {
     expect(
       pruneSuppressions({
         suppressions: {},
-        errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'One.' }],
+        errors: [
+          { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'One.' },
+        ],
       }),
     ).toStrictEqual({});
   });
@@ -272,7 +297,9 @@ describe('pruneSuppressions', () => {
 describe('compareErrorsToSuppressions', () => {
   it('reports an error whose code is not suppressed for that file', () => {
     const report = compareErrorsToSuppressions({
-      errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'Nope.' }],
+      errors: [
+        { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'Nope.' },
+      ],
       suppressions: {},
     });
 
@@ -283,7 +310,7 @@ describe('compareErrorsToSuppressions', () => {
           code: 'TS2322',
           count: 1,
           suppressedCount: 0,
-          messages: ['Nope.'],
+          occurrences: [{ fileLoc: '12', message: 'Nope.' }],
         },
       ],
       staleSuppressions: [],
@@ -293,7 +320,9 @@ describe('compareErrorsToSuppressions', () => {
 
   it('reports an error whose code differs from the codes suppressed for that file', () => {
     const report = compareErrorsToSuppressions({
-      errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'Nope.' }],
+      errors: [
+        { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'Nope.' },
+      ],
       suppressions: { 'a.ts': { TS7005: { count: 1 } } },
     });
 
@@ -303,7 +332,7 @@ describe('compareErrorsToSuppressions', () => {
         code: 'TS2322',
         count: 1,
         suppressedCount: 0,
-        messages: ['Nope.'],
+        occurrences: [{ fileLoc: '12', message: 'Nope.' }],
       },
     ]);
   });
@@ -311,8 +340,8 @@ describe('compareErrorsToSuppressions', () => {
   it('reports an error when a file has more errors of a code than are suppressed', () => {
     const report = compareErrorsToSuppressions({
       errors: [
-        { filePath: 'a.ts', code: 'TS2322', message: 'One.' },
-        { filePath: 'a.ts', code: 'TS2322', message: 'Two.' },
+        { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'One.' },
+        { filePath: 'a.ts', fileLoc: '40', code: 'TS2322', message: 'Two.' },
       ],
       suppressions: { 'a.ts': { TS2322: { count: 1 } } },
     });
@@ -323,7 +352,10 @@ describe('compareErrorsToSuppressions', () => {
         code: 'TS2322',
         count: 2,
         suppressedCount: 1,
-        messages: ['One.', 'Two.'],
+        occurrences: [
+          { fileLoc: '12', message: 'One.' },
+          { fileLoc: '40', message: 'Two.' },
+        ],
       },
     ]);
     expect(report.didPass).toBe(false);
@@ -331,7 +363,9 @@ describe('compareErrorsToSuppressions', () => {
 
   it('passes when the number of errors matches the number suppressed', () => {
     const report = compareErrorsToSuppressions({
-      errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'One.' }],
+      errors: [
+        { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'One.' },
+      ],
       suppressions: { 'a.ts': { TS2322: { count: 1 } } },
     });
 
@@ -344,7 +378,9 @@ describe('compareErrorsToSuppressions', () => {
 
   it('reports a stale suppression when a file has fewer errors than are suppressed', () => {
     const report = compareErrorsToSuppressions({
-      errors: [{ filePath: 'a.ts', code: 'TS2322', message: 'One.' }],
+      errors: [
+        { filePath: 'a.ts', fileLoc: '12', code: 'TS2322', message: 'One.' },
+      ],
       suppressions: { 'a.ts': { TS2322: { count: 3 } } },
     });
 
@@ -461,7 +497,7 @@ describe('printReport', () => {
     );
   });
 
-  it('prints each unsuppressed error along with its messages', () => {
+  it('prints each unsuppressed error along with where it occurred', () => {
     printReport({
       unsuppressedErrors: [
         {
@@ -469,7 +505,10 @@ describe('printReport', () => {
           code: 'TS2322',
           count: 2,
           suppressedCount: 1,
-          messages: ['One.', 'Two.'],
+          occurrences: [
+            { fileLoc: '12', message: 'One.' },
+            { fileLoc: '40', message: 'Two.' },
+          ],
         },
       ],
       staleSuppressions: [],
@@ -477,10 +516,9 @@ describe('printReport', () => {
     });
 
     const output = jest.mocked(console.log).mock.calls.flat().join('\n');
-    expect(output).toContain('a.ts');
-    expect(output).toContain('TS2322');
-    expect(output).toContain('One.');
-    expect(output).toContain('Two.');
+    expect(output).toContain('a.ts: TS2322');
+    expect(output).toContain('Line 12: One.');
+    expect(output).toContain('Line 40: Two.');
   });
 
   it('prints each stale suppression', () => {
