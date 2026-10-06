@@ -397,6 +397,34 @@ type KeyringSnapshots = {
   unsupportedKeyrings: SerializedKeyring[];
 };
 
+/**
+ * Marker returned by a scoped transaction when the entry to operate on is
+ * an atomic keyring: the operation must not run inside the locked
+ * transaction — its `update` commits need the same, non-reentrant
+ * controller lock — so the transaction commits the registration (for a
+ * keyring it created) and defers the operation to the caller, which
+ * dispatches it unlocked once the transaction completes.
+ */
+type DeferredAtomicDispatch = {
+  deferredAtomicEntry: KeyringEntry;
+};
+
+/**
+ * Whether the value is a {@link DeferredAtomicDispatch} marker.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is a deferred atomic dispatch marker.
+ */
+function isDeferredAtomicDispatch(
+  value: unknown,
+): value is DeferredAtomicDispatch {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'deferredAtomicEntry' in value
+  );
+}
+
 export type EncryptionResultConstraint<SupportedKeyMetadata> = {
   salt?: string;
   keyMetadata?: SupportedKeyMetadata;
@@ -1960,6 +1988,12 @@ export class KeyringController<
    * Only the selected keyring is snapshotted, persisted, and rolled back:
    * the operation must not mutate other keyrings.
    *
+   * If the selected keyring is an atomic keyring, the operation is
+   * dispatched without holding the controller lock, and there is no
+   * snapshot and no rollback: an operation error leaves every state
+   * mutation the keyring committed through its `update` callback in
+   * place.
+   *
    * @param selector - Keyring selector object.
    * @param operation - Function to execute with the selected keyring.
    * @param options - Additional options.
@@ -2028,7 +2062,7 @@ export class KeyringController<
   ): Promise<CallbackResult> {
     this.#assertIsUnlocked();
 
-    return this.#withKeyringOrRollback(
+    const result = await this.#withKeyringOrRollback(
       () => this.#selectKeyringEntry({ v2: false, selector }),
       async () => {
         if (!options.createIfMissing || !('type' in selector)) {
@@ -2049,6 +2083,23 @@ export class KeyringController<
           keyring,
         ),
     );
+
+    if (isDeferredAtomicDispatch(result)) {
+      // The selected (or transaction-created) keyring is atomic: the
+      // operation runs unlocked, so the keyring's `update` commits can take
+      // the controller lock. An operation error leaves every committed
+      // update in place — there is no rollback for the atomic keyring.
+      const { deferredAtomicEntry: entry } = result;
+      return this.#assertNoUnsafeDirectKeyringAccess(
+        await operation({
+          keyring: entry.keyring as SelectedKeyring,
+          metadata: entry.metadata,
+        }),
+        entry.keyring,
+      );
+    }
+
+    return result;
   }
 
   /**
@@ -2135,6 +2186,12 @@ export class KeyringController<
    * function execution, or rolls back the changes if an error
    * is thrown.
    *
+   * If the selected keyring is an atomic keyring, the operation is
+   * dispatched without holding the controller lock, and there is no
+   * snapshot and no rollback: an operation error leaves every state
+   * mutation the keyring committed through its `update` callback in
+   * place.
+   *
    * Only the selected keyring is snapshotted, persisted, and rolled back:
    * the operation must not mutate other keyrings.
    *
@@ -2158,7 +2215,7 @@ export class KeyringController<
   ): Promise<CallbackResult> {
     this.#assertIsUnlocked();
 
-    return this.#withKeyringOrRollback(
+    const result = await this.#withKeyringOrRollback(
       () => this.#selectKeyringEntry({ v2: true, selector }),
       async () => undefined,
       async ({ keyringV2, metadata }) => {
@@ -2177,6 +2234,29 @@ export class KeyringController<
         );
       },
     );
+
+    if (isDeferredAtomicDispatch(result)) {
+      // The selected keyring is atomic: the operation runs unlocked, so the
+      // keyring's `update` commits can take the controller lock. An
+      // operation error leaves every committed update in place — there is
+      // no rollback for the atomic keyring.
+      const { deferredAtomicEntry: entry } = result;
+      if (!entry.keyringV2) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.KeyringV2NotSupported,
+        );
+      }
+
+      return this.#assertNoUnsafeDirectKeyringAccess(
+        await operation({
+          keyring: entry.keyringV2 as SelectedKeyring,
+          metadata: entry.metadata,
+        }),
+        entry.keyringV2,
+      );
+    }
+
+    return result;
   }
 
   /**
@@ -3477,6 +3557,13 @@ export class KeyringController<
    * keep their instances even if the transaction fails. This relies on the
    * `withKeyring` family only mutating the keyring it is given.
    *
+   * If the entry to operate on is an atomic keyring, the operation never
+   * runs inside this locked transaction — its `update` commits need the
+   * same, non-reentrant controller lock. Instead, the transaction persists
+   * the registration of a keyring it created, and defers the operation to
+   * the caller (see {@link DeferredAtomicDispatch}), which dispatches it
+   * unlocked once the transaction completes.
+   *
    * If the operation drains the operated keyring of all its accounts, the
    * keyring is removed and destroyed (mirroring `removeAccount`), unless it
    * is the primary keyring.
@@ -3485,13 +3572,14 @@ export class KeyringController<
    * @param create - Creates the keyring entry to operate on when selection
    *   found nothing, if needed.
    * @param run - Runs the operation with the selected or created entry.
-   * @returns The result of the operation.
+   * @returns The result of the operation, or a deferred atomic dispatch
+   *   marker when the entry is an atomic keyring.
    */
   async #withKeyringOrRollback<Result>(
     select: () => Promise<KeyringEntry | undefined>,
     create: () => Promise<KeyringEntry | undefined>,
     run: (entry: KeyringEntry) => Promise<Result>,
-  ): Promise<Result> {
+  ): Promise<Result | DeferredAtomicDispatch> {
     return this.#withControllerLock(async () => {
       const selected = await select();
       const entry = selected ?? (await create());
@@ -3500,6 +3588,17 @@ export class KeyringController<
         throw new KeyringControllerError(
           KeyringControllerErrorMessage.KeyringNotFound,
         );
+      }
+
+      if (isAtomicKeyring(entry.keyring)) {
+        // An atomic keyring serializes its own operations and persists
+        // through `update`; there is no snapshot and no rollback for it.
+        // An operation error leaves every committed update in place.
+        if (!selected) {
+          // The transaction created the keyring: persist its registration.
+          await this.#updateVault();
+        }
+        return { deferredAtomicEntry: entry };
       }
 
       // `undefined` when the transaction created the keyring; also serves

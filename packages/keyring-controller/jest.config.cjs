@@ -10,7 +10,7 @@ const baseConfig = require('../../jest.config.packages.cjs');
 
 const displayName = path.basename(__dirname);
 
-module.exports = merge(baseConfig, {
+const config = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
@@ -24,3 +24,16 @@ module.exports = merge(baseConfig, {
     },
   },
 });
+
+// This package depends on a preview build of `@metamask/keyring-sdk` via an
+// npm alias, which Yarn resolves to a nested copy. The shared module name
+// mapper would resolve the hoisted published version instead, so resolve
+// the nested copy explicitly — and first, as Jest applies the patterns in
+// the order they are defined, and the generic `^@metamask/(.+)$` pattern in
+// the shared configuration would otherwise match first.
+config.moduleNameMapper = {
+  '^@metamask/keyring-sdk$': require.resolve('@metamask/keyring-sdk'),
+  ...config.moduleNameMapper,
+};
+
+module.exports = config;
