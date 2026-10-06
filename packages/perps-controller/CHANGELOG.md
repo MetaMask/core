@@ -9,13 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [20.0.0]
 
-### Uncategorized
-
-- Release 1314.0.0 ([#10662](https://github.com/MetaMask/core/pull/10662))
-- Release 1313.0.0 ([#10658](https://github.com/MetaMask/core/pull/10658))
-- Release/1312.0.0 ([#10655](https://github.com/MetaMask/core/pull/10655))
-- Release 1311.0.0 ([#10652](https://github.com/MetaMask/core/pull/10652))
-
 ### Added
 
 - Add `reconcileChaseOrderCancellation` to the controller, messenger and optional provider contract. Lighter reconciles an already attempted cancellation under its exact original owner, handle, child and transaction identity with local settlement writes but no new financial dispatch, even if acknowledgement becomes failure while the child remains open. Missing, malformed or stale original ownership rejects; unknown outcomes remain unresolved. Aggregated mode routes only the explicit provider and unsupported providers never fall back to ordinary cancellation. ([#10638](https://github.com/MetaMask/core/pull/10638))
@@ -38,7 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `getScaleOrderGroups` and `reviewScaleOrderGroups` provider methods and controller actions, with the exported `ScaleOrderGroup` inventory type. ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Attribute real Lighter Scale order rows through `strategyGroupId`; keep rows that contradict durably rejected children unattributed and retain ordinary order reads when optional attribution is unavailable. ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Reconcile Scale dispatch proof across review, expiry and nonce recovery, and poll bounded venue visibility after placement and cancellation. ([#10638](https://github.com/MetaMask/core/pull/10638))
-- Add default-off bounded Lighter Chase probe coordination with durable child ownership, exact fill-aware cancel/replace, public management views and explicit termination; TWAP and production Chase capabilities remain unavailable. Expose `utils/lighterChase.readLighterChaseQuote`, `reconcileLighterChaseChild` and `identifyLighterChaseChild` for native quote, fill and immutable child validation. ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Support ordinary Lighter post-only limit placement with native TIF 2, fresh crossing checks and durable dispatch recovery; TWAP and production Chase capabilities remain unavailable. ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Add the default-off `nativeTwapTestnetProbe` constructor option for bounded Lighter native TWAP validation with durable account/network/slot ownership. Unresolved TWAP and Chase probes exclude further probe placement on the same account. ([#10638](https://github.com/MetaMask/core/pull/10638))
 - Add provider-only `getNativeTwapObservations()` for exact parent/client-ID reads and complete child-trade reconciliation. Cancellation acknowledgment retains ownership pending independently verified terminal mapping. ([#10638](https://github.com/MetaMask/core/pull/10638))
