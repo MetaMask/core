@@ -152,7 +152,7 @@ async function resolveBaseRef(targetRef: string): Promise<string> {
  *
  * @param argv - The arguments passed to this script.
  */
-export async function lintSuppressions(argv: readonly string[]): Promise<void> {
+export async function gateSuppressions(argv: readonly string[]): Promise<void> {
   const baseRef = await resolveBaseRef(argv[0] ?? FALLBACK_TARGET_REF);
   let didPass = true;
 

@@ -1,4 +1,4 @@
-name: Lint Suppressions
+name: Gate Suppressions
 
 on:
   pull_request:
@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  lint-suppressions:
-    name: Lint suppressions
+  gate-suppressions:
+    name: Gate suppressions
     if: ${{ github.event_name != 'merge_group' && !contains(github.event.pull_request.labels.*.name, 'allow-new-suppressions') }}
     runs-on: ubuntu-latest
     steps:
@@ -21,8 +21,8 @@ jobs:
           persist-credentials: false
           node-version: 24.x
           fetch-depth: 2
-      - name: Run yarn lint:suppressions
-        run: yarn lint:suppressions
+      - name: Run yarn suppressions:gate
+        run: yarn suppressions:gate
         env:
           BASE_REF: HEAD^1
       - name: Require clean working directory

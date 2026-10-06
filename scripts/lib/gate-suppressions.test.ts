@@ -11,8 +11,8 @@ jest.unstable_mockModule('./tsc-suppressions.ts', () => ({
 
 const { execa } = await import('execa');
 const tscSuppressions = await import('./tsc-suppressions.ts');
-const { findAddedSuppressions, printAddedSuppressions, lintSuppressions } =
-  await import('./lint-suppressions.ts');
+const { findAddedSuppressions, printAddedSuppressions, gateSuppressions } =
+  await import('./gate-suppressions.ts');
 
 describe('findAddedSuppressions', () => {
   it('flags a file that the baseline does not suppress at all', () => {
@@ -134,7 +134,7 @@ function mockGit(suppressions = '{}'): void {
   }) as never);
 }
 
-describe('lintSuppressions', () => {
+describe('gateSuppressions', () => {
   let originalProcess: typeof globalThis.process;
 
   beforeEach(() => {
@@ -159,7 +159,7 @@ describe('lintSuppressions', () => {
   it('reads the baseline from the ref the environment names, as CI does', async () => {
     process.env.BASE_REF = 'HEAD^1';
 
-    await lintSuppressions([]);
+    await gateSuppressions([]);
 
     expect(execa).toHaveBeenCalledWith(
       'git',
@@ -181,7 +181,7 @@ describe('lintSuppressions', () => {
   it('ignores the ref the environment names when it is empty', async () => {
     process.env.BASE_REF = '';
 
-    await lintSuppressions([]);
+    await gateSuppressions([]);
 
     expect(execa).toHaveBeenCalledWith(
       'git',
@@ -191,7 +191,7 @@ describe('lintSuppressions', () => {
   });
 
   it('takes the merge base when the environment names no ref', async () => {
-    await lintSuppressions([]);
+    await gateSuppressions([]);
 
     expect(jest.mocked(execa)).toHaveBeenCalledWith(
       'git',
@@ -211,7 +211,7 @@ describe('lintSuppressions', () => {
   });
 
   it('takes the merge base against the branch it is given', async () => {
-    await lintSuppressions(['origin/release']);
+    await gateSuppressions(['origin/release']);
 
     expect(jest.mocked(execa)).toHaveBeenCalledWith(
       'git',
@@ -221,7 +221,7 @@ describe('lintSuppressions', () => {
   });
 
   it('leaves the exit code alone when nothing has been added', async () => {
-    await lintSuppressions([]);
+    await gateSuppressions([]);
 
     expect(process.exitCode).toBeUndefined();
   });
@@ -231,7 +231,7 @@ describe('lintSuppressions', () => {
       .mocked(tscSuppressions.readSuppressions)
       .mockResolvedValue({ 'a.ts': { 'no-shadow': { count: 1 } } });
 
-    await lintSuppressions([]);
+    await gateSuppressions([]);
 
     expect(process.exitCode).toBe(1);
   });
@@ -239,6 +239,6 @@ describe('lintSuppressions', () => {
   it('throws when a baseline cannot be read, rather than passing', async () => {
     jest.mocked(execa).mockRejectedValue(new Error('unknown revision'));
 
-    await expect(lintSuppressions([])).rejects.toThrow('unknown revision');
+    await expect(gateSuppressions([])).rejects.toThrow('unknown revision');
   });
 });
