@@ -24,6 +24,9 @@
       "path": "../delegation-controller/tsconfig.build.json"
     },
     {
+      "path": "../geolocation-controller/tsconfig.build.json"
+    },
+    {
       "path": "../messenger/tsconfig.build.json"
     },
     {
