@@ -578,6 +578,9 @@ describe('applyFeeResolution', () => {
 
     expect(priced.metamaskFeeRate).toBe(0.001);
     expect(priced.metamaskFeeAmount).toBe(1);
+    // Nor does it inherit the waiver's discount.
+    expect(priced.metamaskFeeDiscountBips).toBe(0);
+    expect(priced.undiscountedMetamaskFeeRate).toBe(0.001);
   });
 
   it('re-prices rates without amounts when no notional was supplied', () => {
@@ -596,5 +599,105 @@ describe('applyFeeResolution', () => {
     expect(priced.feeSource).toBe('subscription');
     // The previously quoted amounts are left as the provider reported them.
     expect(priced.metamaskFeeAmount).toBe(fees.metamaskFeeAmount);
+  });
+
+  it('reports a 0-bip discount and an undiscounted rate equal to the quoted rate when the default source won', () => {
+    // The provider rate carries a discount a concurrent submit left behind, so
+    // the undiscounted rate must not be read from it.
+    const priced = applyFeeResolution({
+      fees: { ...fees, metamaskFeeRate: 0.0005, feeRate: 0.00095 },
+      resolution: {
+        feeBips: 10,
+        discountBips: undefined,
+        source: 'default',
+        subscription: createStatus({ eligible: false, reason: 'no-source' }),
+      },
+      amount: '1000',
+    });
+
+    expect(priced.feeSource).toBe('default');
+    expect(priced.metamaskFeeDiscountBips).toBe(0);
+    expect(priced.undiscountedMetamaskFeeRate).toBe(0.001);
+    expect(priced.undiscountedMetamaskFeeRate).toBe(priced.metamaskFeeRate);
+  });
+
+  it('reports the rewards discount and the undiscounted rate it was taken off', () => {
+    // 3333 bips off the 10-bip default is 6.667 bips, which the venue floors to
+    // 6.6: the quoted rate is undiscounted x (1 - d), floored to a tenth of a bip.
+    const priced = applyFeeResolution({
+      fees,
+      resolution: {
+        feeBips: 6.667,
+        discountBips: 3333,
+        source: 'rewards',
+        subscription: createStatus({ eligible: false, reason: 'no-source' }),
+      },
+      amount: '1000',
+    });
+
+    expect(priced.feeSource).toBe('rewards');
+    expect(priced.metamaskFeeDiscountBips).toBe(3333);
+    expect(priced.undiscountedMetamaskFeeRate).toBe(0.001);
+    expect(priced.metamaskFeeRate).toBe(0.00066);
+  });
+
+  it('reports a 0-bip discount when rewards wins a tie with the default', () => {
+    const priced = applyFeeResolution({
+      fees,
+      resolution: {
+        feeBips: 10,
+        discountBips: 0,
+        source: 'rewards',
+        subscription: createStatus({ eligible: false, reason: 'no-source' }),
+      },
+      amount: '1000',
+    });
+
+    expect(priced.feeSource).toBe('rewards');
+    expect(priced.metamaskFeeDiscountBips).toBe(0);
+    expect(priced.metamaskFeeRate).toBe(priced.undiscountedMetamaskFeeRate);
+  });
+
+  it('reports the subscription discount at the rate a full waiver is charged', () => {
+    const priced = applyFeeResolution({
+      fees,
+      resolution: {
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription',
+        subscription: createStatus(),
+        subscriptionWaiverKind: 'full',
+      },
+      amount: '1000',
+    });
+
+    expect(priced.feeSource).toBe('subscription');
+    expect(priced.metamaskFeeDiscountBips).toBe(10000);
+    expect(priced.undiscountedMetamaskFeeRate).toBe(0.001);
+    expect(priced.metamaskFeeRate).toBe(0);
+  });
+
+  it('reports the subscription discount at the rate a partial waiver is charged', () => {
+    // 333 of a 1000 USD order covered: 6.67 bips blended, a 3330-bip discount.
+    const priced = applyFeeResolution({
+      fees,
+      resolution: {
+        feeBips: 6.67,
+        discountBips: 3330,
+        source: 'subscription',
+        subscription: createStatus({ remainingNotionalUsd: 333 }),
+        subscriptionWaiverKind: 'partial',
+      },
+      amount: '1000',
+    });
+
+    expect(priced.feeSource).toBe('subscription');
+    expect(priced.metamaskFeeDiscountBips).toBe(3330);
+    expect(priced.undiscountedMetamaskFeeRate).toBe(0.001);
+    // The submit path charges quantizeBuilderFeeTenthsBps(d) tenths of a bip.
+    expect(priced.metamaskFeeRate).toBe(
+      quantizeBuilderFeeTenthsBps(3330) / 100_000,
+    );
+    expect(priced.metamaskFeeRate).toBe(0.00066);
   });
 });

@@ -65,6 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `feeSource` to `FeeCalculationResult`, reporting which fee source (`default`, `rewards` or `subscription`) won the fee resolution the quoted MetaMask fee was priced from, so clients can attribute the discount shown in a fee preview without re-deriving it from the rates ([#10650](https://github.com/MetaMask/core/pull/10650))
   - Absent when the quote was not re-priced from a fee resolution, for example a placement that carries no MetaMask builder fee
   - `rewards` can carry a 0% discount, so check `metamaskFeeRate` before presenting it as a reduction
+- Add optional `metamaskFeeDiscountBips` and `undiscountedMetamaskFeeRate` to `FeeCalculationResult`, so clients can show the original MetaMask fee next to the discounted one without the default builder fee constant ([#10683](https://github.com/MetaMask/core/pull/10683))
+  - `metamaskFeeDiscountBips` is the discount the winning fee source applied, in basis points off the default builder fee; `undiscountedMetamaskFeeRate` is the MetaMask fee rate before it
+  - `metamaskFeeDiscountBips` is `0` when no reduction applied: when `default` won, or when `rewards` won with a 0% discount. A `feeSource` other than `default` does not imply a discount
+  - `metamaskFeeRate` is already discounted; do not apply `metamaskFeeDiscountBips` to it again
+  - Absent whenever `feeSource` is absent, for example a placement that carries no MetaMask builder fee
 
 ### Changed
 

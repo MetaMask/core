@@ -374,7 +374,8 @@ export function quantizeBuilderFeeTenthsBps(discountBips: number): number {
  * report one. Distinguishes a genuine zero (a TWAP, for instance) from the zero
  * a concurrent fully-waived submit leaves in provider state.
  * @returns The quote with its MetaMask component and totals re-priced, tagged
- * with the fee source they were priced from.
+ * with the fee source they were priced from, the discount that source applied,
+ * and the MetaMask fee rate before that discount.
  */
 export function applyFeeResolution(params: {
   fees: FeeCalculationResult;
@@ -412,6 +413,10 @@ export function applyFeeResolution(params: {
   // fill rather than the unfloored fraction the discount implies.
   const metamaskFeeRate =
     quantizeBuilderFeeTenthsBps(discountBips) / BUILDER_FEE_TENTHS_BPS_PER_UNIT;
+  // Same expression with no discount, so the two rates are equal whenever the
+  // default source wins.
+  const undiscountedMetamaskFeeRate =
+    quantizeBuilderFeeTenthsBps(0) / BUILDER_FEE_TENTHS_BPS_PER_UNIT;
   const parsedAmount =
     amount === undefined ? undefined : Number.parseFloat(amount);
   // A non-positive notional is not an order size, and recomputing from it would
@@ -432,6 +437,8 @@ export function applyFeeResolution(params: {
     metamaskFeeRate,
     feeRate,
     feeSource: resolution.source,
+    metamaskFeeDiscountBips: discountBips,
+    undiscountedMetamaskFeeRate,
     ...(notional !== undefined && {
       metamaskFeeAmount: notional * metamaskFeeRate,
       feeAmount: notional * feeRate,

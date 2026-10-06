@@ -2174,7 +2174,7 @@ export type FeeCalculationResult = {
   protocolFeeAmount?: number; // Protocol fee amount in USD
 
   // MetaMask builder/revenue fee
-  metamaskFeeRate?: number; // MetaMask fee rate (e.g., 0.001 for 0.1%), undefined when unavailable
+  metamaskFeeRate?: number; // MetaMask fee rate (e.g., 0.001 for 0.1%), undefined when unavailable. Already discounted: do not apply `metamaskFeeDiscountBips` to it again
   metamaskFeeAmount?: number; // MetaMask fee amount in USD
 
   /**
@@ -2202,6 +2202,33 @@ export type FeeCalculationResult = {
    * the order is attributed to whichever source wins at submission.
    */
   feeSource?: PerpsFeeSource;
+
+  /**
+   * Discount the `feeSource` winner applied, in basis points off the default
+   * MetaMask builder fee (e.g. 6500 for 65% off). `0` when no reduction
+   * applied: when `default` won, or when `rewards` won with a 0% discount. A
+   * `feeSource` other than `default` therefore does not imply a discount; check
+   * this value instead.
+   *
+   * Already applied: `metamaskFeeRate` is `undiscountedMetamaskFeeRate`
+   * reduced by this discount and floored to the tenth of a basis point the
+   * venue charges. Do not discount `metamaskFeeRate` again. The floor can make
+   * the actual reduction slightly larger than this figure, so derive savings
+   * amounts from the two rates.
+   *
+   * Absent under the same rule as `feeSource`.
+   */
+  metamaskFeeDiscountBips?: number;
+
+  /**
+   * MetaMask fee rate before `metamaskFeeDiscountBips` was applied, as a
+   * decimal (e.g. 0.001 for 0.1%). Equal to `metamaskFeeRate` when no discount
+   * applied. Use it to show the original fee next to the discounted one;
+   * `metamaskFeeRate` is the rate the order is charged.
+   *
+   * Absent under the same rule as `feeSource`.
+   */
+  undiscountedMetamaskFeeRate?: number;
 
   // Optional detailed breakdown for transparency
   breakdown?: {
