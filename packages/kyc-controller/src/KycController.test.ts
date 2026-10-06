@@ -340,6 +340,57 @@ describe('KycController', () => {
       });
     });
 
+    it('throws when the refreshed session status is missing', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(null);
+
+          await expect(
+            controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+          ).rejects.toThrow('No session was found');
+        },
+      );
+    });
+
+    it('throws when refreshing authorizations without a session id', async () => {
+      const missingId = sessionStatus('pending', {
+        id: '',
+        capabilityAuthorizationStatus: 'new',
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(missingId);
+
+          await expect(
+            controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+          ).rejects.toThrow('No session was found');
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('throws when email does not match the initialized session', async () => {
       await withController(
         { options: { state: { email: 'a@b.co' } } },

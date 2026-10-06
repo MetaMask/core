@@ -500,7 +500,9 @@ export class KycController extends BaseController<
     if (!this.state.sessionStatus) {
       throw new Error('No session was found');
     }
-    if (!FINAL_STATUSES_TO_STOP_POLLING.has(this.state.sessionStatus.finalStatus)) {
+    if (
+      !FINAL_STATUSES_TO_STOP_POLLING.has(this.state.sessionStatus.finalStatus)
+    ) {
       this.startSessionStatusPolling();
     }
     return this.state.sessionStatus;

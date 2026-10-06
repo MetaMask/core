@@ -107,8 +107,9 @@ export const CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH: ReadonlySet<string> =
  * refreshed. Once KYC has a finished decision, the capability token is no
  * longer needed.
  */
-export const FINAL_STATUSES_TO_SKIP_AUTH_REFRESH: ReadonlySet<string> =
-  new Set([KYC_STATUSES.approved, KYC_STATUSES.rejected]);
+export const FINAL_STATUSES_TO_SKIP_AUTH_REFRESH: ReadonlySet<string> = new Set(
+  [KYC_STATUSES.approved, KYC_STATUSES.rejected],
+);
 
 /**
  * The status of a UKYC session, returned by the `GET /sessions/{id}/status`
@@ -152,9 +153,7 @@ export type KycSessionStatus = {
 export function needsCapabilityAuthorizationRefresh(
   sessionStatus: KycSessionStatus,
 ): boolean {
-  if (
-    FINAL_STATUSES_TO_SKIP_AUTH_REFRESH.has(sessionStatus.finalStatus)
-  ) {
+  if (FINAL_STATUSES_TO_SKIP_AUTH_REFRESH.has(sessionStatus.finalStatus)) {
     return false;
   }
   return (

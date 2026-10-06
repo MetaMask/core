@@ -173,6 +173,10 @@ export type KycServiceCreateUkycSessionAction = {
  * Reissues wrapping keys for an existing UKYC session
  * (`POST /sessions/{sessionId}/wrapping-keys`).
  *
+ * The response matches {@link KycService.createUkycSession}: a session id
+ * plus per-secret encryption schemas (`encryptionDataKey` and
+ * `ukycCapabilityToken`) used to wrap and submit authorizations.
+ *
  * @param params - The session whose wrapping keys should be reset.
  * @param params.sessionId - UKYC session id.
  * @returns The session id and fresh encryption schemas.
