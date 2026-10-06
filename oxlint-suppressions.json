@@ -3399,7 +3399,7 @@
   },
   "packages/kyc-controller/src/index.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 10
+      "count": 16
     }
   },
   "packages/kyc-controller/src/ukyc/localUserSecret.test.ts": {
