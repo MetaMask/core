@@ -824,6 +824,18 @@ const persistWhenSessionChanged: VaultPersistPolicy = (hasChanged) =>
   hasChanged();
 
 /**
+ * The outcome of a `#withKeyringOrRollback` transaction: either the
+ * operation's result — the operation ran inside the locked transaction —
+ * or, when the operated keyring is atomic, the unlocked dispatch of the
+ * operation, bound to the operated entry, for the wrapper to invoke once
+ * the transaction completes. The entry never escapes the dispatch: the
+ * wrapper's only move is to invoke it.
+ */
+type TransactionOutcome<Result> =
+  | { type: 'result'; result: Result }
+  | { type: 'atomic'; run: () => Promise<Result> };
+
+/**
  * Controller responsible for establishing and managing user identity.
  *
  * This class is a wrapper around the `eth-keyring-controller` package. The
@@ -2001,6 +2013,12 @@ export class KeyringController<
    * Only the selected keyring is snapshotted, persisted, and rolled back:
    * the operation must not mutate other keyrings.
    *
+   * If the selected keyring is an atomic keyring, the operation is
+   * dispatched without holding the controller lock, and there is no
+   * snapshot and no rollback: an operation error leaves every state
+   * mutation the keyring committed through its `update` callback in
+   * place.
+   *
    * @param selector - Keyring selector object.
    * @param operation - Function to execute with the selected keyring.
    * @param options - Additional options.
@@ -2176,6 +2194,12 @@ export class KeyringController<
    * The method automatically persists changes at the end of the
    * function execution, or rolls back the changes if an error
    * is thrown.
+   *
+   * If the selected keyring is an atomic keyring, the operation is
+   * dispatched without holding the controller lock, and there is no
+   * snapshot and no rollback: an operation error leaves every state
+   * mutation the keyring committed through its `update` callback in
+   * place.
    *
    * Only the selected keyring is snapshotted, persisted, and rolled back:
    * the operation must not mutate other keyrings.
@@ -3284,6 +3308,15 @@ export class KeyringController<
    * keep their instances even if the transaction fails. This relies on the
    * `withKeyring` family only mutating the keyring it is given.
    *
+   * If the entry to operate on is an atomic keyring, the operation never
+   * runs inside this locked transaction — its `update` commits need the
+   * same, non-reentrant controller lock. Instead, the transaction commits
+   * the registration of a keyring it created, and the operation is
+   * dispatched unlocked, by this wrapper, once the transaction completes.
+   * An operation error leaves every state mutation the keyring committed
+   * through its `update` callback in place — there is no rollback for the
+   * atomic keyring.
+   *
    * If the operation drains the operated keyring of all its accounts, the
    * keyring is removed and destroyed (mirroring `removeAccount`), unless it
    * is the primary keyring. A setup failure — selection, creation, or
@@ -3305,9 +3338,23 @@ export class KeyringController<
     create: () => Promise<KeyringEntry | undefined>,
     run: (entry: KeyringEntry) => Promise<Result>,
   ): Promise<Result> {
-    return this.#withTransaction(
+    const outcome = await this.#withTransaction<
+      TransactionOutcome<Result>,
+      KeyringEntry
+    >(
       () => this.#beginKeyringTransaction({ v2 }, select, create),
       async (transaction, entry) => {
+        if (transaction.scope.type === 'atomic') {
+          // An atomic keyring serializes its own operations and persists
+          // through `update` commits, which need the same, non-reentrant
+          // controller lock: nothing runs inside the locked transaction.
+          // The commit persists the registration of a keyring the
+          // transaction created; the operation is returned as an
+          // unlocked dispatch, bound to the entry, for the wrapper to
+          // invoke once the transaction completes.
+          return { type: 'atomic', run: (): Promise<Result> => run(entry) };
+        }
+
         // The drain cleanup below can only fire when the wallet holds
         // other keyrings: the bracketing account reads are skipped
         // entirely otherwise, so single-keyring wallets make no extra
@@ -3334,14 +3381,28 @@ export class KeyringController<
 
         // The vault is updated by the commit, only if the operated keyring
         // changed.
-        return result;
+        return { type: 'result', result };
       },
     );
+
+    if (outcome.type === 'atomic') {
+      // The selected (or transaction-created) keyring is atomic: the
+      // operation runs unlocked, so the keyring's `update` commits can
+      // take the controller lock.
+      return outcome.run();
+    }
+
+    return outcome.result;
   }
 
   /**
-   * Begin a keyring-scoped transaction: select, or create, the entry to
-   * operate on, validate it, and snapshot the operated keyring.
+   * Begin a transaction scoped to a single keyring entry: select, or
+   * create, the entry to operate on, validate it, and snapshot the
+   * operated keyring. An atomic keyring entry gets an atomic scope
+   * instead: no snapshot, and a commit that persists only the
+   * registration of an entry the transaction created — the keyring
+   * itself serializes its own operations and persists its own state
+   * through its `update` commits.
    *
    * Everything here runs before the transaction starts, so a failure
    * leaves the controller untouched and never triggers a rollback: the
@@ -3381,8 +3442,14 @@ export class KeyringController<
       );
     }
 
+    // An atomic keyring never runs its operation inside the locked
+    // transaction (see `#withKeyringOrRollback`), so its scope owns the
+    // registration only: no snapshot, no rollback, and a commit that
+    // persists only what the transaction created.
     const transaction = new VaultTransaction(
-      { type: 'keyring', entry, created: !selected },
+      isAtomicKeyring(entry.keyring)
+        ? { type: 'atomic', entry, created: !selected }
+        : { type: 'keyring', entry, created: !selected },
       this.#vaultSession(),
       this.#vaultOperations(),
     );
