@@ -10,6 +10,7 @@ export type {
 export type {
   ChompApiServiceAssociateAddressV2Action,
   ChompApiServiceCreateAddressChallengeAction,
+  ChompApiServiceDisassociateAddressAction,
   ChompApiServiceGetAssociatedAddressesAction,
   ChompApiServiceCreateUpgradeAction,
   ChompApiServiceGetUpgradesAction,

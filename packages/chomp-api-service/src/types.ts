@@ -5,15 +5,18 @@ import type { Hex } from '@metamask/utils';
 /**
  * The CHOMP intent metadata `type` discriminator, covering the base vault
  * (`cash-deposit`, `cash-withdrawal`), the premium vault
- * (`cash-deposit-premium`, `cash-withdrawal-premium`), and the recurring
- * subscription payment (`cash-subscription`).
+ * (`cash-deposit-premium`, `cash-withdrawal-premium`), the recurring
+ * subscription payment (`cash-subscription`), and Money Account migration
+ * (`cash-migration-root`, `cash-migration-transfer`).
  */
 export type ChompIntentType =
   | 'cash-deposit'
   | 'cash-withdrawal'
   | 'cash-deposit-premium'
   | 'cash-withdrawal-premium'
-  | 'cash-subscription';
+  | 'cash-subscription'
+  | 'cash-migration-root'
+  | 'cash-migration-transfer';
 
 export type DelegationCaveat = {
   enforcer: Hex;
