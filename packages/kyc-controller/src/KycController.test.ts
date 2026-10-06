@@ -206,9 +206,7 @@ describe('KycController', () => {
             sessionId: 'sid',
           });
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
-          expect(handlers.resetWrappingKeys).toHaveBeenCalledWith({
-            sessionId: 'sid',
-          });
+          expectResetWrappingKeys(handlers.resetWrappingKeys, 'sid');
           expect(handlers.setAuthorizations).toHaveBeenCalled();
           expect(controller.state.sessionStatus).toStrictEqual(refreshed);
         },
@@ -245,9 +243,7 @@ describe('KycController', () => {
             sessionId: 'sid',
           });
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
-          expect(handlers.resetWrappingKeys).toHaveBeenCalledWith({
-            sessionId: 'sid',
-          });
+          expectResetWrappingKeys(handlers.resetWrappingKeys, 'sid');
           expect(handlers.setAuthorizations).toHaveBeenCalled();
         },
       );
@@ -333,9 +329,7 @@ describe('KycController', () => {
         expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.getSessionStatus).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
-        expect(handlers.resetWrappingKeys).toHaveBeenCalledWith({
-          sessionId: 'sid',
-        });
+        expectResetWrappingKeys(handlers.resetWrappingKeys, 'sid');
         expect(handlers.setAuthorizations).toHaveBeenCalled();
       });
     });
@@ -1231,6 +1225,26 @@ function ukycSessionResponse(
     ukycCapabilityToken: ENCRYPTION_SCHEMA,
     ...overrides,
   };
+}
+
+/**
+ * Asserts `resetWrappingKeys` was called once for `sessionId` with a
+ * non-empty `sessionClientPublicKey`.
+ *
+ * @param resetWrappingKeys - The mocked `KycService:resetWrappingKeys` handler.
+ * @param sessionId - Expected UKYC session id.
+ */
+function expectResetWrappingKeys(
+  resetWrappingKeys: jest.Mock,
+  sessionId: string,
+): void {
+  const calls = resetWrappingKeys.mock.calls as [
+    { sessionId: string; sessionClientPublicKey: string },
+  ][];
+  const resetParams = calls[0][0];
+  expect(resetParams.sessionId).toBe(sessionId);
+  expect(typeof resetParams.sessionClientPublicKey).toBe('string');
+  expect(resetParams.sessionClientPublicKey).not.toHaveLength(0);
 }
 
 /**

@@ -724,6 +724,7 @@ export class KycController extends BaseController<
       ukycCapabilityToken: capabilityTokenSchema,
     } = await this.messenger.call('KycService:resetWrappingKeys', {
       sessionId,
+      sessionClientPublicKey,
     });
 
     return this.#setAuthorizations({

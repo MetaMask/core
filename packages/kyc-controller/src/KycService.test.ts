@@ -314,12 +314,19 @@ describe('KycService', () => {
 
     it('posts wrapping-keys and returns encryption schemas', async () => {
       nock(MOCK_API_URL)
-        .post('/sessions/sid/wrapping-keys')
+        .post(
+          '/sessions/sid/wrapping-keys',
+          (body: Record<string, unknown>) =>
+            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY,
+        )
         .reply(200, response);
       const { service } = getService();
 
       expect(
-        await service.resetWrappingKeys({ sessionId: 'sid' }),
+        await service.resetWrappingKeys({
+          sessionId: 'sid',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+        }),
       ).toStrictEqual(response);
     });
 
@@ -330,7 +337,10 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.resetWrappingKeys({ sessionId: 'a/b' }),
+        await service.resetWrappingKeys({
+          sessionId: 'a/b',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+        }),
       ).toStrictEqual({ ...response, sessionId: 'a/b' });
     });
 
@@ -341,7 +351,10 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.resetWrappingKeys({ sessionId: 'sid' }),
+        service.resetWrappingKeys({
+          sessionId: 'sid',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+        }),
       ).rejects.toThrow(/Malformed response received from wrapping keys API/u);
     });
   });

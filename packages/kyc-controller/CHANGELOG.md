@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `KycService.resetWrappingKeys`, which posts
-  `POST /sessions/{sessionId}/wrapping-keys` and returns `UkycSessionResponse`
+  `POST /sessions/{sessionId}/wrapping-keys` with `sessionClientPublicKey`
+  and returns `UkycSessionResponse`
   ([#10692](https://github.com/MetaMask/core/pull/10692))
 - Export `CAPABILITY_AUTHORIZATION_STATUSES`,
   `CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH`,
