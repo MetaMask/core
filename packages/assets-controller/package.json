@@ -59,6 +59,7 @@
     "@metamask/accounts-controller": "^40.0.0",
     "@metamask/assets-controllers": "^112.1.2",
     "@metamask/base-controller": "^10.0.0",
+    "@metamask/base-data-service": "^2.1.0",
     "@metamask/client-controller": "^2.0.0",
     "@metamask/config-registry-controller": "^5.0.0",
     "@metamask/controller-utils": "^13.0.0",

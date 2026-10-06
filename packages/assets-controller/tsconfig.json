@@ -11,6 +11,9 @@
       "path": "../base-controller"
     },
     {
+      "path": "../base-data-service"
+    },
+    {
       "path": "../config-registry-controller"
     },
     {

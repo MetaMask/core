@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add an `AssetsDataService.syncAssets` query inside `AssetsController`, so network asset fetches publish `fetchStatus` for UI observers of `getSyncAssetsQueryKey`
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^11.0.0` to `^11.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))

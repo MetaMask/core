@@ -33,6 +33,7 @@ import type {
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
+import { Messenger as MessengerClass } from '@metamask/messenger';
 import type { MultichainTransactionsControllerTransactionConfirmedEvent } from '@metamask/multichain-transactions-controller';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
@@ -81,6 +82,13 @@ import { BigNumber as BigNumberJS } from 'bignumber.js';
 import { isEqual } from 'lodash-es';
 
 import type { AssetsControllerMethodActions } from './AssetsController-method-action-types.js';
+import {
+  AssetsDataService,
+  readAssetsDataServiceMessenger,
+  serviceName,
+  type AssetsDataServiceMessenger,
+  type AssetsFetchOptions,
+} from './AssetsDataService.js';
 import type {
   AbstractDataSource,
   DataSourceState,
@@ -452,6 +460,12 @@ export type AssetsControllerOptions = {
    * Issue: https://consensyssoftware.atlassian.net/browse/ASSETS-3346
    */
   tempMigrateAssetsInfoMetadataAssets3346?: () => Assets3346MigrationState;
+  /**
+   * Messenger for {@link AssetsDataService}. When omitted, the controller
+   * reads one attached to `messenger` or creates a child messenger. A messenger
+   * parented to the root messenger lets UI query clients observe `fetchStatus`.
+   */
+  assetsDataServiceMessenger?: AssetsDataServiceMessenger;
 };
 
 // ============================================================================
@@ -919,6 +933,8 @@ export class AssetsController extends BaseController<
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
 
+  readonly #assetsDataService: AssetsDataService;
+
   readonly #queryApiClient: ApiPlatformClient;
 
   readonly #onActiveChainsUpdated: (
@@ -943,6 +959,7 @@ export class AssetsController extends BaseController<
     stakedBalanceDataSourceConfig,
     isOnboarded,
     tempMigrateAssetsInfoMetadataAssets3346,
+    assetsDataServiceMessenger,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -1087,6 +1104,9 @@ export class AssetsController extends BaseController<
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
+    this.#assetsDataService = this.#createAssetsDataService(
+      assetsDataServiceMessenger,
+    );
     // Subscriptions start only when both UI is open and keyring unlocked -> #updateActive().
 
     // Subscribe to basic-functionality changes after construction so a synchronous
@@ -1389,9 +1409,8 @@ export class AssetsController extends BaseController<
       return;
     }
 
-    this.getAssets([matchedAccount], {
+    this.#syncAssets([matchedAccount], {
       chainIds: [caipChainId],
-      forceUpdate: true,
       bypassServerCache: true,
     }).catch((error) => {
       log('Failed to refresh assets after transaction event', { error });
@@ -1490,9 +1509,8 @@ export class AssetsController extends BaseController<
   async #runStartupRefresh(accounts: InternalAccount[]): Promise<void> {
     const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
-      await this.getAssets(accounts, {
+      await this.#syncAssets(accounts, {
         chainIds: [...this.#enabledChains],
-        forceUpdate: true,
       });
       // Seed before subscribe so the price poll / update fetch sees natives
       // and default tracked assets that were never returned by balance APIs.
@@ -1610,6 +1628,96 @@ export class AssetsController extends BaseController<
       ...params,
       captureException: this.#captureException,
     });
+  }
+
+  /**
+   * Build the TanStack wrapper around {@link getAssets}.
+   *
+   * A linked messenger is parented to the root messenger so cache events reach
+   * the UI. Tests and callers that do not link one get a child of this
+   * controller messenger instead.
+   *
+   * @param linkedMessenger - Messenger attached by the client, when present.
+   * @returns The assets data service.
+   */
+  #createAssetsDataService(
+    linkedMessenger: AssetsDataServiceMessenger | undefined,
+  ): AssetsDataService {
+    const attachedMessenger = readAssetsDataServiceMessenger(this.messenger);
+    const serviceMessenger =
+      linkedMessenger ??
+      attachedMessenger ??
+      this.#createChildAssetsDataServiceMessenger();
+
+    return new AssetsDataService({
+      messenger: serviceMessenger,
+      loadAssets: (accountIds, fetchOptions) =>
+        this.#loadQueriedAssets(accountIds, fetchOptions),
+    });
+  }
+
+  /**
+   * Create a service messenger parented to this controller.
+   *
+   * Callers that need UI observers use {@link linkAssetsDataServiceToController}
+   * so the parent is the root messenger instead.
+   *
+   * @returns The child messenger.
+   */
+  #createChildAssetsDataServiceMessenger(): AssetsDataServiceMessenger {
+    return new MessengerClass({
+      namespace: serviceName,
+      // The controller messenger does not list this service's actions.
+      parent: this.messenger as never,
+    }) as AssetsDataServiceMessenger;
+  }
+
+  /**
+   * Load assets for a query that arrived through `AssetsDataService:syncAssets`.
+   *
+   * Background force-updates pass the accounts they already have and do not
+   * use this path.
+   *
+   * @param accountIds - Account ids from the query key.
+   * @param options - Fetch options.
+   * @returns Assets grouped by account id.
+   */
+  #loadQueriedAssets(
+    accountIds: string[],
+    options: AssetsFetchOptions,
+  ): Promise<Awaited<ReturnType<AssetsController['getAssets']>>> {
+    const selected = new Map(
+      this.#getSelectedAccounts().map((account) => [account.id, account]),
+    );
+    const accounts = accountIds.map((accountId) => {
+      const account = selected.get(accountId);
+      if (!account) {
+        throw new Error(
+          `AssetsController has no selected account "${accountId}" for this assets query.`,
+        );
+      }
+      return account;
+    });
+
+    return this.getAssets(accounts, { ...options, forceUpdate: true });
+  }
+
+  /**
+   * Sync assets from the network and publish TanStack `fetchStatus`.
+   *
+   * @param accounts - Accounts to fetch.
+   * @param options - Fetch options.
+   * @returns Assets grouped by account id.
+   */
+  async #syncAssets(
+    accounts: InternalAccount[],
+    options?: AssetsFetchOptions,
+  ): Promise<Awaited<ReturnType<AssetsController['getAssets']>>> {
+    return this.#assetsDataService.syncAssets(
+      accounts.map((account) => account.id),
+      options,
+      () => this.getAssets(accounts, { ...options, forceUpdate: true }),
+    );
   }
 
   // ============================================================================
@@ -2016,12 +2124,14 @@ export class AssetsController extends BaseController<
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, AssetBalance>>> {
     // Reuse getAssets with dataTypes: ['balance'] only
-    const assets = await this.getAssets(accounts, {
+    const request = {
       chainIds: options?.chainIds,
       assetTypes: options?.assetTypes,
-      forceUpdate: options?.forceUpdate,
-      dataTypes: ['balance', 'metadata'],
-    });
+      dataTypes: ['balance', 'metadata'] as DataType[],
+    };
+    const assets = options?.forceUpdate
+      ? await this.#syncAssets(accounts, request)
+      : await this.getAssets(accounts, request);
 
     // Extract just the balance from each asset
     const result: Record<AccountId, Record<Caip19AssetId, AssetBalance>> = {};
@@ -2212,12 +2322,14 @@ export class AssetsController extends BaseController<
       forceUpdate?: boolean;
     },
   ): Promise<Record<Caip19AssetId, AssetPrice>> {
-    const assets = await this.getAssets(accounts, {
+    const request = {
       chainIds: options?.chainIds,
       assetTypes: options?.assetTypes,
-      forceUpdate: options?.forceUpdate,
-      dataTypes: ['price'],
-    });
+      dataTypes: ['price'] as DataType[],
+    };
+    const assets = options?.forceUpdate
+      ? await this.#syncAssets(accounts, request)
+      : await this.getAssets(accounts, request);
 
     // Extract just the price from each asset (flattened across accounts)
     const result: Record<Caip19AssetId, AssetPrice> = {};
@@ -2366,11 +2478,10 @@ export class AssetsController extends BaseController<
 
     const account = this.#getSelectedAccounts().find((a) => a.id === accountId);
     if (account) {
-      await this.getAssets([account], {
+      await this.#syncAssets([account], {
         chainIds: [extractChainId(normalizedAssetId)],
         dataTypes: ['balance', 'metadata', 'price'],
         assetTypes: ['fungible'],
-        forceUpdate: true,
       });
     }
 
@@ -2471,11 +2582,10 @@ export class AssetsController extends BaseController<
       this.#getEnabledChainsForAccount(selectedAccount).includes(chainId),
     );
     if (account) {
-      await this.getAssets([account], {
+      await this.#syncAssets([account], {
         chainIds: [chainId],
         dataTypes: ['balance', 'metadata', 'price'],
         assetTypes: ['fungible'],
-        forceUpdate: true,
       });
     }
 
@@ -2534,8 +2644,7 @@ export class AssetsController extends BaseController<
     // Currency changed — old cached prices are in the wrong currency.
     this.#priceDataSource.invalidatePriceCache();
 
-    this.getAssets(this.#getSelectedAccounts(), {
-      forceUpdate: true,
+    this.#syncAssets(this.#getSelectedAccounts(), {
       dataTypes: ['price'],
       assetsForPriceUpdate: Object.values(this.state.assetsBalance).flatMap(
         (balances) => Object.keys(balances) as Caip19AssetId[],
@@ -2592,8 +2701,7 @@ export class AssetsController extends BaseController<
 
     this.#priceDataSource.invalidatePriceCache();
 
-    this.getAssets(accounts, {
-      forceUpdate: true,
+    this.#syncAssets(accounts, {
       dataTypes: ['price'],
       chainIds,
       assetsForPriceUpdate,
@@ -4036,9 +4144,8 @@ export class AssetsController extends BaseController<
     const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
       if (accounts.length > 0) {
-        await this.getAssets(accounts, {
+        await this.#syncAssets(accounts, {
           chainIds: [...this.#enabledChains],
-          forceUpdate: true,
         });
       }
 
@@ -4091,9 +4198,8 @@ export class AssetsController extends BaseController<
     // those chains; existing balances on other chains are left untouched.
     const accounts = this.#getSelectedAccounts();
     if (addedChains.length > 0 && accounts.length > 0) {
-      await this.getAssets(accounts, {
+      await this.#syncAssets(accounts, {
         chainIds: addedChains,
-        forceUpdate: true,
       });
     }
 
@@ -4206,9 +4312,8 @@ export class AssetsController extends BaseController<
 
       this.#subscribeAssets();
 
-      await this.getAssets(accounts, {
+      await this.#syncAssets(accounts, {
         chainIds: [selectedChainId],
-        forceUpdate: true,
         dataTypes: ['balance', 'metadata', 'price'],
       });
 
@@ -4228,8 +4333,7 @@ export class AssetsController extends BaseController<
       return;
     }
 
-    this.getAssets(accounts, {
-      forceUpdate: true,
+    this.#syncAssets(accounts, {
       dataTypes: ['balance', 'metadata'],
     }).catch((error) => {
       log('Failed to refresh assets after network change', { error });
@@ -4254,9 +4358,8 @@ export class AssetsController extends BaseController<
       return;
     }
 
-    await this.getAssets(accounts, {
+    await this.#syncAssets(accounts, {
       chainIds: [caipChainId],
-      forceUpdate: true,
       dataTypes: ['balance', 'metadata', 'price'],
     });
     this.#ensureNativeBalancesDefaultZero();
@@ -4503,6 +4606,7 @@ export class AssetsController extends BaseController<
     this.#snapDataSource?.destroy?.();
     this.#rpcDataSource?.destroy?.();
     this.#stakedBalanceDataSource?.destroy?.();
+    this.#assetsDataService.destroy();
 
     // Stop all active subscriptions
     this.#stop();

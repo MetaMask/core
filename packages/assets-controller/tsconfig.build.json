@@ -15,6 +15,9 @@
       "path": "../base-controller/tsconfig.build.json"
     },
     {
+      "path": "../base-data-service/tsconfig.build.json"
+    },
+    {
       "path": "../config-registry-controller/tsconfig.build.json"
     },
     {

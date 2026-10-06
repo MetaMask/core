@@ -3,6 +3,24 @@ export {
   AssetsController,
   getDefaultAssetsControllerState,
 } from './AssetsController.js';
+export {
+  AssetsDataService,
+  attachAssetsDataServiceMessenger,
+  getSyncAssetsQueryKey,
+  linkAssetsDataServiceToController,
+  normalizeAssetsFetchOptions,
+  readAssetsDataServiceMessenger,
+  serviceName as assetsDataServiceName,
+} from './AssetsDataService.js';
+export type {
+  AssetsByAccount,
+  AssetsDataServiceActions,
+  AssetsDataServiceEvents,
+  AssetsDataServiceSyncAssetsAction,
+  AssetsDataServiceMessenger,
+  AssetsFetchOptions,
+  LoadAssets,
+} from './AssetsDataService.js';
 export { AssetsDataSourceError } from './errors.js';
 export {
   DEFAULT_TRACKED_ASSETS_BY_CHAIN,

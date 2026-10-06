@@ -24,7 +24,7 @@ import {
   QueryObserver,
 } from '@tanstack/query-core';
 import assert from 'assert';
-import { ReplyBody } from 'nock';
+import nock, { ReplyBody } from 'nock';
 
 import {
   AddFollowerResponse,
@@ -629,6 +629,83 @@ describe('createUIQueryClient', () => {
 
     observerA.destroy();
     observerB.destroy();
+    service.destroy();
+  });
+
+  it('mirrors a background fetch onto an idle UI query', async () => {
+    const { clientA: client, service, messenger } = createClients();
+    const observer = new QueryObserver(client, {
+      queryKey: getAssetsQueryKey,
+      // The UI query must not start its own fetch, so `isFetching` can only
+      // come from the background cache update.
+      enabled: false,
+    });
+    observer.subscribe(() => {
+      // Subscribing registers the data-service cache listener.
+    });
+
+    expect(observer.getCurrentResult()).toMatchObject({
+      status: 'pending',
+      fetchStatus: 'idle',
+      isFetching: false,
+      isLoading: false,
+    });
+
+    const { promise: holdResponse, resolve: releaseResponse } =
+      createDeferredPromise();
+    nock.cleanAll();
+    nock('https://tokens.api.cx.metamask.io:443', {
+      encodedQueryParams: true,
+    })
+      .get('/v3/assets')
+      .query(true)
+      .reply(async () => {
+        await holdResponse;
+        return [
+          200,
+          [
+            {
+              assetId: 'eip155:1/slip44:60',
+              decimals: 18,
+              name: 'Ethereum',
+              symbol: 'ETH',
+            },
+          ],
+        ];
+      });
+
+    assert(Array.isArray(getAssetsQueryKey[1]));
+    const refresh = messenger.call(
+      'ExampleDataService:getAssets',
+      getAssetsQueryKey[1],
+    );
+
+    expect(observer.getCurrentResult()).toMatchObject({
+      status: 'pending',
+      fetchStatus: 'fetching',
+      isFetching: true,
+      isLoading: true,
+    });
+
+    releaseResponse();
+    await refresh;
+
+    expect(observer.getCurrentResult()).toMatchObject({
+      status: 'success',
+      fetchStatus: 'idle',
+      isFetching: false,
+      isLoading: false,
+    });
+    expect(observer.getCurrentResult().data).toStrictEqual([
+      {
+        assetId: 'eip155:1/slip44:60',
+        decimals: 18,
+        name: 'Ethereum',
+        symbol: 'ETH',
+      },
+    ]);
+
+    observer.destroy();
     service.destroy();
   });
 

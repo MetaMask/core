@@ -20,6 +20,7 @@ import { v4 as uuidV4 } from 'uuid';
 
 import { hydrateMutations, readGlobalId } from './hydrateMutations.js';
 import { createModuleLogger, projectLogger } from './loggers.js';
+import { syncBackgroundFetchStatus } from './syncBackgroundFetchStatus.js';
 
 const log = createModuleLogger(projectLogger, 'createUIQueryClient');
 
@@ -244,6 +245,9 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
 
         log('Hydrating with', payload.state);
         hydrate(client, payload.state);
+        // `hydrate` drops `fetchStatus`. Apply the background value so UI
+        // `isFetching` / `isLoading` follow in-flight data-service fetches.
+        syncBackgroundFetchStatus(client, hash, payload.state);
       };
 
       subscriptions.set(hash, cacheListener);

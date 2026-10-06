@@ -24,6 +24,9 @@
       "path": "../base-controller/tsconfig.lint.json"
     },
     {
+      "path": "../base-data-service/tsconfig.lint.json"
+    },
+    {
       "path": "../client-controller/tsconfig.lint.json"
     },
     {
