@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KycService.resetWrappingKeys`, which posts
+  `POST /sessions/{sessionId}/wrapping-keys` and returns `UkycSessionResponse`
+- Export `CAPABILITY_AUTHORIZATION_STATUSES`,
+  `CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH`,
+  `FINAL_STATUSES_TO_SKIP_AUTH_REFRESH`,
+  `needsCapabilityAuthorizationRefresh`, `KYC_STATUSES`, and
+  `FINAL_STATUSES_TO_STOP_POLLING`
+
+### Changed
+
+- Refresh and resubmit the UKYC capability authorization when
+  `capabilityAuthorizationStatus` is `new` or `expired` during `startSession`
+  resume (skipped when `finalStatus` is `approved` or `rejected`)
+
 ## [0.6.1]
 
 ### Changed
