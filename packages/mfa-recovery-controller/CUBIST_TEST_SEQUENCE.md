@@ -51,8 +51,8 @@ Each mutation uses the epoch returned by the previous read.
 
 ## Setup (outside the controller)
 
-The controller does not call the Authentication API, the MPC token service,
-the Recovery Registration API, or CubeSigner. The client does all of this
+The controller does not call the Authentication API, the Recovery
+Registration API, or CubeSigner. The client does all of this
 before constructing the controller (see
 [Cubist store sequence](./ARCHITECTURE.md#cubist-store-sequence)).
 
@@ -61,16 +61,13 @@ sequenceDiagram
   autonumber
   participant Client
   participant AuthAPI as Authentication API
-  participant Token as MPC token service
   participant Reg as Recovery Registration API
   participant Cubist as CubeSigner
 
   Client->>AuthAPI: SIWE login (JwtBearerAuth, primary account signs)
   AuthAPI-->>Client: accessToken
   Note over Client: profileId = accessToken sub
-  Client->>Token: POST /token { user: profileId } (x-api-key)
-  Token-->>Client: minted JWT
-  Client->>Reg: POST /v1/recovery/registration/oidc-token (Bearer minted JWT)
+  Client->>Reg: POST /v1/recovery/registration/oidc-token (Bearer accessToken)
   Reg-->>Client: idToken, expiresAt
   Client->>Cubist: createOidcSession(orgId, idToken, scopes)
   Cubist-->>Client: session
@@ -79,8 +76,10 @@ sequenceDiagram
 
 **Notes**
 
-- `POST /token` is the MPC service's development-only token route. It is not
-  mounted in production builds.
+- For testing, the Bearer `accessToken` is replaced with a JWT minted by the
+  MPC service's development-only `POST /token` endpoint
+  (`{ user: profileId }`, `x-api-key`). That route is not mounted in
+  production builds.
 
 ## Write path: `#mutate`
 
@@ -92,6 +91,48 @@ mutation is `resume()` only (see
 
 `register` and `updateIdentifiers` require at least two distinct identifiers
 (`type + namespace + value`). `siwe` and `passkey` are both `key-bound`.
+
+### Happy path
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Client
+  participant C as MfaRecoveryController
+  participant Auth as authProvider
+  participant Id as identifierAuthProvider
+  participant Enc as pendingOperationEncryptor
+  participant Escrow as Cubist escrow
+
+  Client->>C: register / updateRecoverySecret / updateIdentifiers
+  C->>C: withLock, no pendingOperation
+  C->>Auth: getAuthenticatedProfileId()
+  Auth-->>C: profileId
+  Note over C: build mutation and requestHash<br/>(expectedVersion = epoch, newVersion = epoch + 1)
+  C->>Enc: encrypt phase authorizing
+  C->>Auth: authorizeRecoveryRequest(requestHash, ...)
+  Auth-->>C: AuthController JWT
+  C->>Escrow: isAvailable()
+  Escrow-->>C: available
+
+  opt not register
+    C->>Id: getKeyBoundIdentifierToken(identifier, proofPublicKey, requestHash)
+    Id-->>C: key-bound token
+    C->>Escrow: generateChallenge()
+    Escrow-->>C: challenge
+    C->>C: sign proof over token, challengeId, requestHash
+  end
+
+  C->>C: wrap secret to escrow wrap public key (if present)
+  C->>Enc: encrypt phase writing
+  C->>Escrow: applyMutation(mutation, JWT, authorization, payload)
+  Escrow-->>C: signed receipt
+  C->>C: verifyReceipt
+  C->>C: clear pendingOperation
+  C-->>Client: done
+```
+
+### Full path with errors
 
 ```mermaid
 sequenceDiagram
