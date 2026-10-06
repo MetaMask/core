@@ -1563,6 +1563,13 @@ export class KeyringController<
   /**
    * Deallocates all secrets and locks the wallet.
    *
+   * Locking does not wait for in-flight atomic keyring operations (which
+   * can be long-running network protocols): the lock takes effect
+   * immediately. A state mutation such an operation tries to commit
+   * through its `update` callback after being detached by the lock is
+   * rejected with an explicit error; the affected keyrings recover on
+   * their next operation after unlocking.
+   *
    * @returns Promise resolving when the operation completes.
    */
   async setLocked(): Promise<void> {

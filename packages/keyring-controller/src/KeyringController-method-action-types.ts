@@ -210,6 +210,13 @@ export type KeyringControllerRemoveAccountAction = {
 /**
  * Deallocates all secrets and locks the wallet.
  *
+ * Locking does not wait for in-flight atomic keyring operations (which
+ * can be long-running network protocols): the lock takes effect
+ * immediately. A state mutation such an operation tries to commit
+ * through its `update` callback after being detached by the lock is
+ * rejected with an explicit error; the affected keyrings recover on
+ * their next operation after unlocking.
+ *
  * @returns Promise resolving when the operation completes.
  */
 export type KeyringControllerSetLockedAction = {
@@ -376,6 +383,12 @@ export type KeyringControllerSubmitPasswordAction = {
  * Only the selected keyring is snapshotted, persisted, and rolled back:
  * the operation must not mutate other keyrings.
  *
+ * If the selected keyring is an atomic keyring, the operation is
+ * dispatched without holding the controller lock, and there is no
+ * snapshot and no rollback: an operation error leaves every state
+ * mutation the keyring committed through its `update` callback in
+ * place.
+ *
  * @param selector - Keyring selector object.
  * @param operation - Function to execute with the selected keyring.
  * @param options - Additional options.
@@ -445,6 +458,12 @@ export type KeyringControllerWithKeyringUnsafeAction = {
  * The method automatically persists changes at the end of the
  * function execution, or rolls back the changes if an error
  * is thrown.
+ *
+ * If the selected keyring is an atomic keyring, the operation is
+ * dispatched without holding the controller lock, and there is no
+ * snapshot and no rollback: an operation error leaves every state
+ * mutation the keyring committed through its `update` callback in
+ * place.
  *
  * Only the selected keyring is snapshotted, persisted, and rolled back:
  * the operation must not mutate other keyrings.

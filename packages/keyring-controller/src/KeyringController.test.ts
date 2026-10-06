@@ -14,7 +14,9 @@ import {
 import SimpleKeyring from '@metamask/eth-simple-keyring';
 import { KeyringType } from '@metamask/keyring-api/v2';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
-import type { KeyringClass } from '@metamask/keyring-utils';
+import { AtomicKeyring, isAtomicKeyring } from '@metamask/keyring-sdk';
+import type { AtomicUpdater } from '@metamask/keyring-sdk';
+import type { Keyring, KeyringClass } from '@metamask/keyring-utils';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -22,8 +24,8 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
-import { bytesToHex, isValidHexAddress } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import { bytesToHex, hasProperty, isValidHexAddress } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
 import MockEncryptor, {
@@ -51,6 +53,9 @@ import type {
   SerializedKeyring,
   KeyringSelector,
   KeyringSelectorV2,
+  KeyringBuilder,
+  KeyringBuilderContext,
+  KeyringV2Builder,
 } from './KeyringController.js';
 import {
   AccountImportStrategy,
@@ -133,6 +138,219 @@ function createVault(keyrings: SerializedKeyring[] = defaultKeyrings): string {
     iv: 'iv',
     salt: 'salt',
   });
+}
+
+const ATOMIC_TEST_KEYRING_TYPE = 'Atomic Test Keyring';
+
+const FAKE_ATOMIC_ACCOUNT_ADDRESS: Hex =
+  '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
+
+/**
+ * The states of the fake atomic keyring's state machine: an uninitialized
+ * keyring, a staged (mid-operation) keyring, and a ready keyring.
+ */
+type FakeAtomicKeyringState = {
+  status: 'uninitialized' | 'staged' | 'ready';
+};
+
+/**
+ * The remote service the fake atomic keyring talks to, standing in for the
+ * long-running network work of a real atomic keyring.
+ */
+type FakeRemoteService = {
+  performCeremony: jest.Mock;
+  activate: jest.Mock;
+};
+
+/**
+ * Whether the value is a state of the fake atomic keyring's state machine.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is a valid state.
+ */
+function isFakeAtomicKeyringStatus(
+  value: unknown,
+): value is FakeAtomicKeyringState['status'] {
+  return value === 'uninitialized' || value === 'staged' || value === 'ready';
+}
+
+/**
+ * Create a fake remote service whose operations resolve immediately.
+ *
+ * @returns The fake remote service.
+ */
+function createFakeRemoteService(): FakeRemoteService {
+  return {
+    performCeremony: jest.fn().mockResolvedValue(undefined),
+    activate: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
+/**
+ * A minimal atomic keyring used to exercise the controller's atomic keyring
+ * support: a checkpointed creation flow (`uninitialized` → `staged` →
+ * `ready`) around a remote activation, plus recovery and direct commit
+ * paths.
+ */
+class FakeAtomicKeyring extends AtomicKeyring implements Keyring {
+  readonly type = ATOMIC_TEST_KEYRING_TYPE;
+
+  readonly init = jest.fn(async (): Promise<void> => undefined);
+
+  readonly #remote: FakeRemoteService;
+
+  #state: FakeAtomicKeyringState = { status: 'uninitialized' };
+
+  constructor(options: { updater: AtomicUpdater; remote: FakeRemoteService }) {
+    super({ updater: options.updater });
+    this.#remote = options.remote;
+  }
+
+  /**
+   * The current state. Deliberately lock-free, like every snapshot read
+   * the controller performs itself.
+   *
+   * @returns The current state.
+   */
+  get state(): FakeAtomicKeyringState {
+    return this.#state;
+  }
+
+  async serialize(): Promise<Json> {
+    return { status: this.#state.status };
+  }
+
+  async deserialize(state: unknown): Promise<void> {
+    if (
+      typeof state === 'object' &&
+      state !== null &&
+      hasProperty(state, 'status') &&
+      isFakeAtomicKeyringStatus(state.status)
+    ) {
+      this.#state = { status: state.status };
+    }
+  }
+
+  async getAccounts(): Promise<Hex[]> {
+    return this.#state.status === 'ready' ? [FAKE_ATOMIC_ACCOUNT_ADDRESS] : [];
+  }
+
+  async addAccounts(): Promise<Hex[]> {
+    throw new Error('FakeAtomicKeyring - addAccounts is not supported');
+  }
+
+  /**
+   * Checkpointed creation: a long-running ceremony, a staged commit, a
+   * remote activation, then promotion to ready. A failure after the staged
+   * commit leaves it in place, so the next write operation can recover
+   * instead of re-running the ceremony.
+   */
+  async createAccount(): Promise<void> {
+    await this.withWriteLock(async () => {
+      await this.#remote.performCeremony();
+
+      await this.update(() => {
+        this.#state = { status: 'staged' };
+      });
+
+      await this.#remote.activate();
+
+      await this.update(() => {
+        this.#state = { status: 'ready' };
+      });
+    });
+  }
+
+  /**
+   * Recovery: advance a staged state machine to ready, without re-running
+   * the ceremony.
+   */
+  async recover(): Promise<void> {
+    await this.withWriteLock(async () => {
+      if (this.#state.status !== 'staged') {
+        return;
+      }
+      await this.#remote.activate();
+      await this.update(() => {
+        this.#state = { status: 'ready' };
+      });
+    });
+  }
+
+  /**
+   * Commit the staged state directly, bypassing the ceremony.
+   */
+  async stage(): Promise<void> {
+    await this.update(() => {
+      this.#state = { status: 'staged' };
+    });
+  }
+
+  /**
+   * Commit the ready state directly, bypassing the ceremony.
+   */
+  async promote(): Promise<void> {
+    await this.update(() => {
+      this.#state = { status: 'ready' };
+    });
+  }
+
+  /**
+   * Commit an arbitrary action, for direct tests of `update` dispatch.
+   *
+   * @param action - The state mutation to commit.
+   */
+  async commit(action: () => void | Promise<void>): Promise<void> {
+    await this.update(action);
+  }
+}
+
+/**
+ * Build a declared-atomic keyring builder producing fake atomic keyrings
+ * that talk to the given remote service.
+ *
+ * @param remote - The remote service the built keyrings talk to.
+ * @returns The declared-atomic keyring builder.
+ */
+function buildFakeAtomicKeyringBuilder(
+  remote: FakeRemoteService,
+): KeyringBuilder {
+  return Object.assign(
+    ({ update }: KeyringBuilderContext) =>
+      new FakeAtomicKeyring({ updater: update, remote }),
+    { type: ATOMIC_TEST_KEYRING_TYPE, atomic: true as const },
+  );
+}
+
+/**
+ * A promise that can be resolved from the outside.
+ */
+type Deferred<Value> = {
+  promise: Promise<Value>;
+  resolve: (value: Value) => void;
+};
+
+/**
+ * Create a deferred promise.
+ *
+ * @returns A deferred promise, with an external `resolve`.
+ */
+function createDeferred<Value>(): Deferred<Value> {
+  const deferred: Partial<Deferred<Value>> = {};
+  deferred.promise = new Promise<Value>((resolve) => {
+    deferred.resolve = resolve;
+  });
+  return deferred as Deferred<Value>;
+}
+
+/**
+ * Let pending promise continuations (microtasks) run, so queued lock
+ * acquisitions and callbacks get a chance to start.
+ */
+async function flushMicrotasks(): Promise<void> {
+  for (let i = 0; i < 10; i++) {
+    await Promise.resolve();
+  }
 }
 
 describe('KeyringController', () => {
@@ -6993,6 +7211,410 @@ describe('KeyringController', () => {
         );
       });
     });
+  });
+});
+
+describe('KeyringController atomic keyring support', () => {
+  it('dispatches operations on atomic keyrings without holding the controller lock', async () => {
+    const remote = createFakeRemoteService();
+    const ceremonyGate = createDeferred<void>();
+
+    await withController(
+      { keyringBuilders: [buildFakeAtomicKeyringBuilder(remote)] },
+      async ({ controller }) => {
+        await controller.addNewKeyring(ATOMIC_TEST_KEYRING_TYPE);
+        const fake = controller.getKeyringsByType(
+          ATOMIC_TEST_KEYRING_TYPE,
+        )[0] as FakeAtomicKeyring;
+
+        expect(isAtomicKeyring(fake)).toBe(true);
+        expect(
+          controller.getKeyringsByType(ATOMIC_TEST_KEYRING_TYPE),
+        ).toHaveLength(1);
+
+        // The "ceremony" pauses on the gate, inside the atomic keyring's
+        // own write lock.
+        remote.performCeremony.mockImplementation(async () => {
+          await ceremonyGate.promise;
+        });
+
+        const operation = controller.withKeyring(
+          { type: ATOMIC_TEST_KEYRING_TYPE },
+          async ({ keyring }) => {
+            await (keyring as FakeAtomicKeyring).createAccount();
+          },
+        );
+
+        // While the ceremony is in flight, another controller operation
+        // runs to completion: the atomic operation does not hold the
+        // controller lock.
+        await controller.withController(async () => {
+          expect(fake.state.status).toBe('uninitialized');
+        });
+
+        ceremonyGate.resolve();
+        await operation;
+
+        expect(fake.state.status).toBe('ready');
+      },
+    );
+  });
+
+  it('keeps updates committed by a failed operation, and recovers on the next operation', async () => {
+    const remote = createFakeRemoteService();
+
+    await withController(
+      { keyringBuilders: [buildFakeAtomicKeyringBuilder(remote)] },
+      async ({ controller }) => {
+        await controller.addNewKeyring(ATOMIC_TEST_KEYRING_TYPE);
+        const fake = controller.getKeyringsByType(
+          ATOMIC_TEST_KEYRING_TYPE,
+        )[0] as FakeAtomicKeyring;
+
+        // `init` is invoked on construction, uniformly with normal
+        // keyrings.
+        expect(fake.init).toHaveBeenCalledTimes(1);
+
+        remote.activate.mockRejectedValueOnce(new Error('activation failed'));
+
+        await expect(
+          controller.withKeyring(
+            { type: ATOMIC_TEST_KEYRING_TYPE },
+            async ({ keyring }) => {
+              await (keyring as FakeAtomicKeyring).createAccount();
+            },
+          ),
+        ).rejects.toThrow('activation failed');
+
+        // The staged update survived the operation error: there is no
+        // rollback for atomic keyrings.
+        expect(fake.state.status).toBe('staged');
+
+        // The staged update also survived in the vault: locking and
+        // unlocking restores it, and the restored keyring receives a
+        // working updater via the builder context on the restore path.
+        await controller.setLocked();
+        await controller.submitPassword(password);
+
+        const restoredFake = controller.getKeyringsByType(
+          ATOMIC_TEST_KEYRING_TYPE,
+        )[0] as FakeAtomicKeyring;
+
+        expect(restoredFake).not.toBe(fake);
+        expect(restoredFake.state.status).toBe('staged');
+        // `init` is invoked on vault restore too, uniformly with normal
+        // keyrings.
+        expect(restoredFake.init).toHaveBeenCalledTimes(1);
+
+        // The next write operation advances the state machine from the
+        // staged update, without re-running the ceremony.
+        await controller.withKeyring(
+          { type: ATOMIC_TEST_KEYRING_TYPE },
+          async ({ keyring }) => {
+            await (keyring as FakeAtomicKeyring).recover();
+          },
+        );
+
+        expect(restoredFake.state.status).toBe('ready');
+        expect(remote.performCeremony).toHaveBeenCalledTimes(1);
+        expect(remote.activate).toHaveBeenCalledTimes(2);
+      },
+    );
+  });
+
+  it('persists the registration of a transaction-created atomic keyring, then dispatches its operation unlocked', async () => {
+    const remote = createFakeRemoteService();
+
+    await withController(
+      { keyringBuilders: [buildFakeAtomicKeyringBuilder(remote)] },
+      async ({ controller }) => {
+        await controller.withKeyring(
+          { type: ATOMIC_TEST_KEYRING_TYPE },
+          async ({ keyring }) => {
+            expect(isAtomicKeyring(keyring)).toBe(true);
+            await (keyring as FakeAtomicKeyring).createAccount();
+          },
+          { createIfMissing: true },
+        );
+
+        const fake = controller.getKeyringsByType(
+          ATOMIC_TEST_KEYRING_TYPE,
+        )[0] as FakeAtomicKeyring;
+
+        // The registration was persisted with the transaction, and the
+        // operation — which calls `update` twice — ran unlocked: it would
+        // deadlock had it run inside the locked transaction.
+        expect(fake.state.status).toBe('ready');
+        expect(
+          controller.getKeyringsByType(ATOMIC_TEST_KEYRING_TYPE),
+        ).toHaveLength(1);
+      },
+    );
+  });
+
+  it('throws when a builder declares atomic but does not produce an atomic keyring', async () => {
+    const lyingBuilder: KeyringBuilder = Object.assign(
+      () => new MockKeyring(),
+      { type: 'Lying Atomic Keyring', atomic: true as const },
+    );
+
+    await withController(
+      { keyringBuilders: [lyingBuilder] },
+      async ({ controller }) => {
+        await expect(
+          controller.addNewKeyring('Lying Atomic Keyring'),
+        ).rejects.toThrow(
+          KeyringControllerErrorMessage.AtomicKeyringBuilderMismatch,
+        );
+      },
+    );
+  });
+
+  it('calls legacy builders with no arguments', async () => {
+    const legacyBuilder = buildKeyringBuilderWithSpy(HdKeyring);
+
+    await withController(
+      { keyringBuilders: [legacyBuilder] },
+      async ({ controller }) => {
+        await controller.addNewKeyring(KeyringTypes.hd);
+
+        expect(legacyBuilder).toHaveBeenCalledWith();
+      },
+    );
+  });
+
+  it('locks immediately without waiting for in-flight atomic operations, and rejects their pending updates', async () => {
+    const remote = createFakeRemoteService();
+    const ceremonyGate = createDeferred<void>();
+
+    await withController(
+      { keyringBuilders: [buildFakeAtomicKeyringBuilder(remote)] },
+      async ({ controller }) => {
+        await controller.addNewKeyring(ATOMIC_TEST_KEYRING_TYPE);
+        const fake = controller.getKeyringsByType(
+          ATOMIC_TEST_KEYRING_TYPE,
+        )[0] as FakeAtomicKeyring;
+
+        remote.performCeremony.mockImplementation(async () => {
+          await ceremonyGate.promise;
+        });
+
+        const operation = controller.withKeyring(
+          { type: ATOMIC_TEST_KEYRING_TYPE },
+          async ({ keyring }) => {
+            await (keyring as FakeAtomicKeyring).createAccount();
+          },
+        );
+
+        // Locking does not wait for the in-flight operation to complete.
+        await controller.setLocked();
+        expect(fake.state.status).toBe('uninitialized');
+
+        // Once the ceremony resumes, its next update is rejected: detached
+        // keyrings cannot write the vault.
+        ceremonyGate.resolve();
+        await expect(operation).rejects.toThrow(
+          KeyringControllerErrorMessage.AtomicUpdateKeyringDetached,
+        );
+
+        // After unlocking, the keyring recovers on its next operation: the
+        // vault holds the registration only — no update was committed —
+        // so the ceremony starts over.
+        await controller.submitPassword(password);
+
+        await controller.withKeyring(
+          { type: ATOMIC_TEST_KEYRING_TYPE },
+          async ({ keyring }) => {
+            await (keyring as FakeAtomicKeyring).createAccount();
+          },
+        );
+
+        const restoredFake = controller.getKeyringsByType(
+          ATOMIC_TEST_KEYRING_TYPE,
+        )[0] as FakeAtomicKeyring;
+
+        expect(restoredFake.state.status).toBe('ready');
+        expect(remote.performCeremony).toHaveBeenCalledTimes(2);
+      },
+    );
+  });
+
+  it('lets an atomic update queued behind a locked operation proceed once it completes', async () => {
+    const remote = createFakeRemoteService();
+    const operationGate = createDeferred<void>();
+
+    await withController(
+      { keyringBuilders: [buildFakeAtomicKeyringBuilder(remote)] },
+      async ({ controller }) => {
+        await controller.addNewKeyring(ATOMIC_TEST_KEYRING_TYPE);
+        const fake = controller.getKeyringsByType(
+          ATOMIC_TEST_KEYRING_TYPE,
+        )[0] as FakeAtomicKeyring;
+
+        const lockedOperation = controller.withController(async () => {
+          await operationGate.promise;
+        });
+
+        let updateResolved = false;
+        const stagedUpdate = fake.stage().then(() => {
+          updateResolved = true;
+        });
+        await flushMicrotasks();
+
+        // The update queues behind the locked operation — it does not
+        // fail, and it does not run.
+        expect(updateResolved).toBe(false);
+        expect(fake.state.status).toBe('uninitialized');
+
+        operationGate.resolve();
+        await lockedOperation;
+        await stagedUpdate;
+
+        expect(fake.state.status).toBe('staged');
+      },
+    );
+  });
+
+  it('keeps the atomic keyring instance when a normal keyring operation fails', async () => {
+    const remote = createFakeRemoteService();
+    const ceremonyGate = createDeferred<void>();
+
+    await withController(
+      { keyringBuilders: [buildFakeAtomicKeyringBuilder(remote)] },
+      async ({ controller }) => {
+        await controller.addNewKeyring(ATOMIC_TEST_KEYRING_TYPE);
+        const fake = controller.getKeyringsByType(
+          ATOMIC_TEST_KEYRING_TYPE,
+        )[0] as FakeAtomicKeyring;
+
+        remote.performCeremony.mockImplementation(async () => {
+          await ceremonyGate.promise;
+        });
+
+        const operation = controller.withKeyring(
+          { type: ATOMIC_TEST_KEYRING_TYPE },
+          async ({ keyring }) => {
+            await (keyring as FakeAtomicKeyring).createAccount();
+          },
+        );
+
+        // A normal keyring's operation fails while the atomic operation
+        // is in flight: the atomic keyring is not the operated keyring,
+        // and the scoped rollback never touches it.
+        await expect(
+          controller.withKeyring({ type: KeyringTypes.hd }, async () => {
+            throw new Error('boom');
+          }),
+        ).rejects.toThrow('boom');
+
+        // The atomic keyring keeps its instance, and its operation
+        // completes once the ceremony finishes.
+        expect(controller.getKeyringsByType(ATOMIC_TEST_KEYRING_TYPE)[0]).toBe(
+          fake,
+        );
+
+        ceremonyGate.resolve();
+        await operation;
+
+        expect(fake.state.status).toBe('ready');
+        expect(controller.getKeyringsByType(ATOMIC_TEST_KEYRING_TYPE)[0]).toBe(
+          fake,
+        );
+      },
+    );
+  });
+
+  it('throws when an atomic keyring without a KeyringV2 adapter is selected by withKeyringV2', async () => {
+    const remote = createFakeRemoteService();
+
+    await withController(
+      { keyringBuilders: [buildFakeAtomicKeyringBuilder(remote)] },
+      async ({ controller }) => {
+        // The keyring is invisible to type-based V2 selection (it has no V2
+        // adapter), so it is selected by id.
+        const { id } = await controller.addNewKeyring(ATOMIC_TEST_KEYRING_TYPE);
+
+        await expect(
+          controller.withKeyringV2({ id }, async () => undefined),
+        ).rejects.toThrow(KeyringControllerErrorMessage.KeyringV2NotSupported);
+      },
+    );
+  });
+
+  it('dispatches operations on atomic keyrings without holding the controller lock, via withKeyringV2', async () => {
+    const remote = createFakeRemoteService();
+
+    // A minimal fake `KeyringV2` adapter wrapping the built keyring's
+    // serialization methods. The adapter's own `type` is arbitrary: the
+    // keyring is selected by id, since its type is not a `KeyringType`
+    // member.
+    const fakeV2Builder: KeyringV2Builder = Object.assign(
+      (keyring: Keyring) => ({
+        type: KeyringType.Money,
+        capabilities: { scopes: [] },
+        serialize: async () => keyring.serialize(),
+        deserialize: async (state: Json) => keyring.deserialize(state),
+        getAccounts: async () => [],
+        getAccount: async (): Promise<never> => {
+          throw new Error('FakeAtomicKeyringV2 - getAccount is not supported');
+        },
+        createAccounts: async () => [],
+        deleteAccount: async () => undefined,
+        submitRequest: async (): Promise<never> => {
+          throw new Error(
+            'FakeAtomicKeyringV2 - submitRequest is not supported',
+          );
+        },
+      }),
+      { type: ATOMIC_TEST_KEYRING_TYPE },
+    );
+
+    await withController(
+      {
+        keyringBuilders: [buildFakeAtomicKeyringBuilder(remote)],
+        keyringV2Builders: [fakeV2Builder],
+      },
+      async ({ controller }) => {
+        const { id } = await controller.addNewKeyring(ATOMIC_TEST_KEYRING_TYPE);
+        const fake = controller.getKeyringsByType(
+          ATOMIC_TEST_KEYRING_TYPE,
+        )[0] as FakeAtomicKeyring;
+
+        await controller.withKeyringV2({ id }, async () => {
+          // Runs unlocked: an `update` from inside the operation would
+          // deadlock had it run inside the locked transaction.
+          await fake.stage();
+        });
+
+        expect(fake.state.status).toBe('staged');
+      },
+    );
+  });
+
+  it('does not write the vault when an update does not change the serialized state', async () => {
+    const remote = createFakeRemoteService();
+
+    await withController(
+      { keyringBuilders: [buildFakeAtomicKeyringBuilder(remote)] },
+      async ({ controller }) => {
+        await controller.addNewKeyring(ATOMIC_TEST_KEYRING_TYPE);
+        const fake = controller.getKeyringsByType(
+          ATOMIC_TEST_KEYRING_TYPE,
+        )[0] as FakeAtomicKeyring;
+
+        await fake.stage();
+        const { vault } = controller.state;
+
+        // The action changes nothing: the serialized state is identical,
+        // so no vault write happens.
+        await fake.commit(async () => undefined);
+        expect(controller.state.vault).toBe(vault);
+
+        // A state-changing update writes the vault.
+        await fake.promote();
+        expect(controller.state.vault).not.toBe(vault);
+      },
+    );
   });
 });
 
