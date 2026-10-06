@@ -63,8 +63,37 @@ export type MoneyAccountUpgradeControllerForceUpgradeAccountAction = {
 };
 
 /**
+ * Upgrades `address` as the successor of an existing Money Account, as part
+ * of migrating that Money Account to a new address. Runs the same steps as
+ * {@link upgradeAccount}, except that associating the address with the
+ * CHOMP profile also links it to `predecessorAddress`, which starts the
+ * migration on CHOMP and freezes the predecessor until it completes or is
+ * cancelled.
+ *
+ * Like {@link forceUpgradeAccount}, this skips the recorded-upgrade
+ * shortcut, so a previously recorded upgrade of `address` cannot cause the
+ * link to be skipped. Each step still only performs its action if its own
+ * remote check finds it is not already done.
+ *
+ * @param address - The new Money Account address.
+ * @param predecessorAddress - The current address of the Money Account
+ * that `address` succeeds.
+ * @throws If the controller is not bootstrapped, if the armed config is
+ * disarmed or superseded while the sequence is running, or if a step
+ * fails (wrapped in a {@link MoneyAccountUpgradeStepError}). A link CHOMP
+ * can never accept is marked terminal; a predecessor with a withdrawal in
+ * progress is not, and its cause carries the
+ * `PREDECESSOR_HAS_OPEN_WITHDRAWALS` CHOMP error code.
+ */
+export type MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction = {
+  type: `MoneyAccountUpgradeController:upgradeSuccessorAccount`;
+  handler: MoneyAccountUpgradeController['upgradeSuccessorAccount'];
+};
+
+/**
  * Union of all MoneyAccountUpgradeController action types.
  */
 export type MoneyAccountUpgradeControllerMethodActions =
   | MoneyAccountUpgradeControllerUpgradeAccountAction
-  | MoneyAccountUpgradeControllerForceUpgradeAccountAction;
+  | MoneyAccountUpgradeControllerForceUpgradeAccountAction
+  | MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction;
