@@ -136,6 +136,7 @@ describe('KycController', () => {
 
         expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
         expect(result).toStrictEqual(sessionStatus('pending'));
         expect(controller.state.sessionStatus).toStrictEqual(
           sessionStatus('pending'),
@@ -157,15 +158,186 @@ describe('KycController', () => {
         },
         async ({ controller, handlers }) => {
           handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
           expect(
             await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
           ).toStrictEqual(sessionStatus('pending'));
           expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
         },
       );
+    });
+
+    it('refreshes capability authorization when the existing session is expired', async () => {
+      const expired = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'expired',
+      });
+      const refreshed = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'stored',
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending', {
+                capabilityAuthorizationStatus: 'stored',
+              }),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(expired);
+          handlers.setAuthorizations.mockResolvedValue(refreshed);
+
+          expect(
+            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+          ).toStrictEqual(refreshed);
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(handlers.resetWrappingKeys).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(handlers.setAuthorizations).toHaveBeenCalled();
+          expect(controller.state.sessionStatus).toStrictEqual(refreshed);
+        },
+      );
+    });
+
+    it('submits capability authorization when the existing session is new', async () => {
+      const fresh = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'new',
+      });
+      const stored = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'stored',
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(fresh);
+          handlers.setAuthorizations.mockResolvedValue(stored);
+
+          expect(
+            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+          ).toStrictEqual(stored);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(handlers.resetWrappingKeys).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(handlers.setAuthorizations).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not submit capability authorization when status is pending', async () => {
+      const pendingAuth = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'pending',
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(pendingAuth);
+
+          expect(
+            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+          ).toStrictEqual(pendingAuth);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not refresh capability authorization when finalStatus is approved', async () => {
+      const approvedExpired = sessionStatus('approved', {
+        capabilityAuthorizationStatus: 'expired',
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('approved'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(approvedExpired);
+
+          expect(
+            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+          ).toStrictEqual(approvedExpired);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('refreshes capability authorization when a latest vendor session is expired', async () => {
+      const expired = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'expired',
+      });
+      const refreshed = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'stored',
+      });
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        handlers.getSessionStatusForVendor.mockResolvedValue(expired);
+        handlers.setAuthorizations.mockResolvedValue(refreshed);
+
+        expect(
+          await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+        ).toStrictEqual(refreshed);
+        expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(handlers.resetWrappingKeys).toHaveBeenCalledWith({
+          sessionId: 'sid',
+        });
+        expect(handlers.setAuthorizations).toHaveBeenCalled();
+      });
     });
 
     it('throws when email does not match the initialized session', async () => {
@@ -860,6 +1032,7 @@ describe('KycController', () => {
 
           expect(result).toBe('failed');
           expect(handlers.createJourney).not.toHaveBeenCalled();
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
           expect(launcher.launch).not.toHaveBeenCalled();
           expect(controller.state.providerFlowStatus).toBe('failed');
         },
@@ -872,6 +1045,7 @@ describe('KycController', () => {
 
         expect(result).toBe('failed');
         expect(handlers.createJourney).not.toHaveBeenCalled();
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
         expect(launcher.launch).not.toHaveBeenCalled();
         expect(controller.state.providerFlowStatus).toBe('failed');
       });
@@ -953,6 +1127,7 @@ type ServiceHandlers = {
   fetchIdosEnclaveJwks: jest.Mock;
   fetchIdosRelayJwks: jest.Mock;
   createUkycSession: jest.Mock;
+  resetWrappingKeys: jest.Mock;
   setAuthorizations: jest.Mock;
   createJourney: jest.Mock;
   getSessionStatus: jest.Mock;
@@ -1011,15 +1186,27 @@ function ukycSessionResponse(
  * Builds a UKYC session status payload with a given `finalStatus`.
  *
  * @param finalStatus - The overall session status.
+ * @param overrides - Optional fields to overlay on the default status.
  * @returns A complete session status object.
  */
-function sessionStatus(finalStatus: string): {
+function sessionStatus(
+  finalStatus: string,
+  overrides: {
+    id?: string;
+    externalUserId?: string;
+    kycStatus?: string;
+    vendor?: string;
+    vendorStatus?: string;
+    capabilityAuthorizationStatus?: string;
+  } = {},
+): {
   id: string;
   finalStatus: string;
   externalUserId: string;
   kycStatus: string;
   vendor: string;
   vendorStatus: string;
+  capabilityAuthorizationStatus?: string;
 } {
   return {
     id: 'sid',
@@ -1028,6 +1215,7 @@ function sessionStatus(finalStatus: string): {
     kycStatus: finalStatus,
     vendor: 'sumsub',
     vendorStatus: finalStatus,
+    ...overrides,
   };
 }
 
@@ -1066,6 +1254,7 @@ function withController<ReturnValue>(
       'KycService:fetchIdosEnclaveJwks',
       'KycService:fetchIdosRelayJwks',
       'KycService:createUkycSession',
+      'KycService:resetWrappingKeys',
       'KycService:setAuthorizations',
       'KycService:createJourney',
       'KycService:getSessionStatus',
@@ -1101,6 +1290,7 @@ function withController<ReturnValue>(
     fetchIdosEnclaveJwks: jest.fn().mockResolvedValue({ keys: [] }),
     fetchIdosRelayJwks: jest.fn().mockResolvedValue({ keys: [] }),
     createUkycSession: jest.fn().mockResolvedValue(ukycSessionResponse()),
+    resetWrappingKeys: jest.fn().mockResolvedValue(ukycSessionResponse()),
     setAuthorizations: jest.fn().mockResolvedValue(sessionStatus('approved')),
     createJourney: jest
       .fn()
@@ -1154,6 +1344,10 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:createUkycSession',
     handlers.createUkycSession,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:resetWrappingKeys',
+    handlers.resetWrappingKeys,
   );
   rootMessenger.registerActionHandler(
     'KycService:setAuthorizations',
