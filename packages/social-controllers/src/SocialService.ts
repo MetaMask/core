@@ -33,6 +33,7 @@ import type {
   FetchBlockedListOptions,
   FetchFeedOptions,
   FetchFollowersOptions,
+  FetchTraderFollowingOptions,
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,
   FetchPositionsOptions,
@@ -319,6 +320,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchOpenPositions',
   'fetchClosedPositions',
   'fetchFollowers',
+  'fetchTraderFollowing',
   'fetchFollowing',
   'fetchMyFollowers',
   'fetchPositionById',
@@ -580,6 +582,43 @@ export class SocialService extends BaseDataService<
     });
 
     return followersResponse;
+  }
+
+  /**
+   * Fetches the list of traders a profile follows.
+   *
+   * Calls `GET ${baseUrl}/traders/${addressOrId}/following`.
+   *
+   * @param options - Options bag.
+   * @param options.addressOrId - Wallet address or Clicker profile ID.
+   * @returns The following response.
+   */
+  async fetchTraderFollowing(
+    options: FetchTraderFollowingOptions,
+  ): Promise<FollowingResponse> {
+    const { addressOrId } = options;
+
+    const followingResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchTraderFollowing`, addressOrId],
+      queryFn: async () => {
+        const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/following`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_FAILED,
+        );
+        const followingData = await response.json();
+        if (!is(followingData, FollowingResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_INVALID_RESPONSE,
+          );
+        }
+        return followingData;
+      },
+    });
+
+    return followingResponse;
   }
 
   /**

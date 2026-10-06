@@ -83,6 +83,20 @@ export type SocialServiceFetchFollowersAction = {
 };
 
 /**
+ * Fetches the list of traders a profile follows.
+ *
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/following`.
+ *
+ * @param options - Options bag.
+ * @param options.addressOrId - Wallet address or Clicker profile ID.
+ * @returns The following response.
+ */
+export type SocialServiceFetchTraderFollowingAction = {
+  type: `SocialService:fetchTraderFollowing`;
+  handler: SocialService['fetchTraderFollowing'];
+};
+
+/**
  * Fetches a single position by its unique ID.
  *
  * Calls `GET ${baseUrl}/traders/position/${positionId}`.
@@ -386,6 +400,7 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchOpenPositionsAction
   | SocialServiceFetchClosedPositionsAction
   | SocialServiceFetchFollowersAction
+  | SocialServiceFetchTraderFollowingAction
   | SocialServiceFetchPositionByIdAction
   | SocialServiceFetchFeedAction
   | SocialServiceFetchTraderFeedAction
