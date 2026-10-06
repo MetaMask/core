@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for MPC-backed money accounts (MFA accounts), identified by the static entropy source ID `entropy:mpc:_` (exported as `MPC_ENTROPY_SOURCE_ID`). The MPC keyring is created and initialized by the controller if it does not exist yet.
+- Add `setDefaultMoneyAccount` and a persisted `defaultMoneyAccountId` state field, so consumers know which money account is preferred.
+
 ### Changed
 
+- **BREAKING:** `MoneyAccount.options.entropy` is now a union of mnemonic and MPC entropy options (`MoneyAccountEntropyOptions`).
+- **BREAKING:** `getMoneyAccount()` with no selector now returns the default money account (`defaultMoneyAccountId`) instead of resolving the primary HD entropy source. Lookup by `{ entropySource }` is still supported, and lookup by `{ id }` was added.
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
 
 ## [2.0.0]
