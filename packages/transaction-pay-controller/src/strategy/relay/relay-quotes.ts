@@ -870,15 +870,18 @@ async function calculateSourceNetworkCost(
 > {
   const { from, sourceChainId, sourceTokenAddress } = request;
 
-  // Neither flow bills origin gas to the user: the execute flow has a relayer
-  // redeem a signed delegation, and a HyperLiquid withdrawal's "deposit" step
-  // is an off-chain HL sendAsset signature rather than an on-chain
-  // transaction.
+  // None of these flows bill origin gas to the user: the execute flow has a
+  // relayer redeem a signed delegation, a HyperLiquid withdrawal's "deposit"
+  // step is an off-chain HL sendAsset signature rather than an on-chain
+  // transaction, and a Polymarket deposit-wallet withdraw is submitted by the
+  // Polymarket relayer.
   const isExecuteFlow = Boolean(quote.metamask?.isExecute);
   const isHyperliquidWithdrawal = Boolean(request.isHyperliquidSource);
+  const isPolymarketDepositWallet = Boolean(request.isPolymarketDepositWallet);
 
   const gasPayment = resolveGasPayment({
-    isDelegated: isExecuteFlow || isHyperliquidWithdrawal,
+    isDelegated:
+      isExecuteFlow || isHyperliquidWithdrawal || isPolymarketDepositWallet,
     sourceTokenAddress,
     sponsorship: {
       accountSupports7702,
@@ -891,6 +894,7 @@ async function calculateSourceNetworkCost(
     log('Zeroing network fees as the user does not pay origin gas', {
       isExecuteFlow,
       isHyperliquidWithdrawal,
+      isPolymarketDepositWallet,
     });
 
     return {
