@@ -2591,13 +2591,16 @@ export class SeedlessOnboardingController<
    *
    * @param params - The reconciliation parameters.
    * @param params.globalPassword - The current global password.
+   * @param params.maxKeyChainLength - The maximum chain length of the pwd encryption keys. @default 5
    * @returns The reconciliation instruction.
    * @throws If recovery cannot establish the current password state.
    */
   async reconcilePassword({
     globalPassword,
+    maxKeyChainLength = 5,
   }: {
     globalPassword: string;
+    maxKeyChainLength?: number;
   }): Promise<PasswordSyncInstruction> {
     return await this.#withControllerLock(async () => {
       const { seedlessOperationLifecycle } = this.state;
@@ -2640,7 +2643,7 @@ export class SeedlessOnboardingController<
         if (instruction === PasswordSyncInstruction.PasswordOutdated) {
           // The instruction says current device password is outdated.
           // We will run the password-sync flow with the new password.
-          await this.#runPasswordSyncFlow(globalPassword);
+          await this.#runPasswordSyncFlow(globalPassword, maxKeyChainLength);
           // After the password-sync flow is completed, update the next instruction to reconcile the local Keyring.
           instruction = PasswordSyncInstruction.ReconcileKeyring;
         }
@@ -2660,14 +2663,18 @@ export class SeedlessOnboardingController<
    * the controller lock.
    *
    * @param globalPassword - The current global password.
+   * @param maxKeyChainLength - The maximum chain length of the pwd encryption keys. @default 5
    */
-  async #runPasswordSyncFlow(globalPassword: string): Promise<void> {
+  async #runPasswordSyncFlow(
+    globalPassword: string,
+    maxKeyChainLength: number = 5,
+  ): Promise<void> {
     await this.#executeWithTokenRefresh(async () => {
       const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
       await this.#submitGlobalPassword({
         targetAuthPubKey: currentDeviceAuthPubKey,
         globalPassword,
-        maxKeyChainLength: 5,
+        maxKeyChainLength,
       });
     }, 'submitGlobalPassword');
     await this.#executeWithTokenRefresh(

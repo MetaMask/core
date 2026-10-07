@@ -316,6 +316,7 @@ export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
  *
  * @param params - The reconciliation parameters.
  * @param params.globalPassword - The current global password.
+ * @param params.maxKeyChainLength - The maximum chain length of the pwd encryption keys. @default 5
  * @returns The reconciliation instruction.
  * @throws If recovery cannot establish the current password state.
  */
