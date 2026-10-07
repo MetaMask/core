@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initialize the optional `dryRun` notification preference when building fresh preferences.
+- Initialize the optional `dryRun` notification preference when building fresh preferences ([#10704](https://github.com/MetaMask/core/pull/10704))
 
 ## [29.0.3]
 

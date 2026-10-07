@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `DryRunPreference` type and `dryRun` field to `NotificationPreferences`, with the `DEFAULT_DRY_RUN_PREFERENCES` constant.
+- Add optional `DryRunPreference` type and `dryRun` field to `NotificationPreferences`, with the `DEFAULT_DRY_RUN_PREFERENCES` constant ([#10704](https://github.com/MetaMask/core/pull/10704))
 
 ### Changed
 
