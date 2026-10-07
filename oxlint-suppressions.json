@@ -4764,22 +4764,8 @@
       "count": 2
     }
   },
-  "packages/phishing-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/phishing-controller/src/BulkTokenScan.test.ts": {
     "typescript/explicit-function-return-type": {
-      "count": 2
-    },
-    "typescript/no-unsafe-call": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
       "count": 2
     }
   },
@@ -4844,6 +4830,11 @@
   },
   "packages/phishing-controller/src/PhishingDetector.ts": {
     "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/phishing-controller/src/signature-address-extraction.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
