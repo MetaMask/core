@@ -13,6 +13,8 @@ export type ServerQuoteAmount = {
 
 export type ServerTransactionStep = {
   type: 'transaction';
+  /** Provider step identifier, such as `deposit` for a Relay deposit step. */
+  id?: string;
   chainId: number;
   to: Hex;
   data: Hex;
@@ -72,6 +74,7 @@ export type ServerQuoteRequest = {
   authorizationList?: ServerAuthorization[];
   supportsDeferredCalls?: boolean;
   supportsGasless?: boolean;
+  useDepositAddress?: boolean;
 };
 
 /** Error detail from a rejected quote result. */
