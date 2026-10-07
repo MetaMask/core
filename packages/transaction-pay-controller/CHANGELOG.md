@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Non-atomic quotes settle funds on the account that executes the calls.
 - Support Predict withdraw in `ServerStrategy`
   - Polymarket deposit wallet withdrawals unwrap directly to a provider deposit address, then sweep any leftover or refunded USDC.e back into the deposit wallet.
+  - Polymarket deposit wallet withdrawals have no source network fee, as the Polymarket relayer pays origin gas.
   - Non-atomic post-quote payment overrides, such as withdrawing to a Money Account, settle on the override recipient and run the override calls as a second leg.
   - Post-quote quotes honour `refundTo`, include the original transaction in gas estimation, and reserve the gas fee token cost from the source amount.
 

@@ -1612,7 +1612,33 @@ describe('server-quotes', () => {
       );
     });
 
-    it('estimates source gas from the deposit wallet', async () => {
+    it('does not charge source network fees, as the Polymarket relayer pays the gas', async () => {
+      jest
+        .mocked(calculateGasCost)
+        .mockReturnValue({ fiat: '1', human: '1', raw: '1', usd: '1' });
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [NON_GASLESS_DEPOSIT_RESULT_MOCK],
+      });
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [DEPOSIT_WALLET_REQUEST_MOCK],
+        transaction: { txParams: { from: FROM_MOCK } } as TransactionMeta,
+      });
+
+      const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+      expect(result[0].fees.sourceNetwork).toStrictEqual({
+        estimate: zeroAmount,
+        max: zeroAmount,
+      });
+      expect(estimateQuoteGasLimits).not.toHaveBeenCalled();
+      expect(resolveGasStationCost).not.toHaveBeenCalled();
+    });
+
+    it('does not re-quote to reserve gas', async () => {
       fetchServerQuoteMock.mockResolvedValue({
         results: [NON_GASLESS_DEPOSIT_RESULT_MOCK],
       });
@@ -1621,17 +1647,16 @@ describe('server-quotes', () => {
         accountSupports7702: true,
         from: FROM_MOCK,
         messenger,
-        requests: [DEPOSIT_WALLET_REQUEST_MOCK],
+        requests: [
+          {
+            ...DEPOSIT_WALLET_REQUEST_MOCK,
+            sourceBalanceRaw: DEPOSIT_WALLET_REQUEST_MOCK.sourceTokenAmount,
+          },
+        ],
         transaction: { txParams: { from: FROM_MOCK } } as TransactionMeta,
       });
 
-      expect(estimateQuoteGasLimits).toHaveBeenCalledWith(
-        expect.objectContaining({
-          transactions: [
-            expect.objectContaining({ from: DEPOSIT_WALLET_MOCK }),
-          ],
-        }),
-      );
+      expect(fetchServerQuoteMock).toHaveBeenCalledTimes(1);
     });
   });
 
