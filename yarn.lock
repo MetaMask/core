@@ -5321,14 +5321,14 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/eth-hd-keyring": "npm:^15.0.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/multichain-account-service": "npm:^14.1.0"
     "@metamask/profile-sync-controller": "npm:^34.0.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.1.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
@@ -5359,7 +5359,7 @@ __metadata:
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-snap-keyring": "npm:^24.0.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/keyring-internal-api": "npm:^12.0.0"
     "@metamask/keyring-sdk": "npm:^3.1.0"
@@ -5602,7 +5602,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/core-backend": "npm:^12.0.1"
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/keyring-internal-api": "npm:^12.0.0"
     "@metamask/keyring-snap-client": "npm:^10.0.0"
@@ -5661,7 +5661,7 @@ __metadata:
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/keyring-internal-api": "npm:^12.0.0"
     "@metamask/keyring-snap-client": "npm:^10.0.0"
@@ -5679,7 +5679,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.1.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/transaction-controller": "npm:^72.1.0"
@@ -5891,7 +5891,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/gas-fee-controller": "npm:^27.0.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/multichain-network-controller": "npm:^4.0.0"
@@ -6088,7 +6088,7 @@ __metadata:
     "@metamask/contract-metadata": "npm:^2.4.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/core-backend": "npm:^12.0.1"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/slip44": "npm:^4.3.0"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -6463,7 +6463,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
     "@metamask/stake-sdk": "npm:^3.2.1"
@@ -6958,7 +6958,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.1.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -7131,7 +7131,7 @@ __metadata:
     "@metamask/eth-hd-keyring": "npm:^15.0.0"
     "@metamask/eth-sig-util": "npm:^9.0.0"
     "@metamask/eth-simple-keyring": "npm:^13.0.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/keyring-internal-api": "npm:^12.0.0"
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -7386,6 +7386,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/messenger@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@metamask/messenger@npm:2.0.0"
+  dependencies:
+    "@metamask/utils": "npm:^11.11.0"
+  peerDependencies:
+    typescript: ">=5.0.0"
+  checksum: 10/c387511edd89db73b774f631fb4bb382c9254af2dd7f80f9bd45f776e618cf90f653cc0e9744b1bf491f71f99c8318b16e8230a847f619a4fca655ea3f6a08e1
+  languageName: node
+  linkType: hard
+
 "@metamask/messenger@npm:^3.0.0, @metamask/messenger@workspace:packages/messenger":
   version: 0.0.0-use.local
   resolution: "@metamask/messenger@workspace:packages/messenger"
@@ -7475,7 +7486,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/eth-money-keyring": "npm:^4.0.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -7557,7 +7568,7 @@ __metadata:
     "@metamask/eth-hd-keyring": "npm:^15.0.0"
     "@metamask/eth-snap-keyring": "npm:^24.0.0"
     "@metamask/key-tree": "npm:^10.1.1"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/keyring-internal-api": "npm:^12.0.0"
     "@metamask/keyring-snap-client": "npm:^10.0.0"
@@ -7566,7 +7577,7 @@ __metadata:
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snap-account-service": "npm:^4.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.1.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
@@ -7630,7 +7641,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/keyring-internal-api": "npm:^12.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -7661,14 +7672,14 @@ __metadata:
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/keyring-internal-api": "npm:^12.0.0"
     "@metamask/keyring-snap-client": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.1.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -7791,7 +7802,7 @@ __metadata:
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/config-registry-controller": "npm:^5.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/multichain-network-controller": "npm:^4.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
@@ -8261,7 +8272,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/profile-sync-controller": "npm:^34.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.1.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.1.0"
@@ -8294,7 +8305,7 @@ __metadata:
     "@metamask/cryptography": "npm:^1.1.0"
     "@metamask/eth-hd-keyring": "npm:^15.0.0"
     "@metamask/key-tree": "npm:^10.1.1"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/keyring-internal-api": "npm:^12.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -8713,14 +8724,14 @@ __metadata:
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/eth-snap-keyring": "npm:^24.0.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/keyring-internal-snap-client": "npm:^11.0.0"
     "@metamask/keyring-snap-sdk": "npm:^10.0.0"
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.1.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8818,6 +8829,21 @@ __metadata:
     "@metamask/utils": "npm:^11.11.0"
     luxon: "npm:^3.5.0"
   checksum: 10/8419625775b83045d98c4ed920002ad884471e2303f6650104c97457c238f095ff35030663ddf111ebb6ce8f4cd915f57b7b9a5597d00288093701dbb79e787c
+  languageName: node
+  linkType: hard
+
+"@metamask/snaps-sdk@npm:^12.1.0":
+  version: 12.1.0
+  resolution: "@metamask/snaps-sdk@npm:12.1.0"
+  dependencies:
+    "@metamask/key-tree": "npm:^10.1.1"
+    "@metamask/messenger": "npm:^2.0.0"
+    "@metamask/providers": "npm:^22.1.1"
+    "@metamask/rpc-errors": "npm:^7.0.3"
+    "@metamask/superstruct": "npm:^3.3.0"
+    "@metamask/utils": "npm:^11.11.0"
+    luxon: "npm:^3.5.0"
+  checksum: 10/760de9a18be43198a3ec7149de06637680cf2bd127dd040e2666ca8545c1d605291f7407e34dc32027038301c0d8807fce094562040f836c1637b4db275ffa1d
   languageName: node
   linkType: hard
 
@@ -8991,7 +9017,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/superstruct@npm:^3.1.0, @metamask/superstruct@npm:^3.2.1, @metamask/superstruct@npm:^3.4.1":
+"@metamask/superstruct@npm:^3.1.0, @metamask/superstruct@npm:^3.2.1, @metamask/superstruct@npm:^3.3.0, @metamask/superstruct@npm:^3.4.1":
   version: 3.4.1
   resolution: "@metamask/superstruct@npm:3.4.1"
   checksum: 10/d37b5662dc9bbe0d99e06eb951167fa745829ae3abfa103423e9d8c05e8712f1451376f8479d484722e1e1c1d881732da1efddccaca8868b530a786264b903b5
