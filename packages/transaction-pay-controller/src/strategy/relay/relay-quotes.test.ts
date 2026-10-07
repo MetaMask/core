@@ -5674,6 +5674,7 @@ describe('Relay Quotes Utils', () => {
 
         const result = await getRelayQuotes({
           accountSupports7702: true,
+          from: FROM_MOCK,
           messenger,
           requests: [POLYMARKET_REQUEST],
           transaction: TRANSACTION_META_MOCK,
