@@ -1973,6 +1973,42 @@ export class LighterProvider implements PerpsProvider {
     });
   };
 
+  /**
+   * Forward a failed trading operation to the platform logger without
+   * classifying or rewriting the provider error.
+   *
+   * Retryable keyring/session failures and local intent validation remain
+   * caller-visible but are not reported.
+   *
+   * @param error - The provider or venue failure.
+   * @param method - The provider method that failed.
+   * @param errorTags - Bounded operation and action tags.
+   * @param extra - Diagnostic context that must not become tags.
+   * @returns The normalized Error used by the caller result.
+   */
+  readonly #reportTradingError = (
+    error: unknown,
+    method: string,
+    errorTags: PerpsErrorTags,
+    extra?: Record<string, unknown>,
+  ): Error => {
+    const wrappedError = ensureError(error, `LighterProvider.${method}`);
+    const isLocalValidationError =
+      wrappedError.message === PERPS_ERROR_CODES.ORDER_MARGIN_MODE_INVALID ||
+      wrappedError.message === PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID;
+    if (
+      !isKeyringLockedError(wrappedError) &&
+      !(wrappedError instanceof LighterSessionCancelledError) &&
+      !isLocalValidationError
+    ) {
+      this.#deps.logger.error(
+        wrappedError,
+        this.#getErrorContext(method, extra, errorTags),
+      );
+    }
+    return wrappedError;
+  };
+
   // ============================================================================
   // Initialization & Lifecycle
   // ============================================================================
@@ -9634,6 +9670,18 @@ export class LighterProvider implements PerpsProvider {
         capturedGeneration,
       );
     } catch (error) {
+      const wrappedError = this.#reportTradingError(
+        error,
+        'placeScaleOrder',
+        {
+          operation: PERPS_ERROR_OPERATION.OrderManagement,
+          action: PERPS_ERROR_ACTION.PlaceOrder,
+        },
+        {
+          symbol: params.symbol,
+          orderType: params.orderType,
+        },
+      );
       if (group && key !== undefined && generation !== undefined) {
         group.placementStopped = true;
         try {
@@ -9645,7 +9693,7 @@ export class LighterProvider implements PerpsProvider {
       return {
         ...(group ? toLighterScaleGroup(group) : {}),
         success: false,
-        error: ensureError(error, 'LighterProvider.placeScaleOrder').message,
+        error: wrappedError.message,
         ...(leverageCommitted
           ? { partialState: { leverageUpdated: Number(params.leverage) } }
           : {}),
@@ -11701,9 +11749,17 @@ export class LighterProvider implements PerpsProvider {
         providerId: 'lighter',
       };
     } catch (caughtError) {
-      const wrappedError = ensureError(
+      const wrappedError = this.#reportTradingError(
         caughtError,
-        'LighterProvider.placeOrder',
+        'placeOrder',
+        {
+          operation: PERPS_ERROR_OPERATION.OrderManagement,
+          action: PERPS_ERROR_ACTION.PlaceOrder,
+        },
+        {
+          symbol: params.symbol,
+          orderType: params.orderType,
+        },
       );
       this.#deps.debugLogger.log('[LighterProvider] placeOrder failed', {
         error: String(wrappedError),
@@ -13970,7 +14026,19 @@ export class LighterProvider implements PerpsProvider {
               }
             },
           );
-        } catch {
+        } catch (error) {
+          this.#reportTradingError(
+            error,
+            'editOrder',
+            {
+              operation: PERPS_ERROR_OPERATION.OrderManagement,
+              action: PERPS_ERROR_ACTION.EditOrder,
+            },
+            {
+              symbol: params.newOrder.symbol,
+              orderId: params.orderId,
+            },
+          );
           // Project only retained intent and observations. Do not leak signer
           // or transport failures, or mutate a cancelled issuing session.
           if (journal) {
@@ -16323,9 +16391,18 @@ export class LighterProvider implements PerpsProvider {
         ...(positionProtection ? { positionProtection } : {}),
       };
     } catch (error) {
-      const wrappedError = ensureError(
+      const wrappedError = this.#reportTradingError(
         error,
-        'LighterProvider.updatePositionTPSL',
+        'updatePositionTPSL',
+        {
+          operation: PERPS_ERROR_OPERATION.PositionManagement,
+          action: PERPS_ERROR_ACTION.PositionTpslUpdate,
+        },
+        {
+          symbol: params.symbol,
+          hasTakeProfit: params.takeProfitPrice !== undefined,
+          hasStopLoss: params.stopLossPrice !== undefined,
+        },
       );
       this.#deps.debugLogger.log(
         '[LighterProvider] updatePositionTPSL failed',
@@ -16531,7 +16608,18 @@ export class LighterProvider implements PerpsProvider {
       );
       return { success: true };
     } catch (error) {
-      const wrappedError = ensureError(error, 'LighterProvider.updateMargin');
+      const wrappedError = this.#reportTradingError(
+        error,
+        'updateMargin',
+        {
+          operation: PERPS_ERROR_OPERATION.PositionManagement,
+          action: PERPS_ERROR_ACTION.UpdateMargin,
+        },
+        {
+          symbol: params.symbol,
+          amount: params.amount,
+        },
+      );
       this.#deps.debugLogger.log('[LighterProvider] updateMargin failed', {
         error: String(wrappedError),
         ...this.#getErrorContext('updateMargin'),

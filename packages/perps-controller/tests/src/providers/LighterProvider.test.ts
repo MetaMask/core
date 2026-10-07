@@ -77,6 +77,23 @@ const MockedWalletService = LighterWalletService as jest.MockedClass<
   typeof LighterWalletService
 >;
 
+type MockInfrastructure = ReturnType<typeof createMockInfrastructure>;
+
+/**
+ * Get the typed error logger mock from test infrastructure.
+ *
+ * @param dependencies - Mock platform dependencies.
+ * @returns The logger error mock.
+ */
+const getLoggerErrorMock = (
+  dependencies: MockInfrastructure,
+): jest.MockedFunction<MockInfrastructure['logger']['error']> =>
+  // The infrastructure logger methods are deliberately Jest mocks.
+  // eslint-disable-next-line @typescript-eslint/unbound-method
+  dependencies.logger.error as jest.MockedFunction<
+    MockInfrastructure['logger']['error']
+  >;
+
 const BTC_MARKET = {
   symbol: 'BTC',
   marketId: 1,
@@ -9911,7 +9928,11 @@ describe('LighterProvider', () => {
     it.each(['invalid', ''] as const)(
       'rejects malformed explicit mode %s before signing',
       async (marginMode) => {
-        const { provider, calls } = buildProvider();
+        const deps = createMockInfrastructure();
+        const { provider, calls } = buildProvider({
+          platformDependencies: deps,
+        });
+        const logError = getLoggerErrorMock(deps);
         const params = {
           symbol: 'BTC',
           isBuy: true,
@@ -9932,6 +9953,7 @@ describe('LighterProvider', () => {
         expect(result.success).toBe(false);
         expect(result.error).toBe('ORDER_MARGIN_MODE_INVALID');
         expect(calls).toHaveLength(0);
+        expect(logError).not.toHaveBeenCalled();
       },
     );
 
@@ -9964,6 +9986,73 @@ describe('LighterProvider', () => {
         14,
         expect.stringContaining('"createOrder":true'),
       );
+    });
+
+    it('reports an underlying venue failure once with the raw message and bounded tags', async () => {
+      const deps = createMockInfrastructure();
+      const { provider, clientInstance } = buildProvider({
+        platformDependencies: deps,
+      });
+      const logError = getLoggerErrorMock(deps);
+      clientInstance.sendTx.mockRejectedValueOnce(
+        new Error('Lighter venue unavailable'),
+      );
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: 'Lighter venue unavailable',
+      });
+      expect(logError).toHaveBeenCalledTimes(1);
+      const [[reportedError, reportedOptions]] = logError.mock.calls;
+      if (!reportedOptions) {
+        throw new Error('Expected Lighter place-order error context');
+      }
+      expect(reportedError.message).toBe('Lighter venue unavailable');
+      expect(reportedOptions.tags).toMatchObject({
+        feature: 'perps',
+        provider: 'LighterProvider',
+        network: 'testnet',
+        operation: 'order_management',
+        action: 'place_order',
+      });
+      expect(reportedOptions.context?.name).toBe('LighterProvider.placeOrder');
+      expect(reportedOptions.context?.data).toMatchObject({
+        method: 'placeOrder',
+        symbol: 'BTC',
+      });
+    });
+
+    it('does not report a retryable keyring failure', async () => {
+      const deps = createMockInfrastructure();
+      const { provider, clientInstance } = buildProvider({
+        platformDependencies: deps,
+      });
+      const logError = getLoggerErrorMock(deps);
+      clientInstance.sendTx.mockRejectedValueOnce(
+        new Error(PERPS_ERROR_CODES.KEYRING_LOCKED),
+      );
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      });
+      expect(logError).not.toHaveBeenCalled();
     });
 
     it('does not claim or send an isolated-margin update when leverage is omitted', async () => {
@@ -15273,7 +15362,11 @@ describe('LighterProvider', () => {
     });
 
     it('an active-orders REST failure rejects remove AND replace with zero mutation calls', async () => {
-      const { provider, calls, clientInstance } = buildProvider();
+      const deps = createMockInfrastructure();
+      const { provider, calls, clientInstance } = buildProvider({
+        platformDependencies: deps,
+      });
+      const logError = getLoggerErrorMock(deps);
       clientInstance.getActiveOrders.mockRejectedValue(
         new Error('active orders REST down'),
       );
@@ -15297,6 +15390,16 @@ describe('LighterProvider', () => {
           ].includes(call.function),
         ),
       ).toHaveLength(0);
+      expect(logError).toHaveBeenCalledTimes(2);
+      const [reportedError, reportedOptions] = logError.mock.calls[0];
+      if (!reportedOptions) {
+        throw new Error('Expected Lighter TP/SL error context');
+      }
+      expect(reportedError.message).toBe('active orders REST down');
+      expect(reportedOptions.tags).toMatchObject({
+        operation: 'position_management',
+        action: 'position_tpsl_update',
+      });
     });
 
     it.each(['single', 'pair', 'filled', 'oco-mixed'] as const)(
@@ -23979,9 +24082,12 @@ describe('LighterProvider', () => {
       });
 
       it('reports exact failed margin execution without claiming success or pending acceptance', async () => {
+        const deps = createMockInfrastructure();
         const { provider, clientInstance, calls } = buildProvider({
           registeredKey: '9c'.repeat(40),
+          platformDependencies: deps,
         });
+        const logError = getLoggerErrorMock(deps);
         clientInstance.getAccountByIndex.mockResolvedValue({
           code: 200,
           accounts: [
@@ -24016,6 +24122,18 @@ describe('LighterProvider', () => {
           success: false,
           error:
             'Lighter margin transaction failed; refresh its exact outcome before retrying',
+        });
+        expect(logError).toHaveBeenCalledTimes(1);
+        const [[reportedError, reportedOptions]] = logError.mock.calls;
+        if (!reportedOptions) {
+          throw new Error('Expected Lighter margin error context');
+        }
+        expect(reportedError.message).toBe(
+          'Lighter margin transaction failed; refresh its exact outcome before retrying',
+        );
+        expect(reportedOptions.tags).toMatchObject({
+          operation: 'position_management',
+          action: 'update_margin',
         });
       });
 
