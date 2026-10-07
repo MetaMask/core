@@ -494,7 +494,7 @@ export class MoneyAccountController extends BaseController<
   ): Promise<Result> {
     return (await this.messenger.call(
       'KeyringController:withKeyring',
-      { id: id },
+      { id },
       async ({ keyring }) => {
         if (!assertType(keyring)) {
           throw new Error(`Keyring ${id} has an unexpected type`);
