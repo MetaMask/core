@@ -5661,6 +5661,30 @@ describe('Relay Quotes Utils', () => {
         expect(body.useDepositAddress).toBe(true);
         expect(body.strict).toBe(true);
       });
+
+      it('zeroes source network fees (gasless)', async () => {
+        polymarketGetDepositWalletAddressMock.mockResolvedValue(
+          DEPOSIT_WALLET_MOCK,
+        );
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        });
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [POLYMARKET_REQUEST],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+        expect(result[0].fees.sourceNetwork.estimate).toStrictEqual(zeroAmount);
+        expect(result[0].fees.sourceNetwork.max).toStrictEqual(zeroAmount);
+        expect(estimateGasMock).not.toHaveBeenCalled();
+      });
     });
 
     describe('gas buffer support', () => {
