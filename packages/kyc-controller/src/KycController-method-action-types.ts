@@ -57,10 +57,11 @@ export type KycControllerGetProviderFlowStatusAction = {
 };
 
 /**
- * Returns the current session status and starts polling when it is not yet
- * terminal.
+ * Fetches the latest session status when `finalStatus` is still being
+ * polled, refreshes capability authorization when it is `new` or `expired`,
+ * and starts polling.
  *
- * @returns The current session status.
+ * @returns The current session status after any authorization refresh.
  * @throws If there is no session on state.
  */
 export type KycControllerRefreshSessionStatusAction = {

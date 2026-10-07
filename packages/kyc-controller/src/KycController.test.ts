@@ -5,6 +5,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
+import { flushPromises } from '../../../tests/helpers.js';
 import {
   getDefaultKycControllerState,
   KycController,
@@ -483,44 +484,108 @@ describe('KycController', () => {
 
   describe('refreshSessionStatus', () => {
     it('throws when no session is available', async () => {
-      await withController(({ controller }) => {
-        expect(() => controller.refreshSessionStatus()).toThrow(
+      await withController(async ({ controller }) => {
+        await expect(controller.refreshSessionStatus()).rejects.toThrow(
           'No session was found',
         );
       });
     });
 
-    it('does not start polling once the session is terminal', async () => {
-      await withController(
-        {
-          options: { state: { sessionStatus: sessionStatus('approved') } },
-        },
-        async ({ controller, handlers }) => {
-          expect(controller.refreshSessionStatus()).toStrictEqual(
-            sessionStatus('approved'),
-          );
-          await Promise.resolve();
-          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
-        },
-      );
-    });
+    it.each(['approved', 'rejected', 'retry'])(
+      'does not fetch or poll once finalStatus is %s',
+      async (finalStatus) => {
+        const current = sessionStatus(finalStatus, {
+          capabilityAuthorizationStatus: 'expired',
+        });
+        await withController(
+          {
+            options: { state: { sessionStatus: current } },
+          },
+          async ({ controller, handlers }) => {
+            expect(await controller.refreshSessionStatus()).toStrictEqual(
+              current,
+            );
+            await flushPromises();
+            expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+            expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+            expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+          },
+        );
+      },
+    );
 
-    it('returns the current session and starts polling when not terminal', async () => {
+    it('fetches the latest status and starts polling when not terminal', async () => {
+      const latest = sessionStatus('pending', { kycStatus: 'in_review' });
       await withController(
         {
           options: { state: { sessionStatus: sessionStatus('pending') } },
         },
         async ({ controller, handlers }) => {
-          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+          handlers.getSessionStatus.mockResolvedValue(latest);
 
-          expect(controller.refreshSessionStatus()).toStrictEqual(
-            sessionStatus('pending'),
-          );
-          await Promise.resolve();
-          await Promise.resolve();
+          expect(await controller.refreshSessionStatus()).toStrictEqual(latest);
+          expect(controller.state.sessionStatus).toStrictEqual(latest);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+
+          await flushPromises();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
+    it.each(['new', 'expired'] as const)(
+      'refreshes capability authorization when the fetched status is %s',
+      async (capabilityAuthorizationStatus) => {
+        const fetched = sessionStatus('pending', {
+          capabilityAuthorizationStatus,
+        });
+        const refreshed = sessionStatus('pending', {
+          capabilityAuthorizationStatus: 'stored',
+        });
+        await withController(
+          {
+            options: { state: { sessionStatus: sessionStatus('pending') } },
+          },
+          async ({ controller, handlers }) => {
+            handlers.getSessionStatus
+              .mockResolvedValueOnce(fetched)
+              .mockResolvedValue(refreshed);
+            handlers.setAuthorizations.mockResolvedValue(refreshed);
+
+            expect(await controller.refreshSessionStatus()).toStrictEqual(
+              refreshed,
+            );
+            await flushPromises();
+            expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+              sessionId: 'sid',
+            });
+            expectResetWrappingKeys(handlers.resetWrappingKeys, 'sid');
+            expect(handlers.setAuthorizations).toHaveBeenCalledTimes(1);
+            expect(controller.state.sessionStatus).toStrictEqual(refreshed);
+          },
+        );
+      },
+    );
+
+    it('does not refresh capability authorization when the fetched status is pending', async () => {
+      const pendingAuth = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'pending',
+      });
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(pendingAuth);
+
+          expect(await controller.refreshSessionStatus()).toStrictEqual(
+            pendingAuth,
+          );
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
         },
       );
     });
@@ -530,14 +595,6 @@ describe('KycController', () => {
     afterEach(() => {
       jest.useRealTimers();
     });
-
-    /**
-     * Lets the in-flight poll tick settle.
-     */
-    async function flushPoll(): Promise<void> {
-      await Promise.resolve();
-      await Promise.resolve();
-    }
 
     it('throws when no session id is available', async () => {
       await withController(({ controller }) => {
@@ -559,12 +616,14 @@ describe('KycController', () => {
           });
 
           controller.startSessionStatusPolling();
-          await flushPoll();
+          await flushPromises();
 
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
           expect(controller.state.sessionStatus?.kycStatus).toBe('in_review');
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
         },
       );
     });
@@ -583,7 +642,7 @@ describe('KycController', () => {
             );
 
             controller.startSessionStatusPolling();
-            await flushPoll();
+            await flushPromises();
             expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
             await jest.advanceTimersByTimeAsync(30_000);
@@ -603,7 +662,7 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
           controller.startSessionStatusPolling();
-          await flushPoll();
+          await flushPromises();
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
           await jest.advanceTimersByTimeAsync(15_000);
@@ -624,7 +683,7 @@ describe('KycController', () => {
             .mockResolvedValue(sessionStatus('approved'));
 
           controller.startSessionStatusPolling();
-          await flushPoll();
+          await flushPromises();
           expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
 
           await jest.advanceTimersByTimeAsync(15_000);
@@ -644,7 +703,7 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
           controller.startSessionStatusPolling();
-          await flushPoll();
+          await flushPromises();
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
           await controller.reset();
@@ -667,7 +726,7 @@ describe('KycController', () => {
           });
 
           controller.startSessionStatusPolling();
-          await flushPoll();
+          await flushPromises();
 
           expect(controller.state.sessionStatus).toBeNull();
         },

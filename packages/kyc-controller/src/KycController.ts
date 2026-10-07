@@ -489,20 +489,33 @@ export class KycController extends BaseController<
     return this.state.providerFlowStatus;
   }
 
+  // TODO: Perhaps this should be renamed to resumeSession()?
   /**
-   * Returns the current session status and starts polling when it is not yet
-   * terminal.
+   * Fetches the latest session status when `finalStatus` is still being
+   * polled, refreshes capability authorization when it is `new` or `expired`,
+   * and starts polling.
    *
-   * @returns The current session status.
+   * @returns The current session status after any authorization refresh.
    * @throws If there is no session on state.
    */
-  refreshSessionStatus(): KycSessionStatus {
+  async refreshSessionStatus(): Promise<KycSessionStatus> {
     if (!this.state.sessionStatus) {
       throw new Error('No session was found');
     }
+
     if (
       !FINAL_STATUSES_TO_STOP_POLLING.has(this.state.sessionStatus.finalStatus)
     ) {
+      const sessionStatus = await this.messenger.call(
+        'KycService:getSessionStatus',
+        { sessionId: this.state.sessionStatus.id },
+      );
+
+      this.update((state) => {
+        state.sessionStatus = sessionStatus;
+      });
+      await this.#refreshAuthorizationsIfNeeded();
+
       this.startSessionStatusPolling();
     }
     return this.state.sessionStatus;

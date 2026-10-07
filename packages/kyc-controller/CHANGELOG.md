@@ -23,8 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Refresh and resubmit the UKYC capability authorization when
-  `capabilityAuthorizationStatus` is `new` or `expired` during `startSession`
-  resume (skipped when `finalStatus` is `approved` or `rejected`)
+  `capabilityAuthorizationStatus` is `new` or `expired` while resuming a
+  session in `startSession` or `refreshSessionStatus` (skipped when
+  `finalStatus` is `approved` or `rejected`)
   ([#10692](https://github.com/MetaMask/core/pull/10692))
 
 ## [0.6.1]
