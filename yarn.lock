@@ -7607,7 +7607,7 @@ __metadata:
     "@metamask/safe-event-emitter": "npm:^3.1.3"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@open-rpc/meta-schema": "npm:^1.14.6"
+    "@open-rpc/meta-schema": "npm:^1.14.9"
     "@open-rpc/schema-utils-js": "npm:^2.0.5"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -9992,7 +9992,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@open-rpc/meta-schema@npm:^1.14.6, @open-rpc/meta-schema@npm:^1.14.9":
+"@open-rpc/meta-schema@npm:^1.14.9":
   version: 1.14.9
   resolution: "@open-rpc/meta-schema@npm:1.14.9"
   checksum: 10/51505dcf7aa1a2285c78953c9b33711cede5f2765aa37dcb9ee7756d689e2ff2a89cfc6039504f0569c52a805fb9aa18f30a7c02ad7a06e793c801e43b419104
