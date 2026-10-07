@@ -6893,7 +6893,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.5.2"
-    minipass: "npm:^7.1.2"
+    minipass: "npm:^7.1.3"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     tar: "npm:^7.5.22"
