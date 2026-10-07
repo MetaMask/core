@@ -19,7 +19,12 @@ module.exports = {
   // clearMocks: true,
 
   // Indicates whether the coverage information should be collected while executing the test
-  collectCoverage: true,
+  //
+  // The monorepo-wide run (`yarn test`) sets `COLLECT_COVERAGE=false` to skip
+  // this, because collecting coverage for every package at once is slow. Reading
+  // it here rather than passing a CLI flag keeps the root script runner-agnostic,
+  // as `vitest.config.packages.mts` reads the same variable.
+  collectCoverage: process.env.COLLECT_COVERAGE !== 'false',
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected
   collectCoverageFrom: ['./src/**/*.ts'],
