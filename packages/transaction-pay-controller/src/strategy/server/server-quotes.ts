@@ -744,10 +744,13 @@ async function calculateSourceNetworkCost({
     maxPriorityFeePerGas: undefined,
   };
 
-  const { from, sourceChainId, sourceTokenAddress } = quoteRequest;
+  const { from, isPolymarketDepositWallet, sourceChainId, sourceTokenAddress } =
+    quoteRequest;
 
+  // A deposit wallet withdraw is broadcast by the Polymarket relayer, which
+  // pays the gas, so the user only signs.
   const gasPayment = resolveGasPayment({
-    isDelegated: gasless,
+    isDelegated: gasless || Boolean(isPolymarketDepositWallet),
     sourceTokenAddress,
     sponsorship: {
       accountSupports7702,
@@ -757,7 +760,10 @@ async function calculateSourceNetworkCost({
   });
 
   if (gasPayment.mode === GasPaymentMode.Delegation) {
-    log('Zeroing source network fees for gasless quote');
+    log('Zeroing source network fees as the user does not pay origin gas', {
+      gasless,
+      isPolymarketDepositWallet,
+    });
     return noFees;
   }
 
