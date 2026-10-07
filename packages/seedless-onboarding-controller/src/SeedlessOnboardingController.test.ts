@@ -2077,7 +2077,8 @@ describe('SeedlessOnboardingController', () => {
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
             vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-            passwordChangePhase: SeedlessOnboardingCheckpoint.RemotePasswordPending,
+            passwordChangePhase:
+              SeedlessOnboardingCheckpoint.RemotePasswordPending,
           }),
         },
         async ({ baseMessenger }) => {
@@ -4342,7 +4343,7 @@ describe('SeedlessOnboardingController', () => {
             (state) => {
               if (
                 getLifecyclePhase(state) ===
-                SeedlessOnboardingCheckpoint.LocalPasswordPending &&
+                  SeedlessOnboardingCheckpoint.LocalPasswordPending &&
                 keyAtLocalKeyringPending === undefined
               ) {
                 keyAtLocalKeyringPending = state.encryptedKeyringEncryptionKey;
@@ -5054,14 +5055,17 @@ describe('SeedlessOnboardingController', () => {
     it('routes a password-sync lifecycle by its phase', async () => {
       await withController(
         {
-          state: {
-            seedlessOperationLifecycle: {
-              operation: SeedlessOnboardingOperation.PasswordSync,
-              checkpoint: SeedlessOnboardingCheckpoint.LocalStatePending,
-            },
-          },
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessOnboardingCheckpoint.LocalStatePending,
+          }),
         },
-        async ({ controller }) => {
+        async ({ toprfClient, controller }) => {
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(MOCK_AUTH_PUB_KEY_OUTDATED),
+          );
           expect(await controller.resolvePasswordSyncState()).toBe(
             PasswordSyncInstruction.PasswordOutdated,
           );
@@ -5078,7 +5082,11 @@ describe('SeedlessOnboardingController', () => {
             passwordChangePhase: SeedlessOnboardingCheckpoint.LocalStatePending,
           }),
         },
-        async ({ controller }) => {
+        async ({ toprfClient, controller }) => {
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(MOCK_AUTH_PUB_KEY_OUTDATED),
+          );
           const result = await controller.resolvePasswordSyncState();
           expect(result).toBe(PasswordSyncInstruction.PasswordOutdated);
           expect(getLifecyclePhase(controller.state)).toBe(
@@ -5098,7 +5106,8 @@ describe('SeedlessOnboardingController', () => {
               SeedlessOnboardingCheckpoint.LocalPasswordPending,
           }),
         },
-        async ({ controller }) => {
+        async ({ toprfClient, controller }) => {
+          mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await controller.resolvePasswordSyncState();
           expect(result).toBe(PasswordSyncInstruction.ReconcileKeyring);
         },
@@ -5114,7 +5123,8 @@ describe('SeedlessOnboardingController', () => {
             passwordChangePhase: SeedlessOnboardingCheckpoint.KeySyncPending,
           }),
         },
-        async ({ controller }) => {
+        async ({ toprfClient, controller }) => {
+          mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await controller.resolvePasswordSyncState();
           expect(result).toBe(PasswordSyncInstruction.SyncKey);
         },
@@ -5160,24 +5170,6 @@ describe('SeedlessOnboardingController', () => {
           );
           expect(getLifecyclePhase(controller.state)).toBe(
             SeedlessOnboardingCheckpoint.RemotePasswordPending,
-          );
-        },
-      );
-    });
-
-    it('throws when the phase is not a password-sync checkpoint', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-            // @ts-expect-error - mock unknown phase
-            passwordChangePhase: 'unknown',
-          }),
-        },
-        async ({ controller }) => {
-          await expect(controller.resolvePasswordSyncState()).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidPasswordSyncCheckpoint,
           );
         },
       );
@@ -5274,6 +5266,10 @@ describe('SeedlessOnboardingController', () => {
             baseMessenger,
             NEW_PASSWORD,
           );
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
           await controller.setLocked();
 
           const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
@@ -5311,6 +5307,10 @@ describe('SeedlessOnboardingController', () => {
             controller,
             baseMessenger,
             NEW_PASSWORD,
+          );
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
           );
           await controller.setLocked();
 
@@ -5646,7 +5646,8 @@ describe('SeedlessOnboardingController', () => {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withMockAuthPubKey: true,
-            passwordChangePhase: SeedlessOnboardingCheckpoint.RemotePasswordPending
+            passwordChangePhase:
+              SeedlessOnboardingCheckpoint.RemotePasswordPending,
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
@@ -5690,9 +5691,13 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller }) => {
-          await expect(controller.reconcilePassword({
-            globalPassword: NEW_PASSWORD,
-          })).rejects.toThrow(SeedlessOnboardingControllerErrorMessage.InvalidPasswordSyncCheckpoint);
+          await expect(
+            controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidPasswordSyncCheckpoint,
+          );
         },
       );
     });
@@ -5703,7 +5708,8 @@ describe('SeedlessOnboardingController', () => {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withMockAuthPubKey: true,
-            passwordChangePhase: SeedlessOnboardingCheckpoint.RemotePasswordPending,
+            passwordChangePhase:
+              SeedlessOnboardingCheckpoint.RemotePasswordPending,
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
@@ -5745,7 +5751,8 @@ describe('SeedlessOnboardingController', () => {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withMockAuthPubKey: true,
-            passwordChangePhase: SeedlessOnboardingCheckpoint.RemotePasswordPending,
+            passwordChangePhase:
+              SeedlessOnboardingCheckpoint.RemotePasswordPending,
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
@@ -5792,7 +5799,8 @@ describe('SeedlessOnboardingController', () => {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withMockAuthPubKey: true,
-            passwordChangePhase: SeedlessOnboardingCheckpoint.RemotePasswordPending,
+            passwordChangePhase:
+              SeedlessOnboardingCheckpoint.RemotePasswordPending,
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
@@ -5836,7 +5844,8 @@ describe('SeedlessOnboardingController', () => {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withMockAuthPubKey: true,
-            passwordChangePhase: SeedlessOnboardingCheckpoint.RemotePasswordPending,
+            passwordChangePhase:
+              SeedlessOnboardingCheckpoint.RemotePasswordPending,
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
@@ -5875,7 +5884,8 @@ describe('SeedlessOnboardingController', () => {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withMockAuthPubKey: true,
-            passwordChangePhase: SeedlessOnboardingCheckpoint.RemotePasswordPending,
+            passwordChangePhase:
+              SeedlessOnboardingCheckpoint.RemotePasswordPending,
           }),
         },
         async ({

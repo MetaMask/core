@@ -47,15 +47,16 @@ export enum PasswordSyncInstruction {
   /**
    * No password change activities on other devices.
    * Even if the last password change has failed, no commitment has done on the remote server.
-   * The check point is either empty or `REMOTE_PASSWORD_PENDING`.
-   * The local and remote passwords are synchronized; no recovery action is needed. Unlock normally.
+   * The local and remote passwords are synchronized and no recovery checkpoint
+   * remains actionable; no recovery action is needed. Unlock normally.
    */
   InSync = 'in-sync',
   /**
    * The remote password changed due to
    *    - another device changed it.
    *    - the last password change has failed, but commitment has done in the server
-   * The check point can be empty, `REMOTE_PASSWORD_PENDING` or `LOCAL_STATE_PENDING`.
+   * The remote password is newer than the local state. This can happen during
+   * any password recovery checkpoint when another device changes the password.
    * Prompt for the new password, then call `reconcilePassword`.
    */
   PasswordOutdated = 'password-outdated',
@@ -80,26 +81,24 @@ The following is the execution flow for the `resolvePasswordState`.
 
 ```mermaid
 flowchart LR
-    n1["resolvePasswordSyncState"] --> n2["Check state machine for any checkpoint"]
-    n2 --> n11["no checkpoint"] & n12["REMOTE_PASSWORD_PENDING"] & n9["LOCAL_STATE_PENDING"] & n8["LOCAL_PASSWORD_PENDING"] & n10["KEY_SYNC_PENDING"]
-    n4["toprf:getAuthPubKey"] --> n6["outdated password?"]
-    n6 -- NO --> n7(["InSync"])
-    n6 -- YES --> n5(["PasswordOutdated"])
-    n11 --> n4
-    n12 --> n4
-    n9 --> n5
-    n8 --> n13(["ReconcileKeyring"])
-    n10 --> n14(["SyncKey"])
+    n1["resolvePasswordSyncState"] --> n2["Check remote auth public key"]
+    n2 --> n3["outdated password?"]
+    n3 -- YES --> n4(["PasswordOutdated"])
+    n3 -- NO --> n5["Route by checkpoint"]
+    n5 --> n6["no checkpoint / REMOTE_PASSWORD_PENDING / LOCAL_STATE_PENDING"]
+    n5 --> n7["LOCAL_PASSWORD_PENDING"]
+    n5 --> n8["KEY_SYNC_PENDING"]
+    n6 --> n9(["InSync"])
+    n7 --> n10(["ReconcileKeyring"])
+    n8 --> n11(["SyncKey"])
 
     n1@{ shape: rounded}
-    n2@{ shape: rect}
-    n11@{ shape: rect}
-    n12@{ shape: rect}
-    n9@{ shape: rect}
+    n2@{ shape: rounded}
+    n3@{ shape: diam}
+    n5@{ shape: rect}
+    n6@{ shape: rect}
+    n7@{ shape: rect}
     n8@{ shape: rect}
-    n10@{ shape: rect}
-    n4@{ shape: rounded}
-    n6@{ shape: diam}
     style n1 font-size:12px
 ```
 
@@ -249,13 +248,17 @@ flowchart LR
     n19 --> n17
     n17 --> n18
     n1 --> n13
-    n20["no checkpoint (or)<br>REMOTE_PASSWORD_PENDING (or)<br>LOCAL_STATE_PENDING"] --> s1
+    n20["remote password is outdated"] --> s1
     s1 --> n21["ReconcileKeyring"]
     n21 --> n22["SyncKey"]
-    n23["LOCAL_PASSWORD_PENDING"] --> n21
-    n24["KEY_SYNC_PENDING"] --> n22
-    n25["Look up State Machine Checkpoint"] --> n20 & n23
-    n25 --> n24
+    n23["remote password is current"] --> n24["Route by checkpoint"]
+    n24 --> n30["no checkpoint / REMOTE_PASSWORD_PENDING / LOCAL_STATE_PENDING"] --> n31["InSync"]
+    n24 --> n25["LOCAL_PASSWORD_PENDING"] --> n21
+    n24 --> n26["KEY_SYNC_PENDING"] --> n22
+    n27["Any valid checkpoint or no checkpoint"] --> n28["Check remote auth public key"]
+    n28 --> n29["outdated?"]
+    n29 -- YES --> n20
+    n29 -- NO --> n23
 
     n1@{ shape: rounded}
     n13@{ shape: rounded}
@@ -270,7 +273,13 @@ flowchart LR
     n22@{ shape: rounded}
     n23@{ shape: rect}
     n24@{ shape: rect}
-    n25@{ shape: diam}
+    n25@{ shape: rect}
+    n26@{ shape: rect}
+    n27@{ shape: rect}
+    n28@{ shape: rounded}
+    n29@{ shape: diam}
+    n30@{ shape: rect}
+    n31@{ shape: rounded}
     style n1 font-size:12px
 ```
 
@@ -288,11 +297,17 @@ The client will have to start from [`ReconcilePassword` flow](#sync-local-seedle
 #### LOCAL_PASSWORD_PENDING
 
 From the password change checkpoint, it means Seedless vault is updated and synced.
-The next step would be to recover and update Keyring vault, following this [`ReconcileKeyring` path](#recover-the-current-keyring-vault-and-sync-with-the-latest-password-reconcilekeyring).
+The controller first checks the remote password again. If another device has
+changed it, it restarts the Seedless sync and returns `ReconcileKeyring`.
+Otherwise, the next step is to recover and update the Keyring vault, following
+this [`ReconcileKeyring` path](#recover-the-current-keyring-vault-and-sync-with-the-latest-password-reconcilekeyring).
 
 #### KEY_SYNC_PENDING
 
 Both Seedless and Keyring were synced.
 At this point, user can technically unlock the wallet session with new password.
-The last step of both `Password Change` and `Password Sync` flow.
-The client has just to do the [`SyncKey`](#sync-the-new-keyring-encryption-to-the-seedless-vault-synckey)
+The controller first checks the remote password again. If another device has
+changed it, it restarts the Seedless sync and returns `ReconcileKeyring`.
+Otherwise, this is the last step of both `Password Change` and `Password Sync`
+flow. The client has just to do the
+[`SyncKey`](#sync-the-new-keyring-encryption-to-the-seedless-vault-synckey).

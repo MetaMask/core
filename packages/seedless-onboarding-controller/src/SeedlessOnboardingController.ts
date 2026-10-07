@@ -44,6 +44,7 @@ import {
   assertIsValidPassword,
   assertIsValidVaultData,
 } from './assertions.js';
+import { getPasswordSyncInstruction } from './checkpoint.js';
 import type { AuthConnection } from './constants.js';
 import {
   controllerName,
@@ -2515,13 +2516,13 @@ export class SeedlessOnboardingController<
   /**
    * Resolve the password-sync instruction without consuming a password.
    *
-   * Uses the persisted checkpoint to route recovery. With no checkpoint or
-   * `REMOTE_PASSWORD_PENDING`, it checks the remote password; otherwise, it
-   * returns the instruction for the current checkpoint.
+   * Checks the remote password before routing recovery for every valid
+   * password-sync checkpoint. The checkpoint then determines the next local
+   * recovery instruction when the passwords are in sync.
    *
    * @param options - The options.
-   * @param options.skipCache - Whether to bypass the outdated cache. Ignored
-   * for `REMOTE_PASSWORD_PENDING`.
+   * @param options.skipCache - Whether to bypass the outdated cache. Recovery
+   * checkpoints always bypass the cache.
    * @returns The sync/recovery instruction.
    * @throws If another operation is active or the password state cannot be
    * established.
@@ -2543,46 +2544,19 @@ export class SeedlessOnboardingController<
         );
       }
       const checkpoint = seedlessOperationLifecycle?.checkpoint;
-
-      if (
-        !checkpoint ||
-        checkpoint === SeedlessOnboardingCheckpoint.RemotePasswordPending
-      ) {
-        const shouldSkipCache =
-          checkpoint === SeedlessOnboardingCheckpoint.RemotePasswordPending
-            ? true
-            : options?.skipCache;
-        const outdated = await this.#checkIsPasswordOutdated({
-          skipCache: shouldSkipCache,
-        });
-        if (outdated) {
-          // The current is not in sync with latest remote password.
-          // We will have to sync the current device with remote server.
-          return PasswordSyncInstruction.PasswordOutdated;
-        }
-        // The current device password is in sync with latest remote password.
-        // No action is needed.
-        // Clear the any checkpoint if available.
-        this.#writeSeedlessOperationLifecycle(undefined);
-        return PasswordSyncInstruction.InSync;
-      }
-
-      if (checkpoint === SeedlessOnboardingCheckpoint.LocalStatePending) {
-        return PasswordSyncInstruction.PasswordOutdated;
-      }
-
-      if (checkpoint === SeedlessOnboardingCheckpoint.LocalPasswordPending) {
-        return PasswordSyncInstruction.ReconcileKeyring;
-      }
-
-      if (checkpoint === SeedlessOnboardingCheckpoint.KeySyncPending) {
-        return PasswordSyncInstruction.SyncKey;
-      }
-
-      // Technically, this should never happen.
-      throw new SeedlessOnboardingError(
-        SeedlessOnboardingControllerErrorMessage.InvalidPasswordSyncCheckpoint,
+      const isPasswordOutdated = await this.#checkIsPasswordOutdated({
+        // Recovery checkpoints must always use a fresh remote comparison.
+        skipCache: checkpoint !== undefined || options?.skipCache,
+      });
+      const instruction = getPasswordSyncInstruction(
+        checkpoint,
+        isPasswordOutdated,
       );
+      if (instruction === PasswordSyncInstruction.InSync) {
+        // The local password matches. Clear a stale checkpoint.
+        this.#writeSeedlessOperationLifecycle(undefined);
+      }
+      return instruction;
     });
   }
 
@@ -2602,11 +2576,12 @@ export class SeedlessOnboardingController<
    * newer `accessToken` from `refreshAuthTokens` is kept instead of being
    * overwritten by the vault copy.
    *
-   * For no checkpoint (`undefined`) it re-checks whether the remote password is
-   * outdated. If it is, it runs the same password-sync flow, advances to
-   * `LOCAL_PASSWORD_PENDING`, and returns `ReconcileKeyring` so the client can
-   * reconcile the local Keyring (e.g. after another device changed the remote
-   * password). If the remote password is not outdated it is a no-op.
+   * It always re-checks whether the remote password is outdated, including when
+   * the local Seedless vault was already rewritten. If it is, it runs the same
+   * password-sync flow, advances to `LOCAL_PASSWORD_PENDING`, and returns
+   * `ReconcileKeyring` so the client can reconcile the local Keyring. If the
+   * remote password is current, the checkpoint determines whether the client
+   * must reconcile the Keyring, sync its key, or do nothing.
    *
    * The client remains responsible for the Keyring side (classifying the local
    * Keyring via `KeyringController:verifyPassword` and running the old-Keyring
@@ -2635,38 +2610,21 @@ export class SeedlessOnboardingController<
         );
       }
       const checkpoint = seedlessOperationLifecycle?.checkpoint;
-      let instruction = PasswordSyncInstruction.InSync;
+      const isPasswordOutdated = await this.#checkIsPasswordOutdated({
+        skipCache: true,
+      });
+      let instruction = getPasswordSyncInstruction(
+        checkpoint,
+        isPasswordOutdated,
+      );
 
       if (
-        !checkpoint ||
-        checkpoint === SeedlessOnboardingCheckpoint.RemotePasswordPending ||
-        checkpoint === SeedlessOnboardingCheckpoint.LocalStatePending
-      ) {
-        // check if the current device is in sync with the remote server.
-        const outdated = await this.#checkIsPasswordOutdated({
-          skipCache: true,
-        });
-        if (outdated) {
-          instruction = PasswordSyncInstruction.PasswordOutdated;
-        }
-      } else if (
-        checkpoint === SeedlessOnboardingCheckpoint.LocalPasswordPending ||
-        checkpoint === SeedlessOnboardingCheckpoint.KeySyncPending
+        instruction === PasswordSyncInstruction.ReconcileKeyring ||
+        instruction === PasswordSyncInstruction.SyncKey
       ) {
         // Vault is already rewritten; unlock locally so Keyring key load/store
-        // works after a restart without repeating TOPRF recovery. Reconcile
-        // `accessToken` the same way `submitPassword` does: unlocking writes
-        // the vault copy over state, which would discard a token from
-        // `refreshAuthTokens` before unlock.
+        // works after a restart without repeating TOPRF recovery.
         await this.#unlockVaultAndReconcileAccessToken(globalPassword);
-        instruction =
-          checkpoint === SeedlessOnboardingCheckpoint.KeySyncPending
-            ? PasswordSyncInstruction.SyncKey
-            : PasswordSyncInstruction.ReconcileKeyring;
-      } else {
-        throw new SeedlessOnboardingError(
-          SeedlessOnboardingControllerErrorMessage.InvalidPasswordSyncCheckpoint,
-        );
       }
 
       if (instruction === PasswordSyncInstruction.InSync) {

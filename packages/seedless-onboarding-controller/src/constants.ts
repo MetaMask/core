@@ -85,8 +85,8 @@ export enum PasswordSyncInstruction {
   /**
    * No password change activities on other devices.
    * Even if the last password change has failed, no commitment has done on the remote server.
-   * The check point is either empty or `REMOTE_PASSWORD_PENDING`.
-   * The local and remote passwords are synchronized; no recovery action is needed. Unlock normally.
+   * The local and remote passwords are synchronized and no recovery checkpoint
+   * remains actionable; no recovery action is needed. Unlock normally.
    */
   InSync = 'in-sync',
   /**
@@ -94,8 +94,10 @@ export enum PasswordSyncInstruction {
    *    - another device changed it.
    *    - the last password change has failed, but commitment has done in the server.
    *
-   * The check point can be empty, `REMOTE_PASSWORD_PENDING` or `LOCAL_STATE_PENDING`.
-   * Prompt for the new password, then call `reconcilePassword`.
+   * The remote password is newer than the local state. This can occur with
+   * any password recovery checkpoint when another device changes the
+   * password during recovery. Prompt for the new password, then call
+   * `reconcilePassword`.
    */
   PasswordOutdated = 'password-outdated',
   /**
