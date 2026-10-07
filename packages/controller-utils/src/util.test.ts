@@ -561,6 +561,47 @@ describe('util', () => {
     });
   });
 
+  describe('fetchWithErrorHandling', () => {
+    it('should fetch first if response is faster than timeout', async () => {
+      nock(SOME_API).get(/.+/u).delay(50).reply(200, { foo: 'bar' });
+      const result = await util.fetchWithErrorHandling({
+        url: SOME_API,
+        timeout: 300,
+      });
+      expect(result).toStrictEqual({ foo: 'bar' });
+    });
+
+    it('should stop waiting once the timeout elapses, even if the fetch never resolves in time', async () => {
+      nock(SOME_API).get(/.+/u).delay(300).reply(200, { foo: 'bar' });
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation();
+      const start = Date.now();
+      const result = await util.fetchWithErrorHandling({
+        url: SOME_API,
+        timeout: 50,
+      });
+      const elapsed = Date.now() - start;
+      // The timeout error is logged (not thrown) and the result is
+      // undefined, matching how a caught+swallowed error already behaves.
+      expect(result).toBeUndefined();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'timeout' }),
+      );
+      // If the timeout is honored, this resolves in ~50ms, not ~300ms.
+      // On unfixed code, the outer `await` inside the race already
+      // resolves the fetch before the race is constructed, so this takes
+      // the full 300ms instead. The bound is loose (well under the 300ms
+      // delay, generous above the 50ms timeout) to avoid CI flakiness on a
+      // loaded worker; the `result` assertion above is the primary proof.
+      expect(elapsed).toBeLessThan(250);
+      consoleErrorSpy.mockRestore();
+      // Let the abandoned nock interceptor settle before the test ends,
+      // so it doesn't leave a dangling timer past the process's teardown.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+  });
+
   describe('normalizeEnsName', () => {
     it('should normalize with valid 2LD', async () => {
       let valid = util.normalizeEnsName('metamask.eth');
