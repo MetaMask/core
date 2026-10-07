@@ -5931,11 +5931,6 @@
       "count": 8
     }
   },
-  "packages/social-controllers/src/SocialService.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 12
-    }
-  },
   "packages/solana-test-validator-up/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
