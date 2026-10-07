@@ -60,7 +60,7 @@ export function initialize(options: InitializeOptions): DefaultInstances {
     const camelCaseName =
       `${name.charAt(0).toLowerCase()}${name.slice(1)}` as keyof InstanceSpecificOptions;
 
-    const instance = config.init({
+    const instance: unknown = config.init({
       // TODO: Consider whether this can be improved
       state: instanceState as never,
       messenger: instanceMessenger,
