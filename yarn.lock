@@ -6466,7 +6466,7 @@ __metadata:
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
-    "@metamask/stake-sdk": "npm:^3.2.1"
+    "@metamask/stake-sdk": "npm:^3.4.0"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8896,10 +8896,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/stake-sdk@npm:^3.2.1":
-  version: 3.2.1
-  resolution: "@metamask/stake-sdk@npm:3.2.1"
-  checksum: 10/7404ac54e2bd426158b0ae92a2f4c420ef551d18d8a14293c5760b1da1c48cab88df9a7dcce7133f91bbe7899f6c2016642f0e41e170353b6b9ae4c6423d2ad5
+"@metamask/stake-sdk@npm:^3.4.0":
+  version: 3.4.0
+  resolution: "@metamask/stake-sdk@npm:3.4.0"
+  checksum: 10/32241bf7a904b0b12568467482b28f550eae1a4d97ffb7487a1cd1614d43f3b584d78dc96df72ece024a0402d3591c19d79f370a3955ea4b11369f000c309a08
   languageName: node
   linkType: hard
 
