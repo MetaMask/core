@@ -131,7 +131,14 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMoonpayCustomerId',
   'getWalletRegistrationStatus',
   'registerSelfHostedWallet',
+  'getPixDepositInstructions',
+  'listAutorampTransactions',
 ] as const;
+
+/**
+ * MoonPay's maximum `page_size` for `GET /api/autoramps`.
+ */
+const AUTORAMP_LIST_PAGE_SIZE = 100;
 
 /**
  * Actions that {@link NeoBankService} exposes to other consumers.
@@ -217,8 +224,7 @@ export function mapNeoBankAutorampToRemoteSnapshot(
       response.wallet_address !== undefined &&
       response.wallet_address.length > 0
         ? response.wallet_address
-        : (response.recipient_account?.address ??
-          response.recipient?.address),
+        : (response.recipient_account?.address ?? response.recipient?.address),
     status: response.status,
     depositRailsSummary,
   };
@@ -246,6 +252,25 @@ function readPagedItems(
     return (response as { items: unknown[] }).items;
   }
   throw new Error(malformedMessage);
+}
+
+/**
+ * Reads the next-page cursor from a MoonPay paged list.
+ * A raw array has no further page.
+ *
+ * @param response - Proxy JSON body.
+ * @returns Next cursor, or undefined when this page is the last.
+ */
+function readNextCursor(response: unknown): string | undefined {
+  if (
+    response === null ||
+    typeof response !== 'object' ||
+    Array.isArray(response)
+  ) {
+    return undefined;
+  }
+  const { cursor } = response as { cursor?: unknown };
+  return typeof cursor === 'string' && cursor.length > 0 ? cursor : undefined;
 }
 
 /**
@@ -512,16 +537,44 @@ export class NeoBankService {
   }
 
   /**
-   * Fetches all autoramp accounts belonging to the authenticated customer.
+   * Fetches autoramp accounts, following MoonPay `cursor` pages until the
+   * list is complete.
    *
-   * @returns Remote snapshots for all customer autoramps.
+   * Pass `customerId` to scope the list to one MoonPay customer. Omitting it
+   * asks the proxy for the partner-wide list. Each request uses MoonPay's
+   * maximum `page_size`.
+   *
+   * @param params - Optional filters.
+   * @param params.customerId - MoonPay customer id.
+   * @returns Remote snapshots for every page.
    */
-  async getAutoramps(): Promise<AutorampRemoteSnapshot[]> {
-    const response = await this.#getJson<unknown>('autoramps');
-    const autoramps = readPagedItems(
-      response,
-      'Malformed response received from neo-bank autoramps API',
-    );
+  async getAutoramps(
+    params: { customerId?: string } = {},
+  ): Promise<AutorampRemoteSnapshot[]> {
+    const autoramps: unknown[] = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined;
+
+    do {
+      const response = await this.#getJson<unknown>('autoramps', {
+        customer_id: params.customerId,
+        page_size: AUTORAMP_LIST_PAGE_SIZE,
+        cursor,
+      });
+      autoramps.push(
+        ...readPagedItems(
+          response,
+          'Malformed response received from neo-bank autoramps API',
+        ),
+      );
+      const nextCursor = readNextCursor(response);
+      if (nextCursor === undefined || seenCursors.has(nextCursor)) {
+        break;
+      }
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    } while (cursor !== undefined);
+
     return autoramps.map((autoramp) =>
       this.#mapAutorampResponse(autoramp as NeoBankAutorampResponse),
     );
@@ -550,19 +603,21 @@ export class NeoBankService {
   }
 
   /**
-   * Lists transactions for one autoramp via
-   * `GET /neobank/autoramp-transactions?autoramp_id=`.
+   * Lists the newest page of transactions for one autoramp via
+   * `GET /neobank/autoramp-transactions?autoramp_id=&sort_order=desc`.
    *
-   * Poll `status` (`Completed`, `Failed`, …). The deprecated `state` field is ignored.
+   * This is the first page only, not the full history. Poll `status`
+   * (`Completed`, `Failed`, …). The deprecated `state` field is ignored.
    *
    * @param autorampId - MoonPay autoramp id.
-   * @returns Transaction summaries, newest-first as returned by the proxy.
+   * @returns Transaction summaries from the newest page.
    */
   async listAutorampTransactions(
     autorampId: string,
   ): Promise<AutorampTransactionSummary[]> {
     const response = await this.#getJson<unknown>('autoramp-transactions', {
       autoramp_id: autorampId,
+      sort_order: 'desc',
     });
     const transactions = readPagedItems(
       response,

@@ -316,6 +316,8 @@ export type {
 export type {
   NeoBankServiceGetAutorampAction,
   NeoBankServiceGetAutorampsAction,
+  NeoBankServiceGetPixDepositInstructionsAction,
+  NeoBankServiceListAutorampTransactionsAction,
   NeoBankServiceRegisterPixAddressAction,
   NeoBankServiceGetAutorampQuoteAction,
   NeoBankServiceCreateAutorampAction,

@@ -353,6 +353,89 @@ describe('NeoBankService', () => {
         { id: 'ar-1', customerId: 'cust-1', walletAddress: '0xabc' },
       ]);
     });
+
+    it('follows cursors for one customer until the list is complete', async () => {
+      const firstPage = nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(
+          (query) =>
+            query.customer_id === 'cust-1' &&
+            query.page_size === '100' &&
+            query.cursor === undefined,
+        )
+        .reply(200, {
+          items: [
+            {
+              id: 'ar-1',
+              customer_id: 'cust-1',
+              status: 'Approved',
+              wallet_address: '0xabc',
+            },
+          ],
+          cursor: 'page-2',
+        });
+      const secondPage = nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(
+          (query) =>
+            query.customer_id === 'cust-1' &&
+            query.page_size === '100' &&
+            query.cursor === 'page-2',
+        )
+        .reply(200, {
+          items: [
+            {
+              id: 'ar-2',
+              customer_id: 'cust-1',
+              status: 'Authorized',
+              wallet_address: '0xdef',
+            },
+          ],
+        });
+
+      const service = createService();
+
+      expect(
+        await service.getAutoramps({ customerId: 'cust-1' }),
+      ).toMatchObject([
+        { id: 'ar-1', walletAddress: '0xabc' },
+        { id: 'ar-2', walletAddress: '0xdef' },
+      ]);
+      expect(firstPage.isDone()).toBe(true);
+      expect(secondPage.isDone()).toBe(true);
+    });
+
+    it('stops when a cursor repeats', async () => {
+      let calls = 0;
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(true)
+        .times(3)
+        .reply(() => {
+          calls += 1;
+          return [
+            200,
+            {
+              items: [
+                {
+                  id: `ar-${calls}`,
+                  customer_id: 'cust-1',
+                  status: 'Approved',
+                  wallet_address: '0xabc',
+                },
+              ],
+              cursor: 'same-cursor',
+            },
+          ];
+        });
+
+      const service = createService();
+
+      expect(
+        await service.getAutoramps({ customerId: 'cust-1' }),
+      ).toMatchObject([{ id: 'ar-1' }, { id: 'ar-2' }]);
+      expect(calls).toBe(2);
+    });
   });
 
   describe('getPixDepositInstructions', () => {
@@ -411,7 +494,10 @@ describe('NeoBankService', () => {
     it('unwraps a paged transaction list', async () => {
       const scope = nock(STAGING_BASE)
         .get('/neobank/autoramp-transactions')
-        .query((query) => query.autoramp_id === 'ar-1')
+        .query(
+          (query) =>
+            query.autoramp_id === 'ar-1' && query.sort_order === 'desc',
+        )
         .reply(200, {
           items: [
             {
@@ -453,7 +539,10 @@ describe('NeoBankService', () => {
     it('throws when a transaction is missing an id', async () => {
       nock(STAGING_BASE)
         .get('/neobank/autoramp-transactions')
-        .query((query) => query.autoramp_id === 'ar-1')
+        .query(
+          (query) =>
+            query.autoramp_id === 'ar-1' && query.sort_order === 'desc',
+        )
         .reply(200, { items: [{ status: 'Completed' }] });
 
       const service = createService();
@@ -466,7 +555,10 @@ describe('NeoBankService', () => {
     it('throws when a transaction is missing status', async () => {
       nock(STAGING_BASE)
         .get('/neobank/autoramp-transactions')
-        .query((query) => query.autoramp_id === 'ar-1')
+        .query(
+          (query) =>
+            query.autoramp_id === 'ar-1' && query.sort_order === 'desc',
+        )
         .reply(200, { items: [{ id: 'tx-1' }] });
 
       const service = createService();

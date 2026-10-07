@@ -4061,8 +4061,10 @@ export class RampsController extends BaseController<
         throw registration.error;
       }
 
+      const customerId = await this.resolveAutorampCustomerId();
       const remoteAutoramps = await this.messenger.call(
         'NeoBankService:getAutoramps',
+        { customerId },
       );
       const remoteAutorampIds = new Set(
         remoteAutoramps.map((autoramp) => autoramp.id),
@@ -4076,7 +4078,8 @@ export class RampsController extends BaseController<
         );
       });
 
-      const normalizedWalletAddress = walletAddress.toLowerCase();
+      const trimmedWalletAddress = walletAddress.trim();
+      const normalizedWalletAddress = trimmedWalletAddress.toLowerCase();
       const hasUsableAutoramp = this.state.autoramps.some(
         (autoramp) =>
           autoramp.walletAddress.toLowerCase() === normalizedWalletAddress &&
@@ -4085,7 +4088,10 @@ export class RampsController extends BaseController<
       );
       if (!hasUsableAutoramp) {
         await this.createAutoramp(
-          buildBrazilMusdAutorampRequest(walletAddress.trim()),
+          buildBrazilMusdAutorampRequest(trimmedWalletAddress),
+          {
+            idempotencyKey: `brl-musd-monad:${customerId}:${normalizedWalletAddress}`,
+          },
         );
       }
     } catch {

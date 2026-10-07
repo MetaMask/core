@@ -10496,6 +10496,7 @@ describe('RampsController', () => {
       hasCompletedSessionDisclaimers: jest.Mock;
       clearState: jest.Mock;
       getSessionProfile: jest.Mock;
+      getCustomerByExternalId: jest.Mock;
       getAutoramps: jest.Mock;
     };
 
@@ -10575,6 +10576,9 @@ describe('RampsController', () => {
         getSessionProfile: jest
           .fn()
           .mockResolvedValue({ canonicalProfileId: values.profileCanonicalId }),
+        getCustomerByExternalId: jest
+          .fn()
+          .mockResolvedValue({ id: 'customer-1' }),
         getAutoramps: jest.fn().mockResolvedValue([]),
       };
 
@@ -10605,6 +10609,10 @@ describe('RampsController', () => {
       rootMessenger.registerActionHandler(
         'KycController:clearState' as never,
         handlers.clearState as never,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getCustomerByExternalId' as never,
+        handlers.getCustomerByExternalId as never,
       );
       rootMessenger.registerActionHandler(
         'NeoBankService:getAutoramps' as never,
@@ -10824,7 +10832,7 @@ describe('RampsController', () => {
 
     it('registers the wallet, creates the autoramp, and marks activation ready after accepted KYC', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        registerKycHandlers(rootMessenger);
+        const handlers = registerKycHandlers(rootMessenger);
         jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
           type: 'registered',
           registration: {
@@ -10855,8 +10863,12 @@ describe('RampsController', () => {
           }),
         );
 
+        expect(handlers.getAutoramps).toHaveBeenCalledWith({
+          customerId: 'customer-1',
+        });
         expect(createAutoramp).toHaveBeenCalledWith(
           buildBrazilMusdAutorampRequest('0xabc'),
+          { idempotencyKey: 'brl-musd-monad:customer-1:0xabc' },
         );
       });
     });
@@ -10905,6 +10917,7 @@ describe('RampsController', () => {
 
         expect(createAutoramp).toHaveBeenCalledWith(
           buildBrazilMusdAutorampRequest('0xabc'),
+          { idempotencyKey: 'brl-musd-monad:customer-1:0xabc' },
         );
       });
     });
@@ -11000,6 +11013,7 @@ describe('RampsController', () => {
 
         expect(createAutoramp).toHaveBeenCalledWith(
           buildBrazilMusdAutorampRequest('0xabc'),
+          { idempotencyKey: 'brl-musd-monad:customer-1:0xabc' },
         );
       });
     });
