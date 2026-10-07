@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Recognize Ink Mainnet and Ink Sepolia as OP Stack networks when estimating Layer 1 gas fees ([#](https://github.com/MetaMask/core/pull/))
+- Recognize Ink Mainnet and Ink Sepolia as OP Stack networks when estimating Layer 1 gas fees ([#10707](https://github.com/MetaMask/core/pull/10707))
 
 ## [72.1.0]
 
