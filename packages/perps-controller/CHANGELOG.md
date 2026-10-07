@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 1315.0.0 ([#10684](https://github.com/MetaMask/core/pull/10684))
+- Release 1314.0.0 ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Release 1313.0.0 ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Release/1312.0.0 ([#10655](https://github.com/MetaMask/core/pull/10655))
+- Release 1311.0.0 ([#10652](https://github.com/MetaMask/core/pull/10652))
+
 ### Changed
 
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
