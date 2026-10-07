@@ -8514,6 +8514,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/browser-passworder": "npm:^6.0.0"
+    "@metamask/cryptography": "npm:^1.1.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/toprf-secure-backup": "npm:^1.1.0"

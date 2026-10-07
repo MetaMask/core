@@ -660,6 +660,7 @@ linkStyle default opacity:0.5
   sample_controllers --> utils;
   sample_controllers --> controller_utils;
   seedless_onboarding_controller --> base_controller;
+  seedless_onboarding_controller --> cryptography;
   seedless_onboarding_controller --> keyring_controller;
   seedless_onboarding_controller --> messenger;
   seedless_onboarding_controller --> utils;

@@ -4,9 +4,9 @@ import {
   base64ToBytes,
   bigIntToHex,
   bytesToBase64,
+  bytesToString,
   hexToBigInt,
 } from '@metamask/utils';
-import { bytesToUtf8 } from '@noble/ciphers/utils';
 
 import { SecretType } from './constants.js';
 import type { SecretMetadata } from './SecretMetadata.js';
@@ -25,7 +25,7 @@ import type {
  * @returns The decoded node auth token.
  */
 export function decodeNodeAuthToken(token: string): DecodedNodeAuthToken {
-  return JSON.parse(bytesToUtf8(base64ToBytes(token)));
+  return JSON.parse(bytesToString(base64ToBytes(token)));
 }
 
 /**
@@ -45,7 +45,7 @@ export function decodeJWTToken(token: string): DecodedBaseJWTToken {
   const payload = parts[1];
   // Add padding if needed for base64 decoding
   const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
-  const decoded = JSON.parse(bytesToUtf8(base64ToBytes(paddedPayload)));
+  const decoded = JSON.parse(bytesToString(base64ToBytes(paddedPayload)));
   return decoded as DecodedBaseJWTToken;
 }
 
