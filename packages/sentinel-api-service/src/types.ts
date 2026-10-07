@@ -291,14 +291,18 @@ export type SentinelSmartTransactionRequest = {
 };
 
 /**
- * A single network entry from the Sentinel `/networks` registry.
+ * A single network entry from the Sentinel `/networks` registry, or the
+ * configuration of a single network from the `/network` endpoint.
  */
 export type SentinelNetwork = {
+  /** Raw field name from the Sentinel API response; note uppercase 'D'. */
+  chainID?: number;
+
   /** Whether simulation (confirmations) is supported for this chain. */
   confirmations?: boolean;
 
-  /** Raw field name from the Sentinel API response; note uppercase 'D'. */
-  chainID?: number;
+  /** Addresses of the relay signers that submit relay transactions. */
+  cubistSigners?: Hex[];
 
   /** The subdomain used to build the Sentinel URL for this chain. */
   network: string;
@@ -306,11 +310,14 @@ export type SentinelNetwork = {
   /** Whether the gas station relay is supported for this chain. */
   relayTransactions?: boolean;
 
-  /** Whether smart transactions are supported for this chain. */
-  smartTransactions?: boolean;
-
   /** Whether the bundle path is supported for this chain. */
   sendBundle?: boolean;
+
+  /** Whether simulations on this chain include gas fees for native tokens. */
+  simulationIncludeFees?: boolean;
+
+  /** Whether smart transactions are supported for this chain. */
+  smartTransactions?: boolean;
 };
 
 /**

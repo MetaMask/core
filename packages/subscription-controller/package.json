@@ -51,7 +51,6 @@
   },
   "dependencies": {
     "@ethersproject/abi": "^5.7.0",
-    "@metamask/approval-controller": "^10.0.0",
     "@metamask/authenticated-user-storage": "^4.1.0",
     "@metamask/base-controller": "^10.0.0",
     "@metamask/base-data-service": "^2.1.0",
@@ -60,6 +59,7 @@
     "@metamask/delegation-controller": "^4.0.0",
     "@metamask/delegation-core": "^2.2.1",
     "@metamask/delegation-deployments": "^1.4.0",
+    "@metamask/geolocation-controller": "^2.0.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/money-account-balance-service": "^3.1.2",
     "@metamask/money-account-upgrade-controller": "^5.1.0",

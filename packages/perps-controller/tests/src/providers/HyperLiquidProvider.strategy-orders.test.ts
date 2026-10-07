@@ -1,4 +1,4 @@
-import { HyperliquidError } from '@nktkas/hyperliquid';
+import { ExchangeClient, HyperliquidError } from '@nktkas/hyperliquid';
 import type { MetaResponse } from '@nktkas/hyperliquid';
 
 import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
@@ -26,6 +26,7 @@ import type {
   OrderResult,
 } from '../../../src/types/index.js';
 import type { OrderType } from '../../../src/types/perps-types.js';
+import { createGuardedHyperLiquidClient } from '../../../src/utils/guardedHyperLiquidClient.js';
 import { HYPERLIQUID_SCALE_CLOID_MARKER } from '../../../src/utils/hyperLiquidAdapter.js';
 import {
   validateAssetSupport,
@@ -37,6 +38,7 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import {
   hasFeeReductionAppliedFlag,
+  isSubscriptionProgramCloid,
   readSubscriptionCloidFlags,
 } from '../../../src/utils/subscriptionFeeWaiver.js';
 import { createMockPosition } from '../../helpers/providerMocks.js';
@@ -46,11 +48,6 @@ import {
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
 
-// The HyperLiquid SDK is never exercised directly: every exchange and info call
-// goes through the mocked client service below.
-jest.mock('@nktkas/hyperliquid', () => ({
-  HyperliquidError: class MockHyperliquidError extends Error {},
-}));
 jest.mock('../../../src/services/HyperLiquidClientService');
 jest.mock('../../../src/services/HyperLiquidWalletService');
 jest.mock('../../../src/services/HyperLiquidSubscriptionService');
@@ -733,6 +730,36 @@ describe('HyperLiquidProvider - strategy order types', () => {
     },
   });
 
+  it('refuses a Lighter expected Scale ladder without silently dropping its constraint', async () => {
+    const params: OrderParams = {
+      symbol: 'BTC',
+      isBuy: true,
+      size: '0.001',
+      orderType: 'scale',
+      scaleMinPrice: '90000',
+      scaleMaxPrice: '100000',
+      scaleNumOrders: 2,
+      expectedScaleLadder: {
+        prices: ['90000', '100000'],
+        sizes: ['0.0005', '0.0005'],
+        totalSize: '0.001',
+        totalNotional: '95',
+        minimumBaseSize: '0.0002',
+        minimumQuoteAmount: '10',
+        sizeDecimals: 5,
+      },
+    };
+    expect(await provider.placeOrder(params)).toStrictEqual({
+      success: false,
+      error: 'ORDER_SCALE_PREVIEW_STALE',
+    });
+    expect(await provider.validateOrder(params)).toStrictEqual({
+      isValid: false,
+      error: 'ORDER_SCALE_PREVIEW_STALE',
+    });
+    expect(mockClientService.getExchangeClient.mock.calls).toHaveLength(0);
+  });
+
   describe('native TWAP margin-mode occupancy', () => {
     const order: OrderParams = {
       ...baseOrder,
@@ -1205,84 +1232,956 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.order).not.toHaveBeenCalled();
     });
 
-    it('restores whole-position protection when replacement fails after pre-cancel', async () => {
-      const order = jest
-        .fn()
-        .mockResolvedValueOnce({
-          status: 'ok',
-          response: {
-            data: { statuses: [{ error: 'Rejected replacement' }] },
-          },
-        })
-        .mockResolvedValueOnce({
-          status: 'ok',
-          response: {
-            data: { statuses: [{ resting: { oid: 789 } }] },
+    it.each([
+      ['entry-drift', PERPS_ERROR_CODES.TPSL_UPDATE_FAILED],
+      ['read-failure', expect.any(String) as unknown],
+    ])(
+      'restores exact old protection for %s after confirmed cancellation',
+      async (change, expectedError) => {
+        const { exchangeClient, infoClient } = useStrategyClients({
+          info: {
+            frontendOpenOrders: jest.fn().mockResolvedValue([
+              {
+                coin: 'ETH',
+                side: 'A',
+                limitPx: '3400',
+                sz: '0',
+                origSz: '0',
+                oid: 456,
+                timestamp: 1700000000000,
+                reduceOnly: true,
+                isTrigger: true,
+                isPositionTpsl: true,
+                triggerCondition: 'Price above 3400',
+                triggerPx: '3400',
+                orderType: 'Take Profit Limit',
+                children: [],
+              },
+            ]),
           },
         });
-      const { exchangeClient } = useStrategyClients({
-        exchange: { order },
-        info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([
+        exchangeClient.cancel.mockImplementation(async () => {
+          if (change === 'read-failure') {
+            infoClient.clearinghouseState.mockRejectedValue(new Error('429'));
+          } else {
+            infoClient.clearinghouseState.mockResolvedValue({
+              assetPositions: [
+                { position: { coin: 'ETH', szi: '1.5', entryPx: '3001' } },
+              ],
+            });
+          }
+          return {
+            status: 'ok',
+            response: { data: { statuses: ['success'] } },
+          };
+        });
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+          expectedPosition: { size: '1.5', entryPrice: '3000' },
+        });
+        expect(result).toMatchObject({
+          success: false,
+          error: expectedError,
+        });
+        expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
+        expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+        expect(exchangeClient.order.mock.calls[0][0]).toMatchObject({
+          grouping: 'positionTpsl',
+          orders: [
             {
-              coin: 'ETH',
-              side: 'A',
-              limitPx: '3400',
-              sz: '0',
-              origSz: '0',
-              oid: 456,
-              timestamp: 1_700_000_000_000,
-              reduceOnly: true,
-              isTrigger: true,
-              isPositionTpsl: true,
-              triggerCondition: 'Price above 3400',
-              triggerPx: '3400',
-              orderType: 'Take Profit Limit',
-              children: [],
-            },
-          ]),
-        },
-      });
-
-      const result = await provider.updatePositionTPSL({
-        symbol: 'ETH',
-        takeProfitPrice: '3500',
-      });
-
-      expect(result).toMatchObject({
-        success: false,
-        error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
-      });
-      expect(exchangeClient.cancel).toHaveBeenCalledWith({
-        cancels: [{ a: 1, o: 456 }],
-      });
-      expect(order).toHaveBeenCalledTimes(2);
-      expect(order.mock.calls[1][0]).toMatchObject({
-        grouping: 'positionTpsl',
-        orders: [
-          {
-            a: 1,
-            b: false,
-            p: '3400',
-            s: '0',
-            r: true,
-            t: {
-              trigger: {
-                isMarket: false,
-                triggerPx: '3400',
-                tpsl: 'tp',
+              r: true,
+              s: '0',
+              p: '3400',
+              t: {
+                trigger: { isMarket: false, triggerPx: '3400', tpsl: 'tp' },
               },
             },
+          ],
+        });
+      },
+    );
+
+    it.each(['account', 'network', 'disconnect'])(
+      'omits restoration receipts after %s changes while restoring',
+      async (change) => {
+        const order = jest
+          .fn()
+          .mockResolvedValueOnce({
+            status: 'ok',
+            response: {
+              data: { statuses: [{ error: 'Rejected replacement' }] },
+            },
+          })
+          .mockImplementationOnce(async () => {
+            if (change === 'account') {
+              mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+                '0x2222222222222222222222222222222222222222',
+              );
+            } else if (change === 'network') {
+              mockClientService.isTestnetMode.mockReturnValue(true);
+            } else {
+              await provider.disconnect();
+            }
+            return {
+              status: 'ok',
+              response: {
+                data: {
+                  statuses: [
+                    { resting: { oid: 901 } },
+                    { error: 'Incomplete restoration' },
+                  ],
+                },
+              },
+            };
+          });
+        useStrategyClients({
+          exchange: { order },
+          info: {
+            frontendOpenOrders: jest.fn().mockResolvedValue([
+              {
+                coin: 'ETH',
+                side: 'A',
+                limitPx: '3400',
+                sz: '0',
+                origSz: '0',
+                oid: 456,
+                timestamp: 1700000000000,
+                reduceOnly: true,
+                isTrigger: true,
+                isPositionTpsl: true,
+                triggerCondition: 'Price above 3400',
+                triggerPx: '3400',
+                orderType: 'Take Profit Limit',
+                children: [],
+              },
+            ]),
           },
-        ],
-      });
-      expect(exchangeClient.cancel.mock.invocationCallOrder[0]).toBeLessThan(
-        order.mock.invocationCallOrder[0],
+        });
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+        });
+        expect(order).toHaveBeenCalledTimes(2);
+        expect(result.success).toBe(false);
+        expect(result.childOrderIds).toBeUndefined();
+      },
+    );
+
+    it.each(['size', 'entry', 'account', 'network', 'disconnect'])(
+      'fences real SDK dispatch after signing when %s changes',
+      async (change) => {
+        const { infoClient } = useStrategyClients({
+          info: {
+            referral: jest.fn().mockResolvedValue({
+              referredBy: {
+                referrer: '0x1111111111111111111111111111111111111111',
+                code: 'EXISTING',
+              },
+            }),
+            maxBuilderFee: jest.fn().mockResolvedValue(100000),
+          },
+        });
+        const signing = createDeferred<void>();
+        const release = createDeferred<void>();
+        const request = jest.fn().mockResolvedValue({
+          status: 'ok',
+          response: {
+            type: 'order',
+            data: { statuses: [{ resting: { oid: 777 } }] },
+          },
+        });
+        const sdk = new ExchangeClient({
+          transport: { isTestnet: false, request },
+          wallet: {
+            address: '0x1111111111111111111111111111111111111111',
+            signTypedData: async (_args: unknown): Promise<`0x${string}`> => {
+              signing.resolve();
+              await release.promise;
+              return `0x${'11'.repeat(64)}1b`;
+            },
+          },
+        });
+        mockClientService.getExchangeClient.mockImplementation(
+          (beforeDispatch?: () => Promise<void>) =>
+            beforeDispatch
+              ? createGuardedHyperLiquidClient(sdk, beforeDispatch)
+              : sdk,
+        );
+        const pending = provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+          expectedPosition: { size: '1.5', entryPrice: '3000' },
+        });
+        await Promise.race([
+          signing.promise,
+          pending.then((result) => {
+            throw new Error(JSON.stringify(result));
+          }),
+        ]);
+        if (change === 'size' || change === 'entry') {
+          infoClient.clearinghouseState.mockResolvedValue({
+            assetPositions: [
+              {
+                position: {
+                  coin: 'ETH',
+                  szi: change === 'size' ? '2' : '1.5',
+                  entryPx: change === 'entry' ? '3001' : '3000',
+                },
+              },
+            ],
+          });
+        } else if (change === 'account') {
+          mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+            '0x2222222222222222222222222222222222222222',
+          );
+        } else if (change === 'network') {
+          mockClientService.isTestnetMode.mockReturnValue(true);
+        } else {
+          await provider.disconnect();
+        }
+        release.resolve();
+        const result = await pending;
+        expect(result.success).toBe(false);
+        expect(request).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['partial-error', 'truncated-unrelated'])(
+      'reconciles real SDK %s using exact signed child identities',
+      async (mode) => {
+        const old = {
+          coin: 'ETH',
+          side: 'A',
+          limitPx: '3400',
+          sz: '0',
+          origSz: '0',
+          oid: 456,
+          timestamp: 1700000000000,
+          reduceOnly: true,
+          isTrigger: true,
+          isPositionTpsl: true,
+          triggerCondition: 'Price above 3400',
+          triggerPx: '3400',
+          orderType: 'Take Profit Limit',
+          children: [],
+        };
+        let submittedCloid: string | undefined;
+        const actions: {
+          type: string;
+          cancels?: { o: number }[];
+          orders?: { c?: string }[];
+        }[] = [];
+        const { infoClient } = useStrategyClients({
+          info: {
+            referral: jest.fn().mockResolvedValue({
+              referredBy: {
+                referrer: '0x1111111111111111111111111111111111111111',
+                code: 'EXISTING',
+              },
+            }),
+            maxBuilderFee: jest.fn().mockResolvedValue(100000),
+            frontendOpenOrders: jest
+              .fn()
+              .mockResolvedValueOnce([old])
+              .mockResolvedValue([
+                {
+                  ...old,
+                  oid: 999,
+                  triggerPx: '3500',
+                  limitPx: '3500',
+                  cloid: '0x99999999999999999999999999999999',
+                },
+              ]),
+            orderStatus: jest
+              .fn()
+              .mockImplementation(async ({ oid }: { oid: string }) =>
+                mode === 'partial-error' && oid === submittedCloid
+                  ? {
+                      status: 'order',
+                      order: {
+                        status: 'open',
+                        order: { coin: 'ETH', cloid: oid, oid: 777 },
+                      },
+                    }
+                  : { status: 'unknownOid' },
+              ),
+          },
+        });
+        let orderRequests = 0;
+        const request = jest
+          .fn()
+          .mockImplementation(
+            async (
+              _endpoint: string,
+              payload: { action: (typeof actions)[number] },
+            ) => {
+              actions.push(payload.action);
+              if (payload.action.type === 'cancel') {
+                return {
+                  status: 'ok',
+                  response: {
+                    type: 'cancel',
+                    data: {
+                      statuses: payload.action.cancels?.map(() => 'success'),
+                    },
+                  },
+                };
+              }
+              orderRequests += 1;
+              if (orderRequests === 1) {
+                submittedCloid = payload.action.orders?.[0].c;
+                return {
+                  status: 'ok',
+                  response: {
+                    type: 'order',
+                    data: {
+                      statuses:
+                        mode === 'partial-error'
+                          ? ['waitingForTrigger', { error: 'SL rejected' }]
+                          : ['waitingForTrigger'],
+                    },
+                  },
+                };
+              }
+              return {
+                status: 'ok',
+                response: {
+                  type: 'order',
+                  data: { statuses: [{ resting: { oid: 901 } }] },
+                },
+              };
+            },
+          );
+        const sdk = new ExchangeClient({
+          transport: { isTestnet: false, request },
+          wallet: {
+            address: '0x1111111111111111111111111111111111111111',
+            signTypedData: async (_args: unknown): Promise<`0x${string}`> =>
+              `0x${'11'.repeat(64)}1b`,
+          },
+        });
+        mockClientService.getExchangeClient.mockImplementation(
+          (beforeDispatch?: () => Promise<void>) =>
+            beforeDispatch
+              ? createGuardedHyperLiquidClient(sdk, beforeDispatch)
+              : sdk,
+        );
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+          stopLossPrice: '2500',
+        });
+        expect(result.success).toBe(false);
+        const cancelled = actions.flatMap(
+          (action) => action.cancels?.map((cancel) => cancel.o) ?? [],
+        );
+        expect(cancelled).not.toContain(999);
+        expect(cancelled).toStrictEqual(
+          mode === 'partial-error' ? [456, 777] : [456],
+        );
+        expect(actions.map((action) => action.type)).toStrictEqual(
+          mode === 'partial-error'
+            ? ['cancel', 'order', 'cancel', 'order']
+            : ['cancel', 'order'],
+        );
+        expect(infoClient.orderStatus).toHaveBeenCalledWith(
+          expect.objectContaining({ oid: submittedCloid }),
+        );
+        expect(orderRequests).toBe(mode === 'partial-error' ? 2 : 1);
+        expect(result.error).toBe(
+          mode === 'partial-error'
+            ? 'order 1: SL rejected'
+            : PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        );
+      },
+    );
+
+    describe('real SDK protection recovery boundaries', () => {
+      type SignedAction = {
+        type: string;
+        orders?: { c?: string }[];
+        cancels?: { o: number }[];
+      };
+      const setup = (
+        oldCount = 1,
+      ): {
+        infoClient: ReturnType<typeof useStrategyClients>['infoClient'];
+        actions: SignedAction[];
+        hooks: {
+          sign: () => Promise<void>;
+          response: (action: SignedAction) => Promise<unknown>;
+        };
+        defaultResponse: (action: SignedAction) => unknown;
+        request: jest.Mock;
+      } => {
+        const old = {
+          coin: 'ETH',
+          side: 'A',
+          limitPx: '3400',
+          sz: '0',
+          origSz: '0',
+          oid: 456,
+          timestamp: 1700000000000,
+          reduceOnly: true,
+          isTrigger: true,
+          isPositionTpsl: true,
+          triggerCondition: 'Price above 3400',
+          triggerPx: '3400',
+          orderType: 'Take Profit Limit',
+          children: [],
+        };
+        const { infoClient } = useStrategyClients({
+          info: {
+            referral: jest.fn().mockResolvedValue({
+              referredBy: {
+                referrer: '0x1111111111111111111111111111111111111111',
+                code: 'EXISTING',
+              },
+            }),
+            maxBuilderFee: jest.fn().mockResolvedValue(100000),
+            userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+            frontendOpenOrders: jest.fn().mockResolvedValue(
+              oldCount === 1
+                ? [old]
+                : [
+                    old,
+                    {
+                      ...old,
+                      oid: 457,
+                      orderType: 'Stop Market',
+                      triggerCondition: 'Price below 2500',
+                      triggerPx: '2500',
+                      limitPx: '2500',
+                    },
+                  ],
+            ),
+            orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
+          },
+        });
+        const actions: SignedAction[] = [];
+        const defaultResponse = (action: SignedAction): unknown => ({
+          status: 'ok',
+          response: {
+            type: action.type,
+            data: {
+              statuses:
+                action.type === 'cancel'
+                  ? action.cancels?.map(() => 'success')
+                  : action.orders?.map((_order, index) => ({
+                      resting: { oid: 901 + index },
+                    })),
+            },
+          },
+        });
+        const hooks: {
+          sign: () => Promise<void>;
+          response: (action: SignedAction) => Promise<unknown>;
+        } = {
+          sign: async () => undefined,
+          response: async (action) => defaultResponse(action),
+        };
+        const request = jest
+          .fn()
+          .mockImplementation(
+            async (_endpoint: string, payload: { action: SignedAction }) => {
+              actions.push(payload.action);
+              return hooks.response(payload.action);
+            },
+          );
+        const sdk = new ExchangeClient({
+          transport: { isTestnet: false, request },
+          wallet: {
+            address: '0x1111111111111111111111111111111111111111',
+            signTypedData: async (_args: unknown): Promise<`0x${string}`> => {
+              await hooks.sign();
+              return `0x${'11'.repeat(64)}1b`;
+            },
+          },
+        });
+        mockClientService.getExchangeClient.mockImplementation(
+          (guard?: () => Promise<void>) =>
+            guard ? createGuardedHyperLiquidClient(sdk, guard) : sdk,
+        );
+        return { infoClient, actions, hooks, defaultResponse, request };
+      };
+
+      it.each(['top-level', 'bulk'])(
+        'restores exact old protection after definitive %s rejection and retains venue text',
+        async (kind) => {
+          const { actions, hooks, defaultResponse } = setup();
+          let attempts = 0;
+          hooks.response = async (action): Promise<unknown> => {
+            if (action.type === 'order') {
+              attempts += 1;
+            }
+            if (action.type === 'order' && attempts === 1) {
+              return kind === 'top-level'
+                ? {
+                    status: 'err',
+                    response: 'Too many cumulative requests sent',
+                  }
+                : {
+                    status: 'ok',
+                    response: {
+                      type: 'order',
+                      data: {
+                        statuses: [
+                          { error: 'Too many cumulative requests sent' },
+                        ],
+                      },
+                    },
+                  };
+            }
+            return defaultResponse(action);
+          };
+          const result = await provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+          });
+          expect(actions.map((action) => action.type)).toStrictEqual([
+            'cancel',
+            'order',
+            'order',
+          ]);
+          expect(result.success).toBe(false);
+          expect(result.error).toContain('Too many cumulative requests sent');
+          expect(result.childOrderIds).toStrictEqual(['901']);
+        },
       );
-      expect(order.mock.invocationCallOrder[0]).toBeLessThan(
-        order.mock.invocationCallOrder[1],
+
+      it.each([
+        ['size', PERPS_ERROR_CODES.TPSL_UPDATE_FAILED],
+        ['entry', PERPS_ERROR_CODES.TPSL_UPDATE_FAILED],
+        ['account', expect.any(String) as unknown],
+        ['network', expect.any(String) as unknown],
+        ['disconnect', expect.any(String) as unknown],
+        ['read-failure', expect.any(String) as unknown],
+      ])(
+        'preserves old protection when %s changes during real cancellation signing',
+        async (change, expectedError) => {
+          const { actions, hooks, infoClient } = setup();
+          const started = createDeferred<void>();
+          const release = createDeferred<void>();
+          hooks.sign = async (): Promise<void> => {
+            started.resolve();
+            await release.promise;
+          };
+          const pending = provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+            expectedPosition: { size: '1.5', entryPrice: '3000' },
+          });
+          await started.promise;
+          if (change === 'account') {
+            mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+              '0x2222222222222222222222222222222222222222',
+            );
+          } else if (change === 'network') {
+            mockClientService.isTestnetMode.mockReturnValue(true);
+          } else if (change === 'disconnect') {
+            await provider.disconnect();
+          } else if (change === 'read-failure') {
+            infoClient.clearinghouseState.mockRejectedValue(new Error('429'));
+          } else {
+            infoClient.clearinghouseState.mockResolvedValue({
+              assetPositions: [
+                {
+                  position: {
+                    coin: 'ETH',
+                    szi: change === 'size' ? '2' : '1.5',
+                    entryPx: change === 'entry' ? '3001' : '3000',
+                  },
+                },
+              ],
+            });
+          }
+          release.resolve();
+          const result = await pending;
+          expect(actions).toStrictEqual([]);
+          expect(result.success).toBe(false);
+          expect(result.error).toStrictEqual(expectedError);
+          expect(result.error).not.toBe(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST);
+          expect(result.childOrderIds).toBeUndefined();
+        },
+      );
+
+      it.each(['triggered', 'futureScheduledState'])(
+        'retains exact child identity while status %s is in flight',
+        async (status) => {
+          const { actions, hooks, infoClient, defaultResponse } = setup();
+          hooks.response = async (action): Promise<unknown> =>
+            action.type === 'order'
+              ? {
+                  status: 'ok',
+                  response: {
+                    type: 'order',
+                    data: {
+                      statuses: ['waitingForTrigger', { error: 'SL rejected' }],
+                    },
+                  },
+                }
+              : defaultResponse(action);
+          infoClient.orderStatus.mockImplementation(
+            async ({ oid }: { oid: string }) => ({
+              status: 'order',
+              order: { status, order: { coin: 'ETH', cloid: oid, oid: 777 } },
+            }),
+          );
+          const result = await provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+            stopLossPrice: '2500',
+          });
+          expect(actions.map((action) => action.type)).toStrictEqual([
+            'cancel',
+            'order',
+          ]);
+          expect(result).toMatchObject({
+            success: false,
+            error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            childOrderIds: ['777'],
+          });
+        },
+      );
+
+      it.each(['partial', 'response-loss'])(
+        'preserves accepted restoration identities after %s',
+        async (mode) => {
+          const { actions, hooks, infoClient, defaultResponse } = setup(2);
+          let attempts = 0;
+          let restorationCloid: string | undefined;
+          hooks.response = async (action): Promise<unknown> => {
+            if (action.type === 'order') {
+              attempts += 1;
+              if (attempts === 1) {
+                return {
+                  status: 'ok',
+                  response: {
+                    type: 'order',
+                    data: { statuses: [{ error: 'Replacement rejected' }] },
+                  },
+                };
+              }
+              restorationCloid = action.orders?.[0].c;
+              if (mode === 'response-loss') {
+                throw new Error('response lost');
+              }
+              return {
+                status: 'ok',
+                response: {
+                  type: 'order',
+                  data: {
+                    statuses: [
+                      { resting: { oid: 901 } },
+                      { error: 'SL restoration rejected' },
+                    ],
+                  },
+                },
+              };
+            }
+            return defaultResponse(action);
+          };
+          infoClient.orderStatus.mockImplementation(
+            async ({ oid }: { oid: string }) =>
+              oid === restorationCloid
+                ? {
+                    status: 'order',
+                    order: {
+                      status: 'open',
+                      order: { coin: 'ETH', cloid: oid, oid: 901 },
+                    },
+                  }
+                : { status: 'unknownOid' },
+          );
+          const result = await provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+          });
+          expect(actions.map((action) => action.type)).toStrictEqual([
+            'cancel',
+            'order',
+            'order',
+          ]);
+          expect(result).toMatchObject({
+            success: false,
+            error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            childOrderIds: ['901'],
+          });
+        },
+      );
+
+      it.each(['proactive', 'venue-race'])(
+        'retains live replacement IDs and loss when cleanup hits %s multisig conversion',
+        async (mode) => {
+          const { actions, hooks, infoClient, defaultResponse } = setup();
+          const errorLog = jest.spyOn(mockPlatformDependencies.logger, 'error');
+          hooks.response = async (action): Promise<unknown> => {
+            if (action.type === 'order') {
+              return {
+                status: 'ok',
+                response: {
+                  type: 'order',
+                  data: {
+                    statuses: [
+                      { resting: { oid: 777 } },
+                      { error: 'SL rejected' },
+                    ],
+                  },
+                },
+              };
+            }
+            return actions.length === 3
+              ? { status: 'err', response: 'Multi-sig required' }
+              : defaultResponse(action);
+          };
+          hooks.sign = async (): Promise<void> => {
+            if (mode === 'proactive' && actions.length === 2) {
+              infoClient.userToMultiSigSigners.mockResolvedValue({
+                authorizedUsers: ['0x1111111111111111111111111111111111111111'],
+                threshold: 1,
+              });
+            }
+          };
+
+          const result = await provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+            stopLossPrice: '2500',
+          });
+
+          expect(result).toStrictEqual({
+            success: false,
+            error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            childOrderIds: ['777'],
+          });
+          expect(actions.map((action) => action.type)).toStrictEqual(
+            mode === 'proactive'
+              ? ['cancel', 'order']
+              : ['cancel', 'order', 'cancel'],
+          );
+          expect(errorLog.mock.calls).toMatchObject([
+            [
+              { message: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED },
+              {
+                context: {
+                  data: {
+                    method: 'updatePositionTPSL',
+                    stage: 'cleanup',
+                    protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+                    childOrderIds: ['777'],
+                  },
+                },
+              },
+            ],
+          ]);
+        },
+      );
+
+      it('reports a definitive restoration failure with protection context', async () => {
+        const { hooks, defaultResponse } = setup();
+        const errorLog = jest.spyOn(mockPlatformDependencies.logger, 'error');
+        hooks.response = async (action): Promise<unknown> =>
+          action.type === 'order'
+            ? { status: 'err', response: 'Order price too far' }
+            : defaultResponse(action);
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          childOrderIds: [],
+        });
+        expect(errorLog.mock.calls).toMatchObject([
+          [
+            { message: 'Order price too far' },
+            {
+              context: {
+                data: {
+                  method: 'updatePositionTPSL',
+                  stage: 'restoration',
+                  protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+                },
+              },
+            },
+          ],
+        ]);
+      });
+
+      it.each(['replacement', 'restoration'])(
+        'blocks transport when account becomes multisig during %s signing',
+        async (stage) => {
+          const { actions, hooks, infoClient, defaultResponse } = setup();
+          const errorLog = jest.spyOn(mockPlatformDependencies.logger, 'error');
+          hooks.response = async (action): Promise<unknown> =>
+            action.type === 'order'
+              ? { status: 'err', response: 'Replacement rejected' }
+              : defaultResponse(action);
+          hooks.sign = async (): Promise<void> => {
+            if (actions.length === (stage === 'replacement' ? 1 : 2)) {
+              infoClient.userToMultiSigSigners.mockResolvedValue({
+                authorizedUsers: ['0x1111111111111111111111111111111111111111'],
+                threshold: 1,
+              });
+            }
+          };
+
+          const result = await provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+          });
+
+          expect(result).toStrictEqual({
+            success: false,
+            error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            childOrderIds: [],
+          });
+          expect(actions.map((action) => action.type)).toStrictEqual(
+            stage === 'replacement' ? ['cancel'] : ['cancel', 'order'],
+          );
+          expect(errorLog.mock.calls).toMatchObject([
+            [
+              { message: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED },
+              { context: { data: { stage: 'restoration' } } },
+            ],
+          ]);
+        },
+      );
+
+      it.each(['proactive', 'venue-race'])(
+        'rejects multisig protection writes at the %s boundary',
+        async (mode) => {
+          const { actions, hooks, infoClient } = setup();
+          infoClient.userToMultiSigSigners.mockResolvedValue(
+            mode === 'proactive'
+              ? {
+                  authorizedUsers: [
+                    '0x1111111111111111111111111111111111111111',
+                  ],
+                  threshold: 1,
+                }
+              : null,
+          );
+          hooks.response = async (): Promise<unknown> => ({
+            status: 'err',
+            response: 'Multi-sig required',
+          });
+          const result = await provider.updatePositionTPSL({
+            symbol: 'ETH',
+            takeProfitPrice: '3500',
+          });
+          expect(result.success).toBe(false);
+          expect(result.error).toBe(
+            PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          );
+          expect(actions).toHaveLength(mode === 'proactive' ? 0 : 1);
+          expect(infoClient.userToMultiSigSigners).toHaveBeenCalled();
+        },
       );
     });
+
+    it.each([false, true])(
+      'restores whole-position protection when replacement fails after pre-cancel, marked=%s',
+      async (marked) => {
+        const order = jest
+          .fn()
+          .mockResolvedValueOnce({
+            status: 'ok',
+            response: {
+              data: { statuses: [{ error: 'Rejected replacement' }] },
+            },
+          })
+          .mockResolvedValueOnce({
+            status: 'ok',
+            response: {
+              data: { statuses: [{ resting: { oid: 789 } }] },
+            },
+          });
+        const { exchangeClient } = useStrategyClients({
+          exchange: { order },
+          info: {
+            frontendOpenOrders: jest.fn().mockResolvedValue([
+              {
+                coin: 'ETH',
+                side: 'A',
+                limitPx: '3400',
+                sz: '0',
+                origSz: '0',
+                oid: 456,
+                timestamp: 1_700_000_000_000,
+                reduceOnly: true,
+                isTrigger: true,
+                isPositionTpsl: true,
+                triggerCondition: 'Price above 3400',
+                triggerPx: '3400',
+                orderType: 'Take Profit Limit',
+                children: [],
+              },
+            ]),
+          },
+        });
+
+        if (marked) {
+          provider.setUserFeeResolution({
+            feeBips: 0,
+            discountBips: 10000,
+            source: 'subscription',
+            subscription: { eligible: true, reason: 'eligible' },
+            subscriptionWaiverKind: 'full',
+          });
+        }
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+        });
+
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        });
+        expect(exchangeClient.cancel).toHaveBeenCalledWith({
+          cancels: [{ a: 1, o: 456 }],
+        });
+        expect(order).toHaveBeenCalledTimes(2);
+        const requests = order.mock.calls as [{ orders: { c?: string }[] }][];
+        const restorationCloid = requests[1][0].orders[0].c;
+        expect(isSubscriptionProgramCloid(restorationCloid)).toBe(true);
+        expect(hasFeeReductionAppliedFlag(restorationCloid)).toBe(marked);
+        expect(readSubscriptionCloidFlags(restorationCloid)).toBe(
+          marked ? SUBSCRIPTION_CLOID_FLAGS.FeeReductionApplied : 0,
+        );
+        expect(restorationCloid).not.toBe(requests[0][0].orders[0].c);
+        expect(order.mock.calls[1][0]).toMatchObject({
+          grouping: 'positionTpsl',
+          orders: [
+            {
+              a: 1,
+              b: false,
+              p: '3400',
+              s: '0',
+              r: true,
+              t: {
+                trigger: {
+                  isMarket: false,
+                  triggerPx: '3400',
+                  tpsl: 'tp',
+                },
+              },
+            },
+          ],
+        });
+        expect(exchangeClient.cancel.mock.invocationCallOrder[0]).toBeLessThan(
+          order.mock.invocationCallOrder[0],
+        );
+        expect(order.mock.invocationCallOrder[0]).toBeLessThan(
+          order.mock.invocationCallOrder[1],
+        );
+      },
+    );
 
     it.each([
       {
@@ -1618,6 +2517,281 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
+    it.each([
+      {
+        label: 'resting',
+        statuses: [{ resting: { oid: 71 } }, { resting: { oid: 72 } }],
+        ids: ['71', '72'],
+      },
+      {
+        label: 'filled',
+        statuses: [{ filled: { oid: 71 } }, { resting: { oid: 72 } }],
+        ids: ['71', '72'],
+      },
+      {
+        label: 'waiting',
+        statuses: ['waitingForTrigger', { resting: { oid: 72 } }],
+        ids: undefined,
+      },
+      {
+        label: 'duplicate',
+        statuses: [{ resting: { oid: 71 } }, { resting: { oid: 71 } }],
+        ids: undefined,
+      },
+      {
+        label: 'zero',
+        statuses: [{ resting: { oid: 0 } }, { resting: { oid: 72 } }],
+        ids: undefined,
+      },
+    ])(
+      'returns only complete response-correlated TP/SL receipts: $label',
+      async ({ statuses, ids }) => {
+        useStrategyClients({
+          info: {
+            orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
+          },
+          exchange: {
+            order: jest.fn().mockResolvedValue({
+              status: 'ok',
+              response: { data: { statuses } },
+            }),
+          },
+        });
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+          stopLossPrice: '2500',
+        });
+        expect(result.success).toBe(true);
+        expect(result.childOrderIds).toStrictEqual(ids);
+      },
+    );
+
+    it('returns an empty receipt for successful TP/SL removal', async () => {
+      useStrategyClients();
+      expect(
+        await provider.updatePositionTPSL({ symbol: 'ETH' }),
+      ).toMatchObject({ success: true, childOrderIds: [] });
+    });
+
+    it.each([
+      'matched',
+      'marked',
+      'wrong-cloid',
+      'duplicate-id',
+      'unknown',
+      'read-failure',
+      'response-mismatch',
+      'wrong-coin',
+    ])('correlates final sent protection cloids: %s', async (mode) => {
+      let sent: { c?: string; t: { trigger?: { isMarket: boolean } } }[] = [];
+      const orderStatus = jest
+        .fn()
+        .mockImplementation(async ({ oid }: { oid: string }) => {
+          if (mode === 'read-failure') {
+            throw new Error('status unavailable');
+          }
+          if (mode === 'unknown') {
+            return { status: 'unknownOid' };
+          }
+          const index = sent.findIndex((order) => order.c === oid);
+          return {
+            status: 'order',
+            order: {
+              status: 'filled',
+              order: {
+                coin: mode === 'wrong-coin' ? 'BTC' : 'ETH',
+                cloid:
+                  mode === 'wrong-cloid'
+                    ? '0x11111111111111111111111111111111'
+                    : oid,
+                oid: mode === 'duplicate-id' ? 777 : 777 + index,
+              },
+            },
+          };
+        });
+      useStrategyClients({
+        exchange: {
+          order: jest
+            .fn()
+            .mockImplementation(async (request: { orders: typeof sent }) => {
+              sent = request.orders;
+              return {
+                status: 'ok',
+                response: {
+                  data: {
+                    statuses:
+                      mode === 'response-mismatch'
+                        ? [{ resting: { oid: 999 } }, 'waitingForTrigger']
+                        : ['waitingForTrigger', 'waitingForTrigger'],
+                  },
+                },
+              };
+            }),
+        },
+        info: { orderStatus },
+      });
+      if (mode === 'marked') {
+        provider.setUserFeeResolution({
+          feeBips: 0,
+          discountBips: 10000,
+          source: 'subscription',
+          subscription: { eligible: true, reason: 'eligible' },
+          subscriptionWaiverKind: 'full',
+        });
+      }
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        stopLossPrice: '2500',
+      });
+      expect(result.success).toBe(true);
+      expect(result.childOrderIds).toStrictEqual(
+        mode === 'matched' || mode === 'marked' ? ['777', '778'] : undefined,
+      );
+      expect(sent).toHaveLength(2);
+      expect(sent[0].c).toMatch(/^0x[0-9a-f]{32}$/u);
+      expect(sent[0].c).not.toBe(sent[1].c);
+      expect(
+        sent.map((order) => isSubscriptionProgramCloid(order.c)),
+      ).toStrictEqual([true, true]);
+      expect(
+        sent.map((order) => hasFeeReductionAppliedFlag(order.c)),
+      ).toStrictEqual([mode === 'marked', mode === 'marked']);
+      expect(
+        sent.map((order) => readSubscriptionCloidFlags(order.c)),
+      ).toStrictEqual(
+        mode === 'marked'
+          ? [
+              SUBSCRIPTION_CLOID_FLAGS.FeeReductionApplied,
+              SUBSCRIPTION_CLOID_FLAGS.FeeReductionApplied,
+            ]
+          : [0, 0],
+      );
+      expect(orderStatus).toHaveBeenCalledTimes(2);
+      expect(sent[0].t.trigger?.isMarket).toBe(false);
+      expect(sent[1].t.trigger?.isMarket).toBe(true);
+      expect(orderStatus).toHaveBeenCalledWith(
+        expect.objectContaining({ oid: sent[0].c }),
+      );
+    });
+
+    it.each(['account', 'network', 'disconnect'])(
+      'fences %s switching during receipt lookup',
+      async (change) => {
+        useStrategyClients({
+          exchange: {
+            order: jest.fn().mockResolvedValue({
+              status: 'ok',
+              response: { data: { statuses: ['waitingForTrigger'] } },
+            }),
+          },
+          info: {
+            orderStatus: jest.fn().mockImplementation(async () => {
+              if (change === 'account') {
+                mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+                  '0x2222222222222222222222222222222222222222',
+                );
+              } else if (change === 'disconnect') {
+                await provider.disconnect();
+              } else {
+                mockClientService.isTestnetMode.mockReturnValue(true);
+              }
+              return { status: 'unknownOid' };
+            }),
+          },
+        });
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          stopLossPrice: '2500',
+        });
+        expect(result.success).toBe(false);
+        expect(result.childOrderIds).toBeUndefined();
+      },
+    );
+
+    it('rejects expected entry drift during asynchronous order setup', async () => {
+      const { exchangeClient, infoClient } = useStrategyClients();
+      infoClient.frontendOpenOrders.mockImplementation(async () => {
+        infoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [
+            { position: { coin: 'ETH', szi: '1.5', entryPx: '3001' } },
+          ],
+        });
+        return [];
+      });
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        expectedPosition: { size: '1.5', entryPrice: '3000' },
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { size: '2', entryPrice: '3000' },
+      { size: '-1.5', entryPrice: '3000' },
+      { size: '1.5', entryPrice: '3001' },
+    ])(
+      'rejects a different expected protection position %j',
+      async (expectedPosition) => {
+        const { exchangeClient } = useStrategyClients();
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+          expectedPosition,
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+        expect(exchangeClient.cancel).not.toHaveBeenCalled();
+        expect(exchangeClient.order).not.toHaveBeenCalled();
+      },
+    );
+
+    it('accepts an unchanged expected position through protection setup', async () => {
+      const { exchangeClient } = useStrategyClients({
+        info: {
+          orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
+        },
+      });
+      const result = await provider.updatePositionTPSL({
+        symbol: 'ETH',
+        takeProfitPrice: '3500',
+        expectedPosition: { size: '1.50', entryPrice: '3000.0' },
+      });
+      expect(result.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['account', 'network', 'disconnect'])(
+      'rejects %s switching during order setup before mutation',
+      async (change) => {
+        const { exchangeClient, infoClient } = useStrategyClients();
+        infoClient.frontendOpenOrders.mockImplementation(async () => {
+          if (change === 'account') {
+            mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+              '0x2222222222222222222222222222222222222222',
+            );
+          } else if (change === 'disconnect') {
+            await provider.disconnect();
+          } else {
+            mockClientService.isTestnetMode.mockReturnValue(true);
+          }
+          return [];
+        });
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          stopLossPrice: '2500',
+        });
+        expect(result.success).toBe(false);
+        expect(exchangeClient.order).not.toHaveBeenCalled();
+        expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      },
+    );
+
     it('accepts an old TP/SL order that is already gone before replacement', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
@@ -1636,6 +2810,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
+          orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
           frontendOpenOrders: jest.fn().mockResolvedValue([
             {
               coin: 'ETH',
@@ -1658,6 +2833,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: true,
         orderId: 'TP/SL orders placed',
+        childOrderIds: ['123'],
       });
       expect(exchangeClient.cancel.mock.invocationCallOrder[0]).toBeLessThan(
         exchangeClient.order.mock.invocationCallOrder[0],
@@ -2090,7 +3266,18 @@ describe('HyperLiquidProvider - strategy order types', () => {
             },
           }),
         },
-        info: { frontendOpenOrders },
+        info: {
+          frontendOpenOrders,
+          orderStatus: jest
+            .fn()
+            .mockImplementation(async ({ oid }: { oid: string }) => ({
+              status: 'order',
+              order: {
+                status: 'open',
+                order: { coin: 'ETH', cloid: oid, oid: 901 },
+              },
+            })),
+        },
       });
 
       const result = await provider.updatePositionTPSL({
@@ -2151,64 +3338,64 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it.each([
       ['an unknown placement status', ['futureTriggerStatus']],
       ['an incomplete placement response', []],
-    ])('restores old protection after %s', async (_label, statuses) => {
-      const order = jest
-        .fn()
-        .mockResolvedValueOnce({
-          status: 'ok',
-          response: {
-            data: { statuses },
-          },
-        })
-        .mockResolvedValueOnce({
-          status: 'ok',
-          response: {
-            data: { statuses: [{ resting: { oid: 902 } }] },
+    ])(
+      'retains uncertainty without duplicate restoration after %s',
+      async (_label, statuses) => {
+        const order = jest
+          .fn()
+          .mockResolvedValueOnce({
+            status: 'ok',
+            response: {
+              data: { statuses },
+            },
+          })
+          .mockResolvedValueOnce({
+            status: 'ok',
+            response: {
+              data: { statuses: [{ resting: { oid: 902 } }] },
+            },
+          });
+        const { exchangeClient } = useStrategyClients({
+          exchange: { order },
+          info: {
+            frontendOpenOrders: jest.fn().mockResolvedValue([
+              {
+                coin: 'ETH',
+                side: 'A',
+                limitPx: '2450',
+                sz: '0',
+                origSz: '0',
+                oid: 456,
+                timestamp: 1_700_000_000_000,
+                reduceOnly: true,
+                isTrigger: true,
+                isPositionTpsl: true,
+                triggerCondition: 'Price below 2450',
+                triggerPx: '2450',
+                orderType: 'Stop Market',
+                children: [],
+              },
+            ]),
           },
         });
-      const { exchangeClient } = useStrategyClients({
-        exchange: { order },
-        info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([
-            {
-              coin: 'ETH',
-              side: 'A',
-              limitPx: '2450',
-              sz: '0',
-              origSz: '0',
-              oid: 456,
-              timestamp: 1_700_000_000_000,
-              reduceOnly: true,
-              isTrigger: true,
-              isPositionTpsl: true,
-              triggerCondition: 'Price below 2450',
-              triggerPx: '2450',
-              orderType: 'Stop Market',
-              children: [],
-            },
-          ]),
-        },
-      });
 
-      const result = await provider.updatePositionTPSL({
-        symbol: 'ETH',
-        takeProfitPrice: '3500',
-        position: createMockPosition({ symbol: 'ETH', size: '1.5' }),
-      });
+        const result = await provider.updatePositionTPSL({
+          symbol: 'ETH',
+          takeProfitPrice: '3500',
+          position: createMockPosition({ symbol: 'ETH', size: '1.5' }),
+        });
 
-      expect(result).toStrictEqual({
-        success: false,
-        error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
-      });
-      expect(exchangeClient.cancel).toHaveBeenCalledWith({
-        cancels: [{ a: 1, o: 456 }],
-      });
-      expect(order).toHaveBeenCalledTimes(2);
-      expect(order.mock.calls[1][0]).toMatchObject({
-        grouping: 'positionTpsl',
-        orders: [expect.objectContaining({ p: '2450', s: '0' })],
-      });
-    });
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          childOrderIds: [],
+        });
+        expect(exchangeClient.cancel).toHaveBeenCalledWith({
+          cancels: [{ a: 1, o: 456 }],
+        });
+        expect(order).toHaveBeenCalledTimes(1);
+      },
+    );
 
     it('cancels old protection before placing partial TP/SL', async () => {
       const { exchangeClient } = useStrategyClients({
@@ -7009,6 +8196,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(Object.isFrozen(capabilities)).toBe(true);
@@ -7025,6 +8231,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
     });
@@ -7038,6 +8263,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated'],
       });
       expect(infoClient.meta).toHaveBeenCalledWith({ dex: 'xyz' });
@@ -7066,6 +8310,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          positionTpsl: {
+            supportsExpectedPosition: true,
+            childOrderIds: 'request-correlated',
+            takeProfitOrderType: 'take_profit_limit',
+            stopLossOrderType: 'stop_market',
+            defaultCoverage: 'dynamic-position',
+            partialCoverage: {
+              single: true,
+              pair: 'independent',
+              replacement: 'cancel-before-create',
+              recovery: 'provider-default',
+            },
+          },
+          supportedTriggerOrderTypes: [
+            'stop_market',
+            'stop_limit',
+            'take_profit_market',
+            'take_profit_limit',
+          ],
           supportedMarginModes: ['isolated'],
         });
       },
@@ -7151,6 +8414,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
     });
@@ -7261,6 +8543,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -7277,6 +8578,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -7349,6 +8669,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
 
@@ -7363,6 +8702,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -7400,12 +8758,50 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          positionTpsl: {
+            supportsExpectedPosition: true,
+            childOrderIds: 'request-correlated',
+            takeProfitOrderType: 'take_profit_limit',
+            stopLossOrderType: 'stop_market',
+            defaultCoverage: 'dynamic-position',
+            partialCoverage: {
+              single: true,
+              pair: 'independent',
+              replacement: 'cancel-before-create',
+              recovery: 'provider-default',
+            },
+          },
+          supportedTriggerOrderTypes: [
+            'stop_market',
+            'stop_limit',
+            'take_profit_market',
+            'take_profit_limit',
+          ],
           supportedMarginModes: ['isolated', 'cross'],
         },
         {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          positionTpsl: {
+            supportsExpectedPosition: true,
+            childOrderIds: 'request-correlated',
+            takeProfitOrderType: 'take_profit_limit',
+            stopLossOrderType: 'stop_market',
+            defaultCoverage: 'dynamic-position',
+            partialCoverage: {
+              single: true,
+              pair: 'independent',
+              replacement: 'cancel-before-create',
+              recovery: 'provider-default',
+            },
+          },
+          supportedTriggerOrderTypes: [
+            'stop_market',
+            'stop_limit',
+            'take_profit_market',
+            'take_profit_limit',
+          ],
           supportedMarginModes: ['isolated', 'cross'],
         },
       ]);
@@ -7496,6 +8892,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
@@ -7605,6 +9020,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
@@ -7655,6 +9089,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -7685,6 +9138,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -7722,6 +9194,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -7938,6 +9429,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        positionTpsl: {
+          supportsExpectedPosition: true,
+          childOrderIds: 'request-correlated',
+          takeProfitOrderType: 'take_profit_limit',
+          stopLossOrderType: 'stop_market',
+          defaultCoverage: 'dynamic-position',
+          partialCoverage: {
+            single: true,
+            pair: 'independent',
+            replacement: 'cancel-before-create',
+            recovery: 'provider-default',
+          },
+        },
+        supportedTriggerOrderTypes: [
+          'stop_market',
+          'stop_limit',
+          'take_profit_market',
+          'take_profit_limit',
+        ],
         supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
@@ -8002,6 +9512,21 @@ describe('HyperLiquidProvider - strategy order types', () => {
       maxPrice: 1234.767,
       count: 3,
     };
+
+    it('leaves optional sizing absent while preserving normalized prices', async () => {
+      useStrategyClients();
+
+      const result = await provider.getScalePriceLadder({
+        ...params,
+        sizing: { usdAmount: '60' },
+      });
+
+      expect(result).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        prices: ['1234.6', '1234.7', '1234.8'],
+      });
+    });
 
     it('normalizes every rung with provider-owned market precision', async () => {
       const { infoClient } = useStrategyClients();

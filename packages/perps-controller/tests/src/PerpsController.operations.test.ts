@@ -8,6 +8,8 @@
 
 import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
+  createDeferred,
+  createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
 } from '../helpers/serviceMocks.js';
@@ -29,12 +31,18 @@ import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProv
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import { RewardsIntegrationService } from '../../src/services/RewardsIntegrationService.js';
 import type {
+  OrderParams,
   GetAvailableDexsParams,
+  GetScalePriceLadderParams,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
 } from '../../src/types/index.js';
-import { PerpsAnalyticsEvent } from '../../src/types/index.js';
+import {
+  PerpsAnalyticsEvent,
+  PerpsTraceNames,
+  PerpsTraceOperations,
+} from '../../src/types/index.js';
 import { STRATEGY_ORDER_TYPES } from '../../src/utils/orderTypes.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
@@ -53,6 +61,7 @@ jest.mock(
 jest.mock('../../src/utils/wait', () => ({
   wait: jest.fn().mockResolvedValue(undefined),
 }));
+import { wait as mockWait } from '../../src/utils/wait';
 
 // Mock stream manager
 const mockStreamManager = {
@@ -1453,6 +1462,86 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('Scale submission snapshots', () => {
+    it.each(['placeOrder', 'validateOrder'] as const)(
+      'returns a malformed preview refusal from %s without readiness',
+      async (method) => {
+        const result = await controller[method]({
+          symbol: 'BTC',
+          orderType: 'scale',
+          isBuy: true,
+          size: '2',
+          expectedScaleLadder: {} as OrderParams['expectedScaleLadder'],
+        });
+        expect(result).toEqual({
+          [method === 'placeOrder' ? 'success' : 'isValid']: false,
+          error: 'ORDER_SCALE_PREVIEW_STALE',
+        });
+        expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+        expect(
+          mockMarketDataServiceInstance.validateOrder,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['placeOrder', 'validateOrder'] as const)(
+      'owns %s intent during readiness despite mutation, replacement and deletion',
+      async (method) => {
+        const release = createDeferred<void>();
+        const started = createDeferred<void>();
+        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => {
+          throw new Error('Transient initialization failure');
+        });
+        jest.mocked(mockWait).mockImplementationOnce(() => {
+          started.resolve();
+          return release.promise;
+        });
+        const initialization = controller.init();
+        await started.promise;
+        const expectation = {
+          prices: ['100', '200'],
+          sizes: ['1', '1'],
+          totalSize: '2',
+          totalNotional: '300',
+          minimumBaseSize: '0.1',
+          minimumQuoteAmount: '1',
+          sizeDecimals: 1,
+        };
+        const request: OrderParams = {
+          symbol: 'BTC',
+          orderType: 'scale',
+          isBuy: true,
+          size: '2',
+          providerId: 'hyperliquid',
+          expectedScaleLadder: expectation,
+        };
+        const original = JSON.parse(JSON.stringify(request)) as OrderParams;
+        mockTradingServiceInstance.placeOrder.mockResolvedValue({
+          success: true,
+        });
+        mockMarketDataServiceInstance.validateOrder.mockResolvedValue({
+          isValid: true,
+        });
+        const pending = controller[method](request);
+        request.size = '200';
+        expectation.prices[0] = '1';
+        expectation.sizes[0] = '100';
+        request.expectedScaleLadder = { ...expectation, totalSize: '200' };
+        delete request.expectedScaleLadder;
+        release.resolve();
+        await initialization;
+        await pending;
+        const service =
+          method === 'placeOrder'
+            ? mockTradingServiceInstance.placeOrder
+            : mockMarketDataServiceInstance.validateOrder;
+        expect(service).toHaveBeenCalledWith(
+          expect.objectContaining({ params: original }),
+        );
+      },
+    );
+  });
+
   describe('Scale price ladder', () => {
     const params = {
       symbol: 'BTC',
@@ -1460,6 +1549,56 @@ describe('PerpsController', () => {
       maxPrice: 200,
       count: 3,
     };
+
+    it.each(['ready', 'initializing'] as const)(
+      'captures outer and nested inputs before %s provider readiness',
+      async (readiness) => {
+        const release = createDeferred<void>();
+        let initialization: Promise<void> | undefined;
+        if (readiness === 'initializing') {
+          const started = createDeferred<void>();
+          jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => {
+            throw new Error('Transient initialization failure');
+          });
+          jest.mocked(mockWait).mockImplementationOnce(() => {
+            started.resolve();
+            return release.promise;
+          });
+          initialization = controller.init();
+          await started.promise;
+          expect(controller.state.initializationState).toBe(
+            InitializationState.Initializing,
+          );
+        } else {
+          markControllerAsInitialized();
+          controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        }
+        const sizing = { usdAmount: '60', skew: 1 };
+        const request: GetScalePriceLadderParams = {
+          ...params,
+          providerId: 'hyperliquid',
+          sizing,
+        };
+        const expected = { ...request, sizing: { ...sizing } };
+
+        const pending = controller.getScalePriceLadder(request);
+        request.symbol = 'SOL';
+        request.minPrice = 1;
+        request.maxPrice = 2;
+        request.count = 2;
+        request.providerId = 'lighter';
+        sizing.usdAmount = '600';
+        sizing.skew = 2;
+        release.resolve();
+        await initialization;
+
+        await expect(pending).resolves.toMatchObject({
+          status: 'ready',
+          providerId: 'hyperliquid',
+        });
+        expect(mockProvider.getScalePriceLadder).toHaveBeenCalledWith(expected);
+      },
+    );
 
     it('uses the active provider when providerId is omitted', async () => {
       markControllerAsInitialized();
@@ -2014,6 +2153,519 @@ describe('PerpsController', () => {
   });
 
   describe('durable-settlement surfacing (manual recoveries / recovered dispatches)', () => {
+    it.each([
+      ['review', 'account'],
+      ['resolve', 'account'],
+      ['acknowledge', 'account'],
+      ['acknowledge', 'network'],
+    ] as const)(
+      'captures the issuing context before %s readiness across %s change',
+      async (operation, drift) => {
+        let selectedAccount = createMockEvmAccount();
+        const call = jest.fn().mockImplementation((action: string) => {
+          if (
+            action ===
+            'AccountTreeController:getAccountsFromSelectedAccountGroup'
+          ) {
+            return [selectedAccount];
+          }
+          if (action === 'RemoteFeatureFlagController:getState') {
+            return { remoteFeatureFlags: {} };
+          }
+          return undefined;
+        });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({ call }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: createMockInfrastructure(),
+        });
+        const invoked = jest.fn().mockResolvedValue({
+          status: 'unsupported',
+          providerId: 'hyperliquid',
+          success: false,
+          error: 'unsupported',
+          reason: 'unsupported',
+        });
+        const provider = Object.assign(mockProvider, {
+          reviewRecoveryVenue: invoked,
+          resolveRecoveryProtection: invoked,
+          acknowledgeRecoveredDispatch: invoked,
+        });
+        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => provider);
+        const entered = createDeferred<void>();
+        const release = createDeferred<void>();
+        jest.mocked(mockWait).mockImplementationOnce(() => {
+          entered.resolve();
+          return release.promise;
+        });
+        const initialization = controller.init();
+        await entered.promise;
+        const pending =
+          operation === 'acknowledge'
+            ? controller.acknowledgeRecoveredDispatch('42:nohash')
+            : operation === 'review'
+              ? controller.reviewRecoveryVenue()
+              : controller.resolveRecoveryProtection({
+                  symbol: 'BTC',
+                  recoveryId: 'opaque',
+                });
+        const observed = pending.catch((error: unknown) => error);
+        if (drift === 'account') {
+          selectedAccount = {
+            ...selectedAccount,
+            address: '0x9999999999999999999999999999999999999999',
+          };
+        } else {
+          controller.testUpdate((state) => {
+            state.isTestnet = !state.isTestnet;
+          });
+        }
+        release.resolve();
+        await initialization;
+        expect(await observed).toBeInstanceOf(Error);
+        expect(invoked).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['settled', 'unresolved', 'throw', 'stale'] as const)(
+      'balances the explicit recovery trace for %s',
+      async (outcome) => {
+        markControllerAsInitialized();
+        controller.testUpdate((state) => {
+          state.lastUpdateTimestamp = 1;
+        });
+        const failure = new Error('Provider recovery failed');
+        const invoked = jest.fn(async () => {
+          if (outcome === 'throw') {
+            throw failure;
+          }
+          if (outcome === 'stale') {
+            controller.testUpdate((state) => {
+              state.isTestnet = !state.isTestnet;
+            });
+          }
+          return {
+            status:
+              outcome === 'unresolved'
+                ? ('unresolved' as const)
+                : ('settled' as const),
+            providerId: 'hyperliquid' as const,
+            success: outcome !== 'unresolved',
+          };
+        });
+        controller.testSetProviders(
+          new Map([
+            [
+              'hyperliquid',
+              { ...mockProvider, resolveRecoveryProtection: invoked },
+            ],
+          ]),
+        );
+        const errors: unknown[] = [];
+        for (let invocation = 0; invocation < 2; invocation += 1) {
+          await controller
+            .resolveRecoveryProtection({ symbol: 'BTC', recoveryId: 'opaque' })
+            .catch((error: unknown) => {
+              errors.push(error);
+            });
+        }
+        const traces = jest
+          .mocked(mockInfrastructure.tracer.trace)
+          .mock.calls.filter(
+            ([entry]) => entry.name === PerpsTraceNames.UpdateTpsl,
+          );
+        const ends = jest
+          .mocked(mockInfrastructure.tracer.endTrace)
+          .mock.calls.filter(
+            ([entry]) => entry.name === PerpsTraceNames.UpdateTpsl,
+          );
+        expect(traces).toHaveLength(2);
+        expect(traces[0]?.[0].op).toBe(PerpsTraceOperations.PositionManagement);
+        expect(ends).toHaveLength(2);
+        expect(traces[0]?.[0].id).not.toBe(traces[1]?.[0].id);
+        expect(ends.map(([entry]) => entry.id)).toStrictEqual(
+          traces.map(([entry]) => entry.id),
+        );
+        expect(controller.state.lastUpdateTimestamp === 1).toBe(
+          outcome !== 'settled',
+        );
+        expect(errors).toHaveLength(
+          outcome === 'throw' || outcome === 'stale' ? 2 : 0,
+        );
+        expect(errors[0]).toBe(outcome === 'throw' ? failure : errors[0]);
+      },
+    );
+
+    it.each(['settled', 'unresolved', 'unsupported'] as const)(
+      'refreshes state only for a successful settled recovery (%s)',
+      async (status) => {
+        markControllerAsInitialized();
+        controller.testUpdate((state) => {
+          state.lastUpdateTimestamp = 1;
+        });
+        const resolveRecoveryProtection = jest.fn().mockResolvedValue({
+          status,
+          providerId: 'hyperliquid',
+          success: status === 'settled',
+        });
+        controller.testSetProviders(
+          new Map([
+            ['hyperliquid', { ...mockProvider, resolveRecoveryProtection }],
+          ]),
+        );
+        await controller.resolveRecoveryProtection({
+          symbol: 'BTC',
+          recoveryId: 'opaque',
+        });
+        expect(controller.state.lastUpdateTimestamp === 1).toBe(
+          status !== 'settled',
+        );
+      },
+    );
+
+    it.each(['getAttachedOrderGroups', 'reviewAttachedOrderGroups'] as const)(
+      'fences attached %s results after the issuing network changes',
+      async (method) => {
+        markControllerAsInitialized();
+        const entered = createDeferred<void>();
+        const release = createDeferred<void>();
+        const read = jest.fn(async () => {
+          entered.resolve();
+          await release.promise;
+          return [];
+        });
+        controller.testSetProviders(
+          new Map([['hyperliquid', { ...mockProvider, [method]: read }]]),
+        );
+        const pending = controller[method]();
+        const rejected = expect(pending).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        await entered.promise;
+        controller.testUpdate((state) => {
+          state.isTestnet = !state.isTestnet;
+        });
+        release.resolve();
+        await rejected;
+        expect(read).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('reports unsupported strict review and selected recovery without calling ordinary trading reads', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      expect(await controller.reviewRecoveryVenue()).toMatchObject({
+        status: 'unsupported',
+        providerId: 'hyperliquid',
+      });
+      expect(
+        await controller.resolveRecoveryProtection({
+          symbol: 'BTC',
+          recoveryId: 'opaque',
+        }),
+      ).toMatchObject({
+        status: 'unsupported',
+        providerId: 'hyperliquid',
+        success: false,
+      });
+      expect(mockProvider.getPositions).not.toHaveBeenCalled();
+      expect(mockProvider.updatePositionTPSL).not.toHaveBeenCalled();
+    });
+
+    it.each(['review', 'resolve', 'acknowledge'] as const)(
+      'rejects %s results after the issuing network context changes',
+      async (operation) => {
+        markControllerAsInitialized();
+        const entered = createDeferred<void>();
+        const release = createDeferred<void>();
+        const call = jest.fn(async () => {
+          entered.resolve();
+          await release.promise;
+          return {
+            status: 'unsupported' as const,
+            providerId: 'hyperliquid' as const,
+            success: false as const,
+            error: 'unsupported',
+            reason: 'unsupported',
+          };
+        });
+        controller.testSetProviders(
+          new Map([
+            [
+              'hyperliquid',
+              {
+                ...mockProvider,
+                reviewRecoveryVenue: call,
+                resolveRecoveryProtection: call,
+                acknowledgeRecoveredDispatch: async () => {
+                  await call();
+                },
+              },
+            ],
+          ]),
+        );
+        const pending =
+          operation === 'acknowledge'
+            ? controller.acknowledgeRecoveredDispatch('42:nohash')
+            : operation === 'review'
+              ? controller.reviewRecoveryVenue()
+              : controller.resolveRecoveryProtection({
+                  symbol: 'BTC',
+                  recoveryId: 'opaque',
+                });
+        const rejected = expect(pending).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        await entered.promise;
+        controller.testUpdate((state) => {
+          state.isTestnet = !state.isTestnet;
+        });
+        release.resolve();
+        await rejected;
+      },
+    );
+
+    it.each(['reconcile', 'listing'] as const)(
+      'rejects reconciliation issued during toggle cleanup before replacement %s work',
+      async (capability) => {
+        await controller.getMarkets({ standalone: true });
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        expect(controller.testHasStandaloneProvider()).toBe(true);
+
+        const cleanupStarted = createDeferred<void>();
+        const releaseCleanup = createDeferred<void>();
+        mockProvider.disconnect.mockImplementationOnce(async () => {
+          cleanupStarted.resolve();
+          await releaseCleanup.promise;
+          return { success: true };
+        });
+        const reconcile = jest.fn().mockResolvedValue([]);
+        const listing = jest.fn().mockResolvedValue([]);
+        const replacement = Object.assign(createMockHyperLiquidProvider(), {
+          getRecoveredDispatches: listing,
+          ...(capability === 'reconcile'
+            ? { reconcileRecoveredDispatches: reconcile }
+            : {}),
+        });
+        jest
+          .mocked(HyperLiquidProvider)
+          .mockImplementationOnce(() => replacement);
+        const initializationStarted = createDeferred<void>();
+        const releaseInitialization = createDeferred<void>();
+        jest.mocked(mockWait).mockImplementationOnce(() => {
+          initializationStarted.resolve();
+          return releaseInitialization.promise;
+        });
+
+        const toggle = controller.toggleTestnet();
+        await cleanupStarted.promise;
+        expect(controller.state.isTestnet).toBe(false);
+        const pending = controller.reconcileRecoveredDispatches();
+        const rejection = expect(pending).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(listing).not.toHaveBeenCalled();
+
+        releaseCleanup.resolve();
+        await initializationStarted.promise;
+        expect(controller.state.isTestnet).toBe(true);
+        expect(controller.state.initializationState).toBe(
+          InitializationState.Initializing,
+        );
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(listing).not.toHaveBeenCalled();
+        releaseInitialization.resolve();
+        await expect(toggle).resolves.toStrictEqual({
+          success: true,
+          isTestnet: true,
+        });
+        await rejection;
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(listing).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['reconcile', 'listing'] as const)(
+      'rejects an account change during initialization before provider %s work',
+      async (capability) => {
+        let selectedAccount = createMockEvmAccount();
+        const selectedAccountCall = jest.fn();
+        selectedAccountCall.mockImplementation((action: string) => {
+          if (
+            action ===
+            'AccountTreeController:getAccountsFromSelectedAccountGroup'
+          ) {
+            return [selectedAccount];
+          }
+          if (action === 'RemoteFeatureFlagController:getState') {
+            return { remoteFeatureFlags: {} };
+          }
+          return undefined;
+        });
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger({
+            call: selectedAccountCall,
+          }),
+          state: getDefaultPerpsControllerState(),
+          infrastructure: mockInfrastructure,
+        });
+        const reconcile = jest.fn().mockResolvedValue([]);
+        const listing = jest.fn().mockResolvedValue([]);
+        const provider = Object.assign(mockProvider, {
+          getRecoveredDispatches: listing,
+          ...(capability === 'reconcile'
+            ? { reconcileRecoveredDispatches: reconcile }
+            : {}),
+        });
+        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => provider);
+        const initializationStarted = createDeferred<void>();
+        const releaseInitialization = createDeferred<void>();
+        jest.mocked(mockWait).mockImplementationOnce(() => {
+          initializationStarted.resolve();
+          return releaseInitialization.promise;
+        });
+
+        const initialization = controller.init();
+        await initializationStarted.promise;
+        const pending = controller.reconcileRecoveredDispatches();
+        const rejection = expect(pending).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+        selectedAccount = {
+          ...selectedAccount,
+          address: '0x9999999999999999999999999999999999999999',
+        };
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(listing).not.toHaveBeenCalled();
+        releaseInitialization.resolve();
+        await initialization;
+        await rejection;
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(listing).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['reconcile', 'listing', 'none'] as const)(
+      'waits for same-context initialization before the %s recovery capability',
+      async (capability) => {
+        const rows = [
+          {
+            recoveryId: 'pending',
+            kind: 13,
+            intent: 'withdraw',
+            txHash: null,
+            outcome: 'unknown' as const,
+            evidence: 'unresolved-dispatch',
+            acknowledgeable: false,
+          },
+        ];
+        const reconcile = jest.fn().mockResolvedValue(rows);
+        const listing = jest.fn().mockResolvedValue(rows);
+        const provider = Object.assign(mockProvider, {
+          ...(capability !== 'none' ? { getRecoveredDispatches: listing } : {}),
+          ...(capability === 'reconcile'
+            ? { reconcileRecoveredDispatches: reconcile }
+            : {}),
+        });
+        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => provider);
+        const initializationStarted = createDeferred<void>();
+        const releaseInitialization = createDeferred<void>();
+        jest.mocked(mockWait).mockImplementationOnce(() => {
+          initializationStarted.resolve();
+          return releaseInitialization.promise;
+        });
+        const initialization = controller.init();
+        await initializationStarted.promise;
+        let settled = false;
+        const pending = controller
+          .reconcileRecoveredDispatches()
+          .then((result) => {
+            settled = true;
+            return result;
+          });
+        await Promise.resolve();
+        expect(settled).toBe(false);
+        expect(reconcile).not.toHaveBeenCalled();
+        expect(listing).not.toHaveBeenCalled();
+        releaseInitialization.resolve();
+        await initialization;
+        await expect(pending).resolves.toStrictEqual(
+          capability === 'none' ? [] : rows,
+        );
+        expect(reconcile).toHaveBeenCalledTimes(
+          capability === 'reconcile' ? 1 : 0,
+        );
+        expect(listing).toHaveBeenCalledTimes(capability === 'listing' ? 1 : 0);
+      },
+    );
+
+    it('registers the reconciliation messenger action during initialization', async () => {
+      const register = jest.fn();
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger({
+          registerMethodActionHandlers: register,
+        }),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: createMockInfrastructure(),
+      });
+      markControllerAsInitialized();
+      await controller.init();
+      expect(register).toHaveBeenCalledWith(
+        controller,
+        expect.arrayContaining(['reconcileRecoveredDispatches']),
+      );
+    });
+
+    it('reconciles through the active provider, falls back to listing and propagates errors', async () => {
+      markControllerAsInitialized();
+      const rows = [
+        {
+          recoveryId: 'pending',
+          kind: 13,
+          intent: 'withdraw',
+          txHash: null,
+          outcome: 'unknown' as const,
+          evidence: 'unresolved-dispatch',
+          acknowledgeable: false,
+        },
+      ];
+      const listing = jest.fn().mockResolvedValue(rows);
+      const reconcile = jest.fn().mockResolvedValue(rows);
+      controller.testSetProviders(
+        new Map([
+          [
+            'hyperliquid',
+            {
+              ...mockProvider,
+              getRecoveredDispatches: listing,
+              reconcileRecoveredDispatches: reconcile,
+            },
+          ],
+        ]),
+      );
+      expect(await controller.reconcileRecoveredDispatches()).toStrictEqual(
+        rows,
+      );
+      expect(reconcile).toHaveBeenCalledTimes(1);
+      expect(listing).not.toHaveBeenCalled();
+      reconcile.mockRejectedValueOnce(new Error('recovery failed'));
+      await expect(controller.reconcileRecoveredDispatches()).rejects.toThrow(
+        'recovery failed',
+      );
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', { ...mockProvider, getRecoveredDispatches: listing }],
+        ]),
+      );
+      expect(await controller.reconcileRecoveredDispatches()).toStrictEqual(
+        rows,
+      );
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      expect(await controller.reconcileRecoveredDispatches()).toStrictEqual([]);
+    });
+
     it('returns empty lists when the active provider has no durable settlement state', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));

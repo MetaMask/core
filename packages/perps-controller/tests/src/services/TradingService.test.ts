@@ -22,6 +22,7 @@ import { resolveSubscriptionWaiverRate } from '../../../src/utils/subscriptionFe
 /* eslint-disable */
 import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
 import {
+  createDeferred,
   createMockServiceContext,
   createMockPerpsControllerState,
   createMockInfrastructure,
@@ -105,6 +106,45 @@ describe('TradingService', () => {
   });
 
   describe('placeOrder', () => {
+    it('owns bound Scale intent across a held fee resolution', async () => {
+      const release = createDeferred<PerpsFeeResolution>();
+      mockRewardsIntegrationService.resolveFee.mockReturnValue(release.promise);
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+      const expectation = {
+        prices: ['100', '200'],
+        sizes: ['1', '1'],
+        totalSize: '2',
+        totalNotional: '300',
+        minimumBaseSize: '0.1',
+        minimumQuoteAmount: '1',
+        sizeDecimals: 1,
+      };
+      const request: OrderParams = {
+        symbol: 'BTC',
+        orderType: 'scale',
+        isBuy: true,
+        size: '2',
+        expectedScaleLadder: expectation,
+      };
+      const original = JSON.parse(JSON.stringify(request)) as OrderParams;
+      const pending = tradingService.placeOrder({
+        provider: mockProvider,
+        params: request,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+      request.size = '200';
+      expectation.prices[0] = '1';
+      expectation.sizes[0] = '100';
+      request.expectedScaleLadder = { ...expectation, totalSize: '200' };
+      delete request.expectedScaleLadder;
+      release.resolve(defaultFeeResolution);
+      await pending;
+      expect(mockProvider.placeOrder).toHaveBeenCalledWith(
+        expect.objectContaining(original),
+      );
+    });
+
     it('preserves the subscription source through order construction', async () => {
       mockProvider.setUserFeeResolution = jest.fn();
       const subscriptionResolution: PerpsFeeResolution = {

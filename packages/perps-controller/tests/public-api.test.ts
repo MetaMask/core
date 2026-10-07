@@ -1,3 +1,18 @@
+import {
+  LIGHTER_MAX_WIRE_PRICE,
+  LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER,
+  LIGHTER_GROUPING_ONE_TRIGGERS_OCO,
+  LIGHTER_MIN_TRADING_API_KEY_INDEX,
+  LIGHTER_MAX_TRADING_API_KEY_INDEX,
+  LIGHTER_TRADING_API_KEY_COUNT,
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS,
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS,
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS,
+  LIGHTER_FILL_REPLAY_LIMIT,
+  LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
+  LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT,
+  LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT,
+} from '../src/constants/index.js';
 // Checks the account-signer and agent surface through the package entrypoint,
 // the way a client imports it, so a dropped or renamed export fails here.
 import {
@@ -6,22 +21,145 @@ import {
   PerpsController,
 } from '../src/index.js';
 import type {
+  DirectProviderOrderCapabilities,
+  DirectProviderOrderCapabilitiesUnavailableReason,
+  UpdatePositionTPSLParams,
+  MarketInfo,
   PerpsAccountSigner,
   PerpsAgentAccount,
   PerpsAgentSigner,
   PerpsControllerClearAgentSignersAction,
+  PerpsControllerReconcileChaseOrderCancellationAction,
   PerpsControllerPrepareTradingWalletAction,
   PerpsControllerSetAgentSignerAction,
   PerpsTypedDataPayload,
 } from '../src/index.js';
-
-// The SDK ships ES modules only, which Jest cannot load below Node 24.9; the
-// entrypoint only needs its error class to be defined.
-jest.mock('@nktkas/hyperliquid', () => ({
-  HyperliquidError: class MockHyperliquidError extends Error {},
-}));
+import { createGuardedHyperLiquidClient } from '../src/utils/guardedHyperLiquidClient.js';
+import {
+  LIGHTER_ATTACHED_MAX_GROUPS,
+  LIGHTER_ATTACHED_HANDLE_PREFIX,
+  parseLighterAttachedGroups,
+  correlateLighterAttachedOrders,
+  toAttachedOrderGroup,
+} from '../src/utils/lighterAttachedOrders.js';
+import { assertExpectedPosition } from '../src/utils/positionProtection.js';
 
 describe('@metamask/perps-controller public API', () => {
+  it('exports the durable recovery account capacity', () => {
+    expect(LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT).toBe(64);
+  });
+  it('exports attached constants and utility subpath helpers', () => {
+    expect([
+      LIGHTER_MAX_WIRE_PRICE,
+      LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER,
+      LIGHTER_GROUPING_ONE_TRIGGERS_OCO,
+    ]).toStrictEqual([4294967295, 1, 3]);
+    expect(LIGHTER_ATTACHED_MAX_GROUPS).toBe(64);
+    expect(LIGHTER_ATTACHED_HANDLE_PREFIX).toBe('lighter-attached:');
+    expect(parseLighterAttachedGroups(null)).toStrictEqual([]);
+    expect(typeof correlateLighterAttachedOrders).toBe('function');
+    expect(typeof toAttachedOrderGroup).toBe('function');
+  });
+  it('exports durable attached-order inventory and explicit venue review', () => {
+    expect(typeof PerpsController.prototype.getAttachedOrderGroups).toBe(
+      'function',
+    );
+    expect(typeof PerpsController.prototype.reviewAttachedOrderGroups).toBe(
+      'function',
+    );
+  });
+  it('exports strict recovery review and explicit protection resolution', () => {
+    expect(typeof PerpsController.prototype.reviewRecoveryVenue).toBe(
+      'function',
+    );
+    expect(typeof PerpsController.prototype.resolveRecoveryProtection).toBe(
+      'function',
+    );
+  });
+
+  it('exposes explicit non-financial reconciliation on the public controller', () => {
+    expect(typeof PerpsController.prototype.reconcileRecoveredDispatches).toBe(
+      'function',
+    );
+  });
+
+  it('exports observation-only exact Chase cancellation reconciliation and its messenger action', () => {
+    const action: PerpsControllerReconcileChaseOrderCancellationAction['type'] =
+      'PerpsController:reconcileChaseOrderCancellation';
+    expect(
+      typeof PerpsController.prototype.reconcileChaseOrderCancellation,
+    ).toBe('function');
+    expect(action).toBe('PerpsController:reconcileChaseOrderCancellation');
+  });
+
+  it('exports the trading configuration constants', () => {
+    expect([
+      LIGHTER_MIN_TRADING_API_KEY_INDEX,
+      LIGHTER_MAX_TRADING_API_KEY_INDEX,
+      LIGHTER_TRADING_API_KEY_COUNT,
+      LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS,
+      LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS,
+      LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS,
+      LIGHTER_FILL_REPLAY_LIMIT,
+    ]).toStrictEqual([2, 254, 253, 10000, 250, 40, 100]);
+  });
+
+  it('exposes optional protection preconditions, capabilities and utility subpath helpers', () => {
+    const legacy: UpdatePositionTPSLParams = { symbol: 'BTC' };
+    const guarded: UpdatePositionTPSLParams = {
+      symbol: 'BTC',
+      expectedPosition: { size: '-1', entryPrice: '100000' },
+    };
+    const capability: DirectProviderOrderCapabilities = {
+      status: 'ready',
+      providerId: 'lighter',
+      supportedStrategies: [],
+      positionTpsl: {
+        supportsExpectedPosition: true,
+        childOrderIds: 'request-correlated',
+        takeProfitOrderType: 'take_profit_market',
+        stopLossOrderType: 'stop_market',
+        defaultCoverage: 'position-snapshot',
+        partialCoverage: {
+          single: true,
+          pair: 'equal-quantity-oco',
+          replacement: 'cancel-before-create',
+          recovery: 'explicit-current-position-intent',
+        },
+      },
+    };
+    expect(legacy.expectedPosition).toBeUndefined();
+    expect(() =>
+      assertExpectedPosition(guarded.expectedPosition, {
+        size: '-1.0',
+        entryPrice: '100000.0',
+      }),
+    ).not.toThrow();
+    expect(capability.positionTpsl?.supportsExpectedPosition).toBe(true);
+    expect(capability.positionTpsl?.partialCoverage?.pair).toBe(
+      'equal-quantity-oco',
+    );
+    expect(typeof createGuardedHyperLiquidClient).toBe('function');
+  });
+
+  it('exports the native trigger-limit wire types', () => {
+    expect([
+      LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT,
+      LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT,
+    ]).toStrictEqual([3, 5]);
+  });
+
+  it('exports optional native price precision and unsupported-market capability reasons', () => {
+    const unspecifiedGrid: Pick<MarketInfo, 'priceDecimals'> = {};
+    const venueGrid: Pick<MarketInfo, 'priceDecimals'> = { priceDecimals: 2 };
+    const reason: DirectProviderOrderCapabilitiesUnavailableReason =
+      'order_market_unsupported';
+
+    expect(unspecifiedGrid.priceDecimals).toBeUndefined();
+    expect(venueGrid.priceDecimals).toBe(2);
+    expect(reason).toBe('order_market_unsupported');
+  });
+
   it('exports the EIP-712 shape of a HyperLiquid L1 action', () => {
     expect(HYPERLIQUID_L1_ACTION_DOMAIN_NAME).toBe('Exchange');
     expect(HYPERLIQUID_L1_ACTION_PRIMARY_TYPE).toBe('Agent');
