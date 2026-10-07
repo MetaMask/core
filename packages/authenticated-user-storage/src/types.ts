@@ -112,6 +112,11 @@ export type PriceAlertPreference = {
   pushNotificationsEnabled: boolean;
 };
 
+export type DryRunPreference = {
+  inAppNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+};
+
 /**
  * Notification preferences for the authenticated user.
  */
@@ -122,6 +127,7 @@ export type NotificationPreferences = {
   socialAI: SocialAIPreference;
   agenticCli: AgenticCliPreference;
   priceAlerts: PriceAlertPreference;
+  dryRun?: DryRunPreference;
 };
 
 // ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ import type {
 } from '@metamask/authenticated-user-storage';
 import {
   DEFAULT_AGENTIC_CLI_PREFERENCES,
+  DEFAULT_DRY_RUN_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
 } from '@metamask/authenticated-user-storage';
 import type {
@@ -249,6 +250,7 @@ export const DEFAULT_SOCIAL_AI_PREFERENCES: Required<SocialAIPreference> = {
 
 export {
   DEFAULT_AGENTIC_CLI_PREFERENCES,
+  DEFAULT_DRY_RUN_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
 } from '@metamask/authenticated-user-storage';
 
@@ -286,9 +288,8 @@ const getEnabledAccounts = async (
 };
 
 /**
- * Builds a fresh `NotificationPreferences` blob using hardcoded defaults for
- * Perps, Social AI, and Agentic CLI and the user's
- * marketing/product-announcement flags.
+ * Builds a fresh `NotificationPreferences` blob using hardcoded defaults and
+ * the user's marketing/product-announcement flags.
  *
  * `walletActivity` is written only because the blob schema requires the field;
  * nothing reads it back. Both channels are always on, and subscriptions are
@@ -317,6 +318,7 @@ const buildFreshPreferences = (
   socialAI: { ...DEFAULT_SOCIAL_AI_PREFERENCES },
   agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
   priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
+  dryRun: { ...DEFAULT_DRY_RUN_PREFERENCES },
 });
 
 const MESSENGER_EXPOSED_METHODS = [

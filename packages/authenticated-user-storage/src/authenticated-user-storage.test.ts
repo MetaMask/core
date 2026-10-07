@@ -191,6 +191,21 @@ describe('AuthenticatedUserStorageService', () => {
       expect(result).toStrictEqual(MOCK_NOTIFICATION_PREFERENCES);
     });
 
+    it('accepts notification preferences without the optional dryRun key', async () => {
+      const { dryRun: _dryRun, ...legacyPreferences } =
+        MOCK_NOTIFICATION_PREFERENCES;
+      const mock = handleMockGetNotificationPreferences({
+        status: 200,
+        body: legacyPreferences,
+      });
+      const { service } = createService();
+
+      const result = await service.getNotificationPreferences();
+
+      expect(mock.isDone()).toBe(true);
+      expect(result).toStrictEqual(legacyPreferences);
+    });
+
     it('returns null when preferences are not found', async () => {
       handleMockGetNotificationPreferences({ status: 404 });
       const { service } = createService();

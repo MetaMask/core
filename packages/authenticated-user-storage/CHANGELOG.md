@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `DryRunPreference` type and `dryRun` field to `NotificationPreferences`, with the `DEFAULT_DRY_RUN_PREFERENCES` constant.
+
 ### Changed
 
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))

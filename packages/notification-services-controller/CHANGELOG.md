@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Initialize the optional `dryRun` notification preference when building fresh preferences.
+
 ## [29.0.3]
 
 ### Changed

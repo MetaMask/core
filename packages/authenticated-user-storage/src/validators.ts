@@ -17,6 +17,7 @@ import {
 import type {
   AgenticCliPreference,
   DelegationResponse,
+  DryRunPreference,
   IdentitySharingConsent,
   IdentitySharingConsentWrite,
   MarketingConsent,
@@ -109,6 +110,11 @@ const PriceAlertPreferenceSchema = type({
   pushNotificationsEnabled: boolean(),
 });
 
+const DryRunPreferenceSchema = type({
+  inAppNotificationsEnabled: boolean(),
+  pushNotificationsEnabled: boolean(),
+});
+
 const NotificationPreferencesSchema = type({
   walletActivity: WalletActivityPreferenceSchema,
   marketing: MarketingPreferenceSchema,
@@ -116,6 +122,7 @@ const NotificationPreferencesSchema = type({
   socialAI: SocialAIPreferenceSchema,
   agenticCli: AgenticCliPreferenceSchema,
   priceAlerts: PriceAlertPreferenceSchema,
+  dryRun: optional(DryRunPreferenceSchema),
 });
 
 const MarketingConsentSchema = type({
@@ -146,6 +153,15 @@ export const DEFAULT_AGENTIC_CLI_PREFERENCES: AgenticCliPreference = {
  * fresh `NotificationPreferences` object.
  */
 export const DEFAULT_PRICE_ALERT_PREFERENCES: PriceAlertPreference = {
+  inAppNotificationsEnabled: true,
+  pushNotificationsEnabled: true,
+};
+
+/**
+ * Default dry-run notification preferences for consumers building a fresh
+ * `NotificationPreferences` object.
+ */
+export const DEFAULT_DRY_RUN_PREFERENCES: DryRunPreference = {
   inAppNotificationsEnabled: true,
   pushNotificationsEnabled: true,
 };
