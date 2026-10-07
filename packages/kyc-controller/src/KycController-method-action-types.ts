@@ -129,8 +129,12 @@ export type KycControllerRecordSessionDisclaimersAction = {
  * Fetches session-scoped disclaimers and reports whether every document is
  * consented and credential reuse was accepted.
  *
+ * An HTTP 409 from {@link KycService.fetchSessionDisclaimersBySessionId}
+ * means those consents were already recorded, so this method returns `true`.
+ *
  * @returns Whether session disclaimers are complete.
- * @throws If there is no session on state.
+ * @throws If there is no session on state, or if fetching disclaimers fails
+ * with a status other than 409.
  */
 export type KycControllerHasCompletedSessionDisclaimersAction = {
   type: `KycController:hasCompletedSessionDisclaimers`;

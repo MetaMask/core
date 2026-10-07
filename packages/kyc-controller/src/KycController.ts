@@ -4,6 +4,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   UserStorageControllerPerformGetStorageAction,
@@ -772,8 +773,12 @@ export class KycController extends BaseController<
    * Fetches session-scoped disclaimers and reports whether every document is
    * consented and credential reuse was accepted.
    *
+   * An HTTP 409 from {@link KycService.fetchSessionDisclaimersBySessionId}
+   * means those consents were already recorded, so this method returns `true`.
+   *
    * @returns Whether session disclaimers are complete.
-   * @throws If there is no session on state.
+   * @throws If there is no session on state, or if fetching disclaimers fails
+   * with a status other than 409.
    */
   async hasCompletedSessionDisclaimers(): Promise<boolean> {
     if (!this.state.sessionStatus) {
@@ -782,12 +787,21 @@ export class KycController extends BaseController<
     // TODO: validate if this shorcut check is sufficient
     // return this.state.sessionStatus.consentStatus === 'given';
 
-    const disclaimers = await this.messenger.call(
-      'KycService:fetchSessionDisclaimersBySessionId',
-      { sessionId: this.state.sessionStatus.id },
-    );
-
-    return areSessionDisclaimersCompleted(disclaimers);
+    try {
+      const disclaimers = await this.messenger.call(
+        'KycService:fetchSessionDisclaimersBySessionId',
+        { sessionId: this.state.sessionStatus.id },
+      );
+      return areSessionDisclaimersCompleted(disclaimers);
+    } catch (error) {
+      // A 409 error means the session has already reached terminal status.
+      // We return true instead of forwarding the error because it feels unintuitive to the caller
+      // to throw an error just because the session has already reached terminal status.
+      if (error instanceof HttpError && error.httpStatus === 409) {
+        return true;
+      }
+      throw error;
+    }
   }
 
   /**

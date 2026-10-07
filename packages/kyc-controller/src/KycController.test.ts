@@ -1,3 +1,4 @@
+import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -619,6 +620,40 @@ describe('KycController', () => {
           });
 
           expect(await controller.hasCompletedSessionDisclaimers()).toBe(true);
+        },
+      );
+    });
+
+    it('returns true when fetching session disclaimers responds with HTTP 409', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers }) => {
+          handlers.fetchSessionDisclaimersBySessionId.mockRejectedValue(
+            new HttpError(
+              409,
+              "Fetching 'disclaimers' failed with status '409'",
+            ),
+          );
+
+          expect(await controller.hasCompletedSessionDisclaimers()).toBe(true);
+        },
+      );
+    });
+
+    it('rethrows non-409 errors from fetching session disclaimers', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers }) => {
+          handlers.fetchSessionDisclaimersBySessionId.mockRejectedValue(
+            new HttpError(
+              500,
+              "Fetching 'disclaimers' failed with status '500'",
+            ),
+          );
+
+          await expect(
+            controller.hasCompletedSessionDisclaimers(),
+          ).rejects.toThrow(/failed with status '500'/u);
         },
       );
     });
