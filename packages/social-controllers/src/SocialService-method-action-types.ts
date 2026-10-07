@@ -71,7 +71,8 @@ export type SocialServiceFetchClosedPositionsAction = {
 /**
  * Fetches a trader's MetaMask followers.
  *
- * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`.
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`. Requires a bearer
+ * token; the trader is identified by `addressOrId`, not the JWT subject.
  *
  * @param options - Options bag.
  * @param options.addressOrId - Wallet address or Clicker profile ID.
@@ -85,7 +86,8 @@ export type SocialServiceFetchFollowersAction = {
 /**
  * Fetches the list of traders a profile follows.
  *
- * Calls `GET ${baseUrl}/traders/${addressOrId}/following`.
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/following`. Requires a bearer
+ * token; the trader is identified by `addressOrId`, not the JWT subject.
  *
  * @param options - Options bag.
  * @param options.addressOrId - Wallet address or Clicker profile ID.
