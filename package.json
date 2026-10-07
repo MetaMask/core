@@ -94,7 +94,7 @@
     "@yarnpkg/parsers": "^3.0.3",
     "@yarnpkg/types": "^4.0.0",
     "bats": "^1.13.0",
-    "comment-json": "^4.5.1",
+    "comment-json": "^4.6.2",
     "eslint-plugin-n": "^18.3.0",
     "execa": "^10.0.1",
     "isomorphic-fetch": "^3.0.0",
