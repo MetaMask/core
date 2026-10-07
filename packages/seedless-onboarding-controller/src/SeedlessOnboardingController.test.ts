@@ -5310,7 +5310,7 @@ describe('SeedlessOnboardingController', () => {
           );
           mockFetchAuthPubKey(
             toprfClient,
-            base64ToBytes(controller.state.authPubKey as string),
+            base64ToBytes(MOCK_AUTH_PUB_KEY_OUTDATED),
           );
           await controller.setLocked();
 

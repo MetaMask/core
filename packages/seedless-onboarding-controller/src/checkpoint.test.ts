@@ -11,7 +11,6 @@ describe('getPasswordSyncInstruction', () => {
     SeedlessOnboardingCheckpoint.RemotePasswordPending,
     SeedlessOnboardingCheckpoint.LocalStatePending,
     SeedlessOnboardingCheckpoint.LocalPasswordPending,
-    SeedlessOnboardingCheckpoint.KeySyncPending,
   ])(
     'returns PasswordOutdated when the remote password moved for %s',
     (checkpoint) => {
@@ -20,6 +19,21 @@ describe('getPasswordSyncInstruction', () => {
       );
     },
   );
+
+  it('returns SyncKey for KEY_SYNC_PENDING regardless of password state', () => {
+    expect(
+      getPasswordSyncInstruction(
+        SeedlessOnboardingCheckpoint.KeySyncPending,
+        true,
+      ),
+    ).toBe(PasswordSyncInstruction.SyncKey);
+    expect(
+      getPasswordSyncInstruction(
+        SeedlessOnboardingCheckpoint.KeySyncPending,
+        false,
+      ),
+    ).toBe(PasswordSyncInstruction.SyncKey);
+  });
 
   it.each([
     [undefined, PasswordSyncInstruction.InSync],
@@ -54,6 +68,9 @@ describe('getPasswordSyncInstruction', () => {
     SeedlessOnboardingCheckpoint.RemoteKeyPending,
   ])('throws for an unsupported checkpoint: %s', (checkpoint) => {
     expect(() => getPasswordSyncInstruction(checkpoint, false)).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidPasswordSyncCheckpoint,
+    );
+    expect(() => getPasswordSyncInstruction(checkpoint, true)).toThrow(
       SeedlessOnboardingControllerErrorMessage.InvalidPasswordSyncCheckpoint,
     );
   });

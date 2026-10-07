@@ -81,26 +81,30 @@ The following is the execution flow for the `resolvePasswordState`.
 
 ```mermaid
 flowchart LR
-    n1["resolvePasswordSyncState"] --> n2["Check remote auth public key"]
+    n1["resolvePasswordSyncState"] --> n2["Check remote auth public key"] & n8["KEY_SYNC_PENDING"]
     n2 --> n3["outdated password?"]
     n3 -- YES --> n4(["PasswordOutdated"])
     n3 -- NO --> n5["Route by checkpoint"]
-    n5 --> n6["no checkpoint / REMOTE_PASSWORD_PENDING / LOCAL_STATE_PENDING"]
-    n5 --> n7["LOCAL_PASSWORD_PENDING"]
-    n5 --> n8["KEY_SYNC_PENDING"]
+    n5 --> n6["no checkpoint / REMOTE_PASSWORD_PENDING / LOCAL_STATE_PENDING"] & n7["LOCAL_PASSWORD_PENDING"]
     n6 --> n9(["InSync"])
     n7 --> n10(["ReconcileKeyring"])
     n8 --> n11(["SyncKey"])
 
     n1@{ shape: rounded}
     n2@{ shape: rounded}
+    n8@{ shape: rect}
     n3@{ shape: diam}
     n5@{ shape: rect}
     n6@{ shape: rect}
     n7@{ shape: rect}
-    n8@{ shape: rect}
     style n1 font-size:12px
+    style n8 stroke:#00C853,fill:#00C853
+    style n11 stroke:#00C853,fill:#00C853
 ```
+
+> Please notice that `KEY_SYNC_PENDING` does not go through the password outdated check with remote in the above diagram.
+We will cover that in the [later section](#key_sync_pending-edge-case)
+
 
 ### Execute password sync
 
@@ -310,4 +314,81 @@ The controller first checks the remote password again. If another device has
 changed it, it restarts the Seedless sync and returns `ReconcileKeyring`.
 Otherwise, this is the last step of both `Password Change` and `Password Sync`
 flow. The client has just to do the
-[`SyncKey`](#sync-the-new-keyring-encryption-to-the-seedless-vault-synckey).
+[SyncKey](#sync-the-new-keyring-encryption-to-the-seedless-vault-synckey).
+
+### KEY_SYNC_PENDING Edge Case
+
+In the proposed password sync/recover flow, we do the remote password status check first before checking the local checkpoint.
+If the remote server has updated global password (from another Device), the local checkpoint does not matter anymore.
+Regardless of the checkpoint (`REMOTE_PASSWORD_PENDING`, `LOCAL_STATE_PENDING`, `LOCAL_PASSWORD_PENDING`), we will have to sync the remote password to the local vaults (Seedless and Keyring) using the **global password**.
+
+To sync, we need to unlock the both local vaults but they were not encrypted with **global password**.
+For the Seedless vault, we can recover the local encryption with **global password** from remote server and unlock the local vault.
+For the keyring vault, we can get the Keyring Encryption Key from the decrypted seedless vault and unlock it.
+
+For the `KEY_SYNC_PENDING` checkpoint, check the example scenario.
+
+```
+Device A,
+- Init password change (Password1)
+- Failed after remote and local commitment
+- Checkpoint is `KEY_SYNC_PENDING`
+
+Device B,
+- Init Password change (Password2)
+- Password outdated (as Device A committed password update to the remote)
+- Sync password
+- Init Password change again (Password2)
+- Success
+```
+
+On Device A, both Seedless and Keyring vault are encrypted `Password1`. Keyring has the new encryption key (Encryption1) but seedless still has the old keyring encryption key as `syncKeys` is pending.
+
+```mermaid
+flowchart TB
+ subgraph s1["SeedlessVault"]
+        n1["Password1"]
+        n3["KeyringEncryptionKey0"]
+  end
+ subgraph s2["KeyringVault"]
+        n2["Password1"]
+        n4["KeyringEncryptionKey1"]
+  end
+
+    n1@{ shape: rect}
+    n3@{ shape: rect}
+    n2@{ shape: rect}
+    n4@{ shape: rect}
+```
+
+From the usual password sync flow, we try to unlock with Keyring vault with stored encryption key (_KeyringEncryptionKey0_) but failed because keyring vault has new password and key after last password change attempt.
+
+```mermaid
+flowchart LR
+ subgraph s1["SeedlessVault"]
+        n1["Password1"]
+        n3["KeyringEncryptionKey0"]
+  end
+ subgraph s2["KeyringVault"]
+        n2["Password1"]
+        n4["KeyringEncryptionKey1"]
+  end
+    s1 --> n5["Seedless:reconcilePassword"]
+    n5 --> n6["Decrypt Keyring Vault with<br><b>KeyringEncryptionKey0</b>"]
+    n6 --> s2
+    s2 --> n7(["Keyring Unlock failed coz Keyring vault has different Enc Key now"])
+
+    n1@{ shape: rect}
+    n3@{ shape: rect}
+    n2@{ shape: rect}
+    n4@{ shape: rect}
+    n5@{ shape: rounded}
+    n6@{ shape: rect}
+    style n7 fill:#D50000,color:#ffffff
+    linkStyle 2 stroke:#D50000,fill:none
+```
+
+As a result, user will run into the dead end situation in which local seedless sync is successful but keyring sync failed. The **only** way to recover this is wallet reset (start from the social login again).
+To avoid this, we will make `KEY_SYNC_PENDING` checkpoint as the exception, skip doing the remote sync instead let the user to finish the _local key syncs_ operation.
+
+
