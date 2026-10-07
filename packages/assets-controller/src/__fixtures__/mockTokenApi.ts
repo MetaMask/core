@@ -6,6 +6,7 @@ import {
   ARBITRUM_GMX,
   BASE_FARTCOIN,
   BASE_USDC,
+  BNB_MUSD,
   MAINNET_MUSD,
   MAINNET_USDT,
   MONAD_WMON,
@@ -51,6 +52,7 @@ export const TOKEN_API_OCCURRENCES: Record<string, number | undefined> = {
   [SOLANA_USDC]: 4,
   [OPTIMISM_SPAM]: 2, // a scam token that talked its way onto two lists
   [MONAD_WMON]: undefined, // as the API answers for every Monad token today
+  [BNB_MUSD]: 1, // real, low real-world count — matches the live Token API
 };
 
 export function createTestApiClient(): ApiPlatformClient {
