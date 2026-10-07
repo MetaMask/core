@@ -579,6 +579,34 @@ describe('PerpsController', () => {
     (mockInfrastructure.logger.error as jest.Mock).mockClear();
     (mockInfrastructure.debugLogger.log as jest.Mock).mockClear();
   });
+
+  describe('account support', () => {
+    it('returns the active provider account support result', async () => {
+      const accountSupport = {
+        isSupported: false,
+        reason: 'multi_sig_account',
+      } as const;
+      mockProvider.getAccountSupport.mockResolvedValue(accountSupport);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      const result = await controller.getAccountSupport();
+
+      expect(result).toEqual(accountSupport);
+      expect(mockProvider.getAccountSupport).toHaveBeenCalledWith(undefined);
+    });
+
+    it('treats providers without an account support hook as supported', async () => {
+      mockProvider.getAccountSupport = undefined;
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      const result = await controller.getAccountSupport();
+
+      expect(result).toEqual({ isSupported: true });
+    });
+  });
+
   describe('validation methods', () => {
     it('validates close position', async () => {
       const closeParams = {
