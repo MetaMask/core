@@ -347,6 +347,7 @@ function createCustomSubscriptionMessenger(): {
       ...SUBSCRIPTION_SERVICE_ACTIONS,
       'AuthenticationController:performSignOut',
       'SeedlessOnboardingController:getIsUserAuthenticated',
+      'GeolocationController:getGeolocationData',
     ],
   });
 
@@ -372,6 +373,7 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
   messenger: SubscriptionControllerMessenger;
   mockPerformSignOut: jest.Mock;
   mockGetIsUserAuthenticated: jest.Mock;
+  mockGetGeolocationData: jest.Mock;
 } {
   const { rootMessenger, messenger } =
     overrideMessengers ?? createCustomSubscriptionMessenger();
@@ -388,11 +390,22 @@ function createMockSubscriptionMessenger(overrideMessengers?: {
     mockGetIsUserAuthenticated,
   );
 
+  const mockGetGeolocationData = jest.fn().mockResolvedValue({
+    country: 'US',
+    region: null,
+    timezone: null,
+  });
+  rootMessenger.registerActionHandler(
+    'GeolocationController:getGeolocationData',
+    mockGetGeolocationData,
+  );
+
   return {
     rootMessenger,
     messenger,
     mockPerformSignOut,
     mockGetIsUserAuthenticated,
+    mockGetGeolocationData,
   };
 }
 
@@ -550,6 +563,7 @@ type WithControllerCallback<ReturnValue> = (params: {
   >['mockService'];
   mockPerformSignOut: jest.Mock;
   mockGetIsUserAuthenticated: jest.Mock;
+  mockGetGeolocationData: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<SubscriptionControllerOptions>;
@@ -571,6 +585,7 @@ async function withController<ReturnValue>(
   const {
     messenger,
     mockGetIsUserAuthenticated,
+    mockGetGeolocationData,
     mockPerformSignOut,
     rootMessenger,
   } = createMockSubscriptionMessenger();
@@ -589,6 +604,7 @@ async function withController<ReturnValue>(
     mockService,
     mockPerformSignOut,
     mockGetIsUserAuthenticated,
+    mockGetGeolocationData,
   });
 }
 
@@ -1842,6 +1858,7 @@ describe('SubscriptionController', () => {
             products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
             isTrialRequested: false,
             recurringInterval: RECURRING_INTERVALS.month,
+            isEligibleForRefund: false,
           });
         },
       );
@@ -2457,6 +2474,7 @@ describe('SubscriptionController', () => {
             products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: true,
             recurringInterval: RECURRING_INTERVALS.month,
+            isEligibleForRefund: false,
           });
         },
       );
@@ -2527,6 +2545,7 @@ describe('SubscriptionController', () => {
             products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: true,
             recurringInterval: RECURRING_INTERVALS.month,
+            isEligibleForRefund: false,
           });
         },
       );
@@ -2562,6 +2581,7 @@ describe('SubscriptionController', () => {
             products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: true,
             recurringInterval: RECURRING_INTERVALS.month,
+            isEligibleForRefund: false,
           });
         },
       );
@@ -2599,6 +2619,7 @@ describe('SubscriptionController', () => {
             products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: false,
             recurringInterval: RECURRING_INTERVALS.month,
+            isEligibleForRefund: false,
           });
         },
       );
@@ -2637,6 +2658,7 @@ describe('SubscriptionController', () => {
             products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
             isTrialRequested: false,
             recurringInterval: RECURRING_INTERVALS.month,
+            isEligibleForRefund: false,
           });
         },
       );
@@ -2675,6 +2697,7 @@ describe('SubscriptionController', () => {
             products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: false,
             recurringInterval: RECURRING_INTERVALS.month,
+            isEligibleForRefund: false,
           });
         },
       );
@@ -2743,6 +2766,7 @@ describe('SubscriptionController', () => {
             products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: false,
             recurringInterval: RECURRING_INTERVALS.month,
+            isEligibleForRefund: false,
           });
         },
       );
@@ -2781,10 +2805,130 @@ describe('SubscriptionController', () => {
             products: [PRODUCT_TYPES.SHIELD],
             isTrialRequested: true,
             recurringInterval: RECURRING_INTERVALS.month,
+            isEligibleForRefund: false,
           });
         },
       );
     });
+
+    it.each([
+      ['DE', true],
+      ['NO', true],
+      ['US', false],
+      ['GB', false],
+      [null, false],
+    ] as const)(
+      'sets isEligibleForRefund from geolocation country %s',
+      async (country, isEligibleForRefund) => {
+        await withController(
+          {
+            state: {
+              subscriptions: [],
+              pricing: MOCK_PRICE_INFO_RESPONSE,
+            },
+          },
+          async ({ rootMessenger, mockService, mockGetGeolocationData }) => {
+            mockService.getSubscriptions.mockResolvedValue(
+              MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            );
+            mockService.startSubscriptionWithCard.mockResolvedValue(
+              MOCK_START_SUBSCRIPTION_RESPONSE,
+            );
+            mockGetGeolocationData.mockResolvedValue({
+              country,
+              region: null,
+              timezone: null,
+            });
+
+            await rootMessenger.call(
+              'SubscriptionController:startSubscriptionWithCard',
+              {
+                products: [PRODUCT_TYPES.SHIELD],
+                isTrialRequested: true,
+                recurringInterval: RECURRING_INTERVALS.month,
+              },
+            );
+
+            expect(mockGetGeolocationData).toHaveBeenCalledTimes(1);
+            expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith(
+              expect.objectContaining({ isEligibleForRefund }),
+            );
+          },
+        );
+      },
+    );
+
+    it('continues with isEligibleForRefund false when geolocation lookup fails', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ rootMessenger, mockService, mockGetGeolocationData }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+          mockService.startSubscriptionWithCard.mockResolvedValue(
+            MOCK_START_SUBSCRIPTION_RESPONSE,
+          );
+          mockGetGeolocationData.mockRejectedValue(
+            new Error('geolocation unavailable'),
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCard',
+            {
+              products: [PRODUCT_TYPES.SHIELD],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+            },
+          );
+
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith(
+            expect.objectContaining({ isEligibleForRefund: false }),
+          );
+        },
+      );
+    });
+
+    it.each([true, false])(
+      'sends caller-provided isEligibleForRefund %s and skips geolocation',
+      async (isEligibleForRefund) => {
+        await withController(
+          {
+            state: {
+              subscriptions: [],
+              pricing: MOCK_PRICE_INFO_RESPONSE,
+            },
+          },
+          async ({ rootMessenger, mockService, mockGetGeolocationData }) => {
+            mockService.getSubscriptions.mockResolvedValue(
+              MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            );
+            mockService.startSubscriptionWithCard.mockResolvedValue(
+              MOCK_START_SUBSCRIPTION_RESPONSE,
+            );
+
+            await rootMessenger.call(
+              'SubscriptionController:startSubscriptionWithCard',
+              {
+                products: [PRODUCT_TYPES.SHIELD],
+                isTrialRequested: true,
+                recurringInterval: RECURRING_INTERVALS.month,
+                isEligibleForRefund,
+              },
+            );
+
+            expect(mockGetGeolocationData).not.toHaveBeenCalled();
+            expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith(
+              expect.objectContaining({ isEligibleForRefund }),
+            );
+          },
+        );
+      },
+    );
   });
 
   describe('startCryptoSubscription', () => {
@@ -2822,9 +2966,10 @@ describe('SubscriptionController', () => {
           );
 
           expect(result).toStrictEqual(response);
-          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
-            request,
-          );
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith({
+            ...request,
+            isEligibleForRefund: false,
+          });
           expect(mockService.getSubscriptions).toHaveBeenCalledTimes(2);
           expect(mockService.getBenefits).not.toHaveBeenCalled();
         },
@@ -3530,6 +3675,144 @@ describe('SubscriptionController', () => {
         },
       );
     });
+
+    it.each([
+      ['DE', true],
+      ['NO', true],
+      ['US', false],
+      ['GB', false],
+      [null, false],
+    ] as const)(
+      'sets isEligibleForRefund from geolocation country %s',
+      async (country, isEligibleForRefund) => {
+        await withController(
+          {
+            state: {
+              subscriptions: [],
+              pricing: MOCK_PRICE_INFO_RESPONSE,
+            },
+          },
+          async ({ rootMessenger, mockService, mockGetGeolocationData }) => {
+            mockService.getSubscriptions
+              .mockResolvedValueOnce(MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE)
+              .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
+            mockService.startSubscriptionWithCrypto.mockResolvedValue(
+              MOCK_CRYPTO_SUBSCRIPTION,
+            );
+            mockGetGeolocationData.mockResolvedValue({
+              country,
+              region: null,
+              timezone: null,
+            });
+
+            await rootMessenger.call(
+              'SubscriptionController:startSubscriptionWithCrypto',
+              {
+                products: [PRODUCT_TYPES.SHIELD],
+                isTrialRequested: true,
+                recurringInterval: RECURRING_INTERVALS.month,
+                billingCycles: 3,
+                chainId: '0x1',
+                payerAddress: '0x0000000000000000000000000000000000000001',
+                tokenSymbol: 'USDC',
+                rawTransaction: '0xdeadbeef',
+              },
+            );
+
+            expect(mockGetGeolocationData).toHaveBeenCalledTimes(1);
+            expect(
+              mockService.startSubscriptionWithCrypto,
+            ).toHaveBeenCalledWith(
+              expect.objectContaining({ isEligibleForRefund }),
+            );
+          },
+        );
+      },
+    );
+
+    it('continues with isEligibleForRefund false when geolocation lookup fails', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ rootMessenger, mockService, mockGetGeolocationData }) => {
+          mockService.getSubscriptions
+            .mockResolvedValueOnce(MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE)
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
+          mockService.startSubscriptionWithCrypto.mockResolvedValue(
+            MOCK_CRYPTO_SUBSCRIPTION,
+          );
+          mockGetGeolocationData.mockRejectedValue(
+            new Error('geolocation unavailable'),
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.SHIELD],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 3,
+              chainId: '0x1',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'USDC',
+              rawTransaction: '0xdeadbeef',
+            },
+          );
+
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({ isEligibleForRefund: false }),
+          );
+        },
+      );
+    });
+
+    it.each([true, false])(
+      'sends caller-provided isEligibleForRefund %s and skips geolocation',
+      async (isEligibleForRefund) => {
+        await withController(
+          {
+            state: {
+              subscriptions: [],
+              pricing: MOCK_PRICE_INFO_RESPONSE,
+            },
+          },
+          async ({ rootMessenger, mockService, mockGetGeolocationData }) => {
+            mockService.getSubscriptions
+              .mockResolvedValueOnce(MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE)
+              .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
+            mockService.startSubscriptionWithCrypto.mockResolvedValue(
+              MOCK_CRYPTO_SUBSCRIPTION,
+            );
+
+            await rootMessenger.call(
+              'SubscriptionController:startSubscriptionWithCrypto',
+              {
+                products: [PRODUCT_TYPES.SHIELD],
+                isTrialRequested: true,
+                recurringInterval: RECURRING_INTERVALS.month,
+                billingCycles: 3,
+                chainId: '0x1',
+                payerAddress: '0x0000000000000000000000000000000000000001',
+                tokenSymbol: 'USDC',
+                rawTransaction: '0xdeadbeef',
+                isEligibleForRefund,
+              },
+            );
+
+            expect(mockGetGeolocationData).not.toHaveBeenCalled();
+            expect(
+              mockService.startSubscriptionWithCrypto,
+            ).toHaveBeenCalledWith(
+              expect.objectContaining({ isEligibleForRefund }),
+            );
+          },
+        );
+      },
+    );
   });
 
   describe('startPolling', () => {
@@ -5454,6 +5737,7 @@ describe('SubscriptionController', () => {
             isSponsored: undefined,
             useTestClock: undefined,
             rewardAccountId: undefined,
+            isEligibleForRefund: false,
           });
         },
       );
@@ -5780,6 +6064,7 @@ describe('SubscriptionController', () => {
             useTestClock: undefined,
             rewardAccountId:
               'eip155:1:0x1234567890123456789012345678901234567890',
+            isEligibleForRefund: false,
           });
         },
       );

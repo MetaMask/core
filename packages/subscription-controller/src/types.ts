@@ -320,6 +320,14 @@ export type StartSubscriptionRequest = {
   useTestClock?: boolean;
 
   /**
+   * Whether the user is eligible for a refund (e.g. EU/EEA withdrawal rights).
+   *
+   * When provided, this value is sent as-is and the geolocation check is
+   * skipped. When omitted, the controller resolves it from geolocation.
+   */
+  isEligibleForRefund?: boolean;
+
+  /**
    * Optional CAIP account ID of the rewards account to opt in alongside this
    * subscription. Required when the user wants to link rewards during
    * subscription creation.
@@ -352,6 +360,15 @@ type StartCryptoSubscriptionRequestBase = {
   assertTrialEligibility?: boolean;
   isSponsored?: boolean;
   useTestClock?: boolean;
+
+  /**
+   * Whether the user is eligible for a refund (e.g. EU/EEA withdrawal rights).
+   *
+   * When provided, this value is sent as-is and the geolocation check is
+   * skipped. When omitted, the controller resolves it from geolocation.
+   */
+  isEligibleForRefund?: boolean;
+
   /**
    * Optional CAIP account ID of the rewards account to opt in alongside this
    * subscription. Required when the user wants to link rewards during

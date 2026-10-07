@@ -3,6 +3,7 @@ import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
 } from '@metamask/base-controller';
+import type { GeolocationControllerGetGeolocationDataAction } from '@metamask/geolocation-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
@@ -16,6 +17,7 @@ import {
   ACTIVE_SUBSCRIPTION_STATUSES,
   controllerName,
   DEFAULT_POLLING_INTERVAL,
+  REFUND_ELIGIBLE_COUNTRIES,
   SubscriptionControllerErrorMessage,
   SubscriptionDelegationServiceErrorMessage,
 } from './constants.js';
@@ -129,7 +131,8 @@ type AllowedActions =
   | SubscriptionServiceAssignUserToCohortAction
   | SubscriptionServiceLinkRewardsAction
   | AuthenticationController.AuthenticationControllerPerformSignOutAction
-  | SeedlessOnboardingControllerGetIsUserAuthenticatedAction;
+  | SeedlessOnboardingControllerGetIsUserAuthenticatedAction
+  | GeolocationControllerGetGeolocationDataAction;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -591,6 +594,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * `isTrialRequested` on the request is ignored and overwritten from pricing
    * (`trialPeriodDays > 0`) and `trialedProducts`.
    *
+   * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
+   * from geolocation (EU/EEA), or `false` if the lookup fails.
+   *
    * @param request - The start subscription request.
    * @returns The checkout session response.
    */
@@ -609,6 +615,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
           request.products,
           request.recurringInterval,
         ),
+        isEligibleForRefund: await this.#getIsEligibleForRefund(
+          request.isEligibleForRefund,
+        ),
       },
     );
     // note: no need to trigger access token refresh after startSubscriptionWithCard request because this only return stripe checkout session url, subscription not created yet
@@ -624,6 +633,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *
    * `isTrialRequested` on the request is ignored and overwritten from pricing
    * (`trialPeriodDays > 0`) and `trialedProducts`.
+   *
+   * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
+   * from geolocation (EU/EEA), or `false` if the lookup fails.
    *
    * @param request - The start crypto subscription request.
    * @returns The start crypto subscription response.
@@ -662,6 +674,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       {
         ...subscriptionRequest,
         isTrialRequested,
+        isEligibleForRefund: await this.#getIsEligibleForRefund(
+          request.isEligibleForRefund,
+        ),
       },
     );
 
@@ -1325,6 +1340,33 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       );
       return productPrice.trialPeriodDays > 0;
     });
+  }
+
+  /**
+   * Returns the caller-provided refund eligibility when set. Otherwise
+   * resolves it from geolocation (EU/EEA), or `false` if the lookup fails.
+   *
+   * @param isEligibleForRefund - Caller-provided eligibility, if any.
+   * @returns Whether the user is eligible for a refund.
+   */
+  async #getIsEligibleForRefund(
+    isEligibleForRefund?: boolean,
+  ): Promise<boolean> {
+    if (isEligibleForRefund !== undefined) {
+      return isEligibleForRefund;
+    }
+
+    try {
+      const { country } = await this.messenger.call(
+        'GeolocationController:getGeolocationData',
+      );
+      return (
+        country !== null && REFUND_ELIGIBLE_COUNTRIES.has(country.toUpperCase())
+      );
+    } catch (error) {
+      log('Failed to resolve geolocation for refund eligibility', error);
+      return false;
+    }
   }
 
   #findCryptoPaymentMethod(
