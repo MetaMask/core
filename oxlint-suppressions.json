@@ -6657,13 +6657,13 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 269
+      "count": 270
     },
     "typescript/no-unsafe-call": {
-      "count": 83
+      "count": 84
     },
     "typescript/no-unsafe-member-access": {
-      "count": 217
+      "count": 218
     },
     "typescript/no-unsafe-return": {
       "count": 2
