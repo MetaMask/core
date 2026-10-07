@@ -446,7 +446,7 @@ export type FeedResponse = {
 // ---------------------------------------------------------------------------
 
 /**
- * Response from `GET /v1/users/me/followers` and
+ * Response from `GET /v1/users/me/followers` and bearer-authenticated
  * `GET /v1/traders/:addressOrId/followers`.
  */
 export type FollowersResponse = {
@@ -459,7 +459,8 @@ export type FollowersResponse = {
 // ---------------------------------------------------------------------------
 
 /**
- * Response from `GET /v1/users/me/following`.
+ * Response from `GET /v1/users/me/following` and bearer-authenticated
+ * `GET /v1/traders/:addressOrId/following`.
  */
 export type FollowingResponse = {
   following: ProfileSummary[];
@@ -509,6 +510,11 @@ export type FetchPositionsOptions = {
 };
 
 export type FetchFollowersOptions = {
+  /** Wallet address or Clicker profile ID. */
+  addressOrId: string;
+};
+
+export type FetchTraderFollowingOptions = {
   /** Wallet address or Clicker profile ID. */
   addressOrId: string;
 };

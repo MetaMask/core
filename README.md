@@ -721,6 +721,7 @@ linkStyle default opacity:0.5
   subscription_controller --> chomp_api_service;
   subscription_controller --> controller_utils;
   subscription_controller --> delegation_controller;
+  subscription_controller --> geolocation_controller;
   subscription_controller --> messenger;
   subscription_controller --> money_account_balance_service;
   subscription_controller --> money_account_upgrade_controller;

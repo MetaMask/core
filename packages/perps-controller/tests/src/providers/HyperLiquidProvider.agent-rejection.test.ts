@@ -387,6 +387,36 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(loggerError).not.toHaveBeenCalled();
       });
 
+      it('invalidates the signed agent after a definitive top-level replacement rejection', async () => {
+        const {
+          accountSignerProvider,
+          exchangeClient,
+          sdkWallet,
+          onAgentRejected,
+        } = createRejectingProvider('order');
+        await accountSignerProvider.getMarketDataWithPrices();
+        exchangeClient.order.mockImplementation(async () => {
+          await sdkWallet().signTypedData(L1_PAYLOAD);
+          const rejection = unknownWalletError(AGENT_ADDRESS);
+          throw Object.assign(rejection, {
+            response: { status: 'err', response: rejection.message },
+          });
+        });
+
+        const result = await accountSignerProvider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        });
+        expect(onAgentRejected.mock.calls).toStrictEqual([
+          [MAINNET_ACCOUNT, AGENT_ADDRESS],
+        ]);
+      });
+
       it('keeps the old protection and fails with KEYRING_LOCKED when its cancel is rejected', async () => {
         const {
           accountSignerProvider,

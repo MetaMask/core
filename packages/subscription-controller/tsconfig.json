@@ -20,6 +20,9 @@
       "path": "../delegation-controller"
     },
     {
+      "path": "../geolocation-controller"
+    },
+    {
       "path": "../messenger"
     },
     {

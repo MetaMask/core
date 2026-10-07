@@ -31,6 +31,7 @@ import type {
 import type { CandleData } from '../types/perps-types.js';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
 import { ensureError, isAbortError } from '../utils/errorUtils.js';
+import { createGuardedHyperLiquidClient } from '../utils/guardedHyperLiquidClient.js';
 import { getPerpsConnectionAttemptContext } from '../utils/perpsConnectionAttemptContext.js';
 
 /**
@@ -509,14 +510,30 @@ export class HyperLiquidClientService {
   /**
    * Get the exchange client
    *
-   * @returns The initialized ExchangeClient instance.
+   * @param beforeDispatch - Optional operation-local fence after SDK signing.
+   * @returns The initialized client, or an isolated guarded client.
    */
-  public getExchangeClient(): ExchangeClient {
+  public getExchangeClient(
+    beforeDispatch?: () => Promise<void>,
+  ): ExchangeClient {
     if (!this.#exchangeClient) {
       this.ensureInitialized();
       throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
     }
-    return this.#exchangeClient;
+    if (!beforeDispatch) {
+      return this.#exchangeClient;
+    }
+    const wallet = this.#walletParams;
+    const onExchangeRequest = this.#onExchangeRequest;
+    return createGuardedHyperLiquidClient(
+      this.#exchangeClient,
+      beforeDispatch,
+      (payload) => {
+        if (wallet) {
+          onExchangeRequest?.(payload, undefined, wallet);
+        }
+      },
+    );
   }
 
   /**

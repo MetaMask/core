@@ -86,7 +86,7 @@ export type PerpsControllerGetActiveProviderOrNullAction = {
 };
 
 /**
- * Get strategy capabilities through the active provider route used by order
+ * Get order capabilities through the active provider route used by order
  * placement. The query waits for in-flight initialization and reports an
  * explicit unavailable status when no provider route can answer reliably.
  *
@@ -114,9 +114,9 @@ export type PerpsControllerGetMarginModeLockAction = {
 /**
  * Build a Scale price ladder using the active provider's venue rules.
  *
- * @param params - Market, ladder bounds, count, and optional explicit route.
- * @returns Provider-normalized prices or a typed unavailable result.
- * @throws When the provider cannot normalize the requested ladder.
+ * @param params - Market, ladder bounds, count, optional sizing and explicit route.
+ * @returns Provider-normalized prices with sizingPreview when supported, or a typed unavailable result.
+ * @throws When bounds or sizing violate the provider's venue rules.
  */
 export type PerpsControllerGetScalePriceLadderAction = {
   type: `PerpsController:getScalePriceLadder`;
@@ -181,8 +181,37 @@ export type PerpsControllerGetChaseOrdersAction = {
 };
 
 /**
- * Stop Chase repricing for app backgrounding without cancelling the current
- * resting children.
+ * Observe durable ownership for an exact Chase handle through one provider.
+ * Starts no signing, transport, continuation, cancellation or durable writes.
+ * Original owner/child IDs are observations, never permission for cleanup in
+ * a different context. Providers without durable history report unsupported.
+ *
+ * @param input - Opaque handle, explicit route and optional original owner.
+ * @returns Complete local child history, unsupported, or explicit absence.
+ * @throws On corrupt storage or account/network/provider/lifetime changes.
+ */
+export type PerpsControllerGetChaseOrderOwnershipAction = {
+  type: `PerpsController:getChaseOrderOwnership`;
+  handler: PerpsController['getChaseOrderOwnership'];
+};
+
+/**
+ * Reconcile one retained exact Chase cancellation without any new cancellation.
+ * Unsupported providers are never routed to ordinary financial cancellation.
+ *
+ * @param input - Original handle, owner, child and transaction identity.
+ * @returns Proven terminal state, unresolved cleanup or unsupported capability.
+ * @throws On invalid ownership or stale provider/account/network lifetime.
+ */
+export type PerpsControllerReconcileChaseOrderCancellationAction = {
+  type: `PerpsController:reconcileChaseOrderCancellation`;
+  handler: PerpsController['reconcileChaseOrderCancellation'];
+};
+
+/**
+ * Stop Chase repricing for app backgrounding. HyperLiquid leaves current
+ * children resting. The bounded Lighter probe attempts exact cancellation and
+ * reports canceled or termination_pending rather than a resting status.
  *
  * @returns Chase snapshots after suspension.
  * @throws If an aggregated provider cannot suspend every active venue. Other
@@ -404,7 +433,10 @@ export type PerpsControllerGetOrderFillsAction = {
 /**
  * List TP/SL protection changes the active provider parked for
  * explicit manual re-establishment. Providers without durable
- * settlement state return an empty list.
+ * settlement state return an empty list. Lighter includes previous-key and
+ * pre-initialization journals for the selected wallet/account, waits for any
+ * in-flight key selection and keeps failed-setup obligations visible. A
+ * current-key update does not clear an earlier key's unfinished journal.
  *
  * @returns Pending manual-recovery entries.
  */
@@ -414,11 +446,41 @@ export type PerpsControllerGetPendingManualRecoveriesAction = {
 };
 
 /**
+ * Review native attached lifecycle through provider-owned read authority.
+ *
+ * @returns Exact venue identities without financial replay or key registration.
+ */
+export type PerpsControllerReviewAttachedOrderGroupsAction = {
+  type: `PerpsController:reviewAttachedOrderGroups`;
+  handler: PerpsController['reviewAttachedOrderGroups'];
+};
+
+/**
+ * List durable attached identities for the selected provider and account.
+ *
+ * @returns Stored intent without venue writes, signer setup or automatic replay.
+ */
+export type PerpsControllerGetAttachedOrderGroupsAction = {
+  type: `PerpsController:getAttachedOrderGroups`;
+  handler: PerpsController['getAttachedOrderGroups'];
+};
+
+/**
  * READ-ONLY list of the active provider's recovered-dispatch outcomes
  * (previously ambiguous submissions later resolved). Providers without
- * durable dispatch state return an empty list.
+ * durable dispatch state return an empty list. Lighter scans the bounded
+ * local trading-slot range, including skipped keys, without signing or
+ * changing quarantine. After controller initialization, this works before
+ * Lighter signer initialization and after signer setup failure; an in-flight
+ * selection settles first. Preserve opaque recovery IDs exactly. Raw pending
+ * dispatches report unknown with acknowledgeable:false and cannot be cleared
+ * by acknowledgment, including current-session in-flight submissions. Listing
+ * starts no background reconciliation. A later financial action re-checks
+ * authoritative state for all account slots before dispatch and remains
+ * blocked while an obligation is unresolved.
  *
- * @returns Pending recovered-dispatch outcomes.
+ * @returns Pending recovered-dispatch outcomes, with their original key slot
+ * when supplied by the provider.
  */
 export type PerpsControllerGetRecoveredDispatchesAction = {
   type: `PerpsController:getRecoveredDispatches`;
@@ -426,11 +488,77 @@ export type PerpsControllerGetRecoveredDispatchesAction = {
 };
 
 /**
+ * Execute an explicit successor for one selected durable protection obligation.
+ *
+ * @param params - Owning provider, opaque source ID and new protection intent.
+ * @returns Settled, unresolved or unsupported recovery result.
+ */
+export type PerpsControllerResolveRecoveryProtectionAction = {
+  type: `PerpsController:resolveRecoveryProtection`;
+  handler: PerpsController['resolveRecoveryProtection'];
+};
+
+/**
+ * Read durable Scale groups without placing or replaying any child.
+ * @returns Groups belonging to the issuing controller context.
+ */
+export type PerpsControllerGetScaleOrderGroupsAction = {
+  type: `PerpsController:getScaleOrderGroups`;
+  handler: PerpsController['getScaleOrderGroups'];
+};
+
+/**
+ * Reconcile durable Scale groups for an explicitly selected provider.
+ * @param params - Issuing provider route.
+ * @param params.providerId - Provider to review.
+ * @returns Fresh durable groups; never replays placement.
+ */
+export type PerpsControllerReviewScaleOrderGroupsAction = {
+  type: `PerpsController:reviewScaleOrderGroups`;
+  handler: PerpsController['reviewScaleOrderGroups'];
+};
+
+/**
+ * Review fresh venue positions and orders for one issuing provider context.
+ * Auth signing may be required; registration and financial writes are forbidden.
+ *
+ * @param params - Owning provider route.
+ * @param params.providerId - Explicit provider identifier.
+ * @returns Strict venue review or honest unsupported capability.
+ */
+export type PerpsControllerReviewRecoveryVenueAction = {
+  type: `PerpsController:reviewRecoveryVenue`;
+  handler: PerpsController['reviewRecoveryVenue'];
+};
+
+/**
+ * Explicit non-financial reconciliation with local persistence. Never signs,
+ * retries or acknowledges dispatches. Unsupported providers return their local
+ * listed state, or an empty list when neither capability is available.
+ * Rejects account, network or provider changes while controller readiness,
+ * reconciliation or fallback listing completes. Provider rejections propagate
+ * unchanged.
+ *
+ * @returns Newly scoped pending and recovered dispatches.
+ */
+export type PerpsControllerReconcileRecoveredDispatchesAction = {
+  type: `PerpsController:reconcileRecoveredDispatches`;
+  handler: PerpsController['reconcileRecoveredDispatches'];
+};
+
+/**
  * Acknowledge ONE recovered-dispatch outcome by its stable id, after
  * refreshing venue state. Throws when the active provider has no
- * durable dispatch state or the id no longer matches.
+ * durable dispatch state or the id no longer matches. Lighter scopes IDs to
+ * wallet/network/account/key and accepts legacy IDs only when unambiguous
+ * across local account ledgers. Acknowledgment removes one stored outcome,
+ * never an unresolved dispatch or a TP/SL journal, and authorizes no retry.
+ * Rejects account, network, provider or lifecycle changes while readiness or
+ * acknowledgment completes. A stale rejection after provider success does
+ * not undo removal in the issuing account. Re-list outcomes before acting
+ * again. Provider rejections propagate unchanged.
  *
- * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+ * @param recoveryId - Opaque stable id from {@link getRecoveredDispatches}.
  * @returns Resolves when the outcome is acknowledged.
  */
 export type PerpsControllerAcknowledgeRecoveredDispatchAction = {
@@ -1477,6 +1605,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerCancelOrderAction
   | PerpsControllerGetTwapOrdersAction
   | PerpsControllerGetChaseOrdersAction
+  | PerpsControllerGetChaseOrderOwnershipAction
+  | PerpsControllerReconcileChaseOrderCancellationAction
   | PerpsControllerSuspendChaseOrdersAction
   | PerpsControllerCancelOrdersAction
   | PerpsControllerClosePositionAction
@@ -1496,7 +1626,14 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetPositionsAction
   | PerpsControllerGetOrderFillsAction
   | PerpsControllerGetPendingManualRecoveriesAction
+  | PerpsControllerReviewAttachedOrderGroupsAction
+  | PerpsControllerGetAttachedOrderGroupsAction
   | PerpsControllerGetRecoveredDispatchesAction
+  | PerpsControllerResolveRecoveryProtectionAction
+  | PerpsControllerGetScaleOrderGroupsAction
+  | PerpsControllerReviewScaleOrderGroupsAction
+  | PerpsControllerReviewRecoveryVenueAction
+  | PerpsControllerReconcileRecoveredDispatchesAction
   | PerpsControllerAcknowledgeRecoveredDispatchAction
   | PerpsControllerGetOrdersAction
   | PerpsControllerGetOpenOrdersAction
