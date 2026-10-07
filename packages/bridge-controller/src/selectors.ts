@@ -542,20 +542,50 @@ const selectQuoteRefreshRate = createBridgeSelector(
       : featureFlags.refreshRate) ?? featureFlags.refreshRate,
 );
 
-export const selectIsQuoteExpired = createBridgeSelector(
+const selectQuoteExpiryInputs = createBridgeSelector(
   [
     selectIsQuoteGoingToRefresh,
     ({ quotesLastFetched }) => quotesLastFetched,
     selectQuoteRefreshRate,
-    (_, _ignoredParam, currentTimeInMs: number) => currentTimeInMs,
   ],
-  (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
-    Boolean(
-      !isQuoteGoingToRefresh &&
-      quotesLastFetched &&
-      currentTimeInMs - quotesLastFetched > refreshRate,
-    ),
+  (isQuoteGoingToRefresh, quotesLastFetched, refreshRate) => ({
+    isQuoteGoingToRefresh,
+    quotesLastFetched,
+    refreshRate,
+  }),
 );
+
+/**
+ * Selects whether the active quote has gone stale.
+ *
+ * The time comparison deliberately sits outside the memoized selector.
+ * Clients call this on every render with a fresh `Date.now()`, reselect hands
+ * every argument to every input selector, and `weakMapMemoize` retains
+ * primitive-keyed results strongly until `clearCache()`. Taking the timestamp
+ * as a selector argument therefore retained one cache entry per millisecond
+ * ever observed, here and in every selector in the dependency chain. Only the
+ * state-derived inputs are memoized now; the remaining subtraction is cheaper
+ * than the cache lookup it replaces.
+ *
+ * @param state - The state of the bridge controller and its dependency controllers
+ * @param _ignoredParam - Unused, kept so the signature matches the other client param selectors
+ * @param currentTimeInMs - The current time in milliseconds
+ * @returns Whether the active quote is expired
+ */
+export const selectIsQuoteExpired = (
+  state: BridgeAppState,
+  _ignoredParam: unknown,
+  currentTimeInMs: number,
+): boolean => {
+  const { isQuoteGoingToRefresh, quotesLastFetched, refreshRate } =
+    selectQuoteExpiryInputs(state);
+
+  return Boolean(
+    !isQuoteGoingToRefresh &&
+    quotesLastFetched &&
+    currentTimeInMs - quotesLastFetched > refreshRate,
+  );
+};
 
 /**
  * Selects sorted cross-chain swap quotes. By default, the quotes are sorted by cost in ascending order.
