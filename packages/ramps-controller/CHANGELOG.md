@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `hydrateVbaOnboarding` creates that BRL to mUSD autoramp instead of posting an empty body ([#10586](https://github.com/MetaMask/core/pull/10586))
-- `hydrateVbaOnboarding` sends a stable idempotency key when creating the BRL to mUSD autoramp so a retry does not open a second route ([#10586](https://github.com/MetaMask/core/pull/10586))
+- `hydrateVbaOnboarding` sends a stable idempotency key when creating the BRL to mUSD autoramp so a retry does not open a second route, and uses a different key when replacing a rejected or cancelled route ([#10586](https://github.com/MetaMask/core/pull/10586))
 - `getAutoramps` accepts MoonPay's paged `{ items }` list, follows `cursor` until the list is complete, and can be scoped with `customerId` ([#10586](https://github.com/MetaMask/core/pull/10586))
 - Fall back to MoonPay `recipient.address` when mapping an autoramp wallet address ([#10586](https://github.com/MetaMask/core/pull/10586))
 

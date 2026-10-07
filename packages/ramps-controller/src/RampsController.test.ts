@@ -11013,7 +11013,9 @@ describe('RampsController', () => {
 
         expect(createAutoramp).toHaveBeenCalledWith(
           buildBrazilMusdAutorampRequest('0xabc'),
-          { idempotencyKey: 'brl-musd-monad:customer-1:0xabc' },
+          {
+            idempotencyKey: 'brl-musd-monad:customer-1:0xabc:autoramp-rejected',
+          },
         );
       });
     });

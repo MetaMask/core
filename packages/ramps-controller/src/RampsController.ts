@@ -426,6 +426,30 @@ function toVbaKycStatus(value: string | undefined): VbaKycStatus {
 }
 
 /**
+ * Idempotency key for the standing BRL to mUSD autoramp.
+ *
+ * The customer and wallet keep retries of one create on the same key. Rejected
+ * or cancelled route ids are appended, sorted, so a replacement create is a
+ * new key and MoonPay does not replay the terminal route.
+ *
+ * @param customerId - MoonPay customer id.
+ * @param walletAddress - Money Account address that receives mUSD.
+ * @param terminalAutorampIds - Ids of rejected or cancelled routes for this wallet.
+ * @returns Idempotency-Key value.
+ */
+function buildBrazilMusdAutorampIdempotencyKey(
+  customerId: string,
+  walletAddress: string,
+  terminalAutorampIds: readonly string[],
+): string {
+  const base = `brl-musd-monad:${customerId}:${walletAddress.trim().toLowerCase()}`;
+  if (terminalAutorampIds.length === 0) {
+    return base;
+  }
+  return `${base}:${[...terminalAutorampIds].sort().join(':')}`;
+}
+
+/**
  * Distinguishes an already-materialized {@link AutorampAccount} from the
  * create-fields shape accepted by {@link RampsController.addAutoramp}.
  *
@@ -4080,17 +4104,31 @@ export class RampsController extends BaseController<
 
       const trimmedWalletAddress = walletAddress.trim();
       const normalizedWalletAddress = trimmedWalletAddress.toLowerCase();
-      const hasUsableAutoramp = this.state.autoramps.some(
+      const autorampsForWallet = this.state.autoramps.filter(
         (autoramp) =>
-          autoramp.walletAddress.toLowerCase() === normalizedWalletAddress &&
+          autoramp.walletAddress.toLowerCase() === normalizedWalletAddress,
+      );
+      const hasUsableAutoramp = autorampsForWallet.some(
+        (autoramp) =>
           autoramp.status !== AutorampStatus.Rejected &&
           autoramp.status !== AutorampStatus.Cancelled,
       );
       if (!hasUsableAutoramp) {
+        const terminalAutorampIds = autorampsForWallet
+          .filter(
+            (autoramp) =>
+              autoramp.status === AutorampStatus.Rejected ||
+              autoramp.status === AutorampStatus.Cancelled,
+          )
+          .map((autoramp) => autoramp.id);
         await this.createAutoramp(
           buildBrazilMusdAutorampRequest(trimmedWalletAddress),
           {
-            idempotencyKey: `brl-musd-monad:${customerId}:${normalizedWalletAddress}`,
+            idempotencyKey: buildBrazilMusdAutorampIdempotencyKey(
+              customerId,
+              trimmedWalletAddress,
+              terminalAutorampIds,
+            ),
           },
         );
       }
