@@ -1584,7 +1584,7 @@
   },
   "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.test.ts": {
     "id-length": {
-      "count": 17
+      "count": 24
     },
     "no-useless-return": {
       "count": 1
@@ -1593,10 +1593,10 @@
       "count": 8
     },
     "typescript/no-unsafe-call": {
-      "count": 13
+      "count": 16
     },
     "typescript/no-unsafe-member-access": {
-      "count": 21
+      "count": 24
     },
     "typescript/no-unsafe-return": {
       "count": 1

@@ -162,10 +162,25 @@ export class RpcBalanceFetcher implements BalanceFetcher {
 
         // Ensure native token entries exist for all addresses
         allAddressesForNative.forEach((address) => {
-          const nativeBalance = tokenBalances[ZERO_ADDRESS]?.[address] || null;
+          const nativeBalance = tokenBalances[ZERO_ADDRESS]?.[address] ?? null;
+          if (nativeBalance === null) {
+            // A missing entry means the balance read failed: the multicall
+            // and fallback paths record a native entry only for a
+            // successful read (a genuine zero balance is recorded as
+            // BN(0)). Reporting success with a zero value here would erase
+            // the previously known balance, so report the read as failed
+            // instead, like the ERC-20 branch below does for null values.
+            chainResults.push({
+              success: false,
+              account: address as ChecksumAddress,
+              token: ZERO_ADDRESS,
+              chainId,
+            });
+            return;
+          }
           chainResults.push({
             success: true,
-            value: nativeBalance || new BN('0'),
+            value: nativeBalance,
             account: address as ChecksumAddress,
             token: ZERO_ADDRESS,
             chainId,
@@ -203,9 +218,24 @@ export class RpcBalanceFetcher implements BalanceFetcher {
         const checksummedStakingAddress = checksum(stakingContractAddress);
         allAddresses.forEach((address) => {
           const stakedBalance = stakedBalances?.[address] ?? null;
+          if (stakedBalance === null) {
+            // A missing entry means the staked balance read failed:
+            // getStakedBalancesForAddresses and its fallback record an
+            // entry for every successful read (a genuine zero balance is
+            // recorded as BN(0)). Reporting success with a zero value here
+            // would erase the previously known staked balance, so report
+            // the read as failed instead.
+            chainResults.push({
+              success: false,
+              account: address as ChecksumAddress,
+              token: checksummedStakingAddress,
+              chainId,
+            });
+            return;
+          }
           chainResults.push({
             success: true,
-            value: stakedBalance ?? new BN('0'),
+            value: stakedBalance,
             account: address as ChecksumAddress,
             token: checksummedStakingAddress,
             chainId,

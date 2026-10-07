@@ -832,8 +832,11 @@ describe('RpcBalanceFetcher', () => {
       expect(stakedBalance2).toBeUndefined();
     });
 
-    it('should include zero staked balance entry when no staked balance is returned', async () => {
-      // Mock multicall to return no staked balances
+    it('should mark staked balance as failed when no staked balance is returned', async () => {
+      // Mock multicall to return no staked balances. An absent entry means
+      // the staked read failed (a successful read of zero shares returns an
+      // explicit BN(0) entry), so it must not be reported as a successful
+      // zero, which would erase the previously known staked balance.
       mockGetTokenBalancesForMultipleAddresses.mockResolvedValue({
         tokenBalances: MOCK_TOKEN_BALANCES,
         stakedBalances: {},
@@ -846,7 +849,36 @@ describe('RpcBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      // Should still include staked balance entries with zero values
+      const stakingResults = result.balances.filter(
+        (r) => r.token === STAKING_CONTRACT_ADDRESS,
+      );
+      const stakedBalance = stakingResults.find(
+        (r) => r.account === MOCK_ADDRESS_1,
+      );
+
+      expect(stakedBalance).toBeDefined();
+      expect(stakedBalance?.success).toBe(false);
+      expect(stakedBalance?.value).toBeUndefined();
+    });
+
+    it('should report a returned zero staked balance as a successful zero', async () => {
+      // Mock multicall to return an explicit zero staked balance, as
+      // getStakedBalancesForAddresses does for a successful read of an
+      // address with no shares.
+      mockGetTokenBalancesForMultipleAddresses.mockResolvedValue({
+        tokenBalances: MOCK_TOKEN_BALANCES,
+        stakedBalances: {
+          [MOCK_ADDRESS_1]: new BN('0'),
+        },
+      });
+
+      const result = await rpcBalanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
       const stakingResults = result.balances.filter(
         (r) => r.token === STAKING_CONTRACT_ADDRESS,
       );
@@ -907,8 +939,12 @@ describe('RpcBalanceFetcher', () => {
   });
 
   describe('native token always included', () => {
-    it('should always include native token entry for selected account even when balance is zero', async () => {
-      // Mock multicall to return no native balance
+    it('should mark the native balance as failed when no native balance is returned', async () => {
+      // Mock multicall to return no native balance entry. The multicall and
+      // fallback paths only record a native entry for a successful read (a
+      // genuine zero balance is recorded as BN(0)), so an absent entry means
+      // the read failed and must not be reported as a successful zero,
+      // which would erase the previously known balance.
       const tokensWithoutNative = { ...MOCK_TOKEN_BALANCES };
       delete tokensWithoutNative[ZERO_ADDRESS];
 
@@ -924,7 +960,38 @@ describe('RpcBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      // Should still include native token entry with zero value
+      const nativeResults = result.balances.filter(
+        (r) => r.token === ZERO_ADDRESS,
+      );
+      const nativeBalance = nativeResults.find(
+        (r) => r.account === MOCK_ADDRESS_1,
+      );
+
+      expect(nativeBalance).toBeDefined();
+      expect(nativeBalance?.success).toBe(false);
+      expect(nativeBalance?.value).toBeUndefined();
+    });
+
+    it('should report a returned zero native balance as a successful zero', async () => {
+      // Mock multicall to return an explicit zero native balance, as the
+      // multicall path does for a successful read of an empty account.
+      mockGetTokenBalancesForMultipleAddresses.mockResolvedValue({
+        tokenBalances: {
+          ...MOCK_TOKEN_BALANCES,
+          [ZERO_ADDRESS]: {
+            [MOCK_ADDRESS_1]: new BN('0'),
+          },
+        },
+        stakedBalances: MOCK_STAKED_BALANCES,
+      });
+
+      const result = await rpcBalanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
       const nativeResults = result.balances.filter(
         (r) => r.token === ZERO_ADDRESS,
       );
@@ -935,6 +1002,47 @@ describe('RpcBalanceFetcher', () => {
       expect(nativeBalance).toBeDefined();
       expect(nativeBalance?.success).toBe(true);
       expect(nativeBalance?.value).toStrictEqual(new BN('0'));
+    });
+
+    it('should mark only the missing account as failed when one native read fails', async () => {
+      // Mock multicall where the native read succeeded for the first
+      // account but failed (no entry) for the second.
+      mockGetTokenBalancesForMultipleAddresses.mockResolvedValue({
+        tokenBalances: {
+          ...MOCK_TOKEN_BALANCES,
+          [ZERO_ADDRESS]: {
+            [MOCK_ADDRESS_1]: MOCK_TOKEN_BALANCES[ZERO_ADDRESS][MOCK_ADDRESS_1],
+          },
+        },
+        stakedBalances: MOCK_STAKED_BALANCES,
+      });
+
+      const result = await rpcBalanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: true,
+        selectedAccount: MOCK_ADDRESS_1,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      const nativeBalances = result.balances.filter(
+        (r) => r.token === ZERO_ADDRESS,
+      );
+
+      expect(nativeBalances).toHaveLength(2);
+
+      const nativeBalance1 = nativeBalances.find(
+        (r) => r.account === MOCK_ADDRESS_1,
+      );
+      const nativeBalance2 = nativeBalances.find(
+        (r) => r.account === MOCK_ADDRESS_2,
+      );
+
+      expect(nativeBalance1?.success).toBe(true);
+      expect(nativeBalance1?.value).toStrictEqual(
+        MOCK_TOKEN_BALANCES[ZERO_ADDRESS][MOCK_ADDRESS_1],
+      );
+      expect(nativeBalance2?.success).toBe(false);
+      expect(nativeBalance2?.value).toBeUndefined();
     });
 
     it('should include native token for all accounts when queryAllAccounts is true', async () => {
