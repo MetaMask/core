@@ -22,6 +22,10 @@ export const SocialServiceErrorMessage = {
   FETCH_FOLLOWING_FAILED: 'SocialService: Following request failed',
   FETCH_FOLLOWING_INVALID_RESPONSE:
     'SocialService: Following returned invalid response',
+  FETCH_TRADER_FOLLOWING_FAILED:
+    'SocialService: Trader following request failed',
+  FETCH_TRADER_FOLLOWING_INVALID_RESPONSE:
+    'SocialService: Trader following returned invalid response',
   FETCH_MY_FOLLOWERS_FAILED: 'SocialService: My followers request failed',
   FETCH_MY_FOLLOWERS_INVALID_RESPONSE:
     'SocialService: My followers returned invalid response',

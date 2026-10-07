@@ -33,6 +33,7 @@ import type {
   FetchBlockedListOptions,
   FetchFeedOptions,
   FetchFollowersOptions,
+  FetchTraderFollowingOptions,
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,
   FetchPositionsOptions,
@@ -319,7 +320,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchOpenPositions',
   'fetchClosedPositions',
   'fetchFollowers',
+  'fetchTraderFollowing',
   'fetchFollowing',
+  'fetchMyFollowing',
   'fetchMyFollowers',
   'fetchPositionById',
   'fetchFeed',
@@ -457,7 +460,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_LEADERBOARD_FAILED,
         );
-        const leaderboardData = await response.json();
+        const leaderboardData = (await response.json()) as unknown;
         if (!is(leaderboardData, LeaderboardResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_LEADERBOARD_INVALID_RESPONSE,
@@ -494,7 +497,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_TRADER_PROFILE_FAILED,
         );
-        const traderProfileData = await response.json();
+        const traderProfileData = (await response.json()) as unknown;
         if (!is(traderProfileData, TraderProfileResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
@@ -548,7 +551,9 @@ export class SocialService extends BaseDataService<
   /**
    * Fetches a trader's MetaMask followers.
    *
-   * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`.
+   * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`. Requires a bearer
+   * token; the trader is identified by `addressOrId`, not the JWT subject (see
+   * {@link fetchMyFollowers} for the current user's inbound list).
    *
    * @param options - Options bag.
    * @param options.addressOrId - Wallet address or Clicker profile ID.
@@ -569,7 +574,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED,
         );
-        const followersData = await response.json();
+        const followersData = (await response.json()) as unknown;
         if (!is(followersData, FollowersResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
@@ -580,6 +585,45 @@ export class SocialService extends BaseDataService<
     });
 
     return followersResponse;
+  }
+
+  /**
+   * Fetches the list of traders a profile follows.
+   *
+   * Calls `GET ${baseUrl}/traders/${addressOrId}/following`. Requires a bearer
+   * token; the trader is identified by `addressOrId`, not the JWT subject (see
+   * {@link fetchFollowing} for the current user's outbound list).
+   *
+   * @param options - Options bag.
+   * @param options.addressOrId - Wallet address or Clicker profile ID.
+   * @returns The following response.
+   */
+  async fetchTraderFollowing(
+    options: FetchTraderFollowingOptions,
+  ): Promise<FollowingResponse> {
+    const { addressOrId } = options;
+
+    const followingResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchTraderFollowing`, addressOrId],
+      queryFn: async () => {
+        const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/following`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_FAILED,
+        );
+        const followingData = (await response.json()) as unknown;
+        if (!is(followingData, FollowingResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_INVALID_RESPONSE,
+          );
+        }
+        return followingData;
+      },
+    });
+
+    return followingResponse;
   }
 
   /**
@@ -606,7 +650,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_POSITION_BY_ID_FAILED,
         );
-        const positionData = await response.json();
+        const positionData = (await response.json()) as unknown;
         if (!is(positionData, PositionStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
@@ -671,7 +715,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_FEED_FAILED,
         );
-        const feedData = await response.json();
+        const feedData = (await response.json()) as unknown;
         if (!is(feedData, FeedResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
@@ -741,7 +785,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_TRADER_FEED_FAILED,
         );
-        const feedData = await response.json();
+        const feedData = (await response.json()) as unknown;
         if (!is(feedData, FeedResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
@@ -854,7 +898,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.REACT_TO_COMMENT_FAILED,
         );
-        const metrics = await response.json();
+        const metrics = (await response.json()) as unknown;
         if (!is(metrics, CommentEngagementStruct)) {
           throw new Error(
             SocialServiceErrorMessage.REACT_TO_COMMENT_INVALID_RESPONSE,
@@ -894,7 +938,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_FAILED,
         );
-        const metrics = await response.json();
+        const metrics = (await response.json()) as unknown;
         if (!is(metrics, CommentEngagementStruct)) {
           throw new Error(
             SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_INVALID_RESPONSE,
@@ -971,6 +1015,10 @@ export class SocialService extends BaseDataService<
    * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
    * server-side from the JWT sub claim carried in the Authorization header.
    *
+   * Prefer {@link fetchMyFollowing} in new code (pairs with
+   * {@link fetchMyFollowers}). This method is unchanged and remains the
+   * `/users/me/following` read.
+   *
    * @returns The following response.
    */
   async fetchFollowing(): Promise<FollowingResponse> {
@@ -985,7 +1033,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWING_FAILED,
         );
-        const followingData = await response.json();
+        const followingData = (await response.json()) as unknown;
         if (!is(followingData, FollowingResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_FOLLOWING_INVALID_RESPONSE,
@@ -996,6 +1044,18 @@ export class SocialService extends BaseDataService<
     });
 
     return followingResponse;
+  }
+
+  /**
+   * Fetches the list of traders the current user is following.
+   *
+   * Alias of {@link fetchFollowing}. Calls `GET ${baseUrl}/users/me/following`.
+   * Preferred name in new code so `/users/me` reads are both `fetchMy*`.
+   *
+   * @returns The following response.
+   */
+  async fetchMyFollowing(): Promise<FollowingResponse> {
+    return this.fetchFollowing();
   }
 
   /**
@@ -1059,7 +1119,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FOLLOW_FAILED,
         );
-        const followData = await response.json();
+        const followData = (await response.json()) as unknown;
         if (!is(followData, FollowResponseStruct)) {
           throw new Error(SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE);
         }
@@ -1102,7 +1162,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.UNFOLLOW_FAILED,
         );
-        const unfollowData = await response.json();
+        const unfollowData = (await response.json()) as unknown;
         if (!is(unfollowData, UnfollowResponseStruct)) {
           throw new Error(SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE);
         }
@@ -1375,7 +1435,7 @@ export class SocialService extends BaseDataService<
           headers: authHeaders,
         });
         SocialService.#throwIfNotOk(response, failedMessage);
-        const positionsData = await response.json();
+        const positionsData = (await response.json()) as unknown;
         if (!is(positionsData, PositionsResponseStruct)) {
           throw new Error(invalidMessage);
         }
