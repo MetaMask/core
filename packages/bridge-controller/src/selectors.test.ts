@@ -9,6 +9,7 @@ import {
 } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { merge } from 'lodash-es';
+import { setGlobalDevModeChecks } from 'reselect';
 
 import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20.js';
 import {
@@ -540,6 +541,32 @@ describe('Bridge Selectors', () => {
         Date.now(),
       );
       expect(result).toBe(true);
+    });
+
+    it('does not grow its cache when called with ever-advancing timestamps', () => {
+      // Clients call this on every render with `Date.now()`, so without a
+      // bounded cache every millisecond observed would be retained forever.
+      // Reselect's `cacheSizeCheck` warns once a memoized function passes
+      // 1000 distinct values for the same primitive argument position.
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {
+        // Keep the check's output out of the test report.
+      });
+      setGlobalDevModeChecks({ cacheSizeCheck: 'always' });
+
+      try {
+        const start = Date.now();
+        for (let i = 0; i < 3000; i++) {
+          selectIsQuoteExpired(mockState, mockClientParams, start + i);
+        }
+
+        expect(warn).not.toHaveBeenCalledWith(
+          expect.stringContaining('A function memoized with weakMapMemoize'),
+          expect.anything(),
+        );
+      } finally {
+        setGlobalDevModeChecks({ cacheSizeCheck: 'once' });
+        warn.mockRestore();
+      }
     });
   });
 

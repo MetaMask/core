@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `selectIsQuoteExpired` is now a plain function instead of a reselect selector, so the export no longer carries the selector fields `clearCache`, `resultFunc`, `memoizedResultFunc` and `recomputations` ([#10706](https://github.com/MetaMask/core/pull/10706))
+  - Its call signature is unchanged, so callers that invoke it as a function need no update.
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
+
+### Fixed
+
+- Stop `selectIsQuoteExpired` retaining one cache entry per millisecond it is called with ([#10706](https://github.com/MetaMask/core/pull/10706))
+  - It took the current time as a selector argument. Reselect passes every argument to every input selector and `weakMapMemoize` holds primitive-keyed results strongly, so each distinct timestamp was retained by this selector and by every selector in its dependency chain.
+  - The time comparison now happens outside the memoized selector, so only state-derived inputs are cached.
 
 ## [82.0.2]
 
