@@ -4338,6 +4338,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@gerrit0/mini-shiki@npm:^3.23.0":
+  version: 3.23.0
+  resolution: "@gerrit0/mini-shiki@npm:3.23.0"
+  dependencies:
+    "@shikijs/engine-oniguruma": "npm:^3.23.0"
+    "@shikijs/langs": "npm:^3.23.0"
+    "@shikijs/themes": "npm:^3.23.0"
+    "@shikijs/types": "npm:^3.23.0"
+    "@shikijs/vscode-textmate": "npm:^10.0.2"
+  checksum: 10/d44dac7c3f58ba136285b3c15c8a89eba120f7a493dddcf6178601ab8c0a5286da6a19515100297934288c41ae225f21013a4c395fe2f656b58f812dd13ccc1e
+  languageName: node
+  linkType: hard
+
 "@grpc/grpc-js@npm:~1.9.0":
   version: 1.9.15
   resolution: "@grpc/grpc-js@npm:1.9.15"
@@ -5340,7 +5353,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     webextension-polyfill: "npm:^0.12.0"
@@ -5379,7 +5392,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -5416,7 +5429,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -5434,7 +5447,7 @@ __metadata:
     jest-environment-jsdom: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -5453,7 +5466,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -5476,7 +5489,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -5499,7 +5512,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -5518,7 +5531,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -5544,7 +5557,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -5566,7 +5579,7 @@ __metadata:
     nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -5630,7 +5643,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -5654,7 +5667,7 @@ __metadata:
     "@metamask/approval-controller": "npm:^10.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
-    "@metamask/contract-metadata": "npm:^2.4.0"
+    "@metamask/contract-metadata": "npm:^2.5.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/core-backend": "npm:^12.0.1"
     "@metamask/eth-block-tracker": "npm:^16.0.0"
@@ -5704,7 +5717,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     single-call-balance-checker-abi: "npm:^1.0.0"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -5766,7 +5779,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -5809,7 +5822,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -5847,7 +5860,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -5866,7 +5879,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   bin:
@@ -5914,7 +5927,7 @@ __metadata:
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -5950,7 +5963,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -5979,7 +5992,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6003,7 +6016,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6027,7 +6040,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6053,7 +6066,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6073,7 +6086,7 @@ __metadata:
     jest-environment-jsdom: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6085,7 +6098,7 @@ __metadata:
   dependencies:
     "@ethersproject/abi": "npm:^5.7.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
-    "@metamask/contract-metadata": "npm:^2.4.0"
+    "@metamask/contract-metadata": "npm:^2.5.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/core-backend": "npm:^12.0.1"
     "@metamask/keyring-api": "npm:^24.0.0"
@@ -6099,7 +6112,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6122,7 +6135,7 @@ __metadata:
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6143,7 +6156,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6171,7 +6184,7 @@ __metadata:
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6191,13 +6204,13 @@ __metadata:
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
 
-"@metamask/contract-metadata@npm:^2.4.0":
+"@metamask/contract-metadata@npm:^2.5.0":
   version: 2.5.0
   resolution: "@metamask/contract-metadata@npm:2.5.0"
   checksum: 10/462b3ec7b32311ff5e6eec001abf25143e67ee667c70e0b9a3dee7545e7fc245b8098856ae79fef9758ef1db4930fa1d1d7681410995520935f2885bdb9641d2
@@ -6275,7 +6288,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   peerDependencies:
@@ -6305,7 +6318,7 @@ __metadata:
     jest-environment-jsdom: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -6329,7 +6342,7 @@ __metadata:
     "@metamask/oxlint-config-jest": "npm:^0.1.1"
     "@metamask/oxlint-config-nodejs": "npm:^0.1.1"
     "@metamask/oxlint-config-typescript": "npm:^0.1.1"
-    "@metamask/skills": "npm:^0.1.0"
+    "@metamask/skills": "npm:^0.3.1"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash": "npm:^4.17.25"
@@ -6342,7 +6355,7 @@ __metadata:
     "@yarnpkg/parsers": "npm:^3.0.3"
     "@yarnpkg/types": "npm:^4.0.0"
     bats: "npm:^1.13.0"
-    comment-json: "npm:^4.5.1"
+    comment-json: "npm:^4.6.2"
     eslint-plugin-n: "npm:^18.3.0"
     execa: "npm:^10.0.1"
     isomorphic-fetch: "npm:^3.0.0"
@@ -6408,7 +6421,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6429,7 +6442,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6475,7 +6488,7 @@ __metadata:
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6501,7 +6514,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -6523,7 +6536,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6547,7 +6560,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6570,7 +6583,7 @@ __metadata:
     json-rpc-random-id: "npm:^1.0.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6643,7 +6656,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     safe-stable-stringify: "npm:^2.5.0"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6682,7 +6695,7 @@ __metadata:
     nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6893,12 +6906,12 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.5.2"
-    minipass: "npm:^7.1.2"
+    minipass: "npm:^7.1.3"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     tar: "npm:^7.5.22"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     unzipper: "npm:^0.12.3"
@@ -6934,7 +6947,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -6968,7 +6981,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -6988,7 +7001,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7006,7 +7019,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   bin:
@@ -7049,7 +7062,7 @@ __metadata:
     klona: "npm:^2.0.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7083,7 +7096,7 @@ __metadata:
     readable-stream: "npm:^3.6.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     webextension-polyfill-ts: "npm:^0.26.0"
@@ -7147,7 +7160,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     ulid: "npm:^2.4.0"
@@ -7256,7 +7269,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
     "@noble/ciphers": "npm:^1.3.0"
-    "@noble/curves": "npm:^1.9.2"
+    "@noble/curves": "npm:^1.9.7"
     "@noble/hashes": "npm:^1.8.0"
     "@scure/base": "npm:^1.2.6"
     "@tanstack/query-core": "npm:^5.103.2"
@@ -7269,7 +7282,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     tweetnacl: "npm:^1.0.3"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7287,7 +7300,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     yaml: "npm:^2.9.1"
@@ -7308,7 +7321,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -7332,7 +7345,7 @@ __metadata:
     jsonschema: "npm:^1.4.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -7399,7 +7412,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     tstyche: "npm:^7.2.5"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   peerDependencies:
@@ -7432,7 +7445,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7461,7 +7474,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7487,7 +7500,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7516,7 +7529,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7538,7 +7551,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7578,7 +7591,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -7607,7 +7620,7 @@ __metadata:
     "@metamask/safe-event-emitter": "npm:^3.1.3"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@open-rpc/meta-schema": "npm:^1.14.6"
+    "@open-rpc/meta-schema": "npm:^1.14.9"
     "@open-rpc/schema-utils-js": "npm:^2.0.5"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -7616,7 +7629,7 @@ __metadata:
     jsonschema: "npm:^1.4.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7648,7 +7661,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7678,7 +7691,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -7701,7 +7714,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7727,7 +7740,7 @@ __metadata:
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7775,7 +7788,7 @@ __metadata:
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uri-js: "npm:^4.4.1"
@@ -7805,7 +7818,7 @@ __metadata:
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7855,7 +7868,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     semver: "npm:^7.8.5"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -7946,7 +7959,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -7963,7 +7976,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@noble/ciphers": "npm:^1.3.0"
-    "@noble/curves": "npm:^1.9.2"
+    "@noble/curves": "npm:^1.9.7"
     "@noble/hashes": "npm:^1.8.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -7972,7 +7985,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8038,7 +8051,7 @@ __metadata:
     nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8062,7 +8075,7 @@ __metadata:
     nanoid: "npm:^3.3.19"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8098,7 +8111,7 @@ __metadata:
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -8129,7 +8142,7 @@ __metadata:
     punycode: "npm:^2.3.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8187,7 +8200,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -8217,7 +8230,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8241,7 +8254,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8274,7 +8287,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -8303,7 +8316,7 @@ __metadata:
     "@metamask/seedless-onboarding-controller": "npm:^11.0.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@noble/curves": "npm:^1.9.2"
+    "@noble/curves": "npm:^1.9.7"
     "@noble/hashes": "npm:^1.8.0"
     "@signinwithethereum/siwe": "npm:^4.2.1"
     "@types/jest": "npm:^30.0.0"
@@ -8317,7 +8330,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     webextension-polyfill: "npm:^0.12.0"
@@ -8367,7 +8380,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8388,7 +8401,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8411,7 +8424,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -8444,7 +8457,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -8488,7 +8501,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8519,7 +8532,7 @@ __metadata:
     "@metamask/toprf-secure-backup": "npm:^1.1.0"
     "@metamask/utils": "npm:^12.0.0"
     "@noble/ciphers": "npm:^1.3.0"
-    "@noble/curves": "npm:^1.9.2"
+    "@noble/curves": "npm:^1.9.7"
     "@noble/hashes": "npm:^1.8.0"
     "@types/elliptic": "npm:^6"
     "@types/jest": "npm:^30.0.0"
@@ -8531,7 +8544,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8559,7 +8572,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8583,7 +8596,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8614,7 +8627,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -8645,19 +8658,19 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
   linkType: soft
 
-"@metamask/skills@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "@metamask/skills@npm:0.1.0"
+"@metamask/skills@npm:^0.3.1":
+  version: 0.3.1
+  resolution: "@metamask/skills@npm:0.3.1"
   bin:
     metamask-skills: bin/metamask-skills.mjs
-  checksum: 10/e8c0fc1387c3d3706d0f2a49ef61ecba2a320e68c0bc00eb40077defc9fbf407c8830b20f10e31acc1481c6a2d7541c7f1c5294b62b0d3e6d0df3d6cfd533ce9
+  checksum: 10/c15c1065ce12c6aecb224bb027f4673fd7a6e1ed68c2f29a9ca6588e0e87339ef3183c50f12c99b2e960b0ba93c4b23c50ed8b1bd65c6b10d16707391f335648
   languageName: node
   linkType: hard
 
@@ -8699,7 +8712,7 @@ __metadata:
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8729,7 +8742,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8870,7 +8883,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8888,7 +8901,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   bin:
@@ -8914,7 +8927,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8943,7 +8956,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -8985,7 +8998,7 @@ __metadata:
     jest-environment-node: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -9071,7 +9084,7 @@ __metadata:
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -9113,7 +9126,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -9147,7 +9160,7 @@ __metadata:
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -9201,7 +9214,7 @@ __metadata:
     stdio-mock: "npm:^1.2.0"
     ts-jest: "npm:^29.4.14"
     tstyche: "npm:^7.2.5"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
@@ -9329,7 +9342,7 @@ __metadata:
     jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
-    typedoc: "npm:^0.25.13"
+    typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
@@ -9411,7 +9424,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/curves@npm:^1.2.0, @noble/curves@npm:^1.8.1, @noble/curves@npm:^1.9.2, @noble/curves@npm:~1.9.0":
+"@noble/curves@npm:^1.2.0, @noble/curves@npm:^1.8.1, @noble/curves@npm:^1.9.7, @noble/curves@npm:~1.9.0":
   version: 1.9.7
   resolution: "@noble/curves@npm:1.9.7"
   dependencies:
@@ -9992,7 +10005,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@open-rpc/meta-schema@npm:^1.14.6, @open-rpc/meta-schema@npm:^1.14.9":
+"@open-rpc/meta-schema@npm:^1.14.9":
   version: 1.14.9
   resolution: "@open-rpc/meta-schema@npm:1.14.9"
   checksum: 10/51505dcf7aa1a2285c78953c9b33711cede5f2765aa37dcb9ee7756d689e2ff2a89cfc6039504f0569c52a805fb9aa18f30a7c02ad7a06e793c801e43b419104
@@ -11088,6 +11101,51 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@shikijs/engine-oniguruma@npm:^3.23.0":
+  version: 3.23.0
+  resolution: "@shikijs/engine-oniguruma@npm:3.23.0"
+  dependencies:
+    "@shikijs/types": "npm:3.23.0"
+    "@shikijs/vscode-textmate": "npm:^10.0.2"
+  checksum: 10/edd8983be86f6b055793813e80ecf31c3cefdd896f3742797ae03f2cbb9f467ac736c4b152d4a5c42dbd17da17d24ff798a15d37bcf6205d7f8cd8f44e2a11e0
+  languageName: node
+  linkType: hard
+
+"@shikijs/langs@npm:^3.23.0":
+  version: 3.23.0
+  resolution: "@shikijs/langs@npm:3.23.0"
+  dependencies:
+    "@shikijs/types": "npm:3.23.0"
+  checksum: 10/115b1afb9eb4eb300eb68b146e442f7e6d196878798c5b9d75dd53a6ef1e1c3b27e325353a10973e3fa47d88630e937b8a3cf3b37b6eef80bf2aec3d51657bb3
+  languageName: node
+  linkType: hard
+
+"@shikijs/themes@npm:^3.23.0":
+  version: 3.23.0
+  resolution: "@shikijs/themes@npm:3.23.0"
+  dependencies:
+    "@shikijs/types": "npm:3.23.0"
+  checksum: 10/741987380445b788aea6cc1e03492bc06950f1a0461edf45083bd226889c5ba78c7ed1af9724afacab7d6471777f0c0e8871577183dfb2cfbceb255663374835
+  languageName: node
+  linkType: hard
+
+"@shikijs/types@npm:3.23.0, @shikijs/types@npm:^3.23.0":
+  version: 3.23.0
+  resolution: "@shikijs/types@npm:3.23.0"
+  dependencies:
+    "@shikijs/vscode-textmate": "npm:^10.0.2"
+    "@types/hast": "npm:^3.0.4"
+  checksum: 10/18b5703d445d53dd6782a3e2c7332009302c6c046f301d9cd99f1a26b9c8329b3e502b096894bffac61f78835c533827bab2ce78a39666ab87b78f8d7ca11f7b
+  languageName: node
+  linkType: hard
+
+"@shikijs/vscode-textmate@npm:^10.0.2":
+  version: 10.0.2
+  resolution: "@shikijs/vscode-textmate@npm:10.0.2"
+  checksum: 10/d924cba8a01cd9ca12f56ba097d628fdb81455abb85884c8d8a5ae85b628a37dd5907e7691019b97107bd6608c866adf91ba04a1c3bba391281c88e386c044ea
+  languageName: node
+  linkType: hard
+
 "@sideway/address@npm:^4.1.5":
   version: 4.1.5
   resolution: "@sideway/address@npm:4.1.5"
@@ -11869,12 +11927,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/hast@npm:^3.0.0":
-  version: 3.0.4
-  resolution: "@types/hast@npm:3.0.4"
+"@types/hast@npm:^3.0.0, @types/hast@npm:^3.0.4":
+  version: 3.0.5
+  resolution: "@types/hast@npm:3.0.5"
   dependencies:
     "@types/unist": "npm:*"
-  checksum: 10/732920d81bb7605895776841b7658b4d8cc74a43a8fa176017cc0fb0ecc1a4c82a2b75a4fe6b71aa262b649d3fb62858c6789efa3793ea1d40269953af96ecb5
+  checksum: 10/864a274e6e5ce0662de3bf984d804aea1f0e64eb4d5ffed27d9e832ee0002e76dfa18f1812a96b7cc24e2a9f40125ff2e47f73f7ab90c815840047c197d89635
   languageName: node
   linkType: hard
 
@@ -13867,13 +13925,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ansi-sequence-parser@npm:^1.1.0":
-  version: 1.1.1
-  resolution: "ansi-sequence-parser@npm:1.1.1"
-  checksum: 10/9ce30f257badc2ef62cac8028a7e26c368d22bf26650427192e8ffd102da42e377e3affe90fae58062eecc963b0b055f510dde3b677c7e0c433c67069b5a8ee5
-  languageName: node
-  linkType: hard
-
 "ansi-styles@npm:^3.2.0":
   version: 3.2.1
   resolution: "ansi-styles@npm:3.2.1"
@@ -15410,14 +15461,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"comment-json@npm:^4.5.1":
-  version: 4.5.1
-  resolution: "comment-json@npm:4.5.1"
+"comment-json@npm:^4.6.2":
+  version: 4.6.2
+  resolution: "comment-json@npm:4.6.2"
   dependencies:
     array-timsort: "npm:^1.0.3"
-    core-util-is: "npm:^1.0.3"
     esprima: "npm:^4.0.1"
-  checksum: 10/3bdd2703f26690537f65ef708d62aae3980dba6fc566e82a71d95511b413a6f5f285af9af0415e4739dc6f363db24225e46f5267c576f249100cdb28c3adb00d
+  checksum: 10/2f6e79b7ae81a919a0dd5fc2fac84e9ebdaa501a5f3ffe5b9f2fd5dbe94d686d8ee9a6bddf5bae364bce104dbb1c599a9d4184aeb211aaf4a283b8900438d242
   languageName: node
   linkType: hard
 
@@ -15646,7 +15696,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"core-util-is@npm:^1.0.3, core-util-is@npm:~1.0.0":
+"core-util-is@npm:~1.0.0":
   version: 1.0.3
   resolution: "core-util-is@npm:1.0.3"
   checksum: 10/9de8597363a8e9b9952491ebe18167e3b36e7707569eed0ebf14f8bba773611376466ae34575bca8cfe3c767890c859c74056084738f09d4e4a6f902b2ad7d99
@@ -16580,7 +16630,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"entities@npm:^4.2.0, entities@npm:^4.4.0":
+"entities@npm:^4.2.0, entities@npm:^4.4.0, entities@npm:^4.5.0":
   version: 4.5.0
   resolution: "entities@npm:4.5.0"
   checksum: 10/ede2a35c9bce1aeccd055a1b445d41c75a14a2bb1cd22e242f20cf04d236cdcd7f9c859eb83f76885327bfae0c25bf03303665ee1ce3d47c5927b98b0e3e3d48
@@ -20257,13 +20307,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsonc-parser@npm:^3.2.0":
-  version: 3.3.1
-  resolution: "jsonc-parser@npm:3.3.1"
-  checksum: 10/9b0dc391f20b47378f843ef1e877e73ec652a5bdc3c5fa1f36af0f119a55091d147a86c1ee86a232296f55c929bba174538c2bf0312610e0817a22de131cc3f4
-  languageName: node
-  linkType: hard
-
 "jsonfile@npm:^6.0.1":
   version: 6.1.0
   resolution: "jsonfile@npm:6.1.0"
@@ -20396,6 +20439,15 @@ __metadata:
   version: 1.2.4
   resolution: "lines-and-columns@npm:1.2.4"
   checksum: 10/0c37f9f7fa212b38912b7145e1cd16a5f3cd34d782441c3e6ca653485d326f58b3caccda66efce1c5812bde4961bbde3374fae4b0d11bf1226152337f3894aa5
+  languageName: node
+  linkType: hard
+
+"linkify-it@npm:^5.0.2":
+  version: 5.0.2
+  resolution: "linkify-it@npm:5.0.2"
+  dependencies:
+    uc.micro: "npm:^2.0.0"
+  checksum: 10/1d23387319c15f2c3d41cdada0fc2edac73afb6083e967ee051afc826f7d8d9f920e287fb7c32679b4516f60e6450853dee2b4339d7d2f313222e4b9e5be1476
   languageName: node
   linkType: hard
 
@@ -20662,6 +20714,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"markdown-it@npm:^14.3.0":
+  version: 14.3.2
+  resolution: "markdown-it@npm:14.3.2"
+  dependencies:
+    argparse: "npm:^2.0.1"
+    entities: "npm:^4.5.0"
+    linkify-it: "npm:^5.0.2"
+    mdurl: "npm:^2.0.0"
+    punycode.js: "npm:^2.3.1"
+    uc.micro: "npm:^2.1.0"
+  bin:
+    markdown-it: bin/markdown-it.mjs
+  checksum: 10/192fc9332aee1d9d7e71c6bbdc52e43a7cf36a85213c01d64e32e8c8ea5efea2184c55e7298524007d2336b1e4282b31b722b41c4d69d90ba018676daadd4ab8
+  languageName: node
+  linkType: hard
+
 "markdown-table@npm:^3.0.0":
   version: 3.0.4
   resolution: "markdown-table@npm:3.0.4"
@@ -20675,15 +20743,6 @@ __metadata:
   bin:
     marked: bin/marked.js
   checksum: 10/24d4fc58d37c1779197fa7f93c504d8c71d4df54eb69cbbc14a55ba2a8e2ad83d723801fc25452c21ce74b38a483c5863c53449f130253a597be9e9c1d3e7e2b
-  languageName: node
-  linkType: hard
-
-"marked@npm:^4.3.0":
-  version: 4.3.0
-  resolution: "marked@npm:4.3.0"
-  bin:
-    marked: bin/marked.js
-  checksum: 10/c830bb4cb3705b754ca342b656e8a582d7428706b2678c898b856f6030c134ce2d1e19136efa3e6a1841f7330efbd24963d6bdeddc57d2938e906250f99895d0
   languageName: node
   linkType: hard
 
@@ -20970,6 +21029,13 @@ __metadata:
   version: 2.0.30
   resolution: "mdn-data@npm:2.0.30"
   checksum: 10/e4944322bf3e0461a2daa2aee7e14e208960a036289531e4ef009e53d32bd41528350c070c4a33be867980443fe4c0523518d99318423cffa7c825fe7b1154e2
+  languageName: node
+  linkType: hard
+
+"mdurl@npm:^2.0.0":
+  version: 2.1.0
+  resolution: "mdurl@npm:2.1.0"
+  checksum: 10/b7db2c0aa0479e11c5454b8a6ae055326bd9180b83e58696f89e862b84a0f5c7c80e497be650f205c0807b4567f6ee3e09238a76c8f1217f1fd750a1f6f2146d
   languageName: node
   linkType: hard
 
@@ -21692,7 +21758,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:^9.0.3, minimatch@npm:^9.0.4, minimatch@npm:^9.0.5":
+"minimatch@npm:^9.0.4, minimatch@npm:^9.0.5":
   version: 9.0.9
   resolution: "minimatch@npm:9.0.9"
   dependencies:
@@ -24288,6 +24354,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"punycode.js@npm:^2.3.1":
+  version: 2.3.1
+  resolution: "punycode.js@npm:2.3.1"
+  checksum: 10/f0e946d1edf063f9e3d30a32ca86d8ff90ed13ca40dad9c75d37510a04473340cfc98db23a905cc1e517b1e9deb0f6021dce6f422ace235c60d3c9ac47c5a16a
+  languageName: node
+  linkType: hard
+
 "punycode@npm:2.1.0":
   version: 2.1.0
   resolution: "punycode@npm:2.1.0"
@@ -25540,18 +25613,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"shiki@npm:^0.14.7":
-  version: 0.14.7
-  resolution: "shiki@npm:0.14.7"
-  dependencies:
-    ansi-sequence-parser: "npm:^1.1.0"
-    jsonc-parser: "npm:^3.2.0"
-    vscode-oniguruma: "npm:^1.7.0"
-    vscode-textmate: "npm:^8.0.0"
-  checksum: 10/be3f2444c65bd0c57802026f171cb42ad571d361ee885be0c292b60785f68c70f19b69310f5ffe7f7a93db4c5ef50211e0a0248794bc6bb48d242bc43fe72a62
-  languageName: node
-  linkType: hard
-
 "side-channel-list@npm:^1.0.1":
   version: 1.0.1
   resolution: "side-channel-list@npm:1.0.1"
@@ -26786,19 +26847,20 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typedoc@npm:^0.25.13":
-  version: 0.25.13
-  resolution: "typedoc@npm:0.25.13"
+"typedoc@npm:^0.28.20":
+  version: 0.28.20
+  resolution: "typedoc@npm:0.28.20"
   dependencies:
+    "@gerrit0/mini-shiki": "npm:^3.23.0"
     lunr: "npm:^2.3.9"
-    marked: "npm:^4.3.0"
-    minimatch: "npm:^9.0.3"
-    shiki: "npm:^0.14.7"
+    markdown-it: "npm:^14.3.0"
+    minimatch: "npm:^10.2.5"
+    yaml: "npm:^2.9.0"
   peerDependencies:
-    typescript: 4.6.x || 4.7.x || 4.8.x || 4.9.x || 5.0.x || 5.1.x || 5.2.x || 5.3.x || 5.4.x
+    typescript: 5.0.x || 5.1.x || 5.2.x || 5.3.x || 5.4.x || 5.5.x || 5.6.x || 5.7.x || 5.8.x || 5.9.x || 6.0.x
   bin:
     typedoc: bin/typedoc
-  checksum: 10/3c82603894b5830c4b027b4f4f9ca70f770b6752c6512a42e780c40cb67fe4c9a144e34a837bb35aab14a125e00a5893e1e6feac1ec86a2add80f46833b279d4
+  checksum: 10/947172bc1bd85333aab1c6fb9dfe925e9184fcca6c6cd7310588e7d2135efcd4c412dcf9eb495c34522d3efdc793c2bc9e58d7ea06b1f917abffb7494ae04ec7
   languageName: node
   linkType: hard
 
@@ -26831,6 +26893,13 @@ __metadata:
   bin:
     tsc6: bin/tsc6
   checksum: 10/b190ec6b713b0fa95c059ff8019b740c17591ea83a3b60e6fe592d51d56d73c360b86abce48f616d25c39697cc5f4bb9efe8e2a231096f493758457cb175e11c
+  languageName: node
+  linkType: hard
+
+"uc.micro@npm:^2.0.0, uc.micro@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "uc.micro@npm:2.1.0"
+  checksum: 10/37197358242eb9afe367502d4638ac8c5838b78792ab218eafe48287b0ed28aaca268ec0392cc5729f6c90266744de32c06ae938549aee041fc93b0f9672d6b2
   languageName: node
   linkType: hard
 
@@ -27416,20 +27485,6 @@ __metadata:
     typescript:
       optional: true
   checksum: 10/db2166334b7fb97cea5fc8feb10fcf0ee14d4fd403f4cffa6b26db22e01f57dd0f273c174147960314d34a9f4564c3b9ecc53241a1a71cc40e81d92d58acb2bc
-  languageName: node
-  linkType: hard
-
-"vscode-oniguruma@npm:^1.7.0":
-  version: 1.7.0
-  resolution: "vscode-oniguruma@npm:1.7.0"
-  checksum: 10/7da9d21459f9788544b258a5fd1b9752df6edd8b406a19eea0209c6bf76507d5717277016799301c4da0d536095f9ca8c06afd1ab8f4001189090c804ca4814e
-  languageName: node
-  linkType: hard
-
-"vscode-textmate@npm:^8.0.0":
-  version: 8.0.0
-  resolution: "vscode-textmate@npm:8.0.0"
-  checksum: 10/9fa7d66d6042cb090d116c2d8820d34c8870cfcbaed6e404da89f66b899970ed0ac47b59a2e30fc40a25af5414822bb3ea27974f714e9b91910d69c894be95f7
   languageName: node
   linkType: hard
 
@@ -28359,7 +28414,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yaml@npm:^2.2.2, yaml@npm:^2.9.1":
+"yaml@npm:^2.2.2, yaml@npm:^2.9.0, yaml@npm:^2.9.1":
   version: 2.9.1
   resolution: "yaml@npm:2.9.1"
   bin:
