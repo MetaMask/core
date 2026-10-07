@@ -58,7 +58,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/network-controller": "^37.0.1",
     "@metamask/snaps-controllers": "^19.0.0",
-    "@metamask/snaps-sdk": "^11.0.0",
+    "@metamask/snaps-sdk": "^12.1.0",
     "@metamask/snaps-utils": "^12.1.2",
     "@metamask/transaction-controller": "^72.1.0",
     "@metamask/utils": "^12.0.0"

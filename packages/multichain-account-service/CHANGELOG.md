@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/snaps-sdk` from `^11.0.0` to `^12.1.0` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 
 ## [14.1.0]
