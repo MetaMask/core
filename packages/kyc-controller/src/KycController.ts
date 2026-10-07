@@ -82,7 +82,7 @@ export type KycProviderFlowStatus = (typeof KYC_PROVIDER_FLOW_STATUSES)[number];
 // UKYC session. The storage-and-auth spec requires the token's `expires_at` to
 // cover the KYC session's expected lifetime — including the provider journey —
 // rather than a fixed short window, so this is a session-scoped window.
-const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
+const UKYC_CAPABILITY_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
 // How often to poll UKYC session status until a terminal `finalStatus`.
 const SESSION_STATUS_POLL_INTERVAL_MS = 15_000;
@@ -368,11 +368,15 @@ export class KycController extends BaseController<
    * @param params - The session parameters.
    * @param params.vendor - Identity vendor for the session.
    * @param params.email - Account email associated with the session.
+   * @param params.aal2Token - AAL2 authentication token. Required only when a
+   * UKYC session must be created, where it is sent as the Authorization bearer
+   * value. Omit it when reusing an existing session.
    * @returns The current or newly created session status.
    */
   async startSession(params: {
     vendor: KycVendor;
     email: string; // TODO: This will be removed once partnerIdentityTokens are fully ready
+    aal2Token?: string;
   }): Promise<KycSessionStatus> {
     if (this.state.email !== null && this.state.email !== params.email) {
       throw new Error(
@@ -418,6 +422,12 @@ export class KycController extends BaseController<
 
       // TODO: Probably move this into it's own method? Feels like startSession is a little overloaded.
       // It's assumed that if the session does not exist, the customer does not exist either
+      if (!params.aal2Token) {
+        throw new Error(
+          'KycController.startSession: aal2Token is required to create a KYC session.',
+        );
+      }
+
       await this.messenger.call('KycService:createVendorCustomer', {
         vendor: params.vendor,
         email: params.email,
@@ -426,6 +436,7 @@ export class KycController extends BaseController<
       return this.#createUkycSession({
         vendor: params.vendor,
         geoCountry,
+        aal2Token: params.aal2Token,
       });
     }
     const sessionStatus = await this.messenger.call(
@@ -616,14 +627,17 @@ export class KycController extends BaseController<
    * kyc-api returns the existing session if one with the same vendor and
    * canonicalUserId already exists.
    *
-   * @param params - Vendor and country used to create the session.
+   * @param params - Vendor, country, and AAL2 token used to create the session.
    * @param params.vendor - Identity vendor for the UKYC session.
    * @param params.geoCountry - ISO 3166-1 alpha-3 country of residence.
+   * @param params.aal2Token - AAL2 authentication token sent as the
+   * Authorization bearer value for session creation.
    * @returns The created or refreshed session status.
    */
   async #createUkycSession(params: {
     vendor: KycVendor;
     geoCountry: string;
+    aal2Token: string;
   }): Promise<KycSessionStatus> {
     // Establish a per-session X25519 keypair used to seal both secrets. The
     // private half stays on the device; the public half is registered on the
@@ -644,6 +658,7 @@ export class KycController extends BaseController<
       sessionClientPublicKey,
       residenceCountry: params.geoCountry,
       vendor: params.vendor,
+      aal2Token: params.aal2Token,
     });
 
     return this.#setAuthorizations({

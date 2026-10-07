@@ -71,7 +71,9 @@ export type SocialServiceFetchClosedPositionsAction = {
 /**
  * Fetches a trader's MetaMask followers.
  *
- * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`.
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`. Requires a bearer
+ * token; the trader is identified by `addressOrId`, not the JWT subject (see
+ * {@link fetchMyFollowers} for the current user's inbound list).
  *
  * @param options - Options bag.
  * @param options.addressOrId - Wallet address or Clicker profile ID.
@@ -80,6 +82,22 @@ export type SocialServiceFetchClosedPositionsAction = {
 export type SocialServiceFetchFollowersAction = {
   type: `SocialService:fetchFollowers`;
   handler: SocialService['fetchFollowers'];
+};
+
+/**
+ * Fetches the list of traders a profile follows.
+ *
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/following`. Requires a bearer
+ * token; the trader is identified by `addressOrId`, not the JWT subject (see
+ * {@link fetchFollowing} for the current user's outbound list).
+ *
+ * @param options - Options bag.
+ * @param options.addressOrId - Wallet address or Clicker profile ID.
+ * @returns The following response.
+ */
+export type SocialServiceFetchTraderFollowingAction = {
+  type: `SocialService:fetchTraderFollowing`;
+  handler: SocialService['fetchTraderFollowing'];
 };
 
 /**
@@ -237,11 +255,28 @@ export type SocialServiceCreateSwapCommentAction = {
  * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
  * server-side from the JWT sub claim carried in the Authorization header.
  *
+ * Prefer {@link fetchMyFollowing} in new code (pairs with
+ * {@link fetchMyFollowers}). This method is unchanged and remains the
+ * `/users/me/following` read.
+ *
  * @returns The following response.
  */
 export type SocialServiceFetchFollowingAction = {
   type: `SocialService:fetchFollowing`;
   handler: SocialService['fetchFollowing'];
+};
+
+/**
+ * Fetches the list of traders the current user is following.
+ *
+ * Alias of {@link fetchFollowing}. Calls `GET ${baseUrl}/users/me/following`.
+ * Preferred name in new code so `/users/me` reads are both `fetchMy*`.
+ *
+ * @returns The following response.
+ */
+export type SocialServiceFetchMyFollowingAction = {
+  type: `SocialService:fetchMyFollowing`;
+  handler: SocialService['fetchMyFollowing'];
 };
 
 /**
@@ -386,6 +421,7 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchOpenPositionsAction
   | SocialServiceFetchClosedPositionsAction
   | SocialServiceFetchFollowersAction
+  | SocialServiceFetchTraderFollowingAction
   | SocialServiceFetchPositionByIdAction
   | SocialServiceFetchFeedAction
   | SocialServiceFetchTraderFeedAction
@@ -394,6 +430,7 @@ export type SocialServiceMethodActions =
   | SocialServiceRemoveCommentReactionAction
   | SocialServiceCreateSwapCommentAction
   | SocialServiceFetchFollowingAction
+  | SocialServiceFetchMyFollowingAction
   | SocialServiceFetchMyFollowersAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction

@@ -160,10 +160,20 @@ export function getLighterTransactionOutcome(
 // Order enums (wire values expected by `_signCreateOrder`)
 // ============================================================================
 
+/** The pinned signer represents execution and trigger prices as uint32. */
+export const LIGHTER_MAX_WIRE_PRICE = 4_294_967_295;
+
 export const LIGHTER_ORDER_TYPE_LIMIT = 0;
 export const LIGHTER_ORDER_TYPE_MARKET = 1;
 export const LIGHTER_ORDER_TYPE_STOP_LOSS = 2;
+export const LIGHTER_ORDER_TYPE_STOP_LOSS_LIMIT = 3;
 export const LIGHTER_ORDER_TYPE_TAKE_PROFIT = 4;
+export const LIGHTER_ORDER_TYPE_TAKE_PROFIT_LIMIT = 5;
+
+/** Native parent plus one attached child (OTO). */
+export const LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER = 1;
+/** Native parent plus mutually cancelling attached children (OTOCO). */
+export const LIGHTER_GROUPING_ONE_TRIGGERS_OCO = 3;
 
 /** Grouped-orders grouping type: one-cancels-the-other (OCO). */
 export const LIGHTER_GROUPING_ONE_CANCELS_THE_OTHER = 2;
@@ -181,7 +191,7 @@ export const LIGHTER_TIME_IN_FORCE_IMMEDIATE_OR_CANCEL = 0;
 export const LIGHTER_TIME_IN_FORCE_GOOD_TILL_TIME = 1;
 export const LIGHTER_TIME_IN_FORCE_POST_ONLY = 2;
 
-/** Sentinel for "no expiry" on GTT orders (per lighter SDKs). */
+/** Default pending expiry for GTT and trigger orders (per lighter SDKs). */
 export const LIGHTER_ORDER_EXPIRY_NONE = -1;
 /** Sentinel for "no trigger price". */
 export const LIGHTER_NO_TRIGGER_PRICE = 0;
@@ -196,6 +206,20 @@ export const LIGHTER_NO_TRIGGER_PRICE = 0;
  * slot avoids clobbering keys registered by other clients.
  */
 export const LIGHTER_DEFAULT_API_KEY_INDEX = 7;
+/** Inclusive venue range available for trading API keys. */
+export const LIGHTER_MIN_TRADING_API_KEY_INDEX = 2;
+export const LIGHTER_MAX_TRADING_API_KEY_INDEX = 254;
+/** Bounded number of trading slots scanned for account-local recovery state. */
+export const LIGHTER_TRADING_API_KEY_COUNT =
+  LIGHTER_MAX_TRADING_API_KEY_INDEX - LIGHTER_MIN_TRADING_API_KEY_INDEX + 1;
+/** Bound registration visibility reads before returning a retryable failure. */
+export const LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS = 10_000;
+export const LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS = 250;
+export const LIGHTER_KEY_REGISTRATION_VISIBILITY_MAX_ATTEMPTS =
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_TIMEOUT_MS /
+  LIGHTER_KEY_REGISTRATION_VISIBILITY_POLL_MS;
+/** Maximum newest-first complete fill history retained for late subscribers. */
+export const LIGHTER_FILL_REPLAY_LIMIT = 100;
 
 // ============================================================================
 // REST API Configuration
@@ -383,3 +407,54 @@ export const LIGHTER_MARGIN_MODE_ISOLATED = 1;
  */
 export const LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX =
   'Unsupported Lighter capability:';
+
+/** Maximum verified venue accounts remembered per wallet/network for recovery inventory. */
+export const LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT = 64;
+
+/** Clock slack for signed transaction expiry and venue trade provenance. */
+export const LIGHTER_TX_EXPIRY_SLACK_MS = 30_000;
+
+/** Fixed native wire bounds and bounded probe inventory limits. */
+export const LIGHTER_MAX_MARKET_ID = 65535;
+export const LIGHTER_MAX_BASE_AMOUNT = '281474976710655';
+/** Inclusive uint48 client-order identity bound. */
+export const LIGHTER_MAX_CLIENT_ORDER_INDEX = '281474976710655';
+export const LIGHTER_MAX_ORDER_PRICE = '4294967295';
+export const LIGHTER_MAX_ORDER_ID = '1152921504606846975';
+export const LIGHTER_MAX_DECIMALS = 255;
+export const LIGHTER_MINUTE_MS = 60_000;
+export const LIGHTER_NATIVE_PROBE_RECORD_LIMIT = 64;
+export const LIGHTER_NATIVE_PROBE_CANCEL_LIMIT = 16;
+export const LIGHTER_NATIVE_PROBE_PAGE_LIMIT = 100;
+export const LIGHTER_NATIVE_PROBE_PAGE_SIZE = 100;
+export const LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT = 20;
+
+/** Shared bounded testnet native-probe notional ceiling, in USD. */
+export const LIGHTER_NATIVE_PROBE_MAX_NOTIONAL = 20;
+
+/** Settlement budget shared by every cancellation in one Scale group. */
+export const LIGHTER_SCALE_SETTLEMENT_WINDOW_MS = 10_000;
+
+/** Read-only Scale visibility cadence, also used after each placement. */
+export const LIGHTER_SCALE_SETTLEMENT_POLL_MS = 250;
+
+/** Read-only settlement budget after an exact Chase cancellation dispatch. */
+export const LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS = 10_000;
+
+/** Delay between exact Chase child reads, without another sign or send. */
+export const LIGHTER_CHASE_CANCEL_SETTLEMENT_POLL_MS = 250;
+
+/** Bounded Chase policy, distinct from native wire limits. */
+export const LIGHTER_CHASE_DEFAULT_INTERVAL_MS = 15_000;
+export const LIGHTER_CHASE_DEFAULT_DURATION_MS = 60_000;
+export const LIGHTER_CHASE_DEFAULT_REPRICINGS = 1;
+export const LIGHTER_CHASE_DEFAULT_DISTANCE_BPS = 100;
+export const LIGHTER_CHASE_MIN_INTERVAL_MS = 1_000;
+export const LIGHTER_CHASE_MAX_DURATION_MS = 300_000;
+export const LIGHTER_CHASE_MAX_REPRICINGS = 20;
+export const LIGHTER_CHASE_MAX_DISTANCE_BPS = 10_000;
+export const LIGHTER_CHASE_QUOTE_MAX_AGE_MS = 5_000;
+export const LIGHTER_CHASE_HANDLE_MAX_LENGTH = 128;
+
+/** Maximum duration of a post-only crossing-check book read. */
+export const LIGHTER_POST_ONLY_QUOTE_MAX_AGE_MS = 5_000;

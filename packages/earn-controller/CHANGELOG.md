@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
 - Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
 - Bump `@metamask/account-tree-controller` from `^11.0.0` to `^11.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 
 ## [13.0.2]
 

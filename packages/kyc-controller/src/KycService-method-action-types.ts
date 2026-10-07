@@ -161,7 +161,12 @@ export type KycServiceFetchIdosRelayJwksAction = {
  * the read-only `ukyc_capability_token` and submit them via
  * {@link KycService.setAuthorizations}.
  *
+ * Session creation is authenticated with `params.aal2Token` as the
+ * `Authorization` bearer value, instead of the wallet bearer token.
+ *
  * @param params - The session parameters.
+ * @param params.aal2Token - AAL2 authentication token used as the
+ * Authorization bearer value.
  * @returns The UKYC session id and encryption schemas.
  */
 export type KycServiceCreateUkycSessionAction = {

@@ -8,19 +8,23 @@ import {
   string,
   type,
 } from '@metamask/superstruct';
+import { StrictHexStruct } from '@metamask/utils';
 
 /**
- * Validates a single network entry from the `/networks` registry. Uses `type`
+ * Validates a single network entry from the `/networks` registry, or the
+ * single network configuration from the `/network` endpoint. Uses `type`
  * (loose) validation so that additional fields returned by the API do not
  * cause rejection; only the fields we depend on are asserted.
  */
-const SentinelNetworkStruct = type({
-  network: string(),
-  confirmations: optional(boolean()),
+export const SentinelNetworkStruct = type({
   chainID: optional(number()),
+  confirmations: optional(boolean()),
+  cubistSigners: optional(array(StrictHexStruct)),
+  network: string(),
   relayTransactions: optional(boolean()),
-  smartTransactions: optional(boolean()),
   sendBundle: optional(boolean()),
+  simulationIncludeFees: optional(boolean()),
+  smartTransactions: optional(boolean()),
 });
 
 /**

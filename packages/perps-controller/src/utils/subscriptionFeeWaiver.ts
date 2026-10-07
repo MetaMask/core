@@ -225,11 +225,11 @@ function isFlagSet(flags: number, bit: number): boolean {
 /**
  * Whether a cloid carries the subscription program marker in its leading bytes.
  *
- * Only orders that had no cloid of their own get the program marker; an order
- * that already carried one (a Scale rung) keeps its own leading marker and
- * carries the subscription attribution in the flag byte instead. Decoders
- * should therefore key on {@link hasFeeReductionAppliedFlag}, and use this only
- * to tell the two layouts apart.
+ * Orders without their own cloid acquire this marker when a subscription
+ * discount applies. Position TP/SL also reserves this layout for correlation,
+ * with a zero flag byte when no discount applies. A Scale rung keeps its own
+ * leading marker and carries attribution in its flag byte. Marker presence
+ * alone therefore does not prove a discount; use {@link hasFeeReductionAppliedFlag}.
  *
  * @param clientOrderId - A venue client order ID, or nothing.
  * @returns True when the cloid starts with the subscription program id.
@@ -374,7 +374,8 @@ export function quantizeBuilderFeeTenthsBps(discountBips: number): number {
  * report one. Distinguishes a genuine zero (a TWAP, for instance) from the zero
  * a concurrent fully-waived submit leaves in provider state.
  * @returns The quote with its MetaMask component and totals re-priced, tagged
- * with the fee source they were priced from.
+ * with the fee source they were priced from, the discount that source applied,
+ * and the MetaMask fee rate before that discount.
  */
 export function applyFeeResolution(params: {
   fees: FeeCalculationResult;
@@ -412,6 +413,10 @@ export function applyFeeResolution(params: {
   // fill rather than the unfloored fraction the discount implies.
   const metamaskFeeRate =
     quantizeBuilderFeeTenthsBps(discountBips) / BUILDER_FEE_TENTHS_BPS_PER_UNIT;
+  // Same expression with no discount, so the two rates are equal whenever the
+  // default source wins.
+  const undiscountedMetamaskFeeRate =
+    quantizeBuilderFeeTenthsBps(0) / BUILDER_FEE_TENTHS_BPS_PER_UNIT;
   const parsedAmount =
     amount === undefined ? undefined : Number.parseFloat(amount);
   // A non-positive notional is not an order size, and recomputing from it would
@@ -432,6 +437,8 @@ export function applyFeeResolution(params: {
     metamaskFeeRate,
     feeRate,
     feeSource: resolution.source,
+    metamaskFeeDiscountBips: discountBips,
+    undiscountedMetamaskFeeRate,
     ...(notional !== undefined && {
       metamaskFeeAmount: notional * metamaskFeeRate,
       feeAmount: notional * feeRate,

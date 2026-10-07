@@ -73,7 +73,7 @@
     "@metamask/transaction-controller": "^72.1.0",
     "@metamask/utils": "^12.0.0",
     "bignumber.js": "^9.1.2",
-    "reselect": "^5.1.1",
+    "reselect": "^5.3.0",
     "uuid": "^11.1.1"
   },
   "devDependencies": {

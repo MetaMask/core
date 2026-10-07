@@ -14,6 +14,7 @@ const MOCK_IDOS_ENCLAVE_URL = 'https://idos-enclave.dev-api.cx.metamask.io';
 const MOCK_IDOS_RELAY_URL = 'https://idos-relay.dev-api.cx.metamask.io';
 const SESSION_CLIENT_PUBLIC_KEY = 'session-client-public-key';
 const RESIDENCE_COUNTRY = 'USA';
+const AAL2_TOKEN = 'aal2-token';
 
 describe('KycService', () => {
   afterEach(() => {
@@ -280,8 +281,40 @@ describe('KycService', () => {
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { foo: 'bar' },
+          aal2Token: AAL2_TOKEN,
         }),
       ).toStrictEqual(response);
+    });
+
+    it('authenticates session creation with the aal2 token', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) => body.aal2Token === undefined,
+        )
+        .matchHeader('authorization', `Bearer ${AAL2_TOKEN}`)
+        .reply(200, response);
+      const { service } = getService({ bearerToken: 'wallet-bearer' });
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('throws when aal2Token is missing', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          aal2Token: '',
+        }),
+      ).rejects.toThrow(/aal2Token is required/u);
     });
 
     it('throws on a malformed response', async () => {
@@ -293,6 +326,7 @@ describe('KycService', () => {
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: {},
+          aal2Token: AAL2_TOKEN,
         }),
       ).rejects.toThrow(/Malformed response received from UKYC sessions API/u);
     });
@@ -1076,6 +1110,7 @@ describe('KycService', () => {
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { moonPayAccessToken: 'tok' },
+          aal2Token: AAL2_TOKEN,
         }),
       ).toStrictEqual(response);
     });
@@ -1103,6 +1138,7 @@ describe('KycService', () => {
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendor: 'iron',
+          aal2Token: AAL2_TOKEN,
         }),
       ).toStrictEqual(response);
     });

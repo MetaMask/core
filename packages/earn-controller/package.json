@@ -59,7 +59,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/network-controller": "^37.0.1",
     "@metamask/stake-sdk": "^3.2.1",
-    "reselect": "^5.1.1"
+    "reselect": "^5.3.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
