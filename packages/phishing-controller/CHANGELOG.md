@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `address_alert_response_flagged_by` to address scan results, exposing the security-alert vendors that flagged an address ([#9921](https://github.com/MetaMask/core/pull/9921))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
