@@ -39,17 +39,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
 
-### Fixed
-
-- Prevent initial TOPRF seed phrase backup retries from skipping the remote metadata write after a partial failure ([#10419](https://github.com/MetaMask/core/pull/10419))
-- Reject duplicate TOPRF key and seed phrase backup attempts when a vault already exists ([#10419](https://github.com/MetaMask/core/pull/10419))
-
 ### Removed
 
 - **BREAKING:** Remove the `checkIsPasswordOutdated` method and `SeedlessOnboardingControllerCheckIsPasswordOutdatedAction` ([#10148](https://github.com/MetaMask/core/pull/10148))
   - Call `resolvePasswordSyncState({ skipCache })` instead. It performs the same remote check and additionally returns the required recovery step, so a boolean `true` result now corresponds to `PasswordSyncInstruction.PasswordOutdated`.
 - **BREAKING:** Remove the `submitGlobalPassword` and `syncLatestGlobalPassword` methods, along with `SeedlessOnboardingControllerSubmitGlobalPasswordAction` and `SeedlessOnboardingControllerSyncLatestGlobalPasswordAction` ([#10148](https://github.com/MetaMask/core/pull/10148))
   - Call `reconcilePassword({ globalPassword })` instead. It runs both steps internally in the correct order, re-wraps the stored Keyring encryption key, and records the lifecycle phase, none of which happened when the two methods were called directly.
+
+### Fixed
+
+- Prevent initial TOPRF seed phrase backup retries from skipping the remote metadata write after a partial failure ([#10419](https://github.com/MetaMask/core/pull/10419))
+- Reject duplicate TOPRF key and seed phrase backup attempts when a vault already exists ([#10419](https://github.com/MetaMask/core/pull/10419))
 
 ## [11.0.0]
 
