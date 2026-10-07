@@ -298,7 +298,7 @@ export type KycControllerGetSessionStatusForVendorAction = {
 
 export type KycControllerRefreshSessionStatusAction = {
   type: 'KycController:refreshSessionStatus';
-  handler: () => KycControllerSessionStatus;
+  handler: () => Promise<KycControllerSessionStatus>;
 };
 
 export type KycControllerGetProviderFlowStatusAction = {
@@ -3981,7 +3981,7 @@ export class RampsController extends BaseController<
     // needs the ownership check below.
     let sessionFromCache = false;
     try {
-      session = this.messenger.call('KycController:refreshSessionStatus');
+      session = await this.messenger.call('KycController:refreshSessionStatus');
       sessionFromCache = true;
     } catch {
       try {

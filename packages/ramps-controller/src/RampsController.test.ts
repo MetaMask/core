@@ -10543,7 +10543,7 @@ describe('RampsController', () => {
         ...overrides,
       };
 
-      const refreshSessionStatus = jest.fn(() => {
+      const refreshSessionStatus = jest.fn(async () => {
         if (values.refreshThrows) {
           throw new Error('no session in state');
         }

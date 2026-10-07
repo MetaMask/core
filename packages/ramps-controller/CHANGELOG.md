@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `KycControllerRefreshSessionStatusAction` type on `RampsControllerMessenger` now returns `Promise<KycControllerSessionStatus>` ([#10692](https://github.com/MetaMask/core/pull/10692))
+- `hydrateVbaOnboarding` now awaits `KycController.refreshSessionStatus()` ([#10692](https://github.com/MetaMask/core/pull/10692))
+
 ## [26.2.0]
 
 ### Changed
