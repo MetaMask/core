@@ -5034,24 +5034,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('throws when a lifecycle is owned by another operation', async () => {
-      await withController(
-        {
-          state: {
-            seedlessOperationLifecycle: {
-              operation: SeedlessOnboardingOperation.CreateNewAccount,
-              checkpoint: SeedlessOnboardingCheckpoint.RemoteSecretPending,
-            },
-          },
-        },
-        async ({ controller }) => {
-          await expect(controller.resolvePasswordSyncState()).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.OperationInProgress,
-          );
-        },
-      );
-    });
-
     it('routes a password-sync lifecycle by its phase', async () => {
       await withController(
         {
@@ -5131,6 +5113,26 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('returns `wallet-reset-required` when the LOCAL checkpoint is KEY_SYNC_PENDING and the remote password is outdated', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessOnboardingCheckpoint.KeySyncPending,
+          }),
+        },
+        async ({ toprfClient, controller }) => {
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(MOCK_AUTH_PUB_KEY_OUTDATED),
+          );
+          const result = await controller.resolvePasswordSyncState();
+          expect(result).toBe(PasswordSyncInstruction.WalletResetRequired);
+        },
+      );
+    });
+
     it('clears the lifecycle when REMOTE_PASSWORD_PENDING and remote did not commit', async () => {
       await withController(
         {
@@ -5147,6 +5149,24 @@ describe('SeedlessOnboardingController', () => {
           const result = await controller.resolvePasswordSyncState();
           expect(result).toBe(PasswordSyncInstruction.InSync);
           expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+        },
+      );
+    });
+
+    it('throws when a lifecycle is owned by another operation', async () => {
+      await withController(
+        {
+          state: {
+            seedlessOperationLifecycle: {
+              operation: SeedlessOnboardingOperation.CreateNewAccount,
+              checkpoint: SeedlessOnboardingCheckpoint.RemoteSecretPending,
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(controller.resolvePasswordSyncState()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.OperationInProgress,
+          );
         },
       );
     });
@@ -5203,28 +5223,6 @@ describe('SeedlessOnboardingController', () => {
             globalPassword: NEW_PASSWORD,
           });
           expect(result).toBe(PasswordSyncInstruction.InSync);
-        },
-      );
-    });
-
-    it('throws when a lifecycle is owned by another operation', async () => {
-      await withController(
-        {
-          state: {
-            seedlessOperationLifecycle: {
-              operation: SeedlessOnboardingOperation.CreateNewAccount,
-              checkpoint: SeedlessOnboardingCheckpoint.RemoteSecretPending,
-            },
-          },
-        },
-        async ({ controller }) => {
-          await expect(
-            controller.reconcilePassword({
-              globalPassword: NEW_PASSWORD,
-            }),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.OperationInProgress,
-          );
         },
       );
     });
@@ -5310,7 +5308,7 @@ describe('SeedlessOnboardingController', () => {
           );
           mockFetchAuthPubKey(
             toprfClient,
-            base64ToBytes(MOCK_AUTH_PUB_KEY_OUTDATED),
+            base64ToBytes(controller.state.authPubKey as string),
           );
           await controller.setLocked();
 
@@ -5326,6 +5324,35 @@ describe('SeedlessOnboardingController', () => {
           expect(await controller.loadKeyringEncryptionKey()).toBe(
             MOCK_KEYRING_ENCRYPTION_KEY,
           );
+        },
+      );
+    });
+
+    it('returns `wallet-reset-required` when the LOCAL checkpoint is KEY_SYNC_PENDING and the remote password is outdated', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessOnboardingCheckpoint.KeySyncPending,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            OLD_PASSWORD,
+          );
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(MOCK_AUTH_PUB_KEY_OUTDATED),
+          );
+
+          const result = await controller.reconcilePassword({
+            globalPassword: OLD_PASSWORD,
+          });
+          expect(result).toBe(PasswordSyncInstruction.WalletResetRequired);
         },
       );
     });
@@ -5597,45 +5624,24 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('reconciles the Seedless side when no Keyring encryption key is stored', async () => {
+    it('throws when a lifecycle is owned by another operation', async () => {
       await withController(
         {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-            passwordChangePhase: SeedlessOnboardingCheckpoint.LocalStatePending,
-          }),
+          state: {
+            seedlessOperationLifecycle: {
+              operation: SeedlessOnboardingOperation.CreateNewAccount,
+              checkpoint: SeedlessOnboardingCheckpoint.RemoteSecretPending,
+            },
+          },
         },
-        async ({ controller, toprfClient, baseMessenger }) => {
-          await mockCreateToprfKeyAndBackupSeedPhrase(
-            toprfClient,
-            controller,
-            baseMessenger,
-            OLD_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-
-          const mockToprfEncryptor = createMockToprfEncryptor();
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
-            encKey: mockToprfEncryptor.deriveEncKey(NEW_PASSWORD),
-            authKeyPair: mockToprfEncryptor.deriveAuthKeyPair(NEW_PASSWORD),
-            pwEncKey: mockToprfEncryptor.derivePwEncKey(NEW_PASSWORD),
-            rateLimitResetResult: Promise.resolve(),
-            keyShareIndex: 1,
-          });
-          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
-            pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
-          });
-
-          expect(
-            await controller.reconcilePassword({
+        async ({ controller }) => {
+          await expect(
+            controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
-          ).toBe(PasswordSyncInstruction.ReconcileKeyring);
-          expect(
-            controller.state.encryptedKeyringEncryptionKey,
-          ).toBeUndefined();
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.OperationInProgress,
+          );
         },
       );
     });

@@ -114,6 +114,12 @@ export enum PasswordSyncInstruction {
    * After that, must sync Keyring Encryption Key to seedless vault.
    */
   SyncKey = 'sync-key',
+  /**
+   * Last resort instruction for the `KEY_SYNC_PENDING` checkpoint with remote password outdated. (Changed from another device)
+   * A rare edge case specified in the docs/0002-seedless-password-sync-flow.md#key_sync_pending-edge-case.
+   * The client must do "Wallet reset" to recover social login in the current device.
+   */
+  WalletResetRequired = 'wallet-reset-required',
 }
 
 export enum SeedlessOnboardingControllerErrorMessage {

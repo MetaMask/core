@@ -12,7 +12,7 @@ describe('getPasswordSyncInstruction', () => {
     SeedlessOnboardingCheckpoint.LocalStatePending,
     SeedlessOnboardingCheckpoint.LocalPasswordPending,
   ])(
-    'returns PasswordOutdated when the remote password moved for %s',
+    'returns `PasswordOutdated` when the remote password moved for %s',
     (checkpoint) => {
       expect(getPasswordSyncInstruction(checkpoint, true)).toBe(
         PasswordSyncInstruction.PasswordOutdated,
@@ -20,13 +20,16 @@ describe('getPasswordSyncInstruction', () => {
     },
   );
 
-  it('returns SyncKey for KEY_SYNC_PENDING regardless of password state', () => {
+  it('returns `WalletResetRequired` for KEY_SYNC_PENDING when the password is outdated', () => {
     expect(
       getPasswordSyncInstruction(
         SeedlessOnboardingCheckpoint.KeySyncPending,
         true,
       ),
-    ).toBe(PasswordSyncInstruction.SyncKey);
+    ).toBe(PasswordSyncInstruction.WalletResetRequired);
+  });
+
+  it('returns `SyncKey` for KEY_SYNC_PENDING when the password is not outdated', () => {
     expect(
       getPasswordSyncInstruction(
         SeedlessOnboardingCheckpoint.KeySyncPending,

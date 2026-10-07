@@ -22,7 +22,9 @@ export function getPasswordSyncInstruction(
 ): PasswordSyncInstruction {
   switch (checkpoint) {
     case SeedlessOnboardingCheckpoint.KeySyncPending:
-      return PasswordSyncInstruction.SyncKey;
+      return isPasswordOutdated
+        ? PasswordSyncInstruction.WalletResetRequired
+        : PasswordSyncInstruction.SyncKey;
     case undefined:
     case SeedlessOnboardingCheckpoint.RemotePasswordPending:
     case SeedlessOnboardingCheckpoint.LocalStatePending:
