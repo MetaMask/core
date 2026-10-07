@@ -37,6 +37,7 @@ export type {
   SocialServiceFetchTraderFollowingAction,
   SocialServiceFetchTokenFeedAction,
   SocialServiceFetchFollowingAction,
+  SocialServiceFetchMyFollowingAction,
   SocialServiceFetchMyFollowersAction,
   SocialServiceFetchLeaderboardAction,
   SocialServiceFetchOpenPositionsAction,
