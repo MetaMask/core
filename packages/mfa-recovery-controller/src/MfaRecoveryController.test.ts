@@ -11,6 +11,7 @@ import {
   StubAuthProvider,
   StubEscrowProvider,
   StubIdentifierAuthProvider,
+  createAuthControllerToken,
   passthroughEncryptor,
 } from '../tests/stubs.js';
 import {
@@ -915,14 +916,12 @@ describe('MfaRecoveryController', () => {
           const writing = await passthroughEncryptor.encrypt({
             phase: 'writing',
             mutation,
-            authControllerToken: {
-              profileId: 'profile-1',
+            authControllerToken: createAuthControllerToken({
+              sub: 'profile-1',
+              exp: unixNow() + 60,
               requestHash: mutation.requestHash,
-              twoFactor: true,
-              issuer: 'stub-auth',
-              expiresAt: unixNow() + 60,
-              signature: 'stub-auth-signature',
-            },
+              aal: 2,
+            }),
             payload,
             identifier: PASSKEY,
             receipts,
@@ -983,13 +982,11 @@ describe('MfaRecoveryController', () => {
             audiences: ['escrow-a', 'escrow-b'],
             requestHash: '0x',
           },
-          authControllerToken: {
-            profileId: 'profile-1',
+          authControllerToken: createAuthControllerToken({
+            sub: 'profile-1',
+            exp: unixNow() + 60,
             requestHash: '0x',
-            issuer: 'stub-auth',
-            expiresAt: unixNow() + 60,
-            signature: 'stub-auth-signature',
-          },
+          }),
           payload: {
             recoverySecret: bytesToHex(SECRET),
             identifiers: IDENTIFIERS,
@@ -1037,15 +1034,12 @@ describe('MfaRecoveryController', () => {
         const writing = await passthroughEncryptor.encrypt({
           phase: 'writing',
           mutation,
-          authControllerToken: {
-            profileId: 'profile-1',
+          authControllerToken: createAuthControllerToken({
+            sub: 'profile-1',
+            exp: unixNow() + 60,
             requestHash: mutation.requestHash,
             identifiersHash: hash(canonicalizeIdentifiers(payload.identifiers)),
-            identifierOwnershipApproved: true,
-            issuer: 'stub-auth',
-            expiresAt: unixNow() + 60,
-            signature: 'stub-auth-signature',
-          },
+          }),
           payload,
           identifier: null,
           receipts: [
@@ -1100,15 +1094,12 @@ describe('MfaRecoveryController', () => {
         const writing = await passthroughEncryptor.encrypt({
           phase: 'writing',
           mutation,
-          authControllerToken: {
-            profileId: 'profile-1',
+          authControllerToken: createAuthControllerToken({
+            sub: 'profile-1',
+            exp: unixNow() + 60,
             requestHash: mutation.requestHash,
             identifiersHash: hash(canonicalizeIdentifiers(payload.identifiers)),
-            identifierOwnershipApproved: true,
-            issuer: 'stub-auth',
-            expiresAt: unixNow() + 60,
-            signature: 'stub-auth-signature',
-          },
+          }),
           payload,
           identifier: null,
           receipts: [
@@ -1204,8 +1195,13 @@ describe('MfaRecoveryController', () => {
         ).rejects.toBeInstanceOf(IncompleteMutationError);
         const pending = JSON.parse(
           controller.state.pendingOperation as string,
-        ) as { authControllerToken: { expiresAt: number } };
-        pending.authControllerToken.expiresAt = 0;
+        ) as { mutation: { requestHash: string }; authControllerToken: string };
+        pending.authControllerToken = createAuthControllerToken({
+          sub: 'profile-1',
+          exp: 0,
+          requestHash: pending.mutation.requestHash,
+          aal: 2,
+        });
         const resumed = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger()),
@@ -1306,10 +1302,12 @@ describe('MfaRecoveryController', () => {
           };
           pending.mutation = { ...fields, requestHash: hash(fields) };
           pending.payload = payload;
-          const token = pending.authControllerToken as Record<string, unknown>;
-          token.requestHash = hash(fields);
-          token.identifierOwnershipApproved = true;
-          token.identifiersHash = hash(payload.identifiers);
+          pending.authControllerToken = createAuthControllerToken({
+            sub: 'profile-1',
+            exp: unixNow() + 60,
+            requestHash: hash(fields),
+            identifiersHash: hash(payload.identifiers),
+          });
         },
       },
       {
@@ -1387,8 +1385,12 @@ describe('MfaRecoveryController', () => {
       {
         name: 'an invalid AuthController token',
         mutate: (pending: Record<string, unknown>): void => {
-          const token = pending.authControllerToken as Record<string, unknown>;
-          token.requestHash = '0xwrong-token-request-hash';
+          pending.authControllerToken = createAuthControllerToken({
+            sub: 'profile-1',
+            exp: unixNow() + 60,
+            requestHash: '0xwrong-token-request-hash',
+            aal: 2,
+          });
         },
       },
       {
@@ -1564,14 +1566,12 @@ async function getValidWritingPending(
       ...fields,
       requestHash: hash(fields),
     },
-    authControllerToken: {
-      profileId: 'profile-1',
+    authControllerToken: createAuthControllerToken({
+      sub: 'profile-1',
+      exp: unixNow() + 60,
       requestHash: hash(fields),
-      twoFactor: true,
-      issuer: 'stub-auth',
-      expiresAt: unixNow() + 60,
-      signature: 'stub-auth-signature',
-    },
+      aal: 2,
+    }),
     payload,
     identifier: PASSKEY,
     receipts: [],

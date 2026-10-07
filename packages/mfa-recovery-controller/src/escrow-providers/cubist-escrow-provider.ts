@@ -25,6 +25,7 @@ import type {
 } from '../types.js';
 
 const ESCROW_ID = 'cubist';
+const AUTH_AUDIENCE = 'cubist';
 const DEFAULT_FUNCTION_ID = 'cubist_secret_escrow';
 const DEFAULT_VERSION: Version = 'latest';
 
@@ -60,6 +61,8 @@ export type CubistEscrowProviderOptions = {
 
 export class CubistEscrowProvider implements RecoveryEscrowProvider {
   readonly id = ESCROW_ID;
+
+  readonly authAudience = AUTH_AUDIENCE;
 
   readonly wrapPublicKey: string;
 

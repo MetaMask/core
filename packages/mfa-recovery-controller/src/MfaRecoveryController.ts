@@ -507,6 +507,7 @@ export class MfaRecoveryController extends BaseController<
   ): Promise<AuthControllerToken> {
     return await this.#authProvider.authorizeRecoveryRequest({
       requestHash: mutation.requestHash,
+      audiences: this.#escrows.map((escrow) => escrow.authAudience),
       ...(mutation.operation === 'register' ? {} : { requireTwoFactor: true }),
       ...(pendingPayloadHasIdentifiers(payload)
         ? { identifiers: payload.identifiers }

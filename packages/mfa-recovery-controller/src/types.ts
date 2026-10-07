@@ -239,6 +239,7 @@ export type RecoveryAuthProvider = {
   getAuthenticatedProfileId: () => Promise<string>;
   authorizeRecoveryRequest: (params: {
     requestHash: string;
+    audiences: string[];
     requireTwoFactor?: boolean;
     identifiers?: Identifier[];
   }) => Promise<AuthControllerToken>;
@@ -260,6 +261,11 @@ export type RecoveryIdentifierAuthProvider = {
  */
 export type RecoveryEscrowProvider = {
   readonly id: string;
+  /**
+   * Audience the AuthController token must carry for this escrow to accept it.
+   * Independent of `id`.
+   */
+  readonly authAudience: string;
   /**
    * P-256 wrap public JWK JSON. Mutation payloads are encrypted to this key;
    * `getSecret` responses are encrypted to the request's ephemeral key using

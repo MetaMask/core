@@ -31,13 +31,7 @@ const MUTATION: Mutation = {
   requestHash: '0xdef',
 };
 
-const TOKEN: AuthControllerToken = {
-  profileId: 'profile-1',
-  requestHash: '0xdef',
-  issuer: 'auth',
-  expiresAt: 1_800_000_000,
-  signature: '00',
-};
+const TOKEN: AuthControllerToken = 'header.payload.signature';
 
 const PAYLOAD: MutationPayload = {
   identifiers: [],
