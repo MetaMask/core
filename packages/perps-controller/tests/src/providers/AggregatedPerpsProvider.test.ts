@@ -48,6 +48,7 @@ const createMockProvider = (
     }),
 
     // Read operations
+    getAccountSupport: jest.fn().mockResolvedValue({ isSupported: true }),
     getPositions: jest.fn().mockResolvedValue([]),
     getAccountState: jest.fn().mockResolvedValue({
       spendableBalance: '10000',
@@ -635,6 +636,52 @@ describe('AggregatedPerpsProvider', () => {
       const result = await aggregatedProvider.getAccountState();
 
       expect(result).toEqual({ ...mockState, providerId: 'hyperliquid' });
+    });
+  });
+
+  describe('Read Operations - getAccountSupport', () => {
+    it('routes to the default provider', async () => {
+      const unsupportedResult = {
+        isSupported: false,
+        reason: 'multi_sig_account',
+      } as const;
+      mockHLProvider.getAccountSupport?.mockResolvedValue(unsupportedResult);
+
+      const result = await aggregatedProvider.getAccountSupport();
+
+      expect(result).toEqual(unsupportedResult);
+      expect(mockHLProvider.getAccountSupport).toHaveBeenCalledWith(undefined);
+      expect(mockLighterProvider.getAccountSupport).not.toHaveBeenCalled();
+    });
+
+    it('routes to the explicitly selected provider', async () => {
+      const unsupportedResult = {
+        isSupported: false,
+        reason: 'multi_sig_account',
+      } as const;
+      mockLighterProvider.getAccountSupport?.mockResolvedValue(
+        unsupportedResult,
+      );
+
+      const result = await aggregatedProvider.getAccountSupport({
+        providerId: 'lighter',
+      });
+
+      expect(result).toEqual(unsupportedResult);
+      expect(mockLighterProvider.getAccountSupport).toHaveBeenCalledWith({
+        providerId: 'lighter',
+      });
+      expect(mockHLProvider.getAccountSupport).not.toHaveBeenCalled();
+    });
+
+    it('treats a provider without an account support hook as supported', async () => {
+      delete mockLighterProvider.getAccountSupport;
+
+      const result = await aggregatedProvider.getAccountSupport({
+        providerId: 'lighter',
+      });
+
+      expect(result).toEqual({ isSupported: true });
     });
   });
 

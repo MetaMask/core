@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getAccountSupport` to the controller, messenger, and optional provider contract. Hyperliquid detects native multi-signature accounts, caches successful checks per account/network session, and blocks trade and withdrawal signing while transient detection failures remain retryable. ([TAT-3752](https://consensyssoftware.atlassian.net/browse/TAT-3752))
+
 ### Changed
 
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))

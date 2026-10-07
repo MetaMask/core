@@ -174,6 +174,7 @@ describe('HyperLiquidProvider', () => {
   let mockClientService: jest.Mocked<HyperLiquidClientService>;
   let mockWalletService: jest.Mocked<HyperLiquidWalletService>;
   let mockSubscriptionService: jest.Mocked<HyperLiquidSubscriptionService>;
+  let mockInfoClient: ReturnType<typeof createMockInfoClient>;
 
   beforeEach(() => {
     // Reset all mocks
@@ -211,13 +212,14 @@ describe('HyperLiquidProvider', () => {
     };
 
     // Create mocked service instances using factory functions
+    mockInfoClient = createMockInfoClient();
     mockClientService = {
       initialize: jest.fn(),
       isInitialized: jest.fn().mockReturnValue(true),
       isTestnetMode: jest.fn().mockReturnValue(false),
       ensureInitialized: jest.fn(),
       getExchangeClient: jest.fn().mockReturnValue(createMockExchangeClient()),
-      getInfoClient: jest.fn().mockReturnValue(createMockInfoClient()),
+      getInfoClient: jest.fn().mockReturnValue(mockInfoClient),
       fetchHistoricalOrders: jest.fn().mockResolvedValue([]),
       disconnect: jest.fn().mockResolvedValue(undefined),
       toggleTestnet: jest.fn(),
@@ -337,6 +339,120 @@ describe('HyperLiquidProvider', () => {
       ],
     });
   });
+
+  describe('getAccountSupport', () => {
+    it('returns supported for a standard Hyperliquid account', async () => {
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+
+      const result = await provider.getAccountSupport();
+
+      expect(result).toEqual({ isSupported: true });
+    });
+
+    it('returns the multi-signature reason for an unsupported account', async () => {
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+        authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+        threshold: 1,
+      });
+
+      const result = await provider.getAccountSupport();
+
+      expect(result).toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+    });
+
+    it('fails open when Hyperliquid cannot report account support', async () => {
+      mockInfoClient.userToMultiSigSigners.mockRejectedValue(
+        new Error('Network unavailable'),
+      );
+
+      const result = await provider.getAccountSupport();
+
+      expect(result).toEqual({ isSupported: true });
+    });
+
+    it('coalesces and caches successful support checks', async () => {
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+
+      const results = await Promise.all([
+        provider.getAccountSupport(),
+        provider.getAccountSupport(),
+      ]);
+      const cachedResult = await provider.getAccountSupport();
+
+      expect(results).toEqual([{ isSupported: true }, { isSupported: true }]);
+      expect(cachedResult).toEqual({ isSupported: true });
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries support checks after a transient failure', async () => {
+      mockInfoClient.userToMultiSigSigners
+        .mockRejectedValueOnce(new Error('Network unavailable'))
+        .mockResolvedValueOnce({
+          authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+          threshold: 1,
+        });
+
+      const firstResult = await provider.getAccountSupport();
+      const secondResult = await provider.getAccountSupport();
+
+      expect(firstResult).toEqual({ isSupported: true });
+      expect(secondResult).toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(2);
+    });
+
+    it('blocks order signing for an unsupported account', async () => {
+      const exchangeClient = createMockExchangeClient();
+      mockClientService.getExchangeClient.mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+        authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+        threshold: 1,
+      });
+
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('blocks withdrawal signing for an unsupported account', async () => {
+      const exchangeClient = createMockExchangeClient();
+      mockClientService.getExchangeClient.mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+        authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+        threshold: 1,
+      });
+
+      await expect(
+        provider.withdraw({
+          amount: '100',
+          destination: '0x1234567890123456789012345678901234567890' as Hex,
+          assetId:
+            'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      expect(exchangeClient.withdraw3).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getUserNonFundingLedgerUpdates', () => {
     it('returns non-funding ledger updates', async () => {
       // Arrange

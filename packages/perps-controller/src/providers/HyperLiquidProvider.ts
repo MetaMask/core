@@ -103,6 +103,7 @@ import type {
   FeeCalculationResult,
   Funding,
   GetAccountStateParams,
+  PerpsAccountSupport,
   GetAvailableDexsParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
@@ -1638,6 +1639,13 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Key: `network:userAddress`, Value: true if referral is set
   readonly #referralCheckCache = new Map<string, boolean>();
 
+  // Session-scoped, account/network-keyed support probes. Provider instances
+  // are discarded on reconnect; rejected probes are not retained.
+  readonly #accountSupportByContext = new Map<
+    string,
+    Promise<PerpsAccountSupport>
+  >();
+
   // Session cache for builder fee approval state (cleared on disconnect/reconnect)
   // Key: `network:userAddress`, Value: true if builder fee is approved
   readonly #builderFeeCheckCache = new Map<string, boolean>();
@@ -2861,20 +2869,21 @@ export class HyperLiquidProvider implements PerpsProvider {
    * multi-sig account with `ApiRequestError: Multi-sig required`, so the
    * unified-account migration must not be attempted for those accounts.
    *
-   * If the probe throws (transient network), returns `false` — fail open so
-   * one bad probe never blocks migration for a normal single-signer account.
+   * If the probe throws (transient network), returns `undefined` so callers
+   * can fail open without caching the transient result.
    * The `isHyperLiquidMultiSigRequiredError` fallback in the write's catch
    * block remains the safety net.
    *
    * @param userAddress - The wallet address to check.
    * @param infoClient - Optional captured reader for an operation-scoped probe.
-   * @returns True only when Hyperliquid reports a multi-sig signer set.
+   * @returns True for multi-sig, false for single-signer, or undefined when
+   * the probe could not complete.
    * @private
    */
   async #isHyperliquidMultiSigAccount(
     userAddress: string,
     infoClient = this.#clientService.getInfoClient(),
-  ): Promise<boolean> {
+  ): Promise<boolean | undefined> {
     try {
       const signers = await infoClient.userToMultiSigSigners({
         user: userAddress,
@@ -2891,7 +2900,57 @@ export class HyperLiquidProvider implements PerpsProvider {
           ).message,
         },
       );
-      return false;
+      return undefined;
+    }
+  }
+
+  /**
+   * Read support for the active account without initializing the provider.
+   * Successful results are stable for the provider session and coalesced by
+   * account and network. Failed probes fail open and remain retryable.
+   *
+   * @returns Whether the active account can submit Hyperliquid actions.
+   */
+  async #getAccountSupportForCurrentContext(): Promise<PerpsAccountSupport> {
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+    const cacheKey = `${network}:${userAddress.toLowerCase()}`;
+    const cachedSupport = this.#accountSupportByContext.get(cacheKey);
+    if (cachedSupport) {
+      return cachedSupport;
+    }
+
+    const probe = this.#isHyperliquidMultiSigAccount(userAddress);
+    const support = probe.then(
+      (isMultiSig): PerpsAccountSupport =>
+        isMultiSig
+          ? { isSupported: false, reason: 'multi_sig_account' }
+          : { isSupported: true },
+    );
+    this.#accountSupportByContext.set(cacheKey, support);
+
+    probe
+      .then((isMultiSig) => {
+        if (
+          isMultiSig === undefined &&
+          this.#accountSupportByContext.get(cacheKey) === support
+        ) {
+          this.#accountSupportByContext.delete(cacheKey);
+        }
+      })
+      .catch(() => undefined);
+
+    return support;
+  }
+
+  /**
+   * Stop an action before signing when Hyperliquid reports a native multi-sig
+   * signer set for the active account.
+   */
+  async #assertAccountSupported(): Promise<void> {
+    const support = await this.#getAccountSupportForCurrentContext();
+    if (!support.isSupported) {
+      throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
     }
   }
 
@@ -3096,8 +3155,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       // surfaced on the Perps tab on every entry (TAT-3214). Probe right
       // before the write so accounts that never reach one (already compatible,
       // deferred, unknown mode) do not pay the extra round trip.
-      const isMultiSig = await this.#isHyperliquidMultiSigAccount(userAddress);
-      if (isMultiSig) {
+      const accountSupport = await this.#getAccountSupportForCurrentContext();
+      if (!accountSupport.isSupported) {
         this.#deps.debugLogger.log(
           '[ensureUnifiedAccountEnabled] Multi-sig account, skipping unified account migration',
           { user: userAddress, network, mode: currentMode },
@@ -3108,9 +3167,9 @@ export class HyperLiquidProvider implements PerpsProvider {
             PERPS_EVENT_VALUE.STATUS.NOT_APPLICABLE,
           [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: 'multi_sig_account',
         });
-        // Final state: the write can never succeed for this account, so cache
-        // it as attempted with unified mode off. Perps keeps working through
-        // the programmatic collateral-transfer fallback.
+        // Final state: the migration can never succeed for this account, so
+        // cache it as attempted with unified mode off. Action readiness blocks
+        // this account before any later exchange write.
         TradingReadinessCache.set(network, userAddress, {
           attempted: true,
           enabled: false,
@@ -3553,6 +3612,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   }): Promise<BuilderFeeSetupContext | undefined> {
     // First ensure basic initialization is complete
     await this.#ensureReady();
+    await this.#assertAccountSupported();
 
     // The migration was deferred during init to avoid a signing prompt on
     // Perps section open. Drive it here, gated by its own cache so
@@ -13488,6 +13548,16 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Return whether the active wallet can submit Hyperliquid actions.
+   *
+   * @returns The provider-owned account support result.
+   */
+  async getAccountSupport(): Promise<PerpsAccountSupport> {
+    await this.#ensureReady();
+    return this.#getAccountSupportForCurrentContext();
+  }
+
+  /**
    * Resolve the provider's currently active CAIP account identifier.
    * Used by the MarketDataService REST coalesce layer so cached payloads
    * are keyed by the actual resolved address rather than a shared
@@ -15079,6 +15149,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Step 4: Ensure client is ready
       this.#deps.debugLogger.log('HyperLiquidProvider: ENSURING CLIENT READY');
       await this.#ensureReady();
+      await this.#assertAccountSupported();
       await this.#ensureUnifiedAccountEnabled({ allowUserSigning: true });
       const exchangeClient = this.#clientService.getExchangeClient();
       this.#deps.debugLogger.log('HyperLiquidProvider: CLIENT READY');
@@ -16527,6 +16598,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Clear session caches. Capability and fee reads use the lifecycle
       // generation above to discard any old response that resolves later.
       this.clearFeeCache();
+      this.#accountSupportByContext.clear();
       this.#referralCheckCache.clear();
       this.#builderFeeCheckCache.clear();
       this.#builderFeeRefusals.clear();
