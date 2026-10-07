@@ -43,9 +43,9 @@ describe('validation', () => {
   describe('validateTxParams', () => {
     it('should throw if unknown transaction envelope type is specified', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(() => validateTxParams({ type: '0x3' } as any)).toThrow(
+      expect(() => validateTxParams({ type: '0x5' } as any)).toThrow(
         rpcErrors.invalidParams(
-          'Invalid transaction envelope type: "0x3". Must be one of: 0x0, 0x1, 0x2, 0x4',
+          'Invalid transaction envelope type: "0x5". Must be one of: 0x0, 0x1, 0x2, 0x3, 0x4',
         ),
       );
     });
