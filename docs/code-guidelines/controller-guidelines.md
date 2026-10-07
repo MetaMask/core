@@ -1800,6 +1800,74 @@ export const selectActiveAccounts = createSelector(
 );
 ```
 
+## Don't pass constantly changing values to selectors
+
+A selector built with `createSelector` keeps two caches: one keyed on the values its input selectors return, and one keyed on the arguments it was called with. Both use `weakMapMemoize` by default, which releases an entry once the **object** it is keyed on is garbage collected. A result keyed on a **primitive** is different: it is held strongly until `clearCache()` is called, which in practice means for the lifetime of the page.
+
+So a selector that takes a primitive argument whose set of values is not fixed, such as the current time, a scroll offset or an incrementing request counter, keeps one cache entry per value it has ever seen. Note that reselect passes every argument to every input selector, so the problem spreads to each selector in the dependency chain, not just the one that declares the parameter.
+
+This is easy to miss because it is invisible in the common case. Clients hand selectors a redux state object that is replaced on every update, and replacing it lets the cache release the previous entry. The growth only shows up when every object ahead of the primitive is long lived, and it is worst when the input selectors all return primitives, because then nothing in the chain is collectable at all.
+
+Keep the changing value out of the selector. Memoize what is derived from state, then combine that with the value in a plain function. The leftover arithmetic is almost always cheaper than the cache lookup it replaces.
+
+🚫 **The current time is a selector argument, so every millisecond observed is retained**
+
+```typescript
+export const selectIsQuoteExpired = createSelector(
+  [
+    selectQuoteRefreshRate,
+    ({ quotesLastFetched }) => quotesLastFetched,
+    (_state, _params, currentTimeInMs: number) => currentTimeInMs,
+  ],
+  (refreshRate, quotesLastFetched, currentTimeInMs) =>
+    Boolean(
+      quotesLastFetched && currentTimeInMs - quotesLastFetched > refreshRate,
+    ),
+);
+```
+
+✅ **Only the state-derived inputs are memoized; the clock stays outside**
+
+```typescript
+const selectQuoteExpiryInputs = createSelector(
+  [selectQuoteRefreshRate, ({ quotesLastFetched }) => quotesLastFetched],
+  (refreshRate, quotesLastFetched) => ({ refreshRate, quotesLastFetched }),
+);
+
+export const selectIsQuoteExpired = (
+  state: BridgeAppState,
+  currentTimeInMs: number,
+): boolean => {
+  const { refreshRate, quotesLastFetched } = selectQuoteExpiryInputs(state);
+
+  return Boolean(
+    quotesLastFetched && currentTimeInMs - quotesLastFetched > refreshRate,
+  );
+};
+```
+
+If the value genuinely has to be a selector argument, bound both caches. `maxSize` has to be given twice, because the two caches are configured separately and setting only one of them leaves the other unbounded:
+
+```typescript
+export const selectSomething = createSelector(
+  [
+    /* ... */
+  ],
+  combiner,
+  {
+    memoizeOptions: { maxSize: 10 },
+    argsMemoizeOptions: { maxSize: 10 },
+  },
+);
+```
+
+A selector keyed on a primitive drawn from a genuinely fixed set, such as a chain ID, a sort order or an enum, is fine as it is and needs none of this.
+
+### Also see
+
+- [`cacheSizeCheck`](https://reselect.js.org/api/development-only-checks#cachesizecheck), the reselect development check that warns about this. It only fires past 1000 entries in one argument position, so a test has to drive a selector fairly hard before it reports anything. Treat a quiet test run as weak evidence rather than proof.
+- [Bounding cache size with `maxSize`](https://reselect.js.org/api/weakMapMemoize#bounding-cache-size-with-maxsize) in the reselect docs.
+
 ## Treat state-mutating methods as actions
 
 Just as each property of state [does not require a getter method to be accessed](#expose-derived-state-using-selectors-instead-of-getters), each property of state does not require a setter method to be updated, either.
