@@ -6,63 +6,41 @@ import type { Hex } from '@metamask/utils';
 import {
   POLYGON_PUSD_ADDRESS,
   POLYGON_USDCE_ADDRESS,
-} from '../../../constants.js';
-import { getMessengerMock } from '../../../tests/messenger-mock.js';
-import type { QuoteRequest, TransactionPayQuote } from '../../../types.js';
-import { getLiveTokenBalance } from '../../../utils/token.js';
-import type { RelayQuote, RelayQuoteRequest } from '../types.js';
+} from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import type { QuoteRequest } from '../../types.js';
+import { getLiveTokenBalance } from '../token.js';
 import {
   POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
   POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
 } from './constants.js';
 import {
-  applyPolymarketDepositWalletOverrides,
   buildPolymarketDepositWalletSimulation,
+  getPolymarketDepositWalletOverrides,
+  getPredictWithdrawFeeTokenAccount,
   getPredictWithdrawSafeAddress,
   isPredictWithdraw,
   submitPolymarketWithdraw,
   sweepPolymarketDepositWallet,
 } from './withdraw.js';
+import type { DepositWalletWithdrawRequest } from './withdraw.js';
 
-jest.mock('../../../utils/token');
+jest.mock('../token');
 
-const EOA_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
+const DEPOSIT_ADDRESS_MOCK =
+  '0x1234567890123456789012345678901234567890' as Hex;
 const DEPOSIT_WALLET_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
-const SOURCE_HASH_MOCK: Hex = `0x${'aa'.repeat(32)}`;
+const EOA_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
 const SOURCE_AMOUNT_RAW_MOCK = '1000000';
+const SOURCE_HASH_MOCK: Hex = `0x${'aa'.repeat(32)}`;
 
-// transfer(0x1234...7890, 0) encoded calldata
+// transfer(DEPOSIT_ADDRESS_MOCK, 1000000000)
 const TRANSFER_CALLDATA_MOCK =
   '0xa9059cbb0000000000000000000000001234567890123456789012345678901234567890000000000000000000000000000000000000000000000000000000003b9aca00' as Hex;
 
-function buildQuote(
-  overrides: Partial<RelayQuote> = {},
-): TransactionPayQuote<RelayQuote> {
-  return {
-    original: {
-      steps: [
-        {
-          id: 'deposit',
-          kind: 'transaction',
-          items: [
-            {
-              data: {
-                data: TRANSFER_CALLDATA_MOCK,
-              },
-            },
-          ],
-        },
-      ],
-      ...overrides,
-    },
-    sourceAmount: {
-      raw: SOURCE_AMOUNT_RAW_MOCK,
-      human: '1',
-      fiat: '1',
-      usd: '1',
-    },
-  } as TransactionPayQuote<RelayQuote>;
-}
+const WITHDRAW_TRANSACTION_MOCK = {
+  type: TransactionType.predictWithdraw,
+} as TransactionMeta;
 
 describe('Polymarket withdraw', () => {
   const {
@@ -71,6 +49,18 @@ describe('Polymarket withdraw', () => {
     polymarketSubmitDepositWalletBatchMock,
   } = getMessengerMock();
   const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
+
+  function buildRequest(
+    overrides: Partial<DepositWalletWithdrawRequest> = {},
+  ): DepositWalletWithdrawRequest {
+    return {
+      depositData: TRANSFER_CALLDATA_MOCK,
+      from: EOA_MOCK,
+      messenger,
+      sourceAmountRaw: SOURCE_AMOUNT_RAW_MOCK,
+      ...overrides,
+    };
+  }
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -83,31 +73,26 @@ describe('Polymarket withdraw', () => {
     getLiveTokenBalanceMock.mockResolvedValue('0');
   });
 
-  describe('applyPolymarketDepositWalletOverrides', () => {
-    it('rewrites the quote body for the deposit-wallet path', async () => {
-      const body = {} as RelayQuoteRequest;
-      const request = { from: EOA_MOCK } as QuoteRequest;
-
-      await applyPolymarketDepositWalletOverrides(body, request, messenger);
+  describe('getPolymarketDepositWalletOverrides', () => {
+    it('returns the deposit wallet and USDC.e as the source token', async () => {
+      const result = await getPolymarketDepositWalletOverrides(
+        EOA_MOCK,
+        messenger,
+      );
 
       expect(polymarketGetDepositWalletAddressMock).toHaveBeenCalledWith({
         eoa: EOA_MOCK,
       });
-      expect(body).toStrictEqual({
-        originCurrency: POLYGON_USDCE_ADDRESS,
-        user: DEPOSIT_WALLET_MOCK,
-        refundTo: DEPOSIT_WALLET_MOCK,
-        useDepositAddress: true,
-        strict: true,
+      expect(result).toStrictEqual({
+        depositWallet: DEPOSIT_WALLET_MOCK,
+        sourceTokenAddress: POLYGON_USDCE_ADDRESS,
       });
     });
   });
 
   describe('submitPolymarketWithdraw', () => {
     it('submits the approve + unwrap batch via the relayer callback', async () => {
-      const quote = buildQuote();
-
-      const result = await submitPolymarketWithdraw(quote, EOA_MOCK, messenger);
+      const result = await submitPolymarketWithdraw(buildRequest());
 
       expect(result).toStrictEqual({
         sourceHash: SOURCE_HASH_MOCK,
@@ -127,11 +112,7 @@ describe('Polymarket withdraw', () => {
     it('captures the pre-submit USDC.e balance', async () => {
       getLiveTokenBalanceMock.mockResolvedValue('2500000');
 
-      const result = await submitPolymarketWithdraw(
-        buildQuote(),
-        EOA_MOCK,
-        messenger,
-      );
+      const result = await submitPolymarketWithdraw(buildRequest());
 
       expect(result.preSubmitUsdceBalance).toBe(2500000n);
     });
@@ -139,50 +120,32 @@ describe('Polymarket withdraw', () => {
     it('defaults pre-submit balance to zero when the balance read fails', async () => {
       getLiveTokenBalanceMock.mockRejectedValue(new Error('rpc down'));
 
-      const result = await submitPolymarketWithdraw(
-        buildQuote(),
-        EOA_MOCK,
-        messenger,
-      );
+      const result = await submitPolymarketWithdraw(buildRequest());
 
       expect(result.preSubmitUsdceBalance).toBe(0n);
     });
 
-    it('throws when the Relay quote has no deposit step', async () => {
-      const quote = buildQuote({ steps: [] });
-
+    it('throws without submitting when there is no deposit calldata', async () => {
       await expect(
-        submitPolymarketWithdraw(quote, EOA_MOCK, messenger),
-      ).rejects.toThrow('Relay quote has no deposit step');
-    });
+        submitPolymarketWithdraw(buildRequest({ depositData: undefined })),
+      ).rejects.toThrow('quote has no deposit step calldata');
 
-    it('throws when the Relay quote deposit step is missing calldata', async () => {
-      const quote = buildQuote({
-        steps: [
-          {
-            id: 'deposit',
-            kind: 'transaction',
-            items: [{ data: {} }],
-          },
-        ],
-      } as unknown as Partial<RelayQuote>);
-
-      await expect(
-        submitPolymarketWithdraw(quote, EOA_MOCK, messenger),
-      ).rejects.toThrow('deposit step is missing calldata');
+      expect(polymarketSubmitDepositWalletBatchMock).not.toHaveBeenCalled();
     });
   });
 
   describe('sweepPolymarketDepositWallet', () => {
     const successOptions = {
-      relayStatus: 'success' as const,
+      from: EOA_MOCK,
+      isRefund: false,
+      messenger,
       preSubmitUsdceBalance: 0n,
     };
 
     it('wraps any USDC.e balance back into pUSD on the deposit wallet', async () => {
       getLiveTokenBalanceMock.mockResolvedValue('5000000');
 
-      await sweepPolymarketDepositWallet(EOA_MOCK, messenger, successOptions);
+      await sweepPolymarketDepositWallet(successOptions);
 
       expect(polymarketSubmitDepositWalletBatchMock).toHaveBeenCalledTimes(1);
       const call = polymarketSubmitDepositWalletBatchMock.mock.calls[0][0];
@@ -196,7 +159,7 @@ describe('Polymarket withdraw', () => {
     it('is a no-op when the USDC.e balance is zero', async () => {
       getLiveTokenBalanceMock.mockResolvedValue('0');
 
-      await sweepPolymarketDepositWallet(EOA_MOCK, messenger, successOptions);
+      await sweepPolymarketDepositWallet(successOptions);
 
       expect(polymarketSubmitDepositWalletBatchMock).not.toHaveBeenCalled();
     });
@@ -205,7 +168,7 @@ describe('Polymarket withdraw', () => {
       getLiveTokenBalanceMock.mockRejectedValue(new Error('rpc down'));
 
       expect(
-        await sweepPolymarketDepositWallet(EOA_MOCK, messenger, successOptions),
+        await sweepPolymarketDepositWallet(successOptions),
       ).toBeUndefined();
       expect(polymarketSubmitDepositWalletBatchMock).not.toHaveBeenCalled();
     });
@@ -217,11 +180,17 @@ describe('Polymarket withdraw', () => {
       );
 
       expect(
-        await sweepPolymarketDepositWallet(EOA_MOCK, messenger, successOptions),
+        await sweepPolymarketDepositWallet(successOptions),
       ).toBeUndefined();
     });
 
-    describe('when relayStatus is refund', () => {
+    describe('when the withdraw was refunded', () => {
+      const refundOptions = {
+        ...successOptions,
+        isRefund: true,
+        preSubmitUsdceBalance: 1000000n,
+      };
+
       beforeEach(() => {
         jest.useFakeTimers();
       });
@@ -236,10 +205,7 @@ describe('Polymarket withdraw', () => {
           .mockResolvedValueOnce('1000000')
           .mockResolvedValueOnce('4000000');
 
-        const sweepPromise = sweepPolymarketDepositWallet(EOA_MOCK, messenger, {
-          relayStatus: 'refund',
-          preSubmitUsdceBalance: 1000000n,
-        });
+        const sweepPromise = sweepPolymarketDepositWallet(refundOptions);
 
         await jest.advanceTimersByTimeAsync(5000);
         await sweepPromise;
@@ -250,30 +216,10 @@ describe('Polymarket withdraw', () => {
         expect(call.calls[1].target).toBe(POLYMARKET_COLLATERAL_ONRAMP_POLYGON);
       });
 
-      it('also retries when relayStatus is refunded', async () => {
-        getLiveTokenBalanceMock
-          .mockResolvedValueOnce('1000000')
-          .mockResolvedValueOnce('4000000');
-
-        const sweepPromise = sweepPolymarketDepositWallet(EOA_MOCK, messenger, {
-          relayStatus: 'refunded',
-          preSubmitUsdceBalance: 1000000n,
-        });
-
-        await jest.advanceTimersByTimeAsync(4000);
-        await sweepPromise;
-
-        expect(getLiveTokenBalanceMock).toHaveBeenCalledTimes(2);
-        expect(polymarketSubmitDepositWalletBatchMock).toHaveBeenCalledTimes(1);
-      });
-
       it('gives up after five attempts and sweeps the residual stale balance', async () => {
         getLiveTokenBalanceMock.mockResolvedValue('1000000');
 
-        const sweepPromise = sweepPolymarketDepositWallet(EOA_MOCK, messenger, {
-          relayStatus: 'refund',
-          preSubmitUsdceBalance: 1000000n,
-        });
+        const sweepPromise = sweepPolymarketDepositWallet(refundOptions);
 
         await jest.advanceTimersByTimeAsync(4000);
         await sweepPromise;
@@ -285,23 +231,19 @@ describe('Polymarket withdraw', () => {
   });
 
   describe('isPredictWithdraw', () => {
-    const withdrawTransaction = {
-      type: TransactionType.predictWithdraw,
-    } as TransactionMeta;
-
     it('returns true for a post-quote predict withdraw', () => {
       expect(
         isPredictWithdraw(
           { isPostQuote: true } as QuoteRequest,
-          withdrawTransaction,
+          WITHDRAW_TRANSACTION_MOCK,
         ),
       ).toBe(true);
     });
 
     it('returns false when not post-quote', () => {
-      expect(isPredictWithdraw({} as QuoteRequest, withdrawTransaction)).toBe(
-        false,
-      );
+      expect(
+        isPredictWithdraw({} as QuoteRequest, WITHDRAW_TRANSACTION_MOCK),
+      ).toBe(false);
     });
 
     it('returns false when the transaction is not a predict withdraw', () => {
@@ -317,22 +259,17 @@ describe('Polymarket withdraw', () => {
   });
 
   describe('getPredictWithdrawSafeAddress', () => {
-    const withdrawTransaction = {
-      type: TransactionType.predictWithdraw,
-    } as TransactionMeta;
-    const depositSteps = [
-      { id: 'deposit', kind: 'transaction', items: [] },
-    ] as unknown as RelayQuote['steps'];
-    const swapSteps = [
-      { id: 'swap', kind: 'transaction', items: [] },
-    ] as unknown as RelayQuote['steps'];
+    const safeRequest = {
+      isPostQuote: true,
+      refundTo: DEPOSIT_WALLET_MOCK,
+    } as QuoteRequest;
 
     it('returns refundTo for a deposit-style predict withdraw', () => {
       expect(
         getPredictWithdrawSafeAddress(
-          { isPostQuote: true, refundTo: DEPOSIT_WALLET_MOCK } as QuoteRequest,
-          depositSteps,
-          withdrawTransaction,
+          safeRequest,
+          WITHDRAW_TRANSACTION_MOCK,
+          true,
         ),
       ).toBe(DEPOSIT_WALLET_MOCK);
     });
@@ -340,13 +277,9 @@ describe('Polymarket withdraw', () => {
     it('returns undefined for the deposit-wallet variant (handled by its own simulation)', () => {
       expect(
         getPredictWithdrawSafeAddress(
-          {
-            isPostQuote: true,
-            refundTo: DEPOSIT_WALLET_MOCK,
-            isPolymarketDepositWallet: true,
-          } as QuoteRequest,
-          depositSteps,
-          withdrawTransaction,
+          { ...safeRequest, isPolymarketDepositWallet: true },
+          WITHDRAW_TRANSACTION_MOCK,
+          true,
         ),
       ).toBeUndefined();
     });
@@ -354,9 +287,9 @@ describe('Polymarket withdraw', () => {
     it('returns undefined for swap-only routes (no deposit step)', () => {
       expect(
         getPredictWithdrawSafeAddress(
-          { isPostQuote: true, refundTo: DEPOSIT_WALLET_MOCK } as QuoteRequest,
-          swapSteps,
-          withdrawTransaction,
+          safeRequest,
+          WITHDRAW_TRANSACTION_MOCK,
+          false,
         ),
       ).toBeUndefined();
     });
@@ -364,24 +297,38 @@ describe('Polymarket withdraw', () => {
     it('returns undefined when not a predict withdraw', () => {
       expect(
         getPredictWithdrawSafeAddress(
-          { isPostQuote: true, refundTo: DEPOSIT_WALLET_MOCK } as QuoteRequest,
-          depositSteps,
+          safeRequest,
           { type: TransactionType.simpleSend } as TransactionMeta,
+          true,
+        ),
+      ).toBeUndefined();
+    });
+  });
+
+  describe('getPredictWithdrawFeeTokenAccount', () => {
+    it('returns refundTo for a predict withdraw', () => {
+      expect(
+        getPredictWithdrawFeeTokenAccount(
+          { isPostQuote: true, refundTo: DEPOSIT_WALLET_MOCK } as QuoteRequest,
+          WITHDRAW_TRANSACTION_MOCK,
+        ),
+      ).toBe(DEPOSIT_WALLET_MOCK);
+    });
+
+    it('returns undefined when not a predict withdraw', () => {
+      expect(
+        getPredictWithdrawFeeTokenAccount(
+          { refundTo: DEPOSIT_WALLET_MOCK } as QuoteRequest,
+          WITHDRAW_TRANSACTION_MOCK,
         ),
       ).toBeUndefined();
     });
   });
 
   describe('buildPolymarketDepositWalletSimulation', () => {
-    const RELAY_DEPOSIT_ADDRESS_MOCK =
-      '0x1234567890123456789012345678901234567890' as Hex;
-
     it('simulates the real approve + unwrap batch from the deposit wallet', async () => {
-      const simulation = await buildPolymarketDepositWalletSimulation(
-        buildQuote(),
-        EOA_MOCK,
-        messenger,
-      );
+      const simulation =
+        await buildPolymarketDepositWalletSimulation(buildRequest());
 
       expect(polymarketGetDepositWalletAddressMock).toHaveBeenCalledWith({
         eoa: EOA_MOCK,
@@ -399,53 +346,40 @@ describe('Polymarket withdraw', () => {
       expect(unwrap.value).toBe('0x0');
     });
 
-    it('encodes the approve for the offramp and the amount from the quote', async () => {
-      const simulation = await buildPolymarketDepositWalletSimulation(
-        buildQuote(),
-        EOA_MOCK,
-        messenger,
-      );
+    it('approves the offramp and unwraps the source amount to the deposit address', async () => {
+      const simulation =
+        await buildPolymarketDepositWalletSimulation(buildRequest());
 
       const [approve, unwrap] = simulation.transactions;
 
-      // approve(offramp, 1000000)
-      const approveInterface = new Interface([
+      const decodedApprove = new Interface([
         'function approve(address spender, uint256 amount)',
-      ]);
-      const decodedApprove = approveInterface.decodeFunctionData(
-        'approve',
-        approve.data as Hex,
-      );
+      ]).decodeFunctionData('approve', approve.data as Hex);
+
       expect(decodedApprove[0].toLowerCase()).toBe(
         POLYMARKET_COLLATERAL_OFFRAMP_POLYGON.toLowerCase(),
       );
       expect(decodedApprove[1].toString()).toBe(SOURCE_AMOUNT_RAW_MOCK);
 
-      // unwrap(USDC.e, relayDepositAddress, 1000000)
-      const unwrapInterface = new Interface([
+      const decodedUnwrap = new Interface([
         'function unwrap(address asset, address recipient, uint256 amount)',
-      ]);
-      const decodedUnwrap = unwrapInterface.decodeFunctionData(
-        'unwrap',
-        unwrap.data as Hex,
-      );
+      ]).decodeFunctionData('unwrap', unwrap.data as Hex);
+
       expect(decodedUnwrap[0].toLowerCase()).toBe(
         POLYGON_USDCE_ADDRESS.toLowerCase(),
       );
       expect(decodedUnwrap[1].toLowerCase()).toBe(
-        RELAY_DEPOSIT_ADDRESS_MOCK.toLowerCase(),
+        DEPOSIT_ADDRESS_MOCK.toLowerCase(),
       );
       expect(decodedUnwrap[2].toString()).toBe(SOURCE_AMOUNT_RAW_MOCK);
     });
 
-    it('throws when the Relay quote has no deposit step', async () => {
+    it('throws when there is no deposit calldata', async () => {
       await expect(
         buildPolymarketDepositWalletSimulation(
-          buildQuote({ steps: [] }),
-          EOA_MOCK,
-          messenger,
+          buildRequest({ depositData: undefined }),
         ),
-      ).rejects.toThrow('Relay quote has no deposit step');
+      ).rejects.toThrow('quote has no deposit step calldata');
     });
   });
 });

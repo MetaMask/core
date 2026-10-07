@@ -6627,20 +6627,6 @@
       "count": 1
     }
   },
-  "packages/transaction-pay-controller/src/strategy/relay/polymarket/withdraw.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 16
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 4
-    },
-    "typescript/no-unsafe-call": {
-      "count": 8
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 24
-    }
-  },
   "packages/transaction-pay-controller/src/strategy/relay/relay-max.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 30
@@ -6699,7 +6685,7 @@
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 34
+      "count": 39
     },
     "typescript/no-unsafe-call": {
       "count": 17
@@ -6727,13 +6713,13 @@
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 64
+      "count": 83
     },
     "typescript/no-unsafe-call": {
-      "count": 9
+      "count": 15
     },
     "typescript/no-unsafe-member-access": {
-      "count": 9
+      "count": 15
     },
     "typescript/no-unsafe-return": {
       "count": 2
@@ -6752,13 +6738,13 @@
       "count": 4
     },
     "typescript/no-unsafe-assignment": {
-      "count": 46
+      "count": 53
     },
     "typescript/no-unsafe-call": {
-      "count": 21
+      "count": 23
     },
     "typescript/no-unsafe-member-access": {
-      "count": 29
+      "count": 31
     },
     "typescript/no-unsafe-return": {
       "count": 3
@@ -6813,6 +6799,25 @@
     },
     "typescript/no-unsafe-return": {
       "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/polymarket/withdraw.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 6
+    },
+    "typescript/no-unsafe-call": {
+      "count": 8
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 24
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/post-quote.test.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 11
     }
   },
   "packages/transaction-pay-controller/src/utils/provider.test.ts": {
