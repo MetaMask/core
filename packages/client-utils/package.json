@@ -50,7 +50,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/contract-metadata": "^2.4.0",
+    "@metamask/contract-metadata": "^2.5.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/core-backend": "^12.0.1",
     "@metamask/keyring-api": "^24.0.0",
