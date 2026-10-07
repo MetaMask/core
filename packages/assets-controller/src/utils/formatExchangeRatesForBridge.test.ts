@@ -394,6 +394,129 @@ describe('formatExchangeRatesForBridge', () => {
     );
   });
 
+  describe('currencies absent from MAP_CAIP_CURRENCIES', () => {
+    // A deliberately fictional currency code: every real SupportedCurrency is
+    // now present in MAP_CAIP_CURRENCIES (see the 'gel' tests below), so this
+    // exercises the defensive path for a genuinely unmapped/invalid value.
+    const UNMAPPED_CURRENCY = 'xyz';
+
+    it('still returns EVM native marketData and currencyRates when selectedCurrency has no CAIP mapping', () => {
+      const ethNativeId = 'eip155:1/slip44:60';
+      const result = formatExchangeRatesForBridge({
+        assetsInfo: { [ethNativeId]: NATIVE_METADATA },
+        assetsPrice: {
+          [ethNativeId]: price({
+            price: 2000,
+            id: 'ethereum',
+            marketCap: 240_000_000_000,
+            lastUpdated: 1_700_000_000_000,
+          }),
+        },
+        selectedCurrency: UNMAPPED_CURRENCY,
+        nativeAssetIdentifiers: { 'eip155:1': ethNativeId },
+        networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
+      });
+
+      expect(result.currencyRates.ETH).toStrictEqual({
+        conversionDate: 1_700_000_000,
+        conversionRate: 2000,
+        usdConversionRate: 2000,
+      });
+
+      const chainData = result.marketData['0x1'];
+      expect(chainData).toBeDefined();
+      const nativeAddress = '0x0000000000000000000000000000000000000000';
+      expect(chainData[nativeAddress]).toBeDefined();
+      expect(chainData[nativeAddress].currency).toBe('ETH');
+      expect(result.currentCurrency).toBe(UNMAPPED_CURRENCY);
+    });
+
+    it('still returns EVM ERC20 marketData when selectedCurrency has no CAIP mapping', () => {
+      const ethNativeId = 'eip155:1/slip44:60';
+      const usdcId =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const result = formatExchangeRatesForBridge({
+        assetsInfo: {
+          [ethNativeId]: NATIVE_METADATA,
+          [usdcId]: {
+            type: 'erc20',
+            decimals: 6,
+            symbol: 'USDC',
+          } as AssetMetadata,
+        },
+        assetsPrice: {
+          [ethNativeId]: price({ price: 2000 }),
+          [usdcId]: price({ price: 1, id: 'usd-coin' }),
+        },
+        selectedCurrency: UNMAPPED_CURRENCY,
+        nativeAssetIdentifiers: { 'eip155:1': ethNativeId },
+        networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
+      });
+
+      expect(result.marketData['0x1']?.[usdcAddress]).toBeDefined();
+    });
+
+    it('omits (rather than mislabels) the non-EVM conversionRates entry when selectedCurrency has no CAIP mapping', () => {
+      // price (unlike usdPrice, which is always USD) for a non-EVM asset is
+      // already denominated in selectedCurrency, so a genuinely unmapped
+      // currency must not be silently relabeled as some other currency
+      // (e.g. USD) — that would be wrong data, not a safe fallback. It's
+      // correctly omitted instead.
+      const bitcoinAssetId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
+      const result = formatExchangeRatesForBridge({
+        assetsInfo: {},
+        assetsPrice: {
+          [bitcoinAssetId]: price({ price: 50000 }),
+        },
+        selectedCurrency: UNMAPPED_CURRENCY,
+        nativeAssetIdentifiers: {},
+      });
+
+      expect(result.conversionRates[bitcoinAssetId]).toBeUndefined();
+      expect(result.currentCurrency).toBe(UNMAPPED_CURRENCY);
+    });
+  });
+
+  describe('gel (SupportedCurrency previously missing from MAP_CAIP_CURRENCIES)', () => {
+    it('resolves EVM marketData/currencyRates for gel', () => {
+      const ethNativeId = 'eip155:1/slip44:60';
+      const result = formatExchangeRatesForBridge({
+        assetsInfo: { [ethNativeId]: NATIVE_METADATA },
+        assetsPrice: {
+          [ethNativeId]: price({ price: 5400, lastUpdated: 1_700_000_000_000 }),
+        },
+        selectedCurrency: 'gel',
+        nativeAssetIdentifiers: { 'eip155:1': ethNativeId },
+        networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
+      });
+
+      expect(result.currencyRates.ETH).toStrictEqual({
+        conversionDate: 1_700_000_000,
+        conversionRate: 5400,
+        usdConversionRate: 5400,
+      });
+    });
+
+    it('resolves the non-EVM conversionRates entry under the correct GEL CAIP currency, not USD', () => {
+      const bitcoinAssetId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
+      const result = formatExchangeRatesForBridge({
+        assetsInfo: {},
+        assetsPrice: {
+          [bitcoinAssetId]: price({ price: 135000 }),
+        },
+        selectedCurrency: 'gel',
+        nativeAssetIdentifiers: {},
+      });
+
+      expect(result.conversionRates[bitcoinAssetId]).toBeDefined();
+      expect(result.conversionRates[bitcoinAssetId].rate).toBe('135000');
+      expect(result.conversionRates[bitcoinAssetId].currency).toBe(
+        'swift:0/iso4217:GEL',
+      );
+    });
+  });
+
   describe('memoization', () => {
     afterEach(() => {
       clearFormatExchangeRatesForBridgeCacheForTesting();
