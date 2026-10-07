@@ -299,53 +299,51 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       return;
     }
     const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
-    const toRefresh = this.#getToRefreshForChains([caipChainId]);
+    const toRefresh = this.#getToRefresh({ chainIds: [caipChainId] });
     if (toRefresh.length > 0) {
-      this.#refreshStakedBalanceAfterTransaction(toRefresh).catch((error) => {
+      this.#refreshAndPublish(toRefresh).catch((error) => {
         log('Failed to refresh staked balance after transaction', { error });
       });
     }
   }
 
   /**
-   * Build toRefresh list for subscribed (account, chainId) pairs for the given chains.
+   * Build the list of subscribed (account, chainId) pairs to refresh,
+   * optionally narrowed to the given accounts and/or chains.
    *
-   * @param chainIds - CAIP-2 chain IDs to target.
+   * @param scope - Optional filter.
+   * @param scope.accountIds - Only include these account IDs.
+   * @param scope.chainIds - Only include these CAIP-2 chain IDs.
    * @returns Pairs of account and chainId to refresh.
    */
-  #getToRefreshForChains(
-    chainIds: ChainId[],
-  ): { account: InternalAccount; chainId: ChainId }[] {
-    const toRefresh: { account: InternalAccount; chainId: ChainId }[] = [];
-    const chainSet = new Set(chainIds);
-    for (const subscription of this.#activeSubscriptions.values()) {
-      for (const {
-        account,
-        supportedChains,
-      } of subscription.accountsWithSupportedChains) {
-        for (const chainId of supportedChains) {
-          if (chainSet.has(chainId)) {
-            toRefresh.push({ account, chainId });
-          }
-        }
-      }
-    }
-    return toRefresh;
-  }
+  #getToRefresh(scope?: {
+    accountIds?: AccountId[];
+    chainIds?: ChainId[];
+  }): { account: InternalAccount; chainId: ChainId }[] {
+    const accountSet = scope?.accountIds
+      ? new Set(scope.accountIds)
+      : undefined;
+    const chainSet = scope?.chainIds ? new Set(scope.chainIds) : undefined;
 
-  /**
-   * Build toRefresh list for all subscribed (account, chainId) pairs.
-   *
-   * @returns Pairs of account and chainId to refresh.
-   */
-  #getToRefreshAll(): { account: InternalAccount; chainId: ChainId }[] {
     const toRefresh: { account: InternalAccount; chainId: ChainId }[] = [];
+    const seen = new Set<string>();
     for (const subscription of this.#activeSubscriptions.values()) {
       for (const {
         account,
         supportedChains,
       } of subscription.accountsWithSupportedChains) {
+        if (accountSet && !accountSet.has(account.id)) {
+          continue;
+        }
         for (const chainId of supportedChains) {
+          if (chainSet && !chainSet.has(chainId)) {
+            continue;
+          }
+          const key = `${account.id}:${chainId}`;
+          if (seen.has(key)) {
+            continue;
+          }
+          seen.add(key);
           toRefresh.push({ account, chainId });
         }
       }
@@ -354,16 +352,36 @@ export class StakedBalanceDataSource extends AbstractDataSource<
   }
 
   /**
-   * Refresh staked balance for all currently subscribed accounts and chains, then
-   * push updates to the controller. Can be called from UI or after transaction events.
+   * Refresh staked balances for currently subscribed accounts and chains, then
+   * push the result to the controller through the active subscriptions.
+   *
+   * Without a scope every subscribed (account, chain) pair is refreshed. With a
+   * scope only the subscribed pairs matching the given accounts and chains are
+   * refreshed; pairs that are not subscribed are ignored, since there is no
+   * subscription to deliver them to (the subscription's own initial fetch covers
+   * them once it starts).
+   *
+   * Called by `AssetsController.getAssets` on a force update (e.g. pull to
+   * refresh) so the staked balance is refreshed without waiting for the next
+   * poll, and can be called from UI or after transaction events.
+   *
+   * @param scope - Optional filter.
+   * @param scope.accounts - Only refresh these accounts.
+   * @param scope.chainIds - Only refresh these CAIP-2 chain IDs.
    */
-  async refreshStakedBalance(): Promise<void> {
+  async refreshStakedBalance(scope?: {
+    accounts?: InternalAccount[];
+    chainIds?: ChainId[];
+  }): Promise<void> {
     if (!this.#enabled) {
       return;
     }
-    const toRefresh = this.#getToRefreshAll();
+    const toRefresh = this.#getToRefresh({
+      accountIds: scope?.accounts?.map((account) => account.id),
+      chainIds: scope?.chainIds,
+    });
     if (toRefresh.length > 0) {
-      await this.#refreshStakedBalanceAfterTransaction(toRefresh);
+      await this.#refreshAndPublish(toRefresh);
     }
   }
 
@@ -373,7 +391,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
    *
    * @param toRefresh - List of { account, chainId } to refresh.
    */
-  async #refreshStakedBalanceAfterTransaction(
+  async #refreshAndPublish(
     toRefresh: { account: InternalAccount; chainId: ChainId }[],
   ): Promise<void> {
     const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
@@ -407,7 +425,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
           [assetId]: { amount: result.amount },
         };
       } catch (error) {
-        log('Failed to fetch staked balance in transaction refresh', {
+        log('Failed to fetch staked balance in refresh', {
           chainId,
           accountId: account.id,
           error,
@@ -451,9 +469,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
         subscription
           .onAssetsUpdate(response, request)
           ?.catch((error: unknown) => {
-            log('Failed to report staked balance update after transaction', {
-              error,
-            });
+            log('Failed to report staked balance refresh', { error });
           });
       }
     }

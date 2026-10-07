@@ -20,7 +20,6 @@ import { createTestApiClient } from '../__fixtures__/mockTokenApi.js';
 import { AccountsApiDataSource } from '../data-sources/AccountsApiDataSource.js';
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { RpcDataSource } from '../data-sources/RpcDataSource.js';
-import { StakedBalanceDataSource } from '../data-sources/StakedBalanceDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
 import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
 import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
@@ -128,11 +127,6 @@ async function runPipeline(
       }),
   });
 
-  const stakedBalanceDataSource = new StakedBalanceDataSource({
-    messenger: assetsControllerMessenger,
-    onActiveChainsUpdated: jest.fn(),
-  });
-
   const rpcDataSource = new RpcDataSource({
     messenger: assetsControllerMessenger,
     getAssetsState: (): AssetsControllerState => state,
@@ -183,7 +177,6 @@ async function runPipeline(
   const sources = buildFastFetchSources(
     {
       accountsApiDataSource,
-      stakedBalanceDataSource,
       customAssetGraduationMiddleware: new CustomAssetGraduationMiddleware({
         getSelectedAccountId: (): AccountId => BSC_SPAM_ACCOUNT_ID,
         removeCustomAsset: (): void => {
@@ -203,7 +196,7 @@ async function runPipeline(
       tokenDataSource,
       priceDataSource,
     },
-    { isBasicFunctionality: true, includeCustomAssetGraduation },
+    { includeCustomAssetGraduation },
   );
 
   const { response } = await executeAssetsPipeline({
@@ -212,7 +205,6 @@ async function runPipeline(
   });
 
   accountsApiDataSource.destroy();
-  stakedBalanceDataSource.destroy();
   rpcDataSource.destroy();
   queryApiClient.clear();
 

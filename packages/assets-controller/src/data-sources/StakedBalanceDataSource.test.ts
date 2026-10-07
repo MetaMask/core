@@ -472,17 +472,128 @@ describe('StakedBalanceDataSource', () => {
   });
 
   describe('refreshStakedBalance', () => {
-    it('pushes updates for all subscribed accounts and chains', async () => {
+    const STAKED_ASSET_ID = `${MAINNET_CHAIN_ID_CAIP}/erc20:${STAKING_CONTRACT_MAINNET}`;
+    const OTHER_ACCOUNT_ID = 'other-account-id';
+    const OTHER_ADDRESS = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+
+    /**
+     * Subscribe both accounts and wait for the subscribe-time fetch and first
+     * poll to settle so the assertions only see the explicit refresh.
+     *
+     * @param controller - The data source under test.
+     * @returns The subscription's `onAssetsUpdate` mock.
+     */
+    const arrange = async (
+      controller: StakedBalanceDataSource,
+    ): Promise<jest.Mock> => {
+      const onAssetsUpdate = jest.fn();
+      await controller.subscribe({
+        request: createDataRequest({
+          accounts: [
+            createMockInternalAccount(),
+            createMockInternalAccount({
+              id: OTHER_ACCOUNT_ID,
+              address: OTHER_ADDRESS,
+            }),
+          ],
+        }),
+        subscriptionId: 'test-sub',
+        isUpdate: false,
+        onAssetsUpdate,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      onAssetsUpdate.mockClear();
+      return onAssetsUpdate;
+    };
+
+    it('pushes one update covering every subscribed account and chain', async () => {
       await withController(async ({ controller }) => {
-        const onAssetsUpdate = jest.fn();
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate,
+        const onAssetsUpdate = await arrange(controller);
+
+        await controller.refreshStakedBalance();
+
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+        const [response, request] = onAssetsUpdate.mock.calls[0];
+        expect(response).toStrictEqual({
+          assetsInfo: {
+            [STAKED_ASSET_ID]: {
+              type: 'erc20',
+              name: 'staked ethereum',
+              symbol: 'ETH',
+              decimals: 18,
+            },
+          },
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: { [STAKED_ASSET_ID]: { amount: '1.5' } },
+            [OTHER_ACCOUNT_ID]: { [STAKED_ASSET_ID]: { amount: '1.5' } },
+          },
+          updateMode: 'merge',
         });
-        onAssetsUpdate.mockClear();
-        expect(await controller.refreshStakedBalance()).toBeUndefined();
+        expect(request.chainIds).toStrictEqual([MAINNET_CHAIN_ID_CAIP]);
+        expect(request.dataTypes).toStrictEqual(['balance']);
+      });
+    });
+
+    it('refreshes only the given accounts when scoped', async () => {
+      await withController(async ({ controller }) => {
+        const onAssetsUpdate = await arrange(controller);
+
+        await controller.refreshStakedBalance({
+          accounts: [createMockInternalAccount()],
+          chainIds: [MAINNET_CHAIN_ID_CAIP],
+        });
+
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+        const [response, request] = onAssetsUpdate.mock.calls[0];
+        expect(Object.keys(response.assetsBalance)).toStrictEqual([
+          MOCK_ACCOUNT_ID,
+        ]);
+        expect(
+          request.accountsWithSupportedChains.map(
+            ({ account }: { account: InternalAccount }) => account.id,
+          ),
+        ).toStrictEqual([MOCK_ACCOUNT_ID]);
+      });
+    });
+
+    it('does nothing when the scoped chains are not subscribed', async () => {
+      await withController(async ({ controller }) => {
+        const onAssetsUpdate = await arrange(controller);
+
+        await controller.refreshStakedBalance({
+          chainIds: ['eip155:137' as ChainId],
+        });
+
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does nothing when the scoped accounts are not subscribed', async () => {
+      await withController(async ({ controller }) => {
+        const onAssetsUpdate = await arrange(controller);
+
+        await controller.refreshStakedBalance({
+          accounts: [
+            createMockInternalAccount({
+              id: 'unsubscribed',
+              address: '0x1111111111111111111111111111111111111111',
+            }),
+          ],
+        });
+
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not fetch when there is no active subscription', async () => {
+      await withController(async ({ controller, mockProvider }) => {
+        await controller.refreshStakedBalance({
+          accounts: [createMockInternalAccount()],
+          chainIds: [MAINNET_CHAIN_ID_CAIP],
+        });
+
+        // Nothing is subscribed, so no provider is ever built for a fetch.
+        expect(mockProvider).not.toHaveBeenCalled();
       });
     });
 
