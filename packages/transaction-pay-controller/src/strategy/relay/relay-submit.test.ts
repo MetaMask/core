@@ -46,7 +46,7 @@ jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/feature-flags');
 jest.mock('./hyperliquid-withdraw');
-jest.mock('./polymarket/withdraw');
+jest.mock('../../utils/polymarket/withdraw');
 jest.mock('./relay-submit-execute');
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
@@ -1797,7 +1797,7 @@ describe('Relay Submit Utils', () => {
         submitPolymarketWithdraw: jest.Mock;
         sweepPolymarketDepositWallet: jest.Mock;
       } {
-        const mod = jest.requireMock('./polymarket/withdraw');
+        const mod = jest.requireMock('../../utils/polymarket/withdraw');
         return {
           submitPolymarketWithdraw: mod.submitPolymarketWithdraw as jest.Mock,
           sweepPolymarketDepositWallet:
@@ -1814,6 +1814,7 @@ describe('Relay Submit Utils', () => {
         });
         sweepPolymarketDepositWallet.mockResolvedValue(undefined);
         request.quotes[0].request.isPolymarketDepositWallet = true;
+        request.quotes[0].original.steps[0].id = 'deposit';
         request.quotes[0].original.steps[0].kind = 'transaction';
       });
 
@@ -1822,28 +1823,30 @@ describe('Relay Submit Utils', () => {
 
         await submitRelayQuotes(request);
 
-        expect(submitPolymarketWithdraw).toHaveBeenCalledWith(
-          request.quotes[0],
-          FROM_MOCK,
+        expect(submitPolymarketWithdraw).toHaveBeenCalledWith({
+          depositData: request.quotes[0].original.steps[0].items[0].data.data,
+          from: FROM_MOCK,
           messenger,
-        );
+          sourceAmountRaw: request.quotes[0].sourceAmount.raw,
+        });
         expect(addTransactionMock).not.toHaveBeenCalled();
         expect(addTransactionBatchMock).not.toHaveBeenCalled();
       });
 
-      it('runs the USDC.e sweep with the success status on success', async () => {
+      it('runs the USDC.e sweep without waiting for a refund on success', async () => {
         const { sweepPolymarketDepositWallet } = getPolymarketMocks();
 
         await submitRelayQuotes(request);
 
-        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
-          FROM_MOCK,
+        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          isRefund: false,
           messenger,
-          { relayStatus: 'success', preSubmitUsdceBalance: 0n },
-        );
+          preSubmitUsdceBalance: 0n,
+        });
       });
 
-      it('passes the refund status and pre-submit balance to the sweep on refund', async () => {
+      it('sweeps as a refund with the pre-submit balance on refund', async () => {
         const { submitPolymarketWithdraw, sweepPolymarketDepositWallet } =
           getPolymarketMocks();
         submitPolymarketWithdraw.mockResolvedValue({
@@ -1858,14 +1861,15 @@ describe('Relay Submit Utils', () => {
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: refund',
         );
-        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
-          FROM_MOCK,
+        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          isRefund: true,
           messenger,
-          { relayStatus: 'refund', preSubmitUsdceBalance: 1000000n },
-        );
+          preSubmitUsdceBalance: 1000000n,
+        });
       });
 
-      it('passes the refunded status and pre-submit balance to the sweep on refunded', async () => {
+      it('sweeps as a refund with the pre-submit balance on refunded', async () => {
         const { submitPolymarketWithdraw, sweepPolymarketDepositWallet } =
           getPolymarketMocks();
         submitPolymarketWithdraw.mockResolvedValue({
@@ -1880,11 +1884,12 @@ describe('Relay Submit Utils', () => {
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: refunded',
         );
-        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
-          FROM_MOCK,
+        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          isRefund: true,
           messenger,
-          { relayStatus: 'refunded', preSubmitUsdceBalance: 2500000n },
-        );
+          preSubmitUsdceBalance: 2500000n,
+        });
       });
 
       it('returns timeout (tolerated) when Relay polling times out', async () => {
@@ -1898,11 +1903,12 @@ describe('Relay Submit Utils', () => {
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: timeout',
         );
-        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
-          FROM_MOCK,
+        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          isRefund: false,
           messenger,
-          { relayStatus: 'timeout', preSubmitUsdceBalance: 0n },
-        );
+          preSubmitUsdceBalance: 0n,
+        });
       });
     });
 
