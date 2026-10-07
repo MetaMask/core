@@ -338,6 +338,94 @@ describe('ComplianceController', () => {
         });
       });
     });
+
+    it('reconciles a later write for the same address under a different casing into the existing cache entry, instead of creating a stale duplicate', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let blocked = false;
+        rootMessenger.registerActionHandler(
+          'ComplianceService:checkWalletCompliance',
+          async (address) => ({
+            address,
+            blocked,
+          }),
+        );
+
+        // First check: not blocked, written under the checksummed casing.
+        await controller.checkWalletCompliance(CHECKSUM_EVM_ADDRESS);
+
+        // The wallet becomes sanctioned; the second check is written under a
+        // different (lowercase) casing for the very same address.
+        blocked = true;
+        await controller.checkWalletCompliance(LOWERCASE_EVM_ADDRESS);
+
+        // The cache must reconcile to a single entry per address, not one
+        // stale entry per casing ever seen.
+        expect(
+          Object.keys(controller.state.walletComplianceStatusMap),
+        ).toHaveLength(1);
+
+        // Every casing must now resolve to the fresh, blocked status.
+        expect(
+          selectIsWalletBlocked(CHECKSUM_EVM_ADDRESS)(controller.state),
+        ).toBe(true);
+        expect(
+          selectIsWalletBlocked(LOWERCASE_EVM_ADDRESS)(controller.state),
+        ).toBe(true);
+
+        // The existing key's casing is preserved rather than being replaced
+        // by the caller's casing.
+        expect(
+          Object.prototype.hasOwnProperty.call(
+            controller.state.walletComplianceStatusMap,
+            CHECKSUM_EVM_ADDRESS,
+          ),
+        ).toBe(true);
+      });
+    });
+
+    it('heals a duplicate entry that already exists under two casings for the same address (e.g. state persisted before this reconciliation shipped)', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              walletComplianceStatusMap: {
+                [CHECKSUM_EVM_ADDRESS]: {
+                  address: CHECKSUM_EVM_ADDRESS,
+                  blocked: false,
+                  checkedAt: '2026-01-01T00:00:00.000Z',
+                },
+                [LOWERCASE_EVM_ADDRESS]: {
+                  address: LOWERCASE_EVM_ADDRESS,
+                  blocked: false,
+                  checkedAt: '2026-01-01T00:00:00.000Z',
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'ComplianceService:checkWalletCompliance',
+            async (address) => ({ address, blocked: true }),
+          );
+
+          // A write under EITHER pre-existing casing must collapse both
+          // stale duplicate entries into one, not just update the one that
+          // happens to exact-match the caller's casing.
+          await controller.checkWalletCompliance(LOWERCASE_EVM_ADDRESS);
+
+          expect(
+            Object.keys(controller.state.walletComplianceStatusMap),
+          ).toHaveLength(1);
+          expect(
+            selectIsWalletBlocked(CHECKSUM_EVM_ADDRESS)(controller.state),
+          ).toBe(true);
+          expect(
+            selectIsWalletBlocked(LOWERCASE_EVM_ADDRESS)(controller.state),
+          ).toBe(true);
+        },
+      );
+    });
   });
 
   describe('ComplianceController:checkWalletsCompliance', () => {
@@ -347,6 +435,74 @@ describe('ComplianceController', () => {
 
     afterEach(() => {
       jest.useRealTimers();
+    });
+
+    it('reconciles a batch write for an address already cached under a different casing, instead of creating a stale duplicate', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              walletComplianceStatusMap: {
+                [CHECKSUM_EVM_ADDRESS]: {
+                  address: CHECKSUM_EVM_ADDRESS,
+                  blocked: false,
+                  checkedAt: '2026-01-01T00:00:00.000Z',
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'ComplianceService:checkWalletsCompliance',
+            async (addresses) =>
+              addresses.map((addr) => ({ address: addr, blocked: true })),
+          );
+
+          await rootMessenger.call(
+            'ComplianceController:checkWalletsCompliance',
+            [LOWERCASE_EVM_ADDRESS],
+          );
+
+          expect(
+            Object.keys(controller.state.walletComplianceStatusMap),
+          ).toHaveLength(1);
+          expect(
+            selectIsWalletBlocked(CHECKSUM_EVM_ADDRESS)(controller.state),
+          ).toBe(true);
+          expect(
+            selectIsWalletBlocked(LOWERCASE_EVM_ADDRESS)(controller.state),
+          ).toBe(true);
+        },
+      );
+    });
+
+    it('reconciles two aliases of the same address requested within a single batch call into one entry, with the later result winning', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'ComplianceService:checkWalletsCompliance',
+          async (addresses) =>
+            addresses.map((addr) => ({
+              address: addr,
+              blocked: addr === LOWERCASE_EVM_ADDRESS,
+            })),
+        );
+
+        await rootMessenger.call(
+          'ComplianceController:checkWalletsCompliance',
+          [CHECKSUM_EVM_ADDRESS, LOWERCASE_EVM_ADDRESS],
+        );
+
+        expect(
+          Object.keys(controller.state.walletComplianceStatusMap),
+        ).toStrictEqual([CHECKSUM_EVM_ADDRESS]);
+        expect(
+          selectIsWalletBlocked(CHECKSUM_EVM_ADDRESS)(controller.state),
+        ).toBe(true);
+        expect(
+          selectIsWalletBlocked(LOWERCASE_EVM_ADDRESS)(controller.state),
+        ).toBe(true);
+      });
     });
 
     it('calls the service, persists all results to state, and returns statuses', async () => {

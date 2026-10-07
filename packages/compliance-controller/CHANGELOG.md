@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
 - Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
+### Fixed
+
+- Fix `checkWalletCompliance`/`checkWalletsCompliance` writing a wallet's compliance status under the caller's raw address casing, which could leave a stale duplicate cache entry for a wallet already cached under a different casing (or produce two persisted entries for the same wallet if one was ever checked under two casings). Writes now reconcile with any existing case-insensitively-matching entry, healing duplicates already present in persisted state.
+
 ## [2.1.0]
 
 ### Added
