@@ -4082,6 +4082,27 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
+    it('tags margin update errors for the position-management dashboard', async () => {
+      primeFrozenAggregate([], [createCachedPosition()]);
+      updateIsolatedMargin.mockRejectedValue(new Error('API error'));
+
+      const result = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '1',
+      });
+
+      expect(result).toStrictEqual({ success: false, error: 'API error' });
+      expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            operation: 'position_management',
+            action: 'update_margin',
+          }),
+        }),
+      );
+    });
+
     it('does not update a position the live per-DEX slice reports closed', async () => {
       primeFrozenAggregate([createCachedPosition()], []);
 

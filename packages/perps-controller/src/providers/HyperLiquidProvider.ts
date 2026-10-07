@@ -12230,10 +12230,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       const safeError = ensureError(error, 'HyperLiquidProvider.updateMargin');
       this.#deps.logger.error(
         safeError,
-        this.#getErrorContext('updateMargin', {
-          symbol: params.symbol,
-          amount: params.amount,
-        }),
+        this.#getErrorContext(
+          'updateMargin',
+          {
+            symbol: params.symbol,
+            amount: params.amount,
+          },
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.UpdateMargin,
+          },
+        ),
       );
       return {
         success: false,
