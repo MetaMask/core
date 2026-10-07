@@ -33,7 +33,7 @@ const TRANSACTION_MOCK = {
     gas: '0x5208',
     to: '0x5555555555555555555555555555555555555555',
   },
-} as TransactionMeta;
+} as unknown as TransactionMeta;
 
 const REQUEST_MOCK = {
   from: FROM_MOCK,
@@ -41,7 +41,7 @@ const REQUEST_MOCK = {
   sourceChainId: '0x89',
   sourceTokenAddress: TOKEN_MOCK,
   sourceTokenAmount: '1000',
-} as QuoteRequest;
+} as unknown as QuoteRequest;
 
 describe('post-quote', () => {
   const { messenger } = getMessengerMock();

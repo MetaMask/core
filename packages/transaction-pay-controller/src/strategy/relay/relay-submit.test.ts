@@ -1824,7 +1824,7 @@ describe('Relay Submit Utils', () => {
         await submitRelayQuotes(request);
 
         expect(submitPolymarketWithdraw).toHaveBeenCalledWith({
-          depositData: request.quotes[0].original.steps[0].items[0].data.data,
+          depositData: '0x1234',
           from: FROM_MOCK,
           messenger,
           sourceAmountRaw: request.quotes[0].sourceAmount.raw,
