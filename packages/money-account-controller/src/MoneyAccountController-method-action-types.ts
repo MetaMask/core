@@ -19,10 +19,10 @@ export type MoneyAccountControllerInitAction = {
  * already exists for that entropy source, it is returned as-is (idempotent).
  *
  * The entropy source identifies the backing keyring:
- * - `entropy:mpc:_`: the MPC keyring (MFA account), which is created and
+ * - `entropy:mpc:_`: the MPC keyring, which is created and
  * initialized if it does not exist yet.
- * - Any other entropy source: the `MoneyKeyring` for that entropy source
- * (SFA account), which is created if it does not exist yet.
+ * - Any other entropy source: the `MoneyKeyring` for that entropy source, which
+ * is created if it does not exist yet.
  *
  * @param entropySource - The entropy source ID to create the money account for.
  * @returns The money account.
