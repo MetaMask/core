@@ -42,7 +42,9 @@ export const MOCK_X_AUTH_URL_RESPONSE: XAuthUrlResponse = {
 
 export type MockProfileServiceHandlers = {
   getProfile?: (profileId: string) => Promise<ProfileApiResponse>;
-  createProfile?: (params: CreateProfileParams) => Promise<CreateProfileResponse>;
+  createProfile?: (
+    params: CreateProfileParams,
+  ) => Promise<CreateProfileResponse>;
   replaceProfile?: (
     profileId: string,
     params: ReplaceProfileParams,
@@ -73,35 +75,41 @@ export function buildMockProfileService(
 ): void {
   messenger.registerActionHandler(
     'ProfileService:getProfile',
-    handlers.getProfile ?? (async (_profileId) => MOCK_PROFILE_API_RESPONSE),
+    handlers.getProfile ??
+      (async (_profileId): Promise<ProfileApiResponse> =>
+        MOCK_PROFILE_API_RESPONSE),
   );
 
   messenger.registerActionHandler(
     'ProfileService:createProfile',
-    handlers.createProfile ?? (async (_params) => MOCK_PROFILE_API_RESPONSE),
+    handlers.createProfile ??
+      (async (_params): Promise<CreateProfileResponse> =>
+        MOCK_PROFILE_API_RESPONSE),
   );
 
   messenger.registerActionHandler(
     'ProfileService:replaceProfile',
     handlers.replaceProfile ??
-      (async (_profileId, _params) => MOCK_PROFILE_API_RESPONSE),
+      (async (_profileId, _params): Promise<ProfileApiResponse> =>
+        MOCK_PROFILE_API_RESPONSE),
   );
 
   messenger.registerActionHandler(
     'ProfileService:updateProfile',
     handlers.updateProfile ??
-      (async (_profileId, _params) => MOCK_PROFILE_API_RESPONSE),
+      (async (_profileId, _params): Promise<ProfileApiResponse> =>
+        MOCK_PROFILE_API_RESPONSE),
   );
 
   messenger.registerActionHandler(
     'ProfileService:deleteProfile',
-    handlers.deleteProfile ?? (async (_profileId) => undefined),
+    handlers.deleteProfile ?? (async (_profileId): Promise<void> => undefined),
   );
 
   messenger.registerActionHandler(
     'ProfileService:checkUsernameAvailability',
     handlers.checkUsernameAvailability ??
-      (async (username) => ({
+      (async (username): Promise<UsernameAvailabilityResponse> => ({
         username,
         available: true,
         valid: true,
@@ -112,16 +120,19 @@ export function buildMockProfileService(
 
   messenger.registerActionHandler(
     'ProfileService:getXAuthUrl',
-    handlers.getXAuthUrl ?? (async () => MOCK_X_AUTH_URL_RESPONSE),
+    handlers.getXAuthUrl ??
+      (async (): Promise<XAuthUrlResponse> => MOCK_X_AUTH_URL_RESPONSE),
   );
 
   messenger.registerActionHandler(
     'ProfileService:connectX',
-    handlers.connectX ?? (async (_params) => MOCK_X_CONNECT_RESPONSE),
+    handlers.connectX ??
+      (async (_params): Promise<XConnectResponse> => MOCK_X_CONNECT_RESPONSE),
   );
 
   messenger.registerActionHandler(
     'ProfileService:getXAccount',
-    handlers.getXAccount ?? (async () => MOCK_X_CONNECT_RESPONSE),
+    handlers.getXAccount ??
+      (async (): Promise<XAccountResponse> => MOCK_X_CONNECT_RESPONSE),
   );
 }

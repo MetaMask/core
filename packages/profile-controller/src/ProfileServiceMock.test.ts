@@ -51,7 +51,10 @@ describe('buildMockProfileService', () => {
       const messenger = createMessenger();
       buildMockProfileService(messenger);
 
-      const result = await messenger.call('ProfileService:getProfile', 'any-id');
+      const result = await messenger.call(
+        'ProfileService:getProfile',
+        'any-id',
+      );
 
       expect(result).toStrictEqual(MOCK_PROFILE_API_RESPONSE);
     });
@@ -106,9 +109,9 @@ describe('buildMockProfileService', () => {
       const messenger = createMessenger();
       buildMockProfileService(messenger);
 
-      await expect(
-        messenger.call('ProfileService:deleteProfile', 'p1'),
-      ).resolves.toBeUndefined();
+      expect(
+        await messenger.call('ProfileService:deleteProfile', 'p1'),
+      ).toBeUndefined();
     });
 
     it('registers checkUsernameAvailability echoing the queried username', async () => {
