@@ -322,6 +322,76 @@ function buildFakeAtomicKeyringBuilder(
   );
 }
 
+const SHARED_SDK_KEYRING_TYPE = 'Shared SDK Keyring';
+
+const SHARED_SDK_ACCOUNT_ADDRESS: Hex =
+  '0x51569Ff6072E0471EC0B15E45d8f191EDa5A2eAA';
+
+const SHARED_SDK_ADDED_ACCOUNT_ADDRESS: Hex =
+  '0x6266A2f22fce4C878D2953B4281E07982d877A49';
+
+/**
+ * The token of the instance currently holding the shared "SDK singleton"
+ * stood in for by this test file, or `undefined` when the singleton is
+ * released.
+ */
+let sharedSdkToken: object | undefined;
+
+/**
+ * A test keyring simulating the shared-SDK semantics of hardware keyrings
+ * (Trezor, OneKey): initializing the keyring acquires the SDK singleton
+ * and fails with `Init_AlreadyInitialized` while another instance holds
+ * it, and destroying the keyring releases the singleton.
+ */
+class SharedSdkKeyring implements EthKeyring {
+  static type = SHARED_SDK_KEYRING_TYPE;
+
+  readonly type = SharedSdkKeyring.type;
+
+  readonly #sdkToken = {};
+
+  #accounts: Hex[] = [];
+
+  async serialize(): Promise<Json> {
+    return { accounts: [...this.#accounts] };
+  }
+
+  async deserialize(state: { accounts?: Hex[] }): Promise<void> {
+    this.#acquireSdk();
+    this.#accounts = state.accounts ? [...state.accounts] : [];
+  }
+
+  async init(): Promise<void> {
+    this.#acquireSdk();
+  }
+
+  async getAccounts(): Promise<Hex[]> {
+    return [...this.#accounts];
+  }
+
+  // this fake method works only with n = 1
+  async addAccounts(_: number): Promise<Hex[]> {
+    this.#accounts.push(SHARED_SDK_ADDED_ACCOUNT_ADDRESS);
+    return [...this.#accounts];
+  }
+
+  async destroy(): Promise<void> {
+    if (sharedSdkToken === this.#sdkToken) {
+      sharedSdkToken = undefined;
+    }
+  }
+
+  #acquireSdk(): void {
+    if (sharedSdkToken === this.#sdkToken) {
+      return;
+    }
+    if (sharedSdkToken) {
+      throw new Error('Init_AlreadyInitialized');
+    }
+    sharedSdkToken = this.#sdkToken;
+  }
+}
+
 /**
  * A promise that can be resolved from the outside.
  */
@@ -6251,6 +6321,102 @@ describe('KeyringController', () => {
           expect(restrictedController.keyrings[1].keyring).toBe(simpleKeyring);
         });
       });
+    });
+
+    it('destroys the stale instance before recreating it, so a shared-SDK keyring survives a scoped rollback', async () => {
+      sharedSdkToken = undefined;
+      await withController(
+        {
+          skipVaultCreation: true,
+          keyringBuilders: [keyringBuilderFactory(SharedSdkKeyring)],
+          state: {
+            vault: createVault([
+              ...defaultKeyrings,
+              {
+                type: SharedSdkKeyring.type,
+                data: { accounts: [SHARED_SDK_ACCOUNT_ADDRESS] },
+                metadata: { id: 'shared-sdk-keyring', name: '' },
+              },
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+          const accountsBefore = await controller.getAccounts();
+
+          await expect(
+            controller.withKeyring(
+              { type: SharedSdkKeyring.type },
+              async ({ keyring }) => {
+                await keyring.addAccounts(1);
+                throw new Error('Oops');
+              },
+            ),
+          ).rejects.toThrow('Oops');
+
+          // The stale instance is destroyed before the replacement is
+          // created, so the replacement's initialization does not fail
+          // with `Init_AlreadyInitialized`: the mutated keyring is rebuilt
+          // instead of being parked as unsupported and dropped.
+          expect(
+            controller.getKeyringsByType(SharedSdkKeyring.type),
+          ).toHaveLength(1);
+          expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
+
+          // The rebuilt instance holds the shared SDK: a follow-up
+          // operation on it succeeds.
+          await controller.withKeyring(
+            { type: SharedSdkKeyring.type },
+            async ({ keyring }) => {
+              expect(await keyring.getAccounts()).toStrictEqual([
+                SHARED_SDK_ACCOUNT_ADDRESS,
+              ]);
+            },
+          );
+        },
+      );
+    });
+
+    it('destroys the stale instance before recreating it, so a shared-SDK keyring survives a whole-wallet rollback', async () => {
+      sharedSdkToken = undefined;
+      await withController(
+        {
+          skipVaultCreation: true,
+          keyringBuilders: [keyringBuilderFactory(SharedSdkKeyring)],
+          state: {
+            vault: createVault([
+              ...defaultKeyrings,
+              {
+                type: SharedSdkKeyring.type,
+                data: { accounts: [SHARED_SDK_ACCOUNT_ADDRESS] },
+                metadata: { id: 'shared-sdk-keyring', name: '' },
+              },
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+          const accountsBefore = await controller.getAccounts();
+
+          await expect(
+            controller.withController(async () => {
+              const keyring = controller.getKeyringsByType(
+                SharedSdkKeyring.type,
+              )[0] as SharedSdkKeyring;
+              await keyring.addAccounts(1);
+              throw new Error('Oops');
+            }),
+          ).rejects.toThrow('Oops');
+
+          // Same ordering requirement on the whole-wallet rollback path:
+          // the mutated keyring is rebuilt from its snapshot, instead of
+          // being parked as unsupported and dropped.
+          expect(
+            controller.getKeyringsByType(SharedSdkKeyring.type),
+          ).toHaveLength(1);
+          expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
+        },
+      );
     });
 
     it('leaves unsupported keyrings untouched by the rollback', async () => {
