@@ -180,6 +180,8 @@ export type {
   V3HistoricalPricesResponse,
   // Token API types
   TokenMetadata,
+  TokenListQueryOptions,
+  TokenV2SupportedNetworksResponse,
   V1TokenDescriptionResponse,
   NetworkInfo,
   TopAsset,

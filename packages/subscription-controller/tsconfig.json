@@ -2,9 +2,6 @@
   "extends": "../../tsconfig.packages.json",
   "references": [
     {
-      "path": "../approval-controller"
-    },
-    {
       "path": "../authenticated-user-storage"
     },
     {
@@ -21,6 +18,9 @@
     },
     {
       "path": "../delegation-controller"
+    },
+    {
+      "path": "../geolocation-controller"
     },
     {
       "path": "../messenger"

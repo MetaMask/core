@@ -1,4 +1,3 @@
-import type { ApprovalController } from '@metamask/approval-controller';
 import type { AuthenticatedUserStorageService } from '@metamask/authenticated-user-storage';
 import type {
   ChompApiService,
@@ -17,7 +16,6 @@ import {
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
-import { getMoneyAccountDepositAssetAddress } from '@metamask/money-account-utils';
 import type { Hex } from '@metamask/utils';
 
 import {
@@ -53,10 +51,7 @@ import type {
   PrepareSubscriptionDelegationRequest,
   StartSubscriptionWithDelegationRequest,
 } from './types.js';
-import {
-  CASH_SUBSCRIPTION_DELEGATION_TYPE,
-  SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
-} from './types.js';
+import { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './types.js';
 
 const TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
 const DELEGATE = '0x4444444444444444444444444444444444444444' as Hex;
@@ -203,8 +198,6 @@ type CreateIntentsArgs = Parameters<ChompApiService['createIntents']>;
 
 type CreateIntentsResult = ReturnType<ChompApiService['createIntents']>;
 
-type AddApprovalRequestArgs = Parameters<ApprovalController['addRequest']>;
-
 type StartSubscriptionWithCryptoArgs = Parameters<
   SubscriptionController['startSubscriptionWithCrypto']
 >;
@@ -228,7 +221,6 @@ type Mocks = {
   getPricing: jest.Mock;
   getSubscriptions: jest.Mock;
   getSubscriptionState: jest.Mock;
-  addApprovalRequest: jest.Mock<Promise<unknown>, AddApprovalRequestArgs>;
   forceUpgradeAccount: jest.Mock;
   startSubscriptionWithCrypto: jest.Mock<
     StartSubscriptionWithCryptoResult,
@@ -245,7 +237,6 @@ function setup(
     remoteFeatureFlags?: Record<string, unknown>;
     balance?: typeof SUFFICIENT_BALANCE;
     pricing?: PricingResponse;
-    approvalResult?: unknown;
     trialedProducts?: ProductType[];
     subscriptions?: Subscription[];
   } = {},
@@ -287,13 +278,6 @@ function setup(
         PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
       ],
     }),
-    addApprovalRequest: jest
-      .fn<Promise<unknown>, AddApprovalRequestArgs>()
-      .mockImplementation(async () => ({
-        value: options.approvalResult ?? {
-          fundingTransactionHash: `0x${'ef'.repeat(32)}`,
-        },
-      })),
     forceUpgradeAccount: jest.fn().mockResolvedValue(undefined),
     startSubscriptionWithCrypto: jest
       .fn<StartSubscriptionWithCryptoResult, StartSubscriptionWithCryptoArgs>()
@@ -352,10 +336,6 @@ function setup(
     | {
         type: 'SubscriptionController:getState';
         handler: Mocks['getSubscriptionState'];
-      }
-    | {
-        type: 'ApprovalController:addRequest';
-        handler: Mocks['addApprovalRequest'];
       }
     | {
         type: 'MoneyAccountUpgradeController:forceUpgradeAccount';
@@ -429,10 +409,6 @@ function setup(
     mocks.getSubscriptionState,
   );
   rootMessenger.registerActionHandler(
-    'ApprovalController:addRequest',
-    mocks.addApprovalRequest,
-  );
-  rootMessenger.registerActionHandler(
     'MoneyAccountUpgradeController:forceUpgradeAccount',
     mocks.forceUpgradeAccount,
   );
@@ -460,7 +436,6 @@ function setup(
       'SubscriptionController:getPricing',
       'SubscriptionController:getSubscriptions',
       'SubscriptionController:getState',
-      'ApprovalController:addRequest',
       'MoneyAccountUpgradeController:forceUpgradeAccount',
       'SubscriptionController:startSubscriptionWithCrypto',
     ],
@@ -471,7 +446,7 @@ function setup(
     messenger,
   });
 
-  return { service, rootMessenger, mocks };
+  return { service, rootMessenger, messenger, mocks };
 }
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -1188,55 +1163,33 @@ describe('SubscriptionDelegationService', () => {
   });
 
   describe('startSubscriptionWithDelegation', () => {
-    it('approves the immutable bundle, ensures readiness, commits payment permission, and starts the subscription', async () => {
-      const { service, mocks } = setup();
+    it('ensures readiness, commits payment permission, and starts the subscription without requesting approval', async () => {
+      const { service, mocks, messenger } = setup();
+      const callSpy = jest.spyOn(messenger, 'call');
 
       const result =
         await service.startSubscriptionWithDelegation(START_REQUEST);
 
-      expect(mocks.addApprovalRequest).toHaveBeenCalledTimes(1);
-      const [approvalRequest, shouldShowRequest] =
-        mocks.addApprovalRequest.mock.calls[0];
-      expect(shouldShowRequest).toBe(true);
-      expect(approvalRequest).toMatchObject({
-        origin: 'metamask',
-        type: SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
-        expectsResult: true,
-        requestData: {
-          bundle: {
-            account: PAYER,
-            chainId: CHAIN_ID,
-            permissions: [
-              {
-                id: CASH_SUBSCRIPTION_DELEGATION_TYPE,
-                owner: 'subscription',
-                disposition: 'new',
-              },
-            ],
-          },
-          funding: {
-            useCase: 'subscription',
-            destinationAccount: PAYER,
-            chainId: CHAIN_ID,
-            targetToken: {
-              symbol: 'mUSD',
-              address: getMoneyAccountDepositAssetAddress(CHAIN_ID),
-            },
-            targetAmount: '30000000',
-          },
-        },
-      });
-      expect(approvalRequest.requestData?.bundle).not.toHaveProperty(
-        'subscriptionIdempotencyKey',
+      const calledActions = callSpy.mock.calls.map(([action]) => action);
+      expect(calledActions).toContain(
+        'SubscriptionController:getSubscriptions',
       );
+      expect(calledActions).not.toContain('ApprovalController:addRequest');
+      expect(mocks.getSubscriptions).toHaveBeenCalledTimes(1);
       expect(mocks.forceUpgradeAccount).toHaveBeenCalledTimes(1);
       expect(mocks.forceUpgradeAccount).toHaveBeenCalledWith(PAYER);
+      expect(mocks.getSubscriptions.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.forceUpgradeAccount.mock.invocationCallOrder[0],
+      );
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       expect(
         mocks.forceUpgradeAccount.mock.invocationCallOrder[0],
-      ).toBeLessThan(mocks.addApprovalRequest.mock.invocationCallOrder[0]);
-      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      ).toBeLessThan(mocks.signDelegation.mock.invocationCallOrder[0]);
       const [persisted] = mocks.createDelegation.mock.calls[0];
       expect(persisted.metadata.delegationHash).toMatch(/^0x[0-9a-f]{64}$/u);
+      expect(mocks.signDelegation.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.createDelegation.mock.invocationCallOrder[0],
+      );
       expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith({
         products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
         isTrialRequested: false,
@@ -1249,6 +1202,9 @@ describe('SubscriptionDelegationService', () => {
         delegationHash: persisted.metadata.delegationHash,
         assertTrialEligibility: true,
       });
+      expect(mocks.createDelegation.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.startSubscriptionWithCrypto.mock.invocationCallOrder[0],
+      );
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
       expect(result).toStrictEqual(STARTED_SUBSCRIPTION);
     });
@@ -1301,19 +1257,6 @@ describe('SubscriptionDelegationService', () => {
 
       expect(mocks.signDelegation).not.toHaveBeenCalled();
       expect(mocks.createDelegation).not.toHaveBeenCalled();
-      const [approvalRequest] = mocks.addApprovalRequest.mock.calls[0];
-      expect(approvalRequest).toMatchObject({
-        requestData: {
-          bundle: {
-            permissions: [
-              {
-                disposition: 'reused',
-                existingDelegationHash: newer.metadata.delegationHash,
-              },
-            ],
-          },
-        },
-      });
       expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
         expect.objectContaining({
           delegationHash: newer.metadata.delegationHash,
@@ -1321,7 +1264,7 @@ describe('SubscriptionDelegationService', () => {
       );
     });
 
-    it('rejects when a reusable payment permission disappears after approval', async () => {
+    it('rejects when a reusable payment permission disappears before commit', async () => {
       const stored = buildStoredDelegation();
       const { service, mocks } = setup({ listDelegations: [stored] });
       mocks.listDelegations
@@ -1353,7 +1296,7 @@ describe('SubscriptionDelegationService', () => {
       ['trialing', SUBSCRIPTION_STATUSES.trialing],
       ['provisional', SUBSCRIPTION_STATUSES.provisional],
     ])(
-      'rejects an already %s subscription before funding or delegation side effects',
+      'rejects an already %s subscription before upgrade or delegation side effects',
       async (_name, status) => {
         const { service, mocks } = setup({
           subscriptions: [buildSubscription(status)],
@@ -1366,7 +1309,6 @@ describe('SubscriptionDelegationService', () => {
         );
         expect(mocks.getSubscriptions).toHaveBeenCalledTimes(1);
         expect(mocks.forceUpgradeAccount).not.toHaveBeenCalled();
-        expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
         expect(mocks.listDelegations).not.toHaveBeenCalled();
         expect(mocks.signDelegation).not.toHaveBeenCalled();
         expect(mocks.createDelegation).not.toHaveBeenCalled();
@@ -1398,7 +1340,7 @@ describe('SubscriptionDelegationService', () => {
       expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledTimes(1);
     });
 
-    it('stops before approval when Money Account delegations cannot be made ready', async () => {
+    it('stops before signing when Money Account delegations cannot be made ready', async () => {
       const { service, mocks } = setup();
       mocks.forceUpgradeAccount.mockRejectedValue(
         new Error('MoneyAccountUpgradeController is not bootstrapped'),
@@ -1407,78 +1349,22 @@ describe('SubscriptionDelegationService', () => {
       await expect(
         service.startSubscriptionWithDelegation(START_REQUEST),
       ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
-      expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
       expect(mocks.signDelegation).not.toHaveBeenCalled();
       expect(mocks.startSubscriptionWithCrypto).not.toHaveBeenCalled();
     });
 
-    it('rejects an approval result without a funding transaction hash before signing', async () => {
-      const { service, mocks } = setup();
-      mocks.addApprovalRequest.mockResolvedValue({ value: {} });
-
-      await expect(
-        service.startSubscriptionWithDelegation(START_REQUEST),
-      ).rejects.toThrow(
-        SubscriptionDelegationServiceErrorMessage.InvalidFundingTransactionHash,
-      );
-      expect(mocks.signDelegation).not.toHaveBeenCalled();
-    });
-
-    it('reports post-approval success through ApprovalController callbacks', async () => {
-      const { service, mocks } = setup();
-      const success = jest.fn();
-      const error = jest.fn();
-      mocks.addApprovalRequest.mockResolvedValue({
-        value: {
-          fundingTransactionHash: `0x${'ef'.repeat(32)}`,
-        },
-        resultCallbacks: { success, error },
-      });
-
-      await service.startSubscriptionWithDelegation(START_REQUEST);
-
-      expect(success).toHaveBeenCalledTimes(1);
-      expect(error).not.toHaveBeenCalled();
-    });
-
-    it('skips the approval request when skipApproval is true', async () => {
-      const { service, mocks } = setup();
-
-      const result = await service.startSubscriptionWithDelegation({
-        ...START_REQUEST,
-        skipApproval: true,
-      });
-
-      expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
-      expect(mocks.forceUpgradeAccount).toHaveBeenCalledWith(PAYER);
-      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledTimes(1);
-      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
-        expect.objectContaining({
-          cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
-          payerAddress: PAYER,
-        }),
-      );
-      expect(result).toStrictEqual(STARTED_SUBSCRIPTION);
-    });
-
-    it('propagates downstream errors when skipApproval is true', async () => {
+    it('propagates downstream errors', async () => {
       const { service, mocks } = setup();
       mocks.startSubscriptionWithCrypto.mockRejectedValue(
         new Error('backend unavailable'),
       );
 
       await expect(
-        service.startSubscriptionWithDelegation({
-          ...START_REQUEST,
-          skipApproval: true,
-        }),
+        service.startSubscriptionWithDelegation(START_REQUEST),
       ).rejects.toThrow('backend unavailable');
-      expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
     });
 
-    it('does not approve or sign when the requested chain differs from Money Account', async () => {
+    it('does not sign when the requested chain differs from Money Account', async () => {
       const { service, mocks } = setup();
 
       await expect(
@@ -1489,7 +1375,6 @@ describe('SubscriptionDelegationService', () => {
       ).rejects.toThrow(
         SubscriptionDelegationServiceErrorMessage.ChainMismatch,
       );
-      expect(mocks.addApprovalRequest).not.toHaveBeenCalled();
       expect(mocks.signDelegation).not.toHaveBeenCalled();
     });
 
@@ -1516,31 +1401,6 @@ describe('SubscriptionDelegationService', () => {
         SubscriptionDelegationServiceErrorMessage.UnsupportedProduct,
       );
       expect(mocks.getPricing).not.toHaveBeenCalled();
-    });
-
-    it('rejects a missing approval value', async () => {
-      const { service, mocks } = setup();
-      mocks.addApprovalRequest.mockResolvedValue({});
-
-      await expect(
-        service.startSubscriptionWithDelegation(START_REQUEST),
-      ).rejects.toThrow(
-        SubscriptionDelegationServiceErrorMessage.ApprovalResultMissing,
-      );
-    });
-
-    it.each([
-      ['non-string funding hash', { fundingTransactionHash: 1 }],
-      ['non-hex funding hash', { fundingTransactionHash: 'not-a-hash' }],
-      ['wrong-length funding hash', { fundingTransactionHash: '0x1234' }],
-    ])('rejects an approval with a %s', async (_name, invalidValue) => {
-      const { service } = setup({ approvalResult: invalidValue });
-
-      await expect(
-        service.startSubscriptionWithDelegation(START_REQUEST),
-      ).rejects.toThrow(
-        SubscriptionDelegationServiceErrorMessage.InvalidFundingTransactionHash,
-      );
     });
 
     it.each([

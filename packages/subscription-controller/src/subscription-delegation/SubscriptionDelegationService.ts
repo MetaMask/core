@@ -1,8 +1,4 @@
 import type {
-  AddResult,
-  ApprovalControllerAddRequestAction,
-} from '@metamask/approval-controller';
-import type {
   DelegationResponse,
   AuthenticatedUserStorageServiceCreateDelegationAction,
   AuthenticatedUserStorageServiceListDelegationsAction,
@@ -12,7 +8,6 @@ import type {
   ChompApiServiceGetIntentsByAddressAction,
   ChompApiServiceVerifyDelegationAction,
 } from '@metamask/chomp-api-service';
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type { DelegationControllerSignDelegationAction } from '@metamask/delegation-controller';
 import { hashDelegation } from '@metamask/delegation-core';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
@@ -20,12 +15,11 @@ import type { Messenger } from '@metamask/messenger';
 import type { MoneyAccountBalanceServiceFetchBalanceWithFallbackAction } from '@metamask/money-account-balance-service';
 import type { MoneyAccountUpgradeControllerForceUpgradeAccountAction } from '@metamask/money-account-upgrade-controller';
 import {
-  getMoneyAccountDepositAssetAddress,
   getMoneyAccountVaultConfig,
   MUSD_DECIMALS,
 } from '@metamask/money-account-utils';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import { add0x, hexToNumber, isStrictHexString } from '@metamask/utils';
+import { add0x, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import {
@@ -69,21 +63,15 @@ import type {
   MoneyAccountBalanceCheckRequest,
   MoneyAccountBalanceCheckResult,
   PrepareSubscriptionDelegationRequest,
-  PreparedSubscriptionDelegationBundle,
   PreparedSubscriptionPermission,
   PreparedSubscriptionDelegation,
   SignedSubscriptionDelegation,
   StartSubscriptionWithDelegationRequest,
   StartSubscriptionWithDelegationResult,
-  SubscriptionDelegationApprovalResult,
   SubscriptionDelegationEnforcers,
   UnsignedSubscriptionDelegation,
 } from './types.js';
-import {
-  CASH_SUBSCRIPTION_DELEGATION_TYPE,
-  SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
-  SUBSCRIPTION_DELEGATION_POLICY_VERSION,
-} from './types.js';
+import { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './types.js';
 
 /**
  * The name of the {@link SubscriptionDelegationService}, used to namespace the
@@ -141,7 +129,6 @@ type AllowedActions =
   | ChompApiServiceCreateIntentsAction
   | ChompApiServiceGetIntentsByAddressAction
   | DelegationControllerSignDelegationAction
-  | ApprovalControllerAddRequestAction
   | MoneyAccountUpgradeControllerForceUpgradeAccountAction
   | MoneyAccountBalanceServiceFetchBalanceWithFallbackAction
   | RemoteFeatureFlagControllerGetStateAction
@@ -189,7 +176,6 @@ type ResolvedSubscriptionDelegationConfig = {
   delegationManager: Hex;
   paymentAddress: Hex;
   enforcers: SubscriptionDelegationEnforcers;
-  musdAddress: Hex;
   price: ProductPrice;
   token: TokenPaymentInfo;
 };
@@ -275,22 +261,17 @@ export class SubscriptionDelegationService {
    * Runs the complete Money Account subscription checkout authorization flow.
    *
    * Subscriptions are refreshed first. An active subscription for the product
-   * is rejected before Money Account upgrade, approval, delegation signing,
-   * persistence, or CHOMP registration.
+   * is rejected before Money Account upgrade, delegation signing, persistence,
+   * or CHOMP registration.
    *
-   * Before the approval, `MoneyAccountUpgradeController` is asked to ensure
-   * the Money Account vault delegations and CHOMP intents exist; the
-   * Subscription API validates them server-side. The custom approval is the
-   * sole consent and funding boundary for the payment permission. No payment
-   * delegation signing, persistence, or intent mutation occurs before it
-   * returns a funding transaction hash.
+   * The caller must obtain user consent and initiate funding before calling.
+   * `MoneyAccountUpgradeController` ensures the Money Account vault
+   * delegations and CHOMP intents exist. The Subscription API validates those
+   * delegations and the Money Account balance server-side. No payment
+   * delegation signing, persistence, or intent mutation occurs before the
+   * account is upgraded.
    *
-   * When `request.skipApproval` is `true`, the approval request and its
-   * result validation are skipped and the flow proceeds directly to signing.
-   * The caller is then responsible for consent and funding.
-   *
-   * @param request - Product selection, Money Account identity, and optional
-   * `skipApproval` flag.
+   * @param request - Product selection and Money Account identity.
    * @returns The result from `SubscriptionController:startSubscriptionWithCrypto`.
    */
   async startSubscriptionWithDelegation(
@@ -330,60 +311,34 @@ export class SubscriptionDelegationService {
       config,
       isTrialRequested,
     );
-    const bundle: PreparedSubscriptionDelegationBundle = {
-      policyVersion: SUBSCRIPTION_DELEGATION_POLICY_VERSION,
-      account: request.payerAddress,
-      chainId: request.chainId,
-      permissions: [paymentPermission],
-    };
-    const approval = request.skipApproval
-      ? undefined
-      : await this.#requestApproval({
-          request,
-          price: config.price,
-          musdAddress: config.musdAddress,
-          bundle,
-        });
-
-    try {
-      if (approval) {
-        this.#validateApprovalResult(approval);
-      }
-
-      const paymentDelegation = await this.#signPaymentPermissionIfRequired(
-        paymentPermission,
-        config,
-      );
-      const paymentDelegationHash = await this.#commitPaymentPermission({
-        request,
-        paymentPermission,
-        paymentDelegation,
-        config,
-      });
-      const result = await this.#messenger.call(
-        'SubscriptionController:startSubscriptionWithCrypto',
-        {
-          products: [request.product],
-          isTrialRequested,
-          recurringInterval: request.recurringInterval,
-          billingCycles: config.price.minBillingCycles,
-          chainId: request.chainId,
-          payerAddress: request.payerAddress,
-          tokenSymbol: config.token.symbol,
-          cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
-          delegationHash: paymentDelegationHash,
-          // Reject if eligibility changed during approval, because the signed
-          // delegation start date was derived from the original trial state.
-          // This local guard is removed before the backend request.
-          assertTrialEligibility: true,
-        },
-      );
-      approval?.resultCallbacks?.success();
-      return result;
-    } catch (error) {
-      approval?.resultCallbacks?.error(error as Error);
-      throw error;
-    }
+    const paymentDelegation = await this.#signPaymentPermissionIfRequired(
+      paymentPermission,
+      config,
+    );
+    const paymentDelegationHash = await this.#commitPaymentPermission({
+      request,
+      paymentPermission,
+      paymentDelegation,
+      config,
+    });
+    return await this.#messenger.call(
+      'SubscriptionController:startSubscriptionWithCrypto',
+      {
+        products: [request.product],
+        isTrialRequested,
+        recurringInterval: request.recurringInterval,
+        billingCycles: config.price.minBillingCycles,
+        chainId: request.chainId,
+        payerAddress: request.payerAddress,
+        tokenSymbol: config.token.symbol,
+        cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+        delegationHash: paymentDelegationHash,
+        // Reject if eligibility changed during checkout, because the signed
+        // delegation start date was derived from the original trial state.
+        // This local guard is removed before the backend request.
+        assertTrialEligibility: true,
+      },
+    );
   }
 
   /**
@@ -405,48 +360,6 @@ export class SubscriptionDelegationService {
     if (alreadySubscribed) {
       throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
     }
-  }
-
-  async #requestApproval({
-    request,
-    price,
-    musdAddress,
-    bundle,
-  }: {
-    request: StartSubscriptionWithDelegationRequest;
-    price: ProductPrice;
-    musdAddress: Hex;
-    bundle: PreparedSubscriptionDelegationBundle;
-  }): Promise<AddResult> {
-    const targetAmount =
-      calculatePeriodAmount({
-        unitAmount: price.unitAmount,
-        unitDecimals: price.unitDecimals,
-        tokenDecimals: MUSD_DECIMALS,
-      }) * BigInt(price.minBillingCyclesForBalance);
-
-    return (await this.#messenger.call(
-      'ApprovalController:addRequest',
-      {
-        origin: ORIGIN_METAMASK,
-        type: SUBSCRIPTION_DELEGATION_APPROVAL_TYPE,
-        expectsResult: true,
-        requestData: {
-          bundle,
-          funding: {
-            useCase: 'subscription',
-            destinationAccount: request.payerAddress,
-            chainId: request.chainId,
-            targetToken: {
-              symbol: 'mUSD',
-              address: musdAddress,
-            },
-            targetAmount: targetAmount.toString(),
-          },
-        },
-      },
-      true,
-    )) as AddResult;
   }
 
   async #preparePaymentPermission(
@@ -518,29 +431,6 @@ export class SubscriptionDelegationService {
       ...(reusable
         ? { existingDelegationHash: reusable.metadata.delegationHash }
         : {}),
-    };
-  }
-
-  #validateApprovalResult(
-    approval: AddResult,
-  ): SubscriptionDelegationApprovalResult {
-    if (!approval?.value || typeof approval.value !== 'object') {
-      throw new Error(
-        SubscriptionDelegationServiceErrorMessage.ApprovalResultMissing,
-      );
-    }
-    const value = approval.value as Record<string, unknown>;
-    if (
-      typeof value.fundingTransactionHash !== 'string' ||
-      !isStrictHexString(value.fundingTransactionHash) ||
-      value.fundingTransactionHash.length !== 66
-    ) {
-      throw new Error(
-        SubscriptionDelegationServiceErrorMessage.InvalidFundingTransactionHash,
-      );
-    }
-    return {
-      fundingTransactionHash: value.fundingTransactionHash,
     };
   }
 
@@ -983,7 +873,6 @@ export class SubscriptionDelegationService {
           .DelegationManager,
       paymentAddress: chain.paymentAddress,
       enforcers,
-      musdAddress: getMoneyAccountDepositAssetAddress(chainId),
       price,
       token,
     };

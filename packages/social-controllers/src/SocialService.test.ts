@@ -923,6 +923,60 @@ describe('SocialService', () => {
     });
   });
 
+  describe('fetchTraderFollowing', () => {
+    const mockFollowingResponse = {
+      following: [mockProfileSummary],
+      count: 1,
+    };
+
+    it('fetches following from correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowingResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderFollowing({
+        addressOrId: '0x1234',
+      });
+
+      expect(result).toStrictEqual(mockFollowingResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/traders/0x1234/following`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTraderFollowing({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_FAILED}: 500`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ following: 'not-an-array', count: 1 }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTraderFollowing({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_INVALID_RESPONSE,
+      );
+    });
+  });
+
   describe('fetchPositionById', () => {
     it('fetches position from correct endpoint', async () => {
       mockFetch.mockResolvedValue({
@@ -1538,6 +1592,29 @@ describe('SocialService', () => {
       await service.fetchFollowing();
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('fetchMyFollowing', () => {
+    const mockFollowingResponse = {
+      following: [mockProfileSummary],
+      count: 1,
+    };
+
+    it('aliases fetchFollowing on the /users/me/following endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowingResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchMyFollowing();
+
+      expect(result).toStrictEqual(mockFollowingResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/me/following`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
     });
   });
 

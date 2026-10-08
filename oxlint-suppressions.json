@@ -915,7 +915,7 @@
       "count": 2
     },
     "typescript/unbound-method": {
-      "count": 14
+      "count": 13
     }
   },
   "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {
@@ -4668,9 +4668,6 @@
     }
   },
   "packages/perps-controller/src/providers/LighterProvider.ts": {
-    "no-useless-return": {
-      "count": 5
-    },
     "typescript/prefer-nullish-coalescing": {
       "count": 1
     }
@@ -4765,21 +4762,6 @@
     }
   },
   "packages/perps-controller/tests/src/providers/LighterProvider.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 6
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 8
-    },
-    "typescript/no-unsafe-call": {
-      "count": 3
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 21
-    },
-    "typescript/no-unsafe-return": {
-      "count": 3
-    },
     "typescript/unbound-method": {
       "count": 5
     }
@@ -5584,6 +5566,9 @@
     }
   },
   "packages/seedless-onboarding-controller/src/SeedlessOnboardingController.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    },
     "typescript/no-unsafe-argument": {
       "count": 1
     },
@@ -5947,11 +5932,6 @@
   "packages/social-controllers/src/SocialService.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 8
-    }
-  },
-  "packages/social-controllers/src/SocialService.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 12
     }
   },
   "packages/solana-test-validator-up/jest.config.cjs": {
@@ -6746,17 +6726,23 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {
+    "no-unused-vars": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
     "typescript/no-unsafe-assignment": {
-      "count": 39
+      "count": 47
     },
     "typescript/no-unsafe-call": {
-      "count": 8
+      "count": 9
     },
     "typescript/no-unsafe-member-access": {
-      "count": 8
+      "count": 9
     },
     "typescript/no-unsafe-return": {
-      "count": 1
+      "count": 2
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.ts": {
@@ -6768,14 +6754,17 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-submit.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    },
     "typescript/no-unsafe-assignment": {
-      "count": 42
+      "count": 44
     },
     "typescript/no-unsafe-call": {
-      "count": 20
+      "count": 21
     },
     "typescript/no-unsafe-member-access": {
-      "count": 23
+      "count": 29
     },
     "typescript/no-unsafe-return": {
       "count": 3
@@ -6795,18 +6784,24 @@
       "count": 108
     }
   },
-  "packages/transaction-pay-controller/src/utils/gas-station.test.ts": {
-    "typescript/no-unsafe-argument": {
+  "packages/transaction-pay-controller/src/utils/gas-payment.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
       "count": 2
     },
     "typescript/no-unsafe-assignment": {
-      "count": 6
+      "count": 7
     },
     "typescript/no-unsafe-call": {
-      "count": 5
+      "count": 16
     },
     "typescript/no-unsafe-member-access": {
-      "count": 5
+      "count": 16
+    },
+    "typescript/no-unsafe-return": {
+      "count": 3
     }
   },
   "packages/transaction-pay-controller/src/utils/gas.test.ts": {

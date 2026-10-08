@@ -71,8 +71,7 @@ describe('generateActionTypesContent', () => {
        * Union of all BarController action types.
        */
       export type BarControllerMethodActions =
-        | BarControllerMethodAAction
-        | BarControllerMethodBAction;
+        BarControllerMethodAAction | BarControllerMethodBAction;
       "
     `);
   });
