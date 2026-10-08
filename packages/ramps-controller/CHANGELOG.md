@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.3.0]
+
+### Added
+
+- Add `getPixDepositInstructions` and `listAutorampTransactions` so a client can show a PIX BR Code and poll autoramp transaction status ([#10586](https://github.com/MetaMask/core/pull/10586))
+- Add `buildBrazilMusdAutorampRequest` for a standing BRL to mUSD autoramp on Monad ([#10586](https://github.com/MetaMask/core/pull/10586))
+- Include `createdAt` on autoramp transaction summaries when MoonPay returns `created_at` ([#10586](https://github.com/MetaMask/core/pull/10586))
+
+### Fixed
+
+- `hydrateVbaOnboarding` creates that BRL to mUSD autoramp instead of posting an empty body ([#10586](https://github.com/MetaMask/core/pull/10586))
+- `hydrateVbaOnboarding` sends a stable idempotency key when creating the BRL to mUSD autoramp so a retry does not open a second route, and uses a different key when replacing a rejected or cancelled route ([#10586](https://github.com/MetaMask/core/pull/10586))
+- `getAutoramps` accepts MoonPay's paged `{ items }` list, follows `cursor` until the list is complete, and can be scoped with `customerId` ([#10586](https://github.com/MetaMask/core/pull/10586))
+- Fall back to MoonPay `recipient.address` when mapping an autoramp wallet address ([#10586](https://github.com/MetaMask/core/pull/10586))
+
 ## [26.2.0]
 
 ### Changed
@@ -680,7 +695,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.3.0...HEAD
+[26.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.2.0...@metamask/ramps-controller@26.3.0
 [26.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.1.0...@metamask/ramps-controller@26.2.0
 [26.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.1...@metamask/ramps-controller@26.1.0
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.0...@metamask/ramps-controller@26.0.1

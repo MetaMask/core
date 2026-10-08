@@ -11,7 +11,10 @@ import type { Json } from '@metamask/utils';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { AutorampStatus } from './autorampAccount.js';
+import {
+  AutorampStatus,
+  buildBrazilMusdAutorampRequest,
+} from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
   RampsControllerMessenger,
@@ -10493,6 +10496,7 @@ describe('RampsController', () => {
       hasCompletedSessionDisclaimers: jest.Mock;
       clearState: jest.Mock;
       getSessionProfile: jest.Mock;
+      getCustomerByExternalId: jest.Mock;
       getAutoramps: jest.Mock;
     };
 
@@ -10572,6 +10576,9 @@ describe('RampsController', () => {
         getSessionProfile: jest
           .fn()
           .mockResolvedValue({ canonicalProfileId: values.profileCanonicalId }),
+        getCustomerByExternalId: jest
+          .fn()
+          .mockResolvedValue({ id: 'customer-1' }),
         getAutoramps: jest.fn().mockResolvedValue([]),
       };
 
@@ -10602,6 +10609,10 @@ describe('RampsController', () => {
       rootMessenger.registerActionHandler(
         'KycController:clearState' as never,
         handlers.clearState as never,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getCustomerByExternalId' as never,
+        handlers.getCustomerByExternalId as never,
       );
       rootMessenger.registerActionHandler(
         'NeoBankService:getAutoramps' as never,
@@ -10821,7 +10832,7 @@ describe('RampsController', () => {
 
     it('registers the wallet, creates the autoramp, and marks activation ready after accepted KYC', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        registerKycHandlers(rootMessenger);
+        const handlers = registerKycHandlers(rootMessenger);
         jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
           type: 'registered',
           registration: {
@@ -10852,7 +10863,13 @@ describe('RampsController', () => {
           }),
         );
 
-        expect(createAutoramp).toHaveBeenCalledWith({});
+        expect(handlers.getAutoramps).toHaveBeenCalledWith({
+          customerId: 'customer-1',
+        });
+        expect(createAutoramp).toHaveBeenCalledWith(
+          buildBrazilMusdAutorampRequest('0xabc'),
+          { idempotencyKey: 'brl-musd-monad:customer-1:0xabc' },
+        );
       });
     });
 
@@ -10898,7 +10915,10 @@ describe('RampsController', () => {
           }),
         );
 
-        expect(createAutoramp).toHaveBeenCalledWith({});
+        expect(createAutoramp).toHaveBeenCalledWith(
+          buildBrazilMusdAutorampRequest('0xabc'),
+          { idempotencyKey: 'brl-musd-monad:customer-1:0xabc' },
+        );
       });
     });
 
@@ -10991,7 +11011,12 @@ describe('RampsController', () => {
           walletAddress: '0xabc',
         });
 
-        expect(createAutoramp).toHaveBeenCalledWith({});
+        expect(createAutoramp).toHaveBeenCalledWith(
+          buildBrazilMusdAutorampRequest('0xabc'),
+          {
+            idempotencyKey: 'brl-musd-monad:customer-1:0xabc:autoramp-rejected',
+          },
+        );
       });
     });
 
