@@ -1472,7 +1472,8 @@ export class KeyringController<
         );
       }
 
-      const { keyring, keyringV2 } = this.#keyrings[keyringIndex];
+      const entry = this.#keyrings[keyringIndex];
+      const { keyring } = entry;
 
       const isPrimaryKeyring = keyringIndex === 0;
       const shouldRemoveKeyring = (await keyring.getAccounts()).length === 1;
@@ -1501,8 +1502,7 @@ export class KeyringController<
       await keyring.removeAccount(address as Hex);
 
       if (shouldRemoveKeyring) {
-        this.#keyrings.splice(keyringIndex, 1);
-        await this.#destroyKeyring(keyring, keyringV2);
+        await this.#removeKeyringEntry(entry);
       }
     });
 
@@ -3330,6 +3330,38 @@ export class KeyringController<
   }
 
   /**
+   * Remove the given keyring entry from the keyrings, destroying its
+   * instances. A no-op for an entry that is not registered anymore: a
+   * missing entry must not fall back to deleting the last keyring
+   * (`splice(-1, 1)`).
+   *
+   * @param entry - The keyring entry to remove.
+   */
+  async #removeKeyringEntry(entry: KeyringEntry): Promise<void> {
+    const index = this.#keyrings.indexOf(entry);
+    if (index === -1) {
+      return;
+    }
+
+    this.#keyrings.splice(index, 1);
+    await this.#destroyKeyring(entry.keyring, entry.keyringV2);
+  }
+
+  /**
+   * Remove the given keyring entry from the keyrings, destroying its
+   * instances, logging instead of throwing on destruction failure.
+   *
+   * @param entry - The keyring entry to remove.
+   */
+  async #removeKeyringEntryIgnoringErrors(entry: KeyringEntry): Promise<void> {
+    try {
+      await this.#removeKeyringEntry(entry);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  /**
    * Assert that there are no duplicate accounts in the keyrings.
    *
    * @param additionalKeyrings - Additional keyrings to include in the check.
@@ -3464,8 +3496,7 @@ export class KeyringController<
           isEmpty &&
           !this.#isPrimaryKeyring(entry, this.#keyrings)
         ) {
-          this.#keyrings.splice(this.#keyrings.indexOf(entry), 1);
-          await this.#destroyKeyring(entry.keyring, entry.keyringV2);
+          await this.#removeKeyringEntry(entry);
         }
 
         // The vault is updated only if the operated keyring changed.
@@ -3485,7 +3516,8 @@ export class KeyringController<
 
   /**
    * Check whether the keyring entry operated on by a scoped transaction has
-   * changed relative to its snapshot.
+   * changed relative to its snapshot. The operated keyring is resolved by
+   * identity: another keyring sharing its id must not affect the decision.
    *
    * @param entry - The operated keyring entry.
    * @param snapshot - The pre-operation snapshot, or `undefined` if the
@@ -3501,13 +3533,12 @@ export class KeyringController<
       return true;
     }
 
-    const old = this.#getKeyringEntryById(entry.metadata.id);
-    // The old keyring was removed by the drained-keyring cleanup.
-    if (!old) {
+    // The operated keyring was removed by the drained-keyring cleanup.
+    if (!this.#keyrings.includes(entry)) {
       return true;
     }
 
-    return !(await this.#isKeyringUnchanged(old, snapshot));
+    return !(await this.#isKeyringUnchanged(entry, snapshot));
   }
 
   /**
@@ -3537,10 +3568,7 @@ export class KeyringController<
 
     if (!snapshot) {
       // The failed transaction created the keyring: destroy it and drop it.
-      if (index !== -1) {
-        this.#keyrings.splice(index, 1);
-        await this.#destroyKeyringIgnoringErrors(old);
-      }
+      await this.#removeKeyringEntryIgnoringErrors(old);
       return;
     }
 
