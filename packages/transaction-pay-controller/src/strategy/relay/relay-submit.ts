@@ -206,6 +206,23 @@ async function executeSingleQuote(
     }
   }
 
+  // Non-atomic flow: the quote bridged funds to `recipient` without embedding
+  // the second leg. Now that Relay has settled, resolve the settled amount from
+  // the on-chain Transfer log and submit the second-leg batch (approve + vault
+  // deposit) sponsored from `recipient`.
+  const { transactionHash: secondLegHash } =
+    quote.request.atomic === false && completion.status === 'success'
+      ? await submitPostNonAtomic({
+          completion,
+          messenger,
+          quote,
+          submittedSourceHash,
+          transaction,
+        })
+      : {};
+
+  // Only complete once every leg has landed, so a failed second leg does not
+  // leave the parent transaction flagged as achieved.
   updateTransaction(
     {
       transactionId: transaction.id,
@@ -217,23 +234,7 @@ async function executeSingleQuote(
     },
   );
 
-  // Non-atomic flow: the quote bridged funds to `recipient` without embedding
-  // the second leg. Now that Relay has settled, resolve the settled amount from
-  // the on-chain Transfer log and submit the second-leg batch (approve + vault
-  // deposit) sponsored from `recipient`.
-  if (quote.request.atomic === false && completion.status === 'success') {
-    const { transactionHash } = await submitPostNonAtomic({
-      completion,
-      messenger,
-      quote,
-      submittedSourceHash,
-      transaction,
-    });
-
-    return { transactionHash: transactionHash ?? completion.targetHash };
-  }
-
-  return { transactionHash: completion.targetHash };
+  return { transactionHash: secondLegHash ?? completion.targetHash };
 }
 
 /**

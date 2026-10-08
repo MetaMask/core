@@ -2028,6 +2028,32 @@ describe('Relay Submit Utils', () => {
         expect(result).toStrictEqual({ transactionHash: VAULT_HASH_MOCK });
       });
 
+      it('marks the intent complete only after the second leg is submitted', async () => {
+        await submitRelayQuotes(request);
+
+        const completionIndex = updateTransactionMock.mock.calls.findIndex(
+          ([{ note }]) => note === 'Intent complete after Relay completion',
+        );
+
+        expect(completionIndex).not.toBe(-1);
+        expect(
+          updateTransactionMock.mock.invocationCallOrder[completionIndex],
+        ).toBeGreaterThan(submitSecondLegMock.mock.invocationCallOrder[0]);
+      });
+
+      it('does not mark the intent complete when the second leg fails', async () => {
+        submitSecondLegMock.mockRejectedValue(new Error('Second leg failed'));
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Second leg failed',
+        );
+
+        const completionUpdate = updateTransactionMock.mock.calls.find(
+          ([{ note }]) => note === 'Intent complete after Relay completion',
+        );
+        expect(completionUpdate).toBeUndefined();
+      });
+
       it('passes settlementHash as undefined when targetHash is FALLBACK_HASH', async () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
