@@ -1,5 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import { BrokenCircuitError } from '@metamask/controller-utils';
+import { BrokenCircuitError, HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -14,7 +14,6 @@ import * as path from 'path';
 import {
   AutorampStatus,
   buildBrazilMusdAutorampRequest,
-  buildMusdAutorampRequest,
 } from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
@@ -153,6 +152,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "moneyAccountWalletRegistrations": [],
             "nativeProviders": {
               "transak": {
                 "buyQuote": {
@@ -198,6 +198,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "vbaAutorampListFetchedAt": null,
           }
         `);
       });
@@ -230,6 +231,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "moneyAccountWalletRegistrations": [],
             "nativeProviders": {
               "transak": {
                 "buyQuote": {
@@ -275,6 +277,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "vbaAutorampListFetchedAt": null,
           }
         `);
       });
@@ -2602,6 +2605,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "moneyAccountWalletRegistrations": [],
             "nativeProviders": {
               "transak": {
                 "buyQuote": {
@@ -2647,6 +2651,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "vbaAutorampListFetchedAt": null,
           }
         `);
       });
@@ -2669,6 +2674,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "moneyAccountWalletRegistrations": [],
             "orders": [],
             "paymentMethods": {
               "data": [],
@@ -2706,9 +2712,11 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           {
             "autoramps": [],
+            "moneyAccountWalletRegistrations": [],
             "orders": [],
             "providerAutoSelected": false,
             "userRegion": null,
+            "vbaAutorampListFetchedAt": null,
           }
         `);
       });
@@ -2731,6 +2739,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "moneyAccountWalletRegistrations": [],
             "nativeProviders": {
               "transak": {
                 "buyQuote": {
@@ -2776,6 +2785,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "vbaAutorampListFetchedAt": null,
           }
         `);
       });
@@ -10181,6 +10191,76 @@ describe('RampsController', () => {
       });
     });
 
+    it('uses a different idempotency key for USD and BRL creates', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () => ({
+            identifierId: 'id-1',
+            profileId: 'profile-1',
+            canonicalProfileId: 'canonical-1',
+            metaMetricsId: 'mm-1',
+          }),
+        );
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getCustomerByExternalId',
+          async () => ({ id: 'cust-99' }),
+        );
+        const createAutoramp = jest.fn().mockResolvedValue({
+          id: 'ar-new',
+          customerId: 'cust-99',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Created,
+        });
+        rootMessenger.registerActionHandler(
+          'NeoBankService:createAutoramp',
+          createAutoramp,
+        );
+        controller.addAutoramp({
+          id: 'autoramp-cancelled',
+          customerId: 'cust-99',
+          walletAddress: '0xAbC',
+          status: AutorampStatus.Cancelled,
+        });
+
+        const usdRequest = {
+          ...buildBrazilMusdAutorampRequest('0xAbC'),
+          source_currencies: [{ type: 'Fiat', code: ' USD ' }],
+        };
+
+        await controller.createAutoramp(
+          buildBrazilMusdAutorampRequest('0xAbC'),
+          {
+            idempotencyKey: 'brl-musd-monad:cust-99:0xabc',
+          },
+        );
+        await controller.createAutoramp(usdRequest, {
+          idempotencyKey: 'brl-musd-monad:cust-99:0xabc',
+        });
+
+        expect(createAutoramp).toHaveBeenNthCalledWith(
+          1,
+          expect.objectContaining({
+            customer_id: 'cust-99',
+            source_currencies: [{ type: 'Fiat', code: 'BRL' }],
+          }),
+          {
+            idempotencyKey: 'brl-musd-monad:cust-99:0xabc:autoramp-cancelled',
+          },
+        );
+        expect(createAutoramp).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({
+            customer_id: 'cust-99',
+            source_currencies: [{ type: 'Fiat', code: ' USD ' }],
+          }),
+          {
+            idempotencyKey: 'usd-musd-monad:cust-99:0xabc:autoramp-cancelled',
+          },
+        );
+      });
+    });
+
     it('prefers canonicalProfileId when resolving the external customer id', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
@@ -10490,8 +10570,8 @@ describe('RampsController', () => {
     };
 
     type KycHandlers = {
-      getSessionStatusForVendor: jest.Mock;
-      refreshSessionStatus: jest.Mock;
+      readSessionStatus: jest.Mock;
+      fetchSessionStatusOnce: jest.Mock;
       getProviderFlowStatus: jest.Mock;
       hasCompletedVendorDisclaimers: jest.Mock;
       hasCompletedSessionDisclaimers: jest.Mock;
@@ -10499,25 +10579,19 @@ describe('RampsController', () => {
       getSessionProfile: jest.Mock;
       getCustomerByExternalId: jest.Mock;
       getAutoramps: jest.Mock;
+      signPersonalMessage: jest.Mock;
+      registerSelfHostedWallet: jest.Mock;
     };
 
     type KycValues = {
       /**
-       * Session status resolved by the KYC controller. `null` means no session
-       * exists yet (start onboarding at the email step).
+       * Persisted session status. `null` means no session is stored.
        */
       session: KycSession | null;
       /**
-       * When `true`, `KycController:refreshSessionStatus` throws (no session in
-       * controller state), so hydration falls back to the backend
-       * `getSessionStatusForVendor` fetch.
+       * Session returned by the one-shot status GET. Defaults to `session`.
        */
-      refreshThrows: boolean;
-      /**
-       * When `true`, the `getSessionStatusForVendor` fallback rejects with a
-       * 404-style error (treated as "no session").
-       */
-      getSessionRejects: boolean;
+      fetchedSession: KycSession | null;
       providerFlowStatus: 'not_started' | 'submitted' | 'abandoned' | 'failed';
       vendorDisclaimersCompleted: boolean;
       sessionDisclaimersCompleted: boolean;
@@ -10539,31 +10613,20 @@ describe('RampsController', () => {
     ): KycHandlers => {
       const values: KycValues = {
         session: approvedSession,
-        refreshThrows: false,
-        getSessionRejects: false,
+        fetchedSession: null,
         providerFlowStatus: 'not_started',
         vendorDisclaimersCompleted: true,
         sessionDisclaimersCompleted: true,
         profileCanonicalId: CANONICAL_PROFILE_ID,
         ...overrides,
       };
-
-      const refreshSessionStatus = jest.fn(() => {
-        if (values.refreshThrows) {
-          throw new Error('no session in state');
-        }
-        return values.session;
-      });
-      const getSessionStatusForVendor = jest.fn(async () => {
-        if (values.getSessionRejects) {
-          throw new Error('KYC session not found');
-        }
-        return values.session;
-      });
+      if (overrides.fetchedSession === undefined) {
+        values.fetchedSession = values.session;
+      }
 
       const handlers: KycHandlers = {
-        getSessionStatusForVendor,
-        refreshSessionStatus,
+        readSessionStatus: jest.fn(() => values.session),
+        fetchSessionStatusOnce: jest.fn(async () => values.fetchedSession),
         getProviderFlowStatus: jest
           .fn()
           .mockReturnValue(values.providerFlowStatus),
@@ -10581,6 +10644,8 @@ describe('RampsController', () => {
           .fn()
           .mockResolvedValue({ id: 'customer-1' }),
         getAutoramps: jest.fn().mockResolvedValue([]),
+        signPersonalMessage: jest.fn().mockResolvedValue('0xsig'),
+        registerSelfHostedWallet: jest.fn(),
       };
 
       rootMessenger.registerActionHandler(
@@ -10588,12 +10653,20 @@ describe('RampsController', () => {
         handlers.getSessionProfile as never,
       );
       rootMessenger.registerActionHandler(
-        'KycController:getSessionStatusForVendor' as never,
-        handlers.getSessionStatusForVendor as never,
+        'KycController:readSessionStatus' as never,
+        handlers.readSessionStatus as never,
       );
       rootMessenger.registerActionHandler(
-        'KycController:refreshSessionStatus' as never,
-        handlers.refreshSessionStatus as never,
+        'KycController:fetchSessionStatusOnce' as never,
+        handlers.fetchSessionStatusOnce as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KeyringController:signPersonalMessage' as never,
+        handlers.signPersonalMessage as never,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:registerSelfHostedWallet' as never,
+        handlers.registerSelfHostedWallet as never,
       );
       rootMessenger.registerActionHandler(
         'KycController:getProviderFlowStatus' as never,
@@ -10656,13 +10729,8 @@ describe('RampsController', () => {
 
     it.each([
       {
-        name: 'an empty snapshot when no session exists in state or on the backend',
-        overrides: { refreshThrows: true, session: null },
-        expected: emptySnapshot(),
-      },
-      {
-        name: 'an empty snapshot when the backend session lookup 404s',
-        overrides: { refreshThrows: true, getSessionRejects: true },
+        name: 'an empty snapshot when no session is persisted',
+        overrides: { session: null },
         expected: emptySnapshot(),
       },
       {
@@ -10709,6 +10777,17 @@ describe('RampsController', () => {
         overrides: { session: sessionWithStatus('rejected') },
         expected: factsSnapshot({ kycStatus: 'rejected' }),
       },
+      {
+        name: 'kycStatus pending when the provider flow was submitted and KYC is not approved',
+        overrides: {
+          session: sessionWithStatus('new'),
+          providerFlowStatus: 'submitted' as const,
+        },
+        expected: factsSnapshot({
+          kycStatus: 'pending',
+          providerFlowStatus: 'submitted',
+        }),
+      },
     ])('returns $name', async ({ overrides, expected }) => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger, overrides);
@@ -10727,75 +10806,243 @@ describe('RampsController', () => {
       });
     });
 
-    it('falls back to the backend session fetch when no session is in state', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        const handlers = registerKycHandlers(rootMessenger, {
-          refreshThrows: true,
-          session: null,
-        });
-
-        expect(
-          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toStrictEqual(emptySnapshot());
-
-        expect(handlers.refreshSessionStatus).toHaveBeenCalledTimes(1);
-        expect(handlers.getSessionStatusForVendor).toHaveBeenCalledWith('iron');
-      });
-    });
-
-    it('prefers the in-state session status over the backend fetch', async () => {
+    it('reads the persisted session and does not fetch or sign when flags are omitted', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger, {
           session: sessionWithStatus('new'),
         });
+        const registerWallet = jest.spyOn(
+          controller,
+          'registerMoneyAccountWallet',
+        );
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
         ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
 
-        expect(handlers.refreshSessionStatus).toHaveBeenCalledTimes(1);
-        expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+        expect(handlers.readSessionStatus).toHaveBeenCalledTimes(1);
+        expect(handlers.fetchSessionStatusOnce).not.toHaveBeenCalled();
+        expect(handlers.getAutoramps).not.toHaveBeenCalled();
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
+        expect(registerWallet).not.toHaveBeenCalled();
+        expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('refreshKyc performs one session-status GET and does not poll', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('pending'),
+          fetchedSession: sessionWithStatus('approved'),
+        });
+        const registerWallet = jest.spyOn(
+          controller,
+          'registerMoneyAccountWallet',
+        );
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+
+        expect(
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+            refreshKyc: true,
+          }),
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'needs_wallet_registration',
+          }),
+        );
+
+        expect(handlers.fetchSessionStatusOnce).toHaveBeenCalledTimes(1);
+        expect(handlers.fetchSessionStatusOnce).toHaveBeenCalledWith(
+          'session-1',
+        );
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
+        expect(handlers.getAutoramps).not.toHaveBeenCalled();
+        expect(registerWallet).not.toHaveBeenCalled();
+        expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('keeps the persisted session when the one-shot KYC GET fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('pending'),
+        });
+        handlers.fetchSessionStatusOnce.mockRejectedValue(
+          new Error('session status unavailable'),
+        );
+
+        expect(
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+            refreshKyc: true,
+          }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'pending' }));
+
+        expect(handlers.fetchSessionStatusOnce).toHaveBeenCalledTimes(1);
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        expect(handlers.clearState).not.toHaveBeenCalled();
+      });
+    });
+
+    it('clears the persisted session when the one-shot KYC GET is a 404', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('pending'),
+        });
+        handlers.fetchSessionStatusOnce.mockRejectedValue(
+          new HttpError(404, 'KYC session not found'),
+        );
+
+        expect(
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+            refreshKyc: true,
+          }),
+        ).toStrictEqual(emptySnapshot());
+
+        expect(handlers.clearState).toHaveBeenCalledTimes(1);
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not fetch session status when refreshKyc is set on a terminal session', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('approved'),
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+            refreshKyc: true,
+          }),
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'needs_wallet_registration',
+          }),
+        );
+
+        expect(handlers.fetchSessionStatusOnce).not.toHaveBeenCalled();
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
       });
     });
 
     it('discards a persisted session owned by a different profile and returns an empty snapshot', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              moneyAccountWalletRegistrations: [
+                { walletAddress: '0xabc', status: 'active', updatedAt: 1 },
+              ],
+              vbaAutorampListFetchedAt: 2,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          // A persisted session created by a previous identity: its externalUserId
+          // no longer matches the signed-in profile.
+          const handlers = registerKycHandlers(rootMessenger, {
+            session: {
+              ...approvedSession,
+              externalUserId: 'previous-identity',
+            },
+            profileCanonicalId: CANONICAL_PROFILE_ID,
+          });
+          controller.addAutoramp({
+            id: 'autoramp-previous',
+            customerId: 'customer-previous',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Approved,
+          });
+
+          expect(
+            await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+          ).toStrictEqual(emptySnapshot());
+
+          expect(handlers.clearState).toHaveBeenCalledTimes(1);
+          // The stale session is discarded before any session-scoped call runs.
+          expect(handlers.hasCompletedVendorDisclaimers).not.toHaveBeenCalled();
+          expect(
+            controller.state.moneyAccountWalletRegistrations,
+          ).toStrictEqual([]);
+          expect(controller.state.autoramps).toStrictEqual([]);
+          expect(controller.state.vbaAutorampListFetchedAt).toBeNull();
+        },
+      );
+    });
+
+    it('does not let a discarded profile leave the next approved session ready or signed', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              moneyAccountWalletRegistrations: [
+                { walletAddress: '0xabc', status: 'active', updatedAt: 1 },
+              ],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const handlers = registerKycHandlers(rootMessenger, {
+            session: {
+              ...approvedSession,
+              externalUserId: 'previous-identity',
+            },
+            profileCanonicalId: CANONICAL_PROFILE_ID,
+          });
+          controller.addAutoramp({
+            id: 'autoramp-previous',
+            customerId: 'customer-previous',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Approved,
+          });
+
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' });
+          handlers.readSessionStatus.mockReturnValue(approvedSession);
+
+          expect(
+            await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+          ).toStrictEqual(
+            factsSnapshot({
+              kycStatus: 'approved',
+              autorampStatus: 'needs_wallet_registration',
+            }),
+          );
+          expect(handlers.getAutoramps).not.toHaveBeenCalled();
+          expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not fetch a foreign persisted session', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        // A persisted session created by a previous identity: its externalUserId
-        // no longer matches the signed-in profile.
         const handlers = registerKycHandlers(rootMessenger, {
-          session: { ...approvedSession, externalUserId: 'previous-identity' },
+          session: {
+            ...sessionWithStatus('pending'),
+            externalUserId: 'previous-identity',
+          },
           profileCanonicalId: CANONICAL_PROFILE_ID,
         });
 
         expect(
-          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+            refreshKyc: true,
+            refreshAutoramps: true,
+          }),
         ).toStrictEqual(emptySnapshot());
 
         expect(handlers.clearState).toHaveBeenCalledTimes(1);
-        // The stale session is discarded before any session-scoped call runs.
-        expect(handlers.hasCompletedVendorDisclaimers).not.toHaveBeenCalled();
-      });
-    });
-
-    it('does not ownership-check a freshly-fetched session (already scoped to the user)', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        // No in-state session; the backend fetch returns a session whose
-        // externalUserId differs from the resolved profile. It must not be
-        // discarded, since the fetch is already scoped to the current user.
-        const handlers = registerKycHandlers(rootMessenger, {
-          refreshThrows: true,
-          session: {
-            ...sessionWithStatus('new'),
-            externalUserId: 'previous-identity',
-          },
-        });
-
-        expect(
-          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
-
-        expect(handlers.clearState).not.toHaveBeenCalled();
-        expect(handlers.getSessionProfile).not.toHaveBeenCalled();
+        expect(handlers.fetchSessionStatusOnce).not.toHaveBeenCalled();
+        expect(handlers.getAutoramps).not.toHaveBeenCalled();
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
       });
     });
 
@@ -10831,92 +11078,37 @@ describe('RampsController', () => {
       });
     });
 
-    it('registers the wallet and waits for a source currency when none is passed', async () => {
+    it('returns needs_wallet_registration when KYC is approved and no registration row is stored', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger);
-        const registerWallet = jest
-          .spyOn(controller, 'registerMoneyAccountWallet')
-          .mockResolvedValue({
-            type: 'registered',
-            registration: {
-              id: 'wallet-1',
-              address: '0xabc',
-              blockchain: 'Monad',
-              disabled: false,
-              isSelf: true,
-            },
-          });
-        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
-
-        expect(
-          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toStrictEqual(
-          factsSnapshot({
-            kycStatus: 'approved',
-            autorampStatus: 'needs_source_currency',
-          }),
+        const registerWallet = jest.spyOn(
+          controller,
+          'registerMoneyAccountWallet',
         );
-
-        expect(registerWallet).toHaveBeenCalledTimes(1);
-        expect(handlers.getAutoramps).toHaveBeenCalledWith({
-          customerId: 'customer-1',
-        });
-        expect(createAutoramp).not.toHaveBeenCalled();
-      });
-    });
-
-    it('creates one autoramp for the passed source currency', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        registerKycHandlers(rootMessenger);
-        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
-          type: 'registered',
-          registration: {
-            id: 'wallet-1',
-            address: '0xabc',
-            blockchain: 'Monad',
-            disabled: false,
-            isSelf: true,
-          },
-        });
-        const createAutoramp = jest
-          .spyOn(controller, 'createAutoramp')
-          .mockImplementation(async () =>
-            controller.addAutoramp({
-              id: 'autoramp-1',
-              customerId: 'customer-1',
-              walletAddress: '0xabc',
-              status: AutorampStatus.Created,
-            }),
-          );
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
 
         expect(
           await controller.hydrateVbaOnboarding({
             walletAddress: '0xabc',
-            sourceCurrencyCode: 'USD',
           }),
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
-            autorampStatus: 'ready',
+            autorampStatus: 'needs_wallet_registration',
           }),
         );
 
-        expect(createAutoramp).toHaveBeenCalledTimes(1);
-        expect(createAutoramp).toHaveBeenCalledWith(
-          buildMusdAutorampRequest('0xabc', 'USD'),
-          { idempotencyKey: 'usd-musd-monad:customer-1:0xabc' },
-        );
-        const idempotencyKey =
-          createAutoramp.mock.calls[0]?.[1]?.idempotencyKey;
-        expect(idempotencyKey).not.toBe('brl-musd-monad:customer-1:0xabc');
+        expect(handlers.getAutoramps).not.toHaveBeenCalled();
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
+        expect(registerWallet).not.toHaveBeenCalled();
+        expect(createAutoramp).not.toHaveBeenCalled();
+        expect(controller.state.vbaAutorampListFetchedAt).toBeNull();
       });
     });
 
-    it('treats a relay-approved session as approved even while the vendor finalizes', async () => {
+    it('treats a relay-approved session as approved without signing or creating', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        // The relay has approved (`kycStatus: 'approved'`) but the vendor is
-        // still finalizing (`finalStatus: 'pending'`). Activation must proceed
-        // rather than stranding the user on a pending screen.
         registerKycHandlers(rootMessenger, {
           session: {
             ...approvedSession,
@@ -10924,250 +11116,260 @@ describe('RampsController', () => {
             vendorStatus: 'new',
           },
         });
-        const registerWallet = jest
-          .spyOn(controller, 'registerMoneyAccountWallet')
-          .mockResolvedValue({
-            type: 'registered',
-            registration: {
-              id: 'wallet-1',
-              address: '0xabc',
-              blockchain: 'Monad',
-              disabled: false,
-              isSelf: true,
-            },
-          });
         const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+        const registerWallet = jest.spyOn(
+          controller,
+          'registerMoneyAccountWallet',
+        );
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
-            autorampStatus: 'needs_source_currency',
+            autorampStatus: 'needs_wallet_registration',
           }),
         );
 
-        expect(registerWallet).toHaveBeenCalledTimes(1);
         expect(createAutoramp).not.toHaveBeenCalled();
+        expect(registerWallet).not.toHaveBeenCalled();
       });
     });
 
-    it('loads an existing autoramp from the service instead of creating another', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        const handlers = registerKycHandlers(rootMessenger);
-        handlers.getAutoramps.mockResolvedValue([
+    it.each(['active', 'disabled'] as const)(
+      'returns needs_source_currency when registration is %s and no usable autoramp exists',
+      async (status) => {
+        await withController(
           {
+            options: {
+              state: {
+                moneyAccountWalletRegistrations: [
+                  { walletAddress: '0xAbC', status, updatedAt: 1 },
+                ],
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            const handlers = registerKycHandlers(rootMessenger);
+            const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+
+            expect(
+              await controller.hydrateVbaOnboarding({
+                walletAddress: '0xabc',
+                refreshAutoramps: true,
+              }),
+            ).toStrictEqual(
+              factsSnapshot({
+                kycStatus: 'approved',
+                autorampStatus: 'needs_source_currency',
+              }),
+            );
+
+            expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+            expect(createAutoramp).not.toHaveBeenCalled();
+            expect(handlers.getAutoramps).toHaveBeenCalledWith({
+              customerId: 'customer-1',
+            });
+          },
+        );
+      },
+    );
+
+    it('skips the autoramp GET when a usable autoramp is already stored', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-10-08T12:00:00.000Z'));
+      try {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handlers = registerKycHandlers(rootMessenger);
+          controller.addAutoramp({
             id: 'autoramp-1',
             customerId: 'customer-1',
             walletAddress: '0xAbC',
             status: AutorampStatus.Approved,
-          },
-        ]);
-        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
-          type: 'alreadyRegistered',
-          registration: {
-            id: 'wallet-1',
-            address: '0xabc',
-            blockchain: 'Monad',
-            disabled: false,
-            isSelf: true,
-          },
-        });
-        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+          });
+          const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+          const registerWallet = jest.spyOn(
+            controller,
+            'registerMoneyAccountWallet',
+          );
 
-        expect(
-          await controller.hydrateVbaOnboarding({
-            walletAddress: '0xabc',
-            sourceCurrencyCode: 'USD',
-          }),
-        ).toStrictEqual(
-          factsSnapshot({
-            kycStatus: 'approved',
-            autorampStatus: 'ready',
-          }),
-        );
-
-        expect(createAutoramp).not.toHaveBeenCalled();
-        expect(
-          controller.state.autoramps.map(
-            ({ updatedAt: _updatedAt, ...account }) => account,
-          ),
-        ).toMatchInlineSnapshot(`
-          [
-            {
-              "customerId": "customer-1",
-              "depositRailsSummary": undefined,
-              "id": "autoramp-1",
-              "lastSeenStatus": "Approved",
-              "status": "Approved",
-              "walletAddress": "0xAbC",
-            },
-          ]
-        `);
-      });
-    });
-
-    it('creates a new autoramp when the existing account is terminal', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        const handlers = registerKycHandlers(rootMessenger);
-        handlers.getAutoramps.mockResolvedValue([
-          {
-            id: 'autoramp-rejected',
-            customerId: 'customer-1',
-            walletAddress: '0xabc',
-            status: AutorampStatus.Rejected,
-          },
-        ]);
-        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
-          type: 'alreadyRegistered',
-          registration: {
-            id: 'wallet-1',
-            address: '0xabc',
-            blockchain: 'Monad',
-            disabled: false,
-            isSelf: true,
-          },
-        });
-        const createAutoramp = jest
-          .spyOn(controller, 'createAutoramp')
-          .mockImplementation(async () =>
-            controller.addAutoramp({
-              id: 'autoramp-new',
-              customerId: 'customer-1',
+          expect(
+            await controller.hydrateVbaOnboarding({
               walletAddress: '0xabc',
+              refreshAutoramps: true,
+            }),
+          ).toStrictEqual(
+            factsSnapshot({
+              kycStatus: 'approved',
+              autorampStatus: 'ready',
             }),
           );
 
-        await controller.hydrateVbaOnboarding({
-          walletAddress: '0xabc',
-          sourceCurrencyCode: 'BRL',
+          expect(handlers.getAutoramps).not.toHaveBeenCalled();
+          expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+          expect(registerWallet).not.toHaveBeenCalled();
+          expect(createAutoramp).not.toHaveBeenCalled();
+          expect(controller.state.vbaAutorampListFetchedAt).toBeNull();
         });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
 
-        expect(createAutoramp).toHaveBeenCalledTimes(1);
-        expect(createAutoramp).toHaveBeenCalledWith(
-          buildBrazilMusdAutorampRequest('0xabc'),
-          {
-            idempotencyKey: 'brl-musd-monad:customer-1:0xabc:autoramp-rejected',
+    it('refreshes the autoramp cursor when refreshAutoramps is set and no usable route is stored', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-10-08T12:00:00.000Z'));
+      try {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handlers = registerKycHandlers(rootMessenger);
+          handlers.getAutoramps.mockResolvedValue([
+            {
+              id: 'autoramp-1',
+              customerId: 'customer-1',
+              walletAddress: '0xAbC',
+              status: AutorampStatus.Approved,
+            },
+          ]);
+          const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+
+          expect(
+            await controller.hydrateVbaOnboarding({
+              walletAddress: '0xabc',
+              refreshAutoramps: true,
+            }),
+          ).toStrictEqual(
+            factsSnapshot({
+              kycStatus: 'approved',
+              autorampStatus: 'ready',
+            }),
+          );
+
+          expect(handlers.getAutoramps).toHaveBeenCalledTimes(1);
+          expect(createAutoramp).not.toHaveBeenCalled();
+          expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+          expect(controller.state.vbaAutorampListFetchedAt).toBe(
+            new Date('2026-10-08T12:00:00.000Z').getTime(),
+          );
+          expect(
+            controller.state.autoramps.map(
+              ({ updatedAt: _updatedAt, ...account }) => account,
+            ),
+          ).toMatchInlineSnapshot(`
+            [
+              {
+                "customerId": "customer-1",
+                "depositRailsSummary": undefined,
+                "id": "autoramp-1",
+                "lastSeenStatus": "Approved",
+                "status": "Approved",
+                "walletAddress": "0xAbC",
+              },
+            ]
+          `);
+        });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('does not create an autoramp when the stored route is terminal', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              moneyAccountWalletRegistrations: [
+                { walletAddress: '0xabc', status: 'active', updatedAt: 1 },
+              ],
+            },
           },
-        );
-      });
+        },
+        async ({ controller, rootMessenger }) => {
+          const handlers = registerKycHandlers(rootMessenger);
+          handlers.getAutoramps.mockResolvedValue([
+            {
+              id: 'autoramp-rejected',
+              customerId: 'customer-1',
+              walletAddress: '0xabc',
+              status: AutorampStatus.Rejected,
+            },
+          ]);
+          const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+
+          expect(
+            await controller.hydrateVbaOnboarding({
+              walletAddress: '0xabc',
+              refreshAutoramps: true,
+            }),
+          ).toStrictEqual(
+            factsSnapshot({
+              kycStatus: 'approved',
+              autorampStatus: 'needs_source_currency',
+            }),
+          );
+
+          expect(handlers.getAutoramps).toHaveBeenCalledTimes(1);
+          expect(createAutoramp).not.toHaveBeenCalled();
+          expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        },
+      );
     });
 
     it('coalesces overlapping hydration calls', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        registerKycHandlers(rootMessenger);
-        let resolveRegistration: (
-          result: Awaited<
-            ReturnType<RampsController['registerMoneyAccountWallet']>
-          >,
-        ) => void = () => undefined;
-        const registerWallet = jest
-          .spyOn(controller, 'registerMoneyAccountWallet')
-          .mockReturnValue(
-            new Promise((resolve) => {
-              resolveRegistration = resolve;
-            }),
-          );
-        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('pending'),
+        });
+        let releaseDisclaimers: (value: boolean) => void = () => undefined;
+        const disclaimers = new Promise<boolean>((resolve) => {
+          releaseDisclaimers = resolve;
+        });
+        handlers.hasCompletedVendorDisclaimers.mockReturnValue(disclaimers);
 
         const first = controller.hydrateVbaOnboarding({
           walletAddress: '0xabc',
         });
         const second = controller.hydrateVbaOnboarding({
           walletAddress: '0xabc',
-          sourceCurrencyCode: 'USD',
+          refreshKyc: true,
+          refreshAutoramps: true,
         });
-        resolveRegistration({
-          type: 'registered',
-          registration: {
-            id: 'wallet-1',
-            address: '0xabc',
-            blockchain: 'Monad',
-            disabled: false,
-            isSelf: true,
-          },
-        });
+        releaseDisclaimers(true);
 
+        const expected = factsSnapshot({ kycStatus: 'pending' });
         expect(await Promise.all([first, second])).toStrictEqual([
-          factsSnapshot({
-            kycStatus: 'approved',
-            autorampStatus: 'needs_source_currency',
-          }),
-          factsSnapshot({
-            kycStatus: 'approved',
-            autorampStatus: 'needs_source_currency',
-          }),
+          expected,
+          expected,
         ]);
-        expect(registerWallet).toHaveBeenCalledTimes(1);
-        expect(createAutoramp).not.toHaveBeenCalled();
+        expect(handlers.readSessionStatus).toHaveBeenCalledTimes(1);
+        expect(handlers.fetchSessionStatusOnce).not.toHaveBeenCalled();
+        expect(handlers.getAutoramps).not.toHaveBeenCalled();
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
       });
     });
 
-    it('marks the autoramp retryable when wallet registration fails on the approved path', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        registerKycHandlers(rootMessenger);
-        const error = new Error('signing rejected');
-        jest
-          .spyOn(controller, 'registerMoneyAccountWallet')
-          .mockRejectedValue(error);
-
-        expect(
-          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toStrictEqual(
-          factsSnapshot({
-            kycStatus: 'approved',
-            autorampStatus: 'retryable_failure',
-          }),
-        );
-      });
-    });
-
-    it('marks the autoramp retryable when the wallet lookup is unavailable', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        registerKycHandlers(rootMessenger);
-        const error = new WalletRegistrationError('lookupUnavailable', {});
-        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
-          type: 'lookupUnavailable',
-          error,
-        });
-
-        expect(
-          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toStrictEqual(
-          factsSnapshot({
-            kycStatus: 'approved',
-            autorampStatus: 'retryable_failure',
-          }),
-        );
-      });
-    });
-
-    it('marks the autoramp retryable when loading autoramps fails', async () => {
+    it('returns retryable_failure when the requested autoramp list GET throws', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger);
-        const error = new Error('autoramp lookup failed');
-        handlers.getAutoramps.mockRejectedValue(error);
-        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
-          type: 'alreadyRegistered',
-          registration: {
-            id: 'wallet-1',
-            address: '0xabc',
-            blockchain: 'Monad',
-            disabled: false,
-            isSelf: true,
-          },
-        });
+        handlers.getAutoramps.mockRejectedValue(
+          new Error('autoramp lookup failed'),
+        );
         const createAutoramp = jest.spyOn(controller, 'createAutoramp');
 
         expect(
-          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+            refreshAutoramps: true,
+          }),
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
             autorampStatus: 'retryable_failure',
           }),
         );
+
         expect(createAutoramp).not.toHaveBeenCalled();
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        expect(controller.state.vbaAutorampListFetchedAt).toBeNull();
       });
     });
 
@@ -11492,7 +11694,88 @@ describe('RampsController', () => {
           controller.registerMoneyAccountWallet({ address: '0xabc' }),
         ).rejects.toBe(error);
         expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
+        expect(controller.state.moneyAccountWalletRegistrations).toStrictEqual(
+          [],
+        );
       });
+    });
+
+    it('writes a registration row only after a successful register', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-10-08T12:00:00.000Z'));
+      try {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handlers = registerWalletRegistrationHandlers(rootMessenger);
+          handlers.getWalletRegistrationStatus.mockRejectedValue(
+            new Error('lookup failed'),
+          );
+
+          await controller.registerMoneyAccountWallet({ address: '0xabc' });
+          expect(
+            controller.state.moneyAccountWalletRegistrations,
+          ).toStrictEqual([]);
+
+          handlers.getWalletRegistrationStatus.mockResolvedValue({
+            type: 'absent',
+          });
+          handlers.signPersonalMessage.mockRejectedValueOnce(
+            new Error('signing failed'),
+          );
+          await expect(
+            controller.registerMoneyAccountWallet({ address: '0xabc' }),
+          ).rejects.toThrow('signing failed');
+          expect(
+            controller.state.moneyAccountWalletRegistrations,
+          ).toStrictEqual([]);
+
+          handlers.signPersonalMessage.mockResolvedValue('0xsig');
+          await controller.registerMoneyAccountWallet({ address: '0xabc' });
+          expect(controller.state.moneyAccountWalletRegistrations)
+            .toMatchInlineSnapshot(`
+            [
+              {
+                "status": "active",
+                "updatedAt": 1791460800000,
+                "walletAddress": "0xabc",
+              },
+            ]
+          `);
+
+          handlers.getWalletRegistrationStatus.mockResolvedValue({
+            type: 'disabled',
+            registration: { ...registration, disabled: true },
+          });
+          await controller.registerMoneyAccountWallet({ address: '0xABC' });
+          expect(controller.state.moneyAccountWalletRegistrations)
+            .toMatchInlineSnapshot(`
+            [
+              {
+                "status": "disabled",
+                "updatedAt": 1791460800000,
+                "walletAddress": "0xabc",
+              },
+            ]
+          `);
+
+          handlers.getWalletRegistrationStatus.mockResolvedValue({
+            type: 'active',
+            registration,
+          });
+          await controller.registerMoneyAccountWallet({ address: '0xabc' });
+          expect(controller.state.moneyAccountWalletRegistrations)
+            .toMatchInlineSnapshot(`
+            [
+              {
+                "status": "active",
+                "updatedAt": 1791460800000,
+                "walletAddress": "0xabc",
+              },
+            ]
+          `);
+        });
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 
