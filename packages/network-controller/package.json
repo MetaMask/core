@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "37.0.0",
+  "version": "37.0.1",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "Ethereum",
@@ -50,9 +50,9 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/analytics-controller": "^3.2.0",
+    "@metamask/analytics-controller": "^4.0.0",
     "@metamask/base-controller": "^10.0.0",
-    "@metamask/config-registry-controller": "^4.0.0",
+    "@metamask/config-registry-controller": "^5.0.0",
     "@metamask/connectivity-controller": "^1.0.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/eth-block-tracker": "^16.0.0",
@@ -69,7 +69,7 @@
     "fast-deep-equal": "^3.1.3",
     "immer": "^11.1.18",
     "loglevel": "^1.8.1",
-    "reselect": "^5.1.1",
+    "reselect": "^5.3.0",
     "uri-js": "^4.4.1",
     "uuid": "^11.1.1"
   },
@@ -92,7 +92,7 @@
     "node-fetch": "^2.7.0",
     "rimraf": "^6.1.3",
     "ts-jest": "^29.4.14",
-    "typedoc": "^0.25.13",
+    "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },

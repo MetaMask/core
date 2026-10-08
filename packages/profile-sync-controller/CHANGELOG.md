@@ -9,10 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
+
+## [34.0.0]
+
+### Changed
+
+- Open the verification session on enrollment and let the server set its lifetime ([#10653](https://github.com/MetaMask/core/pull/10653))
+  - `completeCredentialEnrollment` opens a verification session with the assertion `POST /api/v2/mfa/enroll/complete` returns for the new credential, replacing any earlier one, so no separate verification is needed right after enrolling. If the token exchange fails, the enrollment still succeeds and the earlier session is kept
+  - `SRPJwtBearerAuth.completeMfaEnrollment` and `JwtBearerAuth.completeMfaEnrollment` return that assertion
+  - The session lasts for the token's `expires_in`, measured on the device clock, instead of at most 15 minutes
+- Replace JS AES implementation with `@metamask/cryptography` ([#10621](https://github.com/MetaMask/core/pull/10621))
 - Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
+
+### Removed
+
+- **BREAKING:** Remove `VERIFICATION_SESSION_TTL_MS`, as the server now sets the verification session lifetime ([#10653](https://github.com/MetaMask/core/pull/10653))
 
 ### Fixed
 
+- Coalesce overlapping `performSignIn` calls so only one sign-in runs at a time ([#10646](https://github.com/MetaMask/core/pull/10646))
 - Rely on `@metamask/key-tree` crypto implementation for HMAC-SHA-512 instead of hardcoded `noble` implementation ([#10424](https://github.com/MetaMask/core/pull/10424))
   - `@metamask/key-tree` uses WebCrypto API if available and fallback to `noble` otherwise.
   - One note, we expect the platform to provide a fully-compliant WebCrypto (`crypto.subtle`) implementation for this to work (`@metamask/key-tree` detection is global and not "per crypto functions").
@@ -1030,7 +1046,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@33.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.0...HEAD
+[34.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@33.0.0...@metamask/profile-sync-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.1...@metamask/profile-sync-controller@33.0.0
 [32.3.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.0...@metamask/profile-sync-controller@32.3.1
 [32.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.2.0...@metamask/profile-sync-controller@32.3.0

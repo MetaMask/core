@@ -1,5 +1,5 @@
-import { SeedlessOnboardingControllerErrorMessage } from './constants.js';
-import type { AuthenticatedUserDetails, VaultData } from './types.js';
+import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
+import type { AuthenticatedUserDetails, VaultData } from '../types.js';
 
 /**
  * Assert that the provided password is a valid non-empty string.
@@ -87,6 +87,40 @@ export function assertIsPasswordOutdatedCacheValid(
   if (value < 0 || isNaN(value) || !isFinite(value)) {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  }
+}
+
+/**
+ * Assert that the provided encrypted keyring encryption key is a valid
+ * non-empty string.
+ *
+ * @param encryptedKeyringEncryptionKey - The encrypted keyring encryption key.
+ * @throws If the encrypted keyring encryption key is not a valid string.
+ */
+export function assertIsEncryptedKeyringEncryptionKeySet(
+  encryptedKeyringEncryptionKey: string | undefined,
+): asserts encryptedKeyringEncryptionKey is string {
+  if (!encryptedKeyringEncryptionKey) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.EncryptedKeyringEncryptionKeyNotSet,
+    );
+  }
+}
+
+/**
+ * Assert that the provided encrypted seedless encryption key is a valid
+ * non-empty string.
+ *
+ * @param encryptedSeedlessEncryptionKey - The encrypted seedless encryption key.
+ * @throws If the encrypted seedless encryption key is not a valid string.
+ */
+export function assertIsEncryptedSeedlessEncryptionKeySet(
+  encryptedSeedlessEncryptionKey: string | undefined,
+): asserts encryptedSeedlessEncryptionKey is string {
+  if (!encryptedSeedlessEncryptionKey) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.EncryptedSeedlessEncryptionKeyNotSet,
     );
   }
 }

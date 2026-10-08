@@ -5,4 +5,4 @@ export declare type NativeScrypt = (
   r: number,
   p: number,
   size: number,
-) => Promise<Uint8Array>;
+) => Promise<Uint8Array<ArrayBuffer>>;

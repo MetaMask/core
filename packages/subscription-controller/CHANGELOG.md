@@ -7,9 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `isEligibleForRefund` on `StartSubscriptionRequest` and `StartCryptoSubscriptionRequest` ([#10674](https://github.com/MetaMask/core/pull/10674))
+  - When the caller provides it, `SubscriptionController` sends that value and skips the geolocation check.
+  - When omitted, the controller sets it from geolocation (EU 27 + EEA), or `false` if the lookup fails.
+
+### Changed
+
+- **BREAKING:** `SubscriptionControllerMessenger` now requires `GeolocationController:getGeolocationData` so `startSubscriptionWithCard` and `startSubscriptionWithCrypto` can resolve refund eligibility ([#10674](https://github.com/MetaMask/core/pull/10674))
+  - Clients that construct this messenger must delegate `GeolocationController:getGeolocationData` before calling those actions.
+- Add `@metamask/geolocation-controller` `^2.0.0` as a dependency ([#10674](https://github.com/MetaMask/core/pull/10674))
+- **BREAKING:** `SubscriptionDelegationService:startSubscriptionWithDelegation` no longer requests an approval. Callers must obtain consent and initiate funding (for example, a `membershipSubscription` transaction) before calling. ([#10666](https://github.com/MetaMask/core/pull/10666))
+  - `skipApproval` is removed from `StartSubscriptionWithDelegationRequest`.
+
+### Removed
+
+- **BREAKING:** Remove the subscription delegation approval contracts. ([#10666](https://github.com/MetaMask/core/pull/10666))
+  - Remove `SUBSCRIPTION_DELEGATION_APPROVAL_TYPE`, `SubscriptionFundingRequest`, and `SubscriptionDelegationApprovalResult`.
+  - Remove `ApprovalResultMissing` and `InvalidFundingTransactionHash` from `SubscriptionDelegationServiceErrorMessage`.
+  - `SubscriptionDelegationServiceMessenger` no longer allows `ApprovalController:addRequest`. Clients that construct this messenger must stop delegating that action.
+- Remove the `@metamask/approval-controller` dependency. ([#10666](https://github.com/MetaMask/core/pull/10666))
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [12.0.0]
+
+### Added
+
+- **BREAKING:** Add `SubscriptionController:isUserEligibleForTrial` to report whether a user can start a trial for a product ([#10622](https://github.com/MetaMask/core/pull/10622))
+  - Clients must grant `SubscriptionControllerMessenger` access to `SeedlessOnboardingController:getIsUserAuthenticated` in order to call `SubscriptionController:isUserEligibleForTrial`.
+
 ### Changed
 
 - Bump `@metamask/money-account-balance-service` from `^3.1.1` to `^3.1.2` ([#10624](https://github.com/MetaMask/core/pull/10624))
+- Bump `@metamask/chomp-api-service` from `^6.0.0` to `^6.0.1` ([#10626](https://github.com/MetaMask/core/pull/10626))
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
 
 ## [11.0.0]
 
@@ -589,7 +626,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@12.0.0...@metamask/subscription-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@11.0.0...@metamask/subscription-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@10.0.1...@metamask/subscription-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@10.0.0...@metamask/subscription-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.1.0...@metamask/subscription-controller@10.0.0

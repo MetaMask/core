@@ -7,11 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `aal2Token` parameter to `KycController.startSession` and the `KycController:startSession` messenger action ([#10632](https://github.com/MetaMask/core/pull/10632))
+
+### Changed
+
+- **BREAKING:** `KycService.createUkycSession` and the `KycService:createUkycSession` messenger action now require an `aal2Token` parameter, which is sent as the `Authorization` bearer value for `POST /sessions` instead of the wallet bearer token from `AuthenticationController:getBearerToken` ([#10632](https://github.com/MetaMask/core/pull/10632))
+  - Other `KycService` requests continue to use the wallet bearer token
+- **BREAKING:** `KycController.startSession` now throws if no existing session is found and `aal2Token` is not provided ([#10632](https://github.com/MetaMask/core/pull/10632))
+  - Pass `aal2Token` whenever `startSession` may need to create a new UKYC session
+  - Reusing the session already in state, or the latest vendor session, does not require `aal2Token`
+- Increase the UKYC capability token lifetime from 4 hours to 72 hours ([#10679](https://github.com/MetaMask/core/pull/10679))
+- Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
+
+## [0.6.1]
+
 ### Changed
 
 - `KycService.createUkycSession` no longer sends a `jwtToken` field on `POST /sessions` ([#10630](https://github.com/MetaMask/core/pull/10630))
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
 
 ## [0.6.0]
 
@@ -106,7 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.1...HEAD
+[0.6.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.0...@metamask/kyc-controller@0.6.1
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.5.0...@metamask/kyc-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.4.0...@metamask/kyc-controller@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.3.0...@metamask/kyc-controller@0.4.0

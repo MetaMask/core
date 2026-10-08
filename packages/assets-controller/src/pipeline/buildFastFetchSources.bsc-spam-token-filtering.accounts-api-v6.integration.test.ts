@@ -146,6 +146,7 @@ async function runPipeline(
 
   const rpcDataSource = new RpcDataSource({
     messenger: assetsControllerMessenger,
+    queryApiClient,
     getAssetsState: (): AssetsControllerState => state,
     onActiveChainsUpdated: jest.fn(),
     getNativeAssetForChain: (): Caip19AssetId => BNB_ASSET_ID,

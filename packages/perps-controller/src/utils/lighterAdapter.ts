@@ -105,6 +105,7 @@ export function adaptMarketFromLighter(
   return {
     name: market.symbol,
     szDecimals: market.supportedSizeDecimals,
+    priceDecimals: market.supportedPriceDecimals,
     maxLeverage,
     marginTableId: 0, // Lighter does not use margin tables
     minimumOrderSize: parseFloat(market.minQuoteAmount),
@@ -440,13 +441,12 @@ export function adaptFillFromLighterTrade(
     );
   }
   const pnl = accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl;
-  // Omitted amounts remain unknown. A changed sign on an existing position
-  // proves reduction, so its realized PnL must be supplied by the venue.
+  // Omitted amounts remain unknown, including closes and flips. Position
+  // context can establish direction without establishing the realized amount.
   const parsedPnl =
     pnl === undefined ? undefined : parseLighterStrictDecimal(pnl);
   if (
     parsedPnl === null ||
-    (pnl === undefined && positionBefore !== 0 && signChanged === true) ||
     (pnl !== undefined &&
       (typeof pnl !== 'string' || !Number.isFinite(parsedPnl)))
   ) {
@@ -628,7 +628,7 @@ export function adaptAccountStateFromLighter(
  * @param status - Raw status from the Lighter API.
  * @returns Canonical order status.
  */
-function adaptOrderStatus(status: string): Order['status'] {
+export function adaptOrderStatus(status: string): Order['status'] {
   switch (status) {
     case 'open':
     case 'pending':

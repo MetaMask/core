@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
+
+## [5.0.0]
+
+### Added
+
+- Add `ConfigRegistryApiService.fetchEventsConfig`, which hits `/v1/config/events-config` ([#10448](https://github.com/MetaMask/core/pull/10448))
+
+### Changed
+
+- **BREAKING:** `ConfigRegistryControllerMessenger` requires `ConfigRegistryApiService:fetchEventsConfig` in its allowed actions ([#10448](https://github.com/MetaMask/core/pull/10448))
+- `ConfigRegistryController` now caches the result from `/v1/config/events-config` in `configs.eventsConfig` in its polling loop ([#10448](https://github.com/MetaMask/core/pull/10448))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
 
@@ -176,7 +188,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7668](https://github.com/MetaMask/core/pull/7668), [#7809](https://github.com/MetaMask/core/pull/7809))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@4.0.0...@metamask/config-registry-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@3.1.0...@metamask/config-registry-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@3.0.0...@metamask/config-registry-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@2.0.1...@metamask/config-registry-controller@3.0.0

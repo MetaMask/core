@@ -688,7 +688,7 @@
   },
   "packages/perps-controller/tests/src/PerpsController.operations.test.ts": {
     "TS2304": {
-      "count": 3
+      "count": 2
     },
     "TS2322": {
       "count": 3
@@ -1226,8 +1226,11 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {
+    "TS2352": {
+      "count": 2
+    },
     "TS2741": {
-      "count": 32
+      "count": 39
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-submit.test.ts": {

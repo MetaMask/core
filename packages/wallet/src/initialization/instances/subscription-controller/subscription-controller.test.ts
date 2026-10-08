@@ -106,7 +106,7 @@ describe('subscriptionController', () => {
     expect(instance.getIntervalLength()).toBe(5 * 60 * 1_000);
   });
 
-  it('delegates SubscriptionService actions and performSignOut', () => {
+  it('delegates SubscriptionService actions, performSignOut, getGeolocationData, and getIsUserAuthenticated', () => {
     const parent = getRootMessenger();
     const delegateSpy = jest.spyOn(parent, 'delegate');
     const messenger = subscriptionController.getMessenger(parent);
@@ -130,6 +130,8 @@ describe('subscriptionController', () => {
         'SubscriptionService:getBillingPortalUrl',
         'SubscriptionService:getBenefits',
         'AuthenticationController:performSignOut',
+        'GeolocationController:getGeolocationData',
+        'SeedlessOnboardingController:getIsUserAuthenticated',
       ],
     });
   });
@@ -231,8 +233,18 @@ describe('subscriptionController', () => {
       'AuthenticationController:performSignOut',
       jest.fn(),
     );
+    registerActionHandler(
+      rootMessenger,
+      'GeolocationController',
+      'GeolocationController:getGeolocationData',
+      async () => ({
+        country: 'DE',
+        region: 'BE',
+        timezone: 'Europe/Berlin',
+      }),
+    );
     const serviceMessenger = subscriptionService.getMessenger(rootMessenger);
-    const fetchFunction = jest.fn(async (url: string) => {
+    const fetchFunction = jest.fn(async (url: string, _init?: RequestInit) => {
       if (url === SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card')) {
         return new globalThis.Response(
           JSON.stringify({
@@ -308,8 +320,18 @@ describe('subscriptionController', () => {
     );
     expect(fetchFunction).toHaveBeenCalledWith(
       SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card'),
-      expect.objectContaining({ method: 'POST' }),
+      expect.objectContaining({
+        method: 'POST',
+      }),
     );
+    const cardRequest = fetchFunction.mock.calls.find(
+      ([url]) => url === SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card'),
+    );
+    const body = cardRequest?.[1]?.body;
+    if (typeof body !== 'string') {
+      throw new Error('Expected card subscription request body to be a string');
+    }
+    expect(JSON.parse(body)).toMatchObject({ isEligibleForRefund: true });
   });
 
   it('forwards dual-product initial state to the controller', () => {

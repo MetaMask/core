@@ -71,7 +71,9 @@ export type SocialServiceFetchClosedPositionsAction = {
 /**
  * Fetches a trader's MetaMask followers.
  *
- * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`.
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`. Requires a bearer
+ * token; the trader is identified by `addressOrId`, not the JWT subject (see
+ * {@link fetchMyFollowers} for the current user's inbound list).
  *
  * @param options - Options bag.
  * @param options.addressOrId - Wallet address or Clicker profile ID.
@@ -80,6 +82,22 @@ export type SocialServiceFetchClosedPositionsAction = {
 export type SocialServiceFetchFollowersAction = {
   type: `SocialService:fetchFollowers`;
   handler: SocialService['fetchFollowers'];
+};
+
+/**
+ * Fetches the list of traders a profile follows.
+ *
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/following`. Requires a bearer
+ * token; the trader is identified by `addressOrId`, not the JWT subject (see
+ * {@link fetchFollowing} for the current user's outbound list).
+ *
+ * @param options - Options bag.
+ * @param options.addressOrId - Wallet address or Clicker profile ID.
+ * @returns The following response.
+ */
+export type SocialServiceFetchTraderFollowingAction = {
+  type: `SocialService:fetchTraderFollowing`;
+  handler: SocialService['fetchTraderFollowing'];
 };
 
 /**
@@ -237,11 +255,41 @@ export type SocialServiceCreateSwapCommentAction = {
  * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
  * server-side from the JWT sub claim carried in the Authorization header.
  *
+ * Prefer {@link fetchMyFollowing} in new code (pairs with
+ * {@link fetchMyFollowers}). This method is unchanged and remains the
+ * `/users/me/following` read.
+ *
  * @returns The following response.
  */
 export type SocialServiceFetchFollowingAction = {
   type: `SocialService:fetchFollowing`;
   handler: SocialService['fetchFollowing'];
+};
+
+/**
+ * Fetches the list of traders the current user is following.
+ *
+ * Alias of {@link fetchFollowing}. Calls `GET ${baseUrl}/users/me/following`.
+ * Preferred name in new code so `/users/me` reads are both `fetchMy*`.
+ *
+ * @returns The following response.
+ */
+export type SocialServiceFetchMyFollowingAction = {
+  type: `SocialService:fetchMyFollowing`;
+  handler: SocialService['fetchMyFollowing'];
+};
+
+/**
+ * Fetches the list of traders following the current user.
+ *
+ * Calls `GET ${baseUrl}/users/me/followers`. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @returns The followers response.
+ */
+export type SocialServiceFetchMyFollowersAction = {
+  type: `SocialService:fetchMyFollowers`;
+  handler: SocialService['fetchMyFollowers'];
 };
 
 /**
@@ -314,6 +362,57 @@ export type SocialServiceRefreshNotificationPreferencesCacheAction = {
 };
 
 /**
+ * Blocks a trader, swap comment, or reply for the current user.
+ *
+ * Calls `PUT ${baseUrl}/moderation/block`. Provide exactly one of
+ * `profileId`, `commentId`, or `replyId`. Blocking the same target again
+ * replaces `reason` when one is given. The caller is identified server-side
+ * from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag. Exactly one target, plus an optional reason.
+ * @param options.profileId - Profile id (UUID) of the trader to block.
+ * @param options.commentId - Swap comment to block.
+ * @param options.replyId - Comment reply to block.
+ * @param options.reason - Free-form reason stored on the block.
+ */
+export type SocialServiceBlockAction = {
+  type: `SocialService:block`;
+  handler: SocialService['block'];
+};
+
+/**
+ * Fetches traders the current user has blocked.
+ *
+ * Calls `GET ${baseUrl}/moderation/blocks/profiles`. Results are most
+ * recently blocked first, 250 per page. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag.
+ * @param options.cursor - Cursor from the previous page. Omit for the first page.
+ * @returns The blocked profiles page.
+ */
+export type SocialServiceFetchBlockedProfilesAction = {
+  type: `SocialService:fetchBlockedProfiles`;
+  handler: SocialService['fetchBlockedProfiles'];
+};
+
+/**
+ * Fetches comments and replies the current user has blocked.
+ *
+ * Calls `GET ${baseUrl}/moderation/blocks/content`. Results are most
+ * recently blocked first, 250 per page. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag.
+ * @param options.cursor - Cursor from the previous page. Omit for the first page.
+ * @returns The blocked content page.
+ */
+export type SocialServiceFetchBlockedContentAction = {
+  type: `SocialService:fetchBlockedContent`;
+  handler: SocialService['fetchBlockedContent'];
+};
+
+/**
  * Union of all SocialService action types.
  */
 export type SocialServiceMethodActions =
@@ -322,6 +421,7 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchOpenPositionsAction
   | SocialServiceFetchClosedPositionsAction
   | SocialServiceFetchFollowersAction
+  | SocialServiceFetchTraderFollowingAction
   | SocialServiceFetchPositionByIdAction
   | SocialServiceFetchFeedAction
   | SocialServiceFetchTraderFeedAction
@@ -330,8 +430,13 @@ export type SocialServiceMethodActions =
   | SocialServiceRemoveCommentReactionAction
   | SocialServiceCreateSwapCommentAction
   | SocialServiceFetchFollowingAction
+  | SocialServiceFetchMyFollowingAction
+  | SocialServiceFetchMyFollowersAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction
   | SocialServiceOptOutOfLeaderboardAction
   | SocialServiceOptInToLeaderboardAction
-  | SocialServiceRefreshNotificationPreferencesCacheAction;
+  | SocialServiceRefreshNotificationPreferencesCacheAction
+  | SocialServiceBlockAction
+  | SocialServiceFetchBlockedProfilesAction
+  | SocialServiceFetchBlockedContentAction;

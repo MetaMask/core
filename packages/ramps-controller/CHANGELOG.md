@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `needs_source_currency` to `VBA_AUTORAMP_STATUSES` for an approved, registered wallet that has no usable autoramp and was not given a source currency ([#10743](https://github.com/MetaMask/core/pull/10743))
+- Add `buildMusdAutorampRequest`, which builds the standing mUSD-on-Monad autoramp body for an explicit fiat code. `buildBrazilMusdAutorampRequest` remains the BRL wrapper ([#10743](https://github.com/MetaMask/core/pull/10743))
+
+### Changed
+
+- **BREAKING:** `hydrateVbaOnboarding` still registers the Money Account wallet and refreshes autoramps after KYC approval, but it creates an autoramp only when `sourceCurrencyCode` is passed and the wallet has no usable autoramp. Without a code it returns `autorampStatus: 'needs_source_currency'` and does not post. The create body uses that code as `source_currencies[0].code`, and the idempotency key prefix follows the code (`brl-musd-monad` / `usd-musd-monad`) so a USD create does not replay the BRL route. A usable autoramp still returns `ready` and does not create another, even when a code is passed ([#10743](https://github.com/MetaMask/core/pull/10743))
+  - Callers that expected hydrate to always create the BRL autoramp must pass `sourceCurrencyCode: 'BRL'` on the call that should create
+
+## [26.3.0]
+
+### Added
+
+- Add `getPixDepositInstructions` and `listAutorampTransactions` so a client can show a PIX BR Code and poll autoramp transaction status ([#10586](https://github.com/MetaMask/core/pull/10586))
+- Add `buildBrazilMusdAutorampRequest` for a standing BRL to mUSD autoramp on Monad ([#10586](https://github.com/MetaMask/core/pull/10586))
+- Include `createdAt` on autoramp transaction summaries when MoonPay returns `created_at` ([#10586](https://github.com/MetaMask/core/pull/10586))
+
+### Fixed
+
+- `hydrateVbaOnboarding` creates that BRL to mUSD autoramp instead of posting an empty body ([#10586](https://github.com/MetaMask/core/pull/10586))
+- `hydrateVbaOnboarding` sends a stable idempotency key when creating the BRL to mUSD autoramp so a retry does not open a second route, and uses a different key when replacing a rejected or cancelled route ([#10586](https://github.com/MetaMask/core/pull/10586))
+- `getAutoramps` accepts MoonPay's paged `{ items }` list, follows `cursor` until the list is complete, and can be scoped with `customerId` ([#10586](https://github.com/MetaMask/core/pull/10586))
+- Fall back to MoonPay `recipient.address` when mapping an autoramp wallet address ([#10586](https://github.com/MetaMask/core/pull/10586))
+
+## [26.2.0]
+
+### Changed
+
+- `RampsController.setSelectedToken` matches `eip155` ERC-20 asset ids case-insensitively and keeps the catalog token's own `assetId`. Non-EVM asset ids still require an exact match ([#10545](https://github.com/MetaMask/core/pull/10545))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
 ## [26.1.0]
 
 ### Changed
@@ -673,7 +705,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.3.0...HEAD
+[26.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.2.0...@metamask/ramps-controller@26.3.0
+[26.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.1.0...@metamask/ramps-controller@26.2.0
 [26.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.1...@metamask/ramps-controller@26.1.0
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.0...@metamask/ramps-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.1...@metamask/ramps-controller@26.0.0

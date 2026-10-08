@@ -7,6 +7,8 @@ import {
   createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
+  callMissingFrom,
+  createPartiallyDelegatedMessenger,
 } from '../../helpers/serviceMocks.js';
 
 jest.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
@@ -209,6 +211,86 @@ describe('DataLakeService', () => {
       });
       expect(fetch).not.toHaveBeenCalled();
     });
+
+    it('skips reporting without logging an error when getBearerToken is not delegated', async () => {
+      dataLakeService = new DataLakeService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          'AccountTreeController:getAccountsFromSelectedAccountGroup': () => [
+            mockEvmAccount,
+          ],
+        }),
+      );
+
+      const result = await dataLakeService.reportOrder({
+        action: 'open',
+        symbol: 'BTC',
+        isTestnet: false,
+        context: mockContext,
+      });
+
+      expect(result).toEqual({
+        success: false,
+        error: 'No account or token available',
+      });
+      expect(fetch).not.toHaveBeenCalled();
+      expect(setTimeout).not.toHaveBeenCalled();
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledTimes(1);
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'mock-trace-id',
+          data: { success: false, error: 'No account or token available' },
+        }),
+      );
+    });
+
+    it.each([
+      [
+        'fails',
+        'Not signed in',
+        async () => {
+          throw new Error('Not signed in');
+        },
+      ],
+      [
+        'fails on a missing dependency of its own',
+        'A handler for KeyringController:getState has not been delegated to AuthenticationController',
+        // A real nested `Messenger` call.
+        async () =>
+          callMissingFrom(
+            'AuthenticationController',
+            'KeyringController:getState',
+          ),
+      ],
+    ])(
+      'still logs and retries when a delegated getBearerToken handler %s',
+      async (_case, message, getBearerToken) => {
+        dataLakeService = new DataLakeService(
+          mockDeps,
+          createPartiallyDelegatedMessenger({
+            'AccountTreeController:getAccountsFromSelectedAccountGroup': () => [
+              mockEvmAccount,
+            ],
+            'AuthenticationController:getBearerToken': getBearerToken,
+          }),
+        );
+
+        const result = await dataLakeService.reportOrder({
+          action: 'open',
+          symbol: 'BTC',
+          isTestnet: false,
+          context: mockContext,
+        });
+
+        expect(result).toEqual({ success: false, error: message });
+        expect(mockDeps.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ message }),
+          expect.anything(),
+        );
+        expect(setTimeout).toHaveBeenCalled();
+      },
+    );
 
     it('retries on network error with exponential backoff', async () => {
       (fetch as jest.Mock)

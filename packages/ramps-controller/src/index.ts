@@ -294,11 +294,15 @@ export {
   createAutorampAccount,
   applyAutorampRemoteStatus,
   markAutorampNotified,
+  buildMusdAutorampRequest,
+  buildBrazilMusdAutorampRequest,
 } from './autorampAccount.js';
 export { buildOwnershipMessage } from './ownership-message.js';
 export type {
   AutorampDepositRailsSummary,
   AutorampRemoteSnapshot,
+  AutorampTransactionSummary,
+  PixDepositInstructions,
 } from './autoramp-types.js';
 export type {
   NeoBankServiceActions,
@@ -313,6 +317,8 @@ export type {
 export type {
   NeoBankServiceGetAutorampAction,
   NeoBankServiceGetAutorampsAction,
+  NeoBankServiceGetPixDepositInstructionsAction,
+  NeoBankServiceListAutorampTransactionsAction,
   NeoBankServiceRegisterPixAddressAction,
   NeoBankServiceGetAutorampQuoteAction,
   NeoBankServiceCreateAutorampAction,
@@ -327,6 +333,7 @@ export {
   NeoBankService,
   serviceName as neoBankServiceName,
   mapNeoBankAutorampToRemoteSnapshot,
+  extractPixDepositInstructions,
 } from './NeoBankService.js';
 export type {
   Blockchain,

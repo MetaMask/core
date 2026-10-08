@@ -852,6 +852,36 @@ describe('PerpsController', () => {
       );
     });
 
+    it.each([true, false])(
+      'forwards the public testnet Chase probe setting only on actual testnet=%s',
+      (isTestnet) => {
+        const MockLighterConstructor = jest.fn(() =>
+          createMockHyperLiquidProvider(),
+        );
+        const lighter = { chaseTestnetProbe: true };
+        controller = new TestablePerpsController({
+          messenger: createMockMessenger(),
+          state: { ...getDefaultPerpsControllerState(), isTestnet },
+          clientConfig: { providerCredentials: { lighter } },
+          infrastructure: mockInfrastructure,
+        });
+        controller.testRegisterLighterProvider(
+          MockLighterConstructor as unknown as new (
+            opts: Record<string, unknown>,
+          ) => PerpsProvider,
+        );
+        const passed = (
+          MockLighterConstructor.mock.calls as unknown as [
+            { chaseTestnetProbe?: boolean },
+          ][]
+        )[0][0];
+        expect(passed.chaseTestnetProbe).toBe(isTestnet ? true : undefined);
+        expect(MockLighterConstructor).toHaveBeenCalledWith(
+          expect.objectContaining({ isTestnet }),
+        );
+      },
+    );
+
     it('registerLighterProvider registers the provider and forwards the signer bridge from the Lighter credentials', () => {
       // Arrange — the client (mobile WebView / headless WASM) supplies the
       // bridge through the Lighter credentials bag; the controller must

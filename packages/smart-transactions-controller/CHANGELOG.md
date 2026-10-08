@@ -9,11 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
+
+## [27.1.0]
+
+### Changed
+
 - Expose structured fetch error data ([#10494](https://github.com/MetaMask/core/pull/10494))
-- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+- Export `getErrorData` util to parse Sentinel API errors ([#10642](https://github.com/MetaMask/core/pull/10642))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.1.0` ([#10462](https://github.com/MetaMask/core/pull/10462), [#10652](https://github.com/MetaMask/core/pull/10652))
 - Bump `@ethersproject/bytes` from `^5.7.0` to `^5.8.0` ([#10480](https://github.com/MetaMask/core/pull/10480))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@ethersproject/transactions` from `^5.7.0` to `^5.8.0` ([#10483](https://github.com/MetaMask/core/pull/10483))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
 
 ## [27.0.3]
 
@@ -149,7 +158,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.0.0` to `^68.0.1` ([#9177](https://github.com/MetaMask/core/pull/9177))
 - Drop unused dependencies `@ethereumjs/tx`, `@ethereumjs/util`, and `fast-json-patch` ([#9139](https://github.com/MetaMask/core/pull/9139))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.1.0...HEAD
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.3...@metamask/smart-transactions-controller@27.1.0
 [27.0.3]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.2...@metamask/smart-transactions-controller@27.0.3
 [27.0.2]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.1...@metamask/smart-transactions-controller@27.0.2
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.0...@metamask/smart-transactions-controller@27.0.1

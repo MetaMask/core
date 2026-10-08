@@ -10,6 +10,7 @@ import {
   MockRootMessenger,
   registerRpcDataSourceActions,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
+import { createTestApiClient } from '../__fixtures__/mockTokenApi.js';
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
 import type {
   AssetsControllerMessenger,
@@ -262,6 +263,7 @@ async function withController<ReturnValue>(
         chainIds,
         getNativeAssetForChain: (chainId) => defaultNativeAssetMap[chainId],
       }),
+    queryApiClient: createTestApiClient(),
     ...options,
     getAssetsState,
   });
@@ -319,6 +321,7 @@ describe('createRpcDataSource', () => {
       getNativeAssetForChain: jest.fn(),
       getAssetType: jest.fn(),
       getAssetVisibility: jest.fn(),
+      queryApiClient: createTestApiClient(),
     });
     expect(source).toBeInstanceOf(RpcDataSource);
     source.destroy();
@@ -3160,6 +3163,7 @@ describe('RpcDataSource', () => {
         getNativeAssetForChain: jest.fn(),
         getAssetType: jest.fn().mockReturnValue('erc20'),
         getAssetVisibility: jest.fn(),
+        queryApiClient: createTestApiClient(),
       });
       controller.destroy();
       expect(controller).toBeDefined();

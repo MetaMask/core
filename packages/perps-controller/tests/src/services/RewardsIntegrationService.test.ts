@@ -5,6 +5,8 @@ import {
   createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
+  callMissingFrom,
+  createPartiallyDelegatedMessenger,
 } from '../../helpers/serviceMocks.js';
 
 describe('RewardsIntegrationService', () => {
@@ -1515,6 +1517,210 @@ describe('RewardsIntegrationService', () => {
       // resolver's outcome log.
       expect(mockDeps.debugLogger.log).toHaveBeenCalledTimes(2);
       expect(mockDeps2.debugLogger.log).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('host messenger without optional actions', () => {
+    const accountHandlers = {
+      'AccountTreeController:getAccountsFromSelectedAccountGroup': () => [
+        mockEvmAccount,
+      ],
+    };
+    const networkHandlers = {
+      'NetworkController:getState': () => ({
+        selectedNetworkClientId: 'mainnet',
+      }),
+      'NetworkController:getNetworkClientById': () => ({
+        configuration: { chainId: '0x1' },
+      }),
+    };
+
+    it('reads no subscription benefits without logging an error when getBenefits is not delegated', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger(),
+      );
+
+      await service.refreshSubscriptionBenefits();
+
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'no-source',
+      });
+    });
+
+    it('reports the missing registration hook when registerAddress is not delegated', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger(),
+      );
+
+      await service.registerTradingAddress(mockEvmAccount.address);
+
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        'RewardsIntegrationService: No trading-address registration hook wired; fills will be unattributed',
+        { address: mockEvmAccount.address },
+      );
+    });
+
+    it.each([
+      ['NetworkController:getState', {}],
+      [
+        'NetworkController:getNetworkClientById',
+        {
+          'NetworkController:getState':
+            networkHandlers['NetworkController:getState'],
+        },
+      ],
+    ])(
+      'resolves no rewards discount without logging an error when %s is not delegated',
+      async (_action, extraHandlers) => {
+        service = new RewardsIntegrationService(
+          mockDeps,
+          createPartiallyDelegatedMessenger({
+            ...accountHandlers,
+            ...extraHandlers,
+          }),
+        );
+
+        const result = await service.calculateUserFeeDiscount();
+
+        expect(result).toBeUndefined();
+        expect(mockDeps.logger.error).not.toHaveBeenCalled();
+        expect(
+          mockDeps.rewards.getPerpsDiscountForAccount,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('still logs an error when a delegated NetworkController handler fails on a missing dependency of its own', async () => {
+      const nested =
+        'A handler for SelectedNetworkController:getState has not been delegated to NetworkController';
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          ...accountHandlers,
+          ...networkHandlers,
+          'NetworkController:getState': () =>
+            callMissingFrom(
+              'NetworkController',
+              'SelectedNetworkController:getState',
+            ),
+        }),
+      );
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: nested }),
+        expect.anything(),
+      );
+    });
+
+    // A nested call inside NetworkController's own namespace reports "has not
+    // been registered"; it names the other action, so it is still a failure.
+    it('still logs an error when a delegated getState handler misses getNetworkClientById', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          ...accountHandlers,
+          ...networkHandlers,
+          'NetworkController:getState': () =>
+            callMissingFrom(
+              'NetworkController',
+              'NetworkController:getNetworkClientById',
+            ),
+        }),
+      );
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message:
+            'A handler for NetworkController:getNetworkClientById has not been registered',
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('reports the cause when a delegated getNetworkClientById handler misses getState', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          ...accountHandlers,
+          ...networkHandlers,
+          'NetworkController:getNetworkClientById': () =>
+            callMissingFrom('NetworkController', 'NetworkController:getState'),
+        }),
+      );
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Chain ID not found for fee discount calculation',
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: {
+              selectedNetworkClientId: 'mainnet',
+              error:
+                'A handler for NetworkController:getState has not been registered',
+            },
+          }),
+        }),
+      );
+    });
+
+    it('still logs an error when the injected rewards source fails on a missing NetworkController handler', async () => {
+      const nested =
+        'A handler for NetworkController:getState has not been delegated to RewardsController';
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          ...accountHandlers,
+          ...networkHandlers,
+        }),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockRejectedValue(new Error(nested));
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: nested }),
+        expect.anything(),
+      );
+    });
+
+    it('skips and retries a registration whose delegated handler throws, with no injected fallback', async () => {
+      const registerAddress = jest.fn(() => {
+        throw new Error('registration exploded');
+      });
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          'SubscriptionController:registerAddress': registerAddress,
+        }),
+      );
+
+      await service.registerTradingAddress(mockEvmAccount.address);
+      await service.registerTradingAddress(mockEvmAccount.address);
+
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        'RewardsIntegrationService: Trading address registration skipped',
+        { address: mockEvmAccount.address, error: 'registration exploded' },
+      );
+      // Not cached as registered, so the next preview tries again.
+      expect(registerAddress).toHaveBeenCalledTimes(2);
     });
   });
 });

@@ -63,6 +63,14 @@ export function createCustomSeedlessOnboardingMessenger(): {
     parent: baseMessenger,
   });
 
+  baseMessenger.delegate({
+    messenger,
+    actions: [
+      'KeyringController:exportSeedPhrase',
+      'AnalyticsController:trackEvent',
+    ],
+  });
+
   return {
     baseMessenger,
     messenger,
