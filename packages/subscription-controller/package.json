@@ -65,7 +65,7 @@
     "@metamask/money-account-upgrade-controller": "^5.1.0",
     "@metamask/money-account-utils": "^2.1.0",
     "@metamask/polling-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^34.0.1",
+    "@metamask/profile-sync-controller": "^34.0.2",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/seedless-onboarding-controller": "^12.0.0",
     "@metamask/superstruct": "^3.4.1",
