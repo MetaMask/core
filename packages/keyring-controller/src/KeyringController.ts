@@ -2697,17 +2697,11 @@ export class KeyringController<
 
   /**
    * Serialize the current array of keyring instances,
-   * including unsupported keyrings by default.
+   * including unsupported keyrings.
    *
-   * @param options - Method options.
-   * @param options.includeUnsupported - Whether to include unsupported keyrings.
    * @returns The serialized keyrings.
    */
-  async #getSerializedKeyrings(
-    { includeUnsupported }: { includeUnsupported: boolean } = {
-      includeUnsupported: true,
-    },
-  ): Promise<SerializedKeyring[]> {
+  async #getSerializedKeyrings(): Promise<SerializedKeyring[]> {
     const serializedKeyrings: SerializedKeyring[] = await Promise.all(
       this.#keyrings.map(async ({ keyring, metadata }) => {
         return {
@@ -2718,9 +2712,7 @@ export class KeyringController<
       }),
     );
 
-    if (includeUnsupported) {
-      serializedKeyrings.push(...this.#unsupportedKeyrings);
-    }
+    serializedKeyrings.push(...this.#unsupportedKeyrings);
 
     return serializedKeyrings;
   }
@@ -2774,17 +2766,28 @@ export class KeyringController<
    * @returns The keyring snapshots.
    */
   async #getKeyringSnapshots(): Promise<KeyringSnapshots> {
-    const serializedKeyrings = await this.#getSerializedKeyrings({
-      includeUnsupported: false,
-    });
-
     return {
-      keyrings: serializedKeyrings.map((serialized, index) => {
-        // Cloned, as keyrings may return aliased internal state from
-        // `serialize()`.
-        return { ...cloneDeep(serialized), index };
-      }),
+      keyrings: await Promise.all(
+        this.#keyrings.map((entry) => this.#getKeyringSnapshot(entry)),
+      ),
       unsupportedKeyrings: cloneDeep(this.#unsupportedKeyrings),
+    };
+  }
+
+  /**
+   * Take a snapshot of the given keyring entry, to roll back to.
+   *
+   * @param entry - The keyring entry.
+   * @returns The keyring snapshot.
+   */
+  async #getKeyringSnapshot(entry: KeyringEntry): Promise<KeyringSnapshot> {
+    // Cloned, as keyrings may return aliased internal state from
+    // `serialize()`.
+    return {
+      index: this.#keyrings.indexOf(entry),
+      type: entry.keyring.type,
+      data: cloneDeep(await entry.keyring.serialize()),
+      metadata: { ...entry.metadata },
     };
   }
 
@@ -3477,15 +3480,9 @@ export class KeyringController<
       // as the "before" state for the change detection below. Computed
       // before the transaction starts: a failure here leaves the controller
       // untouched, and must not be mistaken for a rollback with no
-      // snapshot, which would destroy a pre-existing keyring. Cloned, as
-      // keyrings may return aliased internal state from `serialize()`.
+      // snapshot, which would destroy a pre-existing keyring.
       const snapshot: KeyringSnapshot | undefined = selected
-        ? {
-            index: this.#keyrings.indexOf(entry),
-            type: entry.keyring.type,
-            data: cloneDeep(await entry.keyring.serialize()),
-            metadata: { ...entry.metadata },
-          }
+        ? await this.#getKeyringSnapshot(entry)
         : undefined;
 
       try {
