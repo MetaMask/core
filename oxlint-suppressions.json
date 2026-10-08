@@ -7560,11 +7560,6 @@
       "count": 1
     }
   },
-  "packages/wallet/src/initialization/initialization.ts": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "packages/wallet/src/initialization/instances/claims-controller/claims-controller.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
