@@ -95,7 +95,7 @@
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/eth-hd-keyring": "^15.0.0",
     "@metamask/keyring-api": "^24.0.0",
-    "@metamask/keyring-internal-api": "^12.0.0",
+    "@metamask/keyring-internal-api": "^12.1.0",
     "@metamask/providers": "^22.1.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@types/jest": "^30.0.0",
