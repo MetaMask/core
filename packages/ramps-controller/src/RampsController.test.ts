@@ -10892,22 +10892,91 @@ describe('RampsController', () => {
     });
 
     it('discards a persisted session owned by a different profile and returns an empty snapshot', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        // A persisted session created by a previous identity: its externalUserId
-        // no longer matches the signed-in profile.
-        const handlers = registerKycHandlers(rootMessenger, {
-          session: { ...approvedSession, externalUserId: 'previous-identity' },
-          profileCanonicalId: CANONICAL_PROFILE_ID,
-        });
+      await withController(
+        {
+          options: {
+            state: {
+              moneyAccountWalletRegistrations: [
+                { walletAddress: '0xabc', status: 'active', updatedAt: 1 },
+              ],
+              vbaAutorampListFetchedAt: 2,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          // A persisted session created by a previous identity: its externalUserId
+          // no longer matches the signed-in profile.
+          const handlers = registerKycHandlers(rootMessenger, {
+            session: {
+              ...approvedSession,
+              externalUserId: 'previous-identity',
+            },
+            profileCanonicalId: CANONICAL_PROFILE_ID,
+          });
+          controller.addAutoramp({
+            id: 'autoramp-previous',
+            customerId: 'customer-previous',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Approved,
+          });
 
-        expect(
-          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
-        ).toStrictEqual(emptySnapshot());
+          expect(
+            await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+          ).toStrictEqual(emptySnapshot());
 
-        expect(handlers.clearState).toHaveBeenCalledTimes(1);
-        // The stale session is discarded before any session-scoped call runs.
-        expect(handlers.hasCompletedVendorDisclaimers).not.toHaveBeenCalled();
-      });
+          expect(handlers.clearState).toHaveBeenCalledTimes(1);
+          // The stale session is discarded before any session-scoped call runs.
+          expect(handlers.hasCompletedVendorDisclaimers).not.toHaveBeenCalled();
+          expect(
+            controller.state.moneyAccountWalletRegistrations,
+          ).toStrictEqual([]);
+          expect(controller.state.autoramps).toStrictEqual([]);
+          expect(controller.state.vbaAutorampListFetchedAt).toBeNull();
+        },
+      );
+    });
+
+    it('does not let a discarded profile leave the next approved session ready or signed', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              moneyAccountWalletRegistrations: [
+                { walletAddress: '0xabc', status: 'active', updatedAt: 1 },
+              ],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const handlers = registerKycHandlers(rootMessenger, {
+            session: {
+              ...approvedSession,
+              externalUserId: 'previous-identity',
+            },
+            profileCanonicalId: CANONICAL_PROFILE_ID,
+          });
+          controller.addAutoramp({
+            id: 'autoramp-previous',
+            customerId: 'customer-previous',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Approved,
+          });
+
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' });
+          handlers.readSessionStatus.mockReturnValue(approvedSession);
+
+          expect(
+            await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+          ).toStrictEqual(
+            factsSnapshot({
+              kycStatus: 'approved',
+              autorampStatus: 'needs_wallet_registration',
+            }),
+          );
+          expect(handlers.getAutoramps).not.toHaveBeenCalled();
+          expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        },
+      );
     });
 
     it('does not fetch a foreign persisted session', async () => {

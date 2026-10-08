@@ -4180,9 +4180,16 @@ export class RampsController extends BaseController<
     let session = this.messenger.call('KycController:readSessionStatus');
 
     // A persisted session can outlive the identity that created it. Reusing it
-    // makes session-scoped calls fail closed. Discard it before any fetch.
+    // makes session-scoped calls fail closed. Discard it before any fetch, with
+    // the registration rows and autoramp cursor it left behind, since neither
+    // is keyed by profile.
     if (session && !(await this.#isVbaSessionOwnedByCurrentProfile(session))) {
       this.messenger.call('KycController:clearState');
+      this.update((state) => {
+        state.moneyAccountWalletRegistrations = [];
+        state.autoramps = [];
+        state.vbaAutorampListFetchedAt = null;
+      });
       return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
     }
 
