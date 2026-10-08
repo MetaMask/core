@@ -1174,10 +1174,7 @@ describe('SocialService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            items: [
-              { ...mockPosition, timestamp: 1700000000 },
-              mockFeedItem,
-            ],
+            items: [{ ...mockPosition, timestamp: 1700000000 }, mockFeedItem],
             pagination: { olderCursor: null, newerCursor: null },
           }),
       });
@@ -1186,6 +1183,38 @@ describe('SocialService', () => {
       const result = await service.fetchFeed();
 
       expect(result.items).toStrictEqual([mockFeedItem]);
+    });
+
+    it('throws when the feed envelope is missing pagination', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ items: [mockFeedItem] }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchFeed()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+      );
+    });
+
+    it('throws when items is not an array', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: 'not-an-array',
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchFeed()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+      );
     });
 
     it('accepts null buy-side money fields on an otherwise valid item', async () => {

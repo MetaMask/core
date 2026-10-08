@@ -274,6 +274,10 @@ const FeedResponseStruct = structType({
  * One malformed feed item must not blank the page. When the envelope is
  * well-shaped, keep items that match {@link FeedItemStruct} and drop the rest.
  * Still throw when `items` or `pagination` themselves are unusable.
+ *
+ * @param feedData - Parsed JSON body from a feed endpoint.
+ * @param invalidMessage - Error message to throw when the envelope is unusable.
+ * @returns The validated feed response, possibly with invalid items dropped.
  */
 const parseFeedResponse = (
   feedData: unknown,
@@ -292,10 +296,7 @@ const parseFeedResponse = (
     throw new Error(invalidMessage);
   }
 
-  const { items, pagination } = feedData as {
-    items: unknown;
-    pagination: unknown;
-  };
+  const { items, pagination } = feedData;
 
   if (!Array.isArray(items) || !is(pagination, FeedPaginationStruct)) {
     throw new Error(invalidMessage);
