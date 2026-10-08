@@ -4,7 +4,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { TraceCallback } from '@metamask/controller-utils';
+import type { HttpError, TraceCallback } from '@metamask/controller-utils';
 import { BrokenCircuitError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -249,6 +249,7 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'KycController:getSessionStatusForVendor',
   'KycController:getProviderFlowStatus',
   'KycController:refreshSessionStatus',
+  'KycController:fetchSessionStatus',
   'KycController:hasCompletedVendorDisclaimers',
   'KycController:hasCompletedSessionDisclaimers',
   'KycController:clearState',
@@ -300,6 +301,11 @@ export type KycControllerGetSessionStatusForVendorAction = {
 export type KycControllerRefreshSessionStatusAction = {
   type: 'KycController:refreshSessionStatus';
   handler: () => KycControllerSessionStatus;
+};
+
+export type KycControllerFetchSessionStatusAction = {
+  type: 'KycController:fetchSessionStatus';
+  handler: () => Promise<KycControllerSessionStatus>;
 };
 
 export type KycControllerGetProviderFlowStatusAction = {
@@ -395,6 +401,13 @@ export type VbaOnboardingSnapshot = {
   sessionExists: boolean;
   vendorDisclaimersComplete: boolean;
   sessionDisclaimersComplete: boolean;
+  /**
+   * Whether the KYC session is finalized on idOS. A finalized session can no
+   * longer collect consents or relaunch the provider flow, so hosts must route
+   * on {@link VbaOnboardingSnapshot.kycStatus} instead. It does not imply
+   * session disclaimers were completed.
+   */
+  sessionClosed: boolean;
   providerFlowStatus: VbaProviderFlowStatus;
   /** Overall KYC session outcome used to decide whether autoramp setup can run. */
   kycStatus: VbaKycStatus;
@@ -405,6 +418,7 @@ const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
   sessionExists: false,
   vendorDisclaimersComplete: false,
   sessionDisclaimersComplete: false,
+  sessionClosed: false,
   providerFlowStatus: 'not_started',
   kycStatus: 'none',
   autorampStatus: 'not_ready',
@@ -423,6 +437,28 @@ function toVbaKycStatus(value: string | undefined): VbaKycStatus {
     return value as VbaKycStatus;
   }
   return 'none';
+}
+
+/**
+ * Error code the idOS relay returns, surfaced by the UKYC API as a 409, when a
+ * session-scoped call targets a session that is already finalized.
+ */
+const SESSION_ALREADY_FINALIZED_ERROR_CODE = 'session_already_finalized';
+
+/**
+ * Whether a KYC controller call failed because the session is already
+ * finalized. Checked structurally so the ramps package does not depend on
+ * `@metamask/kyc-controller`.
+ *
+ * @param error - Error thrown by a KYC controller messenger call.
+ * @returns Whether the error is a 409 `session_already_finalized`.
+ */
+function isKycSessionAlreadyFinalizedError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error as Partial<HttpError>).httpStatus === 409 &&
+    error.message.includes(SESSION_ALREADY_FINALIZED_ERROR_CODE)
+  );
 }
 
 /**
@@ -980,6 +1016,7 @@ type AllowedActions =
   | KycControllerGetSessionStatusForVendorAction
   | KycControllerGetProviderFlowStatusAction
   | KycControllerRefreshSessionStatusAction
+  | KycControllerFetchSessionStatusAction
   | KycControllerHasCompletedVendorDisclaimersAction
   | KycControllerHasCompletedSessionDisclaimersAction
   | KycControllerClearStateAction
@@ -4040,9 +4077,21 @@ export class RampsController extends BaseController<
     const vendorDisclaimersComplete = await this.messenger.call(
       'KycController:hasCompletedVendorDisclaimers',
     );
-    const sessionDisclaimersComplete = await this.messenger.call(
-      'KycController:hasCompletedSessionDisclaimers',
-    );
+    let sessionDisclaimersComplete = false;
+    let sessionClosed = false;
+    try {
+      sessionDisclaimersComplete = await this.messenger.call(
+        'KycController:hasCompletedSessionDisclaimers',
+      );
+    } catch (error) {
+      if (!isKycSessionAlreadyFinalizedError(error)) {
+        throw error;
+      }
+      // idOS finalized the session, so its consents can no longer be read and
+      // the cached status may be stale. Route on a fresh status instead.
+      sessionClosed = true;
+      session = await this.messenger.call('KycController:fetchSessionStatus');
+    }
     const providerFlowStatus = this.messenger.call(
       'KycController:getProviderFlowStatus',
     );
@@ -4051,6 +4100,7 @@ export class RampsController extends BaseController<
       sessionExists: true,
       vendorDisclaimersComplete,
       sessionDisclaimersComplete,
+      sessionClosed,
       providerFlowStatus,
       // The relay approves (`kycStatus: 'approved'`) as soon as the KYC decision
       // is made, while the vendor-side `finalStatus` can lag at `'pending'` until

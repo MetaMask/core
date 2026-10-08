@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `KycController.fetchSessionStatus` and the `KycController:fetchSessionStatus` messenger action, which waits for one `GET /sessions/{id}/status` and stores the result ([#10744](https://github.com/MetaMask/core/pull/10744))
 - Add optional `aal2Token` parameter to `KycController.startSession` and the `KycController:startSession` messenger action ([#10632](https://github.com/MetaMask/core/pull/10632))
 
 ### Changed

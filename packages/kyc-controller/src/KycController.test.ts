@@ -346,6 +346,56 @@ describe('KycController', () => {
     });
   });
 
+  describe('fetchSessionStatus', () => {
+    it('throws when no session is available', async () => {
+      await withController(async ({ controller }) => {
+        await expect(controller.fetchSessionStatus()).rejects.toThrow(
+          'No session was found',
+        );
+      });
+    });
+
+    it('stores the fetched status for the current session', async () => {
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          const approved = sessionStatus('approved');
+          handlers.getSessionStatus.mockResolvedValue(approved);
+
+          const status = await controller.fetchSessionStatus();
+
+          expect(status).toStrictEqual(approved);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(controller.state.sessionStatus).toStrictEqual(approved);
+        },
+      );
+    });
+
+    it('does not store a status that returns after the session was cleared', async () => {
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          const approved = sessionStatus('approved');
+          handlers.getSessionStatus.mockImplementation(async () => {
+            controller.clearState();
+            return approved;
+          });
+
+          const status = await controller.fetchSessionStatus();
+
+          expect(status).toStrictEqual(approved);
+          expect(controller.state.sessionStatus).toBeNull();
+        },
+      );
+    });
+  });
+
   describe('startSessionStatusPolling', () => {
     afterEach(() => {
       jest.useRealTimers();

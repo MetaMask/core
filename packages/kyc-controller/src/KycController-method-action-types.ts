@@ -72,6 +72,20 @@ export type KycControllerRefreshSessionStatusAction = {
 };
 
 /**
+ * Fetches `GET /sessions/{id}/status` once for
+ * {@link KycControllerState.sessionStatus}'s current `id` and records the
+ * result on state. Unlike {@link refreshSessionStatus}, this waits for the
+ * backend instead of returning the cached status.
+ *
+ * @returns The latest session status.
+ * @throws If there is no session on state, or the request fails.
+ */
+export type KycControllerFetchSessionStatusAction = {
+  type: `KycController:fetchSessionStatus`;
+  handler: KycController['fetchSessionStatus'];
+};
+
+/**
  * Starts polling `GET /sessions/{id}/status` for
  * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
  * the result onto state only when the payload changed. The loop stops once
@@ -200,6 +214,7 @@ export type KycControllerMethodActions =
   | KycControllerGetSessionStatusForVendorAction
   | KycControllerGetProviderFlowStatusAction
   | KycControllerRefreshSessionStatusAction
+  | KycControllerFetchSessionStatusAction
   | KycControllerStartSessionStatusPollingAction
   | KycControllerFetchSessionDisclaimersAction
   | KycControllerRecordSessionDisclaimersAction
