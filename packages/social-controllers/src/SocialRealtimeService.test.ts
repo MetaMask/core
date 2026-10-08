@@ -146,6 +146,20 @@ describe('SocialRealtimeService', () => {
     });
   });
 
+  it('ignores non-object feed events', async () => {
+    const { call, service } = createService();
+    const listener = jest.fn();
+    service.addListener(listener);
+
+    await service.setActive(true);
+    getFeedCallback(call)({
+      channel: SOCIAL_FEED_CHANNEL,
+      data: null,
+    });
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['version', { version: 2 }],
     ['kind', { kind: 'other' }],
