@@ -39,6 +39,7 @@ Checkpoints required for the password change ~
 - `KEY_SYNC_PENDING` - commit after Keyring vault is updated and before we sync Keyring encryption key to Seedless vault.
 
 > Upon completion, the checkpoint value should be cleared from the state machine.
+On failure, wallet should be locked.
 
 ```mermaid
 flowchart LR
