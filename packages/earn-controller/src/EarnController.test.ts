@@ -793,7 +793,7 @@ describe('EarnController', () => {
     };
 
     EarnApiServiceMock.mockImplementation(
-      () => mockedEarnApiService as EarnApiService,
+      () => mockedEarnApiService as unknown as EarnApiService,
     );
   });
 
@@ -1316,7 +1316,7 @@ describe('EarnController', () => {
         };
 
         EarnApiServiceMock.mockImplementation(
-          () => mockedEarnApiService as EarnApiService,
+          () => mockedEarnApiService as unknown as EarnApiService,
         );
 
         const { controller } = await setupController();
