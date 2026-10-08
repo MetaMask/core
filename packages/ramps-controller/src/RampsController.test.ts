@@ -14,7 +14,6 @@ import * as path from 'path';
 import {
   AutorampStatus,
   buildBrazilMusdAutorampRequest,
-  buildMusdAutorampRequest,
 } from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
@@ -10980,7 +10979,6 @@ describe('RampsController', () => {
         expect(
           await controller.hydrateVbaOnboarding({
             walletAddress: '0xabc',
-            sourceCurrencyCode: 'USD',
           }),
         ).toStrictEqual(
           factsSnapshot({
