@@ -5232,10 +5232,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@levischuck/tiny-cbor@npm:^0.3.3":
-  version: 0.3.3
-  resolution: "@levischuck/tiny-cbor@npm:0.3.3"
-  checksum: 10/737219a7bb28570043f77aa9d73af800a1dd41a1561c0f816d0ff5b7e95e08351377cd97afa19c4d8581e44951211a4b5f46084944ffdbca2779cddaa1c1fcbc
+"@levischuck/tiny-cbor@npm:^0.3.6":
+  version: 0.3.6
+  resolution: "@levischuck/tiny-cbor@npm:0.3.6"
+  checksum: 10/3adcabfba4740b72ffabd87da45130e12a31c2e9f929f24ccc7495cda9eafc449f7bb24ada414f86d9011b4d9d582737fbc3cfd1d0c8c8ee7f85f29bc48999a3
   languageName: node
   linkType: hard
 
@@ -7967,7 +7967,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/passkey-controller@workspace:packages/passkey-controller"
   dependencies:
-    "@levischuck/tiny-cbor": "npm:^0.3.3"
+    "@levischuck/tiny-cbor": "npm:^0.3.6"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
