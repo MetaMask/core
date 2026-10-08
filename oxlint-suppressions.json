@@ -915,7 +915,7 @@
       "count": 2
     },
     "typescript/unbound-method": {
-      "count": 14
+      "count": 13
     }
   },
   "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {

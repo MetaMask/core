@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- RPC token detection now loads supported networks, occurrence floors, and per-chain token lists through `queryApiClient.token` (`GET /v2/supportedNetworks`, `GET /v1/suggestedOccurrenceFloors`, `GET /tokens/{chainId}`), replacing the local `TokensApiClient` ([#10672](https://github.com/MetaMask/core/pull/10672))
+  - **BREAKING:** `RpcDataSource` requires `queryApiClient` and no longer accepts `queryClient`. `AssetsController` passes its existing `queryApiClient`.
 - Bump `@metamask/account-tree-controller` from `^11.0.0` to `^11.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/assets-controllers` from `^112.1.1` to `^112.1.2` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/core-backend` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
