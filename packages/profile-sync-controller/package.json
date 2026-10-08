@@ -76,7 +76,7 @@
     "@metamask/address-book-controller": "^8.0.0",
     "@metamask/base-controller": "^10.0.0",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/cryptography": "^1.1.1",
+    "@metamask/cryptography": "^1.1.2",
     "@metamask/key-tree": "^10.1.1",
     "@metamask/keyring-controller": "^28.1.0",
     "@metamask/messenger": "^3.0.0",
