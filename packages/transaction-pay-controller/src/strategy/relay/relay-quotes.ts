@@ -524,13 +524,11 @@ async function processTransactions(
     requestBody.refundTo = request.from;
   }
 
-  const fundingRecipient = (transaction.txParams?.from as Hex) ?? request.from;
-
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
       data: buildTokenTransferData(
-        fundingRecipient,
+        transaction.txParams.from as Hex,
         request.targetAmountMinimum,
       ),
       value: '0x0',

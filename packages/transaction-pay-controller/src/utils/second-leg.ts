@@ -33,36 +33,6 @@ export type SecondLegCallsBuilder = (
 ) => Promise<BatchTransactionParams[]>;
 
 /**
- * Resolves the account the transaction's own calls execute from, when it
- * differs from the account paying for the quote.
- *
- * `from` is the resolved `accountOverride`, so it is the payer rather than the
- * account the calls run as. A Money Account deposit is the motivating case: the
- * nested approve and deposit execute from the Money Account while an EOA pays,
- * so the funds have to settle on the Money Account or those calls have nothing
- * to spend.
- *
- * @param transaction - The transaction being paid for.
- * @param from - The resolved payer address.
- * @returns The executing account, or `undefined` when it matches the payer.
- */
-export function resolveExecutionAccount(
-  transaction: TransactionMeta,
-  from: Hex,
-): Hex | undefined {
-  const executionAccount = transaction.txParams?.from as Hex | undefined;
-
-  if (
-    !executionAccount ||
-    executionAccount.toLowerCase() === from.toLowerCase()
-  ) {
-    return undefined;
-  }
-
-  return executionAccount;
-}
-
-/**
  * Derives the quote recipient for non-atomic flows, where the second leg runs
  * after settlement so funds must land directly on the account submitting that
  * leg.
@@ -91,7 +61,7 @@ export async function resolveNonAtomicRecipient(
   }
 
   if (!request.isPostQuote) {
-    return resolveExecutionAccount(transaction, request.from) ?? request.from;
+    return transaction.txParams.from as Hex;
   }
 
   const { transactionData: transactionDataList } = messenger.call(

@@ -6,11 +6,7 @@ import type { Hex } from '@metamask/utils';
 import type { TransactionPayControllerMessenger } from '../types.js';
 import { withChompRecovery } from './chomp.js';
 import { getNetworkClientId } from './provider.js';
-import {
-  resolveExecutionAccount,
-  resolveNonAtomicRecipient,
-  submitSecondLeg,
-} from './second-leg.js';
+import { resolveNonAtomicRecipient, submitSecondLeg } from './second-leg.js';
 import {
   collectTransactionIds,
   getTransaction,
@@ -122,35 +118,6 @@ describe('second-leg', () => {
     waitForTransactionConfirmedMock.mockResolvedValue();
   });
 
-  describe('resolveExecutionAccount', () => {
-    it('returns the executing account when it differs from the payer', () => {
-      expect(resolveExecutionAccount(TRANSACTION_MOCK, PAYER_MOCK)).toBe(
-        FROM_MOCK,
-      );
-    });
-
-    it('returns undefined when the executing account is the payer', () => {
-      expect(
-        resolveExecutionAccount(TRANSACTION_MOCK, FROM_MOCK),
-      ).toBeUndefined();
-    });
-
-    it('ignores case when comparing the executing account to the payer', () => {
-      expect(
-        resolveExecutionAccount(
-          TRANSACTION_MOCK,
-          FROM_MOCK.toUpperCase() as Hex,
-        ),
-      ).toBeUndefined();
-    });
-
-    it('returns undefined when the transaction has no params', () => {
-      expect(
-        resolveExecutionAccount({} as TransactionMeta, PAYER_MOCK),
-      ).toBeUndefined();
-    });
-  });
-
   describe('resolveNonAtomicRecipient', () => {
     it('returns undefined for atomic flows', async () => {
       expect(
@@ -172,7 +139,7 @@ describe('second-leg', () => {
       ).toBeUndefined();
     });
 
-    it('settles on the executing account when the payer only funds the quote', async () => {
+    it('settles on the transaction account rather than the payer for non-post-quote flows', async () => {
       expect(
         await resolveNonAtomicRecipient(
           TRANSACTION_MOCK,
@@ -180,16 +147,6 @@ describe('second-leg', () => {
           buildMessenger(),
         ),
       ).toBe(FROM_MOCK);
-    });
-
-    it('falls back to the payer when there is no distinct executing account', async () => {
-      expect(
-        await resolveNonAtomicRecipient(
-          {} as TransactionMeta,
-          { atomic: false, from: PAYER_MOCK } as never,
-          buildMessenger(),
-        ),
-      ).toBe(PAYER_MOCK);
     });
 
     it('asks the client for the recipient on post-quote flows', async () => {
