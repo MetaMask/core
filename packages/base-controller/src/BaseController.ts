@@ -484,7 +484,7 @@ export function validateControllerState<
     throw validationError;
   } else if (mode === 'lenient' && validationError) {
     const error = new Error(
-      `Validation of "${name}" state failed, but did not throw: ${validationError.message}`,
+      `Validation of "${name}" state failed. Not throwing because strict mode is not enabled. The reported error is: ${validationError.message}`,
       { cause: validationError },
     );
 
