@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `KycController.startSession` now throws if no existing session is found and `aal2Token` is not provided ([#10632](https://github.com/MetaMask/core/pull/10632))
   - Pass `aal2Token` whenever `startSession` may need to create a new UKYC session
   - Reusing the session already in state, or the latest vendor session, does not require `aal2Token`
+- `KycController.hasCompletedSessionDisclaimers` fetches the session status and returns whether `consentStatus` is `given`
 - Increase the UKYC capability token lifetime from 4 hours to 72 hours ([#10679](https://github.com/MetaMask/core/pull/10679))
 - Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.1` ([#10752](https://github.com/MetaMask/core/pull/10752))
