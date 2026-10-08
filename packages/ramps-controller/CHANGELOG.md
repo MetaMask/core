@@ -10,15 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `buildMusdAutorampRequest`, which builds the standing mUSD-on-Monad autoramp body for an explicit fiat code. `buildBrazilMusdAutorampRequest` remains the BRL wrapper ([#10743](https://github.com/MetaMask/core/pull/10743))
-- Add persisted `moneyAccountWalletRegistrations` (`walletAddress`, `status` of `active` or `disabled`, `updatedAt`) and `vbaAutorampListFetchedAt` on `RampsController` state
-- Add `needs_wallet_registration` and `needs_source_currency` to `VbaOnboardingSnapshot.autorampStatus`
+- Add persisted `moneyAccountWalletRegistrations` (`walletAddress`, `status` of `active` or `disabled`, `updatedAt`) and `vbaAutorampListFetchedAt` on `RampsController` state ([#10749](https://github.com/MetaMask/core/pull/10749))
+- Add `needs_wallet_registration` and `needs_source_currency` to `VbaOnboardingSnapshot.autorampStatus` ([#10749](https://github.com/MetaMask/core/pull/10749))
 
 ### Changed
 
-- **BREAKING:** `hydrateVbaOnboarding` is a read. It returns KYC and autoramp facts from persisted state, and no longer signs a wallet, posts a self-hosted address, creates an autoramp, or starts the 15-second KYC poll. Optional `refreshKyc` performs one `GET /sessions/{id}/status` when a non-terminal session is already stored. Optional `refreshAutoramps` replaces the autoramp cursor from `GET /neobank/autoramps` unless that wallet already has a usable (not Rejected or Cancelled) route. An approved session with no registration row returns `needs_wallet_registration`. An approved session whose registration is `active` or `disabled`, and which has no usable autoramp, returns `needs_source_currency`. `vbaAutorampListFetchedAt` is set only when the autoramp list GET succeeds
-- **BREAKING:** `RampsControllerMessenger` now requires `KycController:readSessionStatus` and `KycController:fetchSessionStatusOnce` instead of `KycController:refreshSessionStatus` and `KycController:getSessionStatusForVendor`
-- `registerMoneyAccountWallet` writes a `moneyAccountWalletRegistrations` row after `alreadyRegistered`, `registered`, or `registeredDisabled`. A lookup failure or a thrown signature writes nothing
-- `createAutoramp` derives its idempotency key from the caller-supplied source fiat (`brl-musd-monad` versus `usd-musd-monad`), the customer, the wallet, and rejected or cancelled autoramp ids. A caller-supplied key is used only when the body has no source fiat or recipient address
+- **BREAKING:** `hydrateVbaOnboarding` is a read. It returns KYC and autoramp facts from persisted state, and no longer signs a wallet, posts a self-hosted address, creates an autoramp, or starts the 15-second KYC poll. Optional `refreshKyc` performs one `GET /sessions/{id}/status` when a non-terminal session is already stored. Optional `refreshAutoramps` replaces the autoramp cursor from `GET /neobank/autoramps` unless that wallet already has a usable (not Rejected or Cancelled) route. An approved session with no registration row returns `needs_wallet_registration`. An approved session whose registration is `active` or `disabled`, and which has no usable autoramp, returns `needs_source_currency`. `vbaAutorampListFetchedAt` is set only when the autoramp list GET succeeds ([#10749](https://github.com/MetaMask/core/pull/10749))
+- **BREAKING:** `RampsControllerMessenger` now requires `KycController:readSessionStatus` and `KycController:fetchSessionStatusOnce` instead of `KycController:refreshSessionStatus` and `KycController:getSessionStatusForVendor` ([#10749](https://github.com/MetaMask/core/pull/10749))
+- `registerMoneyAccountWallet` writes a `moneyAccountWalletRegistrations` row after `alreadyRegistered`, `registered`, or `registeredDisabled`. A lookup failure or a thrown signature writes nothing ([#10749](https://github.com/MetaMask/core/pull/10749))
+- `createAutoramp` derives its idempotency key from the caller-supplied source fiat (`brl-musd-monad` versus `usd-musd-monad`), the customer, the wallet, and rejected or cancelled autoramp ids. A caller-supplied key is used only when the body has no source fiat or recipient address ([#10749](https://github.com/MetaMask/core/pull/10749))
 
 ## [26.3.0]
 
