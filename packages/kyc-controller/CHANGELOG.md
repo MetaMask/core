@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Pass `aal2Token` whenever `startSession` may need to create a new UKYC session
   - Reusing the session already in state, or the latest vendor session, does not require `aal2Token`
 - Increase the UKYC capability token lifetime from 4 hours to 72 hours ([#10679](https://github.com/MetaMask/core/pull/10679))
-- `KycController.hasCompletedSessionDisclaimers` returns `true` when `KycService.fetchSessionDisclaimersBySessionId` responds with HTTP 409
+- `KycController.hasCompletedSessionDisclaimers` returns `true` when `KycService.fetchSessionDisclaimersBySessionId` responds with HTTP 409 ([#10742](https://github.com/MetaMask/core/pull/10742))
+- Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
 
 ## [0.6.1]
 
