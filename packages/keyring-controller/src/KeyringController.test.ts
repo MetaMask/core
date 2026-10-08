@@ -6340,6 +6340,127 @@ describe('KeyringController', () => {
       );
     });
 
+    it('resolves snapshots by identity, so a shared-SDK keyring sharing its id with another keyring survives a whole-wallet rollback', async () => {
+      sharedSdkToken = undefined;
+      await withController(
+        {
+          skipVaultCreation: true,
+          keyringBuilders: [
+            keyringBuilderFactory(SharedSdkKeyring),
+            keyringBuilderFactory(MockShallowKeyring),
+          ],
+          state: {
+            vault: createVault([
+              ...defaultKeyrings,
+              {
+                type: SharedSdkKeyring.type,
+                data: { accounts: [SHARED_SDK_ACCOUNT_ADDRESS] },
+                // Shared with the keyring below, e.g. as restored from a
+                // corrupted vault.
+                metadata: { id: 'duplicate-id', name: '' },
+              },
+              {
+                type: MockShallowKeyring.type,
+                data: { accounts: [DUPLICATE_ID_SECOND_ACCOUNT] },
+                metadata: { id: 'duplicate-id', name: '' },
+              },
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+          const accountsBefore = await controller.getAccounts();
+
+          await expect(
+            controller.withController(async () => {
+              throw new Error('Oops');
+            }),
+          ).rejects.toThrow('Oops');
+
+          // The snapshots resolve back to their keyrings by identity, so
+          // both keyrings sharing their id are kept as they were. Matching
+          // by id instead would drop the shared-SDK keyring from the walk
+          // while it still holds the SDK, park it as unsupported when the
+          // wrong-instance recreation fails, and lose its accounts.
+          expect(
+            controller.getKeyringsByType(SharedSdkKeyring.type),
+          ).toHaveLength(1);
+          expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
+
+          // The kept instance still holds the shared SDK: a follow-up
+          // operation on it succeeds.
+          await controller.withKeyring(
+            { type: SharedSdkKeyring.type },
+            async ({ keyring }) => {
+              expect(await keyring.getAccounts()).toStrictEqual([
+                SHARED_SDK_ACCOUNT_ADDRESS,
+              ]);
+            },
+          );
+        },
+      );
+    });
+
+    it('keeps the instances of unchanged keyrings sharing their id with another keyring when a whole-wallet transaction fails', async () => {
+      await withController(
+        {
+          skipVaultCreation: true,
+          keyringBuilders: [keyringBuilderFactory(MockShallowKeyring)],
+          state: {
+            vault: createVault([
+              ...defaultKeyrings,
+              {
+                type: MockShallowKeyring.type,
+                data: { accounts: [DUPLICATE_ID_FIRST_ACCOUNT] },
+                metadata: { id: 'duplicate-id', name: '' },
+              },
+              {
+                type: MockShallowKeyring.type,
+                data: { accounts: [DUPLICATE_ID_SECOND_ACCOUNT] },
+                metadata: { id: 'duplicate-id', name: '' },
+              },
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+          const accountsBefore = await controller.getAccounts();
+
+          const [firstKeyring, secondKeyring] = controller.getKeyringsByType(
+            MockShallowKeyring.type,
+          ) as MockShallowKeyring[];
+          const firstDestroy = jest.fn();
+          const secondDestroy = jest.fn();
+          (firstKeyring as { destroy?: () => void }).destroy = firstDestroy;
+          (secondKeyring as { destroy?: () => void }).destroy = secondDestroy;
+
+          await expect(
+            controller.withController(async () => {
+              throw new Error('Oops');
+            }),
+          ).rejects.toThrow('Oops');
+
+          // The transaction touched nothing: both keyrings keep their
+          // instances and are not destroyed. Matching snapshots by id
+          // instead would pair the first snapshot with the second
+          // instance, rebuild both keyrings, and drop the first instance
+          // without destroying it.
+          expect(
+            controller.getKeyringsByType(MockShallowKeyring.type),
+          ).toHaveLength(2);
+          expect(controller.getKeyringsByType(MockShallowKeyring.type)[0]).toBe(
+            firstKeyring,
+          );
+          expect(controller.getKeyringsByType(MockShallowKeyring.type)[1]).toBe(
+            secondKeyring,
+          );
+          expect(firstDestroy).not.toHaveBeenCalled();
+          expect(secondDestroy).not.toHaveBeenCalled();
+          expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
+        },
+      );
+    });
+
     it('rebuilds keyrings destroyed by a failed teardown instead of keeping dead instances', async () => {
       sharedSdkToken = undefined;
       await withController(

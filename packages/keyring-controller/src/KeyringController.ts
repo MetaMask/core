@@ -380,9 +380,12 @@ type SessionState = {
 
 /**
  * A serialized keyring snapshot, with the keyring's position in the
- * keyrings array at the time the snapshot was taken.
+ * keyrings array at the time the snapshot was taken, and the keyring
+ * entry itself, resolving the snapshot back to its keyring by identity —
+ * never by metadata id, which corrupted vaults may duplicate.
  */
 type KeyringSnapshot = SerializedKeyring & {
+  entry: KeyringEntry;
   index: number;
 };
 
@@ -2784,6 +2787,7 @@ export class KeyringController<
     // Cloned, as keyrings may return aliased internal state from
     // `serialize()`.
     return {
+      entry,
       index: this.#keyrings.indexOf(entry),
       type: entry.keyring.type,
       data: cloneDeep(await entry.keyring.serialize()),
@@ -2811,11 +2815,9 @@ export class KeyringController<
   async #rollbackKeyrings(snapshots: KeyringSnapshots): Promise<void> {
     this.#assertControllerMutexIsLocked();
 
-    const oldKeyringsById = new Map(
-      this.#keyrings.map(
-        (oldKeyring) => [oldKeyring.metadata.id, oldKeyring] as const,
-      ),
-    );
+    // The keyrings live at the time of the rollback, before the walk
+    // replaces the array below.
+    const oldKeyrings = this.#keyrings;
 
     // Restored wholesale before the walk: this undoes any parking performed
     // by the failed transaction, while keyrings the walk fails to recreate
@@ -2828,11 +2830,9 @@ export class KeyringController<
     this.#keyrings = newKeyrings;
 
     for (const snapshot of snapshots.keyrings) {
-      // Keyrings without metadata have no old counterpart, and are
-      // recreated with fresh metadata, mirroring `#restoreKeyring`.
-      const old = oldKeyringsById.get(snapshot.metadata?.id ?? '');
+      const old = snapshot.entry;
 
-      if (!old) {
+      if (!oldKeyrings.includes(old)) {
         // Removed and destroyed by the transaction: rebuilt from its
         // snapshot, at its original position.
         const newKeyring = await this.#recreateKeyring(undefined, snapshot);
@@ -2841,8 +2841,6 @@ export class KeyringController<
         }
         continue;
       }
-
-      oldKeyringsById.delete(old.metadata.id);
 
       if (await this.#isKeyringUnchanged(old, snapshot)) {
         // The transaction did not change the keyring: keep the old instance.
@@ -2858,11 +2856,18 @@ export class KeyringController<
       }
     }
 
-    // Whatever is left in the map was created by the failed transaction:
-    // destroy and drop it. Destruction failures must not mask the
-    // transaction's error.
-    for (const oldKeyring of oldKeyringsById.values()) {
-      await this.#destroyKeyringIgnoringErrors(oldKeyring);
+    // Whatever is left was created by the failed transaction: destroy and
+    // drop it.
+    const snapshotKeyrings = new Set(
+      snapshots.keyrings.map((snapshot) => snapshot.entry),
+    );
+    for (const leftoverKeyring of oldKeyrings.filter(
+      // Keyring entries that are not present in the snapshots, i.e., created
+      // by the failed transaction, so we need to destroy and drop them.
+      (oldKeyring) => !snapshotKeyrings.has(oldKeyring),
+    )) {
+      // Destruction failures must not mask the transaction's error.
+      await this.#destroyKeyringIgnoringErrors(leftoverKeyring);
     }
   }
 
