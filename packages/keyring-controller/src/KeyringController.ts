@@ -2006,6 +2006,7 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     return this.#withKeyringOrRollback(
+      { v2: false },
       () => this.#selectKeyringEntry({ v2: false, selector }),
       async () => {
         if (!options.createIfMissing || !('type' in selector)) {
@@ -2136,23 +2137,17 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     return this.#withKeyringOrRollback(
+      { v2: true },
       () => this.#selectKeyringEntry({ v2: true, selector }),
       async () => undefined,
-      async ({ keyringV2, metadata }) => {
-        if (!keyringV2) {
-          throw new KeyringControllerError(
-            KeyringControllerErrorMessage.KeyringV2NotSupported,
-          );
-        }
-
-        return this.#assertNoUnsafeDirectKeyringAccess(
+      async ({ keyringV2, metadata }) =>
+        this.#assertNoUnsafeDirectKeyringAccess(
           await operation({
             keyring: keyringV2 as SelectedKeyring,
             metadata,
           }),
           keyringV2,
-        );
-      },
+        ),
     );
   }
 
@@ -3441,6 +3436,11 @@ export class KeyringController<
    * keyring is removed and destroyed (mirroring `removeAccount`), unless it
    * is the primary keyring.
    *
+   * @param options - Transaction options.
+   * @param options.v2 - Whether the transaction operates on the keyring's
+   *   V2 adapter. The selected or created entry must then have one:
+   *   validated before any of the keyring's accounts are read, so that the
+   *   missing adapter takes precedence over keyring-level errors.
    * @param select - Selects the keyring entry to operate on, if any.
    * @param create - Creates the keyring entry to operate on when selection
    *   found nothing, if needed.
@@ -3448,6 +3448,7 @@ export class KeyringController<
    * @returns The result of the operation.
    */
   async #withKeyringOrRollback<Result>(
+    { v2 }: { v2: boolean },
     select: () => Promise<KeyringEntry | undefined>,
     create: () => Promise<KeyringEntry | undefined>,
     run: (entry: KeyringEntry) => Promise<Result>,
@@ -3459,6 +3460,12 @@ export class KeyringController<
       if (!entry) {
         throw new KeyringControllerError(
           KeyringControllerErrorMessage.KeyringNotFound,
+        );
+      }
+
+      if (v2 && !entry.keyringV2) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.KeyringV2NotSupported,
         );
       }
 
