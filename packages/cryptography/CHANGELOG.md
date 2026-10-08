@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Only pass `additionalData` to AES-GCM `encrypt` and `decrypt` when it is provided, as browsers such as Chrome reject `additionalData: undefined`
+
 ## [1.1.1]
 
 ### Fixed
