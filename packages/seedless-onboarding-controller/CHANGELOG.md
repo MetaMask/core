@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `changePassword` is now lifecycle-aware: it writes `seedlessOperationLifecycle` with the shared `REMOTE_PASSWORD_PENDING`, `LOCAL_STATE_PENDING`, and `LOCAL_PASSWORD_PENDING` phases and rejects a concurrent change with `PasswordChangeInProgress` ([#10148](https://github.com/MetaMask/core/pull/10148))
   - Clients must not start a second password change while a lifecycle is unfinished, and must drive the lifecycle to completion by calling `completePasswordChange`. See the [password sync flow](./docs/0002-seedless-password-sync-flow.md).
+- **BREAKING:** `addNewSecretData` and `runMigrations` now reject while `seedlessOperationLifecycle` is set, including the `LOCAL_PASSWORD_PENDING` state left after a successful password change. They throw `PasswordChangeInProgress` for a pending password change and `OperationInProgress` for another password-recovery operation; clients must complete recovery first ([#10148](https://github.com/MetaMask/core/pull/10148))
+- `storeKeyringEncryptionKey` and `loadKeyringEncryptionKey` now acquire the controller lock, so they wait for any in-flight controller operation before reading or writing the Keyring encryption key ([#10148](https://github.com/MetaMask/core/pull/10148))
 - **BREAKING:** `clearState` now returns a promise and waits for in-flight controller operations before clearing state. It also clears the in-memory decrypted vault data to prevent a completed operation from restoring cleared state ([#10148](https://github.com/MetaMask/core/pull/10148))
 - Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
 

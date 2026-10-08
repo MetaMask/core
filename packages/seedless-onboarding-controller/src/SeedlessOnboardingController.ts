@@ -2278,6 +2278,7 @@ export class SeedlessOnboardingController<
     // recovery knows the remote password is new.
     this.#writeSeedlessOperationLifecycle(
       SeedlessOnboardingCheckpoint.LocalStatePending,
+      operation,
     );
 
     const { accessToken, revokeToken } =
