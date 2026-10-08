@@ -138,8 +138,7 @@ class FooController {
            * Union of all FooController action types.
            */
           export type FooControllerMethodActions =
-            | FooControllerGetStateAction
-            | FooControllerResetAction;
+            FooControllerGetStateAction | FooControllerResetAction;
           "
         `);
       });
