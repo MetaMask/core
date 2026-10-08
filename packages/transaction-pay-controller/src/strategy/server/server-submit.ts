@@ -159,6 +159,14 @@ async function executeSingleServerQuote(
 
   log('Server request completed', targetHash);
 
+  // Phase 4: submit the calls the quote could not execute itself, now that the
+  // funds have settled on the target chain.
+  const secondLegHash = quote.requiresSecondLeg
+    ? await submitServerSecondLeg(quote, messenger, transaction, targetHash)
+    : undefined;
+
+  // Only complete once every leg has landed, so a failed second leg does not
+  // leave the parent transaction flagged as achieved.
   updateTransaction(
     {
       transactionId: transaction.id,
@@ -170,26 +178,37 @@ async function executeSingleServerQuote(
     },
   );
 
-  // Phase 4: submit the calls the quote could not execute itself, now that the
-  // funds have settled on the target chain.
-  if (quote.requiresSecondLeg) {
-    const { from, recipient, targetChainId, targetTokenAddress } =
-      quote.request;
+  return { transactionHash: secondLegHash ?? targetHash };
+}
 
-    const { transactionHash } = await submitSecondLeg({
-      chainId: targetChainId,
-      from: recipient ?? from,
-      messenger,
-      settlementHash:
-        targetHash === MISSING_TARGET_HASH ? undefined : targetHash,
-      tokenAddress: targetTokenAddress,
-      transaction,
-    });
+/**
+ * Submit the calls a server quote could not execute itself, from the account
+ * the funds settled on.
+ *
+ * @param quote - Server quote.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ * @param targetHash - Hash of the settlement on the target chain.
+ * @returns Hash of the second-leg transaction, if available.
+ */
+async function submitServerSecondLeg(
+  quote: TransactionPayQuote<ServerQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+  targetHash: Hex | undefined,
+): Promise<Hex | undefined> {
+  const { from, recipient, targetChainId, targetTokenAddress } = quote.request;
 
-    return { transactionHash: transactionHash ?? targetHash };
-  }
+  const { transactionHash } = await submitSecondLeg({
+    chainId: targetChainId,
+    from: recipient ?? from,
+    messenger,
+    settlementHash: targetHash === MISSING_TARGET_HASH ? undefined : targetHash,
+    tokenAddress: targetTokenAddress,
+    transaction,
+  });
 
-  return { transactionHash: targetHash };
+  return transactionHash;
 }
 
 /**
