@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `needs_source_currency` to `VBA_AUTORAMP_STATUSES` for an approved, registered wallet that has no usable autoramp and was not given a source currency ([#10743](https://github.com/MetaMask/core/pull/10743))
+- Add `buildMusdAutorampRequest`, which builds the standing mUSD-on-Monad autoramp body for an explicit fiat code. `buildBrazilMusdAutorampRequest` remains the BRL wrapper ([#10743](https://github.com/MetaMask/core/pull/10743))
+
+### Changed
+
+- **BREAKING:** `hydrateVbaOnboarding` still registers the Money Account wallet and refreshes autoramps after KYC approval, but it creates an autoramp only when `sourceCurrencyCode` is passed and the wallet has no usable autoramp. Without a code it returns `autorampStatus: 'needs_source_currency'` and does not post. The create body uses that code as `source_currencies[0].code`, and the idempotency key prefix follows the code (`brl-musd-monad` / `usd-musd-monad`) so a USD create does not replay the BRL route. A usable autoramp still returns `ready` and does not create another, even when a code is passed ([#10743](https://github.com/MetaMask/core/pull/10743))
+  - Callers that expected hydrate to always create the BRL autoramp must pass `sourceCurrencyCode: 'BRL'` on the call that should create
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.1` ([#10752](https://github.com/MetaMask/core/pull/10752))
+
 ## [26.3.0]
 
 ### Added

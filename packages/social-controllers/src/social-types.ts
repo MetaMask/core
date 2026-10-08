@@ -225,10 +225,19 @@ export type Position = {
    * responses from a social-api that predates the field.
    */
   isOpen?: boolean;
-  boughtUsd: number;
-  soldUsd: number;
-  realizedPnl: number;
-  costBasis: number;
+  /**
+   * Total USD spent buying into the position. `null` when Clicker stats are
+   * incomplete (the social-api used to JSON-serialize `NaN` as `null`).
+   */
+  boughtUsd: number | null;
+  /** Total USD received from sells. `null` when stats are incomplete. */
+  soldUsd: number | null;
+  /** Realized profit or loss in USD. `null` when stats are incomplete. */
+  realizedPnl: number | null;
+  /**
+   * USD cost basis of the remaining holdings. `null` when stats are incomplete.
+   */
+  costBasis: number | null;
   trades: Trade[];
   lastTradeAt: number;
   /** Daylight-hosted token image URL. */
