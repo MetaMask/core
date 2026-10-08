@@ -59,6 +59,8 @@ describe('OptimismLayer1GasFeeFlow', () => {
     it.each([
       ['Optimism mainnet', CHAIN_IDS.OPTIMISM],
       ['Optimism testnet', CHAIN_IDS.OPTIMISM_TESTNET],
+      ['Ink mainnet', CHAIN_IDS.INK],
+      ['Ink Sepolia', CHAIN_IDS.INK_SEPOLIA],
     ])(
       'uses the fallback list when remote fetch fails for %s',
       async (_title: string, chainId: string) => {
