@@ -6424,6 +6424,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    wasm-pack: "npm:^0.15.0"
   languageName: unknown
   linkType: soft
 
@@ -27501,6 +27502,17 @@ __metadata:
   version: 4.0.0
   resolution: "walk-up-path@npm:4.0.0"
   checksum: 10/6a230b20e5de296895116dc12b09dafaec1f72b8060c089533d296e241aff059dfaebe0d015c77467f857e4b40c78e08f7481add76f340233a1f34fa8af9ed63
+  languageName: node
+  linkType: hard
+
+"wasm-pack@npm:^0.15.0":
+  version: 0.15.0
+  resolution: "wasm-pack@npm:0.15.0"
+  dependencies:
+    tar: "npm:^7.5.3"
+  bin:
+    wasm-pack: run.js
+  checksum: 10/ae5acb1f2b5b87c33e4d1b284c22dd3cf7a047285f5851ce280f1008579075eae6aed25805127d5ab270240fad57d220de0890c0a204facc1e54a54034cd20f2
   languageName: node
   linkType: hard
 
