@@ -66,7 +66,10 @@ jest.mock('../../utils/feature-flags', () => ({
 }));
 jest.mock('./relay-validation');
 
-const TRANSACTION_META_MOCK = { txParams: {} } as TransactionMeta;
+const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
+const TRANSACTION_META_MOCK = {
+  txParams: { from: FROM_MOCK },
+} as TransactionMeta;
 const PREDICT_WITHDRAW_TRANSACTION_MOCK = {
   txParams: {},
   nestedTransactions: [{ type: TransactionType.predictWithdraw }],
@@ -74,7 +77,6 @@ const PREDICT_WITHDRAW_TRANSACTION_MOCK = {
 const TOKEN_TRANSFER_RECIPIENT_MOCK =
   '0x5678901234567890123456789012345678901234';
 const NESTED_TRANSACTION_DATA_MOCK = '0xdef' as Hex;
-const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const CHAIN_ID_LINEA = '0xe708' as Hex;
 
@@ -517,9 +519,10 @@ describe('Relay Quotes Utils', () => {
         transaction: {
           ...TRANSACTION_META_MOCK,
           txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
             data: '0xabc',
           },
-        } as TransactionMeta,
+        },
       });
 
       expect(successfulFetchMock).toHaveBeenCalledTimes(1);
@@ -545,9 +548,10 @@ describe('Relay Quotes Utils', () => {
         transaction: {
           ...TRANSACTION_META_MOCK,
           txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
             data: '0xabc',
           },
-        } as TransactionMeta,
+        },
       });
 
       const body = JSON.parse(
@@ -610,35 +614,6 @@ describe('Relay Quotes Utils', () => {
       expect(body.txs[0]).toStrictEqual({
         to: QUOTE_REQUEST_MOCK.targetTokenAddress,
         data: '0xa9059cbb000000000000000000000000abcdef0000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000007b',
-        value: '0x0',
-      });
-    });
-
-    it('falls back to request.from for the funding recipient when transaction.txParams.from is unset', async () => {
-      successfulFetchMock.mockResolvedValue({
-        ok: true,
-        json: async () => QUOTE_MOCK,
-      });
-
-      await getRelayQuotes({
-        accountSupports7702: true,
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          txParams: {
-            data: '0xabc',
-          },
-        } as TransactionMeta,
-      });
-
-      const body = JSON.parse(
-        successfulFetchMock.mock.calls[0][1]?.body as string,
-      );
-
-      expect(body.txs[0]).toStrictEqual({
-        to: QUOTE_REQUEST_MOCK.targetTokenAddress,
-        data: '0xa9059cbb0000000000000000000000001234567890123456789012345678901234567891000000000000000000000000000000000000000000000000000000000000007b',
         value: '0x0',
       });
     });
@@ -739,9 +714,10 @@ describe('Relay Quotes Utils', () => {
             },
           ],
           txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
             data: '0xabc',
           },
-        } as TransactionMeta,
+        },
       });
 
       const body = JSON.parse(
@@ -793,9 +769,10 @@ describe('Relay Quotes Utils', () => {
             },
           ],
           txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
             data: '0xabc',
           },
-        } as TransactionMeta,
+        },
       });
 
       expect(getDelegationTransactionMock).not.toHaveBeenCalled();
@@ -819,9 +796,10 @@ describe('Relay Quotes Utils', () => {
             },
           ],
           txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
             data: '0xabc',
           },
-        } as TransactionMeta,
+        },
       });
 
       const body = JSON.parse(
@@ -852,9 +830,10 @@ describe('Relay Quotes Utils', () => {
             },
           ],
           txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
             data: '0xabc',
           },
-        } as TransactionMeta,
+        },
       });
 
       const body = JSON.parse(
@@ -883,9 +862,10 @@ describe('Relay Quotes Utils', () => {
         transaction: {
           ...TRANSACTION_META_MOCK,
           txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
             data: '0xabc',
           },
-        } as TransactionMeta,
+        },
       });
 
       expect(getDelegationTransactionMock).not.toHaveBeenCalled();

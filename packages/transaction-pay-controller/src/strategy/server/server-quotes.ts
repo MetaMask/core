@@ -35,7 +35,6 @@ import {
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
-import { resolveExecutionAccount } from '../../utils/second-leg.js';
 import { getTokenFiatRate } from '../../utils/token.js';
 import { getQuotePricing, TradeType } from '../../utils/trade-type.js';
 import { normalizeServerPerpsRequest } from './perps.js';
@@ -49,6 +48,7 @@ import type {
 } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-quotes');
+const HYPERCORE_CHAIN_ID_NUMBER = Number(CHAIN_ID_HYPERCORE);
 const TOKEN_TRANSFER_FOUR_BYTE = '0xa9059cbb';
 const TRANSFER_INTERFACE = new Interface([
   'function transfer(address to, uint256 amount)',
@@ -134,17 +134,12 @@ async function getQuotesForRequest(
 
     const fulfilledResults = response.results.filter(isFulfilledResult);
 
-    // The quote settles the funding token on the executing account rather than
-    // the payer, so carry it on the request. The second leg runs from
-    // `request.recipient`, which has to match where the funds actually landed.
-    const executionAccount = resolveExecutionAccount(
-      transaction,
-      quoteRequest.from,
-    );
-
-    const settledRequest = executionAccount
-      ? { ...quoteRequest, recipient: executionAccount }
-      : quoteRequest;
+    // The second leg runs from `request.recipient`, so it has to match the
+    // executing account the quote settles on.
+    const settledRequest = {
+      ...quoteRequest,
+      recipient: transaction.txParams.from as Hex,
+    };
 
     const normalized = await Promise.all(
       fulfilledResults.map((result) =>
@@ -198,13 +193,14 @@ async function buildServerQuoteRequest(
   const isTokenTransfer =
     !isHypercore && Boolean(singleData?.startsWith(TOKEN_TRANSFER_FOUR_BYTE));
 
-  const executionAccount = resolveExecutionAccount(transaction, from);
+  // `from` is the payer, which differs from the account the transaction's calls
+  // run from when an account override (e.g. Money Account) is active.
+  const executionAccount = transaction.txParams.from as Hex;
 
-  let recipient = executionAccount ?? from;
-
-  if (isTokenTransfer && singleData) {
-    recipient = decodeTransferRecipient(singleData);
-  }
+  const recipient =
+    isTokenTransfer && singleData
+      ? decodeTransferRecipient(singleData)
+      : executionAccount;
 
   const isHypercoreSource = sourceChainId === CHAIN_ID_HYPERCORE;
   const supportsGasless =
@@ -250,7 +246,7 @@ async function buildServerQuoteRequest(
 
     body.calls = [
       {
-        data: buildTransferData(from, targetAmountMinimum),
+        data: buildTransferData(executionAccount, targetAmountMinimum),
         to: targetTokenAddress,
         value: '0x0',
       },
@@ -263,9 +259,9 @@ async function buildServerQuoteRequest(
 
     // Prefer atomic execution, but let providers that cannot run the calls
     // still quote for the funds. Only this path can fall back to a second leg:
-    // the calls run as `from`, which is also the recipient, so we can submit
-    // them ourselves once the funds land. Post-quote flows submit their own
-    // calls and must not opt in.
+    // the calls run as the execution account, which is also the recipient, so
+    // we can submit them ourselves once the funds land. Post-quote flows submit
+    // their own calls and must not opt in.
     if (
       canDeferCalls({
         accountSupports7702,
@@ -459,10 +455,11 @@ function isSecondLegRequired(
   }
 
   // HyperCore settles off-chain, so there is no target-chain transfer to read
-  // a settled amount from.
+  // a settled amount from. Checks the built body rather than the original
+  // request, since perps deposits are only rewritten to HyperCore there.
   if (
-    quoteRequest.targetChainId === CHAIN_ID_HYPERCORE ||
-    quoteRequest.sourceChainId === CHAIN_ID_HYPERCORE
+    body.target.chainId === HYPERCORE_CHAIN_ID_NUMBER ||
+    body.source.chainId === HYPERCORE_CHAIN_ID_NUMBER
   ) {
     return false;
   }

@@ -2,6 +2,8 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
   PaymentOverride,
   TransactionPayStrategy,
@@ -55,12 +57,16 @@ const TOKEN_TRANSFER_RECIPIENT_MOCK =
   '0x5678901234567890123456789012345678901234' as Hex;
 const TOKEN_TRANSFER_DATA_MOCK =
   '0xa9059cbb0000000000000000000000005678901234567890123456789012345678901234000000000000000000000000000000000000000000000000000000000000007b' as Hex;
+const HYPERLIQUID_BRIDGE_ADDRESS_MOCK =
+  '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' as Hex;
 const SOURCE_ACCOUNT_TRANSFER_DATA_MOCK =
   '0xa9059cbb0000000000000000000000001234567890123456789012345678901234567891000000000000000000000000000000000000000000000000000000000000007b' as Hex;
 
-const TRANSACTION_META_MOCK = { txParams: {} } as TransactionMeta;
+const TRANSACTION_META_MOCK = {
+  txParams: { from: FROM_MOCK },
+} as TransactionMeta;
 const COMPLEX_TRANSACTION_META_MOCK = {
-  txParams: { data: '0x1234' },
+  txParams: { data: '0x1234', from: FROM_MOCK },
 } as TransactionMeta;
 
 const QUOTE_REQUEST_MOCK: QuoteRequest = {
@@ -117,7 +123,7 @@ const CONTRACT_CALL_TRANSACTION_MOCK = {
     { data: '0x1234', to: '0xcontract' },
     { data: '0x5678', to: '0xcontract' },
   ],
-  txParams: {},
+  txParams: { from: FROM_MOCK },
 } as TransactionMeta;
 
 const DELEGATION_RESULT_MOCK = {
@@ -269,6 +275,14 @@ describe('server-quotes', () => {
       }),
       undefined,
     );
+
+    // The embedded transfer has to fund the account the delegated calls run
+    // from, not the paying account.
+    expect(fetchServerQuoteMock.mock.calls[0][1].calls?.[0]).toStrictEqual({
+      data: '0xa9059cbb000000000000000000000000aaaa000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000007b',
+      to: TARGET_TOKEN_ADDRESS_MOCK,
+      value: '0x0',
+    });
 
     // The second leg resolves the settled amount from `request.recipient`, so
     // it has to match where the quote actually delivered the funds.
@@ -505,7 +519,7 @@ describe('server-quotes', () => {
           provider: FULFILLED_RESULT_MOCK.provider,
           steps: quote.steps,
         },
-        request: QUOTE_REQUEST_MOCK,
+        request: { ...QUOTE_REQUEST_MOCK, recipient: FROM_MOCK },
         requiresSecondLeg: false,
         sourceAmount: {
           fiat: '0',
@@ -1332,6 +1346,37 @@ describe('server-quotes', () => {
         transaction: CONTRACT_CALL_TRANSACTION_MOCK,
       });
 
+      expect(result[0].requiresSecondLeg).toBe(false);
+    });
+
+    it('is false for perps deposits rewritten to HyperCore', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ],
+        transaction: {
+          nestedTransactions: [
+            { data: '0x1234', to: HYPERLIQUID_BRIDGE_ADDRESS_MOCK },
+          ],
+          txParams: {},
+        } as TransactionMeta,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          target: expect.objectContaining({
+            chainId: Number(CHAIN_ID_HYPERCORE),
+          }),
+        }),
+        undefined,
+      );
       expect(result[0].requiresSecondLeg).toBe(false);
     });
 
