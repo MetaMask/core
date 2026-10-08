@@ -95,7 +95,7 @@ describe('printAddedSuppressions', () => {
     jest.spyOn(console, 'log').mockReturnValue(undefined);
   });
 
-  it('prints each addition and how to resolve it', () => {
+  it('prints each addition', () => {
     printAddedSuppressions('oxlint-suppressions.json', [
       { filePath: 'a.ts', rule: 'no-shadow', count: 3, baseCount: 2 },
     ]);
@@ -227,6 +227,23 @@ describe('gateSuppressions', () => {
     expect(console.log).toHaveBeenCalledWith(
       '✅ Nothing has been added to tsc-suppressions.json. Good job!',
     );
+  });
+
+  it('says how to resolve it once, however many files grew', async () => {
+    jest
+      .mocked(tscSuppressions.readSuppressions)
+      .mockResolvedValue({ 'a.ts': { 'no-shadow': { count: 1 } } });
+
+    await gateSuppressions([]);
+
+    const advice = jest
+      .mocked(console.log)
+      .mock.calls.flat()
+      .filter(
+        (line) =>
+          typeof line === 'string' && line.includes('may only be removed'),
+      );
+    expect(advice).toHaveLength(1);
   });
 
   it('stays quiet about the clean file when another one has grown', async () => {

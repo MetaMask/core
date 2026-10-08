@@ -105,9 +105,7 @@ export function printAddedSuppressions(
       `  ${suppression.filePath}: ${suppression.rule} (${suppression.baseCount} -> ${suppression.count})`,
     );
   }
-  console.log(
-    '\nSuppressions may only be removed, never added. Fix the errors rather than suppressing them.',
-  );
+  console.log('');
 }
 
 /**
@@ -174,5 +172,8 @@ export async function gateSuppressions(argv: readonly string[]): Promise<void> {
     printAddedSuppressions(fileName, added);
   }
 
+  console.log(
+    'Suppressions may only be removed, never added. Fix the errors rather than suppressing them.',
+  );
   process.exitCode = 1;
 }
