@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose `SeedlessOnboardingController:identifyIncompleteMetadataBackup` so clients can identify incomplete primary SRP metadata backups after unlocking ([#10568](https://github.com/MetaMask/core/pull/10568))
+
 ### Changed
 
+- **BREAKING:** Grant `SeedlessOnboardingController` access to `AnalyticsController:trackEvent` and `KeyringController:exportSeedPhrase` ([#10568](https://github.com/MetaMask/core/pull/10568))
+  - The `SeedlessOnboardingControllerMessenger` must allow and delegate these actions.
 - Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
 
 ## [11.0.1]

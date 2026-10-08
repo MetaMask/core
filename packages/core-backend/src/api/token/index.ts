@@ -5,6 +5,8 @@
 export { TokenApiClient } from './client.js';
 export type {
   TokenMetadata,
+  TokenListQueryOptions,
+  TokenV2SupportedNetworksResponse,
   V1TokenDescriptionResponse,
   NetworkInfo,
   TopAsset,
