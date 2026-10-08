@@ -29,6 +29,7 @@ export type {
   KycControllerRecordSessionDisclaimersAction,
   KycControllerRecordVendorDisclaimersAction,
   KycControllerRefreshSessionStatusAction,
+  KycControllerFetchSessionStatusAction,
   KycControllerResetAction,
   KycControllerStartSessionAction,
   KycControllerStartSessionStatusPollingAction,

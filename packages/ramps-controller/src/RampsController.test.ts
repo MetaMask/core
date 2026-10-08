@@ -10494,6 +10494,7 @@ describe('RampsController', () => {
       getProviderFlowStatus: jest.Mock;
       hasCompletedVendorDisclaimers: jest.Mock;
       hasCompletedSessionDisclaimers: jest.Mock;
+      fetchSessionStatus: jest.Mock;
       clearState: jest.Mock;
       getSessionProfile: jest.Mock;
       getCustomerByExternalId: jest.Mock;
@@ -10520,6 +10521,13 @@ describe('RampsController', () => {
       providerFlowStatus: 'not_started' | 'submitted' | 'abandoned' | 'failed';
       vendorDisclaimersCompleted: boolean;
       sessionDisclaimersCompleted: boolean;
+      /**
+       * When `true`, listing session disclaimers rejects with idOS
+       * `session_already_finalized` and hydration reads `freshSession`.
+       */
+      sessionClosed: boolean;
+      /** Status returned by `KycController:fetchSessionStatus`. */
+      freshSession: KycSession | null;
       /** Canonical id of the currently signed-in profile. */
       profileCanonicalId: string | null;
     };
@@ -10543,6 +10551,8 @@ describe('RampsController', () => {
         providerFlowStatus: 'not_started',
         vendorDisclaimersCompleted: true,
         sessionDisclaimersCompleted: true,
+        sessionClosed: false,
+        freshSession: null,
         profileCanonicalId: CANONICAL_PROFILE_ID,
         ...overrides,
       };
@@ -10569,9 +10579,17 @@ describe('RampsController', () => {
         hasCompletedVendorDisclaimers: jest
           .fn()
           .mockResolvedValue(values.vendorDisclaimersCompleted),
-        hasCompletedSessionDisclaimers: jest
-          .fn()
-          .mockResolvedValue(values.sessionDisclaimersCompleted),
+        hasCompletedSessionDisclaimers: jest.fn(async () => {
+          if (values.sessionClosed) {
+            const error = new Error(
+              "Fetching 'https://kyc.example/sessions/session-1/disclaimers' failed with status '409': session_already_finalized",
+            ) as Error & { httpStatus: number };
+            error.httpStatus = 409;
+            throw error;
+          }
+          return values.sessionDisclaimersCompleted;
+        }),
+        fetchSessionStatus: jest.fn(async () => values.freshSession),
         clearState: jest.fn(),
         getSessionProfile: jest
           .fn()
@@ -10607,6 +10625,10 @@ describe('RampsController', () => {
         handlers.hasCompletedSessionDisclaimers as never,
       );
       rootMessenger.registerActionHandler(
+        'KycController:fetchSessionStatus' as never,
+        handlers.fetchSessionStatus as never,
+      );
+      rootMessenger.registerActionHandler(
         'KycController:clearState' as never,
         handlers.clearState as never,
       );
@@ -10636,6 +10658,7 @@ describe('RampsController', () => {
       sessionExists: false,
       vendorDisclaimersComplete: false,
       sessionDisclaimersComplete: false,
+      sessionClosed: false,
       providerFlowStatus: 'not_started',
       kycStatus: 'none',
       autorampStatus: 'not_ready',
@@ -10647,6 +10670,7 @@ describe('RampsController', () => {
       sessionExists: true,
       vendorDisclaimersComplete: true,
       sessionDisclaimersComplete: true,
+      sessionClosed: false,
       providerFlowStatus: 'not_started',
       kycStatus: 'pending',
       autorampStatus: 'not_ready',
@@ -10723,6 +10747,65 @@ describe('RampsController', () => {
 
         expect(registerWallet).not.toHaveBeenCalled();
         expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('routes a finalized session from a fresh status without treating consents as complete', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('pending'),
+          sessionClosed: true,
+          freshSession: sessionWithStatus('approved'),
+          providerFlowStatus: 'abandoned',
+        });
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'registered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+        jest.spyOn(controller, 'createAutoramp').mockImplementation(async () =>
+          controller.addAutoramp({
+            id: 'autoramp-1',
+            customerId: 'customer-1',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Created,
+          }),
+        );
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toMatchObject({
+          sessionExists: true,
+          sessionClosed: true,
+          sessionDisclaimersComplete: false,
+          kycStatus: 'approved',
+          providerFlowStatus: 'abandoned',
+        });
+
+        expect(handlers.fetchSessionStatus).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('rethrows a disclaimer failure that is not a finalized session', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('pending'),
+        });
+        const error = new Error(
+          "Fetching 'https://kyc.example/sessions/session-1/disclaimers' failed with status '409': conflict",
+        ) as Error & { httpStatus: number };
+        error.httpStatus = 409;
+        handlers.hasCompletedSessionDisclaimers.mockRejectedValue(error);
+
+        await expect(
+          controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).rejects.toBe(error);
+        expect(handlers.fetchSessionStatus).not.toHaveBeenCalled();
       });
     });
 
