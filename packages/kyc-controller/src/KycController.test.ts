@@ -364,13 +364,33 @@ describe('KycController', () => {
           const approved = sessionStatus('approved');
           handlers.getSessionStatus.mockResolvedValue(approved);
 
-          await expect(controller.fetchSessionStatus()).resolves.toStrictEqual(
-            approved,
-          );
+          const status = await controller.fetchSessionStatus();
+
+          expect(status).toStrictEqual(approved);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
           expect(controller.state.sessionStatus).toStrictEqual(approved);
+        },
+      );
+    });
+
+    it('does not store a status that returns after the session was cleared', async () => {
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          const approved = sessionStatus('approved');
+          handlers.getSessionStatus.mockImplementation(async () => {
+            controller.clearState();
+            return approved;
+          });
+
+          const status = await controller.fetchSessionStatus();
+
+          expect(status).toStrictEqual(approved);
+          expect(controller.state.sessionStatus).toBeNull();
         },
       );
     });

@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `sessionClosed` to the VBA onboarding snapshot when idOS has finalized the KYC session
+- Add `sessionClosed` to the VBA onboarding snapshot when idOS has finalized the KYC session ([#10744](https://github.com/MetaMask/core/pull/10744))
 
 ### Fixed
 
-- `hydrateVbaOnboarding` keeps going when session disclaimers return `409 session_already_finalized`, reads a fresh session status, and does not mark those consents complete
+- `hydrateVbaOnboarding` keeps going when session disclaimers return `409 session_already_finalized`, reads a fresh session status, and does not mark those consents complete ([#10744](https://github.com/MetaMask/core/pull/10744))
 
 ## [26.3.0]
 
