@@ -14,7 +14,7 @@ import {
 } from '../constants/perpsConfig.js';
 import { PerpsControllerError } from '../errors.js';
 import type { PerpsErrorResultFields } from '../errors.js';
-import { isPerpsErrorCode, PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
   GetSupportedPathsParams,
   PerpsDebugLogger,
@@ -56,10 +56,10 @@ export function createErrorResult<
   if (error instanceof PerpsControllerError) {
     errorFields = {
       errorCode: error.errorCode,
-      errorDetails: error.errorDetails,
+      ...(error.errorDetails === undefined
+        ? {}
+        : { errorDetails: error.errorDetails }),
     };
-  } else if (isPerpsErrorCode(normalizedError.message)) {
-    errorFields = { errorCode: normalizedError.message };
   }
 
   return {

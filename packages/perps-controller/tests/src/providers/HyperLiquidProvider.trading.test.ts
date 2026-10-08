@@ -2802,7 +2802,6 @@ describe('HyperLiquidProvider', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
-        errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
       });
       expect(
         mockClientService.getExchangeClient().order,
@@ -2928,7 +2927,6 @@ describe('HyperLiquidProvider', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
-        errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
       });
       expect(mockOrder).not.toHaveBeenCalled();
     });
@@ -3158,7 +3156,6 @@ describe('HyperLiquidProvider', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
-        errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
       });
       expect(
         mockClientService.getExchangeClient().order,

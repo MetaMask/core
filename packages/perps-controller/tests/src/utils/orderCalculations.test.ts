@@ -530,9 +530,7 @@ describe('calculateFinalPositionSize', () => {
 
       expect(thrownError).toBeInstanceOf(PerpsControllerError);
       if (!(thrownError instanceof PerpsControllerError)) {
-        throw new Error(
-          'Expected calculate() to throw a PerpsControllerError',
-        );
+        throw new Error('Expected calculate() to throw a PerpsControllerError');
       }
 
       expect(thrownError.errorCode).toBe(PERPS_ERROR_CODES.PRICE_MOVED);
