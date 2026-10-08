@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(deps): update dependency typedoc to ^0.28.20 ([#10731](https://github.com/MetaMask/core/pull/10731))
+
 ### Added
 
 - Add optional `aal2Token` parameter to `KycController.startSession` and the `KycController:startSession` messenger action ([#10632](https://github.com/MetaMask/core/pull/10632))
