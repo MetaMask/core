@@ -1595,6 +1595,29 @@ describe('SocialService', () => {
     });
   });
 
+  describe('fetchMyFollowing', () => {
+    const mockFollowingResponse = {
+      following: [mockProfileSummary],
+      count: 1,
+    };
+
+    it('aliases fetchFollowing on the /users/me/following endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowingResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchMyFollowing();
+
+      expect(result).toStrictEqual(mockFollowingResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/me/following`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+  });
+
   describe('fetchMyFollowers', () => {
     const mockFollowersResponse = {
       followers: [mockProfileSummary],
