@@ -8579,7 +8579,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/sentinel-api-service@npm:^2.0.0, @metamask/sentinel-api-service@workspace:packages/sentinel-api-service":
+"@metamask/sentinel-api-service@npm:^2.1.0, @metamask/sentinel-api-service@workspace:packages/sentinel-api-service":
   version: 0.0.0-use.local
   resolution: "@metamask/sentinel-api-service@workspace:packages/sentinel-api-service"
   dependencies:
@@ -9114,7 +9114,7 @@ __metadata:
     "@metamask/network-controller": "npm:^37.0.1"
     "@metamask/ramps-controller": "npm:^26.3.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
-    "@metamask/sentinel-api-service": "npm:^2.0.0"
+    "@metamask/sentinel-api-service": "npm:^2.1.0"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"

@@ -120,6 +120,46 @@ describe('SocialRealtimeService', () => {
     expect(listener).toHaveBeenCalledWith(event);
   });
 
+  it('forwards every valid event in a batched notification', async () => {
+    const { call, service } = createService();
+    const listener = jest.fn();
+    service.addListener(listener);
+
+    await service.setActive(true);
+    getFeedCallback(call)({
+      channel: SOCIAL_FEED_CHANNEL,
+      data: [
+        event,
+        {
+          ...event,
+          eventId: 'event-2',
+          feedItemId: 'position-2:trade-2',
+        },
+      ],
+    });
+
+    expect(listener).toHaveBeenNthCalledWith(1, event);
+    expect(listener).toHaveBeenNthCalledWith(2, {
+      ...event,
+      eventId: 'event-2',
+      feedItemId: 'position-2:trade-2',
+    });
+  });
+
+  it('ignores non-object feed events', async () => {
+    const { call, service } = createService();
+    const listener = jest.fn();
+    service.addListener(listener);
+
+    await service.setActive(true);
+    getFeedCallback(call)({
+      channel: SOCIAL_FEED_CHANNEL,
+      data: null,
+    });
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['version', { version: 2 }],
     ['kind', { kind: 'other' }],
