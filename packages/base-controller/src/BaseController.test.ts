@@ -1245,7 +1245,7 @@ describe('validateControllerState', () => {
     expect(captureException).toHaveBeenCalledWith(
       expect.objectContaining({
         message:
-          'Validation of "FooController" state failed, but did not throw: At path: bar -- Expected a number, but received: "bar"',
+          'Validation of "FooController" state failed. Not throwing because strict mode is not enabled. The reported error is: At path: bar -- Expected a number, but received: "bar"',
       }),
     );
   });

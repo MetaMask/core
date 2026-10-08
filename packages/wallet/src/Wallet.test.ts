@@ -232,7 +232,7 @@ describe('Wallet', () => {
     expect(captureException).toHaveBeenCalledWith(
       expect.objectContaining({
         message:
-          'Validation of "NetworkController" state failed, but did not throw: At path: selectedNetworkClientId -- Expected a string, but received: undefined',
+          'Validation of "NetworkController" state failed. Not throwing because strict mode is not enabled. The reported error is: At path: selectedNetworkClientId -- Expected a string, but received: undefined',
       }),
     );
   });

@@ -1,4 +1,8 @@
 import { validateControllerState } from '@metamask/base-controller';
+import type {
+  StateConstraint,
+  ValidatableController,
+} from '@metamask/base-controller';
 
 import type { InstanceSpecificOptions, WalletOptions } from '../types.js';
 import type {
@@ -7,11 +11,24 @@ import type {
   DefaultInstances,
 } from './defaults.js';
 import { defaultConfigurations, RootMessenger } from './defaults.js';
-import { InitializationConfiguration } from './types.js';
 
 type InitializeOptions = WalletOptions & {
   messenger: RootMessenger<DefaultActions, DefaultEvents>;
 };
+
+/**
+ * Check whether a instance configuration reference defines a state `struct`.
+ *
+ * @param reference - The `reference` of an initialization configuration.
+ * @returns Whether the reference has the metadata required to validate state.
+ */
+function isInstanceValidatable(
+  reference:
+    | Partial<ValidatableController<unknown, StateConstraint>>
+    | undefined,
+): reference is ValidatableController<unknown, StateConstraint> {
+  return reference?.struct !== undefined;
+}
 
 /**
  * Initialize all instances based on th default configurations and any additional configurations specified in `options`.
@@ -45,10 +62,10 @@ export function initialize(options: InitializeOptions): DefaultInstances {
     const rawState = state[name];
 
     const instanceState =
-      rawState && reference?.struct
+      rawState && isInstanceValidatable(reference)
         ? validateControllerState(
             name,
-            reference as never,
+            reference,
             rawState,
             'lenient',
             messenger.captureException,

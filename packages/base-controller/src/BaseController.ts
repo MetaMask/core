@@ -460,12 +460,10 @@ export type ValidatableController<
 /**
  * Validate the state of a controller against its struct. Returning the optionally coerced state if valid and otherwise throwing.
  *
- * Note that if the `mode` is lenient, validation errors are logged and not thrown.
- *
  * @param name - The name of the controller.
  * @param controller - The static controller.
  * @param state - The state of the controller.
- * @param mode - The validation mode.
+ * @param mode - The validation mode, if the mode is `lenient`  validation errors are logged and not thrown.
  * @param captureException - A utility function for reporting an error to Sentry.
  * @returns The validated controller state.
  */
