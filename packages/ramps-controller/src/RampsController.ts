@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
-import { BrokenCircuitError } from '@metamask/controller-utils';
+import { BrokenCircuitError, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticationController,
@@ -489,7 +489,7 @@ function resolveVbaKycStatus(
  * route ids are appended, sorted, so a replacement create is a new key and
  * MoonPay does not replay the terminal route.
  *
- * @param sourceCurrencyCode - Fiat code from the create body, already lowercased.
+ * @param sourceCurrencyCode - Fiat code from the create body. Trimmed and lowercased here.
  * @param customerId - MoonPay customer id.
  * @param walletAddress - Money Account address that receives mUSD.
  * @param terminalAutorampIds - Ids of rejected or cancelled routes for this wallet.
@@ -501,7 +501,8 @@ function buildMusdAutorampIdempotencyKey(
   walletAddress: string,
   terminalAutorampIds: readonly string[],
 ): string {
-  const base = `${sourceCurrencyCode}-musd-monad:${customerId}:${walletAddress.trim().toLowerCase()}`;
+  const fiatPrefix = sourceCurrencyCode.trim().toLowerCase();
+  const base = `${fiatPrefix}-musd-monad:${customerId}:${walletAddress.trim().toLowerCase()}`;
   if (terminalAutorampIds.length === 0) {
     return base;
   }
@@ -907,7 +908,7 @@ const rampsControllerMetadata = {
   vbaAutorampListFetchedAt: {
     persist: true,
     includeInDebugSnapshot: true,
-    includeInStateLogs: true,
+    includeInStateLogs: false,
     usedInUi: true,
   },
   providerAutoSelected: {
@@ -4204,7 +4205,11 @@ export class RampsController extends BaseController<
           'KycController:fetchSessionStatusOnce',
           session.id,
         );
-      } catch {
+      } catch (error) {
+        if (error instanceof HttpError && error.httpStatus === 404) {
+          this.messenger.call('KycController:clearState');
+          return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
+        }
         // The persisted session is already in hand. A transient status GET
         // must not reject the read.
       }
@@ -4284,7 +4289,7 @@ export class RampsController extends BaseController<
     const normalized = address.trim().toLowerCase();
     const status = result.type === 'registeredDisabled' ? 'disabled' : 'active';
     const row: MoneyAccountWalletRegistration = {
-      walletAddress: address.trim(),
+      walletAddress: normalized,
       status,
       updatedAt: Date.now(),
     };

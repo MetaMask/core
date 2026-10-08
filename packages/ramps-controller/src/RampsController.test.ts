@@ -1,5 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import { BrokenCircuitError } from '@metamask/controller-utils';
+import { BrokenCircuitError, HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -2696,7 +2696,6 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
-            "vbaAutorampListFetchedAt": null,
           }
         `);
       });
@@ -10226,7 +10225,7 @@ describe('RampsController', () => {
 
         const usdRequest = {
           ...buildBrazilMusdAutorampRequest('0xAbC'),
-          source_currencies: [{ type: 'Fiat', code: 'USD' }],
+          source_currencies: [{ type: 'Fiat', code: ' USD ' }],
         };
 
         await controller.createAutoramp(
@@ -10253,7 +10252,7 @@ describe('RampsController', () => {
           2,
           expect.objectContaining({
             customer_id: 'cust-99',
-            source_currencies: [{ type: 'Fiat', code: 'USD' }],
+            source_currencies: [{ type: 'Fiat', code: ' USD ' }],
           }),
           {
             idempotencyKey: 'usd-musd-monad:cust-99:0xabc:autoramp-cancelled',
@@ -10885,6 +10884,28 @@ describe('RampsController', () => {
         ).toStrictEqual(factsSnapshot({ kycStatus: 'pending' }));
 
         expect(handlers.fetchSessionStatusOnce).toHaveBeenCalledTimes(1);
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        expect(handlers.clearState).not.toHaveBeenCalled();
+      });
+    });
+
+    it('clears the persisted session when the one-shot KYC GET is a 404', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('pending'),
+        });
+        handlers.fetchSessionStatusOnce.mockRejectedValue(
+          new HttpError(404, 'KYC session not found'),
+        );
+
+        expect(
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+            refreshKyc: true,
+          }),
+        ).toStrictEqual(emptySnapshot());
+
+        expect(handlers.clearState).toHaveBeenCalledTimes(1);
         expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
       });
     });
@@ -11731,7 +11752,7 @@ describe('RampsController', () => {
               {
                 "status": "disabled",
                 "updatedAt": 1791460800000,
-                "walletAddress": "0xABC",
+                "walletAddress": "0xabc",
               },
             ]
           `);
