@@ -11,6 +11,9 @@
       "path": "../messenger"
     },
     {
+      "path": "../analytics-controller"
+    },
+    {
       "path": "../utils"
     }
   ],
