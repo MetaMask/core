@@ -102,7 +102,7 @@
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "viem": "^2.56.8"
+    "viem": "^2.57.3"
   },
   "engines": {
     "node": "^22.14.0 || ^24"
