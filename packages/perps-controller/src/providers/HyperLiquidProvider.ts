@@ -11547,12 +11547,19 @@ export class HyperLiquidProvider implements PerpsProvider {
               this.#deps.logger.error(
                 restorationFailure ??
                   new Error(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST),
-                this.#getErrorContext('updatePositionTPSL', {
-                  symbol,
-                  stage: 'restoration',
-                  protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
-                  childOrderIds: restoredOrderIds,
-                }),
+                this.#getErrorContext(
+                  'updatePositionTPSL',
+                  {
+                    symbol,
+                    stage: 'restoration',
+                    protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+                    childOrderIds: restoredOrderIds,
+                  },
+                  {
+                    operation: PERPS_ERROR_OPERATION.PositionManagement,
+                    action: PERPS_ERROR_ACTION.PositionTpslUpdate,
+                  },
+                ),
               );
             }
           }
@@ -11864,12 +11871,19 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (cleanupFailure && recoverableOrderIds.length > 0) {
         this.#deps.logger.error(
           cleanupFailure,
-          this.#getErrorContext('updatePositionTPSL', {
-            symbol,
-            stage: 'cleanup',
-            protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
-            childOrderIds: recoverableOrderIds,
-          }),
+          this.#getErrorContext(
+            'updatePositionTPSL',
+            {
+              symbol,
+              stage: 'cleanup',
+              protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+              childOrderIds: recoverableOrderIds,
+            },
+            {
+              operation: PERPS_ERROR_OPERATION.PositionManagement,
+              action: PERPS_ERROR_ACTION.PositionTpslUpdate,
+            },
+          ),
         );
         return createProtectionLostResult(recoverableOrderIds);
       }
