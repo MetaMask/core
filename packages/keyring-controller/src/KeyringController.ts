@@ -2792,8 +2792,11 @@ export class KeyringController<
    * The snapshot is walked in order, preserving the keyring order: unchanged
    * keyrings keep their instances, mutated keyrings are rebuilt in place,
    * removed keyrings are recreated at their snapshot position, and keyrings
-   * created by the transaction are destroyed and dropped. Unsupported
-   * keyrings are plain data and are restored wholesale.
+   * created by the transaction are destroyed and dropped. A stale instance
+   * is always destroyed before its replacement is created, as it must
+   * release the resources shared with the replacement (e.g. the SDK
+   * singleton of hardware keyrings) before the replacement is initialized.
+   * Unsupported keyrings are plain data and are restored wholesale.
    *
    * Must be called while the controller mutex is held.
    *
@@ -2818,11 +2821,6 @@ export class KeyringController<
     const newKeyrings: KeyringEntry[] = [];
     this.#keyrings = newKeyrings;
 
-    // Old keyrings discarded by the reconciliation, destroyed only after
-    // it completes, so that a failing destruction cannot leave a partially
-    // restored state.
-    const oldStaleKeyrings: KeyringEntry[] = [];
-
     for (const snapshot of snapshots.keyrings) {
       // Keyrings without metadata have no old counterpart, and are
       // recreated with fresh metadata, mirroring `#restoreKeyring`.
@@ -2831,7 +2829,7 @@ export class KeyringController<
       if (!old) {
         // Removed and destroyed by the transaction: rebuilt from its
         // snapshot, at its original position.
-        const newKeyring = await this.#recreateKeyring(snapshot);
+        const newKeyring = await this.#recreateKeyring(undefined, snapshot);
         if (newKeyring) {
           newKeyrings.push(newKeyring);
         }
@@ -2846,21 +2844,19 @@ export class KeyringController<
         continue;
       }
 
-      // The transaction mutated the keyring: rebuild it in place.
-      oldStaleKeyrings.push(old);
-      const newKeyring = await this.#recreateKeyring(snapshot);
+      // The transaction mutated the keyring: rebuilt from its snapshot,
+      // the stale instance destroyed by the recreation itself.
+      const newKeyring = await this.#recreateKeyring(old, snapshot);
       if (newKeyring) {
         newKeyrings.push(newKeyring);
       }
     }
 
     // Whatever is left in the map was created by the failed transaction:
-    // drop it.
-    oldStaleKeyrings.push(...oldKeyringsById.values());
-
-    // Cleanup: destruction failures must not mask the transaction's error.
-    for (const oldStaleKeyring of oldStaleKeyrings) {
-      await this.#destroyKeyringIgnoringErrors(oldStaleKeyring);
+    // destroy and drop it. Destruction failures must not mask the
+    // transaction's error.
+    for (const oldKeyring of oldKeyringsById.values()) {
+      await this.#destroyKeyringIgnoringErrors(oldKeyring);
     }
   }
 
@@ -2889,16 +2885,27 @@ export class KeyringController<
 
   /**
    * Build a new keyring from a keyring snapshot, without updating the
-   * keyrings array. On failure, mirrors `#restoreKeyring`: the error is
-   * logged and the serialized keyring is parked in the unsupported keyrings.
+   * keyrings array. The old keyring entry, if any, is destroyed before
+   * the replacement is created, as it must release the resources shared
+   * with the replacement (e.g. the SDK singleton of hardware keyrings)
+   * before the replacement is initialized. On failure, mirrors
+   * `#restoreKeyring`: the error is logged and the serialized keyring is
+   * parked in the unsupported keyrings.
    *
+   * @param old - The old keyring entry replaced by the recreated keyring,
+   *   or `undefined` if the transaction already destroyed it.
    * @param snapshot - The keyring snapshot to recreate.
    * @returns The new keyring, or `undefined` if it could not be recreated.
    */
   async #recreateKeyring(
+    old: KeyringEntry | undefined,
     snapshot: KeyringSnapshot,
   ): Promise<KeyringEntry | undefined> {
     try {
+      if (old) {
+        await this.#destroyKeyringIgnoringErrors(old);
+      }
+
       const { keyring, keyringV2, metadata } = await this.#createKeyring(
         snapshot.type,
         snapshot.data,
@@ -3450,7 +3457,8 @@ export class KeyringController<
 
         return result;
       } catch (error) {
-        await this.#rollbackKeyring(entry, snapshot);
+        const old = entry; // Rollback to the pre-operation state.
+        await this.#rollbackKeyring(old, snapshot);
 
         throw error;
       }
@@ -3492,31 +3500,33 @@ export class KeyringController<
    *
    * Must be called while the controller mutex is held.
    *
-   * @param entry - The operated keyring entry.
+   * @param old - The operated keyring entry.
    * @param snapshot - The pre-operation snapshot, or `undefined` if the
    *   transaction created the keyring.
    */
   async #rollbackKeyring(
-    entry: KeyringEntry,
+    old: KeyringEntry,
     snapshot: KeyringSnapshot | undefined,
   ): Promise<void> {
     this.#assertControllerMutexIsLocked();
 
-    const old = this.#getKeyringEntryById(entry.metadata.id);
+    // `-1` when the transaction already removed the entry from the
+    // keyrings (e.g. the drained-keyring cleanup).
+    const index = this.#keyrings.indexOf(old);
 
     if (!snapshot) {
       // The failed transaction created the keyring: destroy it and drop it.
-      if (old) {
-        this.#keyrings.splice(this.#keyrings.indexOf(old), 1);
+      if (index !== -1) {
+        this.#keyrings.splice(index, 1);
         await this.#destroyKeyringIgnoringErrors(old);
       }
       return;
     }
 
-    if (!old) {
+    if (index === -1) {
       // The transaction removed the keyring: rebuild it at its original
       // position.
-      const newKeyring = await this.#recreateKeyring(snapshot);
+      const newKeyring = await this.#recreateKeyring(undefined, snapshot);
       if (newKeyring) {
         this.#keyrings.splice(snapshot.index, 0, newKeyring);
       }
@@ -3529,14 +3539,13 @@ export class KeyringController<
 
     // The transaction mutated the keyring: rebuild it in place. The old
     // entry is removed first, so that the duplicate account check during
-    // recreation only sees reconciled keyrings.
-    const index = this.#keyrings.indexOf(old);
+    // recreation only sees reconciled keyrings, then destroyed by the
+    // recreation itself.
     this.#keyrings.splice(index, 1);
-    const newKeyring = await this.#recreateKeyring(snapshot);
+    const newKeyring = await this.#recreateKeyring(old, snapshot);
     if (newKeyring) {
       this.#keyrings.splice(index, 0, newKeyring);
     }
-    await this.#destroyKeyringIgnoringErrors(old);
   }
 
   /**
