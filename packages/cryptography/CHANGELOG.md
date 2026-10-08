@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.1]
 
-### Uncategorized
-
-- chore(deps): update dependency typedoc to ^0.28.20 ([#10731](https://github.com/MetaMask/core/pull/10731))
-
 ### Fixed
 
 - Export AES-GCM IV length ([#10654](https://github.com/MetaMask/core/pull/10654))
