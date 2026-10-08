@@ -8,7 +8,10 @@ import type {
   IdentitySharingConsentWrite,
   NotificationPreferences,
 } from '../../src/types.js';
-import { DEFAULT_PRICE_ALERT_PREFERENCES } from '../../src/validators.js';
+import {
+  DEFAULT_LIMIT_ORDERS_PREFERENCES,
+  DEFAULT_PRICE_ALERT_PREFERENCES,
+} from '../../src/validators.js';
 
 export const MOCK_DELEGATIONS_URL = `${getAuthenticatedStorageUrl('prod')}/delegations`;
 export const MOCK_NOTIFICATION_PREFERENCES_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/notifications`;
@@ -79,6 +82,7 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
     pushNotificationsEnabled: false,
   },
   priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
+  limitOrders: { ...DEFAULT_LIMIT_ORDERS_PREFERENCES },
 };
 
 export const MOCK_MARKETING_CONSENT: MarketingConsent = {

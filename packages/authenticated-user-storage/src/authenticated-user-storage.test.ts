@@ -191,6 +191,21 @@ describe('AuthenticatedUserStorageService', () => {
       expect(result).toStrictEqual(MOCK_NOTIFICATION_PREFERENCES);
     });
 
+    it('rejects notification preferences without the required limitOrders key', async () => {
+      const { limitOrders: _limitOrders, ...legacyPreferences } =
+        MOCK_NOTIFICATION_PREFERENCES;
+      const mock = handleMockGetNotificationPreferences({
+        status: 200,
+        body: legacyPreferences,
+      });
+      const { service } = createService();
+
+      await expect(service.getNotificationPreferences()).rejects.toThrow(
+        'limitOrders',
+      );
+      expect(mock.isDone()).toBe(true);
+    });
+
     it('returns null when preferences are not found', async () => {
       handleMockGetNotificationPreferences({ status: 404 });
       const { service } = createService();

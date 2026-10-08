@@ -50,6 +50,7 @@ import {
 import { createMockNotificationEthSent } from './mocks/mock-raw-notifications.js';
 import {
   DEFAULT_AGENTIC_CLI_PREFERENCES,
+  DEFAULT_LIMIT_ORDERS_PREFERENCES,
   DEFAULT_PERPS_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
   DEFAULT_SOCIAL_AI_PREFERENCES,
@@ -114,6 +115,7 @@ const mockPreferences = (
   },
   agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
   priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
+  limitOrders: { ...DEFAULT_LIMIT_ORDERS_PREFERENCES },
   ...overrides,
 });
 
@@ -699,6 +701,7 @@ describe('NotificationServicesController', () => {
           socialAI: { ...DEFAULT_SOCIAL_AI_PREFERENCES },
           agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
           priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
+          limitOrders: { ...DEFAULT_LIMIT_ORDERS_PREFERENCES },
         });
         // Every address this installation holds, including the one whose
         // wallet-activity subscription is disabled.
