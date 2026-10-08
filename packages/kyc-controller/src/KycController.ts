@@ -81,8 +81,9 @@ export type KycProviderFlowStatus = (typeof KYC_PROVIDER_FLOW_STATUSES)[number];
 // rather than a fixed short window, so this is a session-scoped window.
 const UKYC_CAPABILITY_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
-// How often to poll UKYC session status until a terminal `finalStatus`.
-const SESSION_STATUS_POLL_INTERVAL_MS = 15_000;
+// First wait between UKYC session-status polls. Each later wait grows by this
+// step, so the delays are 10s, 20s, 30s, and so on.
+const SESSION_STATUS_POLL_INTERVAL_MS = 10_000;
 
 // === STATE ===
 
@@ -542,9 +543,11 @@ export class KycController extends BaseController<
   /**
    * Starts polling `GET /sessions/{id}/status` for
    * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
-   * the result onto state only when the payload changed. The loop stops once
-   * `finalStatus` is `approved`, `rejected`, or `retry`, or when
-   * {@link reset} / {@link clearState} runs.
+   * the result onto state only when the payload changed. The first poll runs
+   * immediately. Each later wait starts at 10 seconds and grows by 10 seconds
+   * after every poll, including a failed one. Starting the loop again resets
+   * that delay. The loop stops once `finalStatus` is `approved`, `rejected`,
+   * or `retry`, or when {@link reset} / {@link clearState} runs.
    *
    * @throws If there is no current session id to poll.
    */
@@ -556,18 +559,20 @@ export class KycController extends BaseController<
 
     this.#stopSessionStatusPolling();
     const token = this.#sessionStatusPollToken;
+    let completedPolls = 0;
 
     const tick = async (): Promise<void> => {
       const shouldStop = await this.#pollSessionStatusOnce(sessionId, token);
       if (shouldStop) {
         return;
       }
+      completedPolls += 1;
       this.#sessionStatusPollTimer = setTimeout(() => {
         this.#sessionStatusPollTimer = null;
         // `tick` swallows its own errors and therefore never rejects.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         tick();
-      }, SESSION_STATUS_POLL_INTERVAL_MS);
+      }, SESSION_STATUS_POLL_INTERVAL_MS * completedPolls);
       this.#sessionStatusPollTimer.unref?.();
     };
 
