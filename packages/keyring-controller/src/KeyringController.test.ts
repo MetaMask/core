@@ -216,6 +216,12 @@ const RUNTIME_STATE_ACCOUNT_ADDRESS: Hex =
 const RUNTIME_STATE_ADDED_ACCOUNT_ADDRESS: Hex =
   '0x8428B3b2e409D8e2f9dF6A2c20F45E5c0A617E4f';
 
+const DUPLICATE_ID_FIRST_ACCOUNT: Hex =
+  '0x9d84B6f54e3f0bC23e9dE1A7A0fFf6E5c0A618E4f';
+
+const DUPLICATE_ID_SECOND_ACCOUNT: Hex =
+  '0xaE95C7a6F64f0cB342f8e2fE6D6a7F6C5c0A9f1b';
+
 /**
  * A test keyring whose `serialize()` deliberately omits runtime-only
  * state, like the page state of hardware keyrings (Ledger, QR).
@@ -6056,6 +6062,46 @@ describe('KeyringController', () => {
       );
     });
 
+    it('drops a keyring created during a failed transaction even if its destruction fails, preserving the original error', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      try {
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller }) => {
+            await expect(
+              controller.withKeyring(
+                { type: MockKeyring.type },
+                async ({ keyring }) => {
+                  // The transaction creates the keyring, then fails; the
+                  // created keyring's destruction fails too.
+                  jest
+                    .spyOn(
+                      keyring as { destroy?: () => Promise<void> },
+                      'destroy',
+                    )
+                    .mockRejectedValue(new Error('Cannot destroy'));
+                  throw new Error('Oops');
+                },
+                { createIfMissing: true },
+              ),
+              // The destruction failure must not mask the transaction error.
+            ).rejects.toThrow('Oops');
+
+            // The created keyring is dropped anyway, and the destruction
+            // failure is logged.
+            expect(controller.getKeyringsByType(MockKeyring.type)).toHaveLength(
+              0,
+            );
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+              expect.objectContaining({ message: 'Cannot destroy' }),
+            );
+          },
+        );
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+    });
+
     it('destroys and drops a created keyring if the transaction setup fails', async () => {
       await withController(
         { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
@@ -6833,6 +6879,50 @@ describe('KeyringController', () => {
         expect(mockStateChange).not.toHaveBeenCalled();
         expect(controller.state.vault).toBe(initialState.vault);
       });
+    });
+
+    it('does not update the vault for an unchanged operated keyring that shares its id with another keyring', async () => {
+      await withController(
+        {
+          skipVaultCreation: true,
+          keyringBuilders: [keyringBuilderFactory(MockShallowKeyring)],
+          state: {
+            vault: createVault([
+              ...defaultKeyrings,
+              {
+                type: MockShallowKeyring.type,
+                data: { accounts: [DUPLICATE_ID_FIRST_ACCOUNT] },
+                metadata: { id: 'duplicate-id', name: '' },
+              },
+              {
+                type: MockShallowKeyring.type,
+                data: { accounts: [DUPLICATE_ID_SECOND_ACCOUNT] },
+                metadata: { id: 'duplicate-id', name: '' },
+              },
+            ]),
+          },
+        },
+        async ({ controller, messenger, initialState }) => {
+          await controller.submitPassword(password);
+          const mockStateChange = jest.fn();
+          messenger.subscribe('KeyringController:stateChange', mockStateChange);
+
+          // The operated keyring is the second of the two keyrings sharing
+          // their id, selected by its own account.
+          await controller.withKeyring(
+            { address: DUPLICATE_ID_SECOND_ACCOUNT },
+            async () => {
+              // No operation.
+            },
+          );
+
+          // The change detection compares the operated keyring against its
+          // own snapshot, by identity: another keyring sharing its id must
+          // not make the unchanged operated keyring look changed.
+          expect(mockStateChange).not.toHaveBeenCalled();
+          expect(controller.state.vault).toBe(initialState.vault);
+        },
+      );
     });
 
     it('recreates the operated keyring at its original position when it was drained and persistence fails', async () => {
