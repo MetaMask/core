@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.0]
 
-### Uncategorized
-
-- chore(deps): update dependency typedoc to ^0.28.20 ([#10731](https://github.com/MetaMask/core/pull/10731))
-
 ### Added
 
 - Add `KycController.readSessionStatus`, which returns `state.sessionStatus` and does not start polling, and `KycController.fetchSessionStatusOnce`, which calls `getSessionStatus` once, writes the result onto state, and does not start the session-status timer. Both are messenger actions ([#10749](https://github.com/MetaMask/core/pull/10749))
