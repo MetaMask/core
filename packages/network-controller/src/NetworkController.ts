@@ -1351,7 +1351,7 @@ export class NetworkController extends BaseController<
   NetworkState,
   NetworkControllerMessenger
 > {
-  static readonly struct: Struct<NetworkState> = NetworkStateStruct;
+  static readonly struct = NetworkStateStruct;
 
   #ethQuery?: EthQuery;
 
