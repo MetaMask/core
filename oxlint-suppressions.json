@@ -6078,14 +6078,11 @@
     }
   },
   "packages/transaction-controller/src/TransactionController.ts": {
-    "no-useless-return": {
-      "count": 2
-    },
     "typescript/explicit-function-return-type": {
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 3
+      "count": 1
     },
     "typescript/no-unsafe-assignment": {
       "count": 4
