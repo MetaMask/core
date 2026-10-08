@@ -49,7 +49,6 @@ import {
   string,
   union,
 } from '@metamask/superstruct';
-import type { Struct } from '@metamask/superstruct';
 import {
   createEventEmitterProxy,
   createSwappableProxy,
