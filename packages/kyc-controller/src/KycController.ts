@@ -254,6 +254,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSessionStatusForVendor',
   'getProviderFlowStatus',
   'refreshSessionStatus',
+  'readSessionStatus',
+  'fetchSessionStatusOnce',
   'startSessionStatusPolling',
   'fetchSessionDisclaimers',
   'recordSessionDisclaimers',
@@ -505,6 +507,36 @@ export class KycController extends BaseController<
       this.startSessionStatusPolling();
     }
     return this.state.sessionStatus;
+  }
+
+  /**
+   * Returns the persisted session status.
+   *
+   * Does not call the network and does not start session-status polling.
+   *
+   * @returns The session on state, or `null` when none is stored.
+   */
+  readSessionStatus(): KycSessionStatus | null {
+    return this.state.sessionStatus;
+  }
+
+  /**
+   * Fetches `GET /sessions/{id}/status` once and writes the result onto state.
+   *
+   * Does not start the session-status polling timer.
+   *
+   * @param sessionId - UKYC session id.
+   * @returns The fetched session status.
+   */
+  async fetchSessionStatusOnce(sessionId: string): Promise<KycSessionStatus> {
+    const sessionStatus = await this.messenger.call(
+      'KycService:getSessionStatus',
+      { sessionId },
+    );
+    this.update((state) => {
+      state.sessionStatus = sessionStatus;
+    });
+    return sessionStatus;
   }
 
   /**
