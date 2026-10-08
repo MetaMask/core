@@ -23,7 +23,7 @@ import type {
 } from '@metamask/messenger';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
 import MockEncryptor, {
