@@ -90,7 +90,7 @@ export function findAddedSuppressions({
 }
 
 /**
- * Prints the suppressions that have been added to a file, if any.
+ * Prints the suppressions that have been added to a file.
  *
  * @param fileName - The suppressions file the additions were found in.
  * @param added - The added suppressions to print.
@@ -99,11 +99,6 @@ export function printAddedSuppressions(
   fileName: string,
   added: AddedSuppression[],
 ): void {
-  if (added.length === 0) {
-    console.log(`✅ Nothing has been added to ${fileName}. Good job!`);
-    return;
-  }
-
   console.log(`❌ Detected new suppressions in ${fileName}:\n`);
   for (const suppression of added) {
     console.log(
@@ -154,7 +149,7 @@ async function resolveBaseRef(targetRef: string): Promise<string> {
  */
 export async function gateSuppressions(argv: readonly string[]): Promise<void> {
   const baseRef = await resolveBaseRef(argv[0] ?? FALLBACK_TARGET_REF);
-  let didPass = true;
+  const results: { fileName: string; added: AddedSuppression[] }[] = [];
 
   for (const fileName of SUPPRESSIONS_FILE_NAMES) {
     const { stdout } = await execa('git', ['show', `${baseRef}:${fileName}`], {
@@ -163,12 +158,21 @@ export async function gateSuppressions(argv: readonly string[]): Promise<void> {
     const base = JSON.parse(stdout) as Suppressions;
     const current = await readSuppressions(path.join(REPO_ROOT, fileName));
 
-    const added = findAddedSuppressions({ current, base });
-    printAddedSuppressions(fileName, added);
-    didPass = didPass && added.length === 0;
+    results.push({ fileName, added: findAddedSuppressions({ current, base }) });
   }
 
-  if (!didPass) {
-    process.exitCode = 1;
+  const failures = results.filter(({ added }) => added.length > 0);
+
+  if (failures.length === 0) {
+    for (const { fileName } of results) {
+      console.log(`✅ Nothing has been added to ${fileName}. Good job!`);
+    }
+    return;
   }
+
+  for (const { fileName, added } of failures) {
+    printAddedSuppressions(fileName, added);
+  }
+
+  process.exitCode = 1;
 }

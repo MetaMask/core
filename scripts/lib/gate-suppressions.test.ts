@@ -95,14 +95,6 @@ describe('printAddedSuppressions', () => {
     jest.spyOn(console, 'log').mockReturnValue(undefined);
   });
 
-  it('announces success when nothing was added, naming the file', () => {
-    printAddedSuppressions('oxlint-suppressions.json', []);
-
-    expect(console.log).toHaveBeenCalledWith(
-      '✅ Nothing has been added to oxlint-suppressions.json. Good job!',
-    );
-  });
-
   it('prints each addition and how to resolve it', () => {
     printAddedSuppressions('oxlint-suppressions.json', [
       { filePath: 'a.ts', rule: 'no-shadow', count: 3, baseCount: 2 },
@@ -224,6 +216,44 @@ describe('gateSuppressions', () => {
     await gateSuppressions([]);
 
     expect(process.exitCode).toBeUndefined();
+  });
+
+  it('reports every file as clean when nothing has been added', async () => {
+    await gateSuppressions([]);
+
+    expect(console.log).toHaveBeenCalledWith(
+      '✅ Nothing has been added to oxlint-suppressions.json. Good job!',
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      '✅ Nothing has been added to tsc-suppressions.json. Good job!',
+    );
+  });
+
+  it('stays quiet about the clean file when another one has grown', async () => {
+    // `readSuppressions` stands in for both files, so both grow together and
+    // only the baseline for the oxlint one is left empty.
+    jest
+      .mocked(tscSuppressions.readSuppressions)
+      .mockResolvedValue({ 'a.ts': { 'no-shadow': { count: 1 } } });
+    jest.mocked(execa).mockImplementation((async (
+      _file: string,
+      args: string[],
+    ) => {
+      if (args[0] === 'merge-base') {
+        return { stdout: 'abc123\n' };
+      }
+      return {
+        stdout: args[1]?.includes('tsc-suppressions.json')
+          ? '{"a.ts":{"no-shadow":{"count":1}}}'
+          : '{}',
+      };
+    }) as never);
+
+    await gateSuppressions([]);
+
+    const output = jest.mocked(console.log).mock.calls.flat().join('\n');
+    expect(output).toContain('❌ Detected new suppressions in oxlint-');
+    expect(output).not.toContain('✅');
   });
 
   it('exits with a non-zero code when a file has grown', async () => {
