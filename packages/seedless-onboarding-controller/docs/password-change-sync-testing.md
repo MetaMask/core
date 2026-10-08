@@ -25,6 +25,7 @@ Failed to send `Toprf:updateEncKey` request during the password change. Remote c
 
 - User device should be locked after the failure.
 - User should be able to unlock the wallet with old password.
+- In mobile, existing biometrics (keychain) should unlock the wallet.
 
 ### Scenario C:
 
@@ -33,7 +34,8 @@ Password change is interrupted while the lifecycle is `REMOTE_PASSWORD_PENDING`,
 #### Expected Behavior
 
 - User device should be locked after the failure.
-- User enters the password, wallet should show `Your password is outdated.`
+- User enters the _old password_, wallet should show `Your password is outdated.`
+- In mobile, unlocking with the existing biometrics (keychain) should fail and see error, `Your password is outdated.`
 - User submits the _global password_ and able to unlock the wallet.
 
 ### Scenario D:
@@ -43,7 +45,8 @@ Password change is interrupted while the lifecycle is `LOCAL_STATE_PENDING`, aft
 #### Expected Behavior
 
 - User device should be locked after the failure.
-- User enters the password, wallet should show `Your password is outdated.`
+- User enters the _old password_, wallet should show `Your password is outdated.`
+- In mobile, unlocking with the existing biometrics (keychain) should fail and see error, `Your password is outdated.`
 - User submits the _global password_ and able to unlock the wallet.
 
 ### Scenario E:
@@ -53,7 +56,8 @@ Password change is interrupted while the lifecycle is `LOCAL_PASSWORD_PENDING`, 
 #### Expected Behavior
 
 - User device should be locked after the failure.
-- User enters the password, wallet should show `Your password is outdated.`
+- User enters the _old password_, wallet should show `Your password is outdated.`
+- In mobile, unlocking with the existing biometrics (keychain) should fail and see error, `Your password is outdated.`
 - User submits the _global password_ and able to unlock the wallet.
 
 ### Scenario F:
@@ -63,7 +67,8 @@ Password change is interrupted while the lifecycle is `KEY_SYNC_PENDING`, after 
 #### Expected Behavior
 
 - User device should be locked after the failure.
-- User enters the password, wallet should show `Your password is outdated.`
+- User enters the _old password_, wallet should show `Your password is outdated.`
+- In mobile, unlocking with the existing biometrics (keychain) should fail and see error, `Your password is outdated.`
 - User submits the _global password_ and able to unlock the wallet.
 
 ## Password Sync (Happy Path)
@@ -109,7 +114,7 @@ Pre-condition:
 
 - Device A should be locked after the failure.
 - User enters the current device A password (`Password_1`), the wallet should show error, `Your password is outdated.`
-- User enters the `Password_2`, the wallet should show error, `Your password is incorrect.` (This is because `Password_2` is has not committed to local Keyring vault yet.)
+- User enters the `Password_2`, the wallet should show error, `Your password is incorrect.` (This is because `Password_2` has not committed to local Keyring vault yet.)
 - User submits the `Password_3` and able to unlock the wallet.
 
 ### Scenario J:
@@ -121,34 +126,10 @@ Pre-condition:
 
 - Device A should be locked after the failure.
 - User enters the current device A password (`Password_1`), the wallet should show error, `Your password is outdated.`
-- User enters the `Password_2`, the wallet should show error, `Your password is incorrect.` (This is because `Password_2` is has not committed to local Keyring vault yet.)
+- User enters the `Password_2`, the wallet should show error, `Your password is incorrect.` (This is because `Password_2` has not committed to local Keyring vault yet.)
 - User submits the `Password_3` and able to unlock the wallet.
 
 ### Scenario K:
-
-1. On Device A, password change (`Password_2`) failed with TOPRF network timeout error, **remote commitment has done.**
-2. On Device B, user changes new password successfully. (`Password_3`).
-
-**Expected Behavior on Device A**
-
-- Device A should be locked after the failure.
-- User enters the current device A password (`Password_1`), the wallet should show error, `Your password is outdated.`
-- User enters the `Password_2`, the wallet should show error, `Your password is incorrect.` (This is because `Password_2` is has not committed to local Keyring vault yet.)
-- User submits the `Password_3` and able to unlock the wallet.
-
-### Scenario L:
-
-1. On Device A, password change was interrupted while the lifecycle is `LOCAL_STATE_PENDING`, after the remote update but before the local Seedless state update.
-2. On Device B, user changes new password successfully. (`Password_3`).
-
-**Expected Behavior on Device A**
-
-- Device A should be locked after the failure.
-- User enters the current device A password (`Password_1`), the wallet should show error, `Your password is outdated.`
-- User enters the `Password_2`, the wallet should show error, `Your password is incorrect.` (This is because `Password_2` is has not committed to local Keyring vault yet.)
-- User submits the `Password_3` and able to unlock the wallet.
-
-### Scenario M:
 
 1. On Device A, password change (`Password_2`) failed during `Keyring:changePassword`.
 2. On Device B, user changes new password successfully. (`Password_3`).
@@ -157,10 +138,10 @@ Pre-condition:
 
 - Device A should be locked after the failure.
 - User enters the current device A password (`Password_1`), the wallet should show error, `Your password is outdated.`
-- User enters the `Password_2`, the wallet should show error, `Your password is incorrect.` (This is because `Password_2` is has not committed to local Keyring vault yet.)
+- User enters the `Password_2`, the wallet should show error, `Your password is incorrect.` (This is because `Password_2` has not committed to local Keyring vault yet.)
 - User submits the `Password_3` and able to unlock the wallet.
 
-### Scenario N:
+### Scenario L:
 
 1. On Device A, password change was interrupted while the checkpoint is `KEY_SYNC_PENDING`, i.e. `Keyring:exportEncryptionKey`
 2. On Device B, user changes new password successfully. (`Password_3`).
@@ -172,3 +153,4 @@ Pre-condition:
 - Device A should be locked after the failure with the `KEY_SYNC_PENDING` checkpoint.
 - When Device A detects the password outdated from Device B, we can't sync the global password to Keyring vault.
 - Wallet should give the user the `WalletResetRequired` instruction to do a "Wallet reset" in order to recover social login on Device A.
+- **Relevant UX flow should be followed up for this `WalletResetRequired` instruction.**
