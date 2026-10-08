@@ -80,7 +80,7 @@
     "uuid": "^11.1.1"
   },
   "devDependencies": {
-    "@babel/runtime": "^7.23.9",
+    "@babel/runtime": "^7.29.7",
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/connectivity-controller": "^1.0.0",
     "@metamask/eth-block-tracker": "^16.0.0",
