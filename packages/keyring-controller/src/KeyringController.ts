@@ -843,6 +843,14 @@ export class KeyringController<
 
   #unsupportedKeyrings: SerializedKeyring[];
 
+  // Keyring instances that were destroyed, including partially: a rollback
+  // must rebuild a destroyed instance even when its serialized state still
+  // matches its snapshot, as destruction releases resources that
+  // `serialize()` does not capture (e.g. the bridge of a hardware keyring).
+  // TODO: Refactor this to use a proper transactional pattern for the vault
+  // to avoid having it as a class-level concern.
+  readonly #destroyedKeyrings = new WeakSet<EthKeyring>();
+
   #encryptionKey?: CachedEncryptionKey;
 
   /**
@@ -2858,8 +2866,10 @@ export class KeyringController<
 
   /**
    * Check whether the given old keyring entry's serialized state is unchanged
-   * relative to the given snapshot. A keyring that cannot be serialized
-   * anymore is treated as changed.
+   * relative to the given snapshot. A destroyed keyring — even one whose
+   * destruction failed partway — and a keyring that cannot be serialized
+   * anymore are treated as changed: destruction releases resources that
+   * `serialize()` does not capture.
    *
    * @param old - The old keyring entry to check.
    * @param snapshot - The keyring snapshot to check against.
@@ -2869,6 +2879,10 @@ export class KeyringController<
     old: KeyringEntry,
     snapshot: KeyringSnapshot,
   ): Promise<boolean> {
+    if (this.#destroyedKeyrings.has(old.keyring)) {
+      return false;
+    }
+
     try {
       return (
         JSON.stringify(await old.keyring.serialize()) ===
@@ -3281,6 +3295,10 @@ export class KeyringController<
    * keyring along with removing all its event listeners and, in some cases,
    * clears the keyring bridge iframe from the DOM.
    *
+   * The keyring is marked as destroyed even when its destruction fails
+   * partway: the rollback must rebuild it rather than keep it, whatever
+   * resources it already released.
+   *
    * @param keyring - The keyring to destroy.
    * @param keyringV2 - The keyring v2 to destroy (if any).
    */
@@ -3288,9 +3306,13 @@ export class KeyringController<
     keyring: EthKeyring,
     keyringV2?: KeyringV2,
   ): Promise<void> {
-    await keyring.destroy?.();
-    if (keyringV2) {
-      await keyringV2.destroy?.();
+    try {
+      await keyring.destroy?.();
+      if (keyringV2) {
+        await keyringV2.destroy?.();
+      }
+    } finally {
+      this.#destroyedKeyrings.add(keyring);
     }
   }
 
