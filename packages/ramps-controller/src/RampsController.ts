@@ -24,7 +24,7 @@ import type {
 import {
   applyAutorampRemoteStatus,
   AutorampStatus,
-  buildBrazilMusdAutorampRequest,
+  buildMusdAutorampRequest,
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
@@ -374,13 +374,17 @@ export type VbaProviderFlowStatus = (typeof VBA_PROVIDER_FLOW_STATUSES)[number];
 
 /**
  * Autoramp setup progress after KYC has been approved.
- * `'in_progress'` is reserved for hosts that observe an in-flight hydrate;
- * {@link RampsController.hydrateVbaOnboarding} itself returns `'ready'` or
- * `'retryable_failure'` once the coalesced run settles.
+ * `'in_progress'` is reserved for hosts that observe an in-flight hydrate.
+ * `'needs_source_currency'` means registration finished and the wallet has no
+ * usable autoramp, but hydrate was not given a fiat code, so nothing was
+ * created. {@link RampsController.hydrateVbaOnboarding} itself returns
+ * `'ready'`, `'needs_source_currency'`, or `'retryable_failure'` once the
+ * coalesced run settles.
  */
 export const VBA_AUTORAMP_STATUSES = [
   'not_ready',
   'in_progress',
+  'needs_source_currency',
   'ready',
   'retryable_failure',
 ] as const;
@@ -426,23 +430,28 @@ function toVbaKycStatus(value: string | undefined): VbaKycStatus {
 }
 
 /**
- * Idempotency key for the standing BRL to mUSD autoramp.
+ * Idempotency key for a standing fiat to mUSD autoramp.
  *
- * The customer and wallet keep retries of one create on the same key. Rejected
- * or cancelled route ids are appended, sorted, so a replacement create is a
- * new key and MoonPay does not replay the terminal route.
+ * The prefix includes the fiat code (`brl-musd-monad`, `usd-musd-monad`) so a
+ * USD create does not replay a BRL route. The customer and wallet keep retries
+ * of one create on the same key. Rejected or cancelled route ids are appended,
+ * sorted, so a replacement create is a new key and MoonPay does not replay the
+ * terminal route.
  *
+ * @param sourceCurrencyCode - Fiat code for this create.
  * @param customerId - MoonPay customer id.
  * @param walletAddress - Money Account address that receives mUSD.
  * @param terminalAutorampIds - Ids of rejected or cancelled routes for this wallet.
  * @returns Idempotency-Key value.
  */
-function buildBrazilMusdAutorampIdempotencyKey(
+function buildMusdAutorampIdempotencyKey(
+  sourceCurrencyCode: string,
   customerId: string,
   walletAddress: string,
   terminalAutorampIds: readonly string[],
 ): string {
-  const base = `brl-musd-monad:${customerId}:${walletAddress.trim().toLowerCase()}`;
+  const fiatPrefix = sourceCurrencyCode.trim().toLowerCase();
+  const base = `${fiatPrefix}-musd-monad:${customerId}:${walletAddress.trim().toLowerCase()}`;
   if (terminalAutorampIds.length === 0) {
     return base;
   }
@@ -3957,28 +3966,39 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Refreshes KYC session facts and, when Iron has approved KYC, activates the
-   * Money Account (wallet registration + autoramp). Hosts map the returned
+   * Refreshes KYC session facts and, when Iron has approved KYC, registers the
+   * Money Account wallet and refreshes autoramps. An autoramp is created only
+   * when `sourceCurrencyCode` is set and the wallet has no usable autoramp.
+   * With no usable autoramp and no code, the snapshot status is
+   * `needs_source_currency` and nothing is posted. Hosts map the returned
    * {@link VbaOnboardingSnapshot} onto their own funnel; this method does not
    * name screens.
    *
    * Overlapping calls share one run so polling cannot trigger duplicate wallet
-   * signatures or autoramp creation.
+   * signatures or autoramp creation. A second call does not apply its own
+   * `sourceCurrencyCode`; it receives the in-flight result.
    *
    * @param params - VBA onboarding parameters.
    * @param params.walletAddress - Monad Money Account wallet address.
+   * @param params.sourceCurrencyCode - Fiat code to create when the wallet has
+   * no usable autoramp. Omit it to register and refresh without creating.
    * @returns Independent KYC and autoramp facts for the current customer.
    */
   async hydrateVbaOnboarding({
     walletAddress,
+    sourceCurrencyCode,
   }: {
     walletAddress: string;
+    sourceCurrencyCode?: string;
   }): Promise<VbaOnboardingSnapshot> {
     if (this.#vbaOnboardingHydrationPromise) {
       return await this.#vbaOnboardingHydrationPromise;
     }
 
-    const hydrationPromise = this.#hydrateVbaOnboarding(walletAddress);
+    const hydrationPromise = this.#hydrateVbaOnboarding(
+      walletAddress,
+      sourceCurrencyCode,
+    );
     this.#vbaOnboardingHydrationPromise = hydrationPromise;
 
     try {
@@ -3992,6 +4012,7 @@ export class RampsController extends BaseController<
 
   async #hydrateVbaOnboarding(
     walletAddress: string,
+    sourceCurrencyCode?: string,
   ): Promise<VbaOnboardingSnapshot> {
     // Prefer the in-memory/persisted session status over the backend
     // latest-status endpoint: after SumSub the backend endpoint can lag, while
@@ -4072,8 +4093,9 @@ export class RampsController extends BaseController<
       throw new Error('walletAddress is required after KYC acceptance.');
     }
 
-    // KYC is approved; the remaining work activates the Money account (register
-    // the wallet + ensure an autoramp). Those calls hit the neobank backend and
+    // KYC is approved; the remaining work registers the wallet and refreshes
+    // autoramps. A create runs only when the caller passed a fiat code and this
+    // wallet has no usable autoramp. Those calls hit the neobank backend and
     // can fail transiently (e.g. an address-list lookup timeout). Surface
     // `retryable_failure` so the host can keep the user on a pending screen
     // rather than a fatal error — the KYC decision itself already succeeded.
@@ -4113,6 +4135,10 @@ export class RampsController extends BaseController<
           autoramp.status !== AutorampStatus.Rejected &&
           autoramp.status !== AutorampStatus.Cancelled,
       );
+      const trimmedSourceCurrencyCode = sourceCurrencyCode?.trim() ?? '';
+      if (!hasUsableAutoramp && trimmedSourceCurrencyCode.length === 0) {
+        return { ...snapshot, autorampStatus: 'needs_source_currency' };
+      }
       if (!hasUsableAutoramp) {
         const terminalAutorampIds = autorampsForWallet
           .filter(
@@ -4122,9 +4148,13 @@ export class RampsController extends BaseController<
           )
           .map((autoramp) => autoramp.id);
         await this.createAutoramp(
-          buildBrazilMusdAutorampRequest(trimmedWalletAddress),
+          buildMusdAutorampRequest(
+            trimmedWalletAddress,
+            trimmedSourceCurrencyCode,
+          ),
           {
-            idempotencyKey: buildBrazilMusdAutorampIdempotencyKey(
+            idempotencyKey: buildMusdAutorampIdempotencyKey(
+              trimmedSourceCurrencyCode,
               customerId,
               trimmedWalletAddress,
               terminalAutorampIds,
