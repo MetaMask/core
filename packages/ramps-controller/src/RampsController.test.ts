@@ -10868,6 +10868,27 @@ describe('RampsController', () => {
       });
     });
 
+    it('keeps the persisted session when the one-shot KYC GET fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('pending'),
+        });
+        handlers.fetchSessionStatusOnce.mockRejectedValue(
+          new Error('session status unavailable'),
+        );
+
+        expect(
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+            refreshKyc: true,
+          }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'pending' }));
+
+        expect(handlers.fetchSessionStatusOnce).toHaveBeenCalledTimes(1);
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+      });
+    });
+
     it('does not fetch session status when refreshKyc is set on a terminal session', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger, {

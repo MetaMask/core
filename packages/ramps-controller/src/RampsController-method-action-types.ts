@@ -455,7 +455,8 @@ export type RampsControllerRegisterMoneyAccountWalletAction = {
  * @param params - VBA onboarding parameters.
  * @param params.walletAddress - Monad Money Account wallet address.
  * @param params.refreshKyc - When true, fetch session status once for a
- * non-terminal persisted session. Defaults to false.
+ * non-terminal persisted session. A failed GET keeps that session. Defaults
+ * to false.
  * @param params.refreshAutoramps - When true, replace the autoramp cursor
  * from `GET /neobank/autoramps` unless a usable route is already stored.
  * Defaults to false.
