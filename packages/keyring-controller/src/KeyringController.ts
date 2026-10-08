@@ -2233,21 +2233,14 @@ export class KeyringController<
     const result = await this.#withKeyringOrRollback(
       () => this.#selectKeyringEntry({ v2: true, selector }),
       async () => undefined,
-      async ({ keyringV2, metadata }) => {
-        if (!keyringV2) {
-          throw new KeyringControllerError(
-            KeyringControllerErrorMessage.KeyringV2NotSupported,
-          );
-        }
-
-        return this.#assertNoUnsafeDirectKeyringAccess(
+      async ({ keyringV2, metadata }) =>
+        this.#assertNoUnsafeDirectKeyringAccess(
           await operation({
             keyring: keyringV2 as SelectedKeyring,
             metadata,
           }),
           keyringV2,
-        );
-      },
+        ),
     );
 
     if (isDeferredAtomicDispatch(result)) {
@@ -2256,11 +2249,6 @@ export class KeyringController<
       // operation error leaves every committed update in place — there is
       // no rollback for the atomic keyring.
       const { deferredAtomicEntry: entry } = result;
-      if (!entry.keyringV2) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.KeyringV2NotSupported,
-        );
-      }
 
       return this.#assertNoUnsafeDirectKeyringAccess(
         await operation({
@@ -2331,12 +2319,6 @@ export class KeyringController<
     if (!entry) {
       throw new KeyringControllerError(
         KeyringControllerErrorMessage.KeyringNotFound,
-      );
-    }
-
-    if (!entry.keyringV2) {
-      throw new KeyringControllerError(
-        KeyringControllerErrorMessage.KeyringV2NotSupported,
       );
     }
 
@@ -2494,10 +2476,17 @@ export class KeyringController<
   /**
    * Select a keyring entry using a selector without acquiring the controller lock.
    *
+   * A V2 selection requires a keyring with a V2 adapter: selecting an entry
+   * without one throws, before any of the keyring's accounts are read, so that
+   * the missing adapter takes precedence over keyring-level errors. The
+   * `filter` selector is consistent with this: it already skips keyrings
+   * without a V2 adapter.
+   *
    * @param options - Selection options.
    * @param options.v2 - Tag to indicate whether the selector is for a V2 keyring.
    * @param options.selector - Keyring selector object.
    * @returns The selected keyring entry, or `undefined` if no match is found.
+   * @throws If a V2 selection matches a keyring without a V2 adapter.
    * @template SelectedKeyring - The expected type of the selected keyring.
    * @template SelectedKeyringV2 - The expected type of the selected keyring (v2).
    */
@@ -2541,6 +2530,12 @@ export class KeyringController<
 
         return selector.filter(keyring, metadata);
       });
+    }
+
+    if (v2 && entry && !entry.keyringV2) {
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.KeyringV2NotSupported,
+      );
     }
 
     return entry;
