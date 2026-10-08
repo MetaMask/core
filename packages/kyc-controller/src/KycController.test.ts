@@ -551,76 +551,24 @@ describe('KycController', () => {
       },
     );
 
-    it('fetches the latest status and starts polling when not terminal', async () => {
+    it('returns the persisted status and starts polling when not terminal', async () => {
+      const current = sessionStatus('pending');
       const latest = sessionStatus('pending', { kycStatus: 'in_review' });
       await withController(
         {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
+          options: { state: { sessionStatus: current } },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue(latest);
 
-          expect(await controller.refreshSessionStatus()).toStrictEqual(latest);
-          expect(controller.state.sessionStatus).toStrictEqual(latest);
+          expect(await controller.refreshSessionStatus()).toStrictEqual(
+            current,
+          );
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
-          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
-
-          await flushPromises();
-          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
-        },
-      );
-    });
-
-    it.each(['new', 'expired'] as const)(
-      'refreshes capability authorization when the fetched status is %s',
-      async (capabilityAuthorizationStatus) => {
-        const fetched = sessionStatus('pending', {
-          capabilityAuthorizationStatus,
-        });
-        const refreshed = sessionStatus('pending', {
-          capabilityAuthorizationStatus: 'stored',
-        });
-        await withController(
-          {
-            options: { state: { sessionStatus: sessionStatus('pending') } },
-          },
-          async ({ controller, handlers }) => {
-            handlers.getSessionStatus
-              .mockResolvedValueOnce(fetched)
-              .mockResolvedValue(refreshed);
-            handlers.setAuthorizations.mockResolvedValue(refreshed);
-
-            expect(await controller.refreshSessionStatus()).toStrictEqual(
-              refreshed,
-            );
-            await flushPromises();
-            expect(handlers.getSessionStatus).toHaveBeenCalledWith({
-              sessionId: 'sid',
-            });
-            expectResetWrappingKeys(handlers.resetWrappingKeys, 'sid');
-            expect(handlers.setAuthorizations).toHaveBeenCalledTimes(1);
-            expect(controller.state.sessionStatus).toStrictEqual(refreshed);
-          },
-        );
-      },
-    );
-
-    it('does not refresh capability authorization when the fetched status is pending', async () => {
-      const pendingAuth = sessionStatus('pending', {
-        capabilityAuthorizationStatus: 'pending',
-      });
-      await withController(
-        {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
-        },
-        async ({ controller, handlers }) => {
-          handlers.getSessionStatus.mockResolvedValue(pendingAuth);
-
-          expect(await controller.refreshSessionStatus()).toStrictEqual(
-            pendingAuth,
-          );
+          expect(controller.state.sessionStatus).toStrictEqual(latest);
           expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
           expect(handlers.setAuthorizations).not.toHaveBeenCalled();
         },
@@ -727,6 +675,138 @@ describe('KycController', () => {
           expect(handlers.setAuthorizations).not.toHaveBeenCalled();
         },
       );
+    });
+
+    it.each(['new', 'expired'] as const)(
+      'refreshes capability authorization when the polled status changes to %s',
+      async (capabilityAuthorizationStatus) => {
+        const fetched = sessionStatus('pending', {
+          capabilityAuthorizationStatus,
+        });
+        const refreshed = sessionStatus('pending', {
+          capabilityAuthorizationStatus: 'stored',
+        });
+        await withController(
+          {
+            options: { state: { sessionStatus: sessionStatus('pending') } },
+          },
+          async ({ controller, handlers }) => {
+            handlers.getSessionStatus.mockResolvedValue(fetched);
+            handlers.setAuthorizations.mockResolvedValue(refreshed);
+
+            controller.startSessionStatusPolling();
+            await flushPromises();
+
+            expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+              sessionId: 'sid',
+            });
+            expectResetWrappingKeys(handlers.resetWrappingKeys, 'sid');
+            expect(handlers.setAuthorizations).toHaveBeenCalledTimes(1);
+            expect(controller.state.sessionStatus).toStrictEqual(refreshed);
+          },
+        );
+      },
+    );
+
+    it('does not refresh capability authorization when the polled status is unchanged', async () => {
+      const current = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'expired',
+      });
+      await withController(
+        {
+          options: { state: { sessionStatus: current } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(current);
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+          expect(controller.state.sessionStatus).toStrictEqual(current);
+        },
+      );
+    });
+
+    it('does not submit capability authorization when the polled status is pending', async () => {
+      const pendingAuth = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'pending',
+      });
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(pendingAuth);
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+
+          expect(controller.state.sessionStatus).toStrictEqual(pendingAuth);
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not refresh capability authorization when the polled finalStatus is approved', async () => {
+      const approvedExpired = sessionStatus('approved', {
+        capabilityAuthorizationStatus: 'expired',
+      });
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(approvedExpired);
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+
+          expect(controller.state.sessionStatus).toStrictEqual(approvedExpired);
+          expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('keeps polling when capability authorization refresh fails', async () => {
+      jest.useFakeTimers();
+      const consoleError = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      const fetched = sessionStatus('pending', {
+        capabilityAuthorizationStatus: 'expired',
+      });
+      try {
+        await withController(
+          {
+            options: { state: { sessionStatus: sessionStatus('pending') } },
+          },
+          async ({ controller, handlers }) => {
+            handlers.getSessionStatus.mockResolvedValue(fetched);
+            handlers.resetWrappingKeys.mockRejectedValue(
+              new Error('reset failed'),
+            );
+
+            controller.startSessionStatusPolling();
+            await flushPromises();
+
+            expect(consoleError).toHaveBeenCalledWith(
+              'Error refreshing authorizations',
+              expect.any(Error),
+            );
+            expect(controller.state.sessionStatus).toStrictEqual(fetched);
+
+            await jest.advanceTimersByTimeAsync(15_000);
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+          },
+        );
+      } finally {
+        consoleError.mockRestore();
+      }
     });
 
     it.each(['approved', 'rejected', 'retry'])(

@@ -25,8 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `refreshSessionStatus` now returns a promise ([#10692](https://github.com/MetaMask/core/pull/10692))
 - Refresh and resubmit the UKYC capability authorization when
   `capabilityAuthorizationStatus` is `new` or `expired` while resuming a
-  session in `startSession` or `refreshSessionStatus` (skipped when
-  `finalStatus` is `approved` or `rejected`)
+  session in `startSession`, or when a session-status poll writes a changed
+  payload (skipped when `finalStatus` is `approved` or `rejected`)
   ([#10692](https://github.com/MetaMask/core/pull/10692))
 - Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
 

@@ -504,11 +504,13 @@ export class KycController extends BaseController<
 
   // TODO: Perhaps this should be renamed to resumeSession()?
   /**
-   * Fetches the latest session status when `finalStatus` is still being
-   * polled, refreshes capability authorization when it is `new` or `expired`,
-   * and starts polling.
+   * Starts session-status polling when `finalStatus` is still in progress.
    *
-   * @returns The current session status after any authorization refresh.
+   * Returns the session already stored on state. The poll fetches the latest
+   * status and refreshes capability authorization when a changed payload
+   * reports it as `new` or `expired`.
+   *
+   * @returns The persisted session status.
    * @throws If there is no session on state.
    */
   async refreshSessionStatus(): Promise<KycSessionStatus> {
@@ -519,16 +521,6 @@ export class KycController extends BaseController<
     if (
       !FINAL_STATUSES_TO_STOP_POLLING.has(this.state.sessionStatus.finalStatus)
     ) {
-      const sessionStatus = await this.messenger.call(
-        'KycService:getSessionStatus',
-        { sessionId: this.state.sessionStatus.id },
-      );
-
-      this.update((state) => {
-        state.sessionStatus = sessionStatus;
-      });
-      await this.#refreshAuthorizationsIfNeeded();
-
       this.startSessionStatusPolling();
     }
     return this.state.sessionStatus;
@@ -567,9 +559,11 @@ export class KycController extends BaseController<
   /**
    * Starts polling `GET /sessions/{id}/status` for
    * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
-   * the result onto state only when the payload changed. The loop stops once
-   * `finalStatus` is `approved`, `rejected`, or `retry`, or when
-   * {@link reset} / {@link clearState} runs.
+   * the result onto state only when the payload changed, and then refreshes
+   * capability authorization when that payload reports it as `new` or
+   * `expired`. A refresh failure is logged and does not stop the loop. The
+   * loop stops once `finalStatus` is `approved`, `rejected`, or `retry`, or
+   * when {@link reset} / {@link clearState} runs.
    *
    * @throws If there is no current session id to poll.
    */
@@ -629,6 +623,14 @@ export class KycController extends BaseController<
         this.update((state) => {
           state.sessionStatus = sessionStatus;
         });
+
+        // TODO: Once we have a established a pattern for resuming, move this logic out
+        // of the polling loop
+        try {
+          await this.#refreshAuthorizationsIfNeeded();
+        } catch (error) {
+          console.error('Error refreshing authorizations', error);
+        }
       }
 
       if (FINAL_STATUSES_TO_STOP_POLLING.has(sessionStatus.finalStatus)) {
