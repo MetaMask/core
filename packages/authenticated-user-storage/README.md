@@ -106,6 +106,12 @@ const updated: NotificationPreferences = {
   marketing: { ... },
   perps: { ... },
   socialAI: { ... },
+  agenticCli: { ... },
+  priceAlerts: { ... },
+  subscriptions: {
+    inAppNotificationsEnabled: true,
+    pushNotificationsEnabled: true,
+  },
 };
 await service.putNotificationPreferences(updated, 'extension');
 ```

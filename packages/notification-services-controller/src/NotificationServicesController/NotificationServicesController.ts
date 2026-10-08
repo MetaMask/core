@@ -8,6 +8,7 @@ import type {
 import {
   DEFAULT_AGENTIC_CLI_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
+  DEFAULT_SUBSCRIPTION_PREFERENCES,
 } from '@metamask/authenticated-user-storage';
 import type {
   ControllerGetStateAction,
@@ -250,6 +251,7 @@ export const DEFAULT_SOCIAL_AI_PREFERENCES: Required<SocialAIPreference> = {
 export {
   DEFAULT_AGENTIC_CLI_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
+  DEFAULT_SUBSCRIPTION_PREFERENCES,
 } from '@metamask/authenticated-user-storage';
 
 /**
@@ -287,14 +289,14 @@ const getEnabledAccounts = async (
 
 /**
  * Builds a fresh `NotificationPreferences` blob using hardcoded defaults for
- * Perps, Social AI, and Agentic CLI and the user's
- * marketing/product-announcement flags.
+ * Perps, Social AI, Agentic CLI, price alerts, and subscriptions, together
+ * with the user's marketing/product-announcement flags.
  *
  * `walletActivity` is written only because the blob schema requires the field;
- * nothing reads it back. Both channels are always on, and subscriptions are
- * held per address by the Trigger API rather than here — addresses are scoped
- * to a keyring, but this blob is keyed by canonical profile ID, which pairing
- * shares across every SRP belonging to the same user.
+ * nothing reads it back. Both channels are always on, and wallet-activity
+ * subscriptions are held per address by the Trigger API rather than here —
+ * addresses are scoped to a keyring, but this blob is keyed by canonical
+ * profile ID, which pairing shares across every SRP belonging to the same user.
  *
  * @param hasMarketingConsent - Whether marketing push notifications should be enabled.
  * @param productAnnouncementEnabled - Whether marketing in-app notifications should be enabled.
@@ -317,6 +319,7 @@ const buildFreshPreferences = (
   socialAI: { ...DEFAULT_SOCIAL_AI_PREFERENCES },
   agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
   priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
+  subscriptions: { ...DEFAULT_SUBSCRIPTION_PREFERENCES },
 });
 
 const MESSENGER_EXPOSED_METHODS = [

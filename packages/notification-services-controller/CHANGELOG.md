@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add default `subscriptions` channel toggles when initializing `NotificationPreferences` ([#10669](https://github.com/MetaMask/core/pull/10669))
+
 ## [29.0.3]
 
 ### Changed
