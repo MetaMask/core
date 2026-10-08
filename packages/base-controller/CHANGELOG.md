@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `validateControllerState` function for validating controller state against the `struct` property ([#10023](https://github.com/MetaMask/core/pull/10023))
+
 ### Changed
 
+- Add `@metamask/superstruct` as a dependency ([#10023](https://github.com/MetaMask/core/pull/10023))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `immer` from `^9.0.6` to `^11.1.18` ([#10331](https://github.com/MetaMask/core/pull/10331), [#10382](https://github.com/MetaMask/core/pull/10382))
 
