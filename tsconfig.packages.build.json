@@ -11,5 +11,10 @@
     "skipLibCheck": true,
     "types": ["node", "jest"]
   },
-  "exclude": ["./jest.config.packages.ts", "**/*.test.ts", "**/jest.config.ts", "**/*.tst.ts"]
+  "exclude": [
+    "./jest.config.packages.ts",
+    "**/*.test.ts",
+    "**/jest.config.ts",
+    "**/*.tst.ts"
+  ]
 }
