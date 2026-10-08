@@ -14,6 +14,8 @@ import packageJson from '../package.json';
 import type {
   AutorampDepositRailsSummary,
   AutorampRemoteSnapshot,
+  AutorampTransactionSummary,
+  PixDepositInstructions,
 } from './autoramp-types.js';
 import type { NeoBankServiceMethodActions } from './NeoBankService-method-action-types.js';
 import { RAMPS_SDK_VERSION, RampsEnvironment } from './RampsService.js';
@@ -70,6 +72,13 @@ export type NeoBankAutorampResponse = {
   recipient_account?: {
     address?: string;
   };
+  /**
+   * Some MoonPay autoramp responses put the destination under `recipient`
+   * instead of `recipient_account`.
+   */
+  recipient?: {
+    address?: string;
+  };
   // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
   deposit_rails?: unknown[];
 };
@@ -122,7 +131,14 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMoonpayCustomerId',
   'getWalletRegistrationStatus',
   'registerSelfHostedWallet',
+  'getPixDepositInstructions',
+  'listAutorampTransactions',
 ] as const;
+
+/**
+ * MoonPay's maximum `page_size` for `GET /api/autoramps`.
+ */
+const AUTORAMP_LIST_PAGE_SIZE = 100;
 
 /**
  * Actions that {@link NeoBankService} exposes to other consumers.
@@ -208,10 +224,109 @@ export function mapNeoBankAutorampToRemoteSnapshot(
       response.wallet_address !== undefined &&
       response.wallet_address.length > 0
         ? response.wallet_address
-        : response.recipient_account?.address,
+        : (response.recipient_account?.address ?? response.recipient?.address),
     status: response.status,
     depositRailsSummary,
   };
+}
+
+/**
+ * Reads a MoonPay paged list (an object with an items array) or a raw array.
+ *
+ * @param response - Proxy JSON body.
+ * @param malformedMessage - Error when the body is neither shape.
+ * @returns Item list.
+ */
+function readPagedItems(
+  response: unknown,
+  malformedMessage: string,
+): unknown[] {
+  if (Array.isArray(response)) {
+    return response;
+  }
+  if (
+    response !== null &&
+    typeof response === 'object' &&
+    Array.isArray((response as { items?: unknown }).items)
+  ) {
+    return (response as { items: unknown[] }).items;
+  }
+  throw new Error(malformedMessage);
+}
+
+/**
+ * Reads the next-page cursor from a MoonPay paged list.
+ * A raw array has no further page.
+ *
+ * @param response - Proxy JSON body.
+ * @returns Next cursor, or undefined when this page is the last.
+ */
+function readNextCursor(response: unknown): string | undefined {
+  if (
+    response === null ||
+    typeof response !== 'object' ||
+    Array.isArray(response)
+  ) {
+    return undefined;
+  }
+  const { cursor } = response as { cursor?: unknown };
+  return typeof cursor === 'string' && cursor.length > 0 ? cursor : undefined;
+}
+
+/**
+ * Pulls the PIX deposit rail out of an autoramp `deposit_rails` array.
+ *
+ * @param depositRails - MoonPay `deposit_rails` value.
+ * @returns PIX instructions, or null when no usable PIX rail is present.
+ */
+export function extractPixDepositInstructions(
+  depositRails: unknown,
+): PixDepositInstructions | null {
+  if (!Array.isArray(depositRails)) {
+    return null;
+  }
+  for (const rail of depositRails) {
+    if (rail === null || typeof rail !== 'object') {
+      continue;
+    }
+    const record = rail as Record<string, unknown>;
+    if (record.type !== 'Pix') {
+      continue;
+    }
+    if (
+      typeof record.br_code !== 'string' ||
+      record.br_code.length === 0 ||
+      typeof record.instruction !== 'string'
+    ) {
+      continue;
+    }
+    const instructions: PixDepositInstructions = {
+      brCode: record.br_code,
+      instruction: record.instruction,
+    };
+    if (typeof record.pix_key === 'string' && record.pix_key.length > 0) {
+      instructions.pixKey = record.pix_key;
+    }
+    if (typeof record.expires_at === 'string' && record.expires_at.length > 0) {
+      instructions.expiresAt = record.expires_at;
+    }
+    return instructions;
+  }
+  return null;
+}
+
+/**
+ * Reads a decimal amount from a MoonPay `Amount` object.
+ *
+ * @param value - `source_amount` or `destination_amount`.
+ * @returns Decimal string, or undefined.
+ */
+function readAmount(value: unknown): string | undefined {
+  if (value === null || typeof value !== 'object') {
+    return undefined;
+  }
+  const { amount } = value as { amount?: unknown };
+  return typeof amount === 'string' && amount.length > 0 ? amount : undefined;
 }
 
 /**
@@ -422,20 +537,131 @@ export class NeoBankService {
   }
 
   /**
-   * Fetches all autoramp accounts belonging to the authenticated customer.
+   * Fetches autoramp accounts, following MoonPay `cursor` pages until the
+   * list is complete.
    *
-   * @returns Remote snapshots for all customer autoramps.
+   * Pass `customerId` to scope the list to one MoonPay customer. Omitting it
+   * asks the proxy for the partner-wide list. Each request uses MoonPay's
+   * maximum `page_size`.
+   *
+   * @param params - Optional filters.
+   * @param params.customerId - MoonPay customer id.
+   * @returns Remote snapshots for every page.
    */
-  async getAutoramps(): Promise<AutorampRemoteSnapshot[]> {
-    const response = await this.#getJson<unknown>('autoramps');
-    if (!Array.isArray(response)) {
-      throw new Error(
-        'Malformed response received from neo-bank autoramps API',
+  async getAutoramps(
+    params: { customerId?: string } = {},
+  ): Promise<AutorampRemoteSnapshot[]> {
+    const autoramps: unknown[] = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined;
+
+    do {
+      const response = await this.#getJson<unknown>('autoramps', {
+        customer_id: params.customerId,
+        page_size: AUTORAMP_LIST_PAGE_SIZE,
+        cursor,
+      });
+      autoramps.push(
+        ...readPagedItems(
+          response,
+          'Malformed response received from neo-bank autoramps API',
+        ),
       );
-    }
-    return response.map((autoramp) =>
+      const nextCursor = readNextCursor(response);
+      if (nextCursor === undefined || seenCursors.has(nextCursor)) {
+        break;
+      }
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    } while (cursor !== undefined);
+
+    return autoramps.map((autoramp) =>
       this.#mapAutorampResponse(autoramp as NeoBankAutorampResponse),
     );
+  }
+
+  /**
+   * Loads PIX deposit instructions for an autoramp.
+   *
+   * Calls `GET /neobank/autoramps/{id}` and reads the `type: Pix` rail
+   * (`br_code`, `instruction`, optional `pix_key`). Returns null until MoonPay
+   * has attached deposit rails (typically once the autoramp is Approved).
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @returns PIX instructions, or null when the rail is not ready.
+   */
+  async getPixDepositInstructions(
+    autorampId: string,
+  ): Promise<PixDepositInstructions | null> {
+    const response = await this.#getJson<NeoBankAutorampResponse>(
+      `autoramps/${encodeURIComponent(autorampId)}`,
+    );
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from neo-bank autoramp API');
+    }
+    return extractPixDepositInstructions(response.deposit_rails);
+  }
+
+  /**
+   * Lists the newest page of transactions for one autoramp via
+   * `GET /neobank/autoramp-transactions?autoramp_id=&sort_order=desc`.
+   *
+   * This is the first page only, not the full history. Poll `status`
+   * (`Completed`, `Failed`, …). The deprecated `state` field is ignored.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @returns Transaction summaries from the newest page.
+   */
+  async listAutorampTransactions(
+    autorampId: string,
+  ): Promise<AutorampTransactionSummary[]> {
+    const response = await this.#getJson<unknown>('autoramp-transactions', {
+      autoramp_id: autorampId,
+      sort_order: 'desc',
+    });
+    const transactions = readPagedItems(
+      response,
+      'Malformed response received from neo-bank autoramp transactions API',
+    );
+    return transactions.map((transaction) => {
+      if (
+        transaction === null ||
+        typeof transaction !== 'object' ||
+        typeof (transaction as { id?: unknown }).id !== 'string'
+      ) {
+        throw new Error(
+          'Malformed response received from neo-bank autoramp transactions API',
+        );
+      }
+      const record = transaction as {
+        id: string;
+        autoramp_id?: unknown;
+        status?: unknown;
+        source_amount?: unknown;
+        destination_amount?: unknown;
+        created_at?: unknown;
+      };
+      if (typeof record.status !== 'string') {
+        throw new Error(
+          'Malformed response received from neo-bank autoramp transactions API',
+        );
+      }
+      const createdAt =
+        typeof record.created_at === 'string' && record.created_at.length > 0
+          ? record.created_at
+          : undefined;
+      return {
+        id: record.id,
+        autorampId:
+          typeof record.autoramp_id === 'string'
+            ? record.autoramp_id
+            : autorampId,
+        status: record.status,
+        sourceAmount: readAmount(record.source_amount),
+        destinationAmount: readAmount(record.destination_amount),
+        createdAt,
+      };
+    });
   }
 
   /**

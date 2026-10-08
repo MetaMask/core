@@ -29,6 +29,7 @@ import type {
   BlockOptions,
   CommentEngagement,
   CreateSwapCommentOptions,
+  FeedItem,
   FeedResponse,
   FetchBlockedListOptions,
   FetchFeedOptions,
@@ -93,10 +94,13 @@ const PositionStruct = structType({
   chain: string(),
   positionAmount: number(),
   isOpen: optional(boolean()),
-  boughtUsd: number(),
-  soldUsd: number(),
-  realizedPnl: number(),
-  costBasis: number(),
+  // Incomplete Clicker metrics serialize these as `null` (`undefined + n`
+  // becomes `NaN`, then JSON `null`). Rejecting the field used to fail the
+  // entire feed page, so they are nullable here.
+  boughtUsd: nullable(number()),
+  soldUsd: nullable(number()),
+  realizedPnl: nullable(number()),
+  costBasis: nullable(number()),
   trades: array(TradeStruct),
   lastTradeAt: number(),
   tokenImageUrl: optional(nullable(string())),
@@ -265,6 +269,44 @@ const FeedResponseStruct = structType({
   items: array(FeedItemStruct),
   pagination: FeedPaginationStruct,
 });
+
+/**
+ * One malformed feed item must not blank the page. When the envelope is
+ * well-shaped, keep items that match {@link FeedItemStruct} and drop the rest.
+ * Still throw when `items` or `pagination` themselves are unusable.
+ *
+ * @param feedData - Parsed JSON body from a feed endpoint.
+ * @param invalidMessage - Error message to throw when the envelope is unusable.
+ * @returns The validated feed response, possibly with invalid items dropped.
+ */
+const parseFeedResponse = (
+  feedData: unknown,
+  invalidMessage: string,
+): FeedResponse => {
+  if (is(feedData, FeedResponseStruct)) {
+    return feedData;
+  }
+
+  if (
+    typeof feedData !== 'object' ||
+    feedData === null ||
+    !('items' in feedData) ||
+    !('pagination' in feedData)
+  ) {
+    throw new Error(invalidMessage);
+  }
+
+  const { items, pagination } = feedData;
+
+  if (!Array.isArray(items) || !is(pagination, FeedPaginationStruct)) {
+    throw new Error(invalidMessage);
+  }
+
+  return {
+    items: items.filter((item): item is FeedItem => is(item, FeedItemStruct)),
+    pagination,
+  };
+};
 
 const FollowersResponseStruct = structType({
   followers: array(ProfileSummaryStruct),
@@ -716,12 +758,10 @@ export class SocialService extends BaseDataService<
           SocialServiceErrorMessage.FETCH_FEED_FAILED,
         );
         const feedData = (await response.json()) as unknown;
-        if (!is(feedData, FeedResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
-          );
-        }
-        return feedData;
+        return parseFeedResponse(
+          feedData,
+          SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+        );
       },
     });
 
@@ -786,12 +826,10 @@ export class SocialService extends BaseDataService<
           SocialServiceErrorMessage.FETCH_TRADER_FEED_FAILED,
         );
         const feedData = (await response.json()) as unknown;
-        if (!is(feedData, FeedResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
-          );
-        }
-        return feedData;
+        return parseFeedResponse(
+          feedData,
+          SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
+        );
       },
     });
 
@@ -855,12 +893,10 @@ export class SocialService extends BaseDataService<
           SocialServiceErrorMessage.FETCH_TOKEN_FEED_FAILED,
         );
         const feedData = (await response.json()) as unknown;
-        if (!is(feedData, FeedResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_TOKEN_FEED_INVALID_RESPONSE,
-          );
-        }
-        return feedData;
+        return parseFeedResponse(
+          feedData,
+          SocialServiceErrorMessage.FETCH_TOKEN_FEED_INVALID_RESPONSE,
+        );
       },
     });
 

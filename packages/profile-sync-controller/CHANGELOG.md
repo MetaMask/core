@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `loglevel` from `^1.8.1` to `^1.9.2` ([#10724](https://github.com/MetaMask/core/pull/10724))
+
+## [34.0.3]
+
+### Changed
+
+- Bump `@metamask/cryptography` from `^1.1.1` to `^1.1.2` ([#10761](https://github.com/MetaMask/core/pull/10761))
+
+## [34.0.2]
+
+### Changed
+
+- Bump `@metamask/seedless-onboarding-controller` from `^11.0.1` to `^12.0.0` ([#10756](https://github.com/MetaMask/core/pull/10756))
+
+## [34.0.1]
+
+### Changed
+
+- Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
+- Bump `@metamask/cryptography` from `^1.1.0` to `^1.1.1` ([#10752](https://github.com/MetaMask/core/pull/10752))
+
 ## [34.0.0]
 
 ### Changed
@@ -1042,7 +1065,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.3...HEAD
+[34.0.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.2...@metamask/profile-sync-controller@34.0.3
+[34.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.1...@metamask/profile-sync-controller@34.0.2
+[34.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.0...@metamask/profile-sync-controller@34.0.1
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@33.0.0...@metamask/profile-sync-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.1...@metamask/profile-sync-controller@33.0.0
 [32.3.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.0...@metamask/profile-sync-controller@32.3.1

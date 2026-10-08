@@ -172,6 +172,21 @@ export type SeedlessOnboardingControllerSubmitPasswordAction = {
 };
 
 /**
+ * Identify an incomplete or mismatched primary SRP backup.
+ *
+ * This method must only be called after the controller has been unlocked.
+ *
+ * @param password - The password used to export the local primary SRP.
+ * @returns A promise that resolves after identification and telemetry have
+ * completed.
+ */
+export type SeedlessOnboardingControllerIdentifyIncompleteMetadataBackupAction =
+  {
+    type: `SeedlessOnboardingController:identifyIncompleteMetadataBackup`;
+    handler: SeedlessOnboardingController['identifyIncompleteMetadataBackup'];
+  };
+
+/**
  * Set the controller to locked state, and deallocate the secrets (vault encryption key and salt).
  *
  * When the controller is locked, the user will not be able to perform any operations on the controller/vault.
@@ -375,6 +390,7 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerVerifyVaultPasswordAction
   | SeedlessOnboardingControllerGetSecretDataBackupStateAction
   | SeedlessOnboardingControllerSubmitPasswordAction
+  | SeedlessOnboardingControllerIdentifyIncompleteMetadataBackupAction
   | SeedlessOnboardingControllerSetLockedAction
   | SeedlessOnboardingControllerSyncLatestGlobalPasswordAction
   | SeedlessOnboardingControllerSubmitGlobalPasswordAction

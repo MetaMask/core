@@ -1,5 +1,9 @@
 import type { KeyPair } from '@metamask/toprf-secure-backup';
-import { EncAccountDataType } from '@metamask/toprf-secure-backup';
+import {
+  EncAccountDataType,
+  TOPRFError,
+  TOPRFErrorCode,
+} from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
   bigIntToHex,
@@ -8,15 +12,19 @@ import {
 } from '@metamask/utils';
 import { bytesToUtf8 } from '@noble/ciphers/utils';
 
-import { SecretType } from './constants.js';
-import type { SecretMetadata } from './SecretMetadata.js';
+import {
+  SeedlessOnboardingControllerErrorMessage,
+  SecretType,
+} from '../constants.js';
+import type { SecretMetadata } from '../SecretMetadata.js';
 import type {
   DecodedBaseJWTToken,
   DecodedNodeAuthToken,
   DeserializedVaultData,
   InvalidPrimarySecretDataTypeErrorData,
   VaultData,
-} from './types.js';
+} from '../types.js';
+import { assertIsValidVaultData } from './assertions.js';
 
 /**
  * Decode the node auth token from base64 to json object.
@@ -25,7 +33,7 @@ import type {
  * @returns The decoded node auth token.
  */
 export function decodeNodeAuthToken(token: string): DecodedNodeAuthToken {
-  return JSON.parse(bytesToUtf8(base64ToBytes(token)));
+  return JSON.parse(bytesToUtf8(base64ToBytes(token))) as DecodedNodeAuthToken;
 }
 
 /**
@@ -45,8 +53,9 @@ export function decodeJWTToken(token: string): DecodedBaseJWTToken {
   const payload = parts[1];
   // Add padding if needed for base64 decoding
   const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
-  const decoded = JSON.parse(bytesToUtf8(base64ToBytes(paddedPayload)));
-  return decoded as DecodedBaseJWTToken;
+  return JSON.parse(
+    bytesToUtf8(base64ToBytes(paddedPayload)),
+  ) as DecodedBaseJWTToken;
 }
 
 /**
@@ -89,6 +98,30 @@ export function deserializeVaultData(value: VaultData): DeserializedVaultData {
 }
 
 /**
+ * Parse and validate decrypted vault data.
+ *
+ * @param data - The decrypted vault data.
+ * @returns The parsed vault data.
+ * @throws If the decrypted data is not valid JSON or is not valid vault data.
+ */
+export function parseVaultData(data: unknown): VaultData {
+  if (typeof data !== 'string') {
+    throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+  }
+
+  let parsedVaultData: unknown;
+  try {
+    parsedVaultData = JSON.parse(data);
+  } catch {
+    throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
+  }
+
+  assertIsValidVaultData(parsedVaultData);
+
+  return parsedVaultData;
+}
+
+/**
  * Serialize TOPRF authentication key pair.
  *
  * @param keyPair - The authentication key pair to serialize.
@@ -110,7 +143,10 @@ export function serializeToprfAuthKeyPair(keyPair: KeyPair): string {
  * @returns The deserialized authentication key pair.
  */
 export function deserializeAuthKeyPair(value: string): KeyPair {
-  const parsedKeyPair = JSON.parse(value);
+  const parsedKeyPair = JSON.parse(value) as {
+    sk: string;
+    pk: string;
+  };
   return {
     sk: hexToBigInt(parsedKeyPair.sk),
     pk: base64ToBytes(parsedKeyPair.pk),
@@ -152,6 +188,68 @@ export function compareAndGetLatestToken(
 }
 
 /**
+ * Determine whether a token should be proactively refreshed.
+ *
+ * When `iat` is provided: returns `true` when less than 10% of the token's
+ * lifetime remains (i.e. we are in the last 10% before expiry).
+ * When `iat` is omitted: returns `true` when the token is already expired.
+ *
+ * @param exp - Expiration time in seconds.
+ * @param iat - Optional issued-at time in seconds.
+ * @param now - Current time in seconds. Defaults to the current time.
+ * @returns Whether the token should be refreshed.
+ */
+export function isTokenNearExpiry(
+  exp: number,
+  iat?: number,
+  now = Date.now() / 1000,
+): boolean {
+  if (iat === undefined) {
+    return now >= exp;
+  }
+  const lifetime = exp - iat;
+  // Guard against malformed tokens where iat >= exp (zero or negative lifetime).
+  // Fall back to exact-expiry check so bad tokens are always considered stale.
+  if (lifetime <= 0) {
+    return now >= exp;
+  }
+  const remaining = exp - now;
+  return remaining <= 0.1 * lifetime;
+}
+
+/**
+ * Check whether an error indicates that a TOPRF auth token is invalid or
+ * expired.
+ *
+ * @param error - The error to check.
+ * @returns Whether the error is an auth token error.
+ */
+export function isAuthTokenError(error: unknown): boolean {
+  if (error instanceof TOPRFError) {
+    return (
+      error.code === TOPRFErrorCode.AuthTokenExpired ||
+      error.code === TOPRFErrorCode.InvalidAuthToken
+    );
+  }
+
+  return false;
+}
+
+/**
+ * Check whether an error indicates that the TOPRF key chain limit was reached.
+ *
+ * @param error - The error to check.
+ * @returns Whether the error is a max key chain length error.
+ */
+export function isMaxKeyChainLengthError(error: unknown): boolean {
+  if (error instanceof TOPRFError) {
+    return error.code === TOPRFErrorCode.MaxKeyChainLengthExceeded;
+  }
+
+  return false;
+}
+
+/**
  * Derive SecretType from EncAccountDataType.
  *
  * This function maps the server-side data type classification to the
@@ -179,8 +277,8 @@ export function getSecretTypeFromDataType(
 /**
  * Build non-sensitive type labels for secret metadata items.
  *
- * @param secrets - The secret metadata items in fetch order.
- * @returns One `SecretType` or `EncAccountDataType` per item.
+ * @param secrets - The SecretMetadata items in fetch order.
+ * @returns One SecretType or EncAccountDataType per item.
  */
 export function getInvalidPrimarySecretDataTypeErrorData(
   secrets: SecretMetadata<string | Uint8Array>[],

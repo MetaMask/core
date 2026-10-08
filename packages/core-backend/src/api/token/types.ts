@@ -20,6 +20,45 @@ export type TokenMetadata = {
   occurrences?: number;
 };
 
+/**
+ * Query options for Token API `GET /tokens/{chainId}`.
+ */
+export type TokenListQueryOptions = {
+  /** Minimum aggregator occurrences required for a token to be returned. */
+  occurrenceFloor?: number;
+  /** Include the chain's native asset in the list. */
+  includeNativeAssets?: boolean;
+  /** Include token fee data. */
+  includeTokenFees?: boolean;
+  /** Include asset type data. */
+  includeAssetType?: boolean;
+  /** Include aggregator data. */
+  includeAggregators?: boolean;
+  /** Include ERC-20 permit data. */
+  includeERC20Permit?: boolean;
+  /** Include occurrence counts. */
+  includeOccurrences?: boolean;
+  /** Include storage slot data. */
+  includeStorage?: boolean;
+  /** Include the token icon URL. */
+  includeIconUrl?: boolean;
+  /** Include the token address. */
+  includeAddress?: boolean;
+  /** Include the token name. */
+  includeName?: boolean;
+  /** Include real-world-asset data. */
+  includeRwaData?: boolean;
+};
+
+/**
+ * Supported networks from Token API `GET /v2/supportedNetworks`.
+ * Chain IDs are CAIP-2 (for example `eip155:1`).
+ */
+export type TokenV2SupportedNetworksResponse = {
+  fullSupport?: string[];
+  partialSupport?: string[];
+};
+
 /** Token description response */
 export type V1TokenDescriptionResponse = {
   description: string;

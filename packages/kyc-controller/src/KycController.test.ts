@@ -628,6 +628,70 @@ describe('KycController', () => {
     });
   });
 
+  describe('readSessionStatus', () => {
+    it('returns null when no session is stored', async () => {
+      await withController(({ controller, handlers }) => {
+        expect(controller.readSessionStatus()).toBeNull();
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns the persisted session without fetching', async () => {
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        ({ controller, handlers }) => {
+          expect(controller.readSessionStatus()).toStrictEqual(
+            sessionStatus('pending'),
+          );
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        },
+      );
+    });
+  });
+
+  describe('fetchSessionStatusOnce', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('writes one session-status GET and does not poll', async () => {
+      jest.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          expect(await controller.fetchSessionStatusOnce('sid')).toStrictEqual(
+            sessionStatus('approved'),
+          );
+          expect(controller.state.sessionStatus).toMatchInlineSnapshot(`
+            {
+              "externalUserId": "ext-1",
+              "finalStatus": "approved",
+              "id": "sid",
+              "kycStatus": "approved",
+              "vendor": "sumsub",
+              "vendorStatus": "approved",
+            }
+          `);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+
+          await jest.advanceTimersByTimeAsync(60_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
   describe('startSessionStatusPolling', () => {
     afterEach(() => {
       jest.useRealTimers();
