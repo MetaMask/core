@@ -737,6 +737,7 @@ const EarnApiServiceMock = jest.mocked(EarnApiService);
 type MockedEarnApiService = {
   pooledStaking?: Partial<jest.Mocked<PooledStakingApiService>>;
   lending?: Partial<jest.Mocked<LendingApiService>>;
+  tronStaking?: Partial<jest.Mocked<EarnApiService['tronStaking']>>;
 };
 
 let mockedEarnApiService: MockedEarnApiService;
@@ -793,7 +794,7 @@ describe('EarnController', () => {
     };
 
     EarnApiServiceMock.mockImplementation(
-      () => mockedEarnApiService as unknown as EarnApiService,
+      () => mockedEarnApiService as EarnApiService,
     );
   });
 
@@ -1316,7 +1317,7 @@ describe('EarnController', () => {
         };
 
         EarnApiServiceMock.mockImplementation(
-          () => mockedEarnApiService as unknown as EarnApiService,
+          () => mockedEarnApiService as EarnApiService,
         );
 
         const { controller } = await setupController();
