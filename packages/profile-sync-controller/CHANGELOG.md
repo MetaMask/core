@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [34.0.3]
+
+### Changed
+
+- Bump `@metamask/cryptography` from `^1.1.1` to `^1.1.2` ([#10761](https://github.com/MetaMask/core/pull/10761))
+
 ## [34.0.2]
 
 ### Changed
@@ -1055,7 +1061,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.3...HEAD
+[34.0.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.2...@metamask/profile-sync-controller@34.0.3
 [34.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.1...@metamask/profile-sync-controller@34.0.2
 [34.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.0...@metamask/profile-sync-controller@34.0.1
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@33.0.0...@metamask/profile-sync-controller@34.0.0
