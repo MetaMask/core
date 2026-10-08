@@ -87,7 +87,7 @@
     "@noble/hashes": "^1.8.0",
     "@signinwithethereum/siwe": "^4.2.1",
     "immer": "^11.1.18",
-    "loglevel": "^1.8.1"
+    "loglevel": "^1.9.2"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^5.1.0",
