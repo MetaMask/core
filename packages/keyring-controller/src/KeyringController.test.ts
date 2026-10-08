@@ -179,6 +179,9 @@ class SharedSdkKeyring implements EthKeyring {
   }
 
   async getAccounts(): Promise<Hex[]> {
+    if (sharedSdkToken !== this.#sdkToken) {
+      throw new Error('Init_ManifestMissing');
+    }
     return [...this.#accounts];
   }
 
@@ -6259,6 +6262,65 @@ describe('KeyringController', () => {
             controller.getKeyringsByType(SharedSdkKeyring.type),
           ).toHaveLength(1);
           expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
+        },
+      );
+    });
+
+    it('rebuilds keyrings destroyed by a failed teardown instead of keeping dead instances', async () => {
+      sharedSdkToken = undefined;
+      await withController(
+        {
+          skipVaultCreation: true,
+          keyringBuilders: [keyringBuilderFactory(SharedSdkKeyring)],
+          state: {
+            vault: createVault([
+              ...defaultKeyrings,
+              {
+                type: SharedSdkKeyring.type,
+                data: { accounts: [SHARED_SDK_ACCOUNT_ADDRESS] },
+                metadata: { id: 'shared-sdk-keyring', name: '' },
+              },
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+          const hdKeyring = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          )[0] as EthKeyring;
+          const sharedKeyring = controller.getKeyringsByType(
+            SharedSdkKeyring.type,
+          )[0] as SharedSdkKeyring;
+
+          // The teardown fails partway: the earlier keyrings are already
+          // destroyed, and the failing destroy leaves the wallet unlocked.
+          const destroy = sharedKeyring.destroy.bind(sharedKeyring);
+          jest
+            .spyOn(sharedKeyring, 'destroy')
+            .mockImplementation(async (): Promise<void> => {
+              await destroy(); // The instance is disposed...
+              throw new Error('Cannot destroy'); // ...but the teardown fails.
+            });
+
+          // The destroy failure stays loud: the lock fails with it.
+          await expect(controller.setLocked()).rejects.toThrow(
+            'Cannot destroy',
+          );
+          expect(controller.isUnlocked()).toBe(true);
+
+          // The keyrings destroyed by the teardown are not kept dead: the
+          // rollback rebuilds them from their snapshots, and the rebuilt
+          // instances hold the shared SDK.
+          expect(controller.getKeyringsByType(KeyringTypes.hd)[0]).not.toBe(
+            hdKeyring,
+          );
+          const rebuiltKeyring = controller.getKeyringsByType(
+            SharedSdkKeyring.type,
+          )[0] as SharedSdkKeyring;
+          expect(rebuiltKeyring).not.toBe(sharedKeyring);
+          expect(await rebuiltKeyring.getAccounts()).toStrictEqual([
+            SHARED_SDK_ACCOUNT_ADDRESS,
+          ]);
         },
       );
     });
