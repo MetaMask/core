@@ -157,8 +157,6 @@ export async function gateSuppressions(argv: readonly string[]): Promise<void> {
   let didPass = true;
 
   for (const fileName of SUPPRESSIONS_FILE_NAMES) {
-    // Left to throw if the ref or the file is missing, as a check that cannot
-    // find its baseline must not wave the change through.
     const { stdout } = await execa('git', ['show', `${baseRef}:${fileName}`], {
       cwd: REPO_ROOT,
     });
