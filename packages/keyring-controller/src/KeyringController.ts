@@ -3343,12 +3343,10 @@ export class KeyringController<
    */
   async #removeKeyringEntry(entry: KeyringEntry): Promise<void> {
     const index = this.#keyrings.indexOf(entry);
-    if (index === -1) {
-      return;
+    if (index !== -1) {
+      this.#keyrings.splice(index, 1);
+      await this.#destroyKeyring(entry.keyring, entry.keyringV2);
     }
-
-    this.#keyrings.splice(index, 1);
-    await this.#destroyKeyring(entry.keyring, entry.keyringV2);
   }
 
   /**
