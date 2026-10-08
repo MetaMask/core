@@ -112,7 +112,7 @@ export type PriceAlertPreference = {
   pushNotificationsEnabled: boolean;
 };
 
-export type DryRunPreference = {
+export type LimitOrdersPreference = {
   inAppNotificationsEnabled: boolean;
   pushNotificationsEnabled: boolean;
 };
@@ -127,7 +127,7 @@ export type NotificationPreferences = {
   socialAI: SocialAIPreference;
   agenticCli: AgenticCliPreference;
   priceAlerts: PriceAlertPreference;
-  dryRun?: DryRunPreference;
+  limitOrders: LimitOrdersPreference;
 };
 
 // ---------------------------------------------------------------------------

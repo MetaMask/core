@@ -17,7 +17,7 @@ import {
 import type {
   AgenticCliPreference,
   DelegationResponse,
-  DryRunPreference,
+  LimitOrdersPreference,
   IdentitySharingConsent,
   IdentitySharingConsentWrite,
   MarketingConsent,
@@ -110,7 +110,7 @@ const PriceAlertPreferenceSchema = type({
   pushNotificationsEnabled: boolean(),
 });
 
-const DryRunPreferenceSchema = type({
+const LimitOrdersPreferenceSchema = type({
   inAppNotificationsEnabled: boolean(),
   pushNotificationsEnabled: boolean(),
 });
@@ -122,7 +122,7 @@ const NotificationPreferencesSchema = type({
   socialAI: SocialAIPreferenceSchema,
   agenticCli: AgenticCliPreferenceSchema,
   priceAlerts: PriceAlertPreferenceSchema,
-  dryRun: optional(DryRunPreferenceSchema),
+  limitOrders: LimitOrdersPreferenceSchema,
 });
 
 const MarketingConsentSchema = type({
@@ -158,10 +158,10 @@ export const DEFAULT_PRICE_ALERT_PREFERENCES: PriceAlertPreference = {
 };
 
 /**
- * Default dry-run notification preferences for consumers building a fresh
+ * Default limit-order notification preferences for consumers building a fresh
  * `NotificationPreferences` object.
  */
-export const DEFAULT_DRY_RUN_PREFERENCES: DryRunPreference = {
+export const DEFAULT_LIMIT_ORDERS_PREFERENCES: LimitOrdersPreference = {
   inAppNotificationsEnabled: true,
   pushNotificationsEnabled: true,
 };

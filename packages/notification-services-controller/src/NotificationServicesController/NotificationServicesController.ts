@@ -7,7 +7,7 @@ import type {
 } from '@metamask/authenticated-user-storage';
 import {
   DEFAULT_AGENTIC_CLI_PREFERENCES,
-  DEFAULT_DRY_RUN_PREFERENCES,
+  DEFAULT_LIMIT_ORDERS_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
 } from '@metamask/authenticated-user-storage';
 import type {
@@ -250,7 +250,7 @@ export const DEFAULT_SOCIAL_AI_PREFERENCES: Required<SocialAIPreference> = {
 
 export {
   DEFAULT_AGENTIC_CLI_PREFERENCES,
-  DEFAULT_DRY_RUN_PREFERENCES,
+  DEFAULT_LIMIT_ORDERS_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
 } from '@metamask/authenticated-user-storage';
 
@@ -318,7 +318,7 @@ const buildFreshPreferences = (
   socialAI: { ...DEFAULT_SOCIAL_AI_PREFERENCES },
   agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
   priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
-  dryRun: { ...DEFAULT_DRY_RUN_PREFERENCES },
+  limitOrders: { ...DEFAULT_LIMIT_ORDERS_PREFERENCES },
 });
 
 const MESSENGER_EXPOSED_METHODS = [

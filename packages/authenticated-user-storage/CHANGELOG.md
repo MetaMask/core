@@ -7,12 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add optional `DryRunPreference` type and `dryRun` field to `NotificationPreferences`, with the `DEFAULT_DRY_RUN_PREFERENCES` constant ([#10704](https://github.com/MetaMask/core/pull/10704))
-
 ### Changed
 
+- **BREAKING:** Add the required `LimitOrdersPreference` type and `limitOrders` field to `NotificationPreferences`, replacing the unreleased optional `dryRun` preference; export `DEFAULT_LIMIT_ORDERS_PREFERENCES` ([#10704](https://github.com/MetaMask/core/pull/10704))
+  - The AUS backend must migrate existing records and normalize legacy full-blob PUTs before clients deploy this required field.
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
 
 ## [4.1.0]

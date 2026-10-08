@@ -5,7 +5,7 @@ export {
 export {
   ASSETS_WATCHLIST_MAX_ASSETS,
   DEFAULT_AGENTIC_CLI_PREFERENCES,
-  DEFAULT_DRY_RUN_PREFERENCES,
+  DEFAULT_LIMIT_ORDERS_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
 } from './validators.js';
 export type {
@@ -49,7 +49,7 @@ export type {
   PerpsPreference,
   SocialAIPreference,
   AgenticCliPreference,
-  DryRunPreference,
+  LimitOrdersPreference,
   PriceAlertPreference,
   NotificationPreferences,
   AssetsWatchlistBlob,

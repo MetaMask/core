@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- Initialize the optional `dryRun` notification preference when building fresh preferences ([#10704](https://github.com/MetaMask/core/pull/10704))
+- **BREAKING:** Initialize the required `limitOrders` notification preference when building fresh preferences and re-export `DEFAULT_LIMIT_ORDERS_PREFERENCES` ([#10704](https://github.com/MetaMask/core/pull/10704))
 
 ## [29.0.3]
 

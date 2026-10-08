@@ -191,8 +191,8 @@ describe('AuthenticatedUserStorageService', () => {
       expect(result).toStrictEqual(MOCK_NOTIFICATION_PREFERENCES);
     });
 
-    it('accepts notification preferences without the optional dryRun key', async () => {
-      const { dryRun: _dryRun, ...legacyPreferences } =
+    it('rejects notification preferences without the required limitOrders key', async () => {
+      const { limitOrders: _limitOrders, ...legacyPreferences } =
         MOCK_NOTIFICATION_PREFERENCES;
       const mock = handleMockGetNotificationPreferences({
         status: 200,
@@ -200,10 +200,10 @@ describe('AuthenticatedUserStorageService', () => {
       });
       const { service } = createService();
 
-      const result = await service.getNotificationPreferences();
-
+      await expect(service.getNotificationPreferences()).rejects.toThrow(
+        'limitOrders',
+      );
       expect(mock.isDone()).toBe(true);
-      expect(result).toStrictEqual(legacyPreferences);
     });
 
     it('returns null when preferences are not found', async () => {

@@ -9,7 +9,7 @@ import type {
   NotificationPreferences,
 } from '../../src/types.js';
 import {
-  DEFAULT_DRY_RUN_PREFERENCES,
+  DEFAULT_LIMIT_ORDERS_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
 } from '../../src/validators.js';
 
@@ -82,7 +82,7 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
     pushNotificationsEnabled: false,
   },
   priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
-  dryRun: { ...DEFAULT_DRY_RUN_PREFERENCES },
+  limitOrders: { ...DEFAULT_LIMIT_ORDERS_PREFERENCES },
 };
 
 export const MOCK_MARKETING_CONSENT: MarketingConsent = {
