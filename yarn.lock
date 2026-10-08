@@ -6900,7 +6900,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@types/jest": "npm:^30.0.0"
-    "@types/unzipper": "npm:^0.10.10"
+    "@types/unzipper": "npm:^0.10.11"
     "@types/yargs": "npm:^17.0.35"
     "@types/yargs-parser": "npm:^21.0.3"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -12369,7 +12369,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/unzipper@npm:^0.10.10":
+"@types/unzipper@npm:^0.10.11":
   version: 0.10.11
   resolution: "@types/unzipper@npm:0.10.11"
   dependencies:
