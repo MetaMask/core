@@ -1291,7 +1291,7 @@ function buildNetworkConfigurationsByNetworkClientId(
 const InfuraRpcEndpointUrlStruct =
   define<`https://${InfuraNetworkType}.infura.io/v3/{infuraProjectId}`>(
     'infuraRpcEndpointUrl',
-    string,
+    string().validator,
   );
 
 const InfuraRpcEndpointStruct = superstructObject({
