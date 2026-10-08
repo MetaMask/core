@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ProfileService.getXAuthUrl` now accepts an optional CAIP-10 `linkedAddress` parameter, sent as the `linked_address` query parameter (required by the backend when the profile does not exist yet) ([#10668](https://github.com/MetaMask/core/pull/10668))
 - `ProfileController.connectX` persists `xProfile` in state immediately after a successful connect; if the follow-up profile fetch fails, the X link stays persisted and a clear error is thrown ([#10668](https://github.com/MetaMask/core/pull/10668))
 
+### Fixed
+
+- Fix the `ProfileController` messenger event type: the controller exposes `ProfileController:stateChanged` (emitted on state changes), not `ProfileController:stateChange` ([#10668](https://github.com/MetaMask/core/pull/10668))
+
 ## [1.0.1]
 
 ### Changed

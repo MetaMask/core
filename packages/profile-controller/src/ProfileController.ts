@@ -1,7 +1,7 @@
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
-  ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -114,7 +114,7 @@ export type ProfileControllerActions =
   | ProfileControllerMethodActions;
 
 /** The `ProfileController:stateChanged` event type. */
-export type ProfileControllerChangeEvent = ControllerStateChangeEvent<
+export type ProfileControllerChangeEvent = ControllerStateChangedEvent<
   typeof controllerName,
   ProfileControllerState
 >;
