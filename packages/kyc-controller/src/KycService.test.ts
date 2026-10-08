@@ -266,7 +266,7 @@ describe('KycService', () => {
         .post(
           '/sessions',
           (body: Record<string, unknown>) =>
-            body.jwtToken === 'mock-jwt-token' &&
+            body.jwtToken === undefined &&
             body.vendorId === 'moonpay' &&
             body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
             body.residenceCountry === RESIDENCE_COUNTRY &&
