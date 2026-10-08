@@ -529,7 +529,7 @@ export class ProfileService extends BaseDataService<
    * @throws {StructError} If the response does not match the expected shape.
    */
   async connectX(params: ConnectXParams): Promise<ConnectXResponse> {
-    return this.executeMutation({
+    const response = await this.executeMutation({
       mutationKey: [`${this.name}:connectX`],
       responseStruct: ConnectXResponseStruct,
       mutationFn: async () =>
@@ -539,6 +539,10 @@ export class ProfileService extends BaseDataService<
           json: params,
         }),
     });
+    // The response does not identify the profile, so drop every cached
+    // profile: `connected_to_x` is now out of date.
+    await this.invalidateQueries({ queryKey: [`${this.name}:getProfile`] });
+    return response;
   }
 
   /**
@@ -571,7 +575,7 @@ export class ProfileService extends BaseDataService<
    * @throws {HttpError} If the API returns a non-2xx response other than `404`.
    */
   async disconnectX(profileId: string): Promise<void> {
-    return this.executeMutation({
+    await this.executeMutation({
       mutationKey: [`${this.name}:disconnectX`, profileId],
       mutationFn: async () => {
         try {
@@ -589,6 +593,10 @@ export class ProfileService extends BaseDataService<
           throw error;
         }
       },
+    });
+    // The cached profile no longer reflects `connected_to_x`.
+    await this.invalidateQueries({
+      queryKey: [`${this.name}:getProfile`, profileId],
     });
   }
 }
