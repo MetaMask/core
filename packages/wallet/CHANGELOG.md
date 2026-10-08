@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/claims-controller` from `^1.0.2` to `^1.0.3` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/shield-controller` from `^7.0.3` to `^7.0.4` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/subscription-controller` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/seedless-onboarding-controller` from `^11.0.1` to `^12.0.0` ([#10756](https://github.com/MetaMask/core/pull/10756))
 
 ## [16.0.1]
 
