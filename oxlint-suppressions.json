@@ -5562,7 +5562,7 @@
       "count": 17
     },
     "typescript/unbound-method": {
-      "count": 17
+      "count": 12
     }
   },
   "packages/seedless-onboarding-controller/src/SeedlessOnboardingController.ts": {
