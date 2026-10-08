@@ -3696,8 +3696,11 @@ export class KeyringController<
   /**
    * Restore the keyring entry operated on by a failed scoped transaction
    * from its snapshot, touching no other keyring: a keyring created by the
-   * transaction is destroyed and dropped, a removed or changed keyring is
-   * rebuilt from its snapshot, and an unchanged keyring is kept as is.
+   * transaction is destroyed and dropped, and an existing keyring is always
+   * rebuilt from its snapshot — whether or not the transaction changed or
+   * removed it — so that state `serialize()` does not capture is reset
+   * too, and the stale instance is detached from any of the operation's
+   * mutations still landing on it.
    *
    * Must be called while the controller mutex is held.
    *
@@ -3734,14 +3737,13 @@ export class KeyringController<
       return;
     }
 
-    if (await this.#isKeyringUnchanged(old, snapshot)) {
-      return;
-    }
-
-    // The transaction mutated the keyring: rebuild it in place. The old
-    // entry is removed first, so that the duplicate account check during
-    // recreation only sees reconciled keyrings, then destroyed by the
-    // recreation itself.
+    // The keyring is always rebuilt on failure, even when its serialized
+    // state matches the snapshot: state that `serialize()` does not
+    // capture (e.g. the runtime-only state of hardware keyrings) is reset
+    // too, and the stale instance is detached from any of the operation's
+    // mutations still landing on it. The old entry is removed first, so
+    // that the duplicate account check during recreation only sees
+    // reconciled keyrings, then destroyed by the recreation itself.
     this.#keyrings.splice(index, 1);
     const newKeyring = await this.#recreateKeyring(old, snapshot);
     if (newKeyring) {
