@@ -51,7 +51,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@levischuck/tiny-cbor": "^0.3.3",
+    "@levischuck/tiny-cbor": "^0.3.6",
     "@metamask/base-controller": "^10.0.0",
     "@metamask/keyring-controller": "^28.1.0",
     "@metamask/messenger": "^3.0.0",
