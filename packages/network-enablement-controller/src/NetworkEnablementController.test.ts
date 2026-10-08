@@ -88,7 +88,9 @@ function getRootMessenger(): RootMessenger {
  * @returns A mock RegistryNetworkConfig object.
  */
 function createMockRegistryNetworkConfig(
-  overrides: Partial<RegistryNetworkConfig> = {},
+  overrides: Partial<Omit<RegistryNetworkConfig, 'config'>> & {
+    config?: Partial<RegistryNetworkConfig['config']>;
+  } = {},
 ): RegistryNetworkConfig {
   const base: RegistryNetworkConfig = {
     chainId: 'eip155:1',
