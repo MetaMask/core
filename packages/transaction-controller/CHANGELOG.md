@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `isTransactionTrusted` to `TransactionControllerOptions` to limit future-block re-simulation to untrusted transactions ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `isTransactionTrusted` to `TransactionControllerOptions` to limit future-block re-simulation to untrusted transactions ([#10747](https://github.com/MetaMask/core/pull/10747))
 
 ### Changed
 
