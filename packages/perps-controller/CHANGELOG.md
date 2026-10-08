@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/1318.0.0 ([#10752](https://github.com/MetaMask/core/pull/10752))
+- chore(deps): update dependency typedoc to ^0.28.20 ([#10731](https://github.com/MetaMask/core/pull/10731))
+
 ### Changed
 
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
