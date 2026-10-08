@@ -408,10 +408,16 @@ export type RampsControllerAddAutorampAction = {
  *
  * The vendor `customer_id` is resolved via
  * {@link RampsController.resolveAutorampCustomerId} and injected into the
- * request (any caller-supplied `customer_id` is overwritten).
+ * request (any caller-supplied `customer_id` is overwritten). The caller
+ * supplies the fiat body. When that body names a source fiat and a
+ * recipient wallet, the idempotency key is derived from that fiat
+ * (`brl-musd-monad` or `usd-musd-monad`), the customer, the wallet, and
+ * rejected or cancelled autoramp ids. A caller-supplied key is used only
+ * when the body has no source fiat or recipient address.
  *
- * @param request - CreateAutoramp payload.
- * @param options - Optional idempotency key forwarded to the proxy.
+ * @param request - CreateAutoramp payload, including the source fiat.
+ * @param options - Optional idempotency key forwarded when the body does
+ * not identify a fiat route.
  * @param options.idempotencyKey - Value sent as `Idempotency-Key`.
  * @returns The created/updated local {@link AutorampAccount}.
  */
@@ -434,22 +440,25 @@ export type RampsControllerRegisterMoneyAccountWalletAction = {
 };
 
 /**
- * Refreshes KYC session facts and, when Iron has approved KYC, registers the
- * Money Account wallet and refreshes autoramps. An autoramp is created only
- * when `sourceCurrencyCode` is set and the wallet has no usable autoramp.
- * With no usable autoramp and no code, the snapshot status is
- * `needs_source_currency` and nothing is posted. Hosts map the returned
+ * Reads VBA onboarding facts. Hosts map the returned
  * {@link VbaOnboardingSnapshot} onto their own funnel; this method does not
  * name screens.
  *
- * Overlapping calls share one run so polling cannot trigger duplicate wallet
- * signatures or autoramp creation. A second call does not apply its own
- * `sourceCurrencyCode`; it receives the in-flight result.
+ * The read uses the persisted KYC session. `refreshKyc` performs one
+ * session-status GET when a session id is already stored and `finalStatus`
+ * is not terminal. `refreshAutoramps` lists autoramps when KYC is approved,
+ * unless this wallet already has a usable route. It does not sign, post a
+ * self-hosted address, create an autoramp, or start KYC polling.
+ *
+ * Overlapping calls share one run.
  *
  * @param params - VBA onboarding parameters.
  * @param params.walletAddress - Monad Money Account wallet address.
- * @param params.sourceCurrencyCode - Fiat code to create when the wallet has
- * no usable autoramp. Omit it to register and refresh without creating.
+ * @param params.refreshKyc - When true, fetch session status once for a
+ * non-terminal persisted session. Defaults to false.
+ * @param params.refreshAutoramps - When true, replace the autoramp cursor
+ * from `GET /neobank/autoramps` unless a usable route is already stored.
+ * Defaults to false.
  * @returns Independent KYC and autoramp facts for the current customer.
  */
 export type RampsControllerHydrateVbaOnboardingAction = {

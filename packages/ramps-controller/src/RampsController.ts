@@ -24,7 +24,6 @@ import type {
 import {
   applyAutorampRemoteStatus,
   AutorampStatus,
-  buildMusdAutorampRequest,
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
@@ -246,9 +245,9 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:getSessionProfile',
   'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
-  'KycController:getSessionStatusForVendor',
   'KycController:getProviderFlowStatus',
-  'KycController:refreshSessionStatus',
+  'KycController:readSessionStatus',
+  'KycController:fetchSessionStatusOnce',
   'KycController:hasCompletedVendorDisclaimers',
   'KycController:hasCompletedSessionDisclaimers',
   'KycController:clearState',
@@ -270,15 +269,10 @@ export type KeyringControllerSignPersonalMessageAction = {
 
 /**
  * Minimal structural subset of the KYC controller's session status — only the
- * status fields the VBA stage machine reads.
+ * status fields the VBA read path uses.
  */
-/**
- * Identity vendor accepted by the KYC controller. Declared locally so the
- * ramps package does not depend on `@metamask/kyc-controller`.
- */
-type KycVendor = 'moonpay' | 'iron';
-
 type KycControllerSessionStatus = {
+  id: string;
   finalStatus: string;
   kycStatus: string;
   vendorStatus: string;
@@ -287,19 +281,28 @@ type KycControllerSessionStatus = {
 };
 
 /**
- * Structural types for the KYC controller's VBA onboarding messenger actions.
- * Declared locally so the ramps package does not require a kyc-controller
- * version that already exports them — the two changes land as separate PRs,
- * with KYC merging first.
+ * `finalStatus` values that end a KYC session. Mirrors
+ * `TERMINAL_SESSION_STATUSES` in `@metamask/kyc-controller`.
  */
-export type KycControllerGetSessionStatusForVendorAction = {
-  type: 'KycController:getSessionStatusForVendor';
-  handler: (vendor: KycVendor) => Promise<KycControllerSessionStatus | null>;
+const TERMINAL_VBA_KYC_FINAL_STATUSES: ReadonlySet<string> = new Set([
+  'approved',
+  'rejected',
+  'retry',
+]);
+
+/**
+ * Structural types for the KYC controller's VBA onboarding messenger actions.
+ * Declared locally so the ramps package does not depend on
+ * `@metamask/kyc-controller`.
+ */
+export type KycControllerReadSessionStatusAction = {
+  type: 'KycController:readSessionStatus';
+  handler: () => KycControllerSessionStatus | null;
 };
 
-export type KycControllerRefreshSessionStatusAction = {
-  type: 'KycController:refreshSessionStatus';
-  handler: () => KycControllerSessionStatus;
+export type KycControllerFetchSessionStatusOnceAction = {
+  type: 'KycController:fetchSessionStatusOnce';
+  handler: (sessionId: string) => Promise<KycControllerSessionStatus>;
 };
 
 export type KycControllerGetProviderFlowStatusAction = {
@@ -329,6 +332,19 @@ export type KycControllerClearStateAction = {
  * It is not the same as unregistered — callers must not treat it as a cue to
  * submit a new ownership proof.
  */
+/**
+ * Persisted Money Account wallet registration.
+ *
+ * Written only after {@link RampsController.registerMoneyAccountWallet}
+ * observes `alreadyRegistered`, `registered`, or `registeredDisabled`.
+ * The EIP-191 signature and ownership message are not stored.
+ */
+export type MoneyAccountWalletRegistration = {
+  walletAddress: string;
+  status: 'active' | 'disabled';
+  updatedAt: number;
+};
+
 export type MoneyAccountWalletRegistrationResult =
   | {
       type: 'registered' | 'alreadyRegistered';
@@ -374,16 +390,20 @@ export type VbaProviderFlowStatus = (typeof VBA_PROVIDER_FLOW_STATUSES)[number];
 
 /**
  * Autoramp setup progress after KYC has been approved.
+ *
+ * `'needs_wallet_registration'` means KYC is approved, this wallet has no
+ * persisted registration row, and there is no usable autoramp.
+ * `'needs_source_currency'` means KYC is approved, the registration row is
+ * `active` or `disabled`, and there is no usable autoramp.
  * `'in_progress'` is reserved for hosts that observe an in-flight hydrate.
- * `'needs_source_currency'` means registration finished and the wallet has no
- * usable autoramp, but hydrate was not given a fiat code, so nothing was
- * created. {@link RampsController.hydrateVbaOnboarding} itself returns
- * `'ready'`, `'needs_source_currency'`, or `'retryable_failure'` once the
- * coalesced run settles.
+ * {@link RampsController.hydrateVbaOnboarding} returns `'ready'`,
+ * `'needs_wallet_registration'`, `'needs_source_currency'`, or
+ * `'retryable_failure'` once an approved read settles.
  */
 export const VBA_AUTORAMP_STATUSES = [
   'not_ready',
   'in_progress',
+  'needs_wallet_registration',
   'needs_source_currency',
   'ready',
   'retryable_failure',
@@ -430,15 +450,46 @@ function toVbaKycStatus(value: string | undefined): VbaKycStatus {
 }
 
 /**
- * Idempotency key for a standing fiat to mUSD autoramp.
+ * Maps a KYC session onto the snapshot vocabulary.
  *
- * The prefix includes the fiat code (`brl-musd-monad`, `usd-musd-monad`) so a
- * USD create does not replay a BRL route. The customer and wallet keep retries
- * of one create on the same key. Rejected or cancelled route ids are appended,
- * sorted, so a replacement create is a new key and MoonPay does not replay the
- * terminal route.
+ * Relay approval (`kycStatus: 'approved'`) counts even when `finalStatus` is
+ * still `pending`. A non-approved session whose provider flow was submitted,
+ * or whose status is pending, is `pending`.
  *
- * @param sourceCurrencyCode - Fiat code for this create.
+ * @param session - Persisted or freshly fetched KYC session.
+ * @param providerFlowStatus - Durable provider-flow outcome.
+ * @returns The snapshot KYC status.
+ */
+function resolveVbaKycStatus(
+  session: KycControllerSessionStatus,
+  providerFlowStatus: VbaProviderFlowStatus,
+): VbaKycStatus {
+  if (session.finalStatus === 'approved' || session.kycStatus === 'approved') {
+    return 'approved';
+  }
+  const mapped = toVbaKycStatus(session.finalStatus);
+  if (mapped === 'rejected' || mapped === 'retry') {
+    return mapped;
+  }
+  if (
+    session.finalStatus === 'pending' ||
+    session.kycStatus === 'pending' ||
+    providerFlowStatus === 'submitted'
+  ) {
+    return 'pending';
+  }
+  return mapped;
+}
+
+/**
+ * Idempotency key for a standing fiat to mUSD autoramp on Monad.
+ *
+ * The source fiat, customer, and wallet keep retries of one create on the
+ * same key (`brl-musd-monad` versus `usd-musd-monad`). Rejected or cancelled
+ * route ids are appended, sorted, so a replacement create is a new key and
+ * MoonPay does not replay the terminal route.
+ *
+ * @param sourceCurrencyCode - Fiat code from the create body, already lowercased.
  * @param customerId - MoonPay customer id.
  * @param walletAddress - Money Account address that receives mUSD.
  * @param terminalAutorampIds - Ids of rejected or cancelled routes for this wallet.
@@ -450,12 +501,61 @@ function buildMusdAutorampIdempotencyKey(
   walletAddress: string,
   terminalAutorampIds: readonly string[],
 ): string {
-  const fiatPrefix = sourceCurrencyCode.trim().toLowerCase();
-  const base = `${fiatPrefix}-musd-monad:${customerId}:${walletAddress.trim().toLowerCase()}`;
+  const base = `${sourceCurrencyCode}-musd-monad:${customerId}:${walletAddress.trim().toLowerCase()}`;
   if (terminalAutorampIds.length === 0) {
     return base;
   }
   return `${base}:${[...terminalAutorampIds].sort().join(':')}`;
+}
+
+/**
+ * Reads the first fiat `source_currencies` code from an autoramp create body.
+ *
+ * @param request - Caller-supplied create payload.
+ * @returns Lowercased fiat code, or `null` when the body has none.
+ */
+function readCreateAutorampFiatCode(
+  request: CreateAutorampRequest,
+): string | null {
+  const sourceCurrencies = request.source_currencies;
+  if (!Array.isArray(sourceCurrencies)) {
+    return null;
+  }
+  for (const currency of sourceCurrencies) {
+    if (!currency || typeof currency !== 'object') {
+      continue;
+    }
+    const record = currency as { type?: unknown; code?: unknown };
+    if (record.type !== 'Fiat' || typeof record.code !== 'string') {
+      continue;
+    }
+    const code = record.code.trim().toLowerCase();
+    if (code.length > 0) {
+      return code;
+    }
+  }
+  return null;
+}
+
+/**
+ * Reads the destination wallet from an autoramp create body.
+ *
+ * @param request - Caller-supplied create payload.
+ * @returns Trimmed recipient address, or `null` when it is missing.
+ */
+function readCreateAutorampWalletAddress(
+  request: CreateAutorampRequest,
+): string | null {
+  const recipient = request.recipient_account;
+  if (!recipient || typeof recipient !== 'object') {
+    return null;
+  }
+  const { address } = recipient as { address?: unknown };
+  if (typeof address !== 'string') {
+    return null;
+  }
+  const trimmed = address.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 /**
@@ -720,6 +820,18 @@ export type RampsControllerState = {
    */
   autoramps: AutorampAccount[];
   /**
+   * Money Account self-hosted wallet registrations observed by
+   * {@link RampsController.registerMoneyAccountWallet}.
+   * Each row is the address plus `active` or `disabled`. It does not store
+   * the EIP-191 signature or the ownership message.
+   */
+  moneyAccountWalletRegistrations: MoneyAccountWalletRegistration[];
+  /**
+   * Epoch ms of the last successful VBA autoramp list `GET`.
+   * The usable-autoramp short-circuit does not update it.
+   */
+  vbaAutorampListFetchedAt: number | null;
+  /**
    * Whether the currently selected provider was auto-selected by the system
    * (no order history, no Transak) rather than chosen by the user or derived
    * from order history. When true, the UI should silently switch providers on
@@ -781,6 +893,18 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   autoramps: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  moneyAccountWalletRegistrations: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  vbaAutorampListFetchedAt: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -853,6 +977,8 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     },
     orders: [],
     autoramps: [],
+    moneyAccountWalletRegistrations: [],
+    vbaAutorampListFetchedAt: null,
     providerAutoSelected: false,
   };
 }
@@ -986,9 +1112,9 @@ type AllowedActions =
   | NeoBankServiceRegisterSelfHostedWalletAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | KeyringControllerSignPersonalMessageAction
-  | KycControllerGetSessionStatusForVendorAction
+  | KycControllerReadSessionStatusAction
+  | KycControllerFetchSessionStatusOnceAction
   | KycControllerGetProviderFlowStatusAction
-  | KycControllerRefreshSessionStatusAction
   | KycControllerHasCompletedVendorDisclaimersAction
   | KycControllerHasCompletedSessionDisclaimersAction
   | KycControllerClearStateAction
@@ -3710,10 +3836,16 @@ export class RampsController extends BaseController<
    *
    * The vendor `customer_id` is resolved via
    * {@link RampsController.resolveAutorampCustomerId} and injected into the
-   * request (any caller-supplied `customer_id` is overwritten).
+   * request (any caller-supplied `customer_id` is overwritten). The caller
+   * supplies the fiat body. When that body names a source fiat and a
+   * recipient wallet, the idempotency key is derived from that fiat
+   * (`brl-musd-monad` or `usd-musd-monad`), the customer, the wallet, and
+   * rejected or cancelled autoramp ids. A caller-supplied key is used only
+   * when the body has no source fiat or recipient address.
    *
-   * @param request - CreateAutoramp payload.
-   * @param options - Optional idempotency key forwarded to the proxy.
+   * @param request - CreateAutoramp payload, including the source fiat.
+   * @param options - Optional idempotency key forwarded when the body does
+   * not identify a fiat route.
    * @param options.idempotencyKey - Value sent as `Idempotency-Key`.
    * @returns The created/updated local {@link AutorampAccount}.
    */
@@ -3722,12 +3854,26 @@ export class RampsController extends BaseController<
     options: { idempotencyKey?: string } = {},
   ): Promise<AutorampAccount> {
     const customerId = await this.resolveAutorampCustomerId();
+    const fiatCode = readCreateAutorampFiatCode(request);
+    const walletAddress = readCreateAutorampWalletAddress(request);
+    const requestOptions =
+      fiatCode && walletAddress
+        ? {
+            ...options,
+            idempotencyKey: buildMusdAutorampIdempotencyKey(
+              fiatCode,
+              customerId,
+              walletAddress,
+              this.#terminalAutorampIdsForWallet(walletAddress),
+            ),
+          }
+        : options;
 
     const body = { ...request, customer_id: customerId };
     const remote = await this.messenger.call(
       'NeoBankService:createAutoramp',
       body,
-      options,
+      requestOptions,
     );
     return this.#applyAutorampRemoteSnapshot(remote);
   }
@@ -3867,7 +4013,10 @@ export class RampsController extends BaseController<
 
     const existingResult = await resolveLookup();
     if (existingResult) {
-      return existingResult;
+      return this.#finishMoneyAccountWalletRegistration(
+        address,
+        existingResult,
+      );
     }
 
     let idempotencyKey = createIdempotencyKey();
@@ -3911,7 +4060,7 @@ export class RampsController extends BaseController<
           },
         );
         machine = transitionWalletRegistration(machine, { type: 'SUBMIT_OK' });
-        return result;
+        return this.#finishMoneyAccountWalletRegistration(address, result);
       } catch (error) {
         if (!(error instanceof WalletRegistrationError)) {
           machine = transitionWalletRegistration(machine, {
@@ -3954,7 +4103,10 @@ export class RampsController extends BaseController<
         ) {
           const reconciledResult = await resolveLookup();
           if (reconciledResult) {
-            return reconciledResult;
+            return this.#finishMoneyAccountWalletRegistration(
+              address,
+              reconciledResult,
+            );
           }
         }
 
@@ -3966,39 +4118,45 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Refreshes KYC session facts and, when Iron has approved KYC, registers the
-   * Money Account wallet and refreshes autoramps. An autoramp is created only
-   * when `sourceCurrencyCode` is set and the wallet has no usable autoramp.
-   * With no usable autoramp and no code, the snapshot status is
-   * `needs_source_currency` and nothing is posted. Hosts map the returned
+   * Reads VBA onboarding facts. Hosts map the returned
    * {@link VbaOnboardingSnapshot} onto their own funnel; this method does not
    * name screens.
    *
-   * Overlapping calls share one run so polling cannot trigger duplicate wallet
-   * signatures or autoramp creation. A second call does not apply its own
-   * `sourceCurrencyCode`; it receives the in-flight result.
+   * The read uses the persisted KYC session. `refreshKyc` performs one
+   * session-status GET when a session id is already stored and `finalStatus`
+   * is not terminal. `refreshAutoramps` lists autoramps when KYC is approved,
+   * unless this wallet already has a usable route. It does not sign, post a
+   * self-hosted address, create an autoramp, or start KYC polling.
+   *
+   * Overlapping calls share one run.
    *
    * @param params - VBA onboarding parameters.
    * @param params.walletAddress - Monad Money Account wallet address.
-   * @param params.sourceCurrencyCode - Fiat code to create when the wallet has
-   * no usable autoramp. Omit it to register and refresh without creating.
+   * @param params.refreshKyc - When true, fetch session status once for a
+   * non-terminal persisted session. Defaults to false.
+   * @param params.refreshAutoramps - When true, replace the autoramp cursor
+   * from `GET /neobank/autoramps` unless a usable route is already stored.
+   * Defaults to false.
    * @returns Independent KYC and autoramp facts for the current customer.
    */
   async hydrateVbaOnboarding({
     walletAddress,
-    sourceCurrencyCode,
+    refreshKyc = false,
+    refreshAutoramps = false,
   }: {
     walletAddress: string;
-    sourceCurrencyCode?: string;
+    refreshKyc?: boolean;
+    refreshAutoramps?: boolean;
   }): Promise<VbaOnboardingSnapshot> {
     if (this.#vbaOnboardingHydrationPromise) {
       return await this.#vbaOnboardingHydrationPromise;
     }
 
-    const hydrationPromise = this.#hydrateVbaOnboarding(
+    const hydrationPromise = this.#hydrateVbaOnboarding({
       walletAddress,
-      sourceCurrencyCode,
-    );
+      refreshKyc,
+      refreshAutoramps,
+    });
     this.#vbaOnboardingHydrationPromise = hydrationPromise;
 
     try {
@@ -4010,51 +4168,36 @@ export class RampsController extends BaseController<
     }
   }
 
-  async #hydrateVbaOnboarding(
-    walletAddress: string,
-    sourceCurrencyCode?: string,
-  ): Promise<VbaOnboardingSnapshot> {
-    // Prefer the in-memory/persisted session status over the backend
-    // latest-status endpoint: after SumSub the backend endpoint can lag, while
-    // the controller state reflects the journey/SDK outcome. Fall back to a
-    // backend fetch only when the controller has no session in state (e.g. a
-    // reinstall/cleared state resuming an existing customer, or a brand-new user
-    // with no session at all).
-    let session: KycControllerSessionStatus | null = null;
-    // Whether `session` came from persisted controller state (as opposed to a
-    // fresh backend fetch, which is always scoped to the current user). Only a
-    // persisted session can belong to a previous identity, so only that path
-    // needs the ownership check below.
-    let sessionFromCache = false;
-    try {
-      session = this.messenger.call('KycController:refreshSessionStatus');
-      sessionFromCache = true;
-    } catch {
-      try {
-        session = await this.messenger.call(
-          'KycController:getSessionStatusForVendor',
-          'iron',
-        );
-      } catch {
-        // No session exists for this customer yet: the backend returns 404
-        // ("KYC session not found"), which surfaces as a rejection here.
-        session = null;
-      }
-    }
-    if (!session) {
+  async #hydrateVbaOnboarding({
+    walletAddress,
+    refreshKyc,
+    refreshAutoramps,
+  }: {
+    walletAddress: string;
+    refreshKyc: boolean;
+    refreshAutoramps: boolean;
+  }): Promise<VbaOnboardingSnapshot> {
+    let session = this.messenger.call('KycController:readSessionStatus');
+
+    // A persisted session can outlive the identity that created it. Reusing it
+    // makes session-scoped calls fail closed. Discard it before any fetch.
+    if (session && !(await this.#isVbaSessionOwnedByCurrentProfile(session))) {
+      this.messenger.call('KycController:clearState');
       return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
     }
 
-    // A persisted session can outlive the identity that created it — e.g. a new
-    // wallet created over an install that still holds a previous customer's
-    // session. Reusing it makes the backend reject every session-scoped call
-    // (owner mismatch), dead-ending the user. Verify ownership up front against
-    // the signed-in profile and, on a mismatch, discard the stale session.
     if (
-      sessionFromCache &&
-      !(await this.#isVbaSessionOwnedByCurrentProfile(session))
+      refreshKyc &&
+      session?.id &&
+      !TERMINAL_VBA_KYC_FINAL_STATUSES.has(session.finalStatus)
     ) {
-      this.messenger.call('KycController:clearState');
+      session = await this.messenger.call(
+        'KycController:fetchSessionStatusOnce',
+        session.id,
+      );
+    }
+
+    if (!session) {
       return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
     }
 
@@ -4073,16 +4216,7 @@ export class RampsController extends BaseController<
       vendorDisclaimersComplete,
       sessionDisclaimersComplete,
       providerFlowStatus,
-      // The relay approves (`kycStatus: 'approved'`) as soon as the KYC decision
-      // is made, while the vendor-side `finalStatus` can lag at `'pending'` until
-      // the vendor record is finalized (and in sandbox may never advance). Treat
-      // either signal as approval so a relay-approved user is not stranded on the
-      // pending screen. This mirrors the UKYC backend, whose own "already
-      // approved" check is `finalStatus === 'approved' || kycStatus === 'approved'`.
-      kycStatus:
-        session.finalStatus === 'approved' || session.kycStatus === 'approved'
-          ? 'approved'
-          : toVbaKycStatus(session.finalStatus),
+      kycStatus: resolveVbaKycStatus(session, providerFlowStatus),
       autorampStatus: 'not_ready',
     };
 
@@ -4093,80 +4227,124 @@ export class RampsController extends BaseController<
       throw new Error('walletAddress is required after KYC acceptance.');
     }
 
-    // KYC is approved; the remaining work registers the wallet and refreshes
-    // autoramps. A create runs only when the caller passed a fiat code and this
-    // wallet has no usable autoramp. Those calls hit the neobank backend and
-    // can fail transiently (e.g. an address-list lookup timeout). Surface
-    // `retryable_failure` so the host can keep the user on a pending screen
-    // rather than a fatal error — the KYC decision itself already succeeded.
-    try {
-      const registration = await this.registerMoneyAccountWallet({
-        address: walletAddress,
-      });
-      if (registration.type === 'lookupUnavailable') {
-        throw registration.error;
-      }
-
-      const customerId = await this.resolveAutorampCustomerId();
-      const remoteAutoramps = await this.messenger.call(
-        'NeoBankService:getAutoramps',
-        { customerId },
-      );
-      const remoteAutorampIds = new Set(
-        remoteAutoramps.map((autoramp) => autoramp.id),
-      );
-      for (const autoramp of remoteAutoramps) {
-        this.#applyAutorampRemoteSnapshot(autoramp);
-      }
-      this.update((state) => {
-        state.autoramps = state.autoramps.filter((autoramp) =>
-          remoteAutorampIds.has(autoramp.id),
-        );
-      });
-
-      const trimmedWalletAddress = walletAddress.trim();
-      const normalizedWalletAddress = trimmedWalletAddress.toLowerCase();
-      const autorampsForWallet = this.state.autoramps.filter(
-        (autoramp) =>
-          autoramp.walletAddress.toLowerCase() === normalizedWalletAddress,
-      );
-      const hasUsableAutoramp = autorampsForWallet.some(
-        (autoramp) =>
-          autoramp.status !== AutorampStatus.Rejected &&
-          autoramp.status !== AutorampStatus.Cancelled,
-      );
-      const trimmedSourceCurrencyCode = sourceCurrencyCode?.trim() ?? '';
-      if (!hasUsableAutoramp && trimmedSourceCurrencyCode.length === 0) {
-        return { ...snapshot, autorampStatus: 'needs_source_currency' };
-      }
-      if (!hasUsableAutoramp) {
-        const terminalAutorampIds = autorampsForWallet
-          .filter(
-            (autoramp) =>
-              autoramp.status === AutorampStatus.Rejected ||
-              autoramp.status === AutorampStatus.Cancelled,
-          )
-          .map((autoramp) => autoramp.id);
-        await this.createAutoramp(
-          buildMusdAutorampRequest(
-            trimmedWalletAddress,
-            trimmedSourceCurrencyCode,
-          ),
-          {
-            idempotencyKey: buildMusdAutorampIdempotencyKey(
-              trimmedSourceCurrencyCode,
-              customerId,
-              trimmedWalletAddress,
-              terminalAutorampIds,
-            ),
-          },
-        );
-      }
-    } catch {
-      return { ...snapshot, autorampStatus: 'retryable_failure' };
+    if (this.#hasUsableAutorampForWallet(walletAddress)) {
+      return { ...snapshot, autorampStatus: 'ready' };
     }
 
-    return { ...snapshot, autorampStatus: 'ready' };
+    if (refreshAutoramps) {
+      try {
+        await this.#replaceAutorampCursorFromList();
+      } catch {
+        return { ...snapshot, autorampStatus: 'retryable_failure' };
+      }
+      if (this.#hasUsableAutorampForWallet(walletAddress)) {
+        return { ...snapshot, autorampStatus: 'ready' };
+      }
+    }
+
+    const registration = this.state.moneyAccountWalletRegistrations.find(
+      (row) =>
+        row.walletAddress.trim().toLowerCase() ===
+        walletAddress.trim().toLowerCase(),
+    );
+    if (!registration) {
+      return { ...snapshot, autorampStatus: 'needs_wallet_registration' };
+    }
+    return { ...snapshot, autorampStatus: 'needs_source_currency' };
+  }
+
+  /**
+   * Writes the registration row after a successful register outcome.
+   * `lookupUnavailable` writes nothing.
+   *
+   * @param address - Money Account wallet address.
+   * @param result - Registration outcome.
+   * @returns The same outcome.
+   */
+  #finishMoneyAccountWalletRegistration(
+    address: string,
+    result: MoneyAccountWalletRegistrationResult,
+  ): MoneyAccountWalletRegistrationResult {
+    if (result.type === 'lookupUnavailable') {
+      return result;
+    }
+    const normalized = address.trim().toLowerCase();
+    const status = result.type === 'registeredDisabled' ? 'disabled' : 'active';
+    const row: MoneyAccountWalletRegistration = {
+      walletAddress: address.trim(),
+      status,
+      updatedAt: Date.now(),
+    };
+    this.update((state) => {
+      const index = state.moneyAccountWalletRegistrations.findIndex(
+        (existing) =>
+          existing.walletAddress.trim().toLowerCase() === normalized,
+      );
+      if (index === -1) {
+        state.moneyAccountWalletRegistrations.push(row);
+      } else {
+        state.moneyAccountWalletRegistrations[index] = row;
+      }
+    });
+    return result;
+  }
+
+  /**
+   * Ids of rejected or cancelled autoramps for a wallet, used in create keys.
+   *
+   * @param walletAddress - Destination wallet address.
+   * @returns Terminal autoramp ids for that wallet.
+   */
+  #terminalAutorampIdsForWallet(walletAddress: string): string[] {
+    const normalized = walletAddress.trim().toLowerCase();
+    return this.state.autoramps
+      .filter(
+        (autoramp) =>
+          autoramp.walletAddress.toLowerCase() === normalized &&
+          (autoramp.status === AutorampStatus.Rejected ||
+            autoramp.status === AutorampStatus.Cancelled),
+      )
+      .map((autoramp) => autoramp.id);
+  }
+
+  /**
+   * Whether this wallet has an autoramp that is not Rejected or Cancelled.
+   *
+   * @param walletAddress - Destination wallet address.
+   * @returns Whether a usable route is already on the cursor.
+   */
+  #hasUsableAutorampForWallet(walletAddress: string): boolean {
+    const normalized = walletAddress.trim().toLowerCase();
+    return this.state.autoramps.some(
+      (autoramp) =>
+        autoramp.walletAddress.toLowerCase() === normalized &&
+        autoramp.status !== AutorampStatus.Rejected &&
+        autoramp.status !== AutorampStatus.Cancelled,
+    );
+  }
+
+  /**
+   * Replaces the autoramp cursor from `GET /neobank/autoramps` and records
+   * `vbaAutorampListFetchedAt` only after that GET succeeds.
+   */
+  async #replaceAutorampCursorFromList(): Promise<void> {
+    const customerId = await this.resolveAutorampCustomerId();
+    const remoteAutoramps = await this.messenger.call(
+      'NeoBankService:getAutoramps',
+      { customerId },
+    );
+    const remoteAutorampIds = new Set(
+      remoteAutoramps.map((autoramp) => autoramp.id),
+    );
+    for (const autoramp of remoteAutoramps) {
+      this.#applyAutorampRemoteSnapshot(autoramp);
+    }
+    this.update((state) => {
+      state.autoramps = state.autoramps.filter((autoramp) =>
+        remoteAutorampIds.has(autoramp.id),
+      );
+      state.vbaAutorampListFetchedAt = Date.now();
+    });
   }
 
   /**
