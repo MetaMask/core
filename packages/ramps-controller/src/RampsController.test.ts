@@ -14,6 +14,7 @@ import * as path from 'path';
 import {
   AutorampStatus,
   buildBrazilMusdAutorampRequest,
+  buildMusdAutorampRequest,
 } from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
@@ -10830,9 +10831,43 @@ describe('RampsController', () => {
       });
     });
 
-    it('registers the wallet, creates the autoramp, and marks activation ready after accepted KYC', async () => {
+    it('registers the wallet and waits for a source currency when none is passed', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger);
+        const registerWallet = jest
+          .spyOn(controller, 'registerMoneyAccountWallet')
+          .mockResolvedValue({
+            type: 'registered',
+            registration: {
+              id: 'wallet-1',
+              address: '0xabc',
+              blockchain: 'Monad',
+              disabled: false,
+              isSelf: true,
+            },
+          });
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'needs_source_currency',
+          }),
+        );
+
+        expect(registerWallet).toHaveBeenCalledTimes(1);
+        expect(handlers.getAutoramps).toHaveBeenCalledWith({
+          customerId: 'customer-1',
+        });
+        expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('creates one autoramp for the passed source currency', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger);
         jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
           type: 'registered',
           registration: {
@@ -10855,7 +10890,10 @@ describe('RampsController', () => {
           );
 
         expect(
-          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+            sourceCurrencyCode: 'USD',
+          }),
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
@@ -10863,13 +10901,14 @@ describe('RampsController', () => {
           }),
         );
 
-        expect(handlers.getAutoramps).toHaveBeenCalledWith({
-          customerId: 'customer-1',
-        });
+        expect(createAutoramp).toHaveBeenCalledTimes(1);
         expect(createAutoramp).toHaveBeenCalledWith(
-          buildBrazilMusdAutorampRequest('0xabc'),
-          { idempotencyKey: 'brl-musd-monad:customer-1:0xabc' },
+          buildMusdAutorampRequest('0xabc', 'USD'),
+          { idempotencyKey: 'usd-musd-monad:customer-1:0xabc' },
         );
+        const idempotencyKey =
+          createAutoramp.mock.calls[0]?.[1]?.idempotencyKey;
+        expect(idempotencyKey).not.toBe('brl-musd-monad:customer-1:0xabc');
       });
     });
 
@@ -10885,40 +10924,31 @@ describe('RampsController', () => {
             vendorStatus: 'new',
           },
         });
-        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
-          type: 'registered',
-          registration: {
-            id: 'wallet-1',
-            address: '0xabc',
-            blockchain: 'Monad',
-            disabled: false,
-            isSelf: true,
-          },
-        });
-        const createAutoramp = jest
-          .spyOn(controller, 'createAutoramp')
-          .mockImplementation(async () =>
-            controller.addAutoramp({
-              id: 'autoramp-1',
-              customerId: 'customer-1',
-              walletAddress: '0xabc',
-              status: AutorampStatus.Created,
-            }),
-          );
+        const registerWallet = jest
+          .spyOn(controller, 'registerMoneyAccountWallet')
+          .mockResolvedValue({
+            type: 'registered',
+            registration: {
+              id: 'wallet-1',
+              address: '0xabc',
+              blockchain: 'Monad',
+              disabled: false,
+              isSelf: true,
+            },
+          });
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
-            autorampStatus: 'ready',
+            autorampStatus: 'needs_source_currency',
           }),
         );
 
-        expect(createAutoramp).toHaveBeenCalledWith(
-          buildBrazilMusdAutorampRequest('0xabc'),
-          { idempotencyKey: 'brl-musd-monad:customer-1:0xabc' },
-        );
+        expect(registerWallet).toHaveBeenCalledTimes(1);
+        expect(createAutoramp).not.toHaveBeenCalled();
       });
     });
 
@@ -10948,6 +10978,7 @@ describe('RampsController', () => {
         expect(
           await controller.hydrateVbaOnboarding({
             walletAddress: '0xabc',
+            sourceCurrencyCode: 'USD',
           }),
         ).toStrictEqual(
           factsSnapshot({
@@ -11009,8 +11040,10 @@ describe('RampsController', () => {
 
         await controller.hydrateVbaOnboarding({
           walletAddress: '0xabc',
+          sourceCurrencyCode: 'BRL',
         });
 
+        expect(createAutoramp).toHaveBeenCalledTimes(1);
         expect(createAutoramp).toHaveBeenCalledWith(
           buildBrazilMusdAutorampRequest('0xabc'),
           {
@@ -11035,19 +11068,14 @@ describe('RampsController', () => {
               resolveRegistration = resolve;
             }),
           );
-        jest.spyOn(controller, 'createAutoramp').mockImplementation(async () =>
-          controller.addAutoramp({
-            id: 'autoramp-1',
-            customerId: 'customer-1',
-            walletAddress: '0xabc',
-          }),
-        );
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
 
         const first = controller.hydrateVbaOnboarding({
           walletAddress: '0xabc',
         });
         const second = controller.hydrateVbaOnboarding({
           walletAddress: '0xabc',
+          sourceCurrencyCode: 'USD',
         });
         resolveRegistration({
           type: 'registered',
@@ -11063,14 +11091,15 @@ describe('RampsController', () => {
         expect(await Promise.all([first, second])).toStrictEqual([
           factsSnapshot({
             kycStatus: 'approved',
-            autorampStatus: 'ready',
+            autorampStatus: 'needs_source_currency',
           }),
           factsSnapshot({
             kycStatus: 'approved',
-            autorampStatus: 'ready',
+            autorampStatus: 'needs_source_currency',
           }),
         ]);
         expect(registerWallet).toHaveBeenCalledTimes(1);
+        expect(createAutoramp).not.toHaveBeenCalled();
       });
     });
 

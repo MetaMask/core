@@ -434,16 +434,22 @@ export type RampsControllerRegisterMoneyAccountWalletAction = {
 };
 
 /**
- * Refreshes KYC session facts and, when Iron has approved KYC, activates the
- * Money Account (wallet registration + autoramp). Hosts map the returned
+ * Refreshes KYC session facts and, when Iron has approved KYC, registers the
+ * Money Account wallet and refreshes autoramps. An autoramp is created only
+ * when `sourceCurrencyCode` is set and the wallet has no usable autoramp.
+ * With no usable autoramp and no code, the snapshot status is
+ * `needs_source_currency` and nothing is posted. Hosts map the returned
  * {@link VbaOnboardingSnapshot} onto their own funnel; this method does not
  * name screens.
  *
  * Overlapping calls share one run so polling cannot trigger duplicate wallet
- * signatures or autoramp creation.
+ * signatures or autoramp creation. A second call does not apply its own
+ * `sourceCurrencyCode`; it receives the in-flight result.
  *
  * @param params - VBA onboarding parameters.
  * @param params.walletAddress - Monad Money Account wallet address.
+ * @param params.sourceCurrencyCode - Fiat code to create when the wallet has
+ * no usable autoramp. Omit it to register and refresh without creating.
  * @returns Independent KYC and autoramp facts for the current customer.
  */
 export type RampsControllerHydrateVbaOnboardingAction = {
