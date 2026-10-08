@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Allow `boughtUsd`, `soldUsd`, `realizedPnl`, and `costBasis` to be `null` on `Position` / feed items, matching incomplete Clicker metrics the social-api may serialize as JSON `null` ([#10753](https://github.com/MetaMask/core/pull/10753))
+- Drop individual `fetchFeed`, `fetchTraderFeed`, and `fetchTokenFeed` items that fail validation instead of rejecting the whole page ([#10753](https://github.com/MetaMask/core/pull/10753))
 - Update `SocialRealtimeService` to subscribe to the trending Social feed channel and forward every valid event from batched notifications ([#10751](https://github.com/MetaMask/core/pull/10751))
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.1` ([#10752](https://github.com/MetaMask/core/pull/10752))
 
