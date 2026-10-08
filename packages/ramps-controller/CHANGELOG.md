@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `RampsControllerMessenger` now requires `KycController:readSessionStatus` and `KycController:fetchSessionStatusOnce` instead of `KycController:refreshSessionStatus` and `KycController:getSessionStatusForVendor` ([#10749](https://github.com/MetaMask/core/pull/10749))
 - `registerMoneyAccountWallet` writes a `moneyAccountWalletRegistrations` row after `alreadyRegistered`, `registered`, or `registeredDisabled`. The stored address is trimmed and lowercased. A lookup failure or a thrown signature writes nothing ([#10749](https://github.com/MetaMask/core/pull/10749))
 - `createAutoramp` derives its idempotency key from the caller-supplied source fiat (`brl-musd-monad` versus `usd-musd-monad`), the customer, the wallet, and rejected or cancelled autoramp ids. A caller-supplied key is used only when the body has no source fiat or recipient address ([#10749](https://github.com/MetaMask/core/pull/10749))
-- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.1` ([#10752](https://github.com/MetaMask/core/pull/10752))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.2` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756))
 
 ## [26.3.0]
 

@@ -59,7 +59,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/network-controller": "^37.0.1",
     "@metamask/polling-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^34.0.1",
+    "@metamask/profile-sync-controller": "^34.0.2",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/transaction-controller": "^72.1.0",

@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reusing the session already in state, or the latest vendor session, does not require `aal2Token`
 - Increase the UKYC capability token lifetime from 4 hours to 72 hours ([#10679](https://github.com/MetaMask/core/pull/10679))
 - Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
-- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.1` ([#10752](https://github.com/MetaMask/core/pull/10752))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.2` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756))
 
 ## [0.6.1]
 
