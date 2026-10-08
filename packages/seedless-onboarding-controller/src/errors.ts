@@ -7,7 +7,7 @@ import type {
   InvalidPrimarySecretDataTypeErrorData,
   RecoveryErrorData,
 } from './types.js';
-import { getInvalidPrimarySecretDataTypeErrorData } from './utils.js';
+import { getInvalidPrimarySecretDataTypeErrorData } from './utils/index.js';
 
 /**
  * Get the error message from the TOPRF error code.

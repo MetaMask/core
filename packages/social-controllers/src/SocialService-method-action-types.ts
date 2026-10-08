@@ -255,11 +255,28 @@ export type SocialServiceCreateSwapCommentAction = {
  * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
  * server-side from the JWT sub claim carried in the Authorization header.
  *
+ * Prefer {@link fetchMyFollowing} in new code (pairs with
+ * {@link fetchMyFollowers}). This method is unchanged and remains the
+ * `/users/me/following` read.
+ *
  * @returns The following response.
  */
 export type SocialServiceFetchFollowingAction = {
   type: `SocialService:fetchFollowing`;
   handler: SocialService['fetchFollowing'];
+};
+
+/**
+ * Fetches the list of traders the current user is following.
+ *
+ * Alias of {@link fetchFollowing}. Calls `GET ${baseUrl}/users/me/following`.
+ * Preferred name in new code so `/users/me` reads are both `fetchMy*`.
+ *
+ * @returns The following response.
+ */
+export type SocialServiceFetchMyFollowingAction = {
+  type: `SocialService:fetchMyFollowing`;
+  handler: SocialService['fetchMyFollowing'];
 };
 
 /**
@@ -413,6 +430,7 @@ export type SocialServiceMethodActions =
   | SocialServiceRemoveCommentReactionAction
   | SocialServiceCreateSwapCommentAction
   | SocialServiceFetchFollowingAction
+  | SocialServiceFetchMyFollowingAction
   | SocialServiceFetchMyFollowersAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction
