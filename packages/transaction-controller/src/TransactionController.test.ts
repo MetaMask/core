@@ -7890,6 +7890,37 @@ describe('TransactionController', () => {
   });
 
   describe('resimulate', () => {
+    it('checks whether the transaction is trusted', async () => {
+      const isTransactionTrusted = jest.fn().mockReturnValue(true);
+      const transactionMeta = {
+        ...TRANSACTION_META_MOCK,
+        status: TransactionStatus.unapproved,
+      };
+      const { controller } = setupController({
+        options: {
+          isTransactionTrusted,
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      await controller.updateEditableParams(TRANSACTION_META_MOCK.id, {});
+
+      const updatedTransactionMeta = {
+        ...transactionMeta,
+        type: TransactionType.simpleSend,
+      };
+
+      expect(isTransactionTrusted).toHaveBeenCalledWith(updatedTransactionMeta);
+      expect(shouldResimulateMock).toHaveBeenCalledWith(
+        transactionMeta,
+        updatedTransactionMeta,
+        true,
+      );
+    });
+
     it('triggers simulation if re-simulation detected on state update', async () => {
       const { controller } = setupController({
         options: {
