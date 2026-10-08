@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [34.0.3]
 
+### Changed
+
+- Bump `@metamask/cryptography` from `^1.1.1` to `^1.1.2` ([#10761](https://github.com/MetaMask/core/pull/10761))
+
 ## [34.0.2]
 
 ### Changed
