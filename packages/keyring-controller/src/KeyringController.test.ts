@@ -4979,6 +4979,34 @@ describe('KeyringController', () => {
       );
     });
 
+    it('should throw KeyringV2NotSupported before reading the accounts of a keyring without a V2 adapter', async () => {
+      await withController(
+        {
+          keyringBuilders: [keyringBuilderFactory(MockShallowKeyring)],
+        },
+        async ({ controller }) => {
+          const metadata = await controller.addNewKeyring(
+            MockShallowKeyring.type,
+          );
+
+          // The V1 keyring's account read fails: the missing V2 adapter
+          // must take precedence over it, instead of masking it.
+          jest
+            .spyOn(MockShallowKeyring.prototype, 'getAccounts')
+            .mockRejectedValue(new Error('getAccounts failed'));
+
+          const fn = jest.fn();
+          await expect(
+            controller.withKeyringV2({ id: metadata.id }, fn),
+          ).rejects.toThrow(
+            KeyringControllerErrorMessage.KeyringV2NotSupported,
+          );
+
+          expect(fn).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('should throw an error if the callback returns the wrapped keyring', async () => {
       await withController(async ({ controller }) => {
         await expect(
@@ -6881,6 +6909,18 @@ describe('KeyringController', () => {
       });
     });
 
+    it('makes no extra getAccounts calls for the operated keyring in a single-keyring wallet', async () => {
+      await withController(async ({ controller }) => {
+        const getAccountsSpy = jest.spyOn(HdKeyring.prototype, 'getAccounts');
+
+        await controller.withKeyring({ type: KeyringTypes.hd }, async () => {
+          // No operation.
+        });
+
+        expect(getAccountsSpy).not.toHaveBeenCalled();
+      });
+    });
+
     it('does not update the vault for an unchanged operated keyring that shares its id with another keyring', async () => {
       await withController(
         {
@@ -7094,32 +7134,41 @@ describe('KeyringController', () => {
       });
     });
 
-    it('drops the operated keyring created and drained by a failed transaction', async () => {
-      await withController(async ({ controller, encryptor }) => {
-        const accountsBefore = await controller.getAccounts();
-        jest
-          .spyOn(encryptor, 'encryptWithKey')
-          .mockRejectedValue(new Error('Encryption failed'));
+    it('drops the operated keyring created and drained by the same transaction, without updating the vault', async () => {
+      await withController(
+        async ({ controller, encryptor, messenger, initialState }) => {
+          const accountsBefore = await controller.getAccounts();
+          const mockStateChange = jest.fn();
+          messenger.subscribe('KeyringController:stateChange', mockStateChange);
+          // The encryptor fails: a no-op transaction must not consult it.
+          const encryptSpy = jest
+            .spyOn(encryptor, 'encryptWithKey')
+            .mockRejectedValue(new Error('Encryption failed'));
 
-        // The operation creates the Simple keyring and drains it; the
-        // cleanup removes it, and then persistence fails.
-        await expect(
-          controller.withKeyring(
+          // The operation creates the Simple keyring and drains it: the
+          // cleanup removes it, and nothing is left to persist.
+          await controller.withKeyring(
             { type: KeyringTypes.simple },
             async ({ keyring }) => {
               const [account] = await keyring.getAccounts();
               keyring.removeAccount?.(account);
             },
             { createIfMissing: true, createWithData: [privateKey] },
-          ),
-        ).rejects.toThrow('Encryption failed');
+          );
 
-        // The created keyring is not brought back by the failed persistence.
-        expect(controller.getKeyringsByType(KeyringTypes.simple)).toHaveLength(
-          0,
-        );
-        expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
-      });
+          // The session is left as it was before the call: no vault write
+          // is attempted (the broken encryptor is never consulted), no
+          // state change is emitted, and the drained keyring stays
+          // dropped.
+          expect(encryptSpy).not.toHaveBeenCalled();
+          expect(mockStateChange).not.toHaveBeenCalled();
+          expect(controller.state.vault).toBe(initialState.vault);
+          expect(
+            controller.getKeyringsByType(KeyringTypes.simple),
+          ).toHaveLength(0);
+          expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
+        },
+      );
     });
 
     it('parks the drained operated keyring as unsupported when its recreation fails', async () => {

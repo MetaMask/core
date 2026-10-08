@@ -3489,18 +3489,23 @@ export class KeyringController<
         : undefined;
 
       try {
-        // Computed inside the transaction: the created keyring is already
-        // in `#keyrings` at this point, so even a `getAccounts` rejection
-        // before the operation runs must be rolled back.
-        const wasNonEmpty = (await entry.keyring.getAccounts()).length > 0;
+        // The drain cleanup below can only fire when the wallet holds
+        // other keyrings: the bracketing account reads are skipped
+        // entirely otherwise, so single-keyring wallets make no extra
+        // `getAccounts` calls. For a created keyring, the wallet holds it
+        // already, so even a `getAccounts` rejection before the operation
+        // runs must still be rolled back.
+        const canDrain = this.#keyrings.length > 1;
+        const wasNonEmpty =
+          canDrain && (await entry.keyring.getAccounts()).length > 0;
 
         const result = await run(entry);
 
-        const isEmpty = (await entry.keyring.getAccounts()).length === 0;
+        const isEmpty =
+          canDrain && (await entry.keyring.getAccounts()).length === 0;
 
         // Only the operated keyring can have transitioned to empty.
         if (
-          this.#keyrings.length > 1 &&
           wasNonEmpty &&
           isEmpty &&
           !this.#isPrimaryKeyring(entry, this.#keyrings)
@@ -3537,13 +3542,17 @@ export class KeyringController<
     entry: KeyringEntry,
     snapshot: KeyringSnapshot | undefined,
   ): Promise<boolean> {
-    // A keyring created by the transaction is always a change.
+    const exists = this.#keyrings.includes(entry);
+
+    // A keyring created by the transaction is a change — unless the
+    // transaction drained it right away, leaving the session as it was
+    // before the keyring existed.
     if (!snapshot) {
-      return true;
+      return exists;
     }
 
     // The operated keyring was removed by the drained-keyring cleanup.
-    if (!this.#keyrings.includes(entry)) {
+    if (!exists) {
       return true;
     }
 
