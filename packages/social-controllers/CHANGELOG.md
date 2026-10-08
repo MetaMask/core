@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(deps): update dependency typedoc to ^0.28.20 ([#10731](https://github.com/MetaMask/core/pull/10731))
+
 ### Added
 
 - Add `fetchMyFollowing` method to `SocialService` (and the `SocialService:fetchMyFollowing` messenger action) as an alias of `fetchFollowing`. Both call `GET /users/me/following`. Prefer `fetchMyFollowing` in new code so it pairs with `fetchMyFollowers`; `fetchFollowing` is unchanged ([#10701](https://github.com/MetaMask/core/pull/10701))
