@@ -22,6 +22,8 @@ import { getQueryOptionsOverrides } from '../shared-types.js';
 import type { FetchOptions } from '../shared-types.js';
 import type {
   TokenMetadata,
+  TokenListQueryOptions,
+  TokenV2SupportedNetworksResponse,
   V1TokenDescriptionResponse,
   NetworkInfo,
   TopAsset,
@@ -131,32 +133,13 @@ export class TokenApiClient extends BaseApiClient {
    * Returns the TanStack Query options object for token list.
    *
    * @param chainId - The chain ID.
-   * @param queryOptions - Query options.
-   * @param queryOptions.includeTokenFees - Whether to include token fees.
-   * @param queryOptions.includeAssetType - Whether to include asset type.
-   * @param queryOptions.includeAggregators - Whether to include aggregators.
-   * @param queryOptions.includeERC20Permit - Whether to include ERC20 permit.
-   * @param queryOptions.includeOccurrences - Whether to include occurrences.
-   * @param queryOptions.includeStorage - Whether to include storage.
-   * @param queryOptions.includeIconUrl - Whether to include icon URL.
-   * @param queryOptions.includeAddress - Whether to include address.
-   * @param queryOptions.includeName - Whether to include name.
+   * @param queryOptions - Query options forwarded to `GET /tokens/{chainId}`.
    * @param options - Fetch options including cache settings.
    * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
    */
   getTokenListQueryOptions(
     chainId: number,
-    queryOptions?: {
-      includeTokenFees?: boolean;
-      includeAssetType?: boolean;
-      includeAggregators?: boolean;
-      includeERC20Permit?: boolean;
-      includeOccurrences?: boolean;
-      includeStorage?: boolean;
-      includeIconUrl?: boolean;
-      includeAddress?: boolean;
-      includeName?: boolean;
-    },
+    queryOptions?: TokenListQueryOptions,
     options?: FetchOptions,
   ): FetchQueryOptions<TokenMetadata[]> {
     return {
@@ -165,6 +148,8 @@ export class TokenApiClient extends BaseApiClient {
         this.fetch<TokenMetadata[]>(this.apiUrls.TOKEN, `/tokens/${chainId}`, {
           signal,
           params: {
+            occurrenceFloor: queryOptions?.occurrenceFloor,
+            includeNativeAssets: queryOptions?.includeNativeAssets,
             includeTokenFees: queryOptions?.includeTokenFees,
             includeAssetType: queryOptions?.includeAssetType,
             includeAggregators: queryOptions?.includeAggregators,
@@ -174,6 +159,7 @@ export class TokenApiClient extends BaseApiClient {
             includeIconUrl: queryOptions?.includeIconUrl,
             includeAddress: queryOptions?.includeAddress,
             includeName: queryOptions?.includeName,
+            includeRwaData: queryOptions?.includeRwaData,
           },
         }),
       ...getQueryOptionsOverrides(options),
@@ -186,36 +172,54 @@ export class TokenApiClient extends BaseApiClient {
    * Get token list for a chain.
    *
    * @param chainId - The chain ID.
-   * @param queryOptions - Query options.
-   * @param queryOptions.includeTokenFees - Include token fees data.
-   * @param queryOptions.includeAssetType - Include asset type data.
-   * @param queryOptions.includeAggregators - Include aggregators data.
-   * @param queryOptions.includeERC20Permit - Include ERC20 permit data.
-   * @param queryOptions.includeOccurrences - Include occurrences data.
-   * @param queryOptions.includeStorage - Include storage data.
-   * @param queryOptions.includeIconUrl - Include icon URL.
-   * @param queryOptions.includeAddress - Include address.
-   * @param queryOptions.includeName - Include name.
+   * @param queryOptions - Query options forwarded to `GET /tokens/{chainId}`.
    * @param options - Fetch options including cache settings.
    * @returns Array of token metadata.
    */
   async fetchTokenList(
     chainId: number,
-    queryOptions?: {
-      includeTokenFees?: boolean;
-      includeAssetType?: boolean;
-      includeAggregators?: boolean;
-      includeERC20Permit?: boolean;
-      includeOccurrences?: boolean;
-      includeStorage?: boolean;
-      includeIconUrl?: boolean;
-      includeAddress?: boolean;
-      includeName?: boolean;
-    },
+    queryOptions?: TokenListQueryOptions,
     options?: FetchOptions,
   ): Promise<TokenMetadata[]> {
     return this.queryClient.fetchQuery(
       this.getTokenListQueryOptions(chainId, queryOptions, options),
+    );
+  }
+
+  /**
+   * Returns the TanStack Query options object for v2 supported networks.
+   *
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV2SupportedNetworksQueryOptions(
+    options?: FetchOptions,
+  ): FetchQueryOptions<TokenV2SupportedNetworksResponse> {
+    return {
+      queryKey: ['token', 'v2SupportedNetworks'],
+      queryFn: ({ signal }: QueryFunctionContext) =>
+        this.fetch<TokenV2SupportedNetworksResponse>(
+          this.apiUrls.TOKEN,
+          '/v2/supportedNetworks',
+          { signal },
+        ),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.SUPPORTED_NETWORKS,
+      gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
+    };
+  }
+
+  /**
+   * Get CAIP chain IDs supported by the Token API (`GET /v2/supportedNetworks`).
+   *
+   * @param options - Fetch options including cache settings.
+   * @returns Full and partial support chain IDs.
+   */
+  async fetchV2SupportedNetworks(
+    options?: FetchOptions,
+  ): Promise<TokenV2SupportedNetworksResponse> {
+    return this.queryClient.fetchQuery(
+      this.getV2SupportedNetworksQueryOptions(options),
     );
   }
 
