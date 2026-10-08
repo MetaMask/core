@@ -521,19 +521,28 @@ describe('calculateFinalPositionSize', () => {
           szDecimals: 3,
         });
 
-      expect(calculate).toThrow(PerpsControllerError);
-      expect(calculate).toThrow(
-        expect.objectContaining({
-          errorCode: PERPS_ERROR_CODES.PRICE_MOVED,
-          errorDetails: {
-            code: PERPS_ERROR_CODES.PRICE_MOVED,
-            priceDeltaBps: 1000,
-            maxSlippageBps: 300,
-            expectedPrice: 50000,
-            currentPrice: 45000,
-          },
-        }),
-      );
+      let thrownError: unknown;
+      try {
+        calculate();
+      } catch (error: unknown) {
+        thrownError = error;
+      }
+
+      expect(thrownError).toBeInstanceOf(PerpsControllerError);
+      if (!(thrownError instanceof PerpsControllerError)) {
+        throw new Error(
+          'Expected calculate() to throw a PerpsControllerError',
+        );
+      }
+
+      expect(thrownError.errorCode).toBe(PERPS_ERROR_CODES.PRICE_MOVED);
+      expect(thrownError.errorDetails).toStrictEqual({
+        code: PERPS_ERROR_CODES.PRICE_MOVED,
+        priceDeltaBps: 1000,
+        maxSlippageBps: 300,
+        expectedPrice: 50000,
+        currentPrice: 45000,
+      });
     });
 
     it('does not reject an exact-size close when the snapshot is stale', () => {
