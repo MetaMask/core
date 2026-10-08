@@ -104,7 +104,7 @@ export function printAddedSuppressions(
     return;
   }
 
-  console.log(`❌ Detected suppressions added to ${fileName}:\n`);
+  console.log(`❌ Detected new suppressions in ${fileName}:\n`);
   for (const suppression of added) {
     console.log(
       `  ${suppression.filePath}: ${suppression.rule} (${suppression.count} suppressed, was ${suppression.baseCount})`,
