@@ -20,3 +20,34 @@ export type AutorampRemoteSnapshot = {
   status: string;
   depositRailsSummary?: AutorampDepositRailsSummary;
 };
+
+/**
+ * PIX "Copia e Cola" instructions from an autoramp `deposit_rails` entry.
+ * Re-fetched for display; not stored on the autoramp cursor.
+ */
+export type PixDepositInstructions = {
+  /** EMV BR Code the payer pastes into their bank app. */
+  brCode: string;
+  /** Human-readable payer guidance from MoonPay. */
+  instruction: string;
+  /** Bare PIX key, when MoonPay includes one. */
+  pixKey?: string;
+  /** Expiry of a one-time QR code. Absent for a reusable code. */
+  expiresAt?: string;
+};
+
+/**
+ * Polling summary of one autoramp transaction.
+ * `status` is MoonPay `transaction_status` (`Completed`, `Failed`, …).
+ */
+export type AutorampTransactionSummary = {
+  id: string;
+  autorampId: string;
+  status: string;
+  /** Source amount decimal string, when present (BRL for this flow). */
+  sourceAmount?: string;
+  /** Destination amount decimal string, when present (mUSD). */
+  destinationAmount?: string;
+  /** MoonPay `created_at` when present, for newest-first client selection. */
+  createdAt?: string;
+};
