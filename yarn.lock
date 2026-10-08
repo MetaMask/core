@@ -8098,7 +8098,7 @@ __metadata:
     "@metamask/network-controller": "npm:^37.0.1"
     "@metamask/profile-sync-controller": "npm:^34.0.2"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
-    "@metamask/subscription-controller": "npm:^12.0.1"
+    "@metamask/subscription-controller": "npm:^13.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -8963,7 +8963,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/subscription-controller@npm:^12.0.1, @metamask/subscription-controller@workspace:packages/subscription-controller":
+"@metamask/subscription-controller@npm:^13.0.0, @metamask/subscription-controller@workspace:packages/subscription-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/subscription-controller@workspace:packages/subscription-controller"
   dependencies:
@@ -9334,7 +9334,7 @@ __metadata:
     "@metamask/seedless-onboarding-controller": "npm:^12.0.0"
     "@metamask/shield-controller": "npm:^7.0.4"
     "@metamask/storage-service": "npm:^2.0.0"
-    "@metamask/subscription-controller": "npm:^12.0.1"
+    "@metamask/subscription-controller": "npm:^13.0.0"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"

@@ -69,7 +69,7 @@
     "@metamask/seedless-onboarding-controller": "^12.0.0",
     "@metamask/shield-controller": "^7.0.4",
     "@metamask/storage-service": "^2.0.0",
-    "@metamask/subscription-controller": "^12.0.1",
+    "@metamask/subscription-controller": "^13.0.0",
     "@metamask/transaction-controller": "^72.1.0",
     "@metamask/utils": "^12.0.0"
   },
