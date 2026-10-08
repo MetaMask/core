@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ProfileServiceMock` for mocking profile-api responses ([#10745](https://github.com/MetaMask/core/pull/10745))
+
 ## [1.0.1]
 
 ### Changed
