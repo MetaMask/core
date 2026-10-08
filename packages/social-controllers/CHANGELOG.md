@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Update `SocialRealtimeService` to subscribe to the trending Social feed channel and forward every valid event from batched notifications ([#10751](https://github.com/MetaMask/core/pull/10751))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.1` ([#10752](https://github.com/MetaMask/core/pull/10752))
 
 ## [3.6.0]
 
