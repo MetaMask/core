@@ -205,6 +205,58 @@ class SharedSdkKeyring implements EthKeyring {
   }
 }
 
+const RUNTIME_STATE_KEYRING_TYPE = 'Runtime State Keyring';
+
+const RUNTIME_STATE_ACCOUNT_ADDRESS: Hex =
+  '0x7317A2a1fF9a4aF01DdF1DCaB2e3fD10bF46A4E6';
+
+const RUNTIME_STATE_ADDED_ACCOUNT_ADDRESS: Hex =
+  '0x8428B3b2e409D8e2f9dF6A2c20F45E5c0A617E4f';
+
+/**
+ * A test keyring whose `serialize()` deliberately omits runtime-only
+ * state, like the page state of hardware keyrings (Ledger, QR).
+ */
+class RuntimeStateKeyring implements EthKeyring {
+  static type = RUNTIME_STATE_KEYRING_TYPE;
+
+  readonly type = RuntimeStateKeyring.type;
+
+  #accounts: Hex[] = [];
+
+  #runtimeState: 'clean' | 'dirty' = 'clean';
+
+  get runtimeState(): 'clean' | 'dirty' {
+    return this.#runtimeState;
+  }
+
+  async serialize(): Promise<Json> {
+    return { accounts: [...this.#accounts] };
+  }
+
+  async deserialize(state: { accounts?: Hex[] }): Promise<void> {
+    this.#accounts = state.accounts ? [...state.accounts] : [];
+  }
+
+  async getAccounts(): Promise<Hex[]> {
+    return [...this.#accounts];
+  }
+
+  // this fake method works only with n = 1
+  async addAccounts(_: number): Promise<Hex[]> {
+    this.#accounts.push(RUNTIME_STATE_ADDED_ACCOUNT_ADDRESS);
+    return [...this.#accounts];
+  }
+
+  /**
+   * Dirty the runtime-only state, which `serialize()` does not capture:
+   * a serialize-only snapshot comparison cannot see this change.
+   */
+  async dirtyRuntimeState(): Promise<void> {
+    this.#runtimeState = 'dirty';
+  }
+}
+
 /**
  * Let pending promise continuations (microtasks) run, so queued lock
  * acquisitions and callbacks get a chance to start.
@@ -6207,6 +6259,107 @@ describe('KeyringController', () => {
             controller.getKeyringsByType(SharedSdkKeyring.type),
           ).toHaveLength(1);
           expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
+        },
+      );
+    });
+
+    it('rebuilds the operated keyring on failure even when its serialized state is unchanged, resetting runtime-only state', async () => {
+      await withController(
+        {
+          skipVaultCreation: true,
+          keyringBuilders: [keyringBuilderFactory(RuntimeStateKeyring)],
+          state: {
+            vault: createVault([
+              ...defaultKeyrings,
+              {
+                type: RuntimeStateKeyring.type,
+                data: { accounts: [RUNTIME_STATE_ACCOUNT_ADDRESS] },
+                metadata: { id: 'runtime-state-keyring', name: '' },
+              },
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+
+          await expect(
+            controller.withKeyring(
+              { type: RuntimeStateKeyring.type },
+              async ({ keyring }) => {
+                // The runtime-only state is dirtied without touching the
+                // serialized state.
+                await (keyring as RuntimeStateKeyring).dirtyRuntimeState();
+                throw new Error('Oops');
+              },
+            ),
+          ).rejects.toThrow('Oops');
+
+          // The serialized state was unchanged, so a serialize-only
+          // comparison would keep the stale instance and its dirty
+          // runtime-only state. The operated keyring is always rebuilt
+          // on failure instead.
+          const keyring = controller.getKeyringsByType(
+            RuntimeStateKeyring.type,
+          )[0] as RuntimeStateKeyring;
+          expect(keyring.runtimeState).toBe('clean');
+        },
+      );
+    });
+
+    it('detaches the operated keyring instance from mutations landing after a failed operation', async () => {
+      await withController(
+        {
+          skipVaultCreation: true,
+          keyringBuilders: [keyringBuilderFactory(RuntimeStateKeyring)],
+          state: {
+            vault: createVault([
+              ...defaultKeyrings,
+              {
+                type: RuntimeStateKeyring.type,
+                data: { accounts: [RUNTIME_STATE_ACCOUNT_ADDRESS] },
+                metadata: { id: 'runtime-state-keyring', name: '' },
+              },
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+
+          await expect(
+            controller.withKeyring(
+              { type: RuntimeStateKeyring.type },
+              async ({ keyring }) => {
+                // Un-awaited work started by the failing operation,
+                // landing after the rollback: a kept instance would
+                // absorb it.
+                // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                (async (): Promise<void> => {
+                  await flushMicrotasks();
+                  await (keyring as RuntimeStateKeyring).addAccounts(1);
+                })();
+                throw new Error('Oops');
+              },
+            ),
+          ).rejects.toThrow('Oops');
+          await flushMicrotasks();
+
+          // The rebuilt instance is detached from the late mutation: the
+          // registered keyring is left as it was before the operation,
+          // and the mutation cannot leak into the next vault write.
+          const keyring = controller.getKeyringsByType(
+            RuntimeStateKeyring.type,
+          )[0] as RuntimeStateKeyring;
+          expect(await keyring.getAccounts()).toStrictEqual([
+            RUNTIME_STATE_ACCOUNT_ADDRESS,
+          ]);
+          await controller.persistAllKeyrings();
+          const vaultEntries = parseVaultEntries(
+            controller.state.vault as string,
+          );
+          expect(vaultEntries).toHaveLength(2);
+          expect(vaultEntries[1].data).toStrictEqual({
+            accounts: [RUNTIME_STATE_ACCOUNT_ADDRESS],
+          });
         },
       );
     });
