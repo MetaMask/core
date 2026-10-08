@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `needs_source_currency` to `VBA_AUTORAMP_STATUSES` for an approved, registered wallet that has no usable autoramp ([#10743](https://github.com/MetaMask/core/pull/10743))
+- Add `needs_source_currency` to `VBA_AUTORAMP_STATUSES` for an approved, registered wallet that has no usable autoramp and was not given a source currency ([#10743](https://github.com/MetaMask/core/pull/10743))
 - Add `buildMusdAutorampRequest`, which builds the standing mUSD-on-Monad autoramp body for an explicit fiat code. `buildBrazilMusdAutorampRequest` remains the BRL wrapper ([#10743](https://github.com/MetaMask/core/pull/10743))
 - Add persisted `moneyAccountWalletRegistrations` (`walletAddress`, `status` of `active` or `disabled`, `updatedAt`) and `vbaAutorampListFetchedAt` on `RampsController` state ([#10749](https://github.com/MetaMask/core/pull/10749))
 - Add `needs_wallet_registration` to `VbaOnboardingSnapshot.autorampStatus` for an approved session with no persisted registration row and no usable autoramp ([#10749](https://github.com/MetaMask/core/pull/10749))
@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `RampsControllerMessenger` now requires `KycController:readSessionStatus` and `KycController:fetchSessionStatusOnce` instead of `KycController:refreshSessionStatus` and `KycController:getSessionStatusForVendor` ([#10749](https://github.com/MetaMask/core/pull/10749))
 - `registerMoneyAccountWallet` writes a `moneyAccountWalletRegistrations` row after `alreadyRegistered`, `registered`, or `registeredDisabled`. The stored address is trimmed and lowercased. A lookup failure or a thrown signature writes nothing ([#10749](https://github.com/MetaMask/core/pull/10749))
 - `createAutoramp` derives its idempotency key from the caller-supplied source fiat (`brl-musd-monad` versus `usd-musd-monad`), the customer, the wallet, and rejected or cancelled autoramp ids. A caller-supplied key is used only when the body has no source fiat or recipient address ([#10749](https://github.com/MetaMask/core/pull/10749))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.1` ([#10752](https://github.com/MetaMask/core/pull/10752))
 
 ## [26.3.0]
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isTransactionTrusted` to `TransactionControllerOptions` to limit future-block re-simulation to untrusted transactions ([#10747](https://github.com/MetaMask/core/pull/10747))
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
