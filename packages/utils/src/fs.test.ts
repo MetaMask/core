@@ -1,9 +1,10 @@
+// eslint-disable-next-line no-shadow
+import crypto from 'crypto';
 import fs from 'fs';
 import { when } from 'jest-when';
 import os from 'os';
 import path from 'path';
 import util from 'util';
-import { v4 } from 'uuid';
 
 import {
   createSandbox,
@@ -19,19 +20,12 @@ import {
 
 const { withinSandbox } = createSandbox('utils');
 
-// Wrap the real `v4` so it behaves normally until a test overrides it.
-jest.mock('uuid', () => {
-  const actual = jest.requireActual('uuid');
-  // This is how to mock an ES-compatible module in Jest.
-  return { __esModule: true, ...actual, v4: jest.fn(actual.v4) };
-});
-
-// `v4` is overloaded; naming the signature used here avoids resolving to the
-// last overload, which returns a `Uint8Array`.
-const v4Mock = jest.mocked<() => string>(v4);
-
-const mockUuidV4 = (value: string): void => {
-  v4Mock.mockReturnValue(value);
+const mockRandomUUID = (value: string): void => {
+  jest
+    .spyOn(crypto, 'randomUUID')
+    .mockReturnValue(
+      value as `${string}-${string}-${string}-${string}-${string}`,
+    );
 };
 
 describe('fs', () => {
@@ -690,7 +684,7 @@ describe('fs', () => {
     });
 
     it('does not create the sandbox directory immediately', async () => {
-      mockUuidV4('AAAA-AAAA-AAAA-AAAA');
+      mockRandomUUID('AAAA-AAAA-AAAA-AAAA');
       createSandbox('utils-fs');
 
       const sandboxDirectoryPath = path.join(
@@ -707,7 +701,7 @@ describe('fs', () => {
     describe('withinSandbox', () => {
       it('creates the sandbox directory and keeps it around before its given function ends', async () => {
         expect.assertions(1);
-        mockUuidV4('AAAA-AAAA-AAAA-AAAA');
+        mockRandomUUID('AAAA-AAAA-AAAA-AAAA');
         const { withinSandbox: withinTestSandbox } = createSandbox('utils-fs');
 
         await withinTestSandbox(async () => {
@@ -723,7 +717,7 @@ describe('fs', () => {
       });
 
       it('removes the sandbox directory after its given function ends', async () => {
-        mockUuidV4('AAAA-AAAA-AAAA-AAAA');
+        mockRandomUUID('AAAA-AAAA-AAAA-AAAA');
         const { withinSandbox: withinTestSandbox } = createSandbox('utils-fs');
 
         await withinTestSandbox(async () => {
@@ -741,7 +735,7 @@ describe('fs', () => {
       });
 
       it('throws if the sandbox directory already exists', async () => {
-        mockUuidV4('AAAA-AAAA-AAAA-AAAA');
+        mockRandomUUID('AAAA-AAAA-AAAA-AAAA');
         const { withinSandbox: withinTestSandbox } = createSandbox('utils-fs');
 
         const sandboxDirectoryPath = path.join(
