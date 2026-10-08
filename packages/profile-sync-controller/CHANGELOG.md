@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [34.0.1]
+
 ### Changed
 
 - Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
+- Bump `@metamask/cryptography` from `^1.1.0` to `^1.1.1` ([#10752](https://github.com/MetaMask/core/pull/10752))
 
 ## [34.0.0]
 
@@ -1046,7 +1049,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.1...HEAD
+[34.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.0...@metamask/profile-sync-controller@34.0.1
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@33.0.0...@metamask/profile-sync-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.1...@metamask/profile-sync-controller@33.0.0
 [32.3.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.3.0...@metamask/profile-sync-controller@32.3.1
