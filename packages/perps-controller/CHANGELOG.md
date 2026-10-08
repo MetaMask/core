@@ -7,10 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PERPS_ERROR_CODES.PRICE_MOVED` and optional `errorCode` and `errorDetails` on `OrderResult`, so a failed placement can be localized without parsing `OrderResult.error` ([#10385](https://github.com/MetaMask/core/pull/10385))
+  - Export `isPerpsErrorCode`, `PriceMovedErrorDetails`, and `PerpsErrorDetails`. `PriceMovedErrorDetails` carries unformatted `priceDeltaBps`, `maxSlippageBps`, `expectedPrice`, and `currentPrice`
+  - `createErrorResult` copies `errorCode` and `errorDetails` when the failure is a structured controller error. HyperLiquid mapped rejections, including an immediate-match rejection (`IOC_CANCEL`) and `EXCHANGE_ACCOUNT_NOT_FOUND`, now set `errorCode`; `OrderResult.error` stays the same message
+  - A USD-derived order whose price moved past `maxSlippageBps` (or the default market slippage) reports `PRICE_MOVED`. The message still starts with `Price moved too much:`; the expected and current prices in it use HyperLiquid price formatting
+- Add `PERPS_EVENT_PROPERTY.PRICE_DELTA_BPS` (`price_delta_bps`) and export `PerpsMaxSlippageSource`. Trade and close analytics now include `failure_reason` from `errorCode` when one is present, `price_delta_bps` for a `PRICE_MOVED` rejection, and `max_slippage_pct`, `max_slippage_source`, and `estimated_slippage_pct` from the caller's tracking data. Raw `error_message` is still sent. Failed close events also include `close_type`, which previously appeared only on executed closes ([#10385](https://github.com/MetaMask/core/pull/10385))
+
 ### Changed
 
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/abi-utils` from `^2.0.3` to `^2.0.4` ([#10715](https://github.com/MetaMask/core/pull/10715))
+
+### Fixed
+
+- Skip the calculation-time price guard for exact-size HyperLiquid orders, including a full close that submits the live position size. Those orders are no longer rejected locally when `priceAtCalculation` is stale; the venue's slippage-capped limit still applies. The guard still runs for USD-derived sizing ([#10385](https://github.com/MetaMask/core/pull/10385))
 
 ## [20.0.0]
 
@@ -217,7 +229,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add an optional `chargesMetamaskBuilderFee` field to `FeeCalculationResult`, which reports whether a placement can carry a MetaMask builder fee at all. A `metamaskFeeRate` of `0` is otherwise ambiguous between a venue or order type that has no builder field and a fully waived fee. ([#10294](https://github.com/MetaMask/core/pull/10294))
 - Add an optional `registerTradingAddress` hook to the injected `subscription` dependency, for registering the current HyperLiquid trading address (CAIP-10) against the subscription profile. The injected hook remains a fallback for clients that do not provide `SubscriptionController:registerAddress`. ([#10294](https://github.com/MetaMask/core/pull/10294))
 - Add optional `fillId` field to the `OrderFill` type, an opaque execution identifier (built from HyperLiquid `coin`, `time` and `tid`, or Lighter `tradeId`) so clients can tell apart two executions of one order that share `orderId`, `timestamp`, `size` and `price` ([#10384](https://github.com/MetaMask/core/pull/10384))
-- Add structured Perps order error codes and price-movement details for client localization and analytics ([#10385](https://github.com/MetaMask/core/pull/10385))
 
 ### Changed
 
@@ -240,7 +251,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Allow exact-size Hyperliquid market closes to use the live venue slippage cap without being blocked by a stale USD-sizing snapshot ([#10385](https://github.com/MetaMask/core/pull/10385))
 - Report `source: 'subscription'` only when the waiver survives the venue's fee quantization. The builder fee is submitted in integer tenths of a basis point, so a blend a fraction below the default rounds to the same charge; such an order was labelled as subscription-sourced with a `0` bips discount while paying full price, disagreeing with the client order ID, which already withheld its marking in that case. ([#10294](https://github.com/MetaMask/core/pull/10294))
 - Leave a fee tie to the source that already holds it, rather than claiming it for the subscription waiver. A blend that merely matched the winning rate — a 5-bip blend against a 5-bip VIP discount, or a full waiver against a rewards rate already at `0` — was reported as `source: 'subscription'`, which marks the client order ID and spends the remaining allowance without making the order any cheaper. The waiver now has to be strictly cheaper at venue precision to win. ([#10294](https://github.com/MetaMask/core/pull/10294))
 - Reprice a quote whose `metamaskFeeRate` reads `0` because a concurrent fully waived submit left that rate in provider state. An ordinary preview racing such a submit inherited the other order's waiver and quoted no MetaMask fee; the provider's own builder-fee policy now distinguishes that from a placement that genuinely carries no fee. Repricing a `0` rate is opt-in: a provider that does not report `chargesMetamaskBuilderFee` keeps its own rate, so a `PerpsProvider` implementation written before that field existed cannot gain a MetaMask fee it does not charge. ([#10294](https://github.com/MetaMask/core/pull/10294))
