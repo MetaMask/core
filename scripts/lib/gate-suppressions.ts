@@ -1,0 +1,179 @@
+import { execa } from 'execa';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+import {
+  TSC_SUPPRESSIONS_FILE_NAME,
+  readSuppressions,
+} from './tsc-suppressions.ts';
+
+const REPO_ROOT = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+);
+
+/**
+ * The file in which the lint problems that are knowingly ignored are recorded.
+ */
+const OXLINT_SUPPRESSIONS_FILE_NAME = 'oxlint-suppressions.json';
+
+/**
+ * The suppressions files this guards, which Oxlint and the type error checker
+ * write in the same shape.
+ */
+const SUPPRESSIONS_FILE_NAMES = [
+  OXLINT_SUPPRESSIONS_FILE_NAME,
+  TSC_SUPPRESSIONS_FILE_NAME,
+];
+
+/**
+ * The variable through which CI supplies the ref to measure against, saving the
+ * script from working out what the branch is being merged into.
+ */
+const BASE_REF_ENV_VAR = 'BASE_REF';
+
+/**
+ * The branch this work is destined for when nothing says otherwise.
+ */
+const FALLBACK_TARGET_REF = 'origin/main';
+
+/**
+ * Problems that are knowingly ignored, counted by file and then by the rule or
+ * error code that reports them. Oxlint and the type error checker both write
+ * their suppressions this way.
+ */
+export type Suppressions = Record<string, Record<string, { count: number }>>;
+
+/**
+ * A suppression that covers more problems than the baseline it is compared
+ * against, meaning that problems have been added rather than fixed.
+ */
+export type AddedSuppression = {
+  filePath: string;
+  rule: string;
+  count: number;
+  baseCount: number;
+};
+
+/**
+ * Finds the suppressions that cover more problems than a baseline does.
+ *
+ * Suppressions are meant to be worked off, never added to: a problem that is
+ * new should be fixed rather than recorded. Removing suppressions, or shrinking
+ * their counts, is always allowed.
+ *
+ * @param args - The arguments to this function.
+ * @param args.current - The suppressions as they now stand.
+ * @param args.base - The suppressions to measure them against.
+ * @returns Every suppression that grew or appeared, in file order.
+ */
+export function findAddedSuppressions({
+  current,
+  base,
+}: {
+  current: Suppressions;
+  base: Suppressions;
+}): AddedSuppression[] {
+  const added: AddedSuppression[] = [];
+
+  for (const [filePath, currentByRule] of Object.entries(current)) {
+    for (const [rule, { count }] of Object.entries(currentByRule)) {
+      const baseCount = base[filePath]?.[rule]?.count ?? 0;
+      if (count > baseCount) {
+        added.push({ filePath, rule, count, baseCount });
+      }
+    }
+  }
+
+  return added;
+}
+
+/**
+ * Prints the suppressions that have been added to a file.
+ *
+ * @param fileName - The suppressions file the additions were found in.
+ * @param added - The added suppressions to print.
+ */
+export function printAddedSuppressions(
+  fileName: string,
+  added: AddedSuppression[],
+): void {
+  console.log(`❌ Detected new suppressions in ${fileName}:\n`);
+  for (const suppression of added) {
+    console.log(
+      `  ${suppression.filePath}: ${suppression.rule} (${suppression.baseCount} -> ${suppression.count})`,
+    );
+  }
+  console.log('');
+}
+
+/**
+ * Finds the commit holding the suppressions files to measure against.
+ *
+ * CI says so outright through `BASE_REF`, as it is the one that knows: it checks
+ * a pull request out as the merge of the branch into its base, which makes the
+ * base the merge commit's first parent and leaves the working tree with the
+ * base's own changes already folded in. With nothing set, as when this is run by
+ * hand, the merge base with the target branch stands in for it.
+ *
+ * @param targetRef - The branch this work is destined for.
+ * @returns The ref to read the baseline from.
+ */
+async function resolveBaseRef(targetRef: string): Promise<string> {
+  const baseRef = process.env[BASE_REF_ENV_VAR];
+  if (baseRef !== undefined && baseRef !== '') {
+    return baseRef;
+  }
+
+  const { stdout } = await execa('git', ['merge-base', 'HEAD', targetRef], {
+    cwd: REPO_ROOT,
+  });
+  return stdout.trim();
+}
+
+/**
+ * Checks that no problems have been added to any of the suppressions files.
+ *
+ * The lint and type error checks keep new problems from landing, but their
+ * escape hatch — regenerating a suppressions file — can be used to paper over
+ * one rather than fix it. This closes that hatch: measured against the base
+ * branch, these files may only shrink.
+ *
+ * Pass a branch to measure against one other than `origin/main`, or set
+ * `BASE_REF` to name the base commit outright.
+ *
+ * @param argv - The arguments passed to this script.
+ */
+export async function gateSuppressions(argv: readonly string[]): Promise<void> {
+  const baseRef = await resolveBaseRef(argv[0] ?? FALLBACK_TARGET_REF);
+  const results: { fileName: string; added: AddedSuppression[] }[] = [];
+
+  for (const fileName of SUPPRESSIONS_FILE_NAMES) {
+    const { stdout } = await execa('git', ['show', `${baseRef}:${fileName}`], {
+      cwd: REPO_ROOT,
+    });
+    const base = JSON.parse(stdout) as Suppressions;
+    const current = await readSuppressions(path.join(REPO_ROOT, fileName));
+
+    results.push({ fileName, added: findAddedSuppressions({ current, base }) });
+  }
+
+  const failures = results.filter(({ added }) => added.length > 0);
+
+  if (failures.length === 0) {
+    for (const { fileName } of results) {
+      console.log(`✅ Nothing has been added to ${fileName}. Good job!`);
+    }
+    return;
+  }
+
+  for (const { fileName, added } of failures) {
+    printAddedSuppressions(fileName, added);
+  }
+
+  console.log(
+    'Suppressions may only be removed, never added. Fix the errors rather than suppressing them.',
+  );
+  process.exitCode = 1;
+}

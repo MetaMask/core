@@ -1,6 +1,11 @@
 import fs from 'fs/promises';
 
 /**
+ * The file in which the type errors that are knowingly ignored are recorded.
+ */
+export const TSC_SUPPRESSIONS_FILE_NAME = 'tsc-suppressions.json';
+
+/**
  * A diagnostic reported by `tsc`. Most belong to a file; those that report a
  * broken build rather than a type error do not.
  */
