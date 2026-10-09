@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Require a `reference` property on `InitializationConfiguration` for instances that have state ([#10023](https://github.com/MetaMask/core/pull/10023))
 - **BREAKING:** Delegate `AnalyticsController:trackEvent` and `KeyringController:exportSeedPhrase` from the wallet root messenger to `SeedlessOnboardingController`. ([#10568](https://github.com/MetaMask/core/pull/10568))
 - **BREAKING:** Grant `SubscriptionController` access to `GeolocationController:getGeolocationData` ([#10674](https://github.com/MetaMask/core/pull/10674))
   - The wallet does not construct `GeolocationController`. Clients must register that action on the Wallet messenger.

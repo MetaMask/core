@@ -9,6 +9,7 @@ export const claimsController: InitializationConfiguration<
   ClaimsControllerMessenger
 > = {
   name: 'ClaimsController',
+  reference: ClaimsController,
   init: ({ state, messenger }) =>
     new ClaimsController({
       messenger,

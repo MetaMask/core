@@ -1,3 +1,9 @@
+import { validateControllerState } from '@metamask/base-controller';
+import type {
+  StateConstraint,
+  ValidatableController,
+} from '@metamask/base-controller';
+
 import type { InstanceSpecificOptions, WalletOptions } from '../types.js';
 import type {
   DefaultActions,
@@ -5,11 +11,24 @@ import type {
   DefaultInstances,
 } from './defaults.js';
 import { defaultConfigurations, RootMessenger } from './defaults.js';
-import { InitializationConfiguration } from './types.js';
 
 type InitializeOptions = WalletOptions & {
   messenger: RootMessenger<DefaultActions, DefaultEvents>;
 };
+
+/**
+ * Check whether a instance configuration reference defines a state `struct`.
+ *
+ * @param reference - The `reference` of an initialization configuration.
+ * @returns Whether the reference has the metadata required to validate state.
+ */
+function isInstanceValidatable(
+  reference:
+    | Partial<ValidatableController<unknown, StateConstraint>>
+    | undefined,
+): reference is ValidatableController<unknown, StateConstraint> {
+  return reference?.struct !== undefined;
+}
 
 /**
  * Initialize all instances based on th default configurations and any additional configurations specified in `options`.
@@ -38,16 +57,27 @@ export function initialize(options: InitializeOptions): DefaultInstances {
   const instances: Record<string, unknown> = {};
 
   for (const config of configurationEntries) {
-    const { name } = config;
+    const { name, reference } = config;
 
-    const instanceState = state[name];
+    const rawState = state[name];
+
+    const instanceState =
+      rawState && isInstanceValidatable(reference)
+        ? validateControllerState(
+            name,
+            reference,
+            rawState,
+            'lenient',
+            messenger.captureException,
+          )
+        : rawState;
 
     const instanceMessenger = config.getMessenger(messenger);
 
     const camelCaseName =
       `${name.charAt(0).toLowerCase()}${name.slice(1)}` as keyof InstanceSpecificOptions;
 
-    const instance = config.init({
+    const instance: unknown = config.init({
       // TODO: Consider whether this can be improved
       state: instanceState as never,
       messenger: instanceMessenger,
