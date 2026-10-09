@@ -83,6 +83,21 @@ function isSignerUnavailable(error: string | undefined): boolean {
 }
 
 /**
+ * Flip results that are expected account or signer states, not defects.
+ * A locked keyring is retried by the user. A missing exchange account is the
+ * pre-account state already kept out of error reporting by the provider.
+ *
+ * @param error - The provider result error.
+ * @returns True for `KEYRING_LOCKED` and `EXCHANGE_ACCOUNT_NOT_FOUND`.
+ */
+function isSilentFlipResult(error: string | undefined): boolean {
+  return (
+    isSignerUnavailable(error) ||
+    error === PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND
+  );
+}
+
+/**
  * TradingService
  *
  * Handles trading operations with fee discount management.
@@ -2989,6 +3004,24 @@ export class TradingService {
             ...this.#buildAttributionProperties(trackingData),
           },
         );
+
+        if (!isSilentFlipResult(result.error)) {
+          this.#deps.logger.error(
+            ensureError(result.error, 'TradingService.flipPosition'),
+            this.#getErrorContext(
+              context,
+              'flipPosition',
+              {
+                operation: PERPS_ERROR_OPERATION.PositionManagement,
+                action: PERPS_ERROR_ACTION.FlipPosition,
+              },
+              {
+                symbol: position.symbol,
+                providerError: result.error ?? 'Unknown error',
+              },
+            ),
+          );
+        }
       }
 
       this.#deps.tracer.endTrace({
