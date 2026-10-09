@@ -373,6 +373,9 @@ export type KeyringControllerSubmitPasswordAction = {
  * function execution, or rolls back the changes if an error
  * is thrown.
  *
+ * Only the selected keyring is snapshotted, persisted, and rolled back:
+ * the operation must not mutate other keyrings.
+ *
  * @param selector - Keyring selector object.
  * @param operation - Function to execute with the selected keyring.
  * @param options - Additional options.
@@ -442,6 +445,9 @@ export type KeyringControllerWithKeyringUnsafeAction = {
  * The method automatically persists changes at the end of the
  * function execution, or rolls back the changes if an error
  * is thrown.
+ *
+ * Only the selected keyring is snapshotted, persisted, and rolled back:
+ * the operation must not mutate other keyrings.
  *
  * @param selector - Keyring selector object.
  * @param operation - Function to execute with the wrapped V2 keyring.
