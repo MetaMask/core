@@ -532,12 +532,11 @@ describe('KycController', () => {
       });
     });
 
-    it.each(['approved', 'rejected'] as const)(
-      'fetches an expired %s status without refreshing authorization or polling',
+    it.each(['approved', 'rejected', 'retry'] as const)(
+      'returns a %s session without fetching, refreshing authorization, or polling',
       async (finalStatus) => {
         jest.useFakeTimers();
-        const current = sessionStatus('pending');
-        const fetched = sessionStatus(finalStatus, {
+        const current = sessionStatus(finalStatus, {
           capabilityAuthorizationStatus: 'expired',
         });
         await withController(
@@ -545,67 +544,25 @@ describe('KycController', () => {
             options: { state: { sessionStatus: current } },
           },
           async ({ controller, handlers }) => {
-            handlers.getSessionStatus.mockResolvedValue(fetched);
+            expect(controller.refreshSessionStatus()).toStrictEqual(current);
 
-            expect(controller.refreshSessionStatus()).toStrictEqual(
-              current,
-            );
-            await flushPromises();
-
-            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
-            expect(handlers.getSessionStatus).toHaveBeenCalledWith({
-              sessionId: 'sid',
-            });
-            expect(controller.state.sessionStatus).toStrictEqual(fetched);
+            expect(handlers.getSessionStatus).not.toHaveBeenCalled();
             expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
             expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+            expect(controller.state.sessionStatus).toStrictEqual(current);
 
             await jest.advanceTimersByTimeAsync(30_000);
-            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+            expect(handlers.getSessionStatus).not.toHaveBeenCalled();
           },
         );
       },
     );
 
-    it('fetches an expired retry status, refreshes authorization, and does not poll', async () => {
+    it('returns the persisted status and starts polling when not terminal', async () => {
       jest.useFakeTimers();
-      const current = sessionStatus('pending');
-      const fetched = sessionStatus('retry', {
+      const current = sessionStatus('pending', {
         capabilityAuthorizationStatus: 'expired',
       });
-      const refreshed = sessionStatus('retry', {
-        capabilityAuthorizationStatus: 'stored',
-      });
-      await withController(
-        {
-          options: { state: { sessionStatus: current } },
-        },
-        async ({ controller, handlers }) => {
-          handlers.getSessionStatus.mockResolvedValue(fetched);
-          handlers.setAuthorizations.mockResolvedValue(refreshed);
-
-          expect(controller.refreshSessionStatus()).toStrictEqual(
-            current,
-          );
-          await flushPromises();
-
-          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
-          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
-            sessionId: 'sid',
-          });
-          expectResetWrappingKeys(handlers.resetWrappingKeys, 'sid');
-          expect(handlers.setAuthorizations).toHaveBeenCalledTimes(1);
-          expect(controller.state.sessionStatus).toStrictEqual(refreshed);
-
-          await jest.advanceTimersByTimeAsync(30_000);
-          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('returns the persisted status, writes the fetch, and starts polling when not terminal', async () => {
-      jest.useFakeTimers();
-      const current = sessionStatus('pending');
       const latest = sessionStatus('pending', { kycStatus: 'in_review' });
       await withController(
         {
@@ -614,12 +571,10 @@ describe('KycController', () => {
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue(latest);
 
-          expect(controller.refreshSessionStatus()).toStrictEqual(
-            current,
-          );
+          expect(controller.refreshSessionStatus()).toStrictEqual(current);
           await flushPromises();
 
-          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
@@ -628,128 +583,9 @@ describe('KycController', () => {
           expect(handlers.setAuthorizations).not.toHaveBeenCalled();
 
           await jest.advanceTimersByTimeAsync(15_000);
-          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
         },
       );
-    });
-
-    it.each(['new', 'expired'] as const)(
-      'refreshes capability authorization when the fetched status is %s and then polls',
-      async (capabilityAuthorizationStatus) => {
-        jest.useFakeTimers();
-        const current = sessionStatus('pending');
-        const fetched = sessionStatus('pending', {
-          capabilityAuthorizationStatus,
-        });
-        const refreshed = sessionStatus('pending', {
-          capabilityAuthorizationStatus: 'stored',
-        });
-        await withController(
-          {
-            options: { state: { sessionStatus: current } },
-          },
-          async ({ controller, handlers }) => {
-            handlers.getSessionStatus
-              .mockResolvedValueOnce(fetched)
-              .mockResolvedValue(refreshed);
-            handlers.setAuthorizations.mockResolvedValue(refreshed);
-
-            expect(controller.refreshSessionStatus()).toStrictEqual(
-              current,
-            );
-            await flushPromises();
-
-            expect(handlers.getSessionStatus).toHaveBeenCalledWith({
-              sessionId: 'sid',
-            });
-            expectResetWrappingKeys(handlers.resetWrappingKeys, 'sid');
-            expect(handlers.setAuthorizations).toHaveBeenCalledTimes(1);
-            expect(controller.state.sessionStatus).toStrictEqual(refreshed);
-
-            await jest.advanceTimersByTimeAsync(15_000);
-            expect(handlers.getSessionStatus.mock.calls.length).toBeGreaterThan(
-              1,
-            );
-          },
-        );
-      },
-    );
-
-    it('logs a fetch failure and still starts polling', async () => {
-      jest.useFakeTimers();
-      const consoleError = jest
-        .spyOn(console, 'error')
-        .mockImplementation(() => undefined);
-      const current = sessionStatus('pending');
-      try {
-        await withController(
-          {
-            options: { state: { sessionStatus: current } },
-          },
-          async ({ controller, handlers }) => {
-            handlers.getSessionStatus
-              .mockRejectedValueOnce(new Error('status failed'))
-              .mockResolvedValue(current);
-
-            expect(controller.refreshSessionStatus()).toStrictEqual(
-              current,
-            );
-            await flushPromises();
-
-            expect(consoleError).toHaveBeenCalledWith(
-              'Error refreshing session status:',
-              expect.any(Error),
-            );
-            expect(controller.state.sessionStatus).toStrictEqual(current);
-            expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
-            expect(handlers.setAuthorizations).not.toHaveBeenCalled();
-            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
-          },
-        );
-      } finally {
-        consoleError.mockRestore();
-      }
-    });
-
-    it('logs an authorization refresh failure and still starts polling', async () => {
-      jest.useFakeTimers();
-      const consoleError = jest
-        .spyOn(console, 'error')
-        .mockImplementation(() => undefined);
-      const current = sessionStatus('pending');
-      const fetched = sessionStatus('pending', {
-        capabilityAuthorizationStatus: 'expired',
-      });
-      try {
-        await withController(
-          {
-            options: { state: { sessionStatus: current } },
-          },
-          async ({ controller, handlers }) => {
-            handlers.getSessionStatus.mockResolvedValue(fetched);
-            handlers.resetWrappingKeys.mockRejectedValue(
-              new Error('reset failed'),
-            );
-
-            expect(controller.refreshSessionStatus()).toStrictEqual(
-              current,
-            );
-            await flushPromises();
-
-            expect(consoleError).toHaveBeenCalledWith(
-              'Error refreshing session status:',
-              expect.any(Error),
-            );
-            expect(controller.state.sessionStatus).toStrictEqual(fetched);
-            expect(handlers.setAuthorizations).not.toHaveBeenCalled();
-            expect(handlers.getSessionStatus.mock.calls.length).toBeGreaterThan(
-              1,
-            );
-          },
-        );
-      } finally {
-        consoleError.mockRestore();
-      }
     });
   });
 

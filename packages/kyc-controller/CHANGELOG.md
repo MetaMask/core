@@ -23,13 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `refreshSessionStatus` returns the session already stored on state, then
-  fetches the latest status in the background, refreshes capability
-  authorization when `capabilityAuthorizationStatus` is `new` or `expired`
-  (skipped when `finalStatus` is `approved` or `rejected`), and starts
-  session-status polling when the session is still in progress. Fetch and
-  authorization failures are logged and do not throw from this method
-  ([#10692](https://github.com/MetaMask/core/pull/10692))
 - Refresh and resubmit the UKYC capability authorization when
   `capabilityAuthorizationStatus` is `new` or `expired` while resuming a
   session in `startSession` (skipped when `finalStatus` is `approved` or
