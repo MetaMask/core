@@ -1,4 +1,3 @@
-import { convertHexToDecimal } from '@metamask/controller-utils';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
@@ -7,18 +6,11 @@ import {
   CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
   DELEGATION_MANAGER_ADDRESSES,
 } from '../constants.js';
-import {
-  SimulationChainNotSupportedError,
-  SimulationError,
-} from '../errors.js';
 import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type { GetSimulationConfig } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'simulation-api');
-
-const RPC_METHOD = 'infura_simulateTransactions';
-const BASE_URL = 'https://tx-sentinel-{0}.api.cx.metamask.io/';
-const ENDPOINT_NETWORKS = 'networks';
 
 /** Single transaction to simulate in a simulation API request.  */
 export type SimulationRequestTransaction = {
@@ -269,118 +261,52 @@ export type SimulationResponse = {
   };
 };
 
-/** Data for a network supported by the Simulation API. */
-type SimulationNetwork = {
-  /** Subdomain of the API for the network.  */
-  network: string;
-
-  /** Whether the network supports confirmation simulations. */
-  confirmations: boolean;
+type SimulateTransactionsOptions = {
+  chainId: Hex;
+  messenger: TransactionControllerMessenger;
+  request: SimulationRequest;
 };
-
-/** Response from the simulation API containing supported networks. */
-type SimulationNetworkResponse = {
-  [chainIdDecimal: string]: SimulationNetwork;
-};
-
-let requestIdCounter = 0;
 
 /**
  * Simulate transactions using the transaction simulation API.
  *
- * @param chainId - The chain ID to simulate transactions on.
- * @param request - The request to simulate transactions.
+ * @param options - Simulation options.
+ * @param options.chainId - The chain ID to simulate transactions on.
+ * @param options.request - The request to simulate transactions.
+ * @param options.messenger - The transaction controller messenger.
  * @returns The response from the simulation API.
  */
-export async function simulateTransactions(
-  chainId: Hex,
-  request: SimulationRequest,
-): Promise<SimulationResponse> {
-  let url = await getSimulationUrl(chainId);
+export async function simulateTransactions({
+  chainId,
+  request,
+  messenger,
+}: SimulateTransactionsOptions): Promise<SimulationResponse> {
+  const { getSimulationConfig, ...rpcRequest } = finalizeRequest(request);
 
-  const { newUrl, authorization } =
-    (await request.getSimulationConfig(url)) || {};
-  if (newUrl) {
-    url = newUrl;
-  }
+  log('Sending request', chainId, rpcRequest);
 
-  const requestId = requestIdCounter;
-  requestIdCounter += 1;
+  // Callers catch simulation failures and either swallow or replace them, so
+  // all service errors, including a missing result, can propagate unchanged.
+  const response = await messenger.call(
+    'SentinelApiService:simulateTransactions',
+    chainId,
+    rpcRequest,
+    {
+      getUrl: async (defaultUrl) => {
+        const { newUrl, authorization } =
+          (await getSimulationConfig(defaultUrl)) || {};
 
-  const finalRequest = finalizeRequest(request);
+        return {
+          url: newUrl ?? defaultUrl,
+          ...(authorization ? { authorization } : {}),
+        };
+      },
+    },
+  );
 
-  log('Sending request', url, request);
+  log('Received response', response);
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  // Add optional authorization header, if provided.
-  if (authorization) {
-    headers.Authorization = authorization;
-  }
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      id: String(requestId),
-      jsonrpc: '2.0',
-      method: RPC_METHOD,
-      params: [finalRequest],
-    }),
-  });
-
-  const responseJson = await response.json();
-
-  log('Received response', responseJson);
-
-  if (responseJson.error) {
-    const { code, message } = responseJson.error;
-    throw new SimulationError(message, code);
-  }
-
-  return responseJson?.result;
-}
-
-/**
- * Get the URL for the transaction simulation API.
- *
- * @param chainId - The chain ID to get the URL for.
- * @returns The URL for the transaction simulation API.
- */
-async function getSimulationUrl(chainId: Hex): Promise<string> {
-  const networkData = await getNetworkData();
-  const chainIdDecimal = convertHexToDecimal(chainId);
-  const network = networkData[chainIdDecimal];
-
-  if (!network?.confirmations) {
-    log('Chain is not supported', chainId);
-    throw new SimulationChainNotSupportedError(chainId);
-  }
-
-  return getUrl(network.network);
-}
-
-/**
- * Retrieve the supported network data from the simulation API.
- *
- * @returns The network data response from the simulation API.
- */
-async function getNetworkData(): Promise<SimulationNetworkResponse> {
-  const url = `${getUrl('ethereum-mainnet')}${ENDPOINT_NETWORKS}`;
-  const response = await fetch(url);
-  return response.json();
-}
-
-/**
- * Generate the URL for the specified subdomain in the simulation API.
- *
- * @param subdomain - The subdomain to generate the URL for.
- * @returns The URL for the transaction simulation API.
- */
-function getUrl(subdomain: string): string {
-  return BASE_URL.replace('{0}', subdomain);
+  return response;
 }
 
 /**

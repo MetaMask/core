@@ -1080,6 +1080,7 @@ async function prepareApprovalData({
     chainId,
     from,
     getSimulationConfig,
+    messenger,
     transactions: nestedTransactions,
   });
 

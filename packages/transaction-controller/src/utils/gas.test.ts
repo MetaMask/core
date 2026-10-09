@@ -1193,19 +1193,23 @@ describe('gas', () => {
           },
         });
 
-        expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-          transactions: [
-            {
-              ...TRANSACTION_META_MOCK.txParams,
-              to: TRANSACTION_META_MOCK.txParams.from,
-            },
-          ],
-          overrides: {
-            [TRANSACTION_META_MOCK.txParams.from]: {
-              code:
-                DELEGATION_PREFIX +
-                remove0x(AUTHORIZATION_LIST_MOCK[0].address),
+        expect(simulateTransactionsMock).toHaveBeenCalledWith({
+          chainId: CHAIN_ID_MOCK,
+          messenger: MESSENGER_MOCK,
+          request: {
+            getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK.txParams,
+                to: TRANSACTION_META_MOCK.txParams.from,
+              },
+            ],
+            overrides: {
+              [TRANSACTION_META_MOCK.txParams.from]: {
+                code:
+                  DELEGATION_PREFIX +
+                  remove0x(AUTHORIZATION_LIST_MOCK[0].address),
+              },
             },
           },
         });
@@ -1660,18 +1664,22 @@ describe('gas', () => {
         gasLimits: [21000, 500000],
       });
 
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-        transactions: [
-          {
-            ...BATCH_TX_PARAMS_MOCK[0],
-            from: FROM_MOCK,
-          },
-          {
-            ...BATCH_TX_PARAMS_MOCK[1],
-            from: FROM_MOCK,
-          },
-        ],
+      expect(simulateTransactionsMock).toHaveBeenCalledWith({
+        chainId: CHAIN_ID_MOCK,
+        messenger: MESSENGER_MOCK,
+        request: {
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          transactions: [
+            {
+              ...BATCH_TX_PARAMS_MOCK[0],
+              from: FROM_MOCK,
+            },
+            {
+              ...BATCH_TX_PARAMS_MOCK[1],
+              from: FROM_MOCK,
+            },
+          ],
+        },
       });
     });
 
@@ -1815,6 +1823,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         from: FROM_MOCK,
         getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
         transactions: TRANSACTION_BATCH_REQUEST_MOCK,
       });
 
@@ -1824,18 +1833,22 @@ describe('gas', () => {
       });
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-        transactions: [
-          {
-            ...TRANSACTION_BATCH_REQUEST_MOCK[0].params,
-            from: FROM_MOCK,
-          },
-          {
-            ...TRANSACTION_BATCH_REQUEST_MOCK[1].params,
-            from: FROM_MOCK,
-          },
-        ],
+      expect(simulateTransactionsMock).toHaveBeenCalledWith({
+        chainId: CHAIN_ID_MOCK,
+        messenger: MESSENGER_MOCK,
+        request: {
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          transactions: [
+            {
+              ...TRANSACTION_BATCH_REQUEST_MOCK[0].params,
+              from: FROM_MOCK,
+            },
+            {
+              ...TRANSACTION_BATCH_REQUEST_MOCK[1].params,
+              from: FROM_MOCK,
+            },
+          ],
+        },
       });
     });
 
@@ -1855,6 +1868,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
           getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          messenger: MESSENGER_MOCK,
           transactions: TRANSACTION_BATCH_REQUEST_MOCK,
         }),
       ).rejects.toThrow(
@@ -1881,6 +1895,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
           getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          messenger: MESSENGER_MOCK,
           transactions: TRANSACTION_BATCH_REQUEST_MOCK,
         }),
       ).rejects.toThrow(
@@ -1903,6 +1918,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         from: FROM_MOCK,
         getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
         transactions: [],
       });
 
@@ -1912,9 +1928,13 @@ describe('gas', () => {
       });
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-        transactions: [],
+      expect(simulateTransactionsMock).toHaveBeenCalledWith({
+        chainId: CHAIN_ID_MOCK,
+        messenger: MESSENGER_MOCK,
+        request: {
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          transactions: [],
+        },
       });
     });
 
@@ -1928,6 +1948,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
           getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          messenger: MESSENGER_MOCK,
           transactions: TRANSACTION_BATCH_REQUEST_MOCK,
         }),
       ).rejects.toThrow(

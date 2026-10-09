@@ -2621,6 +2621,7 @@ describe('Batch Utils', () => {
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
           getSimulationConfig: request.getSimulationConfig,
+          messenger: MESSENGER_MOCK,
           transactions: TRANSACTIONS_BATCH_MOCK,
         });
         expect(getGasFeesMock).toHaveBeenCalledTimes(1);

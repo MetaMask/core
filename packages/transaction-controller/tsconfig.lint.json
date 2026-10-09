@@ -42,6 +42,9 @@
       "path": "../remote-feature-flag-controller/tsconfig.lint.json"
     },
     {
+      "path": "../sentinel-api-service/tsconfig.lint.json"
+    },
+    {
       "path": "../utils/tsconfig.lint.json"
     }
   ]

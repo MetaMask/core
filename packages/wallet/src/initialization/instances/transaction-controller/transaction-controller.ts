@@ -43,6 +43,7 @@ export const transactionController: InitializationConfiguration<
         'NetworkController:getNetworkClientRegistry',
         'NetworkController:getState',
         'RemoteFeatureFlagController:getState',
+        'SentinelApiService:simulateTransactions',
       ],
       events: [
         'AccountActivityService:transactionUpdated',

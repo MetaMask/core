@@ -33,6 +33,9 @@
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
     },
     {
+      "path": "../sentinel-api-service/tsconfig.build.json"
+    },
+    {
       "path": "../connectivity-controller/tsconfig.build.json"
     },
     {

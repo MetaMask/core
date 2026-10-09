@@ -77,6 +77,31 @@ describe('transactionController', () => {
     );
   });
 
+  it('delegates SentinelApiService:simulateTransactions to the controller messenger', async () => {
+    const rootMessenger = getRootMessenger();
+    const simulateTransactions = jest.fn().mockReturnValue({
+      transactions: [],
+    });
+
+    registerActionHandler(
+      rootMessenger,
+      'SentinelApiService',
+      'SentinelApiService:simulateTransactions',
+      simulateTransactions,
+    );
+
+    const messenger = transactionController.getMessenger(rootMessenger);
+
+    await messenger.call(
+      'SentinelApiService:simulateTransactions',
+      '0x1',
+      { transactions: [] },
+      {},
+    );
+
+    expect(simulateTransactions).toHaveBeenCalledTimes(1);
+  });
+
   it('forwards the provided state to the controller', () => {
     const rootMessenger = getRootMessenger();
     const messenger = transactionController.getMessenger(rootMessenger);
