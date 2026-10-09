@@ -327,6 +327,7 @@
   ],
   "files": [],
   "include": [
+    "./.oxlint-plugins/**/*.ts",
     "./docs",
     "./types",
     "./scripts",

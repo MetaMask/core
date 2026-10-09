@@ -83,6 +83,7 @@
     "@metamask/oxlint-config-typescript": "^0.1.1",
     "@metamask/skills": "^0.3.1",
     "@metamask/utils": "^12.0.0",
+    "@oxlint/plugins": "^1.86.0",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.25",
     "@types/node": "^22.13.14",

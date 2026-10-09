@@ -6365,6 +6365,7 @@ __metadata:
     "@metamask/oxlint-config-typescript": "npm:^0.1.1"
     "@metamask/skills": "npm:^0.3.1"
     "@metamask/utils": "npm:^12.0.0"
+    "@oxlint/plugins": "npm:^1.86.0"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash": "npm:^4.17.25"
     "@types/node": "npm:^22.13.14"
@@ -10641,6 +10642,13 @@ __metadata:
   version: 1.85.0
   resolution: "@oxlint/binding-win32-x64-msvc@npm:1.85.0"
   conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@oxlint/plugins@npm:^1.86.0":
+  version: 1.86.0
+  resolution: "@oxlint/plugins@npm:1.86.0"
+  checksum: 10/d38aa96f16f145ae47c5955f5b45fb4020094fbe2e04473666e71a19fa7878998f3e54f5bc16815c23598ea52a8d6be091914b8dab1c017557f09344754403f8
   languageName: node
   linkType: hard
 
