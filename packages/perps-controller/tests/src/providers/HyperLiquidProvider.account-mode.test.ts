@@ -1647,6 +1647,57 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
+    it('checks support for the account captured by unified account setup', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const mockExchangeClient = createMockExchangeClient();
+      const userToMultiSigSigners = jest
+        .fn()
+        .mockImplementation(({ user }: { user: string }) =>
+          Promise.resolve(
+            user === USER_ADDRESS
+              ? {
+                  authorizedUsers: [
+                    '0xabc0000000000000000000000000000000000001',
+                  ],
+                  threshold: 2,
+                }
+              : null,
+          ),
+        );
+      const userAbstraction = jest.fn().mockImplementation(async () => {
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+          switchedAddress,
+        );
+        return 'default';
+      });
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction,
+          userToMultiSigSigners,
+        }),
+      );
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(mockExchangeClient);
+
+      await provider.getMarketDataWithPrices();
+
+      expect(userToMultiSigSigners).toHaveBeenCalledWith({
+        user: USER_ADDRESS,
+      });
+      expect(userToMultiSigSigners).not.toHaveBeenCalledWith({
+        user: switchedAddress,
+      });
+      expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
+      expect(
+        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+          .set,
+      ).toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
+        attempted: true,
+        enabled: false,
+      });
+    });
+
     it('caches attempted-but-not-enabled readiness for Hyperliquid multi-sig accounts', async () => {
       // Arrange
       const mockCompleteInFlight = jest.fn();
