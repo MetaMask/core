@@ -1,9 +1,9 @@
 import type {
-  C2FResponse,
   CubeSignerClient,
-  JsonValue,
+  InvokePolicyResponse,
   Version,
 } from '@cubist-labs/cubesigner-sdk';
+import { bytesToString, hexToBytes } from '@metamask/utils';
 
 import {
   hashMutationReceipt,
@@ -32,13 +32,14 @@ const DEFAULT_VERSION: Version = 'latest';
 /**
  * CubeSigner C2F client for the Cubist recovery escrow.
  *
- * Commands are invoked as `{ cmd, ...fields }` on `cubist_secret_escrow`.
+ * Commands are sent with `policyInvoke` as `{ cmd, ...fields }` on
+ * `cubist_secret_escrow`.
  * Escrow JSON is read from C2F stdout. Receipt signatures are checked locally
  * with the pinned receipt public key.
  */
 export type CubistEscrowProviderOptions = {
   /**
-   * Authenticated CubeSigner client used to load and invoke the escrow C2F.
+   * Authenticated CubeSigner client used to invoke the escrow C2F.
    */
   client: CubeSignerClient;
   /**
@@ -86,11 +87,11 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   }
 
   /**
-   * @returns Whether the escrow C2F can be loaded.
+   * @returns Whether a ping of the escrow C2F is allowed and reports ok.
    */
   async isAvailable(): Promise<boolean> {
     try {
-      await this.#client.org().getFunction(this.#functionId);
+      await this.#invoke('ping', {}, parsePing);
       return true;
     } catch {
       return false;
@@ -192,22 +193,20 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     body: Record<string, unknown>,
     parse: (value: unknown) => Result,
   ): Promise<Result> {
-    let policy: C2FResponse;
-    let stdoutBytes: Uint8Array;
+    let invocation: InvokePolicyResponse;
     try {
-      const fn = await this.#client.org().getFunction(this.#functionId);
-      const result = await fn.invoke(undefined, this.#version, {
-        cmd,
-        ...body,
-      } as JsonValue);
-      policy = result.response;
-      stdoutBytes = result.stdoutBytes;
+      invocation = await this.#client.apiClient.policyInvoke(
+        this.#functionId,
+        this.#version,
+        { request: { cmd, ...body } },
+      );
     } catch (error) {
       throw new MfaRecoveryError(
         error instanceof Error ? error.message : 'Escrow request failed',
         'escrow_request_failed',
       );
     }
+    const policy = invocation.response;
     if (policy.response !== 'Allow') {
       throw new MfaRecoveryError(
         policy.response === 'Deny' ? policy.reason : policy.error,
@@ -216,7 +215,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     }
     let json: unknown;
     try {
-      json = JSON.parse(new TextDecoder().decode(stdoutBytes));
+      json = JSON.parse(bytesToString(hexToBytes(invocation.stdout)));
     } catch {
       throw new MfaRecoveryError(
         'Escrow response was not JSON',
@@ -224,6 +223,15 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
       );
     }
     return parse(json);
+  }
+}
+
+function parsePing(value: unknown): void {
+  if (!isRecord(value) || value.ok !== true) {
+    throw new MfaRecoveryError(
+      'Invalid ping response',
+      'escrow_response_invalid',
+    );
   }
 }
 

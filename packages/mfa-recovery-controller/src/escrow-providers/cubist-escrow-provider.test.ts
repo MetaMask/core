@@ -1,4 +1,5 @@
 import type { CubeSignerClient } from '@cubist-labs/cubesigner-sdk';
+import { bytesToHex } from '@metamask/utils';
 
 import {
   generateSigningKey,
@@ -77,26 +78,38 @@ describe('CubistEscrowProvider', () => {
   });
 
   describe('isAvailable', () => {
-    it('returns true when the C2F function can be loaded', async () => {
-      const { provider, getFunction } = createProvider();
-      expect(await provider.isAvailable()).toBe(true);
-      expect(getFunction).toHaveBeenCalledWith('cubist_secret_escrow');
-    });
-
-    it('loads a caller-specified function id', async () => {
-      const { provider, getFunction } = createProvider({
-        functionId: 'NamedPolicy#escrow',
+    it('returns true when ping is allowed and reports ok', async () => {
+      const { provider, invoke } = createProvider({
+        stdout: { ok: true },
       });
       expect(await provider.isAvailable()).toBe(true);
-      expect(getFunction).toHaveBeenCalledWith('NamedPolicy#escrow');
+      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
+        request: { cmd: 'ping' },
+      });
     });
 
-    it('returns false when getFunction throws', async () => {
+    it('pings a caller-specified function id', async () => {
+      const { provider, invoke } = createProvider({
+        functionId: 'NamedPolicy#escrow',
+        stdout: { ok: true },
+      });
+      expect(await provider.isAvailable()).toBe(true);
+      expect(invoke).toHaveBeenCalledWith('NamedPolicy#escrow', 'latest', {
+        request: { cmd: 'ping' },
+      });
+    });
+
+    it('returns false when policyInvoke throws', async () => {
       const { provider } = createProvider({
-        getFunction: async () => {
+        invoke: async () => {
           throw new Error('offline');
         },
       });
+      expect(await provider.isAvailable()).toBe(false);
+    });
+
+    it('returns false when ping does not report ok', async () => {
+      const { provider } = createProvider({ stdout: { ok: false } });
       expect(await provider.isAvailable()).toBe(false);
     });
   });
@@ -107,8 +120,8 @@ describe('CubistEscrowProvider', () => {
         stdout: CHALLENGE,
       });
       expect(await provider.generateChallenge()).toStrictEqual(CHALLENGE);
-      expect(invoke).toHaveBeenCalledWith(undefined, 'latest', {
-        cmd: 'generateChallenge',
+      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
+        request: { cmd: 'generateChallenge' },
       });
     });
 
@@ -143,12 +156,14 @@ describe('CubistEscrowProvider', () => {
       expect(
         await provider.applyMutation(MUTATION, TOKEN, null, PAYLOAD),
       ).toStrictEqual(receipt);
-      expect(invoke).toHaveBeenCalledWith(undefined, 'latest', {
-        cmd: 'applyMutation',
-        mutation: MUTATION,
-        authControllerToken: TOKEN,
-        identifierAuthorization: null,
-        payload: PAYLOAD,
+      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
+        request: {
+          cmd: 'applyMutation',
+          mutation: MUTATION,
+          authControllerToken: TOKEN,
+          identifierAuthorization: null,
+          payload: PAYLOAD,
+        },
       });
     });
 
@@ -173,11 +188,13 @@ describe('CubistEscrowProvider', () => {
       expect(
         await provider.getSecret(AUTHORIZATION, 'req-1', PK_E),
       ).toStrictEqual(secretResponse);
-      expect(invoke).toHaveBeenCalledWith(undefined, 'latest', {
-        cmd: 'getSecret',
-        identifierAuthorization: AUTHORIZATION,
-        requestId: 'req-1',
-        pkE: PK_E,
+      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
+        request: {
+          cmd: 'getSecret',
+          identifierAuthorization: AUTHORIZATION,
+          requestId: 'req-1',
+          pkE: PK_E,
+        },
       });
     });
 
@@ -217,6 +234,31 @@ describe('CubistEscrowProvider', () => {
       await expect(provider.generateChallenge()).rejects.toMatchObject({
         code: 'escrow_request_failed',
         message: 'wasm panic',
+      });
+    });
+
+    it('throws when stdout is not valid hex', async () => {
+      const { provider } = createProvider({
+        invoke: async () => ({
+          response: { response: 'Allow' },
+          stdout: 'not hex',
+        }),
+      });
+      await expect(provider.generateChallenge()).rejects.toMatchObject({
+        code: 'escrow_response_invalid',
+      });
+    });
+
+    it('reports the deny reason even when stdout is empty', async () => {
+      const { provider } = createProvider({
+        invoke: async () => ({
+          response: { response: 'Deny', reason: 'not allowed' },
+          stdout: '',
+        }),
+      });
+      await expect(provider.generateChallenge()).rejects.toMatchObject({
+        code: 'escrow_request_failed',
+        message: 'not allowed',
       });
     });
 
@@ -260,9 +302,9 @@ describe('CubistEscrowProvider', () => {
     const { provider } = createProvider();
 
     it('accepts a receipt signed by the pinned receipt key', () => {
-      expect(
-        provider.verifyReceipt(signedReceipt(), MUTATION, 'cubist'),
-      ).toBe(true);
+      expect(provider.verifyReceipt(signedReceipt(), MUTATION, 'cubist')).toBe(
+        true,
+      );
     });
 
     it.each([
@@ -314,32 +356,27 @@ function createProvider(
       | { response: 'Deny'; reason: string }
       | { response: 'Error'; error: string };
     invoke?: () => Promise<unknown>;
-    getFunction?: () => Promise<{ invoke: jest.Mock }>;
   } = {},
 ): {
   provider: CubistEscrowProvider;
   invoke: jest.Mock;
-  getFunction: jest.Mock;
 } {
+  const stdoutBytes =
+    options.stdoutBytes ??
+    new TextEncoder().encode(
+      JSON.stringify(
+        Object.hasOwn(options, 'stdout') ? options.stdout : CHALLENGE,
+      ),
+    );
   const invoke =
     options.invoke === undefined
       ? jest.fn(async () => ({
           response: options.policy ?? { response: 'Allow' },
-          stdoutBytes:
-            options.stdoutBytes ??
-            new TextEncoder().encode(
-              JSON.stringify(
-                Object.hasOwn(options, 'stdout') ? options.stdout : CHALLENGE,
-              ),
-            ),
+          stdout: bytesToHex(stdoutBytes),
         }))
       : jest.fn(options.invoke);
-  const getFunction =
-    options.getFunction === undefined
-      ? jest.fn(async () => ({ invoke }))
-      : jest.fn(options.getFunction);
   const client = {
-    org: () => ({ getFunction }),
+    apiClient: { policyInvoke: invoke },
   } as unknown as CubeSignerClient;
   return {
     provider: new CubistEscrowProvider({
@@ -350,13 +387,10 @@ function createProvider(
       version: options.version,
     }),
     invoke,
-    getFunction,
   };
 }
 
-function signedReceipt(
-  patch: Partial<MutationReceipt> = {},
-): MutationReceipt {
+function signedReceipt(patch: Partial<MutationReceipt> = {}): MutationReceipt {
   const unsigned = {
     mutationId: MUTATION.id,
     requestHash: MUTATION.requestHash,
