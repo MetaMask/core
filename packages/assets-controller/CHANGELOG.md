@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `AssetsControllerMessenger` now requires the `MultichainTransactionsControllerTransactionConfirmedEvent` allowed event ([#10585](https://github.com/MetaMask/core/pull/10585))
   - `AssetsController` subscribes to `MultichainTransactionsController:transactionConfirmed` so non-EVM (Snap keyring) transactions trigger the same post-transaction balance refresh as EVM `TransactionController:transactionConfirmed`.
   - Consumers must delegate `MultichainTransactionsController:transactionConfirmed` onto the Assets controller messenger. Without that delegation the subscription is registered and never fires.
+- Add a transient, non-persisted per-account assets loading state (`assetsLoadingStatus`) that marks an account as `loading` from its first user-visible assets fetch until that fetch settles, and never re-marks it on later refreshes, with selectors to read it ([#10230](https://github.com/MetaMask/core/pull/10230))
 
 ### Changed
 

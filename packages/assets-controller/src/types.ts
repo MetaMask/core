@@ -419,6 +419,8 @@ export type DataResponse = {
  */
 export type AssetsUpdateMode = 'full' | 'merge';
 
+export type AssetsLoadingStatus = 'loading' | 'loaded';
+
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)
 // ============================================================================
@@ -500,6 +502,7 @@ export type AssetsControllerState = {
   assetPreferences: Record<Caip19AssetId, AssetPreferences>;
   /** Currently-active ISO 4217 currency code */
   selectedCurrency: SupportedCurrency;
+  assetsLoadingStatus?: Record<AccountId, AssetsLoadingStatus>;
 };
 
 // ============================================================================
