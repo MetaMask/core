@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/ramps-controller` from `^27.0.0` to `^27.0.1` ([#10766](https://github.com/MetaMask/core/pull/10766))
+- Bump `@metamask/ramps-controller` from `^27.0.0` to `^27.0.1` ([#10767](https://github.com/MetaMask/core/pull/10767))
 
 ## [30.0.2]
 
