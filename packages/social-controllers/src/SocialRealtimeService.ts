@@ -7,7 +7,7 @@ import type {
 
 import type { FeedItem } from './social-types.js';
 
-export const SOCIAL_FEED_CHANNEL = 'social.v1.feed.all' as const;
+export const SOCIAL_FEED_CHANNEL = 'social.v1.feed.trending' as const;
 export const SOCIAL_FEED_CHANNEL_TYPE = 'social.v1' as const;
 
 export type SocialFeedEvent = {
@@ -31,9 +31,11 @@ export type SocialRealtimeServiceOptions = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
-const parseSocialFeedEvent = (
-  data: Record<string, unknown>,
-): SocialFeedEvent | undefined => {
+const parseSocialFeedEvent = (data: unknown): SocialFeedEvent | undefined => {
+  if (!isRecord(data)) {
+    return undefined;
+  }
+
   if (
     data.version !== 1 ||
     data.kind !== 'feed-item' ||
@@ -47,6 +49,14 @@ const parseSocialFeedEvent = (
   }
 
   return data as unknown as SocialFeedEvent;
+};
+
+const parseSocialFeedEvents = (data: unknown): SocialFeedEvent[] => {
+  const entries = Array.isArray(data) ? data : [data];
+
+  return entries
+    .map((entry) => parseSocialFeedEvent(entry))
+    .filter((event): event is SocialFeedEvent => event !== undefined);
 };
 
 /**
@@ -189,11 +199,8 @@ export class SocialRealtimeService {
       return;
     }
 
-    const event = parseSocialFeedEvent(notification.data);
-    if (!event) {
-      return;
-    }
-
-    this.#listeners.forEach((listener) => listener(event));
+    parseSocialFeedEvents(notification.data).forEach((event) => {
+      this.#listeners.forEach((listener) => listener(event));
+    });
   }
 }

@@ -225,10 +225,19 @@ export type Position = {
    * responses from a social-api that predates the field.
    */
   isOpen?: boolean;
-  boughtUsd: number;
-  soldUsd: number;
-  realizedPnl: number;
-  costBasis: number;
+  /**
+   * Total USD spent buying into the position. `null` when Clicker stats are
+   * incomplete (the social-api used to JSON-serialize `NaN` as `null`).
+   */
+  boughtUsd: number | null;
+  /** Total USD received from sells. `null` when stats are incomplete. */
+  soldUsd: number | null;
+  /** Realized profit or loss in USD. `null` when stats are incomplete. */
+  realizedPnl: number | null;
+  /**
+   * USD cost basis of the remaining holdings. `null` when stats are incomplete.
+   */
+  costBasis: number | null;
   trades: Trade[];
   lastTradeAt: number;
   /** Daylight-hosted token image URL. */
@@ -447,7 +456,7 @@ export type FeedResponse = {
 
 /**
  * Response from `GET /v1/users/me/followers` and bearer-authenticated
- * `GET /v1/traders/:addressOrId/followers`.
+ * `GET /v1/traders/:addressOrId/followers` (optionally `?mutuals=true`).
  */
 export type FollowersResponse = {
   followers: ProfileSummary[];
@@ -512,6 +521,12 @@ export type FetchPositionsOptions = {
 export type FetchFollowersOptions = {
   /** Wallet address or Clicker profile ID. */
   addressOrId: string;
+  /**
+   * When true, requests `GET .../followers?mutuals=true` so `followers` are
+   * profiles that follow both this trader and the authenticated user; `count` is
+   * the mutual total. Omit or false returns the trader's full follower list.
+   */
+  mutuals?: boolean;
 };
 
 export type FetchTraderFollowingOptions = {

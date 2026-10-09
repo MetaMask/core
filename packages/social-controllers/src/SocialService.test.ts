@@ -640,6 +640,32 @@ describe('SocialService', () => {
       );
     });
 
+    it('accepts null buy-side money fields on an otherwise valid position', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [
+              {
+                ...mockPosition,
+                boughtUsd: null,
+                costBasis: null,
+              },
+            ],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchOpenPositions({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.positions[0]?.boughtUsd).toBeNull();
+      expect(result.positions[0]?.costBasis).toBeNull();
+    });
+
     it('passes through perp metadata on positions and trades', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -874,6 +900,44 @@ describe('SocialService', () => {
       );
     });
 
+    it('appends mutuals=true when mutuals option is set', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowersResponse),
+      });
+
+      const service = createService();
+      await service.fetchFollowers({
+        addressOrId: '0x1234',
+        mutuals: true,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/traders/0x1234/followers?mutuals=true`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('does not append mutuals when mutuals is false', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowersResponse),
+      });
+
+      const service = createService();
+      await service.fetchFollowers({
+        addressOrId: '0x1234',
+        mutuals: false,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/traders/0x1234/followers`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
     it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
@@ -883,6 +947,18 @@ describe('SocialService', () => {
         service.fetchFollowers({ addressOrId: '0x1234' }),
       ).rejects.toThrow(
         `${SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED}: 500`,
+      );
+    });
+
+    it('throws HttpError on non-ok response when mutuals is true', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = createService();
+
+      await expect(
+        service.fetchFollowers({ addressOrId: '0x1234', mutuals: true }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED}: 404`,
       );
     });
 
@@ -897,6 +973,22 @@ describe('SocialService', () => {
 
       await expect(
         service.fetchFollowers({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
+      );
+    });
+
+    it('throws when response schema is invalid with mutuals true', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ followers: 'not-an-array', count: 1 }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchFollowers({ addressOrId: '0x1234', mutuals: true }),
       ).rejects.toThrow(
         SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
       );
@@ -1142,13 +1234,44 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws when the feed item is missing its actor', async () => {
+    it('drops feed items that fail validation instead of rejecting the page', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
         json: () =>
           Promise.resolve({
-            items: [{ ...mockPosition, timestamp: 1700000000 }],
+            items: [{ ...mockPosition, timestamp: 1700000000 }, mockFeedItem],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items).toStrictEqual([mockFeedItem]);
+    });
+
+    it('throws when the feed envelope is missing pagination', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ items: [mockFeedItem] }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchFeed()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+      );
+    });
+
+    it('throws when items is not an array', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: 'not-an-array',
             pagination: { olderCursor: null, newerCursor: null },
           }),
       });
@@ -1158,6 +1281,33 @@ describe('SocialService', () => {
       await expect(service.fetchFeed()).rejects.toThrow(
         SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
       );
+    });
+
+    it('accepts null buy-side money fields on an otherwise valid item', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [
+              {
+                ...mockFeedItem,
+                boughtUsd: null,
+                costBasis: null,
+                soldUsd: 0,
+                realizedPnl: 0,
+              },
+            ],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]?.boughtUsd).toBeNull();
+      expect(result.items[0]?.costBasis).toBeNull();
     });
 
     it('throws when the pagination shape is invalid', async () => {

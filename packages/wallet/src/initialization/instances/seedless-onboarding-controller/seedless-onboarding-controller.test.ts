@@ -40,6 +40,21 @@ function getSeedlessOnboardingOptions(): SeedlessOnboardingControllerInstanceOpt
 }
 
 describe('seedlessOnboardingController', () => {
+  it('delegates the actions used by the controller', () => {
+    const rootMessenger = getRootMessenger();
+    const delegateSpy = jest.spyOn(rootMessenger, 'delegate');
+
+    const messenger = seedlessOnboardingController.getMessenger(rootMessenger);
+
+    expect(delegateSpy).toHaveBeenCalledWith({
+      messenger,
+      actions: [
+        'AnalyticsController:trackEvent',
+        'KeyringController:exportSeedPhrase',
+      ],
+    });
+  });
+
   it('initializes a SeedlessOnboardingController with default state', () => {
     const messenger =
       seedlessOnboardingController.getMessenger(getRootMessenger());

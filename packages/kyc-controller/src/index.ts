@@ -28,6 +28,8 @@ export type {
   KycControllerLaunchProviderFlowAction,
   KycControllerRecordSessionDisclaimersAction,
   KycControllerRecordVendorDisclaimersAction,
+  KycControllerFetchSessionStatusOnceAction,
+  KycControllerReadSessionStatusAction,
   KycControllerRefreshSessionStatusAction,
   KycControllerResetAction,
   KycControllerStartSessionAction,
