@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
+
+### Fixed
+
+- `hydrateVbaOnboarding` returns `needs_wallet_registration` or `needs_source_currency` only when the MoonPay customer `status` is `Active`. `SigningsRequired`, `IdentificationRequired`, and any other status return `not_ready`. A failed customer lookup returns `retryable_failure` ([#10766](https://github.com/MetaMask/core/pull/10766))
+- `registerMoneyAccountWallet` refuses to sign or post a self-hosted wallet unless that customer `status` is `Active` ([#10766](https://github.com/MetaMask/core/pull/10766))
+
+## [27.0.0]
+
 ### Added
 
 - Add `needs_source_currency` to `VBA_AUTORAMP_STATUSES` for an approved, registered wallet that has no usable autoramp and was not given a source currency ([#10743](https://github.com/MetaMask/core/pull/10743))
@@ -22,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `RampsControllerMessenger` now requires `KycController:readSessionStatus` and `KycController:fetchSessionStatusOnce` instead of `KycController:refreshSessionStatus` and `KycController:getSessionStatusForVendor` ([#10749](https://github.com/MetaMask/core/pull/10749))
 - `registerMoneyAccountWallet` writes a `moneyAccountWalletRegistrations` row after `alreadyRegistered`, `registered`, or `registeredDisabled`. The stored address is trimmed and lowercased. A lookup failure or a thrown signature writes nothing ([#10749](https://github.com/MetaMask/core/pull/10749))
 - `createAutoramp` derives its idempotency key from the caller-supplied source fiat (`brl-musd-monad` versus `usd-musd-monad`), the customer, the wallet, and rejected or cancelled autoramp ids. A caller-supplied key is used only when the body has no source fiat or recipient address ([#10749](https://github.com/MetaMask/core/pull/10749))
-- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.1` ([#10752](https://github.com/MetaMask/core/pull/10752))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.2` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756))
 
 ## [26.3.0]
 
@@ -712,7 +725,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.1...HEAD
+[27.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.0...@metamask/ramps-controller@27.0.1
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.3.0...@metamask/ramps-controller@27.0.0
 [26.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.2.0...@metamask/ramps-controller@26.3.0
 [26.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.1.0...@metamask/ramps-controller@26.2.0
 [26.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.1...@metamask/ramps-controller@26.1.0

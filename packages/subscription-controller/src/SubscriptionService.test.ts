@@ -599,6 +599,8 @@ describe('SubscriptionService', () => {
                       currency: 'usd',
                     },
                   ],
+                  currentPeriodStart: '2024-01-01T00:00:00Z',
+                  currentPeriodEnd: '2024-02-01T00:00:00Z',
                   status: SUBSCRIPTION_STATUSES.paused,
                   interval: RECURRING_INTERVALS.month,
                   paymentMethod: {
@@ -611,6 +613,8 @@ describe('SubscriptionService', () => {
                       error: 'insufficient_balance',
                     },
                   },
+                  cancelType: CANCEL_TYPES.ALLOWED_IMMEDIATE,
+                  isEligibleForSupport: false,
                   lastInvoice: {
                     id: 'in_123',
                     status: 'FAILED',
@@ -657,6 +661,8 @@ describe('SubscriptionService', () => {
                       currency: 'usd',
                     },
                   ],
+                  currentPeriodStart: '2024-01-01T00:00:00Z',
+                  currentPeriodEnd: '2024-02-01T00:00:00Z',
                   status: SUBSCRIPTION_STATUSES.paused,
                   interval: RECURRING_INTERVALS.month,
                   paymentMethod: {
@@ -669,6 +675,8 @@ describe('SubscriptionService', () => {
                       error: 'insufficient_balance',
                     },
                   },
+                  cancelType: CANCEL_TYPES.ALLOWED_IMMEDIATE,
+                  isEligibleForSupport: false,
                   lastInvoice: {
                     id: 'in_123',
                     status: 'FAILED',
@@ -717,6 +725,8 @@ describe('SubscriptionService', () => {
                       currency: 'usd',
                     },
                   ],
+                  currentPeriodStart: '2024-01-01T00:00:00Z',
+                  currentPeriodEnd: '2024-02-01T00:00:00Z',
                   status: SUBSCRIPTION_STATUSES.active,
                   interval: RECURRING_INTERVALS.month,
                   paymentMethod: {
@@ -728,6 +738,8 @@ describe('SubscriptionService', () => {
                       tokenSymbol: 'pvmUSD',
                     },
                   },
+                  cancelType: CANCEL_TYPES.ALLOWED_AT_PERIOD_END,
+                  isEligibleForSupport: true,
                   lastInvoice: {
                     id: 'in_123',
                     status: 'SUCCEEDED',
@@ -822,6 +834,8 @@ describe('SubscriptionService', () => {
                       currency: 'usd',
                     },
                   ],
+                  currentPeriodStart: '2024-01-01T00:00:00Z',
+                  currentPeriodEnd: '2024-02-01T00:00:00Z',
                   status: SUBSCRIPTION_STATUSES.paused,
                   interval: RECURRING_INTERVALS.month,
                   paymentMethod: {
@@ -834,6 +848,8 @@ describe('SubscriptionService', () => {
                       error: 'unknown_payment_error',
                     },
                   },
+                  cancelType: CANCEL_TYPES.ALLOWED_IMMEDIATE,
+                  isEligibleForSupport: false,
                   lastInvoice: {
                     id: 'in_123',
                     status: 'FAILED',

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [72.2.0]
+
 ### Added
 
 - Add `isTransactionTrusted` to `TransactionControllerOptions` to limit future-block re-simulation to untrusted transactions ([#10747](https://github.com/MetaMask/core/pull/10747))
@@ -15,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
 - Bump `@metamask/core-backend` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/nonce-tracker` from `^6.0.0` to `^6.1.0` ([#10735](https://github.com/MetaMask/core/pull/10735))
+- Bump `ethereum-cryptography` from `^2.2.1` to `^3.2.0` ([#10599](https://github.com/MetaMask/core/pull/10599))
 
 ### Fixed
 
@@ -2820,7 +2824,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.2.0...HEAD
+[72.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.1.0...@metamask/transaction-controller@72.2.0
 [72.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.1...@metamask/transaction-controller@72.1.0
 [72.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.0...@metamask/transaction-controller@72.0.1
 [72.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@71.0.0...@metamask/transaction-controller@72.0.0

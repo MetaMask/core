@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+
+## [17.0.0]
+
+### Changed
+
 - **BREAKING:** Delegate `AnalyticsController:trackEvent` and `KeyringController:exportSeedPhrase` from the wallet root messenger to `SeedlessOnboardingController`. ([#10568](https://github.com/MetaMask/core/pull/10568))
 - **BREAKING:** Grant `SubscriptionController` access to `GeolocationController:getGeolocationData` ([#10674](https://github.com/MetaMask/core/pull/10674))
   - The wallet does not construct `GeolocationController`. Clients must register that action on the Wallet messenger.
@@ -16,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/claims-controller` from `^1.0.2` to `^1.0.3` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/shield-controller` from `^7.0.3` to `^7.0.4` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/subscription-controller` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/seedless-onboarding-controller` from `^11.0.1` to `^12.0.0` ([#10756](https://github.com/MetaMask/core/pull/10756))
 
 ## [16.0.1]
 
@@ -337,7 +344,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.1...@metamask/wallet@17.0.0
 [16.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.0...@metamask/wallet@16.0.1
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.1.0...@metamask/wallet@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.0.1...@metamask/wallet@15.1.0
