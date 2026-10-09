@@ -1,6 +1,6 @@
 {
   "name": "@metamask/subscription-controller",
-  "version": "12.0.1",
+  "version": "13.0.0",
   "description": "Handle user subscription",
   "keywords": [
     "Ethereum",
@@ -65,11 +65,11 @@
     "@metamask/money-account-upgrade-controller": "^5.1.0",
     "@metamask/money-account-utils": "^2.1.0",
     "@metamask/polling-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^34.0.1",
+    "@metamask/profile-sync-controller": "^34.0.3",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
-    "@metamask/seedless-onboarding-controller": "^11.0.1",
+    "@metamask/seedless-onboarding-controller": "^12.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^72.1.0",
+    "@metamask/transaction-controller": "^72.2.0",
     "@metamask/utils": "^12.0.0",
     "@tanstack/query-core": "^5.103.2",
     "bignumber.js": "^9.1.2",
@@ -85,7 +85,7 @@
     "rimraf": "^6.1.3",
     "ts-jest": "^29.4.14",
     "typedoc": "^0.28.20",
-    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
