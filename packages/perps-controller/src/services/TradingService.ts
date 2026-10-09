@@ -1167,25 +1167,14 @@ export class TradingService {
       return;
     }
 
-    const metrics = result
-      ? this.#calculateCloseMetrics(position, params, result)
-      : {
-          direction:
-            parseFloat(position.size) > 0
-              ? PERPS_EVENT_VALUE.DIRECTION.LONG
-              : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-          closePercentage: params.size
-            ? (parseFloat(params.size) / Math.abs(parseFloat(position.size))) *
-              100
-            : 100,
-          closeType: PERPS_EVENT_VALUE.CLOSE_TYPE.FULL,
-          orderType: params.orderType ?? PERPS_EVENT_VALUE.ORDER_TYPE.MARKET,
-          requestedSize: params.size
-            ? parseFloat(params.size)
-            : Math.abs(parseFloat(position.size)),
-          filledSize: 0,
-          isPartiallyFilled: false,
-        };
+    // A thrown close has no OrderResult. Classify it from the requested size
+    // the same way a returned failure is classified, so a partial request is
+    // not reported as a full close.
+    const metrics = this.#calculateCloseMetrics(
+      position,
+      params,
+      result ?? { success: false },
+    );
 
     // Track partially filled event if applicable
     if (result?.success && metrics.isPartiallyFilled) {

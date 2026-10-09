@@ -2357,6 +2357,34 @@ describe('TradingService', () => {
       );
     });
 
+    it('classifies a thrown partial close from the requested size', async () => {
+      // A thrown close has no OrderResult, so close_type must come from the
+      // requested size. Closing 0.25 of a 1-unit position is 25%, not a full close.
+      mockGetPositions.mockResolvedValue([{ ...mockPosition, size: '1' }]);
+      mockProvider.closePosition.mockRejectedValue(new Error('route removed'));
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await expect(
+        tradingService.closePosition({
+          provider: mockProvider,
+          params: { symbol: 'BTC', size: '0.25' },
+          context: { ...mockContext, getPositions: mockGetPositions },
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        }),
+      ).rejects.toThrow('route removed');
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.PositionCloseTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          close_type: 'partial',
+          percentage_closed: 25,
+        }),
+      );
+    });
+
     it('logs error when provider returns a failure result without throwing', async () => {
       const params: ClosePositionParams = { symbol: 'BTC' };
       const mockFailureResult: OrderResult = {
