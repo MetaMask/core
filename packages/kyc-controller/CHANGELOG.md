@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0]
+
+### Added
+
+- Added exported `KYC_STATUSES` and `TERMINAL_SESSION_STATUSES`, so consumers can reuse the KYC status vocabulary and the terminal session-status set (`approved`, `rejected`, `retry`) from the package entry point instead of redefining them locally ([#10771](https://github.com/MetaMask/core/pull/10771))
+
 ### Changed
 
 - Space `KycController` session-status polls with a linear backoff. The first poll is immediate, the next waits 10 seconds, and each later wait grows by 10 seconds. Starting polling again resets the delay ([#10764](https://github.com/MetaMask/core/pull/10764))
+- `KycController.hasCompletedSessionDisclaimers` now reports completion from session `consentStatus === 'given'` instead of fetching the session disclaimer catalog ([#10760](https://github.com/MetaMask/core/pull/10760))
+  - This no longer throws a 409 when the session is already in a terminal state
 - Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
 
 ## [0.7.0]
@@ -131,7 +139,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.8.0...HEAD
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.7.0...@metamask/kyc-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.1...@metamask/kyc-controller@0.7.0
 [0.6.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.0...@metamask/kyc-controller@0.6.1
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.5.0...@metamask/kyc-controller@0.6.0

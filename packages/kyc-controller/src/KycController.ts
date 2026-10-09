@@ -24,10 +24,7 @@ import {
   isSumSubFlowFailed,
 } from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
-import {
-  areSessionDisclaimersCompleted,
-  consentRecordsFromAcceptedList,
-} from './sessionDisclaimers.js';
+import { consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
 import { TERMINAL_SESSION_STATUSES } from './types.js';
 import type {
   KycConsentRecord,
@@ -806,25 +803,25 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Fetches session-scoped disclaimers and reports whether every document is
-   * consented and credential reuse was accepted.
+   * Fetches the current session status and reports whether consent was given.
    *
-   * @returns Whether session disclaimers are complete.
+   * @returns Whether `consentStatus` is `given`.
    * @throws If there is no session on state.
    */
   async hasCompletedSessionDisclaimers(): Promise<boolean> {
     if (!this.state.sessionStatus) {
       throw new Error('No session was found');
     }
-    // TODO: validate if this shorcut check is sufficient
-    // return this.state.sessionStatus.consentStatus === 'given';
 
-    const disclaimers = await this.messenger.call(
-      'KycService:fetchSessionDisclaimersBySessionId',
+    // TODO: remove this explicit call to the service and use the state directly
+    // after we have established the pattern for resuming a session after wallet
+    // restart more concretely
+    const sessionStatus = await this.messenger.call(
+      'KycService:getSessionStatus',
       { sessionId: this.state.sessionStatus.id },
     );
 
-    return areSessionDisclaimersCompleted(disclaimers);
+    return sessionStatus.consentStatus === 'given';
   }
 
   /**

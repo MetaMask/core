@@ -90,6 +90,7 @@ export type {
   X25519KeyPair,
 } from './crypto.js';
 
+export { KYC_STATUSES, TERMINAL_SESSION_STATUSES } from './types.js';
 export type {
   KycCatalogDocument,
   KycConsentDocument,

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/kyc-controller",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Shared KYC / identity verification controller used across MetaMask clients",
   "keywords": [
     "Ethereum",
@@ -78,7 +78,7 @@
     "rimraf": "^6.1.3",
     "ts-jest": "^29.4.14",
     "typedoc": "^0.28.20",
-    "typedoc-plugin-missing-exports": "^2.3.0",
+    "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {

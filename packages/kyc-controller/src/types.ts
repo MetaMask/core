@@ -83,9 +83,9 @@ export type KycSessionStatus = {
   /** UKYC session id. */
   id: string;
   /**
-   * The overall status of the session. Terminal values (e.g. `approved`,
-   * `completed`, `rejected`, `failed`, `blocked`) are finished decisions; any
-   * other value (e.g. `pending`) means the vendor is still processing.
+   * The overall status of the session. Values in `TERMINAL_SESSION_STATUSES`
+   * (`approved`, `rejected`, `retry`) are finished decisions; any other value
+   * (e.g. `pending`) means the vendor is still processing.
    */
   finalStatus: string;
   /** Optional human-readable message describing the status. */

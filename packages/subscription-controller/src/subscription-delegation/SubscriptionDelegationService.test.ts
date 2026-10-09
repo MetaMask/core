@@ -24,6 +24,7 @@ import {
 } from '../constants.js';
 import type { SubscriptionController } from '../SubscriptionController.js';
 import {
+  CANCEL_TYPES,
   CRYPTO_AUTH_METHODS,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
@@ -145,6 +146,8 @@ function buildSubscription(
         unitDecimals: PRICE.unitDecimals,
       },
     ],
+    currentPeriodStart: '2024-01-01T00:00:00Z',
+    currentPeriodEnd: '2024-02-01T00:00:00Z',
     status,
     interval: RECURRING_INTERVALS.month,
     paymentMethod: {
@@ -155,6 +158,8 @@ function buildSubscription(
         tokenSymbol: 'pvmUSD',
       },
     },
+    cancelType: CANCEL_TYPES.ALLOWED_IMMEDIATE,
+    isEligibleForSupport: false,
   };
 }
 

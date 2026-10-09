@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.0` ([#10733](https://github.com/MetaMask/core/pull/10733))
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
+- Bump `@metamask/eth-snap-keyring` from `^24.0.0` to `^24.1.0` ([#10732](https://github.com/MetaMask/core/pull/10732))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.1.0` ([#10717](https://github.com/MetaMask/core/pull/10717))
 
 ## [14.1.0]
 
