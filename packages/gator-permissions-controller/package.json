@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@metamask/7715-permission-types": "^1.0.0",
-    "@metamask/abi-utils": "^2.0.3",
+    "@metamask/abi-utils": "^2.0.4",
     "@metamask/base-controller": "^10.0.0",
     "@metamask/delegation-core": "^2.2.1",
     "@metamask/delegation-deployments": "^1.4.0",
