@@ -7,6 +7,7 @@ import type { Hex } from '@metamask/utils';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../tests/messenger-mock.js';
 import type { TransactionPayControllerIsGasFeeSponsoredAction } from '../TransactionPayController-method-action-types.js';
+import type { GasPayment } from './gas-payment.js';
 import {
   shouldUseGasStation,
   GasPaymentMode,

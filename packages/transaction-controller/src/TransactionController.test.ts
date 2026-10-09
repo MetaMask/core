@@ -2259,7 +2259,7 @@ describe('TransactionController', () => {
         to: ACCOUNT_2_MOCK,
         value: '0x123',
       };
-      const refreshedGasFeeToken = {
+      const refreshedGasFeeToken: GasFeeToken = {
         ...GAS_FEE_TOKEN_MOCK,
         amount: '0x10',
       };
@@ -2272,7 +2272,7 @@ describe('TransactionController', () => {
           blockTime: 123,
           resimulate: true,
         });
-        const originalGasUsed = '0x5208';
+        const originalGasUsed: Hex = '0x5208';
         const transactionMeta = {
           ...TRANSACTION_META_MOCK,
           gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
@@ -2354,7 +2354,7 @@ describe('TransactionController', () => {
           blockTime: 123,
           resimulate: true,
         });
-        const transactionMeta = {
+        const transactionMeta: TransactionMeta = {
           ...TRANSACTION_META_MOCK,
           containerTypes: [TransactionContainerType.EnforcedSimulations],
           gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
@@ -2387,7 +2387,7 @@ describe('TransactionController', () => {
           createDeferredPromise<
             Awaited<ReturnType<typeof getBalanceChanges>>
           >();
-        const staleGasFeeToken = {
+        const staleGasFeeToken: GasFeeToken = {
           ...GAS_FEE_TOKEN_MOCK,
           amount: '0x20',
         };
@@ -2405,7 +2405,7 @@ describe('TransactionController', () => {
           blockTime: 123,
           resimulate: true,
         });
-        const transactionMeta = {
+        const transactionMeta: TransactionMeta = {
           ...TRANSACTION_META_MOCK,
           gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
           gasUsed: '0x100',
@@ -2919,11 +2919,11 @@ describe('TransactionController', () => {
           createDeferredPromise<
             Awaited<ReturnType<typeof getBalanceChanges>>
           >();
-        const staleGasFeeToken = {
+        const staleGasFeeToken: GasFeeToken = {
           ...GAS_FEE_TOKEN_MOCK,
           amount: '0x20',
         };
-        const freshGasFeeToken = {
+        const freshGasFeeToken: GasFeeToken = {
           ...GAS_FEE_TOKEN_MOCK,
           amount: '0x30',
         };
@@ -4091,6 +4091,7 @@ describe('TransactionController', () => {
         rootMessenger.registerActionHandler(
           'AccountsController:getState',
           () => ({
+            accountIdByAddress: {},
             internalAccounts: {
               accounts: {
                 [INTERNAL_ACCOUNT_MOCK.id]: INTERNAL_ACCOUNT_MOCK,
