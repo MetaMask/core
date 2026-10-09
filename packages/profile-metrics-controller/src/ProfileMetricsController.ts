@@ -23,6 +23,7 @@ import { Mutex } from 'async-mutex';
 import type { ProfileMetricsControllerMethodActions } from './ProfileMetricsController-method-action-types.js';
 import type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types.js';
 import type {
+  AccountOwnershipProof,
   AccountSource,
   AccountWithScopes,
 } from './ProfileMetricsService.js';
@@ -438,28 +439,68 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       );
     }
 
-    return await Promise.all(
-      accounts.map(async (queued): Promise<AccountWithScopes> => {
-        const account = proofCandidates.get(queued.address);
-        const nonce = nonces[queued.address];
-        if (!account || !nonce) {
-          return queued;
-        }
-        try {
-          const proof = await this.messenger.call(
-            'ProofOfOwnershipService:sign',
-            { account, nonce },
-          );
-          return { ...queued, proof };
-        } catch (error) {
-          console.error(
-            `Failed to sign proof of ownership for account ${account.id}:`,
-            error,
-          );
-          return queued;
-        }
-      }),
+    const accountsWithProofs = [...accounts];
+    const signingRequests: {
+      index: number;
+      account: InternalAccount;
+      nonce: string;
+    }[] = [];
+
+    accounts.forEach((queued, index) => {
+      const account = proofCandidates.get(queued.address);
+      const nonce = nonces[queued.address];
+      if (!account || !nonce) {
+        return;
+      }
+      signingRequests.push({
+        index,
+        account,
+        nonce,
+      });
+    });
+
+    if (signingRequests.length === 0) {
+      return accountsWithProofs;
+    }
+
+    const { results } = await this.messenger.call(
+      'ProofOfOwnershipService:signBatch',
+      {
+        items: signingRequests.map(({ account, nonce }) => ({
+          account,
+          nonce,
+        })),
+      },
     );
+
+    if (results.length !== signingRequests.length) {
+      throw new Error(
+        `ProofOfOwnershipService:signBatch returned ${results.length} results for ${signingRequests.length} requests.`,
+      );
+    }
+
+    results.forEach((result, resultIndex) => {
+      const { index, account } = signingRequests[resultIndex] as {
+        index: number;
+        account: InternalAccount;
+      };
+      const { proof } = result as { proof?: AccountOwnershipProof };
+      if (proof) {
+        accountsWithProofs[index] = {
+          ...accountsWithProofs[index],
+          proof,
+        } as AccountWithScopes;
+        return;
+      }
+
+      const { error } = result as { error: string };
+      console.error(
+        `Failed to sign proof of ownership for account ${account.id}:`,
+        new Error(error),
+      );
+    });
+
+    return accountsWithProofs;
   }
 
   /**
