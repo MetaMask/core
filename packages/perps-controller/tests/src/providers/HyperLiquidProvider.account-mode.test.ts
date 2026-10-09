@@ -408,7 +408,9 @@ describe('HyperLiquidProvider', () => {
 
     it('blocks order signing for an unsupported account', async () => {
       const exchangeClient = createMockExchangeClient();
-      mockClientService.getExchangeClient.mockReturnValue(exchangeClient);
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
       mockInfoClient.userToMultiSigSigners.mockResolvedValue({
         authorizedUsers: ['0x1234567890123456789012345678901234567890'],
         threshold: 1,
@@ -431,7 +433,9 @@ describe('HyperLiquidProvider', () => {
 
     it('blocks withdrawal signing for an unsupported account', async () => {
       const exchangeClient = createMockExchangeClient();
-      mockClientService.getExchangeClient.mockReturnValue(exchangeClient);
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
       mockInfoClient.userToMultiSigSigners.mockResolvedValue({
         authorizedUsers: ['0x1234567890123456789012345678901234567890'],
         threshold: 1,
