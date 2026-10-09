@@ -149,7 +149,7 @@ describe('TradingService', () => {
       );
     });
 
-    it('resolves a grant for its own provider scope, passes it, then clears it', async () => {
+    it('resolves a grant for the aggregated provider write route, passes it, then clears it', async () => {
       const resolution: PerpsFeeResolution = {
         feeBips: 2,
         discountBips: 8000,
@@ -161,19 +161,25 @@ describe('TradingService', () => {
         isBuy: true,
         size: '0.1',
         orderType: 'market',
+        providerId: 'hyperliquid',
       };
-      mockProvider.setUserFeeResolution = jest.fn();
+      const aggregatedProvider = {
+        ...mockProvider,
+        protocolId: 'aggregated',
+        getWriteProviderId: jest.fn(() => 'hyperliquid' as const),
+        setUserFeeResolution: jest.fn(),
+      } as unknown as jest.Mocked<PerpsProvider>;
       mockRewardsIntegrationService.resolveFee.mockResolvedValue(resolution);
-      mockProvider.placeOrder.mockImplementation(async () => {
-        expect(mockProvider.setUserFeeResolution).toHaveBeenLastCalledWith(
-          resolution,
-        );
-        expect(mockProvider.setUserFeeDiscount).not.toHaveBeenCalled();
+      aggregatedProvider.placeOrder.mockImplementation(async () => {
+        expect(
+          aggregatedProvider.setUserFeeResolution,
+        ).toHaveBeenLastCalledWith(resolution);
+        expect(aggregatedProvider.setUserFeeDiscount).not.toHaveBeenCalled();
         return { success: true };
       });
 
       await tradingService.placeOrder({
-        provider: mockProvider,
+        provider: aggregatedProvider,
         params,
         context: mockContext,
         reportOrderToDataLake: mockReportOrderToDataLake,
@@ -184,11 +190,14 @@ describe('TradingService', () => {
         undefined,
         { providerId: 'hyperliquid', isTestnet: false },
       );
-      expect(mockProvider.placeOrder).toHaveBeenCalledWith(params);
-      expect(mockProvider.setUserFeeResolution).toHaveBeenLastCalledWith(
+      expect(aggregatedProvider.getWriteProviderId).toHaveBeenCalledWith(
+        'hyperliquid',
+      );
+      expect(aggregatedProvider.placeOrder).toHaveBeenCalledWith(params);
+      expect(aggregatedProvider.setUserFeeResolution).toHaveBeenLastCalledWith(
         undefined,
       );
-      expect(mockProvider.setUserFeeDiscount).not.toHaveBeenCalled();
+      expect(aggregatedProvider.setUserFeeDiscount).not.toHaveBeenCalled();
     });
 
     it('preserves the subscription source through order construction', async () => {

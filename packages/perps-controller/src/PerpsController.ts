@@ -6689,7 +6689,9 @@ export class PerpsController extends BaseController<
     const feeResolution = await this.#rewardsIntegrationService.resolveFee(
       orderNotionalUsd,
       {
-        providerId: provider.protocolId,
+        providerId:
+          provider.getWriteProviderId?.(params.providerId) ??
+          provider.protocolId,
         isTestnet: this.state.isTestnet,
       },
     );

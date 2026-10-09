@@ -737,6 +737,7 @@ export class TradingService {
         this.#resolveOrderNotionalUsd(params),
         provider,
         context,
+        params.providerId,
       );
 
       this.#deps.debugLogger.log('TradingService: Fee resolution calculated', {
@@ -1578,6 +1579,7 @@ export class TradingService {
    * charging 0 bips on an order the preview quoted a blend for.
    * @param provider - The actual provider receiving this submission.
    * @param context - The submission context, including its network.
+   * @param providerId - Explicit route, when the caller supplied one.
    * @returns The resolved fee, or undefined when controller dependencies are
    * unavailable.
    */
@@ -1585,6 +1587,7 @@ export class TradingService {
     orderNotionalUsd: number | undefined,
     provider: PerpsProvider,
     context: ServiceContext,
+    providerId?: PerpsProviderType,
   ): Promise<PerpsFeeResolution | undefined> {
     // Check if controller dependencies are available
     if (!this.#controllerDeps) {
@@ -1604,7 +1607,8 @@ export class TradingService {
     const resolution = await rewardsIntegrationService.resolveFee(
       orderNotionalUsd,
       {
-        providerId: provider.protocolId,
+        providerId:
+          provider.getWriteProviderId?.(providerId) ?? provider.protocolId,
         isTestnet: context.tracingContext.isTestnet,
       },
     );
@@ -1678,6 +1682,7 @@ export class TradingService {
         this.#resolveOrderNotionalUsd(params.newOrder),
         provider,
         context,
+        params.newOrder.providerId,
       );
 
       // Execute order edit with fee discount management
@@ -2251,6 +2256,7 @@ export class TradingService {
           }),
         provider,
         context,
+        params.providerId,
       );
 
       // Execute position close with fee discount management
@@ -2695,6 +2701,7 @@ export class TradingService {
         tpslNotionalUsd,
         provider,
         context,
+        params.providerId,
       );
 
       // Execute with fee discount management
@@ -3036,6 +3043,7 @@ export class TradingService {
         flipNotionalUsd === undefined ? undefined : flipNotionalUsd * 2,
         provider,
         context,
+        position.providerId,
       );
       // Place flip order (HyperLiquid handles margin transfer automatically)
       const result = await this.#withFeeDiscount({
