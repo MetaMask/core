@@ -115,7 +115,6 @@ describe('server-support', () => {
     );
 
     it.each([
-      ['atomic', { atomic: false }, ServerUnsupportedReason.NonAtomic],
       [
         'hyperliquidActivationFeeUsd',
         { hyperliquidActivationFeeUsd: '1' },
@@ -147,6 +146,12 @@ describe('server-support', () => {
           requests: [REQUEST_MOCK, { ...REQUEST_MOCK, isMaxAmount: true }],
         }),
       ).toBe(ServerUnsupportedReason.MaxAmount);
+    });
+
+    it('supports non-atomic requests', () => {
+      expect(
+        getReason({ requests: [{ ...REQUEST_MOCK, atomic: false }] }),
+      ).toBeUndefined();
     });
 
     it('ignores capability flags that are explicitly false or undefined', () => {

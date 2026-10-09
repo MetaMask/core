@@ -4,7 +4,6 @@ import { projectLogger } from '../../logger.js';
 import type { TransactionPayControllerMessenger } from '../../types.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import type {
-  ServerProviderName,
   ServerQuoteRequest,
   ServerQuoteResponse,
   ServerStatusResponse,
@@ -79,7 +78,7 @@ export async function submitServerIntent(
  */
 export async function getServerStatus(
   messenger: TransactionPayControllerMessenger,
-  params: { provider: ServerProviderName; id: string; hash?: string },
+  params: { provider: string; id: string; hash?: string },
 ): Promise<ServerStatusResponse> {
   const { server } = getPayStrategiesConfig(messenger);
   const query = new URLSearchParams({

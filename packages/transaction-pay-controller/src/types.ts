@@ -670,6 +670,17 @@ export type TransactionPayQuote<OriginalQuote> = {
   /** Associated quote request. */
   request: QuoteRequest;
 
+  /**
+   * Whether the target calls could not be embedded in the quote and must be
+   * submitted separately, on the target chain, once the quote settles.
+   *
+   * Set by the strategy at quote time, since only it knows whether the provider
+   * accepted the calls. {@link TransactionConfig.atomic} is a hint rather than
+   * a guarantee: a quote requested atomically still falls back to a second leg
+   * when the provider cannot execute the calls itself.
+   */
+  requiresSecondLeg?: boolean;
+
   /** Amount of source token required. */
   sourceAmount: Amount;
 
