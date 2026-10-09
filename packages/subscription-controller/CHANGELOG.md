@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
+- Require `Subscription.currentPeriodStart`, `currentPeriodEnd`, `cancelType`, and `isEligibleForSupport` in the subscription response and runtime validation. ([#10765](https://github.com/MetaMask/core/pull/10765))
 
 ## [13.0.0]
 
