@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/contract-metadata` from `^2.4.0` to `^2.5.0` ([#10716](https://github.com/MetaMask/core/pull/10716))
 - Bump `@metamask/slip44` from `^4.3.0` to `^4.5.0` ([#10736](https://github.com/MetaMask/core/pull/10736))
 
+### Fixed
+
+- Resolve Arc USDC wrapper transfers as the native Arc asset ([#10425](https://github.com/MetaMask/core/pull/10425))
+
 ## [3.0.4]
 
 ### Changed
