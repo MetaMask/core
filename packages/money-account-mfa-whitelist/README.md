@@ -12,7 +12,12 @@ or
 
 ## Usage
 
-The clients and the MPC Backend call `getMfaRequirement` with the Money Account whose key signs, the 32-byte hash to sign, the request passed to the Money keyring that the hash was computed from, and the same pinned configuration. A request that doesn't match a whitelist rule requires MFA, including a malformed request, so the function never throws.
+The clients and the MPC Backend call `getMfaRequirement` with two arguments:
+
+- **The request:** what was passed to the Money keyring and what the hash was computed from. This is the untrusted input being checked.
+- **What the signer itself knows:** the Money Account whose key signs, the 32-byte hash to sign, the pinned configuration and, optionally, the current time. The backend must take these from its own state, never from the request.
+
+A request that doesn't match a whitelist rule requires MFA, including a malformed request, so the function never throws.
 
 ```ts
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
@@ -34,12 +39,8 @@ const config = {
 };
 
 const requirement = getMfaRequirement(
-  {
-    address,
-    hash,
-    request: { method: 'signTypedData', address, version: 'V4', data },
-  },
-  config,
+  { method: 'signTypedData', address: requestAddress, version: 'V4', data },
+  { address: signingAddress, hash, config },
 );
 
 if (requirement.mfaRequired) {

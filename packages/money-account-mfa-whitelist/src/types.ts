@@ -98,20 +98,6 @@ export type MoneyAccountSignatureRequest =
     };
 
 /**
- * The hash the MPC Backend is asked to sign and the account whose key signs
- * it, together with the request the hash was computed from. The request is
- * only whitelisted if it is for this account and hashes to exactly this hash.
- */
-export type MoneyAccountSigningRequest = {
-  /** The Money Account whose key signs the hash. */
-  address: Hex;
-  /** The 32-byte hash to sign. */
-  hash: Hex;
-  /** The signature request the hash was computed from. */
-  request: MoneyAccountSignatureRequest;
-};
-
-/**
  * The whitelist rule a payload matched.
  */
 export type MfaWhitelistRule =
@@ -130,7 +116,18 @@ export type MfaRequirement =
   | { mfaRequired: false; rule: MfaWhitelistRule }
   | { mfaRequired: true; reason: string };
 
-export type GetMfaRequirementOptions = {
+/**
+ * What the signer itself knows about the signature: its key, the hash it is
+ * asked to sign, its pinned config and its clock. None of this may be taken
+ * from the signature request, which is what is being checked.
+ */
+export type MfaSignerContext = {
+  /** The Money Account whose key signs the hash. */
+  address: Hex;
+  /** The 32-byte hash to sign. */
+  hash: Hex;
+  /** The pinned whitelist config. */
+  config: MfaWhitelistConfig;
   /** The current time in milliseconds. Defaults to `Date.now()`. */
   now?: number;
 };

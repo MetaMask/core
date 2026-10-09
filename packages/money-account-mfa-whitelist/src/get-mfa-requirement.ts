@@ -11,10 +11,9 @@ import {
 } from './hashes.js';
 import { getPersonalMessageMfaRequirement } from './personal-message.js';
 import type {
-  GetMfaRequirementOptions,
+  MfaSignerContext,
   MfaRequirement,
-  MfaWhitelistConfig,
-  MoneyAccountSigningRequest,
+  MoneyAccountSignatureRequest,
 } from './types.js';
 import { isAddress, isSameHex, requireMfa } from './utils.js';
 
@@ -52,28 +51,29 @@ function bindToHash(
  * after inspecting the request. Every request that doesn't match a whitelist
  * rule requires MFA, including malformed ones; the function never throws.
  *
+ * The request is the untrusted input being checked. The context is what the
+ * signer itself knows, so the backend must not take any of it from the
+ * request: `address` is the key it signs with, `hash` is what it signs,
+ * `config` is its pinned config, and `now` is its own clock.
+ *
  * Clients should still handle the backend requiring MFA for a request they
  * expected to be whitelisted, e.g. when their clock or config differs.
  *
- * @param signingRequest - The signing request.
- * @param signingRequest.address - The Money Account whose key signs the
- * hash.
- * @param signingRequest.hash - The 32-byte hash to sign.
- * @param signingRequest.request - The signature request the hash was
- * computed from.
- * @param config - The pinned whitelist config.
- * @param options - Options.
- * @param options.now - The current time in milliseconds. Defaults to
+ * @param request - The signature request the hash was computed from.
+ * @param context - What the signer knows about the signature.
+ * @param context.address - The Money Account whose key signs the hash.
+ * @param context.hash - The 32-byte hash to sign.
+ * @param context.config - The pinned whitelist config.
+ * @param context.now - The current time in milliseconds. Defaults to
  * `Date.now()`.
  * @returns Whether MFA is required, and the matched rule or the reason.
  */
 export function getMfaRequirement(
-  signingRequest: MoneyAccountSigningRequest,
-  config: MfaWhitelistConfig,
-  { now = Date.now() }: GetMfaRequirementOptions = {},
+  request: MoneyAccountSignatureRequest,
+  context: MfaSignerContext,
 ): MfaRequirement {
   try {
-    const { address, hash, request } = signingRequest;
+    const { address, hash, config, now = Date.now() } = context;
     if (!isAddress(address)) {
       return requireMfa('Address is not an address');
     }

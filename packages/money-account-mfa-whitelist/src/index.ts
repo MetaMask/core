@@ -3,11 +3,10 @@ export { getMfaRequirement } from './get-mfa-requirement.js';
 export type {
   DelegationFrameworkContracts,
   Eip7702Authorization,
-  GetMfaRequirementOptions,
   MfaRequirement,
+  MfaSignerContext,
   MfaWhitelistConfig,
   MfaWhitelistRule,
   MoneyAccountSignatureRequest,
-  MoneyAccountSigningRequest,
   MoneyAccountVault,
 } from './types.js';
