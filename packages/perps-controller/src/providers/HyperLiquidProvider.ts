@@ -6457,6 +6457,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async placeOrder(params: OrderParams, retryCount = 0): Promise<OrderResult> {
+    // Flip asks the provider not to consume the Sentry event. HyperLiquid
+    // still reports placeOrder through #handleOrderError; this only keeps the
+    // flag off the venue payload.
+    delete params.deferProviderErrorReport;
     if (params.expectedScaleLadder !== undefined) {
       return {
         success: false,

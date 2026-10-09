@@ -341,6 +341,12 @@ export type OrderParams = {
 
   // Optional tracking data for MetaMetrics events
   trackingData?: TrackingData;
+  /**
+   * When true, the provider returns a venue failure without logging it.
+   * The caller reports that failure under its own operation. Not sent to the venue.
+   * Flip sets this so Lighter does not consume the single Sentry event as `place_order`.
+   */
+  deferProviderErrorReport?: boolean;
 
   // Multi-provider routing (optional: defaults to active/default provider).
   providerId?: PerpsProviderType;

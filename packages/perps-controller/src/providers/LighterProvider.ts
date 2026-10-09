@@ -1987,6 +1987,22 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
+   * Whether a trading failure is an expected signer, account, session, or
+   * local-validation outcome. Those stay out of Sentry.
+   *
+   * @param error - Normalized provider error.
+   * @returns True when the provider owns silence for this failure.
+   */
+  #isSilentTradingError(error: Error): boolean {
+    return (
+      isKeyringLockedError(error) ||
+      error instanceof LighterSessionCancelledError ||
+      error instanceof LighterAccountNotFoundError ||
+      SILENT_LIGHTER_TRADING_ERRORS.has(error.message)
+    );
+  }
+
+  /**
    * Forward a failed trading operation to the platform logger without
    * classifying or rewriting the provider error.
    *
@@ -2006,12 +2022,7 @@ export class LighterProvider implements PerpsProvider {
     extra?: Record<string, unknown>,
   ): Error => {
     const wrappedError = ensureError(error, `LighterProvider.${method}`);
-    if (
-      !isKeyringLockedError(wrappedError) &&
-      !(wrappedError instanceof LighterSessionCancelledError) &&
-      !(wrappedError instanceof LighterAccountNotFoundError) &&
-      !SILENT_LIGHTER_TRADING_ERRORS.has(wrappedError.message)
-    ) {
+    if (!this.#isSilentTradingError(wrappedError)) {
       this.#deps.logger.error(
         wrappedError,
         this.#getErrorContext(method, extra, errorTags),
@@ -11148,7 +11159,10 @@ export class LighterProvider implements PerpsProvider {
     inheritedGeneration?: number,
     reportFailure = true,
   ): Promise<OrderResult> {
+    const deferProviderErrorReport = input.deferProviderErrorReport === true;
     const params = { ...input };
+    delete params.deferProviderErrorReport;
+    const shouldReportFailure = reportFailure && !deferProviderErrorReport;
     if (
       params.expectedScaleLadder !== undefined &&
       params.orderType !== 'scale'
@@ -11762,7 +11776,7 @@ export class LighterProvider implements PerpsProvider {
         providerId: 'lighter',
       };
     } catch (caughtError) {
-      const wrappedError = reportFailure
+      const wrappedError = shouldReportFailure
         ? this.#reportTradingError(
             caughtError,
             'placeOrder',
@@ -11799,7 +11813,10 @@ export class LighterProvider implements PerpsProvider {
           ? { partialState: { leverageUpdated: Number(params.leverage) } }
           : {}),
       };
-      return this.#reportedTradingErrors.has(wrappedError)
+      const providerOwnsReporting = shouldReportFailure
+        ? this.#reportedTradingErrors.has(wrappedError)
+        : deferProviderErrorReport && this.#isSilentTradingError(wrappedError);
+      return providerOwnsReporting
         ? markProviderErrorReported(failureResult)
         : failureResult;
     }

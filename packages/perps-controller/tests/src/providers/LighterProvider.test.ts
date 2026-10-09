@@ -26200,6 +26200,19 @@ describe('LighterProvider', () => {
         error: 'Lighter flip venue unavailable',
       });
       expect(logError).toHaveBeenCalledTimes(1);
+      const [[reportedError, reportedOptions]] = logError.mock.calls;
+      if (!reportedOptions) {
+        throw new Error('Expected flip error context');
+      }
+      expect(reportedError.message).toBe('Lighter flip venue unavailable');
+      expect(reportedOptions.tags).toMatchObject({
+        operation: 'position_management',
+        action: 'flip_position',
+      });
+      expect(reportedOptions.context).toMatchObject({
+        name: 'TradingService',
+        data: { method: 'flipPosition' },
+      });
     });
 
     it('routes a limit close with the requested price, not a market order', async () => {

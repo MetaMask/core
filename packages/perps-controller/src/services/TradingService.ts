@@ -2934,6 +2934,10 @@ export class TradingService {
         size: flipSize.toString(),
         orderType: 'market',
         leverage: position.leverage?.value,
+        // Lighter placeOrder otherwise logs order_management/place_order and
+        // marks the result reported, which drops this flip from flip filters.
+        // Close already suppresses that provider report. One Sentry event remains.
+        deferProviderErrorReport: true,
       };
 
       // Emit submitted event before the provider round-trip, keeping flip
