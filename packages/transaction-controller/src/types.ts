@@ -1145,6 +1145,12 @@ export type TransactionReceipt = {
   blockNumber?: string;
 
   /**
+   * DA footprint gas scalar from OP Stack Jovian receipts (including Mantle).
+   * Its presence selects the Jovian operator fee formula.
+   */
+  daFootprintGasScalar?: string;
+
+  /**
    * Effective gas price the transaction was charged at.
    */
   effectiveGasPrice?: string;
@@ -1166,7 +1172,9 @@ export type TransactionReceipt = {
 
   /**
    * Operator fee scalar from OP Stack / Mantle Arsia receipts, in hex.
-   * Used as: `gasUsed * operatorFeeScalar * 100 + operatorFeeConstant`.
+   * Used as `gasUsed * operatorFeeScalar * 100 + operatorFeeConstant` on
+   * Jovian, and `gasUsed * operatorFeeScalar / 1e6 + operatorFeeConstant`
+   * on Isthmus.
    */
   operatorFeeScalar?: string;
 

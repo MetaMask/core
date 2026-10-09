@@ -1,3 +1,7 @@
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
+
 import * as tokenMetadata from './token-metadata.js';
 import {
   getFees,
@@ -9,6 +13,19 @@ import {
   isNftStandard,
   parseValueTransfers,
 } from './transactions.js';
+
+const MANTLE_TRANSACTION: TransactionMeta = {
+  chainId: '0x1388',
+  id: 'mantle-tx',
+  networkClientId: 'mantle',
+  status: TransactionStatus.confirmed,
+  time: 0,
+  txParams: { from: '0x0000000000000000000000000000000000000001' },
+  txReceipt: {
+    gasUsed: '0x5208',
+    effectiveGasPrice: '0x3b9aca00',
+  },
+};
 
 describe('transaction helpers', () => {
   afterEach(() => {
@@ -481,15 +498,10 @@ describe('transaction helpers', () => {
       expect(
         getLocalTransactionFees({
           primaryTransaction: {
-            chainId: '0x1388',
+            ...MANTLE_TRANSACTION,
             layer1GasFee: '0x5f5e100', // 100_000_000
-            txParams: {},
-            txReceipt: {
-              gasUsed: '0x5208',
-              effectiveGasPrice: '0x3b9aca00',
-            },
           },
-        } as Parameters<typeof getLocalTransactionFees>[0]),
+        }),
       ).toStrictEqual([
         {
           type: 'base',
@@ -504,19 +516,42 @@ describe('transaction helpers', () => {
       ]);
     });
 
+    it.each([
+      { l1Fee: '0x64', amount: '21000000000100' },
+      { l1Fee: '0x0', amount: '21000000000000' },
+    ])(
+      'uses the receipt L1 fee $l1Fee instead of a stale layer1GasFee',
+      ({ l1Fee, amount }) => {
+        expect(
+          getLocalTransactionFees({
+            primaryTransaction: {
+              ...MANTLE_TRANSACTION,
+              layer1GasFee: '0x5f5e100',
+              txReceipt: { ...MANTLE_TRANSACTION.txReceipt, l1Fee },
+            },
+          }),
+        ).toStrictEqual([
+          {
+            type: 'base',
+            amount,
+            decimals: 18,
+            assetType: 'native',
+            symbol: 'MNT',
+            assetId:
+              'eip155:5000/erc20:0x0000000000000000000000000000000000000000',
+          },
+        ]);
+      },
+    );
+
     it('ignores invalid layer1GasFee and keeps the L2 network fee', () => {
       expect(
         getLocalTransactionFees({
           primaryTransaction: {
-            chainId: '0x1388',
-            layer1GasFee: 'not-a-hex',
-            txParams: {},
-            txReceipt: {
-              gasUsed: '0x5208',
-              effectiveGasPrice: '0x3b9aca00',
-            },
+            ...MANTLE_TRANSACTION,
+            layer1GasFee: 'not-a-hex' as string as Hex,
           },
-        } as Parameters<typeof getLocalTransactionFees>[0]),
+        }),
       ).toStrictEqual([
         {
           type: 'base',

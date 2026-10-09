@@ -35,7 +35,9 @@ function toHexWei(value: bigint): Hex {
 /**
  * Computes the OP Stack / Mantle Arsia operator fee from receipt fields.
  *
- * Formula: `gasUsed * operatorFeeScalar * 100 + operatorFeeConstant`
+ * Jovian receipts (with `daFootprintGasScalar`):
+ * `gasUsed * operatorFeeScalar * 100 + operatorFeeConstant`.
+ * Isthmus receipts: `gasUsed * operatorFeeScalar / 1e6 + operatorFeeConstant`.
  *
  * @param receipt - Transaction receipt that may include operator fee params.
  * @returns Operator fee in wei, or undefined when it cannot be computed.
@@ -53,7 +55,12 @@ function getOperatorFee(receipt: TransactionReceipt): bigint | undefined {
     return undefined;
   }
 
-  return gasUsed * operatorFeeScalar * 100n + operatorFeeConstant;
+  const scaledFee =
+    receipt.daFootprintGasScalar === undefined
+      ? (gasUsed * operatorFeeScalar) / 1_000_000n
+      : gasUsed * operatorFeeScalar * 100n;
+
+  return scaledFee + operatorFeeConstant;
 }
 
 /**

@@ -6,6 +6,7 @@ import {
 import type { V1TransactionByHashResponse } from '@metamask/core-backend';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import {
+  getLayer1FeeFromReceipt,
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
@@ -54,11 +55,10 @@ function calculateNetworkFee(
 
 /**
  * Adds L1 / operator fee onto an L2 network fee (decimal wei string).
- * Uses `layer1GasFee` from TransactionMeta so activity fees stay aligned
- * with the Accounts API response.
+ * Activity fees then stay aligned with the Accounts API response.
  *
  * @param networkFeeAmount - L2 network fee amount in decimal wei.
- * @param layer1GasFee - Optional hex wei L1 + operator fee from TransactionMeta.
+ * @param layer1GasFee - Optional hex wei L1 + operator fee.
  * @returns Combined fee amount in decimal wei, or the original L2 amount on failure.
  */
 function addLayer1FeeToNetworkFeeAmount(
@@ -160,8 +160,8 @@ export function getFees(
 /**
  * Builds the base network fee (in the chain's native token) for a local
  * transaction from its receipt (`gasUsed × effectiveGasPrice`), plus any
- * L1 / operator fee from `layer1GasFee`. Falls back to `txParams.gasPrice`
- * while pending.
+ * L1 / operator fee from the receipt, or from `layer1GasFee` when the receipt
+ * has no L1 fee fields. Falls back to `txParams.gasPrice` while pending.
  *
  * @param transactionGroup - Transaction group with the primary transaction.
  * @returns Activity fee list with a single base network fee, or undefined.
@@ -190,7 +190,9 @@ export function getLocalTransactionFees(
 
   const amount = addLayer1FeeToNetworkFeeAmount(
     l2Amount,
-    primaryTransaction.layer1GasFee,
+    (primaryTransaction.txReceipt &&
+      getLayer1FeeFromReceipt(primaryTransaction.txReceipt)) ??
+      primaryTransaction.layer1GasFee,
   );
 
   return [toNetworkFee(amount, chainId, nativeAssetSymbol)];

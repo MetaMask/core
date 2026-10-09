@@ -444,7 +444,7 @@ export function updateTransactionGasProperties({
     txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
   }
 
-  if (layer1GasFee) {
+  if (layer1GasFee && !txMeta.txReceipt) {
     txMeta.layer1GasFee = layer1GasFee;
   }
 }

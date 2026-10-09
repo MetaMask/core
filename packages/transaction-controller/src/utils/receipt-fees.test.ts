@@ -7,6 +7,7 @@ import {
 describe('receipt-fees', () => {
   // Values from a live Mantle mainnet receipt.
   const MANTLE_RECEIPT: TransactionReceipt = {
+    daFootprintGasScalar: '0x190',
     gasUsed: '0xceaf',
     l1Fee: '0x9173c910a1ac',
     operatorFeeConstant: '0x0',
@@ -44,11 +45,22 @@ describe('receipt-fees', () => {
     it('includes a non-zero operatorFeeConstant', () => {
       expect(
         getOperatorFeeFromReceipt({
+          daFootprintGasScalar: '0x190',
           gasUsed: '0x1',
           operatorFeeScalar: '0x1',
           operatorFeeConstant: '0xa',
         }),
       ).toBe('0x6e'); // 1 * 1 * 100 + 10 = 110
+    });
+
+    it('uses the Isthmus formula when daFootprintGasScalar is absent', () => {
+      expect(
+        getOperatorFeeFromReceipt({
+          gasUsed: '0x7a120',
+          operatorFeeScalar: '0x3',
+          operatorFeeConstant: '0xa',
+        }),
+      ).toBe('0x0b'); // floor(500000 * 3 / 1e6) + 10 = 11
     });
   });
 
@@ -74,6 +86,7 @@ describe('receipt-fees', () => {
     it('returns operator fee only when l1Fee is absent', () => {
       expect(
         getLayer1FeeFromReceipt({
+          daFootprintGasScalar: '0x190',
           gasUsed: '0x1',
           operatorFeeScalar: '0x1',
           operatorFeeConstant: '0x0',
@@ -102,6 +115,7 @@ describe('receipt-fees', () => {
 
     it('does not multiply l1Fee by tokenRatio', () => {
       const withoutRatio = getLayer1FeeFromReceipt({
+        daFootprintGasScalar: MANTLE_RECEIPT.daFootprintGasScalar,
         gasUsed: MANTLE_RECEIPT.gasUsed,
         l1Fee: MANTLE_RECEIPT.l1Fee,
         operatorFeeScalar: MANTLE_RECEIPT.operatorFeeScalar,

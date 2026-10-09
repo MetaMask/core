@@ -789,6 +789,7 @@ describe('PendingTransactionTracker', () => {
 
           const mantleReceipt = {
             ...RECEIPT_MOCK,
+            daFootprintGasScalar: '0x190',
             gasUsed: '0xceaf',
             l1Fee: '0x9173c910a1ac',
             operatorFeeConstant: '0x0',

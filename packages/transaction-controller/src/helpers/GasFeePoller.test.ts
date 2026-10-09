@@ -644,6 +644,22 @@ describe('updateTransactionGasProperties', () => {
     expect(txMeta.layer1GasFee).toBe(layer1GasFeeMock);
   });
 
+  it('does not update layer1GasFee once the transaction has a receipt', () => {
+    const txMeta = {
+      ...TRANSACTION_META_MOCK,
+      layer1GasFee: '0xabc' as const,
+      txReceipt: {},
+    };
+
+    updateTransactionGasProperties({
+      txMeta,
+      layer1GasFee: '0x123456',
+      isTxParamsGasFeeUpdatesEnabled: () => true,
+    });
+
+    expect(txMeta.layer1GasFee).toBe('0xabc');
+  });
+
   describe('does not update txParams gas values', () => {
     it('if isTxParamsGasFeeUpdatesEnabled callback returns false', () => {
       const prevMaxFeePerGas = '0x987654321';
