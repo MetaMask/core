@@ -3616,6 +3616,44 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Whether a deposit transaction was dismissed by the user.
+   * Those outcomes are expected and stay out of error reporting.
+   *
+   * @param errorMessage - Message from the transaction result.
+   * @returns True when the message is a user cancellation.
+   */
+  #isUserCancelledDeposit(errorMessage: string): boolean {
+    return (
+      errorMessage.includes('User denied') ||
+      errorMessage.includes('User rejected') ||
+      errorMessage.includes('User cancelled') ||
+      errorMessage.includes('User canceled')
+    );
+  }
+
+  /**
+   * Report a deposit failure that is not a user cancellation.
+   * Preparation failures and post-confirmation transaction failures share
+   * the financial deposit tags.
+   *
+   * @param error - The deposit error.
+   * @param placeOrder - True for the deposit-and-order flow.
+   */
+  #logDepositFailure(error: Error, placeOrder: boolean): void {
+    this.#logError(
+      error,
+      this.#getErrorContext(
+        'depositWithConfirmation',
+        { placeOrder },
+        {
+          operation: PERPS_ERROR_OPERATION.FinancialOperations,
+          action: PERPS_ERROR_ACTION.FinancialDeposit,
+        },
+      ),
+    );
+  }
+
+  /**
    * Simplified deposit method that prepares transaction for confirmation screen
    * No complex state tracking - just sets a loading flag
    *
@@ -3772,15 +3810,12 @@ export class PerpsController extends BaseController<
           })
           .catch((error) => {
             // Check if user denied/cancelled the transaction
-            const errorMessage = ensureError(
+            const depositError = ensureError(
               error,
               'PerpsController.initiateDeposit',
-            ).message;
-            const userCancelled =
-              errorMessage.includes('User denied') ||
-              errorMessage.includes('User rejected') ||
-              errorMessage.includes('User cancelled') ||
-              errorMessage.includes('User canceled');
+            );
+            const errorMessage = depositError.message;
+            const userCancelled = this.#isUserCancelledDeposit(errorMessage);
 
             if (userCancelled) {
               // User cancelled - clear any state, no toast
@@ -3799,6 +3834,7 @@ export class PerpsController extends BaseController<
                 }
               });
             } else {
+              this.#logDepositFailure(depositError, false);
               // Transaction failed after confirmation - show error toast
               this.update((state) => {
                 state.depositInProgress = false;
@@ -3842,15 +3878,15 @@ export class PerpsController extends BaseController<
             return;
           })
           .catch((error) => {
-            const errorMessage = ensureError(
+            const depositError = ensureError(
               error,
               'PerpsController.depositWithOrder',
-            ).message;
-            const isCancellation =
-              errorMessage.includes('User denied') ||
-              errorMessage.includes('User rejected') ||
-              errorMessage.includes('User cancelled') ||
-              errorMessage.includes('User canceled');
+            );
+            const errorMessage = depositError.message;
+            const isCancellation = this.#isUserCancelledDeposit(errorMessage);
+            if (!isCancellation) {
+              this.#logDepositFailure(depositError, true);
+            }
             this.update((state) => {
               const requestToUpdate = state.depositRequests.find(
                 (req) => req.id === currentDepositId,
@@ -3875,24 +3911,10 @@ export class PerpsController extends BaseController<
         'PerpsController.initiateDeposit',
       );
       const errorMessage = depositError.message;
-      const userCancelled =
-        errorMessage.includes('User denied') ||
-        errorMessage.includes('User rejected') ||
-        errorMessage.includes('User cancelled') ||
-        errorMessage.includes('User canceled');
+      const userCancelled = this.#isUserCancelledDeposit(errorMessage);
 
       if (!userCancelled) {
-        this.#logError(
-          depositError,
-          this.#getErrorContext(
-            'depositWithConfirmation',
-            { placeOrder: placeOrder === true },
-            {
-              operation: PERPS_ERROR_OPERATION.FinancialOperations,
-              action: PERPS_ERROR_ACTION.FinancialDeposit,
-            },
-          ),
-        );
+        this.#logDepositFailure(depositError, placeOrder === true);
         // Only track actual errors, not user cancellations
         this.update((state) => {
           state.lastDepositTransactionId = null;

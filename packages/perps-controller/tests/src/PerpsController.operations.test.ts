@@ -3450,8 +3450,88 @@ describe('PerpsController', () => {
       // Should update deposit request status
       expect(depositController.state.depositRequests[0].status).toBe('failed');
       expect(depositController.state.depositRequests[0].success).toBe(false);
+      expect(depositInfrastructure.logger.error).toHaveBeenCalledWith(
+        mockError,
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            feature: 'perps',
+            operation: 'financial_operations',
+            action: 'financial_deposit',
+          }),
+          context: {
+            name: 'PerpsController',
+            data: expect.objectContaining({
+              method: 'depositWithConfirmation',
+              placeOrder: false,
+            }),
+          },
+        }),
+      );
 
       jest.useRealTimers();
+    });
+
+    it('logs post-confirmation deposit-and-order transaction failures', async () => {
+      depositController.testMarkInitialized();
+      depositController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+
+      const mockError = new Error('Network error occurred');
+      depositMockCall.mockImplementation(
+        (action: string, ..._args: unknown[]) => {
+          if (
+            action ===
+            'AccountTreeController:getAccountsFromSelectedAccountGroup'
+          ) {
+            return [
+              {
+                address: '0x1234567890123456789012345678901234567890',
+                type: 'eip155:eoa',
+              },
+            ];
+          }
+          if (action === 'TransactionController:addTransaction') {
+            return Promise.resolve({
+              result: Promise.reject(mockError),
+              transactionMeta: mockTransactionMeta,
+            });
+          }
+          if (action === 'NetworkController:findNetworkClientIdByChainId') {
+            return mockNetworkClientId;
+          }
+          if (action === 'RemoteFeatureFlagController:getState') {
+            return { remoteFeatureFlags: {} };
+          }
+          return undefined;
+        },
+      );
+
+      const { result } = await depositController.depositWithConfirmation({
+        amount: '100',
+        placeOrder: true,
+      });
+
+      await expect(result).resolves.toBe(mockTransactionMeta.id);
+      expect(depositController.state.depositRequests[0].status).toBe('failed');
+      expect(depositController.state.depositRequests[0].success).toBe(false);
+      expect(depositInfrastructure.logger.error).toHaveBeenCalledWith(
+        mockError,
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            feature: 'perps',
+            operation: 'financial_operations',
+            action: 'financial_deposit',
+          }),
+          context: {
+            name: 'PerpsController',
+            data: expect.objectContaining({
+              method: 'depositWithConfirmation',
+              placeOrder: true,
+            }),
+          },
+        }),
+      );
     });
 
     it('handles user cancelled transaction with different error messages', async () => {
@@ -3461,6 +3541,7 @@ describe('PerpsController', () => {
       );
 
       const cancellationMessages = [
+        'User denied transaction signature',
         'User rejected transaction signature',
         'User cancelled transaction',
         'User canceled transaction',
@@ -3515,6 +3596,69 @@ describe('PerpsController', () => {
         expect(depositController.state.depositInProgress).toBe(false);
         expect(depositController.state.lastDepositTransactionId).toBeNull();
         expect(depositController.state.lastDepositResult).toBeNull();
+        expect(depositInfrastructure.logger.error).not.toHaveBeenCalled();
+      }
+    });
+
+    it('leaves user-cancelled deposit-and-order results unlogged', async () => {
+      depositController.testMarkInitialized();
+      depositController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+
+      const cancellationMessages = [
+        'User denied transaction signature',
+        'User rejected transaction signature',
+        'User cancelled transaction',
+        'User canceled transaction',
+      ];
+
+      for (const message of cancellationMessages) {
+        depositController.testUpdate((state) => {
+          state.depositRequests = [];
+          state.lastDepositResult = null;
+          state.depositInProgress = false;
+        });
+        jest.clearAllMocks();
+        depositMockCall.mockImplementation(
+          (action: string, ..._args: unknown[]) => {
+            if (
+              action ===
+              'AccountTreeController:getAccountsFromSelectedAccountGroup'
+            ) {
+              return [
+                {
+                  address: '0x1234567890123456789012345678901234567890',
+                  type: 'eip155:eoa',
+                },
+              ];
+            }
+            if (action === 'TransactionController:addTransaction') {
+              return Promise.resolve({
+                result: Promise.reject(new Error(message)),
+                transactionMeta: mockTransactionMeta,
+              });
+            }
+            if (action === 'NetworkController:findNetworkClientIdByChainId') {
+              return mockNetworkClientId;
+            }
+            if (action === 'RemoteFeatureFlagController:getState') {
+              return { remoteFeatureFlags: {} };
+            }
+            return undefined;
+          },
+        );
+
+        const { result } = await depositController.depositWithConfirmation({
+          amount: '100',
+          placeOrder: true,
+        });
+
+        await expect(result).resolves.toBe(mockTransactionMeta.id);
+        expect(depositController.state.depositRequests[0].status).toBe(
+          'cancelled',
+        );
+        expect(depositInfrastructure.logger.error).not.toHaveBeenCalled();
       }
     });
   });
