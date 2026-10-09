@@ -4,7 +4,6 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   UserStorageControllerPerformGetStorageAction,
@@ -19,7 +18,6 @@ import type { KycServiceMethodActions } from './KycService-method-action-types.j
 import type {
   CapabilityAuthorization,
   EncryptionSchema,
-  JwksResponse,
 } from './KycService.js';
 import {
   isSumSubFlowCompleted,
@@ -43,18 +41,6 @@ import type {
   KycVendorSigning,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
-import type {
-  UkycEncryptionSchemaName,
-  UkycJwksSource,
-} from './ukyc/errors.js';
-import {
-  readErrorMessage,
-  UKYC_JWKS_ERROR_CODES,
-  UKYC_JWT_ERROR_CODES,
-  UkycJwksError,
-  UkycJwtVerificationError,
-} from './ukyc/errors.js';
-import type { Jwk } from './ukyc/jwtChain.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
 import {
   getOrCreateLocalUserSecret,
@@ -1070,128 +1056,32 @@ export class KycController extends BaseController<
    * `encryptionDataKey` is attested by the idOS enclave; `ukycCapabilityToken`
    * by the idOS relay.
    *
-   * JWKS failures throw {@link UkycJwksError}. Verification failures throw
-   * {@link UkycJwtVerificationError} naming the schema. Either failure happens
-   * before authorizations are submitted.
+   * Any failure is logged and rethrown as a single friendly error. Authorizations
+   * are not submitted after that.
    *
    * @param encryptionDataKey - Encryption schema for the data encryption key.
    * @param capabilityTokenSchema - Encryption schema for the capability token.
-   * @throws {UkycJwksError} When an issuer JWKS cannot be loaded or is empty.
-   * @throws {UkycJwtVerificationError} When a schema's `jwtChain` does not
-   * verify.
+   * @throws When a JWKS cannot be loaded or a `jwtChain` does not verify.
    */
   async #verifyWrappingKeys(
     encryptionDataKey: EncryptionSchema,
     capabilityTokenSchema: EncryptionSchema,
   ): Promise<void> {
-    const [idosEnclaveJwks, idosRelayJwks] = await Promise.all([
-      this.#fetchIssuerJwks(
-        'KycService:fetchIdosEnclaveJwks',
-        'idos_enclave',
-        'idOS enclave JWKS',
-      ),
-      this.#fetchIssuerJwks(
-        'KycService:fetchIdosRelayJwks',
-        'idos_relay',
-        'idOS relay JWKS',
-      ),
-    ]);
-    this.#assertEncryptionSchema(
-      'encryptionDataKey',
-      idosEnclaveJwks.keys,
-      encryptionDataKey,
-    );
-    this.#assertEncryptionSchema(
-      'ukycCapabilityToken',
-      idosRelayJwks.keys,
-      capabilityTokenSchema,
-    );
-  }
-
-  /**
-   * Loads one issuer JWKS, rejecting transport failures, non-JWKS bodies, and
-   * empty key sets as {@link UkycJwksError}.
-   *
-   * A {@link UkycJwksError} from the service is rethrown unchanged. Any other
-   * failure is wrapped so the caller still gets a source, schema, and, for
-   * HTTP errors, `httpStatus`.
-   *
-   * @param action - Messenger action that fetches the JWKS.
-   * @param source - Issuer the JWKS belongs to.
-   * @param label - Human-readable issuer label used in error messages.
-   * @returns The JWKS key set.
-   * @throws {UkycJwksError} When the JWKS cannot be used for verification.
-   */
-  async #fetchIssuerJwks(
-    action: 'KycService:fetchIdosEnclaveJwks' | 'KycService:fetchIdosRelayJwks',
-    source: UkycJwksSource,
-    label: string,
-  ): Promise<JwksResponse> {
-    let jwks: unknown;
     try {
-      jwks = await this.messenger.call(action);
+      const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] =
+        await Promise.all([
+          this.messenger.call('KycService:fetchIdosEnclaveJwks'),
+          this.messenger.call('KycService:fetchIdosRelayJwks'),
+        ]);
+      assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
+      assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
     } catch (error) {
-      if (error instanceof UkycJwksError) {
-        throw error;
-      }
-      throw new UkycJwksError(
-        UKYC_JWKS_ERROR_CODES.fetchFailed,
-        source,
-        `KycController: failed to fetch ${label}: ${readErrorMessage(error)}`,
-        {
-          cause: error,
-          httpStatus: error instanceof HttpError ? error.httpStatus : undefined,
-        },
+      console.error(
+        'KycController: something went wrong while verifying session encryption keys.',
+        error,
       );
-    }
-
-    if (!isJwksResponse(jwks)) {
-      throw new UkycJwksError(
-        UKYC_JWKS_ERROR_CODES.malformed,
-        source,
-        `KycController: ${label} response was not a JWKS key set.`,
-      );
-    }
-
-    if (jwks.keys.length === 0) {
-      throw new UkycJwksError(
-        UKYC_JWKS_ERROR_CODES.empty,
-        source,
-        `KycController: ${label} contained no keys.`,
-      );
-    }
-
-    return jwks;
-  }
-
-  /**
-   * Verifies one encryption schema and tags the failure with that schema.
-   *
-   * @param schemaName - Schema whose `jwtChain` is being verified.
-   * @param keys - Issuer JWKS keys for that schema.
-   * @param schema - Encryption schema returned by session creation.
-   * @throws {UkycJwtVerificationError} When verification fails.
-   */
-  #assertEncryptionSchema(
-    schemaName: UkycEncryptionSchemaName,
-    keys: Jwk[],
-    schema: EncryptionSchema,
-  ): void {
-    try {
-      assertAttestedServerPublicKey(keys, schema);
-    } catch (error) {
-      const code =
-        error instanceof UkycJwtVerificationError
-          ? error.code
-          : UKYC_JWT_ERROR_CODES.verificationFailed;
-      const detail =
-        error instanceof UkycJwtVerificationError
-          ? error.message.replace(/^UKYC:\s*/u, '')
-          : readErrorMessage(error);
-      throw new UkycJwtVerificationError(
-        code,
-        `UKYC: failed to verify ${schemaName}: ${detail}`,
-        { cause: error, schema: schemaName },
+      throw new Error(
+        'Something went wrong while verifying your session. Please try again.',
       );
     }
   }
@@ -1242,20 +1132,4 @@ export class KycController extends BaseController<
 
     return { wrappedEncryptionDataKey, wrappedUkycCapabilityToken };
   }
-}
-
-/**
- * Returns whether `value` is a JWKS object with a `keys` array.
- *
- * @param value - The messenger result from a JWKS fetch.
- * @returns Whether `value` can be verified as a JWKS key set.
- */
-function isJwksResponse(value: unknown): value is JwksResponse {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-  if (!('keys' in value)) {
-    return false;
-  }
-  return Array.isArray(value.keys);
 }

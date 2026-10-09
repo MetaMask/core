@@ -9,13 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `UkycJwksError` and `UkycJwtVerificationError` for idOS JWKS fetches and encryption-schema `jwtChain` verification. Each error carries a stable `code` (`not_configured`, `fetch_failed`, `malformed`, `empty` for JWKS; `malformed_jwt`, `unsupported_algorithm`, `unknown_key`, `invalid_key`, `invalid_signature`, `invalid_payload`, `public_key_mismatch`, `verification_failed` for JWT verification) and the encryption schema (`encryptionDataKey` or `ukycCapabilityToken`) the failure applies to
 - Added exported `KYC_STATUSES` and `TERMINAL_SESSION_STATUSES`, so consumers can reuse the KYC status vocabulary and the terminal session-status set (`approved`, `rejected`, `retry`) from the package entry point instead of redefining them locally ([#10771](https://github.com/MetaMask/core/pull/10771))
 
 ### Changed
 
-- **BREAKING:** `KycService.fetchIdosEnclaveJwks` and `KycService.fetchIdosRelayJwks` throw `UkycJwksError` instead of `HttpError` or a plain `Error` when the issuer base URL is missing, the request fails, the body is not a JWKS, or `keys` is empty. HTTP failures set `httpStatus` and keep the original `HttpError` as `cause`. Catch `UkycJwksError` (or read `cause` when `httpStatus` is set) instead of catching `HttpError` from these two methods
-- `KycController.startSession` reports a JWKS fetch or `jwtChain` verification failure as `UkycJwksError` or `UkycJwtVerificationError`, including which encryption schema failed, and does not submit authorizations after that failure
+- `KycController.startSession` logs a message and throws "Something went wrong while verifying your session. Please try again." when an issuer JWKS cannot be fetched or a `jwtChain` does not verify, and does not submit authorizations after that failure
+- `KycService.fetchIdosEnclaveJwks` and `KycService.fetchIdosRelayJwks` throw when the JWKS `keys` array is empty
 - Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
 
 ## [0.7.0]

@@ -1,4 +1,3 @@
-import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -9,8 +8,6 @@ import nock, { cleanAll } from 'nock';
 
 import type { EncryptionSchema, KycServiceMessenger } from './KycService.js';
 import { KycService } from './KycService.js';
-import type { UkycJwksErrorCode, UkycJwksSource } from './ukyc/errors.js';
-import { UkycJwksError } from './ukyc/errors.js';
 
 const MOCK_API_URL = 'https://kyc-api.dev-api.cx.metamask.io';
 const MOCK_IDOS_ENCLAVE_URL = 'https://idos-enclave.dev-api.cx.metamask.io';
@@ -209,15 +206,9 @@ describe('KycService', () => {
       // Omit the option entirely so the constructor falls back to ''.
       const { service } = getService({ idosEnclaveBaseUrl: null });
 
-      expect(
-        await expectJwksError(service.fetchIdosEnclaveJwks(), {
-          code: 'not_configured',
-          source: 'idos_enclave',
-          schema: 'encryptionDataKey',
-          message:
-            /idosEnclaveBaseUrl is not configured; cannot fetch JWKS to verify the encryptionDataKey schema/u,
-        }),
-      ).toBeInstanceOf(UkycJwksError);
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /idosEnclaveBaseUrl is not configured; cannot fetch JWKS to verify the encryptionDataKey schema/u,
+      );
     });
 
     it('throws on a malformed response', async () => {
@@ -226,13 +217,9 @@ describe('KycService', () => {
         .reply(200, { keys: [{ kty: 'OKP' }] });
       const { service } = getService();
 
-      const error = await expectJwksError(service.fetchIdosEnclaveJwks(), {
-        code: 'malformed',
-        source: 'idos_enclave',
-        schema: 'encryptionDataKey',
-        message: /Malformed response received from idOS enclave JWKS API/u,
-      });
-      expect(error.cause).toBeInstanceOf(Error);
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /Malformed response received from idOS enclave JWKS API/u,
+      );
     });
 
     it('throws when the JWKS request fails', async () => {
@@ -241,16 +228,9 @@ describe('KycService', () => {
         .reply(503, { message: 'unavailable' });
       const { service } = getService();
 
-      const error = await expectJwksError(service.fetchIdosEnclaveJwks(), {
-        code: 'fetch_failed',
-        source: 'idos_enclave',
-        schema: 'encryptionDataKey',
-        httpStatus: 503,
-        message: /failed to fetch idOS enclave JWKS/u,
-      });
-      expect(error.message).toMatch(/503/u);
-      expect(error.message).toMatch(/unavailable/u);
-      expect(error.cause).toBeInstanceOf(HttpError);
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /failed with status '503': unavailable/u,
+      );
     });
 
     it('throws when the JWKS body is not JSON', async () => {
@@ -259,27 +239,9 @@ describe('KycService', () => {
         .reply(200, 'not-json');
       const { service } = getService();
 
-      const error = await expectJwksError(service.fetchIdosEnclaveJwks(), {
-        code: 'fetch_failed',
-        source: 'idos_enclave',
-        schema: 'encryptionDataKey',
-        message: /failed to fetch idOS enclave JWKS/u,
-      });
-      expect(error.httpStatus).toBeUndefined();
-      expect(error.cause).toBeInstanceOf(Error);
-    });
-
-    it('wraps a non-Error JWKS fetch failure', async () => {
-      const fetchImpl = jest.fn().mockRejectedValue('socket down');
-      const { service } = getService({ fetchImpl });
-
-      const error = await expectJwksError(service.fetchIdosEnclaveJwks(), {
-        code: 'fetch_failed',
-        source: 'idos_enclave',
-        schema: 'encryptionDataKey',
-        message: /socket down/u,
-      });
-      expect(error.cause).toBe('socket down');
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /not valid JSON/u,
+      );
     });
 
     it('throws when the JWKS contains no keys', async () => {
@@ -288,14 +250,9 @@ describe('KycService', () => {
         .reply(200, { keys: [] });
       const { service } = getService();
 
-      expect(
-        await expectJwksError(service.fetchIdosEnclaveJwks(), {
-          code: 'empty',
-          source: 'idos_enclave',
-          schema: 'encryptionDataKey',
-          message: /idOS enclave JWKS contained no keys/u,
-        }),
-      ).toBeInstanceOf(UkycJwksError);
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /idOS enclave JWKS contained no keys/u,
+      );
     });
   });
 
@@ -315,15 +272,9 @@ describe('KycService', () => {
     it('throws when no idOS relay base URL is configured', async () => {
       const { service } = getService({ idosRelayBaseUrl: null });
 
-      expect(
-        await expectJwksError(service.fetchIdosRelayJwks(), {
-          code: 'not_configured',
-          source: 'idos_relay',
-          schema: 'ukycCapabilityToken',
-          message:
-            /idosRelayBaseUrl is not configured; cannot fetch JWKS to verify the ukycCapabilityToken schema/u,
-        }),
-      ).toBeInstanceOf(UkycJwksError);
+      await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
+        /idosRelayBaseUrl is not configured; cannot fetch JWKS to verify the ukycCapabilityToken schema/u,
+      );
     });
 
     it('throws on a malformed response', async () => {
@@ -332,14 +283,9 @@ describe('KycService', () => {
         .reply(200, { keys: [{ kty: 'OKP' }] });
       const { service } = getService();
 
-      expect(
-        await expectJwksError(service.fetchIdosRelayJwks(), {
-          code: 'malformed',
-          source: 'idos_relay',
-          schema: 'ukycCapabilityToken',
-          message: /Malformed response received from idOS relay JWKS API/u,
-        }),
-      ).toBeInstanceOf(UkycJwksError);
+      await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
+        /Malformed response received from idOS relay JWKS API/u,
+      );
     });
 
     it('throws when the JWKS request fails', async () => {
@@ -348,15 +294,9 @@ describe('KycService', () => {
         .reply(502, { error: 'bad gateway' });
       const { service } = getService();
 
-      const error = await expectJwksError(service.fetchIdosRelayJwks(), {
-        code: 'fetch_failed',
-        source: 'idos_relay',
-        schema: 'ukycCapabilityToken',
-        httpStatus: 502,
-        message: /failed to fetch idOS relay JWKS/u,
-      });
-      expect(error.message).toMatch(/bad gateway/u);
-      expect(error.cause).toBeInstanceOf(HttpError);
+      await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
+        /failed with status '502': bad gateway/u,
+      );
     });
 
     it('throws when the JWKS contains no keys', async () => {
@@ -365,14 +305,9 @@ describe('KycService', () => {
         .reply(200, { keys: [] });
       const { service } = getService();
 
-      expect(
-        await expectJwksError(service.fetchIdosRelayJwks(), {
-          code: 'empty',
-          source: 'idos_relay',
-          schema: 'ukycCapabilityToken',
-          message: /idOS relay JWKS contained no keys/u,
-        }),
-      ).toBeInstanceOf(UkycJwksError);
+      await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
+        /idOS relay JWKS contained no keys/u,
+      );
     });
   });
 
@@ -1257,48 +1192,6 @@ type RootMessenger = Messenger<
 >;
 
 /**
- * Asserts that a JWKS fetch rejects with {@link UkycJwksError}.
- *
- * @param promise - The fetch under test.
- * @param expected - Fields the error must carry.
- * @param expected.code - Expected error code.
- * @param expected.source - Expected issuer.
- * @param expected.schema - Expected encryption schema.
- * @param expected.httpStatus - Expected HTTP status, or `undefined`.
- * @param expected.message - Optional message pattern.
- * @returns The thrown error.
- */
-async function expectJwksError(
-  promise: Promise<unknown>,
-  expected: {
-    code: UkycJwksErrorCode;
-    source: UkycJwksSource;
-    schema: 'encryptionDataKey' | 'ukycCapabilityToken';
-    httpStatus?: number;
-    message: RegExp;
-  },
-): Promise<UkycJwksError> {
-  let caught: unknown;
-  await expect(
-    promise.then(
-      () => undefined,
-      (error: unknown) => {
-        caught = error;
-        return Promise.reject(error);
-      },
-    ),
-  ).rejects.toBeInstanceOf(UkycJwksError);
-
-  const jwksError = caught as UkycJwksError;
-  expect(jwksError.code).toBe(expected.code);
-  expect(jwksError.source).toBe(expected.source);
-  expect(jwksError.schema).toBe(expected.schema);
-  expect(jwksError.httpStatus).toBe(expected.httpStatus);
-  expect(jwksError.message).toMatch(expected.message);
-  return jwksError;
-}
-
-/**
  * Constructs the service under test with mocked auth + geo handlers.
  *
  * @param args - Options.
@@ -1312,8 +1205,6 @@ async function expectJwksError(
  * so the service falls back to an empty string.
  * @param args.omitFetch - When true, omit the `fetch` option so the service
  * falls back to the runtime's native `fetch`.
- * @param args.fetchImpl - Fetch implementation to inject. Ignored when
- * `omitFetch` is true.
  * @returns The service, root messenger, and service messenger.
  */
 function getService({
@@ -1329,7 +1220,6 @@ function getService({
   // When true, omit the `fetch` option so the service falls back to the
   // runtime's native `fetch` (which nock intercepts).
   omitFetch = false,
-  fetchImpl,
 }: {
   bearerToken?: string;
   geolocation?: string | null;
@@ -1338,7 +1228,6 @@ function getService({
   idosEnclaveBaseUrl?: string | null;
   idosRelayBaseUrl?: string | null;
   omitFetch?: boolean;
-  fetchImpl?: typeof fetch;
 } = {}): {
   service: KycService;
   rootMessenger: RootMessenger;
@@ -1369,7 +1258,7 @@ function getService({
   );
 
   const service = new KycService({
-    ...(omitFetch ? {} : { fetch: fetchImpl ?? fetch }),
+    ...(omitFetch ? {} : { fetch }),
     messenger,
     baseUrl,
     ...(idosEnclaveBaseUrl === null ? {} : { idosEnclaveBaseUrl }),

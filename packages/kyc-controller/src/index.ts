@@ -143,18 +143,6 @@ export type {
   UkycStorageOperation,
   UkycTokenPresenter,
 } from './ukyc/storageAccessToken.js';
-export {
-  UKYC_JWKS_ERROR_CODES,
-  UKYC_JWT_ERROR_CODES,
-  UkycJwksError,
-  UkycJwtVerificationError,
-} from './ukyc/errors.js';
-export type {
-  UkycEncryptionSchemaName,
-  UkycJwksErrorCode,
-  UkycJwksSource,
-  UkycJwtErrorCode,
-} from './ukyc/errors.js';
 export { mintUkycTestToken } from './ukyc/testToken.js';
 export type {
   MintedUkycTestToken,
