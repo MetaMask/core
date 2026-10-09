@@ -1,7 +1,7 @@
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
-  ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -13,7 +13,10 @@ import type {
   ProfileServiceConnectXAction,
   ProfileServiceCreateProfileAction,
   ProfileServiceDeleteProfileAction,
+  ProfileServiceDisconnectXAction,
+  ProfileServiceGetProfileAction,
   ProfileServiceGetXAccountAction,
+  ProfileServiceGetXAuthUrlAction,
   ProfileServiceReplaceProfileAction,
   ProfileServiceUpdateProfileAction,
 } from './ProfileService-method-action-types.js';
@@ -73,6 +76,24 @@ export type XProfile = {
   updatedAt: string;
 };
 
+/** Ephemeral session data for initiating the X OAuth flow. Not stored in controller state. */
+export type XConnectSession = {
+  /** The X authorization URL to open in a system browser. */
+  authorizationUrl: string;
+  /** The OAuth state parameter to compare against the X redirect callback. */
+  state: string;
+};
+
+/** Result of completing the X connect flow. */
+export type XConnectResult = {
+  /** The MetaMask profile, refreshed from the backend after the connect. */
+  profile: Profile;
+  /** The linked X profile. */
+  xProfile: XProfile;
+  /** Whether the backend created the MetaMask profile during the connect. */
+  profileCreated: boolean;
+};
+
 /** State managed by ProfileController. */
 export type ProfileControllerState = {
   profile: Profile;
@@ -93,7 +114,7 @@ export type ProfileControllerActions =
   | ProfileControllerMethodActions;
 
 /** The `ProfileController:stateChanged` event type. */
-export type ProfileControllerChangeEvent = ControllerStateChangeEvent<
+export type ProfileControllerChangeEvent = ControllerStateChangedEvent<
   typeof controllerName,
   ProfileControllerState
 >;
@@ -108,7 +129,10 @@ type AllowedActions =
   | ProfileServiceDeleteProfileAction
   | ProfileServiceCheckUsernameAvailabilityAction
   | ProfileServiceConnectXAction
-  | ProfileServiceGetXAccountAction;
+  | ProfileServiceGetProfileAction
+  | ProfileServiceGetXAccountAction
+  | ProfileServiceGetXAuthUrlAction
+  | ProfileServiceDisconnectXAction;
 
 export type AllowedEvents = never;
 
@@ -168,6 +192,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkUsernameAvailability',
   'connectX',
   'fetchAndUpdateXAccount',
+  'startXConnect',
+  'disconnectX',
 ] as const;
 
 // === CONTROLLER ===
@@ -379,23 +405,64 @@ export class ProfileController extends BaseController<
   }
 
   /**
-   * Completes the X OAuth PKCE flow, updates xProfile in state, and returns the X profile.
+   * Completes the X OAuth flow, updates xProfile and profile in state, and
+   * returns the connect result. The backend creates the profile if it does
+   * not exist yet (username derived from the X handle), so the profile is
+   * always fetched from the backend after a successful connect.
    *
-   * @param params - The parameters for the X OAuth PKCE flow.
+   * The linked X profile is persisted in state immediately after the connect
+   * succeeds. If the follow-up profile fetch fails, the X link remains
+   * persisted, the profile in state is left unchanged, and a clear error is
+   * thrown. `connectX` must not be retried because the OAuth code is
+   * single-use.
+   *
+   * @param params - The parameters for the X OAuth flow.
    * @param params.code - The OAuth authorization code from the X redirect.
    * @param params.state - The state parameter returned by the X redirect.
-   * @returns The linked X profile.
+   * @param params.profileId - The canonical profile ID the X account is
+   * linked to (sourced from the auth session).
+   * @returns The refreshed profile, the linked X profile, and whether the
+   * backend created the profile during the connect.
    */
-  async connectX(params: { code: string; state: string }): Promise<XProfile> {
-    const response = await this.messenger.call(
-      'ProfileService:connectX',
-      params,
-    );
-    return this.#mapXResponseToXProfile(response);
+  async connectX(params: {
+    code: string;
+    state: string;
+    profileId: string;
+  }): Promise<XConnectResult> {
+    const response = await this.messenger.call('ProfileService:connectX', {
+      code: params.code,
+      state: params.state,
+    });
+    const profileCreated = response.profile_created ?? false;
+    const xProfile = this.#mapXResponseToXProfile(response);
+    this.update((state) => {
+      state.xProfile = xProfile;
+    });
+
+    let profile: Profile;
+    try {
+      const profileResponse = await this.messenger.call(
+        'ProfileService:getProfile',
+        params.profileId,
+      );
+      profile = this.#mapApiResponseToProfile(profileResponse);
+    } catch (error) {
+      throw new Error(
+        'ProfileController: connected the X account, but failed to fetch the profile afterwards; the X link is persisted and the profile in state was not updated, so do not retry connectX (the OAuth code is single-use)',
+        { cause: error },
+      );
+    }
+    this.update((state) => {
+      state.profile = profile;
+    });
+
+    return { profile, xProfile, profileCreated };
   }
 
   /**
-   * Fetches the X account linked to the current profile, updates state, and returns the X profile.
+   * Fetches the X account linked to the authenticated profile, updates state,
+   * and returns the X profile. The profile is resolved server-side from the
+   * verified bearer token.
    *
    * @returns The linked X profile.
    */
@@ -406,5 +473,46 @@ export class ProfileController extends BaseController<
       state.xProfile = mapped;
     });
     return mapped;
+  }
+
+  /**
+   * Initiates the X OAuth flow by fetching the authorization URL from the backend.
+   * The profile is resolved server-side from the verified bearer token.
+   * Returns session data for the caller to use; nothing is stored in controller state.
+   *
+   * @param params - Optional parameters for initiating the X OAuth flow.
+   * @param params.linkedAddress - Optional CAIP-10 account ID to link to the
+   * profile when it does not exist yet.
+   * @returns The X authorization URL and state parameter.
+   */
+  async startXConnect(params?: {
+    linkedAddress?: CaipAccountId;
+  }): Promise<XConnectSession> {
+    const { linkedAddress } = params ?? {};
+    const response =
+      linkedAddress === undefined
+        ? await this.messenger.call('ProfileService:getXAuthUrl')
+        : await this.messenger.call(
+            'ProfileService:getXAuthUrl',
+            linkedAddress,
+          );
+    return { authorizationUrl: response.url, state: response.state };
+  }
+
+  /**
+   * Disconnects the X account linked to the given profile, clears xProfile from
+   * state, and marks the profile in state as no longer connected to X.
+   *
+   * @param profileId - The ID of the profile to disconnect the linked X account
+   * from (sourced from {@link getProfile}).
+   */
+  async disconnectX(profileId: string): Promise<void> {
+    await this.messenger.call('ProfileService:disconnectX', profileId);
+    this.update((state) => {
+      state.xProfile = undefined;
+      if (state.profile.profileId === profileId) {
+        state.profile.connectedToX = false;
+      }
+    });
   }
 }

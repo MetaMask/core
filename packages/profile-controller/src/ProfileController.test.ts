@@ -66,6 +66,17 @@ const mockMappedXProfile = {
   updatedAt: '2024-01-02T00:00:00Z',
 };
 
+const mockXAuthUrlResponse = {
+  url: 'https://x.com/i/oauth2/authorize?code_challenge=challenge-123',
+  state: 'oauth-state-123',
+};
+
+const mockXConnectSession = {
+  authorizationUrl:
+    'https://x.com/i/oauth2/authorize?code_challenge=challenge-123',
+  state: 'oauth-state-123',
+};
+
 const mockAvailabilityResponse = {
   username: 'alice',
   available: true,
@@ -99,7 +110,10 @@ function getMessenger(
       'ProfileService:deleteProfile',
       'ProfileService:checkUsernameAvailability',
       'ProfileService:connectX',
+      'ProfileService:getProfile',
       'ProfileService:getXAccount',
+      'ProfileService:getXAuthUrl',
+      'ProfileService:disconnectX',
     ],
     events: [],
     messenger,
@@ -555,22 +569,269 @@ describe('ProfileController', () => {
   });
 
   describe('connectX', () => {
-    it('calls ProfileService:connectX with code and state and returns the X profile', async () => {
+    it('connects, fetches the profile, persists both in state, and returns the connect result', async () => {
       const rootMessenger = getRootMessenger();
-      const connectXMock = jest.fn().mockResolvedValue(mockXConnectResponse);
+      const connectXMock = jest.fn().mockResolvedValue({
+        ...mockXConnectResponse,
+        profile_created: true,
+      });
       mockServiceAction(rootMessenger, 'ProfileService:connectX', connectXMock);
+      const getProfileMock = jest.fn().mockResolvedValue({
+        ...mockProfileResponse,
+        connected_to_x: true,
+      });
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getProfile',
+        getProfileMock,
+      );
 
-      const { controller } = createController({ rootMessenger });
+      const { controller, messenger } = createController({ rootMessenger });
+      const stateChangedListener = jest.fn();
+      messenger.subscribe(
+        'ProfileController:stateChanged',
+        stateChangedListener,
+      );
+
       const result = await controller.connectX({
         code: 'auth-code-123',
         state: 'state-xyz',
+        profileId: 'profile-123',
       });
 
       expect(connectXMock).toHaveBeenCalledWith({
         code: 'auth-code-123',
         state: 'state-xyz',
       });
-      expect(result).toStrictEqual(mockMappedXProfile);
+      expect(getProfileMock).toHaveBeenCalledWith('profile-123');
+      expect(result).toStrictEqual({
+        profile: { ...mockMappedProfile, connectedToX: true },
+        xProfile: mockMappedXProfile,
+        profileCreated: true,
+      });
+      expect(controller.state.profile).toStrictEqual({
+        ...mockMappedProfile,
+        connectedToX: true,
+      });
+      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
+      // xProfile is persisted in its own update before the profile fetch,
+      // then the profile update emits a second state change.
+      expect(stateChangedListener).toHaveBeenCalledTimes(2);
+    });
+
+    it('defaults profileCreated to false when the backend does not report it', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:connectX',
+        jest.fn().mockResolvedValue(mockXConnectResponse),
+      );
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getProfile',
+        jest.fn().mockResolvedValue(mockProfileResponse),
+      );
+
+      const { controller } = createController({ rootMessenger });
+      const result = await controller.connectX({
+        code: 'auth-code-123',
+        state: 'state-xyz',
+        profileId: 'profile-123',
+      });
+
+      expect(result.profileCreated).toBe(false);
+    });
+
+    it('persists xProfile and rethrows when the follow-up profile fetch fails', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:connectX',
+        jest.fn().mockResolvedValue({
+          ...mockXConnectResponse,
+          profile_created: true,
+        }),
+      );
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getProfile',
+        jest.fn().mockRejectedValue(new Error('503 Service Unavailable')),
+      );
+
+      const { controller } = createController({ rootMessenger });
+
+      await expect(
+        controller.connectX({
+          code: 'auth-code-123',
+          state: 'state-xyz',
+          profileId: 'profile-123',
+        }),
+      ).rejects.toThrow(
+        'ProfileController: connected the X account, but failed to fetch the profile afterwards',
+      );
+      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
+      expect(controller.state.profile).toStrictEqual(
+        getDefaultProfileControllerState().profile,
+      );
+    });
+
+    it('leaves the existing profile in state unchanged when the follow-up fetch fails', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:connectX',
+        jest.fn().mockResolvedValue(mockXConnectResponse),
+      );
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getProfile',
+        jest.fn().mockRejectedValue(new Error('503 Service Unavailable')),
+      );
+
+      const { controller } = createController({
+        rootMessenger,
+        state: { profile: mockMappedProfile },
+      });
+
+      await expect(
+        controller.connectX({
+          code: 'auth-code-123',
+          state: 'state-xyz',
+          profileId: mockMappedProfile.profileId,
+        }),
+      ).rejects.toThrow('failed to fetch the profile afterwards');
+      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
+      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
+    });
+
+    it('does not touch state or fetch the profile when the connect itself fails', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:connectX',
+        jest.fn().mockRejectedValue(new Error('401 Unauthorized')),
+      );
+      const getProfileMock = jest.fn();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getProfile',
+        getProfileMock,
+      );
+
+      const { controller } = createController({ rootMessenger });
+
+      await expect(
+        controller.connectX({
+          code: 'bad-code',
+          state: 'state-xyz',
+          profileId: 'profile-123',
+        }),
+      ).rejects.toThrow('401 Unauthorized');
+      expect(getProfileMock).not.toHaveBeenCalled();
+      expect(controller.state).toStrictEqual(
+        getDefaultProfileControllerState(),
+      );
+    });
+
+    it('is callable via messenger action', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:connectX',
+        jest.fn().mockResolvedValue(mockXConnectResponse),
+      );
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getProfile',
+        jest.fn().mockResolvedValue(mockProfileResponse),
+      );
+
+      const { controller } = createController({ rootMessenger });
+
+      const result = await rootMessenger.call('ProfileController:connectX', {
+        code: 'auth-code-123',
+        state: 'state-xyz',
+        profileId: 'profile-123',
+      });
+
+      expect(result).toStrictEqual({
+        profile: mockMappedProfile,
+        xProfile: mockMappedXProfile,
+        profileCreated: false,
+      });
+      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
+      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
+    });
+  });
+
+  describe('startXConnect', () => {
+    it('calls ProfileService:getXAuthUrl and returns the authorization URL and state', async () => {
+      const rootMessenger = getRootMessenger();
+      const getXAuthUrlMock = jest.fn().mockResolvedValue(mockXAuthUrlResponse);
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getXAuthUrl',
+        getXAuthUrlMock,
+      );
+
+      const { controller } = createController({ rootMessenger });
+      const result = await controller.startXConnect();
+
+      expect(getXAuthUrlMock).toHaveBeenCalledTimes(1);
+      expect(getXAuthUrlMock).toHaveBeenCalledWith();
+      expect(result).toStrictEqual(mockXConnectSession);
+    });
+
+    it('passes the linked address to ProfileService:getXAuthUrl when given', async () => {
+      const rootMessenger = getRootMessenger();
+      const getXAuthUrlMock = jest.fn().mockResolvedValue(mockXAuthUrlResponse);
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getXAuthUrl',
+        getXAuthUrlMock,
+      );
+
+      const { controller } = createController({ rootMessenger });
+      const result = await controller.startXConnect({
+        linkedAddress: 'eip155:0:0x1234567890abcdef1234567890abcdef12345678',
+      });
+
+      expect(getXAuthUrlMock).toHaveBeenCalledWith(
+        'eip155:0:0x1234567890abcdef1234567890abcdef12345678',
+      );
+      expect(result).toStrictEqual(mockXConnectSession);
+      expect(controller.state.xProfile).toBeUndefined();
+    });
+
+    it('does not update controller state', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getXAuthUrl',
+        jest.fn().mockResolvedValue(mockXAuthUrlResponse),
+      );
+
+      const { controller } = createController({ rootMessenger });
+      const stateBefore = controller.state;
+      await controller.startXConnect();
+
+      expect(controller.state).toStrictEqual(stateBefore);
+    });
+
+    it('is callable via messenger action', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getXAuthUrl',
+        jest.fn().mockResolvedValue(mockXAuthUrlResponse),
+      );
+
+      const { controller } = createController({ rootMessenger });
+      const result = await rootMessenger.call(
+        'ProfileController:startXConnect',
+      );
+
+      expect(result).toStrictEqual(mockXConnectSession);
       expect(controller.state.xProfile).toBeUndefined();
     });
   });
@@ -578,16 +839,115 @@ describe('ProfileController', () => {
   describe('fetchAndUpdateXAccount', () => {
     it('calls ProfileService:getXAccount and updates xProfile in state', async () => {
       const rootMessenger = getRootMessenger();
+      const getXAccountMock = jest.fn().mockResolvedValue(mockXConnectResponse);
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getXAccount',
+        getXAccountMock,
+      );
+
+      const { controller } = createController({ rootMessenger });
+      await controller.fetchAndUpdateXAccount();
+
+      expect(getXAccountMock).toHaveBeenCalledTimes(1);
+      expect(getXAccountMock).toHaveBeenCalledWith();
+      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
+    });
+  });
+
+  describe('disconnectX', () => {
+    it('calls ProfileService:disconnectX with the profile ID, clears xProfile, and sets connectedToX to false', async () => {
+      const rootMessenger = getRootMessenger();
+      const disconnectXMock = jest.fn().mockResolvedValue(undefined);
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:disconnectX',
+        disconnectXMock,
+      );
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAccount',
         jest.fn().mockResolvedValue(mockXConnectResponse),
       );
 
-      const { controller } = createController({ rootMessenger });
+      const { controller, messenger } = createController({
+        rootMessenger,
+        state: {
+          profile: {
+            ...getDefaultProfileControllerState().profile,
+            profileId: 'profile-123',
+            connectedToX: true,
+          },
+        },
+      });
       await controller.fetchAndUpdateXAccount();
-
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
+
+      const stateChangedListener = jest.fn();
+      messenger.subscribe(
+        'ProfileController:stateChanged',
+        stateChangedListener,
+      );
+
+      await controller.disconnectX('profile-123');
+
+      expect(disconnectXMock).toHaveBeenCalledTimes(1);
+      expect(disconnectXMock).toHaveBeenCalledWith('profile-123');
+      expect(controller.state.xProfile).toBeUndefined();
+      expect(controller.state.profile.connectedToX).toBe(false);
+      expect(stateChangedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not change profile.connectedToX when the profile ID does not match state', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:disconnectX',
+        jest.fn().mockResolvedValue(undefined),
+      );
+
+      const { controller } = createController({
+        rootMessenger,
+        state: {
+          profile: {
+            ...getDefaultProfileControllerState().profile,
+            profileId: 'profile-123',
+            connectedToX: true,
+          },
+        },
+      });
+
+      await controller.disconnectX('other-profile');
+
+      expect(controller.state.xProfile).toBeUndefined();
+      expect(controller.state.profile.connectedToX).toBe(true);
+    });
+
+    it('is callable via messenger action', async () => {
+      const rootMessenger = getRootMessenger();
+      const disconnectXMock = jest.fn().mockResolvedValue(undefined);
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:disconnectX',
+        disconnectXMock,
+      );
+
+      const { controller } = createController({
+        rootMessenger,
+        state: {
+          profile: {
+            ...getDefaultProfileControllerState().profile,
+            profileId: 'profile-123',
+            connectedToX: true,
+          },
+        },
+      });
+
+      await rootMessenger.call('ProfileController:disconnectX', 'profile-123');
+
+      expect(disconnectXMock).toHaveBeenCalledWith('profile-123');
+      expect(controller.state.xProfile).toBeUndefined();
+      expect(controller.state.profile.connectedToX).toBe(false);
     });
   });
 });
