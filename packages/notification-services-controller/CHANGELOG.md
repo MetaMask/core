@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
 - Bump `loglevel` from `^1.8.1` to `^1.9.2` ([#10724](https://github.com/MetaMask/core/pull/10724))
+- Bump `firebase` from `^11.10.0` to `^12.19.0` ([#10600](https://github.com/MetaMask/core/pull/10600))
 
 ## [29.0.3]
 
