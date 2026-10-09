@@ -26,11 +26,17 @@ import {
   createMockInfrastructure,
 } from '../../helpers/serviceMocks.js';
 
+type MockPerpsProvider = jest.Mocked<PerpsProvider> & {
+  getAccountSupport: jest.MockedFunction<
+    NonNullable<PerpsProvider['getAccountSupport']>
+  >;
+};
+
 // Create a comprehensive mock provider
 const createMockProvider = (
   providerId: PerpsProviderType,
-): jest.Mocked<PerpsProvider> => {
-  const mockProvider: jest.Mocked<PerpsProvider> = {
+): MockPerpsProvider => {
+  const mockProvider: MockPerpsProvider = {
     protocolId: providerId,
 
     // Asset routes
@@ -199,8 +205,8 @@ const createMockOrder = (orderId: string, symbol: string): Order =>
 describe('AggregatedPerpsProvider', () => {
   let aggregatedProvider: AggregatedPerpsProvider;
   let routedProvider: PerpsProvider;
-  let mockHLProvider: jest.Mocked<PerpsProvider>;
-  let mockLighterProvider: jest.Mocked<PerpsProvider>;
+  let mockHLProvider: ReturnType<typeof createMockProvider>;
+  let mockLighterProvider: ReturnType<typeof createMockProvider>;
   let mockInfrastructure: ReturnType<typeof createMockInfrastructure>;
 
   beforeEach(() => {
@@ -675,7 +681,11 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('treats a provider without an account support hook as supported', async () => {
-      delete mockLighterProvider.getAccountSupport;
+      const {
+        getAccountSupport: _getAccountSupport,
+        ...providerWithoutAccountSupport
+      } = mockLighterProvider;
+      aggregatedProvider.addProvider('lighter', providerWithoutAccountSupport);
 
       const result = await aggregatedProvider.getAccountSupport({
         providerId: 'lighter',
@@ -2456,7 +2466,7 @@ describe('AggregatedPerpsProvider', () => {
     it('delegates getWebSocketConnectionState to default provider', () => {
       // Arrange
       (
-        mockHLProvider as jest.Mocked<PerpsProvider> & {
+        mockHLProvider as MockPerpsProvider & {
           getWebSocketConnectionState: jest.Mock;
         }
       ).getWebSocketConnectionState = jest
@@ -2490,7 +2500,7 @@ describe('AggregatedPerpsProvider', () => {
       // Arrange
       const unsubscribe = jest.fn();
       (
-        mockHLProvider as jest.Mocked<PerpsProvider> & {
+        mockHLProvider as MockPerpsProvider & {
           subscribeToConnectionState: jest.Mock;
         }
       ).subscribeToConnectionState = jest.fn().mockReturnValue(unsubscribe);
@@ -2527,7 +2537,7 @@ describe('AggregatedPerpsProvider', () => {
     it('delegates reconnect to default provider', async () => {
       // Arrange
       (
-        mockHLProvider as jest.Mocked<PerpsProvider> & {
+        mockHLProvider as MockPerpsProvider & {
           reconnect: jest.Mock;
         }
       ).reconnect = jest.fn().mockResolvedValue(undefined);
@@ -2538,7 +2548,7 @@ describe('AggregatedPerpsProvider', () => {
       // Assert
       expect(
         (
-          mockHLProvider as jest.Mocked<PerpsProvider> & {
+          mockHLProvider as MockPerpsProvider & {
             reconnect: jest.Mock;
           }
         ).reconnect,
