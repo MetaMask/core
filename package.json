@@ -149,6 +149,7 @@
   "scriptsConfig": {
     "#default": "lavamoat/scripts.strict.json",
     "audit-script": "lavamoat/scripts.yarn.json",
+    "get-changed-workspaces": "lavamoat/scripts.yarn.json",
     "postinstall": "lavamoat/scripts.yarn.json",
     "skills:postinstall": "lavamoat/scripts.skills.json"
   }
