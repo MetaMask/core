@@ -26178,6 +26178,7 @@ describe('LighterProvider', () => {
         size: '0.001',
         entryPrice: '100000',
         liquidationPrice: '50000',
+        leverage: { type: 'cross', value: 1 },
         marginUsed: '100',
         maxLeverage: 20,
         positionValue: '100',
