@@ -34,6 +34,7 @@ import type {
   OrderBookData,
   OrderFill,
   OrderParams,
+  Position,
   PerpsProvider,
   PerpsProviderType,
   GetChaseOrderOwnershipParams,
@@ -10061,6 +10062,33 @@ describe('LighterProvider', () => {
       expect(logError).not.toHaveBeenCalled();
     });
 
+    it('does not report an unsupported explicit margin mode as a provider failure', async () => {
+      const deps = createMockInfrastructure();
+      const { provider, clientInstance } = buildProvider({
+        platformDependencies: deps,
+      });
+      const logError = getLoggerErrorMock(deps);
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, status: 'inactive' },
+      ]);
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.001',
+        orderType: 'limit',
+        price: '90000',
+        leverage: 5,
+        marginMode: 'isolated',
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+      });
+      expect(logError).not.toHaveBeenCalled();
+    });
+
     it.each(['api-error', 'empty-response'] as const)(
       'does not report an address-bearing account-not-found %s',
       async (response) => {
@@ -16854,6 +16882,27 @@ describe('LighterProvider', () => {
         expect(logError).not.toHaveBeenCalled();
       },
     );
+
+    it('does not report an invalid partial pair linkage as a provider failure', async () => {
+      const deps = createMockInfrastructure();
+      const built = buildProvider({ platformDependencies: deps });
+      const logError = getLoggerErrorMock(deps);
+
+      const result = await built.provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '110000',
+        stopLossPrice: '85000',
+        partialPairLinkage: 'independent',
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error:
+          'Partial pair linkage requires a supported explicitly sized TP/SL pair',
+      });
+      expect(built.calls).toHaveLength(0);
+      expect(logError).not.toHaveBeenCalled();
+    });
 
     it('rejects a changed persisted partial intent before dispatch', async () => {
       const infra = createMockInfrastructure();
@@ -26103,6 +26152,53 @@ describe('LighterProvider', () => {
         error: 'Lighter close venue unavailable',
       });
       expect(logError).not.toHaveBeenCalled();
+    });
+
+    it('reports a failed flip placement exactly once through the service', async () => {
+      const deps = createMockInfrastructure();
+      const { provider, clientInstance } = buildProvider({
+        platformDependencies: deps,
+      });
+      const service = new TradingService(deps);
+      service.setControllerDependencies({
+        rewardsIntegrationService: {
+          resolveFee: async () => ({
+            feeBips: 10,
+            source: 'default',
+            subscription: { eligible: false, reason: 'no-source' },
+          }),
+        } as never,
+      });
+      const logError = getLoggerErrorMock(deps);
+      clientInstance.sendTx.mockRejectedValueOnce(
+        new Error('Lighter flip venue unavailable'),
+      );
+      const position: Position = {
+        symbol: 'BTC',
+        size: '0.001',
+        entryPrice: '100000',
+        liquidationPrice: '50000',
+        marginUsed: '100',
+        maxLeverage: 20,
+        positionValue: '100',
+        returnOnEquity: '0',
+        unrealizedPnl: '0',
+        cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+        takeProfitCount: 0,
+        stopLossCount: 0,
+      };
+
+      const result = await service.flipPosition({
+        provider,
+        position,
+        context: createMockServiceContext(),
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: 'Lighter flip venue unavailable',
+      });
+      expect(logError).toHaveBeenCalledTimes(1);
     });
 
     it('routes a limit close with the requested price, not a market order', async () => {

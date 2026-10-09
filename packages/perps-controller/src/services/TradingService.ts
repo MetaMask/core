@@ -39,6 +39,7 @@ import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_OPERATION,
   createPerpsErrorContext,
+  wasProviderErrorReported,
 } from '../utils/errorContext.js';
 import type {
   PerpsErrorTags,
@@ -3034,7 +3035,10 @@ export class TradingService {
           },
         );
 
-        if (!isSilentFlipResult(result.error)) {
+        if (
+          !isSilentFlipResult(result.error) &&
+          !wasProviderErrorReported(result)
+        ) {
           this.#deps.logger.error(
             ensureError(result.error, 'TradingService.flipPosition'),
             this.#getErrorContext(

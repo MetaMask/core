@@ -240,6 +240,7 @@ import {
   PERPS_ERROR_COMPONENT,
   PERPS_ERROR_OPERATION,
   createPerpsErrorContext,
+  markProviderErrorReported,
 } from '../utils/errorContext.js';
 import type {
   PerpsErrorTags,
@@ -1680,8 +1681,10 @@ class LighterAccountNotFoundError extends Error {
 
 const SILENT_LIGHTER_TRADING_ERRORS = new Set<string>([
   PERPS_ERROR_CODES.ORDER_MARGIN_MODE_INVALID,
+  PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
   PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID,
   PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
+  'Partial pair linkage requires a supported explicitly sized TP/SL pair',
   'A partial protection size requires its trigger price',
   'Lighter margin adjustment requires exact micro-USDC precision',
 ]);
@@ -1740,6 +1743,8 @@ const EMPTY_ACCOUNT_STATE: AccountState = {
  * Lighter provider implementation (POC).
  */
 export class LighterProvider implements PerpsProvider {
+  readonly #reportedTradingErrors = new WeakSet<Error>();
+
   readonly protocolId = 'lighter';
 
   readonly #deps: PerpsPlatformDependencies;
@@ -2011,6 +2016,7 @@ export class LighterProvider implements PerpsProvider {
         wrappedError,
         this.#getErrorContext(method, extra, errorTags),
       );
+      this.#reportedTradingErrors.add(wrappedError);
     }
     return wrappedError;
   };
@@ -11780,7 +11786,7 @@ export class LighterProvider implements PerpsProvider {
       const partialPrefix = leverageCommitted
         ? `PARTIAL STATE: leverage for ${params.symbol} was already updated to ${String(params.leverage)}x before the order failed. `
         : '';
-      return {
+      const failureResult: OrderResult = {
         success: false,
         error: `${partialPrefix}${wrappedError.message}`,
         ...(attachedGroup && attachedGroupPersisted
@@ -11793,6 +11799,9 @@ export class LighterProvider implements PerpsProvider {
           ? { partialState: { leverageUpdated: Number(params.leverage) } }
           : {}),
       };
+      return this.#reportedTradingErrors.has(wrappedError)
+        ? markProviderErrorReported(failureResult)
+        : failureResult;
     }
   }
 

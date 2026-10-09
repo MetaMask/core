@@ -3,6 +3,8 @@ import {
   PERPS_ERROR_COMPONENT,
   PERPS_ERROR_OPERATION,
   createPerpsErrorContext,
+  markProviderErrorReported,
+  wasProviderErrorReported,
 } from '../../../src/utils/errorContext.js';
 
 describe('createPerpsErrorContext', () => {
@@ -108,5 +110,20 @@ describe('createPerpsErrorContext', () => {
       message: 'Provider failed',
       symbol: 'BTC',
     });
+  });
+
+  it('preserves internal provider-reporting ownership through routed result spreads', () => {
+    const providerResult = markProviderErrorReported({
+      success: false,
+      error: 'Provider failed',
+    });
+    const routedResult = { ...providerResult, providerId: 'lighter' };
+
+    expect(wasProviderErrorReported(routedResult)).toBe(true);
+    expect(Object.keys(routedResult)).toStrictEqual([
+      'success',
+      'error',
+      'providerId',
+    ]);
   });
 });
