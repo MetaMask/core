@@ -802,7 +802,7 @@ describe('KycController', () => {
       },
     );
 
-    it('keeps polling while finalStatus is not terminal', async () => {
+    it('waits 10 seconds longer after each poll', async () => {
       jest.useFakeTimers();
       await withController(
         {
@@ -815,8 +815,54 @@ describe('KycController', () => {
           await flushPromises();
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
-          await jest.advanceTimersByTimeAsync(15_000);
+          await jest.advanceTimersByTimeAsync(9_999);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+          await jest.advanceTimersByTimeAsync(1);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+
+          await jest.advanceTimersByTimeAsync(19_999);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+          await jest.advanceTimersByTimeAsync(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+
+          await jest.advanceTimersByTimeAsync(29_999);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+          await jest.advanceTimersByTimeAsync(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
+        },
+      );
+    });
+
+    it('restarts the backoff when polling starts again', async () => {
+      jest.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+          await jest.advanceTimersByTimeAsync(10_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+
+          await jest.advanceTimersByTimeAsync(9_999);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+          await jest.advanceTimersByTimeAsync(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
+
+          // The replaced loop would have fired 20s after this restart.
+          await jest.advanceTimersByTimeAsync(10_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
+          await jest.advanceTimersByTimeAsync(9_999);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
+          await jest.advanceTimersByTimeAsync(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(5);
         },
       );
     });
@@ -836,9 +882,35 @@ describe('KycController', () => {
           await flushPromises();
           expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
 
-          await jest.advanceTimersByTimeAsync(15_000);
+          await jest.advanceTimersByTimeAsync(10_000);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
           expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+        },
+      );
+    });
+
+    it('lengthens the wait after a failed request', async () => {
+      jest.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockRejectedValue(
+            new Error('network down'),
+          );
+
+          controller.startSessionStatusPolling();
+          await flushPromises();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+
+          await jest.advanceTimersByTimeAsync(10_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+
+          await jest.advanceTimersByTimeAsync(10_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+          await jest.advanceTimersByTimeAsync(10_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
         },
       );
     });
@@ -988,26 +1060,39 @@ describe('KycController', () => {
       });
     });
 
-    it('returns true when the fetched catalog is fully consented', async () => {
+    it('returns true when the fetched session consentStatus is given', async () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('pending') } } },
         async ({ controller, handlers }) => {
-          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue({
-            ...MOCK_SESSION_DISCLAIMERS,
-            credentialReusabilityConsentGiven: true,
-            idOS: MOCK_SESSION_DISCLAIMERS.idOS.map((document) => ({
-              ...document,
-              consented: true,
-            })),
-            kycProvider: MOCK_SESSION_DISCLAIMERS.kycProvider.map(
-              (document) => ({
-                ...document,
-                consented: true,
-              }),
-            ),
+          handlers.getSessionStatus.mockResolvedValue({
+            ...sessionStatus('pending'),
+            consentStatus: 'given',
           });
 
           expect(await controller.hasCompletedSessionDisclaimers()).toBe(true);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('returns false when the fetched session consentStatus is not given', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue({
+            ...sessionStatus('pending'),
+            consentStatus: 'pending',
+          });
+
+          expect(await controller.hasCompletedSessionDisclaimers()).toBe(false);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
         },
       );
     });

@@ -24,10 +24,7 @@ import {
   isSumSubFlowFailed,
 } from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
-import {
-  areSessionDisclaimersCompleted,
-  consentRecordsFromAcceptedList,
-} from './sessionDisclaimers.js';
+import { consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
 import {
   needsCapabilityAuthorizationRefresh,
   FINAL_STATUSES_TO_STOP_POLLING,
@@ -84,8 +81,9 @@ export type KycProviderFlowStatus = (typeof KYC_PROVIDER_FLOW_STATUSES)[number];
 // rather than a fixed short window, so this is a session-scoped window.
 const UKYC_CAPABILITY_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
-// How often to poll UKYC session status until a terminal `finalStatus`.
-const SESSION_STATUS_POLL_INTERVAL_MS = 15_000;
+// First wait between UKYC session-status polls. Each later wait grows by this
+// step, so the delays are 10s, 20s, 30s, and so on.
+const SESSION_STATUS_POLL_INTERVAL_MS = 10_000;
 
 // === STATE ===
 
@@ -557,10 +555,12 @@ export class KycController extends BaseController<
 
   /**
    * Starts polling `GET /sessions/{id}/status` for
-   * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
-   * the result onto state only when the payload changed. The loop stops once
-   * `finalStatus` is `approved`, `rejected`, or `retry`, or when {@link reset}
-   * / {@link clearState} runs.
+ * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
+ * the result onto state only when the payload changed. The first poll runs
+ * immediately. Each later wait starts at 10 seconds and grows by 10 seconds
+ * after every poll, including a failed one. Starting the loop again resets
+ * that delay. The loop stops once `finalStatus` is `approved`, `rejected`,
+ * or `retry`, or when {@link reset} / {@link clearState} runs.
    *
    * @throws If there is no current session id to poll.
    */
@@ -572,18 +572,20 @@ export class KycController extends BaseController<
 
     this.#stopSessionStatusPolling();
     const token = this.#sessionStatusPollToken;
+    let completedPolls = 0;
 
     const tick = async (): Promise<void> => {
       const shouldStop = await this.#pollSessionStatusOnce(sessionId, token);
       if (shouldStop) {
         return;
       }
+      completedPolls += 1;
       this.#sessionStatusPollTimer = setTimeout(() => {
         this.#sessionStatusPollTimer = null;
         // `tick` swallows its own errors and therefore never rejects.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         tick();
-      }, SESSION_STATUS_POLL_INTERVAL_MS);
+      }, SESSION_STATUS_POLL_INTERVAL_MS * completedPolls);
       this.#sessionStatusPollTimer.unref?.();
     };
 
@@ -918,25 +920,25 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Fetches session-scoped disclaimers and reports whether every document is
-   * consented and credential reuse was accepted.
+   * Fetches the current session status and reports whether consent was given.
    *
-   * @returns Whether session disclaimers are complete.
+   * @returns Whether `consentStatus` is `given`.
    * @throws If there is no session on state.
    */
   async hasCompletedSessionDisclaimers(): Promise<boolean> {
     if (!this.state.sessionStatus) {
       throw new Error('No session was found');
     }
-    // TODO: validate if this shorcut check is sufficient
-    // return this.state.sessionStatus.consentStatus === 'given';
 
-    const disclaimers = await this.messenger.call(
-      'KycService:fetchSessionDisclaimersBySessionId',
+    // TODO: remove this explicit call to the service and use the state directly
+    // after we have established the pattern for resuming a session after wallet
+    // restart more concretely
+    const sessionStatus = await this.messenger.call(
+      'KycService:getSessionStatus',
       { sessionId: this.state.sessionStatus.id },
     );
 
-    return areSessionDisclaimersCompleted(disclaimers);
+    return sessionStatus.consentStatus === 'given';
   }
 
   /**
