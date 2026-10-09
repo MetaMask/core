@@ -98,6 +98,18 @@ export type MoneyAccountSignatureRequest =
     };
 
 /**
+ * The hash the MPC Backend is asked to sign, together with the request it was
+ * computed from. The request is only whitelisted if it hashes to exactly
+ * this hash.
+ */
+export type MoneyAccountSigningRequest = {
+  /** The 32-byte hash to sign. */
+  hash: Hex;
+  /** The signature request the hash was computed from. */
+  request: MoneyAccountSignatureRequest;
+};
+
+/**
  * The whitelist rule a payload matched.
  */
 export type MfaWhitelistRule =

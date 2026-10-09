@@ -20,11 +20,16 @@ const BYTES32_PATTERN = /^0x[0-9a-fA-F]{64}$/u;
 const UINT_PATTERN = /^(?:0x[0-9a-fA-F]+|\d+)$/u;
 const MAX_UINT256 = 2n ** 256n - 1n;
 
-type DelegationMessage = {
+/**
+ * The fields of a delegation that are signed. The domain is not included,
+ * because it must equal the pinned one.
+ */
+export type DelegationMessage = {
   delegate: Hex;
   delegator: Hex;
   authority: Hex;
   caveats: Caveat[];
+  salt: bigint;
 };
 
 type DelegationContext = {
@@ -127,7 +132,7 @@ function parseCaveats(value: unknown): Caveat[] | undefined {
  * @param config - The whitelist config.
  * @returns The delegation message, or the reason it isn't a valid delegation.
  */
-function parseDelegationTypedData(
+export function parseDelegationTypedData(
   data: unknown,
   config: MfaWhitelistConfig,
 ): DelegationMessage | string {
@@ -168,12 +173,13 @@ function parseDelegationTypedData(
     return 'Delegation message is malformed';
   }
   const caveats = parseCaveats(message.caveats);
+  const salt = parseUint256(message.salt);
   if (
     !isAddress(message.delegate) ||
     !isAddress(message.delegator) ||
     typeof message.authority !== 'string' ||
     !BYTES32_PATTERN.test(message.authority) ||
-    parseUint256(message.salt) === undefined ||
+    salt === undefined ||
     !caveats
   ) {
     return 'Delegation message is malformed';
@@ -184,6 +190,7 @@ function parseDelegationTypedData(
     delegator: message.delegator,
     authority: message.authority as Hex,
     caveats,
+    salt,
   };
 }
 
@@ -296,29 +303,23 @@ function getSingleUseDelegationRequirement(
 }
 
 /**
- * Determines whether a delegation, signed as EIP-712 typed data V4, requires
- * MFA.
+ * Determines whether a delegation requires MFA.
  *
- * The delegation must be a root delegation from the Money Account for the
- * pinned `DelegationManager` on the Money Account chain. Whitelisted are the
- * standing vault delegations to CHOMP's delegate, and single-use vault
- * deposit delegations redeemable by anyone.
+ * The delegation must be a root delegation from the Money Account, parsed
+ * with {@link parseDelegationTypedData}. Whitelisted are the standing vault
+ * delegations to CHOMP's delegate, and single-use vault deposit delegations
+ * redeemable by anyone.
  *
- * @param data - The typed data, as an object or a JSON string.
+ * @param delegation - The delegation message.
  * @param context - The request context.
  * @param context.address - The Money Account address.
  * @param context.config - The whitelist config.
  * @returns Whether MFA is required.
  */
 export function getDelegationMfaRequirement(
-  data: unknown,
+  delegation: DelegationMessage,
   { address, config }: DelegationContext,
 ): MfaRequirement {
-  const delegation = parseDelegationTypedData(data, config);
-  if (typeof delegation === 'string') {
-    return requireMfa(delegation);
-  }
-
   if (!isSameHex(delegation.delegator, address)) {
     return requireMfa('Delegator is not the Money Account');
   }

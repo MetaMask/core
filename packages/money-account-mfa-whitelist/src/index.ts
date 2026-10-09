@@ -8,5 +8,6 @@ export type {
   MfaWhitelistConfig,
   MfaWhitelistRule,
   MoneyAccountSignatureRequest,
+  MoneyAccountSigningRequest,
   MoneyAccountVault,
 } from './types.js';

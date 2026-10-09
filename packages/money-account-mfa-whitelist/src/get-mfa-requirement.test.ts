@@ -27,7 +27,9 @@ import {
   buildSingleUseDelegation,
   buildStandingDelegation,
   buildWithdrawCalls,
+  UNRELATED_HASH,
   getDelegationTypedData,
+  hashRequest,
   toHexMessage,
   wrapInExecute,
 } from '../tests/fixtures.js';
@@ -41,12 +43,14 @@ import type {
   MfaRequirement,
   MfaWhitelistConfig,
   MoneyAccountSignatureRequest,
+  MoneyAccountSigningRequest,
 } from './types.js';
 
 const MINUTE = 60 * 1000;
 
 /**
- * Evaluates a request at {@link NOW}.
+ * Evaluates a request at {@link NOW}, together with the hash a keyring
+ * signs for it.
  *
  * @param request - The signature request.
  * @param config - The whitelist config.
@@ -56,7 +60,9 @@ function evaluate(
   request: MoneyAccountSignatureRequest,
   config: MfaWhitelistConfig = CONFIG,
 ): MfaRequirement {
-  return getMfaRequirement(request, config, { now: NOW });
+  return getMfaRequirement({ hash: hashRequest(request), request }, config, {
+    now: NOW,
+  });
 }
 
 /**
@@ -211,6 +217,17 @@ describe('getMfaRequirement', () => {
       ).toMatch(MALFORMED_REASON);
     });
 
+    it('requires MFA instead of throwing on a malformed signing request', () => {
+      expect(
+        getReason(
+          getMfaRequirement(
+            null as unknown as MoneyAccountSigningRequest,
+            CONFIG,
+          ),
+        ),
+      ).toMatch(MALFORMED_REASON);
+    });
+
     it('requires MFA when the request throws a non-error', () => {
       const nonError = 'boom';
       const request = {
@@ -227,17 +244,176 @@ describe('getMfaRequirement', () => {
     });
 
     it('uses the current time by default', () => {
+      const request: MoneyAccountSignatureRequest = {
+        method: 'signPersonalMessage',
+        address: MONEY_ACCOUNT,
+        message: toHexMessage(`CHOMP Authentication ${Date.now()}`),
+      };
+
+      expect(
+        getMfaRequirement({ hash: hashRequest(request), request }, CONFIG),
+      ).toStrictEqual(whitelistedAs('chomp-authentication'));
+    });
+  });
+
+  describe('hash binding', () => {
+    const chompAuthentication: MoneyAccountSignatureRequest = {
+      method: 'signPersonalMessage',
+      address: MONEY_ACCOUNT,
+      message: toHexMessage(`CHOMP Authentication ${NOW}`),
+    };
+
+    const authorization: MoneyAccountSignatureRequest = {
+      method: 'signEip7702Authorization',
+      address: MONEY_ACCOUNT,
+      authorization: [143, CONTRACTS.EIP7702StatelessDeleGatorImpl, 0],
+    };
+
+    /**
+     * Builds the request for a delegation, as the Money keyring receives it.
+     *
+     * @param delegation - The unsigned delegation.
+     * @returns The signature request.
+     */
+    async function buildDelegationRequest(
+      delegation: UnsignedDelegation,
+    ): Promise<MoneyAccountSignatureRequest> {
+      return {
+        method: 'signTypedData',
+        address: MONEY_ACCOUNT,
+        version: 'V4',
+        data: await getDelegationTypedData(delegation),
+      };
+    }
+
+    it.each([
+      ['not hex', 'CHOMP'],
+      ['shorter than 32 bytes', `0x${'ab'.repeat(31)}`],
+      ['longer than 32 bytes', `0x${'ab'.repeat(33)}`],
+      ['not a string', 1],
+    ])('requires MFA when the hash is %s', (_description, hash) => {
+      expect(
+        getMfaRequirement(
+          { hash: hash as Hex, request: chompAuthentication },
+          CONFIG,
+          { now: NOW },
+        ),
+      ).toStrictEqual(mfaRequired('Hash is not 32 bytes'));
+    });
+
+    it('accepts the hash in any case', () => {
       expect(
         getMfaRequirement(
           {
-            method: 'signPersonalMessage',
-            address: MONEY_ACCOUNT,
-            message: toHexMessage(`CHOMP Authentication ${Date.now()}`),
+            hash: `0x${hashRequest(chompAuthentication).slice(2).toUpperCase()}`,
+            request: chompAuthentication,
           },
           CONFIG,
+          { now: NOW },
         ),
       ).toStrictEqual(whitelistedAs('chomp-authentication'));
     });
+
+    it('requires MFA when a whitelisted message comes with the hash of another message', () => {
+      const otherMessage: MoneyAccountSignatureRequest = {
+        ...chompAuthentication,
+        message: toHexMessage('Transfer everything'),
+      };
+
+      expect(
+        getMfaRequirement(
+          { hash: hashRequest(otherMessage), request: chompAuthentication },
+          CONFIG,
+          { now: NOW },
+        ),
+      ).toStrictEqual(mfaRequired('Hash does not match the request'));
+    });
+
+    it('requires MFA when a whitelisted authorization comes with the hash of another authorization', () => {
+      const otherAuthorization: MoneyAccountSignatureRequest = {
+        ...authorization,
+        authorization: [143, RECIPIENT, 0],
+      };
+
+      expect(
+        getMfaRequirement(
+          { hash: hashRequest(otherAuthorization), request: authorization },
+          CONFIG,
+          { now: NOW },
+        ),
+      ).toStrictEqual(mfaRequired('Hash does not match the request'));
+    });
+
+    it('requires MFA when a whitelisted deposit comes with the hash of a withdrawal', async () => {
+      const deposit = await buildDelegationRequest(
+        buildSingleUseDelegation(buildDepositCalls()),
+      );
+      const withdrawal = await buildDelegationRequest(
+        buildSingleUseDelegation(buildWithdrawCalls()),
+      );
+
+      expect(
+        getMfaRequirement(
+          { hash: hashRequest(withdrawal), request: deposit },
+          CONFIG,
+          { now: NOW },
+        ),
+      ).toStrictEqual(mfaRequired('Hash does not match the request'));
+    });
+
+    it('requires MFA when a whitelisted delegation comes with the hash of the same delegation with another salt', async () => {
+      const delegation = buildStandingDelegation();
+      const request = await buildDelegationRequest(delegation);
+      const resalted = await buildDelegationRequest({
+        ...delegation,
+        salt: `0x${'ce'.repeat(32)}`,
+      });
+
+      expect(
+        getMfaRequirement({ hash: hashRequest(resalted), request }, CONFIG, {
+          now: NOW,
+        }),
+      ).toStrictEqual(mfaRequired('Hash does not match the request'));
+    });
+
+    it('requires MFA when a whitelisted delegation comes with an unrelated hash', async () => {
+      const request = await buildDelegationRequest(buildStandingDelegation());
+
+      expect(
+        getMfaRequirement({ hash: UNRELATED_HASH, request }, CONFIG, {
+          now: NOW,
+        }),
+      ).toStrictEqual(mfaRequired('Hash does not match the request'));
+    });
+
+    it('reports why a request is not whitelisted before checking its hash', () => {
+      const request: MoneyAccountSignatureRequest = {
+        ...chompAuthentication,
+        message: toHexMessage('Transfer everything'),
+      };
+
+      expect(
+        getMfaRequirement({ hash: UNRELATED_HASH, request }, CONFIG, {
+          now: NOW,
+        }),
+      ).toStrictEqual(
+        mfaRequired('Message does not match a whitelisted format'),
+      );
+    });
+
+    it.each([0, 1, 127, 128, 255, 256, Number.MAX_SAFE_INTEGER])(
+      'matches the hash of an authorization with nonce %d',
+      (nonce) => {
+        const request: MoneyAccountSignatureRequest = {
+          ...authorization,
+          authorization: [143, CONTRACTS.EIP7702StatelessDeleGatorImpl, nonce],
+        };
+
+        expect(evaluate(request)).toStrictEqual(
+          whitelistedAs('eip7702-authorization'),
+        );
+      },
+    );
   });
 
   describe('signPersonalMessage', () => {

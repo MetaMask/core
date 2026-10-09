@@ -12,7 +12,7 @@ or
 
 ## Usage
 
-The clients and the MPC Backend call `getMfaRequirement` with the request passed to the Money keyring and the same pinned configuration. A request that doesn't match a whitelist rule requires MFA, including a malformed request, so the function never throws.
+The clients and the MPC Backend call `getMfaRequirement` with the 32-byte hash to sign, the request passed to the Money keyring that the hash was computed from, and the same pinned configuration. A request that doesn't match a whitelist rule requires MFA, including a malformed request, so the function never throws.
 
 ```ts
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
@@ -34,7 +34,10 @@ const config = {
 };
 
 const requirement = getMfaRequirement(
-  { method: 'signTypedData', address, version: 'V4', data },
+  {
+    hash,
+    request: { method: 'signTypedData', address, version: 'V4', data },
+  },
   config,
 );
 
@@ -57,6 +60,18 @@ if (requirement.mfaRequired) {
 | `vault-deposit-delegation`  | `signTypedData` (V4)       | A single-use root delegation (`LimitedCalls(1)`) whose exact executions are `mUSD.approve(boringVault, amount)` followed by `teller.deposit(mUSD, amount, minimumMint, 0x0)` |
 
 Every delegation must be signed by the delegator, use the root authority, and be verified by the pinned `DelegationManager` on the Money Account chain.
+
+### Hash binding
+
+A whitelisted request is only whitelisted if it hashes to exactly `hash`, so the MPC Backend can sign `hash` after inspecting the request. The hash is computed from the same values the whitelist rules inspect:
+
+| Method                     | Hash                                                                       |
+| -------------------------- | -------------------------------------------------------------------------- |
+| `signPersonalMessage`      | `keccak256("\x19Ethereum Signed Message:\n" ‖ length ‖ message)` (EIP-191) |
+| `signTypedData` (V4)       | `keccak256(0x1901 ‖ domainSeparator ‖ hashStruct(delegation))` (EIP-712)   |
+| `signEip7702Authorization` | `keccak256(0x05 ‖ rlp([chainId, contractAddress, nonce]))` (EIP-7702)      |
+
+The MPC Backend must also check that `request.address` is the account whose key signs the hash.
 
 ## Contributing
 

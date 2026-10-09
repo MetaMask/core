@@ -1,4 +1,3 @@
-import { Interface } from '@ethersproject/abi';
 import { DelegationController } from '@metamask/delegation-controller';
 import type { DelegationControllerMessenger } from '@metamask/delegation-controller';
 import {
@@ -22,10 +21,19 @@ import { TELLER_ABI } from '@metamask/money-account-utils';
 import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
 import { bytesToHex, stringToBytes } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import {
+  Interface,
+  TypedDataEncoder,
+  getBytes,
+  hashAuthorization,
+  hashMessage,
+} from 'ethers';
+import type { TypedDataField } from 'ethers';
 
 import type {
   DelegationFrameworkContracts,
   MfaWhitelistConfig,
+  MoneyAccountSignatureRequest,
 } from '../src/types.js';
 
 export const CHAIN_ID: Hex = '0x8f';
@@ -96,6 +104,45 @@ export type UnsignedDelegation = {
  */
 export function toHexMessage(message: string): Hex {
   return bytesToHex(stringToBytes(message));
+}
+
+/** A hash no test request hashes to. */
+export const UNRELATED_HASH: Hex = `0x${'ab'.repeat(32)}`;
+
+/**
+ * Computes the hash a keyring signs for a request, using ethers as a
+ * reference implementation independent of the package.
+ *
+ * @param request - The signature request.
+ * @returns The hash, or {@link UNRELATED_HASH} if ethers can't hash the
+ * request.
+ */
+export function hashRequest(request: MoneyAccountSignatureRequest): Hex {
+  try {
+    switch (request.method) {
+      case 'signPersonalMessage':
+        return hashMessage(getBytes(request.message)) as Hex;
+      case 'signTypedData': {
+        const { types, domain, message } = (
+          typeof request.data === 'string'
+            ? JSON.parse(request.data)
+            : request.data
+        ) as {
+          types: Record<string, TypedDataField[]>;
+          domain: Record<string, unknown>;
+          message: Record<string, unknown>;
+        };
+        const { EIP712Domain: _, ...structTypes } = types;
+        return TypedDataEncoder.hash(domain, structTypes, message) as Hex;
+      }
+      default: {
+        const [chainId, address, nonce] = request.authorization;
+        return hashAuthorization({ chainId, address, nonce }) as Hex;
+      }
+    }
+  } catch {
+    return UNRELATED_HASH;
+  }
 }
 
 const ZERO: Hex = '0x0000000000000000000000000000000000000000';
