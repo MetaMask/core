@@ -44,6 +44,37 @@ export type PerpsLoggerOptions = NonNullable<
   Parameters<PerpsLogger['error']>[1]
 >;
 
+const PROVIDER_ERROR_REPORTED = Symbol('providerErrorReported');
+
+type ProviderErrorReported = {
+  [PROVIDER_ERROR_REPORTED]?: true;
+};
+
+/**
+ * Mark a failed provider result whose underlying error was already reported.
+ *
+ * The symbol remains internal to Core and survives object spreads used by the
+ * aggregated provider without adding a consumer-facing result field.
+ *
+ * @param result - Provider result to mark.
+ * @returns The same result with internal reporting metadata.
+ */
+export function markProviderErrorReported<Result extends object>(
+  result: Result,
+): Result & ProviderErrorReported {
+  return Object.assign(result, { [PROVIDER_ERROR_REPORTED]: true as const });
+}
+
+/**
+ * Check whether a provider already reported the error represented by a result.
+ *
+ * @param result - Provider result returned to a service.
+ * @returns Whether the provider owns reporting for the failure.
+ */
+export function wasProviderErrorReported(result: object): boolean {
+  return (result as ProviderErrorReported)[PROVIDER_ERROR_REPORTED] === true;
+}
+
 /**
  * Build a Perps logger payload with bounded, searchable Sentry tags.
  *

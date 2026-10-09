@@ -2993,6 +2993,13 @@ export const PerpsTraceOperations = {
 export type PerpsTraceValue = string | number | boolean;
 
 /**
+ * Terminal status of a Perps trace.
+ *
+ * Platform adapters map this value to their tracing SDK's span status.
+ */
+export type PerpsTraceStatus = 'ok' | 'error';
+
+/**
  * Properties allowed in analytics events. More constrained than unknown.
  * Named PerpsAnalyticsProperties to avoid conflict with PERPS_EVENT_PROPERTY
  * constant object from eventNames.ts (which contains property key names).
@@ -3106,6 +3113,7 @@ export type PerpsTracer = {
   endTrace(params: {
     name: PerpsTraceName;
     id: string;
+    status?: PerpsTraceStatus;
     data?: Record<string, PerpsTraceValue>;
   }): void;
 

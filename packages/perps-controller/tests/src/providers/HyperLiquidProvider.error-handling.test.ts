@@ -799,7 +799,7 @@ describe('HyperLiquidProvider', () => {
           PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
         );
         expect(result.error).toContain('Asset BTC does not exist');
-        expect(mockPlatformDependencies.logger.error).toHaveBeenCalled();
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledTimes(1);
       });
 
       it('still reports unrelated order failures to Sentry', async () => {
@@ -823,6 +823,7 @@ describe('HyperLiquidProvider', () => {
 
         expect(result.success).toBe(false);
         expect(result.error).toContain('Insufficient margin');
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledTimes(1);
         expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
           expect.any(Error),
           expect.objectContaining({

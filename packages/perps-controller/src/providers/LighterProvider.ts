@@ -240,6 +240,7 @@ import {
   PERPS_ERROR_COMPONENT,
   PERPS_ERROR_OPERATION,
   createPerpsErrorContext,
+  markProviderErrorReported,
 } from '../utils/errorContext.js';
 import type {
   PerpsErrorTags,
@@ -1678,6 +1679,16 @@ class LighterAccountNotFoundError extends Error {
   }
 }
 
+const SILENT_LIGHTER_TRADING_ERRORS = new Set<string>([
+  PERPS_ERROR_CODES.ORDER_MARGIN_MODE_INVALID,
+  PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+  PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID,
+  PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
+  'Partial pair linkage requires a supported explicitly sized TP/SL pair',
+  'A partial protection size requires its trigger price',
+  'Lighter margin adjustment requires exact micro-USDC precision',
+]);
+
 /**
  * Session-bound work stopped because the provider disconnected or the wallet
  * switched accounts while it ran.
@@ -1732,6 +1743,8 @@ const EMPTY_ACCOUNT_STATE: AccountState = {
  * Lighter provider implementation (POC).
  */
 export class LighterProvider implements PerpsProvider {
+  readonly #reportedTradingErrors = new WeakSet<Error>();
+
   readonly protocolId = 'lighter';
 
   readonly #deps: PerpsPlatformDependencies;
@@ -1971,6 +1984,41 @@ export class LighterProvider implements PerpsProvider {
         ...extra,
       },
     });
+  };
+
+  /**
+   * Forward a failed trading operation to the platform logger without
+   * classifying or rewriting the provider error.
+   *
+   * Retryable keyring/session failures, missing accounts, and local intent
+   * validation remain caller-visible but are not reported.
+   *
+   * @param error - The provider or venue failure.
+   * @param method - The provider method that failed.
+   * @param errorTags - Bounded operation and action tags.
+   * @param extra - Diagnostic context that must not become tags.
+   * @returns The normalized Error used by the caller result.
+   */
+  readonly #reportTradingError = (
+    error: unknown,
+    method: string,
+    errorTags: PerpsErrorTags,
+    extra?: Record<string, unknown>,
+  ): Error => {
+    const wrappedError = ensureError(error, `LighterProvider.${method}`);
+    if (
+      !isKeyringLockedError(wrappedError) &&
+      !(wrappedError instanceof LighterSessionCancelledError) &&
+      !(wrappedError instanceof LighterAccountNotFoundError) &&
+      !SILENT_LIGHTER_TRADING_ERRORS.has(wrappedError.message)
+    ) {
+      this.#deps.logger.error(
+        wrappedError,
+        this.#getErrorContext(method, extra, errorTags),
+      );
+      this.#reportedTradingErrors.add(wrappedError);
+    }
+    return wrappedError;
   };
 
   // ============================================================================
@@ -9634,6 +9682,18 @@ export class LighterProvider implements PerpsProvider {
         capturedGeneration,
       );
     } catch (error) {
+      const wrappedError = this.#reportTradingError(
+        error,
+        'placeScaleOrder',
+        {
+          operation: PERPS_ERROR_OPERATION.OrderManagement,
+          action: PERPS_ERROR_ACTION.PlaceOrder,
+        },
+        {
+          symbol: params.symbol,
+          orderType: params.orderType,
+        },
+      );
       if (group && key !== undefined && generation !== undefined) {
         group.placementStopped = true;
         try {
@@ -9645,7 +9705,7 @@ export class LighterProvider implements PerpsProvider {
       return {
         ...(group ? toLighterScaleGroup(group) : {}),
         success: false,
-        error: ensureError(error, 'LighterProvider.placeScaleOrder').message,
+        error: wrappedError.message,
         ...(leverageCommitted
           ? { partialState: { leverageUpdated: Number(params.leverage) } }
           : {}),
@@ -11086,6 +11146,7 @@ export class LighterProvider implements PerpsProvider {
   async placeOrder(
     input: OrderParams,
     inheritedGeneration?: number,
+    reportFailure = true,
   ): Promise<OrderResult> {
     const params = { ...input };
     if (
@@ -11701,10 +11762,20 @@ export class LighterProvider implements PerpsProvider {
         providerId: 'lighter',
       };
     } catch (caughtError) {
-      const wrappedError = ensureError(
-        caughtError,
-        'LighterProvider.placeOrder',
-      );
+      const wrappedError = reportFailure
+        ? this.#reportTradingError(
+            caughtError,
+            'placeOrder',
+            {
+              operation: PERPS_ERROR_OPERATION.OrderManagement,
+              action: PERPS_ERROR_ACTION.PlaceOrder,
+            },
+            {
+              symbol: params.symbol,
+              orderType: params.orderType,
+            },
+          )
+        : ensureError(caughtError, 'LighterProvider.placeOrder');
       this.#deps.debugLogger.log('[LighterProvider] placeOrder failed', {
         error: String(wrappedError),
         ...this.#getErrorContext('placeOrder', { symbol: params.symbol }),
@@ -11715,7 +11786,7 @@ export class LighterProvider implements PerpsProvider {
       const partialPrefix = leverageCommitted
         ? `PARTIAL STATE: leverage for ${params.symbol} was already updated to ${String(params.leverage)}x before the order failed. `
         : '';
-      return {
+      const failureResult: OrderResult = {
         success: false,
         error: `${partialPrefix}${wrappedError.message}`,
         ...(attachedGroup && attachedGroupPersisted
@@ -11728,6 +11799,9 @@ export class LighterProvider implements PerpsProvider {
           ? { partialState: { leverageUpdated: Number(params.leverage) } }
           : {}),
       };
+      return this.#reportedTradingErrors.has(wrappedError)
+        ? markProviderErrorReported(failureResult)
+        : failureResult;
     }
   }
 
@@ -13970,7 +14044,19 @@ export class LighterProvider implements PerpsProvider {
               }
             },
           );
-        } catch {
+        } catch (error) {
+          this.#reportTradingError(
+            error,
+            'editOrder',
+            {
+              operation: PERPS_ERROR_OPERATION.OrderManagement,
+              action: PERPS_ERROR_ACTION.EditOrder,
+            },
+            {
+              symbol: params.newOrder.symbol,
+              orderId: params.orderId,
+            },
+          );
           // Project only retained intent and observations. Do not leak signer
           // or transport failures, or mutate a cancelled issuing session.
           if (journal) {
@@ -14191,6 +14277,7 @@ export class LighterProvider implements PerpsProvider {
           maxSlippageBps: params.maxSlippageBps,
         },
         generationAtIntent,
+        false,
       );
     } catch (error) {
       const wrappedError = ensureError(error, 'LighterProvider.closePosition');
@@ -16323,9 +16410,18 @@ export class LighterProvider implements PerpsProvider {
         ...(positionProtection ? { positionProtection } : {}),
       };
     } catch (error) {
-      const wrappedError = ensureError(
+      const wrappedError = this.#reportTradingError(
         error,
-        'LighterProvider.updatePositionTPSL',
+        'updatePositionTPSL',
+        {
+          operation: PERPS_ERROR_OPERATION.PositionManagement,
+          action: PERPS_ERROR_ACTION.PositionTpslUpdate,
+        },
+        {
+          symbol: params.symbol,
+          hasTakeProfit: params.takeProfitPrice !== undefined,
+          hasStopLoss: params.stopLossPrice !== undefined,
+        },
       );
       this.#deps.debugLogger.log(
         '[LighterProvider] updatePositionTPSL failed',
@@ -16531,7 +16627,18 @@ export class LighterProvider implements PerpsProvider {
       );
       return { success: true };
     } catch (error) {
-      const wrappedError = ensureError(error, 'LighterProvider.updateMargin');
+      const wrappedError = this.#reportTradingError(
+        error,
+        'updateMargin',
+        {
+          operation: PERPS_ERROR_OPERATION.PositionManagement,
+          action: PERPS_ERROR_ACTION.UpdateMargin,
+        },
+        {
+          symbol: params.symbol,
+          amount: params.amount,
+        },
+      );
       this.#deps.debugLogger.log('[LighterProvider] updateMargin failed', {
         error: String(wrappedError),
         ...this.#getErrorContext('updateMargin'),
