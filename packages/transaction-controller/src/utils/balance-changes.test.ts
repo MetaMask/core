@@ -1,7 +1,9 @@
 import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
+import { toHex } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+import BN from 'bn.js';
 
 import { simulateTransactions } from '../api/simulation-api.js';
 import type {
@@ -816,6 +818,54 @@ describe('Balance Change Utils', () => {
           isDecrease: true,
           newBalance: '0xdbd2fc137a30000',
           previousBalance: '0xde0b6b3a7640000',
+        });
+      });
+
+      it('reports only the batched native value when state diff omits the fee debit', async () => {
+        const batchedValue = new BN('10100000000000000');
+        const previousBalance = new BN('1000000000000000000');
+        const refund = new BN('1265961203693508');
+        const newBalance = previousBalance.sub(batchedValue).add(refund);
+
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: 498346296506492,
+              gasUsed: '0x6e56',
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: toHex(previousBalance) },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: toHex(newBalance) },
+                  [OTHER_ADDRESS_MOCK]: { balance: toHex(batchedValue) },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x1c53e49fa787c' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0x186a0',
+            value: '0x0',
+          },
+          nestedTransactions: [
+            { to: OTHER_ADDRESS_MOCK, value: '0x2386f26fc10000' },
+            { to: OTHER_ADDRESS_MOCK, value: '0x5af3107a4000' },
+          ],
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: toHex(batchedValue),
+          isDecrease: true,
+          newBalance: toHex(previousBalance.sub(batchedValue)),
+          previousBalance: toHex(previousBalance),
         });
       });
 
