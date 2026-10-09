@@ -55,7 +55,7 @@
     "@metamask/account-tree-controller": "^11.0.1",
     "@metamask/base-controller": "^10.0.0",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/keyring-api": "^24.0.0",
+    "@metamask/keyring-api": "^24.1.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/network-controller": "^37.0.1",
     "@metamask/stake-sdk": "^3.4.0",

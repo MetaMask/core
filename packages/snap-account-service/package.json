@@ -53,7 +53,7 @@
     "@metamask/account-api": "^2.1.0",
     "@metamask/accounts-controller": "^40.0.0",
     "@metamask/eth-snap-keyring": "^24.1.0",
-    "@metamask/keyring-api": "^24.0.0",
+    "@metamask/keyring-api": "^24.1.0",
     "@metamask/keyring-controller": "^28.1.0",
     "@metamask/keyring-internal-snap-client": "^11.1.0",
     "@metamask/keyring-snap-sdk": "^10.0.0",
