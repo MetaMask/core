@@ -7342,7 +7342,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.5.2"
-    jsonschema: "npm:^1.4.1"
+    jsonschema: "npm:^1.5.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
@@ -7626,7 +7626,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.5.2"
-    jsonschema: "npm:^1.4.1"
+    jsonschema: "npm:^1.5.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
@@ -8653,7 +8653,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
     jest: "npm:^30.5.2"
-    jsonschema: "npm:^1.4.1"
+    jsonschema: "npm:^1.5.0"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
@@ -20332,10 +20332,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsonschema@npm:^1.4.1":
-  version: 1.4.1
-  resolution: "jsonschema@npm:1.4.1"
-  checksum: 10/d7a188da7a3100a2caa362b80e98666d46607b7a7153aac405b8e758132961911c6df02d444d4700691330874e21a62639f550e856b21ddd28423690751ca9c6
+"jsonschema@npm:^1.5.0":
+  version: 1.5.0
+  resolution: "jsonschema@npm:1.5.0"
+  checksum: 10/46bf49b388ba922073bcb3c8d5e90af9d29fc8303dc866fd440182c88d6b4fd2807679fd39cdefb4113156d104ea47da9c0ff4bbcb0032c9fa29461cb1a92182
   languageName: node
   linkType: hard
 
