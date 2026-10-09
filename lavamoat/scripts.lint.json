@@ -1,0 +1,15 @@
+{
+  "notes": "Denies all powerful IO capabilities that a linter script should not need. If a script needs more permissions, copy this file and edit. Do not allow more for all other linter scripts.",
+  "nodeOptions": {
+    "--disable-warning": "SecurityWarning",
+    "--permission": true,
+    "--allow-fs-read": ["/"],
+    "--allow-fs-write": ["./"],
+    "--allow-child-process": true,
+    "--allow-net": false,
+    "--allow-worker": false,
+    "--allow-addons": true,
+    "--allow-wasi": false,
+    "--allow-inspector": false
+  }
+}
