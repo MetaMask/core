@@ -412,8 +412,9 @@ export class ProfileController extends BaseController<
    *
    * The linked X profile is persisted in state immediately after the connect
    * succeeds. If the follow-up profile fetch fails, the X link remains
-   * persisted and a clear error is thrown — the profile in state may then be
-   * stale until the next successful fetch.
+   * persisted, the profile in state is left unchanged, and a clear error is
+   * thrown. `connectX` must not be retried because the OAuth code is
+   * single-use.
    *
    * @param params - The parameters for the X OAuth flow.
    * @param params.code - The OAuth authorization code from the X redirect.
@@ -447,7 +448,7 @@ export class ProfileController extends BaseController<
       profile = this.#mapApiResponseToProfile(profileResponse);
     } catch (error) {
       throw new Error(
-        'ProfileController: connected the X account, but failed to fetch the profile afterwards; the X link is persisted and the profile fetch can be retried',
+        'ProfileController: connected the X account, but failed to fetch the profile afterwards; the X link is persisted and the profile in state was not updated, so do not retry connectX (the OAuth code is single-use)',
         { cause: error },
       );
     }

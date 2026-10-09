@@ -670,9 +670,67 @@ describe('ProfileController', () => {
         'ProfileController: connected the X account, but failed to fetch the profile afterwards',
       );
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
-      // No profile was in state before, and none was fetched — it stays at
-      // the default (no profile).
-      expect(controller.state.profile.profileId).toBe('');
+      expect(controller.state.profile).toStrictEqual(
+        getDefaultProfileControllerState().profile,
+      );
+    });
+
+    it('leaves the existing profile in state unchanged when the follow-up fetch fails', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:connectX',
+        jest.fn().mockResolvedValue(mockXConnectResponse),
+      );
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getProfile',
+        jest.fn().mockRejectedValue(new Error('503 Service Unavailable')),
+      );
+
+      const { controller } = createController({
+        rootMessenger,
+        state: { profile: mockMappedProfile },
+      });
+
+      await expect(
+        controller.connectX({
+          code: 'auth-code-123',
+          state: 'state-xyz',
+          profileId: mockMappedProfile.profileId,
+        }),
+      ).rejects.toThrow('failed to fetch the profile afterwards');
+      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
+      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
+    });
+
+    it('does not touch state or fetch the profile when the connect itself fails', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:connectX',
+        jest.fn().mockRejectedValue(new Error('401 Unauthorized')),
+      );
+      const getProfileMock = jest.fn();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getProfile',
+        getProfileMock,
+      );
+
+      const { controller } = createController({ rootMessenger });
+
+      await expect(
+        controller.connectX({
+          code: 'bad-code',
+          state: 'state-xyz',
+          profileId: 'profile-123',
+        }),
+      ).rejects.toThrow('401 Unauthorized');
+      expect(getProfileMock).not.toHaveBeenCalled();
+      expect(controller.state).toStrictEqual(
+        getDefaultProfileControllerState(),
+      );
     });
 
     it('is callable via messenger action', async () => {
