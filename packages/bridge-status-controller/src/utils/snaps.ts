@@ -91,9 +91,10 @@ export const getClientRequest = (
 
   let options: Record<string, unknown> | undefined;
 
-  // Only Stellar trades expect asset IDs in the request options. Passing them
-  // for other non-EVM chains (e.g. Bitcoin) breaks strict snap request
-  // validation and prevents the transaction from being broadcast.
+  // Stellar and Tron trades expect asset IDs in the request options; the Tron
+  // fields are added in the branch below. Passing them for any other non-EVM
+  // chain (e.g. Bitcoin) breaks strict snap request validation and prevents the
+  // transaction from being broadcast.
   if (isStellarTrade(trade)) {
     if (sourceAssetId !== undefined || destAssetId !== undefined) {
       options = {
@@ -108,10 +109,19 @@ export const getClientRequest = (
   }
 
   if (isTronTrade(trade)) {
-    // Tron trades need the visible flag and contract type to be included in the request options
+    // Tron trades need the visible flag and contract type to be included in the
+    // request options. The swap/bridge asset ids are also passed so the Tron
+    // snap can classify the transaction as a same-chain swap or a cross-chain
+    // bridge, mirroring the Stellar snap.
     options = {
       visible: trade.visible,
       type: trade.raw_data?.contract?.[0]?.type,
+      ...(sourceAssetId !== undefined && {
+        sourceAssetId,
+      }),
+      ...(destAssetId !== undefined && {
+        destAssetId,
+      }),
     };
   }
 
