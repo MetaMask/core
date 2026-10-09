@@ -2367,10 +2367,10 @@
   },
   "packages/chomp-api-service/src/chomp-api-service.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 10
+      "count": 12
     },
     "typescript/no-unsafe-return": {
-      "count": 10
+      "count": 12
     }
   },
   "packages/claims-controller/jest.config.cjs": {
