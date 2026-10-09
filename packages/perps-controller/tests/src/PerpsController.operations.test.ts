@@ -1911,6 +1911,47 @@ describe('PerpsController', () => {
       jest.resetAllMocks();
     });
 
+    it('scopes an aggregated fee preview to its concrete write provider', async () => {
+      const resolveFee = jest
+        .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
+        .mockResolvedValue({
+          feeBips: 2,
+          discountBips: 8000,
+          source: 'grant',
+          subscription: { eligible: false, reason: 'no-source' },
+        });
+      jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'refreshSubscriptionBenefits',
+        )
+        .mockResolvedValue(undefined);
+      const aggregatedProvider = new AggregatedPerpsProvider({
+        providers: new Map([['hyperliquid', mockProvider]]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      markControllerAsInitialized();
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testSetActiveProvider(aggregatedProvider);
+
+      await controller.calculateFees({
+        orderType: 'market',
+        symbol: 'BTC',
+        amount: '1000',
+      });
+
+      expect(resolveFee).toHaveBeenCalledWith(1000, {
+        providerId: 'hyperliquid',
+        isTestnet: false,
+      });
+
+      jest.restoreAllMocks();
+    });
+
     it('resolves the preview fee against the order notional', async () => {
       const feeParams = {
         orderType: 'market' as const,
