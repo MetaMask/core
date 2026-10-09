@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Filter out MPC accounts when replicating `KeyringController` state ([#10577](https://github.com/MetaMask/core/pull/10577))
   - Those accounts are treated differently with their own "account-like" controller.
+- Add support for watch-only accounts ([#10677](https://github.com/MetaMask/core/pull/10677))
+  - Watch-only accounts are now synced directly from the (v2) watch-only keyring.
+  - Watch-only accounts are named "Watch-only Account" by default, and `keyringTypeToName` no longer throws for the watch-only keyring type.
+  - Export a new `isWatchOnlyKeyringType` utility.
 
 ### Changed
 

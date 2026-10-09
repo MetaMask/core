@@ -5382,6 +5382,7 @@ __metadata:
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
+    "@metamask/watch-only-keyring": "npm:^0.0.0"
     "@types/jest": "npm:^30.0.0"
     "@types/readable-stream": "npm:^2.3.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -7116,15 +7117,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^24.0.0, @metamask/keyring-api@npm:^24.1.0":
-  version: 24.1.0
-  resolution: "@metamask/keyring-api@npm:24.1.0"
+"@metamask/keyring-api@npm:@metamask-previews/keyring-api@24.1.0-487a8e0":
+  version: 24.1.0-487a8e0
+  resolution: "@metamask-previews/keyring-api@npm:24.1.0-487a8e0"
   dependencies:
-    "@metamask/keyring-utils": "npm:^5.0.0"
+    "@metamask/keyring-utils": "npm:5.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^11.11.0"
     bitcoin-address-validation: "npm:^2.2.3"
-  checksum: 10/bb2544281d1ec30900245cbd7d056234a69d121520851bf0c1f1ee13f0bbc4b111444ef47192ae2f1cfd8e265764d5e581d6bfed4e7b29f4cd020a4b7b950bb9
+  checksum: 10/d38c1bf57c1e3992cab18da17fba6eb9a3f73d1c7517792a683333c4fef04a184aff50d8bbc462244dd99aa4f598d1697e21b7da3650d4fbb91e9babd8ec624c
   languageName: node
   linkType: hard
 
@@ -7192,7 +7193,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-sdk@npm:^3.0.0, @metamask/keyring-sdk@npm:^3.1.0":
+"@metamask/keyring-sdk@npm:3.1.0, @metamask/keyring-sdk@npm:^3.0.0, @metamask/keyring-sdk@npm:^3.1.0":
   version: 3.1.0
   resolution: "@metamask/keyring-sdk@npm:3.1.0"
   dependencies:
@@ -7243,7 +7244,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:^5.0.0":
+"@metamask/keyring-utils@npm:5.0.0, @metamask/keyring-utils@npm:^5.0.0":
   version: 5.0.0
   resolution: "@metamask/keyring-utils@npm:5.0.0"
   dependencies:
@@ -9346,6 +9347,20 @@ __metadata:
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
+
+"@metamask/watch-only-keyring@npm:@metamask-previews/watch-only-keyring@0.1.0-487a8e0":
+  version: 0.1.0-487a8e0
+  resolution: "@metamask-previews/watch-only-keyring@npm:0.1.0-487a8e0"
+  dependencies:
+    "@metamask/keyring-api": "npm:24.1.0"
+    "@metamask/keyring-sdk": "npm:3.1.0"
+    "@metamask/keyring-utils": "npm:5.0.0"
+    "@metamask/superstruct": "npm:^3.4.1"
+    "@metamask/utils": "npm:^11.11.0"
+    async-mutex: "npm:^0.5.0"
+  checksum: 10/5b24fd3ec67ac8fdb0393361abcb313475281c4c620b83f1ef43a1fb0e6c98008a2799a003022d86c1c595d7f52c9221ff4b39eb231089937d585eaac3144e94
+  languageName: node
+  linkType: hard
 
 "@napi-rs/wasm-runtime@npm:^0.2.3":
   version: 0.2.12
