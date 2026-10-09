@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/subscription-controller` from `^14.0.0` to `^14.0.1` ([#10896](https://github.com/MetaMask/core/pull/10896))
 
+### Fixed
+
+- Route `flipPosition` through `position.providerId` so the fee grant and the flip `placeOrder` use the same venue. Aggregated providers otherwise resolve the grant for the position's venue and submit the order to the default provider.
+
 ## [20.1.0]
 
 ### Added
