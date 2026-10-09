@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@solana/addresses` from `^2.0.0` to `^2.3.0` ([#10527](https://github.com/MetaMask/core/pull/10527))
 - Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.0` ([#10733](https://github.com/MetaMask/core/pull/10733))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.1.0` ([#10717](https://github.com/MetaMask/core/pull/10717))
 
 ## [4.0.0]
 

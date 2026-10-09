@@ -62,9 +62,9 @@
     "@metamask/storage-service": "^2.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.0",
-    "@metamask/wallet": "^16.0.1",
+    "@metamask/wallet": "^17.0.0",
     "@oclif/core": "^4.10.5",
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "^13.0.3",
     "immer": "^11.1.18"
   },
   "devDependencies": {
