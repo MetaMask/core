@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(deps): update dependency typedoc-plugin-missing-exports to ^2.3.0 ([#10710](https://github.com/MetaMask/core/pull/10710))
+
 ### Changed
 
 - `hydrateVbaOnboarding` returns `needs_wallet_registration` or `needs_source_currency` only when the MoonPay customer `status` is `Active`. `SigningsRequired`, `IdentificationRequired`, and any other status return `not_ready`. A failed customer lookup returns `retryable_failure` ([#10766](https://github.com/MetaMask/core/pull/10766))
