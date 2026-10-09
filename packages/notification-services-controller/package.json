@@ -72,7 +72,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@contentful/rich-text-html-renderer": "^16.5.2",
+    "@contentful/rich-text-html-renderer": "^16.6.10",
     "@metamask/authenticated-user-storage": "^4.1.0",
     "@metamask/base-controller": "^10.0.0",
     "@metamask/controller-utils": "^13.0.0",
