@@ -3839,6 +3839,38 @@ describe('TradingService', () => {
         deferProviderErrorReport: true,
       });
     });
+
+    it('places the flip on the same provider the fee grant is scoped to', async () => {
+      // Aggregated writes fall back to the default provider when placeOrder
+      // omits providerId. The grant is already scoped to the position venue,
+      // so a non-default flip must carry that same route.
+      mockProvider.getWriteProviderId = jest.fn(
+        (providerId?: string) => providerId ?? 'hyperliquid',
+      ) as never;
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.flipPosition({
+        provider: mockProvider,
+        position: { ...mockPosition, providerId: 'lighter' },
+        context: mockContext,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        50000,
+        { providerId: 'lighter', isTestnet: false },
+      );
+      expect(mockProvider.placeOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          symbol: 'BTC',
+          isBuy: false,
+          size: '1',
+          orderType: 'market',
+          leverage: 10,
+          providerId: 'lighter',
+          deferProviderErrorReport: true,
+        }),
+      );
+    });
   });
 
   describe('consolidated analytics pipeline', () => {

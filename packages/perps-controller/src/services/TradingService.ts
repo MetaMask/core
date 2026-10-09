@@ -2955,12 +2955,17 @@ export class TradingService {
       // Use 2x position size: 1x to close current position + 1x to open opposite position.
       // Do not pass the position entry price as currentPrice: the provider must fetch
       // live market data for validation and IOC pricing.
+      // Carry the position venue so aggregated placeOrder reaches the same
+      // provider the fee grant below is scoped to.
       const orderParams: OrderParams = {
         symbol: position.symbol,
         isBuy: oppositeDirection,
         size: flipSize.toString(),
         orderType: 'market',
         leverage: position.leverage?.value,
+        ...(position.providerId === undefined
+          ? {}
+          : { providerId: position.providerId }),
         // Lighter placeOrder otherwise logs order_management/place_order and
         // marks the result reported, which drops this flip from flip filters.
         // Close already suppresses that provider report. One Sentry event remains.
