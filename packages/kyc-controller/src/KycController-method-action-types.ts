@@ -154,10 +154,9 @@ export type KycControllerRecordSessionDisclaimersAction = {
 };
 
 /**
- * Fetches session-scoped disclaimers and reports whether every document is
- * consented and credential reuse was accepted.
+ * Fetches the current session status and reports whether consent was given.
  *
- * @returns Whether session disclaimers are complete.
+ * @returns Whether `consentStatus` is `given`.
  * @throws If there is no session on state.
  */
 export type KycControllerHasCompletedSessionDisclaimersAction = {

@@ -988,26 +988,39 @@ describe('KycController', () => {
       });
     });
 
-    it('returns true when the fetched catalog is fully consented', async () => {
+    it('returns true when the fetched session consentStatus is given', async () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('pending') } } },
         async ({ controller, handlers }) => {
-          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue({
-            ...MOCK_SESSION_DISCLAIMERS,
-            credentialReusabilityConsentGiven: true,
-            idOS: MOCK_SESSION_DISCLAIMERS.idOS.map((document) => ({
-              ...document,
-              consented: true,
-            })),
-            kycProvider: MOCK_SESSION_DISCLAIMERS.kycProvider.map(
-              (document) => ({
-                ...document,
-                consented: true,
-              }),
-            ),
+          handlers.getSessionStatus.mockResolvedValue({
+            ...sessionStatus('pending'),
+            consentStatus: 'given',
           });
 
           expect(await controller.hasCompletedSessionDisclaimers()).toBe(true);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('returns false when the fetched session consentStatus is not given', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue({
+            ...sessionStatus('pending'),
+            consentStatus: 'pending',
+          });
+
+          expect(await controller.hasCompletedSessionDisclaimers()).toBe(false);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
         },
       );
     });
