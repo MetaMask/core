@@ -68,11 +68,56 @@ export const KYC_STATUSES = {
 /**
  * `finalStatus` values that end session-status polling.
  */
-export const TERMINAL_SESSION_STATUSES: ReadonlySet<string> = new Set([
+export const FINAL_STATUSES_TO_STOP_POLLING: ReadonlySet<string> = new Set([
   KYC_STATUSES.approved,
   KYC_STATUSES.rejected,
   KYC_STATUSES.retry,
 ]);
+
+/**
+ * Terminal `finalStatus` values (`approved`, `rejected`, `retry`).
+ * Same set as {@link FINAL_STATUSES_TO_STOP_POLLING}, exported under the
+ * name consumers import from the package entry point.
+ */
+export const TERMINAL_SESSION_STATUSES: ReadonlySet<string> =
+  FINAL_STATUSES_TO_STOP_POLLING;
+
+/**
+ * Capability-authorization status values returned on {@link KycSessionStatus}.
+ *
+ * - `new` — no capability token has been submitted yet.
+ * - `pending` — a capability token was submitted and is still being processed.
+ * - `stored` — the capability token is stored and valid.
+ * - `expired` — the stored capability token has expired.
+ * - `wiped` — the capability authorization was wiped and must not be resubmitted
+ *   by this client flow.
+ */
+export const CAPABILITY_AUTHORIZATION_STATUSES = {
+  new: 'new',
+  pending: 'pending',
+  stored: 'stored',
+  expired: 'expired',
+  wiped: 'wiped',
+} as const;
+
+/**
+ * Capability-authorization statuses that require submitting a capability
+ * authorization token (`new` or `expired`).
+ */
+export const CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH: ReadonlySet<string> =
+  new Set([
+    CAPABILITY_AUTHORIZATION_STATUSES.new,
+    CAPABILITY_AUTHORIZATION_STATUSES.expired,
+  ]);
+
+/**
+ * `finalStatus` values for which capability authorization must not be
+ * refreshed. Once KYC has a finished decision, the capability token is no
+ * longer needed.
+ */
+export const FINAL_STATUSES_TO_SKIP_AUTH_REFRESH: ReadonlySet<string> = new Set(
+  [KYC_STATUSES.approved, KYC_STATUSES.rejected],
+);
 
 /**
  * The status of a UKYC session, returned by the `GET /sessions/{id}/status`
@@ -101,7 +146,31 @@ export type KycSessionStatus = {
   /** The consent status of the session. */
   consentStatus?: string;
   idOSStatus?: string;
+  /** The capability-authorization status of the session. */
+  capabilityAuthorizationStatus?: string;
 };
+
+/**
+ * Whether the session's capability authorization should be submitted (or
+ * refreshed). Skips finished KYC decisions (`approved` / `rejected`) and
+ * submits only when the API reports `new` or `expired`.
+ *
+ * @param sessionStatus - The current UKYC session status.
+ * @returns Whether capability authorization should be submitted.
+ */
+export function needsCapabilityAuthorizationRefresh(
+  sessionStatus: KycSessionStatus,
+): boolean {
+  if (FINAL_STATUSES_TO_SKIP_AUTH_REFRESH.has(sessionStatus.finalStatus)) {
+    return false;
+  }
+  return (
+    sessionStatus.capabilityAuthorizationStatus !== undefined &&
+    CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH.has(
+      sessionStatus.capabilityAuthorizationStatus,
+    )
+  );
+}
 
 /**
  * A single disclaimer/term the customer must accept before a vendor session is

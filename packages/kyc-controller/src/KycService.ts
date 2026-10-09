@@ -56,6 +56,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchIdosEnclaveJwks',
   'fetchIdosRelayJwks',
   'createUkycSession',
+  'resetWrappingKeys',
   'setAuthorizations',
   'createJourney',
   'getSessionStatus',
@@ -225,6 +226,7 @@ const SessionStatusResponseStruct = type({
   vendorStatus: string(),
   consentStatus: optional(string()),
   idOSStatus: optional(string()),
+  capabilityAuthorizationStatus: optional(string()),
 });
 
 // Vendor customer subset — `type` (not `object`) keeps extra vendor fields from
@@ -360,6 +362,17 @@ export type SetAuthorizationsParams = {
 
 export type GetSessionStatusParams = {
   sessionId: string;
+};
+
+export type ResetWrappingKeysParams = {
+  /** UKYC session id whose wrapping keys should be reissued. */
+  sessionId: string;
+  /**
+   * The client's per-session X25519 public key (unpadded base64url). Generated
+   * with the matching private key used to wrap the refreshed authorizations,
+   * so the session server can open those boxes.
+   */
+  sessionClientPublicKey: string;
 };
 
 // === SERVICE DEFINITION ===
@@ -774,6 +787,42 @@ export class KycService extends BaseDataService<
       data,
       UkycSessionResponseStruct,
       'UKYC sessions',
+    );
+  }
+
+  /**
+   * Reissues wrapping keys for an existing UKYC session
+   * (`POST /sessions/{sessionId}/wrapping-keys`).
+   *
+   * The client registers a new per-session X25519 public key so the server can
+   * open boxes sealed with the matching private key. The response matches
+   * {@link KycService.createUkycSession}: a session id plus per-secret
+   * encryption schemas (`encryptionDataKey` and `ukycCapabilityToken`) used to
+   * wrap and submit authorizations.
+   *
+   * @param params - The session whose wrapping keys should be reset.
+   * @param params.sessionId - UKYC session id.
+   * @param params.sessionClientPublicKey - Per-session X25519 public key
+   * (unpadded base64url) registered on the session.
+   * @returns The session id and fresh encryption schemas.
+   */
+  async resetWrappingKeys(
+    params: ResetWrappingKeysParams,
+  ): Promise<UkycSessionResponse> {
+    const url = new URL(
+      `/sessions/${encodeURIComponent(params.sessionId)}/wrapping-keys`,
+      this.#baseUrl,
+    );
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        sessionClientPublicKey: params.sessionClientPublicKey,
+      }),
+    });
+    return this.#validateResponse(
+      data,
+      UkycSessionResponseStruct,
+      'wrapping keys',
     );
   }
 
