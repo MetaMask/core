@@ -597,9 +597,14 @@ describe('PerpsController', () => {
     });
 
     it('treats providers without an account support hook as supported', async () => {
-      mockProvider.getAccountSupport = undefined;
+      const {
+        getAccountSupport: _getAccountSupport,
+        ...providerWithoutAccountSupport
+      } = mockProvider;
       markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testSetProviders(
+        new Map([['hyperliquid', providerWithoutAccountSupport]]),
+      );
 
       const result = await controller.getAccountSupport();
 
