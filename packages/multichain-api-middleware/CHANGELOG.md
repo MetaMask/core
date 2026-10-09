@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
 - Bump `@open-rpc/meta-schema` from `^1.14.6` to `^1.14.9` ([#10721](https://github.com/MetaMask/core/pull/10721))
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
+- Bump `jsonschema` from `^1.4.1` to `^1.5.0` ([#10531](https://github.com/MetaMask/core/pull/10531))
 
 ## [5.0.0]
 
