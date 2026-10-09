@@ -264,7 +264,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(REQUEST_MOCK);
 
       expect(
-        simulateTransactionsMock.mock.calls[0][1].suggestFees,
+        simulateTransactionsMock.mock.calls[0][0].request.suggestFees,
       ).toMatchObject({
         with7702: true,
         withRedeemerEnforcer: true,
@@ -289,7 +289,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(REQUEST_MOCK);
 
       expect(
-        simulateTransactionsMock.mock.calls[0][1].suggestFees,
+        simulateTransactionsMock.mock.calls[0][0].request.suggestFees,
       ).toMatchObject({
         with7702: false,
         withRedeemerEnforcer: false,
@@ -313,21 +313,17 @@ describe('Gas Fee Tokens Utils', () => {
 
       await getGasFeeTokens(REQUEST_MOCK);
 
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(
-        CHAIN_ID_MOCK,
-        expect.objectContaining({
-          transactions: [
-            expect.objectContaining({
-              authorizationList: [
-                {
-                  address: UPGRADE_CONTRACT_ADDRESS_MOCK,
-                  from: REQUEST_MOCK.transactionMeta.txParams.from,
-                },
-              ],
-            }),
-          ],
-        }),
-      );
+      const [simulationOptions] = simulateTransactionsMock.mock.calls[0];
+      expect(simulationOptions.chainId).toBe(CHAIN_ID_MOCK);
+      expect(simulationOptions.messenger).toBe(REQUEST_MOCK.messenger);
+      expect(
+        simulationOptions.request.transactions[0].authorizationList,
+      ).toStrictEqual([
+        {
+          address: UPGRADE_CONTRACT_ADDRESS_MOCK,
+          from: REQUEST_MOCK.transactionMeta.txParams.from,
+        },
+      ]);
     });
 
     it('with authorizationList if in transaction params', async () => {
@@ -353,21 +349,17 @@ describe('Gas Fee Tokens Utils', () => {
 
       await getGasFeeTokens(request);
 
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(
-        CHAIN_ID_MOCK,
-        expect.objectContaining({
-          transactions: [
-            expect.objectContaining({
-              authorizationList: [
-                {
-                  address: TOKEN_ADDRESS_2_MOCK,
-                  from: REQUEST_MOCK.transactionMeta.txParams.from,
-                },
-              ],
-            }),
-          ],
-        }),
-      );
+      const [simulationOptions] = simulateTransactionsMock.mock.calls[0];
+      expect(simulationOptions.chainId).toBe(CHAIN_ID_MOCK);
+      expect(simulationOptions.messenger).toBe(request.messenger);
+      expect(
+        simulationOptions.request.transactions[0].authorizationList,
+      ).toStrictEqual([
+        {
+          address: TOKEN_ADDRESS_2_MOCK,
+          from: REQUEST_MOCK.transactionMeta.txParams.from,
+        },
+      ]);
     });
 
     it('forwards simulation config', async () => {
@@ -381,11 +373,11 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(request);
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          getSimulationConfig: getSimulationConfigMock,
-        }),
+      const [simulationOptions] = simulateTransactionsMock.mock.calls[0];
+      expect(typeof simulationOptions.chainId).toBe('string');
+      expect(simulationOptions.messenger).toBe(REQUEST_MOCK.messenger);
+      expect(simulationOptions.request.getSimulationConfig).toBe(
+        getSimulationConfigMock,
       );
     });
   });

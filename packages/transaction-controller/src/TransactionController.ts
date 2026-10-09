@@ -63,6 +63,7 @@ import {
   providerErrors,
   JsonRpcError,
 } from '@metamask/rpc-errors';
+import type { SentinelApiServiceSimulateTransactionsAction } from '@metamask/sentinel-api-service';
 import type { Hex, Json } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -456,7 +457,8 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkClientRegistryAction
   | NetworkControllerGetStateAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | SentinelApiServiceSimulateTransactionsAction;
 
 /**
  * The external events available to the {@link TransactionController}.

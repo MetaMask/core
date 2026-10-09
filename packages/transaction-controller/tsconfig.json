@@ -32,6 +32,9 @@
       "path": "../remote-feature-flag-controller"
     },
     {
+      "path": "../sentinel-api-service"
+    },
+    {
       "path": "../connectivity-controller"
     },
     {

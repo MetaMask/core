@@ -89,25 +89,29 @@ export async function getGasFeeTokens({
   }
 
   try {
-    const response = await simulateTransactions(chainId, {
-      getSimulationConfig,
-      transactions: [
-        {
-          authorizationList,
-          data,
-          from,
-          to,
-          value,
+    const response = await simulateTransactions({
+      chainId,
+      request: {
+        getSimulationConfig,
+        transactions: [
+          {
+            authorizationList,
+            data,
+            from,
+            to,
+            value,
+          },
+        ],
+        suggestFees: {
+          withTransfer: true,
+          withFeeTransfer: true,
+          with7702,
+          // The EIP-7702 publish hook always restricts redemption to the relay
+          // signers via a RedeemerEnforcer caveat, so include it in the estimate.
+          withRedeemerEnforcer: with7702,
         },
-      ],
-      suggestFees: {
-        withTransfer: true,
-        withFeeTransfer: true,
-        with7702,
-        // The EIP-7702 publish hook always restricts redemption to the relay
-        // signers via a RedeemerEnforcer caveat, so include it in the estimate.
-        withRedeemerEnforcer: with7702,
       },
+      messenger,
     });
 
     log('Response', response);

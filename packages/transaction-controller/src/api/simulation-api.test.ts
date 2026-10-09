@@ -1,7 +1,15 @@
+import {
+  SentinelChainNotSupportedError,
+  SentinelJsonRpcError,
+} from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 
-import { CHAIN_IDS, DELEGATION_MANAGER_ADDRESSES } from '../constants.js';
+import {
+  CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
+  DELEGATION_MANAGER_ADDRESSES,
+} from '../constants.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type { GetSimulationConfig } from '../types.js';
 import type {
   SimulationRequest,
@@ -10,9 +18,7 @@ import type {
 import { simulateTransactions } from './simulation-api.js';
 
 const CHAIN_ID_MOCK = '0x1';
-const CHAIN_ID_MOCK_DECIMAL = 1;
-const ERROR_CODE_MOCK = 123;
-const ERROR_MESSAGE_MOCK = 'Test Error Message';
+const DEFAULT_URL = 'https://tx-sentinel-test-subdomain.api.cx.metamask.io/';
 const GET_SIMULATION_CONFIG_MOCK: GetSimulationConfig = jest
   .fn()
   .mockResolvedValue({});
@@ -59,120 +65,157 @@ const RESPONSE_MOCK: SimulationResponse = {
   },
 };
 
-const RESPONSE_MOCK_NETWORKS = {
-  [CHAIN_ID_MOCK_DECIMAL]: {
-    network: 'test-subdomain',
-    confirmations: true,
+type SimulationServiceCall = (
+  action: 'SentinelApiService:simulateTransactions',
+  chainId: Hex,
+  request: Omit<SimulationRequest, 'getSimulationConfig'>,
+  options: {
+    getUrl: (
+      defaultUrl: string,
+    ) => Promise<string | { url: string; authorization?: string }>;
   },
-};
+) => Promise<SimulationResponse>;
 
 describe('Simulation API Utils', () => {
-  let fetchMock: jest.MockedFunction<typeof fetch>;
-
-  /**
-   * Mock a JSON response from fetch.
-   *
-   * @param jsonResponse - The response body to return.
-   */
-  function mockFetchResponse(jsonResponse: unknown): void {
-    fetchMock.mockResolvedValueOnce({
-      json: jest.fn().mockResolvedValue(jsonResponse),
-    } as unknown as Response);
-  }
+  let callMock: jest.MockedFunction<SimulationServiceCall>;
+  let messenger: TransactionControllerMessenger;
 
   beforeEach(() => {
-    fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
-      typeof fetch
-    >;
-
-    mockFetchResponse(RESPONSE_MOCK_NETWORKS);
-    mockFetchResponse({ result: RESPONSE_MOCK });
+    callMock = jest
+      .fn<
+        ReturnType<SimulationServiceCall>,
+        Parameters<SimulationServiceCall>
+      >()
+      .mockResolvedValue(RESPONSE_MOCK);
+    messenger = {
+      call: callMock,
+    } as unknown as TransactionControllerMessenger;
   });
 
   describe('simulateTransactions', () => {
-    it('returns response from RPC provider', async () => {
-      expect(await simulateTransactions('0x1', REQUEST_MOCK)).toStrictEqual(
-        RESPONSE_MOCK,
+    it('returns the simulation result', async () => {
+      expect(
+        await simulateTransactions({
+          chainId: CHAIN_ID_MOCK,
+          request: REQUEST_MOCK,
+          messenger,
+        }),
+      ).toStrictEqual(RESPONSE_MOCK);
+    });
+
+    it('rejects when the chain is not supported', async () => {
+      const unsupportedChainError = new SentinelChainNotSupportedError(
+        CHAIN_ID_MOCK,
+        'confirmations',
       );
-    });
-
-    it('sends simulation request', async () => {
-      await simulateTransactions(CHAIN_ID_MOCK, REQUEST_MOCK);
-
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-
-      const request = fetchMock.mock.calls[1][1] as RequestInit;
-
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
-      const requestBodyRaw = (request.body as BodyInit).toString();
-      const requestBody = JSON.parse(requestBodyRaw);
-
-      // JSON.stringify strips functions, so we apply it here.
-      const expectedRequest = JSON.parse(JSON.stringify(REQUEST_MOCK));
-      expect(requestBody.params[0]).toStrictEqual(expectedRequest);
-    });
-
-    it('throws if chain ID not supported', async () => {
-      const unsupportedChainId = '0x123';
+      callMock.mockRejectedValue(unsupportedChainError);
 
       await expect(
-        simulateTransactions(unsupportedChainId, REQUEST_MOCK),
-      ).rejects.toThrow(`Chain is not supported: ${unsupportedChainId}`);
-    });
-
-    it('uses URL specific to chain ID', async () => {
-      await simulateTransactions(CHAIN_IDS.MAINNET, REQUEST_MOCK);
-
-      expect(fetchMock).toHaveBeenCalledWith(
-        'https://tx-sentinel-test-subdomain.api.cx.metamask.io/',
-        expect.any(Object),
-      );
-    });
-
-    it('uses simulation config', async () => {
-      const getSimulationConfigMock: GetSimulationConfig = jest
-        .fn()
-        .mockResolvedValue({
-          authorization: 'Bearer test',
-          newUrl: 'https://tx-sentinel-new-test-subdomain.api.cx.metamask.io/',
-        });
-
-      const request = {
-        ...REQUEST_MOCK,
-        getSimulationConfig: getSimulationConfigMock,
-      };
-
-      await simulateTransactions(CHAIN_ID_MOCK, request);
-
-      expect(getSimulationConfigMock).toHaveBeenCalledTimes(1);
-      expect(getSimulationConfigMock).toHaveBeenCalledWith(
-        'https://tx-sentinel-test-subdomain.api.cx.metamask.io/',
-      );
-
-      expect(fetchMock).toHaveBeenCalledWith(
-        'https://tx-sentinel-new-test-subdomain.api.cx.metamask.io/',
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-            Authorization: 'Bearer test',
-          }),
+        simulateTransactions({
+          chainId: CHAIN_ID_MOCK,
+          request: REQUEST_MOCK,
+          messenger,
         }),
-      );
+      ).rejects.toBe(unsupportedChainError);
     });
 
-    it('throws if response has error', async () => {
-      fetchMock.mockReset();
-      mockFetchResponse(RESPONSE_MOCK_NETWORKS);
-      mockFetchResponse({
-        error: { code: ERROR_CODE_MOCK, message: ERROR_MESSAGE_MOCK },
+    it('rejects when the service returns a JSON-RPC error', async () => {
+      const jsonRpcError = new SentinelJsonRpcError(
+        'Sentinel API: JSON-RPC error: failed',
+        123,
+      );
+      callMock.mockRejectedValue(jsonRpcError);
+
+      await expect(
+        simulateTransactions({
+          chainId: CHAIN_ID_MOCK,
+          request: REQUEST_MOCK,
+          messenger,
+        }),
+      ).rejects.toBe(jsonRpcError);
+    });
+
+    it('rejects when the result is missing', async () => {
+      const missingResult = new SentinelJsonRpcError(
+        'Sentinel API: JSON-RPC response missing result',
+        -32603,
+      );
+      callMock.mockRejectedValue(missingResult);
+
+      await expect(
+        simulateTransactions({
+          chainId: CHAIN_ID_MOCK,
+          request: REQUEST_MOCK,
+          messenger,
+        }),
+      ).rejects.toBe(missingResult);
+    });
+
+    it('propagates a getSimulationConfig failure', async () => {
+      const configError = new Error('config failed');
+      callMock.mockImplementation(
+        async (_action, _chainId, _request, options) => {
+          await options.getUrl(DEFAULT_URL);
+          return RESPONSE_MOCK;
+        },
+      );
+
+      await expect(
+        simulateTransactions({
+          chainId: CHAIN_ID_MOCK,
+          request: {
+            ...REQUEST_MOCK,
+            getSimulationConfig: jest.fn().mockRejectedValue(configError),
+          },
+          messenger,
+        }),
+      ).rejects.toBe(configError);
+    });
+
+    it('sends the simulation request without getSimulationConfig', async () => {
+      await simulateTransactions({
+        chainId: CHAIN_ID_MOCK,
+        request: REQUEST_MOCK,
+        messenger,
       });
 
-      await expect(
-        simulateTransactions(CHAIN_ID_MOCK, REQUEST_MOCK),
-      ).rejects.toThrow({
-        code: ERROR_CODE_MOCK,
-        message: ERROR_MESSAGE_MOCK,
-      } as unknown as Error);
+      const { getSimulationConfig: _getSimulationConfig, ...expectedRequest } =
+        REQUEST_MOCK;
+
+      const [action, chainId, requestBody, options] = callMock.mock.calls[0];
+      expect(action).toBe('SentinelApiService:simulateTransactions');
+      expect(chainId).toBe(CHAIN_ID_MOCK);
+      expect(requestBody).toStrictEqual(expectedRequest);
+      expect(typeof options.getUrl).toBe('function');
+    });
+
+    it('applies the simulation config URL and authorization', async () => {
+      const newUrl =
+        'https://tx-sentinel-new-test-subdomain.api.cx.metamask.io/';
+      let resolvedUrl: unknown;
+      callMock.mockImplementation(
+        async (_action, _chainId, _request, options) => {
+          resolvedUrl = await options.getUrl(DEFAULT_URL);
+          return RESPONSE_MOCK;
+        },
+      );
+
+      await simulateTransactions({
+        chainId: CHAIN_ID_MOCK,
+        request: {
+          ...REQUEST_MOCK,
+          getSimulationConfig: jest.fn().mockResolvedValue({
+            authorization: 'Bearer test',
+            newUrl,
+          }),
+        },
+        messenger,
+      });
+
+      expect(resolvedUrl).toStrictEqual({
+        url: newUrl,
+        authorization: 'Bearer test',
+      });
     });
 
     it('overrides DelegationManager code', async () => {
@@ -180,18 +223,18 @@ describe('Simulation API Utils', () => {
       request.transactions[0].to =
         DELEGATION_MANAGER_ADDRESSES[0].toUpperCase() as Hex;
 
-      await simulateTransactions(CHAIN_ID_MOCK, request);
+      await simulateTransactions({
+        chainId: CHAIN_ID_MOCK,
+        request,
+        messenger,
+      });
 
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-
-      const requestBody = JSON.parse(
-        fetchMock.mock.calls[1][1]?.body as string,
-      );
+      const requestBody = callMock.mock.calls[0][2] as SimulationRequest;
 
       expect(
-        requestBody.params[0].overrides[DELEGATION_MANAGER_ADDRESSES[0]],
+        requestBody.overrides?.[DELEGATION_MANAGER_ADDRESSES[0] as Hex],
       ).toStrictEqual({
-        code: expect.any(String),
+        code: CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
       });
     });
   });

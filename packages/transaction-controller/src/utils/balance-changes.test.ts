@@ -849,49 +849,46 @@ describe('Balance Change Utils', () => {
 
         // The balance of the ERC-20 token is checked before and after the transaction.
         // The ERC-721 token balance is only checked after the transaction since it is minted.
-        expect(simulateTransactionsMock).toHaveBeenNthCalledWith(
-          2,
-          REQUEST_MOCK.chainId,
-          {
-            getSimulationConfig: REQUEST_MOCK.getSimulationConfig,
-            transactions: [
-              // ERC-20 balance before minting.
-              {
-                authorizationList: undefined,
-                from: REQUEST_MOCK.txParams.from,
-                to: CONTRACT_ADDRESS_2_MOCK,
-                data: expect.any(String),
-              },
-              // Minting ERC-721 token.
-              {
-                authorizationList: undefined,
-                data: REQUEST_MOCK.txParams.data,
-                from: REQUEST_MOCK.txParams.from,
-                gas: REQUEST_MOCK.txParams.gas,
-                maxFeePerGas: REQUEST_MOCK.txParams.maxFeePerGas,
-                maxPriorityFeePerGas:
-                  REQUEST_MOCK.txParams.maxPriorityFeePerGas,
-                value: REQUEST_MOCK.txParams.value,
-              },
-              // ERC-721 owner after minting.
-              {
-                authorizationList: undefined,
-                from: REQUEST_MOCK.txParams.from,
-                to: CONTRACT_ADDRESS_1_MOCK,
-                data: expect.any(String),
-              },
-              // ERC-20 balance before minting.
-              {
-                authorizationList: undefined,
-                from: REQUEST_MOCK.txParams.from,
-                to: CONTRACT_ADDRESS_2_MOCK,
-                data: expect.any(String),
-              },
-            ],
-            withDefaultBlockOverrides: true,
-            withGas: true,
-          },
-        );
+        const [secondSimulationOptions] =
+          simulateTransactionsMock.mock.calls[1];
+        expect(secondSimulationOptions.chainId).toBe(REQUEST_MOCK.chainId);
+        expect(secondSimulationOptions.messenger).toBe(REQUEST_MOCK.messenger);
+        expect(secondSimulationOptions.request).toStrictEqual({
+          getSimulationConfig: REQUEST_MOCK.getSimulationConfig,
+          transactions: [
+            // ERC-20 balance before minting.
+            {
+              from: REQUEST_MOCK.txParams.from,
+              to: CONTRACT_ADDRESS_2_MOCK,
+              data: expect.any(String),
+            },
+            // Minting ERC-721 token.
+            {
+              authorizationList: undefined,
+              data: REQUEST_MOCK.txParams.data,
+              from: REQUEST_MOCK.txParams.from,
+              gas: REQUEST_MOCK.txParams.gas,
+              maxFeePerGas: REQUEST_MOCK.txParams.maxFeePerGas,
+              maxPriorityFeePerGas: REQUEST_MOCK.txParams.maxPriorityFeePerGas,
+              to: undefined,
+              value: REQUEST_MOCK.txParams.value,
+            },
+            // ERC-721 owner after minting.
+            {
+              from: REQUEST_MOCK.txParams.from,
+              to: CONTRACT_ADDRESS_1_MOCK,
+              data: expect.any(String),
+            },
+            // ERC-20 balance before minting.
+            {
+              from: REQUEST_MOCK.txParams.from,
+              to: CONTRACT_ADDRESS_2_MOCK,
+              data: expect.any(String),
+            },
+          ],
+          withDefaultBlockOverrides: true,
+          withGas: true,
+        });
         expect(result).toStrictEqual({
           simulationData: {
             callTraceErrors: [],
@@ -1449,21 +1446,17 @@ describe('Balance Change Utils', () => {
       });
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          transactions: [
-            expect.objectContaining({
-              authorizationList: [
-                {
-                  address: CONTRACT_ADDRESS_2_MOCK,
-                  from: USER_ADDRESS_MOCK,
-                },
-              ],
-            }),
-          ],
-        }),
-      );
+      const [simulationOptions] = simulateTransactionsMock.mock.calls[0];
+      expect(typeof simulationOptions.chainId).toBe('string');
+      expect(simulationOptions.messenger).toBe(MESSENGER_MOCK);
+      expect(simulationOptions.request.transactions[0]).toMatchObject({
+        authorizationList: [
+          {
+            address: CONTRACT_ADDRESS_2_MOCK,
+            from: USER_ADDRESS_MOCK,
+          },
+        ],
+      });
     });
 
     describe('overrides balance in API request if insufficient balance due to', () => {
@@ -1479,16 +1472,14 @@ describe('Balance Change Utils', () => {
         });
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
-        expect(simulateTransactionsMock).toHaveBeenCalledWith(
-          expect.any(String),
-          expect.objectContaining({
-            overrides: {
-              [USER_ADDRESS_MOCK]: {
-                balance: '0x7d182e',
-              },
-            },
-          }),
-        );
+        const [simulationOptions] = simulateTransactionsMock.mock.calls[0];
+        expect(typeof simulationOptions.chainId).toBe('string');
+        expect(simulationOptions.messenger).toBe(MESSENGER_MOCK);
+        expect(simulationOptions.request.overrides).toStrictEqual({
+          [USER_ADDRESS_MOCK]: {
+            balance: '0x7d182e',
+          },
+        });
       });
 
       it('legacy gas fee', async () => {
@@ -1506,16 +1497,14 @@ describe('Balance Change Utils', () => {
         });
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
-        expect(simulateTransactionsMock).toHaveBeenCalledWith(
-          expect.any(String),
-          expect.objectContaining({
-            overrides: {
-              [USER_ADDRESS_MOCK]: {
-                balance: '0xc1f3e',
-              },
-            },
-          }),
-        );
+        const [simulationOptions] = simulateTransactionsMock.mock.calls[0];
+        expect(typeof simulationOptions.chainId).toBe('string');
+        expect(simulationOptions.messenger).toBe(MESSENGER_MOCK);
+        expect(simulationOptions.request.overrides).toStrictEqual({
+          [USER_ADDRESS_MOCK]: {
+            balance: '0xc1f3e',
+          },
+        });
       });
 
       it('value', async () => {
@@ -1531,16 +1520,14 @@ describe('Balance Change Utils', () => {
         });
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
-        expect(simulateTransactionsMock).toHaveBeenCalledWith(
-          expect.any(String),
-          expect.objectContaining({
-            overrides: {
-              [USER_ADDRESS_MOCK]: {
-                balance: '0x123',
-              },
-            },
-          }),
-        );
+        const [simulationOptions] = simulateTransactionsMock.mock.calls[0];
+        expect(typeof simulationOptions.chainId).toBe('string');
+        expect(simulationOptions.messenger).toBe(MESSENGER_MOCK);
+        expect(simulationOptions.request.overrides).toStrictEqual({
+          [USER_ADDRESS_MOCK]: {
+            balance: '0x123',
+          },
+        });
       });
 
       it('nested transaction value', async () => {
@@ -1564,16 +1551,14 @@ describe('Balance Change Utils', () => {
         });
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
-        expect(simulateTransactionsMock).toHaveBeenCalledWith(
-          expect.any(String),
-          expect.objectContaining({
-            overrides: {
-              [USER_ADDRESS_MOCK]: {
-                balance: '0x333',
-              },
-            },
-          }),
-        );
+        const [simulationOptions] = simulateTransactionsMock.mock.calls[0];
+        expect(typeof simulationOptions.chainId).toBe('string');
+        expect(simulationOptions.messenger).toBe(MESSENGER_MOCK);
+        expect(simulationOptions.request.overrides).toStrictEqual({
+          [USER_ADDRESS_MOCK]: {
+            balance: '0x333',
+          },
+        });
       });
     });
 
@@ -1588,11 +1573,11 @@ describe('Balance Change Utils', () => {
       await getBalanceChanges(request);
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          getSimulationConfig: getSimulationConfigMock,
-        }),
+      const [simulationOptions] = simulateTransactionsMock.mock.calls[0];
+      expect(typeof simulationOptions.chainId).toBe('string');
+      expect(simulationOptions.messenger).toBe(MESSENGER_MOCK);
+      expect(simulationOptions.request.getSimulationConfig).toBe(
+        getSimulationConfigMock,
       );
     });
   });

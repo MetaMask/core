@@ -879,27 +879,31 @@ async function baseRequest({
 
   const isInsufficientBalance = currentBalanceBN.lt(requiredBalanceBN);
 
-  return await simulateTransactions(chainId, {
-    ...params,
-    getSimulationConfig,
-    transactions,
-    withGas: true,
-    withDefaultBlockOverrides: true,
-    ...(blockTime && {
-      blockOverrides: {
-        ...params?.blockOverrides,
-        time: toHex(blockTime),
-      },
-    }),
-    ...(isInsufficientBalance && {
-      overrides: {
-        ...params?.overrides,
-        [from]: {
-          ...params?.overrides?.[from],
-          balance: requiredBalanceHex,
+  return await simulateTransactions({
+    chainId,
+    request: {
+      ...params,
+      getSimulationConfig,
+      transactions,
+      withGas: true,
+      withDefaultBlockOverrides: true,
+      ...(blockTime && {
+        blockOverrides: {
+          ...params?.blockOverrides,
+          time: toHex(blockTime),
         },
-      },
-    }),
+      }),
+      ...(isInsufficientBalance && {
+        overrides: {
+          ...params?.overrides,
+          [from]: {
+            ...params?.overrides?.[from],
+            balance: requiredBalanceHex,
+          },
+        },
+      }),
+    },
+    messenger,
   });
 }
 

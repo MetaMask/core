@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Simulate transactions through `SentinelApiService:simulateTransactions` so client headers and the per-environment Sentinel URL come from the service
+  - Consumers constructing `TransactionController` must allow the `SentinelApiService:simulateTransactions` action on its messenger.
+  - `getSimulationConfig` still rewrites the URL and `Authorization` header.
+  - An unsupported chain, a JSON-RPC error, a missing result, or a `getSimulationConfig` failure rejects unchanged.
+
 ## [72.2.0]
 
 ### Added

@@ -6118,28 +6118,6 @@
       "count": 1
     }
   },
-  "packages/transaction-controller/src/api/simulation-api.test.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 5
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
-    }
-  },
-  "packages/transaction-controller/src/api/simulation-api.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 2
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 3
-    },
-    "typescript/no-unsafe-return": {
-      "count": 2
-    }
-  },
   "packages/transaction-controller/src/gas-flows/LineaGasFeeFlow.test.ts": {
     "typescript/unbound-method": {
       "count": 2
