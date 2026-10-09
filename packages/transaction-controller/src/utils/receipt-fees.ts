@@ -11,7 +11,7 @@ import { padHexToEvenLength } from './utils.js';
  * @returns Parsed bigint, or undefined when missing / invalid / empty.
  */
 function parseHexQuantity(value: string | undefined): bigint | undefined {
-  if (value === undefined || value === '' || value === '0x' || value === '0X') {
+  if (!value) {
     return undefined;
   }
 
@@ -38,11 +38,9 @@ function toHexWei(value: bigint): Hex {
  * Formula: `gasUsed * operatorFeeScalar * 100 + operatorFeeConstant`
  *
  * @param receipt - Transaction receipt that may include operator fee params.
- * @returns Operator fee in hex wei, or undefined when it cannot be computed.
+ * @returns Operator fee in wei, or undefined when it cannot be computed.
  */
-export function getOperatorFeeFromReceipt(
-  receipt: TransactionReceipt,
-): Hex | undefined {
+function getOperatorFee(receipt: TransactionReceipt): bigint | undefined {
   const gasUsed = parseHexQuantity(receipt.gasUsed);
   const operatorFeeScalar = parseHexQuantity(receipt.operatorFeeScalar);
   const operatorFeeConstant = parseHexQuantity(receipt.operatorFeeConstant);
@@ -55,9 +53,21 @@ export function getOperatorFeeFromReceipt(
     return undefined;
   }
 
-  const operatorFee = gasUsed * operatorFeeScalar * 100n + operatorFeeConstant;
+  return gasUsed * operatorFeeScalar * 100n + operatorFeeConstant;
+}
 
-  return toHexWei(operatorFee);
+/**
+ * Computes the OP Stack / Mantle Arsia operator fee from receipt fields.
+ *
+ * @param receipt - Transaction receipt that may include operator fee params.
+ * @returns Operator fee in hex wei, or undefined when it cannot be computed.
+ */
+export function getOperatorFeeFromReceipt(
+  receipt: TransactionReceipt,
+): Hex | undefined {
+  const operatorFee = getOperatorFee(receipt);
+
+  return operatorFee === undefined ? undefined : toHexWei(operatorFee);
 }
 
 /**
@@ -73,22 +83,12 @@ export function getOperatorFeeFromReceipt(
 export function getLayer1FeeFromReceipt(
   receipt: TransactionReceipt,
 ): Hex | undefined {
-  const l1Fee = parseHexQuantity(receipt.l1Fee) ?? 0n;
-  const operatorFeeHex = getOperatorFeeFromReceipt(receipt);
-  const operatorFee =
-    operatorFeeHex === undefined
-      ? 0n
-      : (parseHexQuantity(operatorFeeHex) ?? 0n);
+  const l1Fee = parseHexQuantity(receipt.l1Fee);
+  const operatorFee = getOperatorFee(receipt);
 
-  if (l1Fee === 0n && operatorFee === 0n) {
-    // Distinguish "both zero" (valid) from "neither present".
-    const hasL1Fee = parseHexQuantity(receipt.l1Fee) !== undefined;
-    const hasOperatorFee = operatorFeeHex !== undefined;
-
-    if (!hasL1Fee && !hasOperatorFee) {
-      return undefined;
-    }
+  if (l1Fee === undefined && operatorFee === undefined) {
+    return undefined;
   }
 
-  return toHexWei(l1Fee + operatorFee);
+  return toHexWei((l1Fee ?? 0n) + (operatorFee ?? 0n));
 }
