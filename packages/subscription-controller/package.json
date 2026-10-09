@@ -69,7 +69,7 @@
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/seedless-onboarding-controller": "^12.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^72.1.0",
+    "@metamask/transaction-controller": "^72.2.0",
     "@metamask/utils": "^12.0.0",
     "@tanstack/query-core": "^5.103.2",
     "bignumber.js": "^9.1.2",
