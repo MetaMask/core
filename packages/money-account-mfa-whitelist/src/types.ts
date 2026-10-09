@@ -98,11 +98,13 @@ export type MoneyAccountSignatureRequest =
     };
 
 /**
- * The hash the MPC Backend is asked to sign, together with the request it was
- * computed from. The request is only whitelisted if it hashes to exactly
- * this hash.
+ * The hash the MPC Backend is asked to sign and the account whose key signs
+ * it, together with the request the hash was computed from. The request is
+ * only whitelisted if it is for this account and hashes to exactly this hash.
  */
 export type MoneyAccountSigningRequest = {
+  /** The Money Account whose key signs the hash. */
+  address: Hex;
   /** The 32-byte hash to sign. */
   hash: Hex;
   /** The signature request the hash was computed from. */

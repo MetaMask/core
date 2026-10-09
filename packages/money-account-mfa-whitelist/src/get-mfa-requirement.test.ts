@@ -60,9 +60,13 @@ function evaluate(
   request: MoneyAccountSignatureRequest,
   config: MfaWhitelistConfig = CONFIG,
 ): MfaRequirement {
-  return getMfaRequirement({ hash: hashRequest(request), request }, config, {
-    now: NOW,
-  });
+  return getMfaRequirement(
+    { address: MONEY_ACCOUNT, hash: hashRequest(request), request },
+    config,
+    {
+      now: NOW,
+    },
+  );
 }
 
 /**
@@ -192,14 +196,91 @@ const mfaRequired = (reason: string): MfaRequirement => ({
 
 describe('getMfaRequirement', () => {
   describe('request validation', () => {
-    it('requires MFA when the address is not an address', () => {
-      expect(
-        evaluate({
-          method: 'signPersonalMessage',
-          address: '0x1234',
-          message: toHexMessage(`CHOMP Authentication ${NOW}`),
+    const chompAuthentication: MoneyAccountSignatureRequest = {
+      method: 'signPersonalMessage',
+      address: MONEY_ACCOUNT,
+      message: toHexMessage(`CHOMP Authentication ${NOW}`),
+    };
+
+    it.each([
+      ['not an address', '0x1234'],
+      ['not a string', 1],
+    ])(
+      'requires MFA when the signing account is %s',
+      (_description, address) => {
+        expect(
+          getMfaRequirement(
+            {
+              address: address as Hex,
+              hash: hashRequest(chompAuthentication),
+              request: chompAuthentication,
+            },
+            CONFIG,
+            { now: NOW },
+          ),
+        ).toStrictEqual(mfaRequired('Address is not an address'));
+      },
+    );
+
+    it.each([
+      ['for another account', RECIPIENT],
+      ['for an address that is not an address', '0x1234'],
+      ['without an address', undefined],
+    ])(
+      'requires MFA when the request is %s',
+      (_description, requestAddress) => {
+        const request = {
+          ...chompAuthentication,
+          address: requestAddress,
+        } as MoneyAccountSignatureRequest;
+
+        expect(
+          getMfaRequirement(
+            { address: MONEY_ACCOUNT, hash: hashRequest(request), request },
+            CONFIG,
+            { now: NOW },
+          ),
+        ).toStrictEqual(mfaRequired('Request is not for the signing account'));
+      },
+    );
+
+    it('requires MFA when a whitelisted delegation from another account is signed by the Money Account', async () => {
+      const request: MoneyAccountSignatureRequest = {
+        method: 'signTypedData',
+        address: RECIPIENT,
+        version: 'V4',
+        data: await getDelegationTypedData({
+          ...buildStandingDelegation(),
+          delegator: RECIPIENT,
         }),
-      ).toStrictEqual(mfaRequired('Request address is not an address'));
+      };
+
+      expect(
+        getMfaRequirement(
+          { address: MONEY_ACCOUNT, hash: hashRequest(request), request },
+          CONFIG,
+          { now: NOW },
+        ),
+      ).toStrictEqual(mfaRequired('Request is not for the signing account'));
+    });
+
+    it('accepts the signing account in any case', () => {
+      const request: MoneyAccountSignatureRequest = {
+        ...chompAuthentication,
+        address: `0x${'ab'.repeat(20)}`,
+      };
+
+      expect(
+        getMfaRequirement(
+          {
+            address: `0x${'AB'.repeat(20)}`,
+            hash: hashRequest(request),
+            request,
+          },
+          CONFIG,
+          { now: NOW },
+        ),
+      ).toStrictEqual(whitelistedAs('chomp-authentication'));
     });
 
     it('requires MFA for an unsupported method', () => {
@@ -251,7 +332,10 @@ describe('getMfaRequirement', () => {
       };
 
       expect(
-        getMfaRequirement({ hash: hashRequest(request), request }, CONFIG),
+        getMfaRequirement(
+          { address: MONEY_ACCOUNT, hash: hashRequest(request), request },
+          CONFIG,
+        ),
       ).toStrictEqual(whitelistedAs('chomp-authentication'));
     });
   });
@@ -294,7 +378,11 @@ describe('getMfaRequirement', () => {
     ])('requires MFA when the hash is %s', (_description, hash) => {
       expect(
         getMfaRequirement(
-          { hash: hash as Hex, request: chompAuthentication },
+          {
+            address: MONEY_ACCOUNT,
+            hash: hash as Hex,
+            request: chompAuthentication,
+          },
           CONFIG,
           { now: NOW },
         ),
@@ -305,6 +393,7 @@ describe('getMfaRequirement', () => {
       expect(
         getMfaRequirement(
           {
+            address: MONEY_ACCOUNT,
             hash: `0x${hashRequest(chompAuthentication).slice(2).toUpperCase()}`,
             request: chompAuthentication,
           },
@@ -322,7 +411,11 @@ describe('getMfaRequirement', () => {
 
       expect(
         getMfaRequirement(
-          { hash: hashRequest(otherMessage), request: chompAuthentication },
+          {
+            address: MONEY_ACCOUNT,
+            hash: hashRequest(otherMessage),
+            request: chompAuthentication,
+          },
           CONFIG,
           { now: NOW },
         ),
@@ -337,7 +430,11 @@ describe('getMfaRequirement', () => {
 
       expect(
         getMfaRequirement(
-          { hash: hashRequest(otherAuthorization), request: authorization },
+          {
+            address: MONEY_ACCOUNT,
+            hash: hashRequest(otherAuthorization),
+            request: authorization,
+          },
           CONFIG,
           { now: NOW },
         ),
@@ -354,7 +451,11 @@ describe('getMfaRequirement', () => {
 
       expect(
         getMfaRequirement(
-          { hash: hashRequest(withdrawal), request: deposit },
+          {
+            address: MONEY_ACCOUNT,
+            hash: hashRequest(withdrawal),
+            request: deposit,
+          },
           CONFIG,
           { now: NOW },
         ),
@@ -370,9 +471,13 @@ describe('getMfaRequirement', () => {
       });
 
       expect(
-        getMfaRequirement({ hash: hashRequest(resalted), request }, CONFIG, {
-          now: NOW,
-        }),
+        getMfaRequirement(
+          { address: MONEY_ACCOUNT, hash: hashRequest(resalted), request },
+          CONFIG,
+          {
+            now: NOW,
+          },
+        ),
       ).toStrictEqual(mfaRequired('Hash does not match the request'));
     });
 
@@ -380,9 +485,13 @@ describe('getMfaRequirement', () => {
       const request = await buildDelegationRequest(buildStandingDelegation());
 
       expect(
-        getMfaRequirement({ hash: UNRELATED_HASH, request }, CONFIG, {
-          now: NOW,
-        }),
+        getMfaRequirement(
+          { address: MONEY_ACCOUNT, hash: UNRELATED_HASH, request },
+          CONFIG,
+          {
+            now: NOW,
+          },
+        ),
       ).toStrictEqual(mfaRequired('Hash does not match the request'));
     });
 
@@ -393,9 +502,13 @@ describe('getMfaRequirement', () => {
       };
 
       expect(
-        getMfaRequirement({ hash: UNRELATED_HASH, request }, CONFIG, {
-          now: NOW,
-        }),
+        getMfaRequirement(
+          { address: MONEY_ACCOUNT, hash: UNRELATED_HASH, request },
+          CONFIG,
+          {
+            now: NOW,
+          },
+        ),
       ).toStrictEqual(
         mfaRequired('Message does not match a whitelisted format'),
       );

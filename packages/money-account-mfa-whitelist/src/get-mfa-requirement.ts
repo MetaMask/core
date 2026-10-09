@@ -47,18 +47,17 @@ function bindToHash(
  *
  * The backend uses this to decide whether to require an MFA token, and
  * clients use it to decide whether to prompt for MFA before requesting the
- * signature. A request is only whitelisted if it hashes to `hash`, so the
- * backend can sign `hash` after inspecting the request. Every request that
- * doesn't match a whitelist rule requires MFA, including malformed ones; the
- * function never throws.
- *
- * The backend must also check that `request.address` is the account whose
- * key signs the hash.
+ * signature. A request is only whitelisted if it is for `address` and
+ * hashes to `hash`, so the backend can sign `hash` with the key of `address`
+ * after inspecting the request. Every request that doesn't match a whitelist
+ * rule requires MFA, including malformed ones; the function never throws.
  *
  * Clients should still handle the backend requiring MFA for a request they
  * expected to be whitelisted, e.g. when their clock or config differs.
  *
  * @param signingRequest - The signing request.
+ * @param signingRequest.address - The Money Account whose key signs the
+ * hash.
  * @param signingRequest.hash - The 32-byte hash to sign.
  * @param signingRequest.request - The signature request the hash was
  * computed from.
@@ -74,14 +73,15 @@ export function getMfaRequirement(
   { now = Date.now() }: GetMfaRequirementOptions = {},
 ): MfaRequirement {
   try {
-    const { hash, request } = signingRequest;
+    const { address, hash, request } = signingRequest;
+    if (!isAddress(address)) {
+      return requireMfa('Address is not an address');
+    }
     if (typeof hash !== 'string' || !HASH_PATTERN.test(hash)) {
       return requireMfa('Hash is not 32 bytes');
     }
-
-    const { address } = request;
-    if (!isAddress(address)) {
-      return requireMfa('Request address is not an address');
+    if (!isAddress(request.address) || !isSameHex(request.address, address)) {
+      return requireMfa('Request is not for the signing account');
     }
 
     switch (request.method) {

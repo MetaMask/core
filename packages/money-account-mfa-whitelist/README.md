@@ -12,7 +12,7 @@ or
 
 ## Usage
 
-The clients and the MPC Backend call `getMfaRequirement` with the 32-byte hash to sign, the request passed to the Money keyring that the hash was computed from, and the same pinned configuration. A request that doesn't match a whitelist rule requires MFA, including a malformed request, so the function never throws.
+The clients and the MPC Backend call `getMfaRequirement` with the Money Account whose key signs, the 32-byte hash to sign, the request passed to the Money keyring that the hash was computed from, and the same pinned configuration. A request that doesn't match a whitelist rule requires MFA, including a malformed request, so the function never throws.
 
 ```ts
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
@@ -35,6 +35,7 @@ const config = {
 
 const requirement = getMfaRequirement(
   {
+    address,
     hash,
     request: { method: 'signTypedData', address, version: 'V4', data },
   },
@@ -71,7 +72,7 @@ A whitelisted request is only whitelisted if it hashes to exactly `hash`, so the
 | `signTypedData` (V4)       | `keccak256(0x1901 ‖ domainSeparator ‖ hashStruct(delegation))` (EIP-712)   |
 | `signEip7702Authorization` | `keccak256(0x05 ‖ rlp([chainId, contractAddress, nonce]))` (EIP-7702)      |
 
-The MPC Backend must also check that `request.address` is the account whose key signs the hash.
+The request must also be for `address`, the account whose key signs the hash. Otherwise MFA is required.
 
 ## Contributing
 
