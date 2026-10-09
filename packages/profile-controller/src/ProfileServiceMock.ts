@@ -24,9 +24,9 @@ export const MOCK_PROFILE_API_RESPONSE: ProfileApiResponse = {
     'tron:728126428:TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH',
     'stellar:pubnet:GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H',
   ],
-  avatar_url: null,
+  avatar_url: 'https://pbs.twimg.com/profile_images/mock.jpg',
   trading_privacy: 'public',
-  connected_to_x: false,
+  connected_to_x: true,
   created_at: '2024-01-01T00:00:00.000Z',
   updated_at: '2024-01-01T00:00:00.000Z',
 };
