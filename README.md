@@ -96,6 +96,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/money-account-api-data-service`](packages/money-account-api-data-service)
 - [`@metamask/money-account-balance-service`](packages/money-account-balance-service)
 - [`@metamask/money-account-controller`](packages/money-account-controller)
+- [`@metamask/money-account-mfa-whitelist`](packages/money-account-mfa-whitelist)
 - [`@metamask/money-account-upgrade-controller`](packages/money-account-upgrade-controller)
 - [`@metamask/money-account-utils`](packages/money-account-utils)
 - [`@metamask/multichain-account-service`](packages/multichain-account-service)
