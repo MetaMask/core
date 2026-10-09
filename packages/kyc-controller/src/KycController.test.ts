@@ -1,3 +1,4 @@
+import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -12,7 +13,15 @@ import {
 import type { KycControllerMessenger } from './KycController.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import type { KycConsentRecord, KycSessionDisclaimers } from './types.js';
-import { verifyJwtChain } from './ukyc/jwtChain.js';
+import {
+  UKYC_JWT_ERROR_CODES,
+  UkycJwksError,
+  UkycJwtVerificationError,
+} from './ukyc/errors.js';
+import {
+  assertAttestedServerPublicKey,
+  verifyJwtChain,
+} from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 
 jest.mock('./ukyc/jwtChain', () => {
@@ -34,9 +43,26 @@ jest.mock('./ukyc/wrapEncryptionKey', () => {
 const mockVerifyJwtChain = verifyJwtChain as jest.MockedFunction<
   typeof verifyJwtChain
 >;
+const mockAssertAttestedServerPublicKey =
+  assertAttestedServerPublicKey as jest.MockedFunction<
+    typeof assertAttestedServerPublicKey
+  >;
 const mockWrapEncryptionKey = wrapEncryptionKey as jest.MockedFunction<
   typeof wrapEncryptionKey
 >;
+
+const ENCRYPTION_SCHEMA = {
+  serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
+  jwtChain: 'jwt.chain.sig',
+};
+
+const ENCLAVE_JWKS = {
+  keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'enclave-pub', kid: 'enclave' }],
+};
+
+const RELAY_JWKS = {
+  keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'relay-pub', kid: 'relay' }],
+};
 
 const MOCK_SESSION_DISCLAIMERS: KycSessionDisclaimers = {
   idOS: [
@@ -259,6 +285,267 @@ describe('KycController', () => {
         ).rejects.toThrow('customer failed');
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
         expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
+
+    it('verifies both encryption schemas before submitting authorizations', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+        await controller.startSession({
+          vendor: 'iron',
+          email: 'a@b.co',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(handlers.fetchIdosEnclaveJwks).toHaveBeenCalledTimes(1);
+        expect(handlers.fetchIdosRelayJwks).toHaveBeenCalledTimes(1);
+        expect(mockAssertAttestedServerPublicKey).toHaveBeenNthCalledWith(
+          1,
+          ENCLAVE_JWKS.keys,
+          ENCRYPTION_SCHEMA,
+        );
+        expect(mockAssertAttestedServerPublicKey).toHaveBeenNthCalledWith(
+          2,
+          RELAY_JWKS.keys,
+          ENCRYPTION_SCHEMA,
+        );
+        expect(
+          handlers.fetchIdosEnclaveJwks.mock.invocationCallOrder[0],
+        ).toBeLessThan(
+          mockAssertAttestedServerPublicKey.mock.invocationCallOrder[0],
+        );
+        expect(
+          mockAssertAttestedServerPublicKey.mock.invocationCallOrder[1],
+        ).toBeLessThan(handlers.setAuthorizations.mock.invocationCallOrder[0]);
+      });
+    });
+
+    it('does not submit authorizations when the enclave JWKS cannot be fetched', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        handlers.fetchIdosEnclaveJwks.mockRejectedValue(
+          new Error('enclave down'),
+        );
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          name: 'UkycJwksError',
+          code: 'fetch_failed',
+          source: 'idos_enclave',
+          schema: 'encryptionDataKey',
+        });
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toThrow(/failed to fetch idOS enclave JWKS: enclave down/u);
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
+
+    it('rethrows a UkycJwksError from the JWKS fetch', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        const original = new UkycJwksError(
+          'fetch_failed',
+          'idos_enclave',
+          'KycService: failed to fetch idOS enclave JWKS',
+          { httpStatus: 503, cause: new Error('unavailable') },
+        );
+        handlers.fetchIdosEnclaveJwks.mockRejectedValue(original);
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toBe(original);
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+      });
+    });
+
+    it('keeps the HTTP status when a JWKS fetch throws HttpError', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        handlers.fetchIdosRelayJwks.mockRejectedValue(
+          new HttpError(502, 'bad gateway'),
+        );
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          code: 'fetch_failed',
+          source: 'idos_relay',
+          schema: 'ukycCapabilityToken',
+          httpStatus: 502,
+        });
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+      });
+    });
+
+    it('wraps a non-Error JWKS fetch failure', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        handlers.fetchIdosRelayJwks.mockRejectedValue('relay down');
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toThrow(/failed to fetch idOS relay JWKS: relay down/u);
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+      });
+    });
+
+    it.each([undefined, null, {}, { keys: 'nope' }])(
+      'rejects a JWKS response that is not a key set (%p)',
+      async (jwks) => {
+        await withController(async ({ controller, handlers }) => {
+          handlers.getSessionStatusForVendor.mockResolvedValue(null);
+          handlers.fetchIdosEnclaveJwks.mockResolvedValue(jwks);
+
+          await expect(
+            controller.startSession({
+              vendor: 'iron',
+              email: 'a@b.co',
+              aal2Token: AAL2_TOKEN,
+            }),
+          ).rejects.toMatchObject({
+            code: 'malformed',
+            source: 'idos_enclave',
+            schema: 'encryptionDataKey',
+          });
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+          expect(mockAssertAttestedServerPublicKey).not.toHaveBeenCalled();
+        });
+      },
+    );
+
+    it('rejects an empty JWKS before verifying the jwtChain', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        handlers.fetchIdosRelayJwks.mockResolvedValue({ keys: [] });
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          code: 'empty',
+          source: 'idos_relay',
+          schema: 'ukycCapabilityToken',
+        });
+        expect(mockAssertAttestedServerPublicKey).not.toHaveBeenCalled();
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+      });
+    });
+
+    it('names the encryption schema when jwtChain verification fails', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        const cause = new UkycJwtVerificationError(
+          UKYC_JWT_ERROR_CODES.publicKeyMismatch,
+          'UKYC: sessionServerPublicKey does not match the verified jwtChain payload (sessionServerPublicKeyX).',
+        );
+        mockAssertAttestedServerPublicKey.mockImplementation(() => {
+          throw cause;
+        });
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          name: 'UkycJwtVerificationError',
+          code: 'public_key_mismatch',
+          schema: 'encryptionDataKey',
+          cause,
+        });
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toThrow(
+          /failed to verify encryptionDataKey: sessionServerPublicKey does not match/u,
+        );
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
+
+    it('names the capability-token schema when its jwtChain verification fails', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        mockAssertAttestedServerPublicKey
+          .mockImplementationOnce(() => undefined)
+          .mockImplementationOnce(() => {
+            throw new UkycJwtVerificationError(
+              UKYC_JWT_ERROR_CODES.invalidSignature,
+              'UKYC: jwtChain signature verification failed against JWKS.',
+            );
+          });
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          code: 'invalid_signature',
+          schema: 'ukycCapabilityToken',
+        });
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+      });
+    });
+
+    it('wraps an unexpected jwtChain verification failure', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        mockAssertAttestedServerPublicKey.mockImplementation(() => {
+          throw new Error('bad token');
+        });
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          code: 'verification_failed',
+          schema: 'encryptionDataKey',
+        });
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toThrow(/failed to verify encryptionDataKey: bad token/u);
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
       });
     });
   });
@@ -1078,11 +1365,6 @@ type WithControllerOptions = {
   options: Partial<ConstructorParameters<typeof KycController>[0]>;
 };
 
-const ENCRYPTION_SCHEMA = {
-  serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
-  jwtChain: 'jwt.chain.sig',
-};
-
 /**
  * Builds a UKYC session-creation payload with encryption schemas.
  *
@@ -1199,8 +1481,8 @@ function withController<ReturnValue>(
       ...MOCK_SESSION_DISCLAIMERS,
       credentialReusabilityConsentGiven: true,
     }),
-    fetchIdosEnclaveJwks: jest.fn().mockResolvedValue({ keys: [] }),
-    fetchIdosRelayJwks: jest.fn().mockResolvedValue({ keys: [] }),
+    fetchIdosEnclaveJwks: jest.fn().mockResolvedValue(ENCLAVE_JWKS),
+    fetchIdosRelayJwks: jest.fn().mockResolvedValue(RELAY_JWKS),
     createUkycSession: jest.fn().mockResolvedValue(ukycSessionResponse()),
     setAuthorizations: jest.fn().mockResolvedValue(sessionStatus('approved')),
     createJourney: jest
@@ -1281,6 +1563,7 @@ function withController<ReturnValue>(
     handlers.performSetStorage,
   );
 
+  mockAssertAttestedServerPublicKey.mockReset();
   mockVerifyJwtChain.mockReturnValue({
     sessionServerPublicKeyX: 'spk-x',
     nonce: 'n',

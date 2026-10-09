@@ -34,6 +34,12 @@ import type {
   KycVendorSigning,
 } from './types.js';
 import { UKYC_JWKS_PATH } from './ukyc/constants.js';
+import type { UkycJwksSource } from './ukyc/errors.js';
+import {
+  readErrorMessage,
+  UKYC_JWKS_ERROR_CODES,
+  UkycJwksError,
+} from './ukyc/errors.js';
 
 // === GENERAL ===
 
@@ -187,13 +193,15 @@ const EncryptionSchemaStruct = type({
 });
 export type EncryptionSchema = Infer<typeof EncryptionSchemaStruct>;
 
-// A single Ed25519 (OKP) JWK. `type` (not `object`) keeps optional/extra JWK
-// fields (`use`, `alg`) from failing validation.
+// A single Ed25519 (OKP) JWK. `type` (not `object`) keeps extra JWK fields from
+// failing validation. `use` and `alg` are read during jwtChain verification.
 const JwkStruct = type({
   kty: string(),
   crv: string(),
   x: string(),
   kid: string(),
+  use: optional(string()),
+  alg: optional(string()),
 });
 const JwksResponseStruct = type({ keys: array(JwkStruct) });
 export type JwksResponse = Infer<typeof JwksResponseStruct>;
@@ -669,26 +677,73 @@ export class KycService extends BaseDataService<
   /**
    * Fetches a well-known JWKS from `baseUrl`.
    *
+   * Network, HTTP, JSON-parse, schema, and empty-key-set failures are
+   * reported as {@link UkycJwksError}. HTTP failures keep the response status
+   * on `httpStatus` and the original {@link HttpError} as `cause`.
+   *
    * @param baseUrl - Host base URL that serves `/.well-known/jwks.json`.
-   * @param responseLabel - Label used in malformed-response errors.
+   * @param responseLabel - Label used in error messages.
    * @param missingConfigMessage - Error thrown when `baseUrl` is empty.
+   * @param source - Issuer the JWKS belongs to.
    * @returns The JWKS keys.
+   * @throws {UkycJwksError} When the base URL is missing, the request fails,
+   * the body is not a JWKS, or `keys` is empty.
    */
   async #fetchWellKnownJwks(
     baseUrl: string,
     responseLabel: string,
     missingConfigMessage: string,
+    source: UkycJwksSource,
   ): Promise<JwksResponse> {
     if (!baseUrl) {
-      throw new Error(missingConfigMessage);
+      throw new UkycJwksError(
+        UKYC_JWKS_ERROR_CODES.notConfigured,
+        source,
+        missingConfigMessage,
+      );
     }
     const url = new URL(UKYC_JWKS_PATH, baseUrl);
-    const data = await this.#requestJson(
-      url,
-      { method: 'GET' },
-      { authenticated: false },
-    );
-    return this.#validateResponse(data, JwksResponseStruct, responseLabel);
+    let data: Json;
+    try {
+      data = await this.#requestJson(
+        url,
+        { method: 'GET' },
+        { authenticated: false },
+      );
+    } catch (error) {
+      const detail = readErrorMessage(error);
+      throw new UkycJwksError(
+        UKYC_JWKS_ERROR_CODES.fetchFailed,
+        source,
+        `KycService: failed to fetch ${responseLabel} from ${url.toString()}: ${detail}`,
+        {
+          cause: error,
+          httpStatus: error instanceof HttpError ? error.httpStatus : undefined,
+        },
+      );
+    }
+
+    let jwks: JwksResponse;
+    try {
+      jwks = this.#validateResponse(data, JwksResponseStruct, responseLabel);
+    } catch (error) {
+      throw new UkycJwksError(
+        UKYC_JWKS_ERROR_CODES.malformed,
+        source,
+        readErrorMessage(error),
+        { cause: error },
+      );
+    }
+
+    if (jwks.keys.length === 0) {
+      throw new UkycJwksError(
+        UKYC_JWKS_ERROR_CODES.empty,
+        source,
+        `KycService: ${responseLabel} contained no keys.`,
+      );
+    }
+
+    return jwks;
   }
 
   /**
@@ -700,12 +755,15 @@ export class KycService extends BaseDataService<
    * host, distinct from the UKYC base URL.
    *
    * @returns The JWKS keys.
+   * @throws {UkycJwksError} When the enclave base URL is missing, the JWKS
+   * cannot be fetched, the body is not a JWKS, or `keys` is empty.
    */
   async fetchIdosEnclaveJwks(): Promise<JwksResponse> {
     return this.#fetchWellKnownJwks(
       this.#idosEnclaveBaseUrl,
       'idOS enclave JWKS',
       'KycService: idosEnclaveBaseUrl is not configured; cannot fetch JWKS to verify the encryptionDataKey schema.',
+      'idos_enclave',
     );
   }
 
@@ -717,12 +775,15 @@ export class KycService extends BaseDataService<
    * host, distinct from both the UKYC base URL and the idOS enclave.
    *
    * @returns The JWKS keys.
+   * @throws {UkycJwksError} When the relay base URL is missing, the JWKS
+   * cannot be fetched, the body is not a JWKS, or `keys` is empty.
    */
   async fetchIdosRelayJwks(): Promise<JwksResponse> {
     return this.#fetchWellKnownJwks(
       this.#idosRelayBaseUrl,
       'idOS relay JWKS',
       'KycService: idosRelayBaseUrl is not configured; cannot fetch JWKS to verify the ukycCapabilityToken schema.',
+      'idos_relay',
     );
   }
 
