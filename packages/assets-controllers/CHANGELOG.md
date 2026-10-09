@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/contract-metadata` from `^2.4.0` to `^2.5.0` ([#10716](https://github.com/MetaMask/core/pull/10716))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
+- Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
+- Bump `@metamask/abi-utils` from `^2.0.3` to `^2.0.4` ([#10715](https://github.com/MetaMask/core/pull/10715))
 
 ## [112.1.2]
 

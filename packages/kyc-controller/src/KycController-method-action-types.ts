@@ -72,6 +72,31 @@ export type KycControllerRefreshSessionStatusAction = {
 };
 
 /**
+ * Returns the persisted session status.
+ *
+ * Does not call the network and does not start session-status polling.
+ *
+ * @returns The session on state, or `null` when none is stored.
+ */
+export type KycControllerReadSessionStatusAction = {
+  type: `KycController:readSessionStatus`;
+  handler: KycController['readSessionStatus'];
+};
+
+/**
+ * Fetches `GET /sessions/{id}/status` once and writes the result onto state.
+ *
+ * Does not start the session-status polling timer.
+ *
+ * @param sessionId - UKYC session id.
+ * @returns The fetched session status.
+ */
+export type KycControllerFetchSessionStatusOnceAction = {
+  type: `KycController:fetchSessionStatusOnce`;
+  handler: KycController['fetchSessionStatusOnce'];
+};
+
+/**
  * Starts polling `GET /sessions/{id}/status` for
  * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
  * the result onto state only when the payload changed. The loop stops once
@@ -200,6 +225,8 @@ export type KycControllerMethodActions =
   | KycControllerGetSessionStatusForVendorAction
   | KycControllerGetProviderFlowStatusAction
   | KycControllerRefreshSessionStatusAction
+  | KycControllerReadSessionStatusAction
+  | KycControllerFetchSessionStatusOnceAction
   | KycControllerStartSessionStatusPollingAction
   | KycControllerFetchSessionDisclaimersAction
   | KycControllerRecordSessionDisclaimersAction

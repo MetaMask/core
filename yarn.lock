@@ -3205,9 +3205,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@easyops-cn/docusaurus-search-local@npm:^0.55.1":
-  version: 0.55.1
-  resolution: "@easyops-cn/docusaurus-search-local@npm:0.55.1"
+"@easyops-cn/docusaurus-search-local@npm:^0.55.3":
+  version: 0.55.3
+  resolution: "@easyops-cn/docusaurus-search-local@npm:0.55.3"
   dependencies:
     "@docusaurus/plugin-content-docs": "npm:^2 || ^3"
     "@docusaurus/theme-translations": "npm:^2 || ^3"
@@ -3234,7 +3234,7 @@ __metadata:
   peerDependenciesMeta:
     open-ask-ai:
       optional: true
-  checksum: 10/7eaee8145ebd67357d30492d729cfe82ab55dbc71dbe3ecd71e3d56cc4a3b255feef3ee985300ab773b16659309c45d48d57dabf2d79fcb51c8904704aa3c344
+  checksum: 10/676783dc8c6e339a40630cc23a0e9c559ba86edf690fbda8a73590704953774dda440d7756a5acbf90b2b53009aeb301ba36298dc82c6d57d3b26810dfa965df
   languageName: node
   linkType: hard
 
@@ -5232,10 +5232,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@levischuck/tiny-cbor@npm:^0.3.3":
-  version: 0.3.3
-  resolution: "@levischuck/tiny-cbor@npm:0.3.3"
-  checksum: 10/737219a7bb28570043f77aa9d73af800a1dd41a1561c0f816d0ff5b7e95e08351377cd97afa19c4d8581e44951211a4b5f46084944ffdbca2779cddaa1c1fcbc
+"@levischuck/tiny-cbor@npm:^0.3.6":
+  version: 0.3.6
+  resolution: "@levischuck/tiny-cbor@npm:0.3.6"
+  checksum: 10/3adcabfba4740b72ffabd87da45130e12a31c2e9f929f24ccc7495cda9eafc449f7bb24ada414f86d9011b4d9d582737fbc3cfd1d0c8c8ee7f85f29bc48999a3
   languageName: node
   linkType: hard
 
@@ -5294,7 +5294,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/abi-utils@npm:^2.0.3":
+"@metamask/abi-utils@npm:^2.0.4":
   version: 2.0.4
   resolution: "@metamask/abi-utils@npm:2.0.4"
   dependencies:
@@ -5338,9 +5338,9 @@ __metadata:
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/multichain-account-service": "npm:^14.1.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/providers": "npm:^22.1.0"
-    "@metamask/snaps-controllers": "npm:^19.0.0"
+    "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
@@ -5354,7 +5354,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
@@ -5371,10 +5371,10 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/eth-snap-keyring": "npm:^24.0.0"
+    "@metamask/eth-snap-keyring": "npm:^24.1.0"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/keyring-sdk": "npm:^3.1.0"
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/messenger": "npm:^3.0.0"
@@ -5386,14 +5386,14 @@ __metadata:
     "@types/readable-stream": "npm:^2.3.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
-    ethereum-cryptography: "npm:^2.2.1"
+    ethereum-cryptography: "npm:^3.2.0"
     immer: "npm:^11.1.18"
     jest: "npm:^30.5.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
     webextension-polyfill: "npm:^0.12.0"
@@ -5430,7 +5430,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -5467,7 +5467,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -5490,7 +5490,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -5513,7 +5513,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -5532,7 +5532,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -5558,7 +5558,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -5580,7 +5580,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -5617,7 +5617,7 @@ __metadata:
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/keyring-snap-client": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/multichain-transactions-controller": "npm:^8.0.0"
@@ -5628,7 +5628,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/preferences-controller": "npm:^24.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
-    "@metamask/snaps-controllers": "npm:^19.0.0"
+    "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -5644,7 +5644,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -5660,7 +5660,7 @@ __metadata:
     "@ethersproject/bignumber": "npm:^5.8.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.8.0"
-    "@metamask/abi-utils": "npm:^2.0.3"
+    "@metamask/abi-utils": "npm:^2.0.4"
     "@metamask/account-api": "npm:^2.1.0"
     "@metamask/account-tree-controller": "npm:^11.0.1"
     "@metamask/accounts-controller": "npm:^40.0.0"
@@ -5676,7 +5676,7 @@ __metadata:
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/keyring-snap-client": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
@@ -5687,11 +5687,11 @@ __metadata:
     "@metamask/phishing-controller": "npm:^18.2.0"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/preferences-controller": "npm:^24.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/snaps-controllers": "npm:^19.0.0"
+    "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/storage-service": "npm:^2.0.0"
@@ -5718,7 +5718,7 @@ __metadata:
     single-call-balance-checker-abi: "npm:^1.0.0"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
     webextension-polyfill: "npm:^0.12.0"
@@ -5780,7 +5780,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -5823,7 +5823,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -5861,7 +5861,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -5880,7 +5880,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   bin:
     bitcoin-regtest-up: ./dist/bin/bitcoin-regtest-up.js
@@ -5910,9 +5910,9 @@ __metadata:
     "@metamask/multichain-network-controller": "npm:^4.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
     "@metamask/polling-controller": "npm:^17.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
-    "@metamask/snaps-controllers": "npm:^19.0.0"
+    "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -5928,7 +5928,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -5948,8 +5948,8 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
     "@metamask/polling-controller": "npm:^17.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
-    "@metamask/snaps-controllers": "npm:^19.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
+    "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -5964,7 +5964,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -5993,7 +5993,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6005,7 +6005,7 @@ __metadata:
     "@metamask/api-specs": "npm:^0.15.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/permission-controller": "npm:^14.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^12.0.0"
@@ -6017,7 +6017,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6041,7 +6041,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6056,7 +6056,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
     "@tanstack/query-core": "npm:^5.103.2"
@@ -6067,7 +6067,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6087,7 +6087,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6102,7 +6102,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/core-backend": "npm:^12.0.1"
     "@metamask/keyring-api": "npm:^24.0.0"
-    "@metamask/slip44": "npm:^4.3.0"
+    "@metamask/slip44": "npm:^4.5.0"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -6113,7 +6113,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6136,7 +6136,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6157,7 +6157,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6185,7 +6185,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6205,7 +6205,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6289,7 +6289,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   peerDependencies:
     "@babel/runtime": ^7.0.0
@@ -6305,7 +6305,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@tanstack/query-core": "npm:^5.103.2"
@@ -6319,7 +6319,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -6361,7 +6361,7 @@ __metadata:
     isomorphic-fetch: "npm:^3.0.0"
     jest: "npm:^30.5.2"
     jest-silent-reporter: "npm:^0.6.0"
-    knip: "npm:^6.38.0"
+    knip: "npm:^6.39.0"
     lodash: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     oxfmt: "npm:^0.44.0"
@@ -6409,7 +6409,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/cryptography@npm:^1.1.0, @metamask/cryptography@workspace:packages/cryptography":
+"@metamask/cryptography@npm:^1.1.2, @metamask/cryptography@workspace:packages/cryptography":
   version: 0.0.0-use.local
   resolution: "@metamask/cryptography@workspace:packages/cryptography"
   dependencies:
@@ -6422,7 +6422,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6443,7 +6443,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6479,7 +6479,7 @@ __metadata:
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
-    "@metamask/stake-sdk": "npm:^3.2.1"
+    "@metamask/stake-sdk": "npm:^3.4.0"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -6489,7 +6489,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6515,7 +6515,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -6537,7 +6537,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6561,7 +6561,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6584,7 +6584,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -6769,15 +6769,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-snap-keyring@npm:^24.0.0":
-  version: 24.0.0
-  resolution: "@metamask/eth-snap-keyring@npm:24.0.0"
+"@metamask/eth-snap-keyring@npm:^24.1.0":
+  version: 24.1.0
+  resolution: "@metamask/eth-snap-keyring@npm:24.1.0"
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
-    "@metamask/keyring-internal-snap-client": "npm:^11.0.0"
-    "@metamask/keyring-sdk": "npm:^3.0.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
+    "@metamask/keyring-internal-snap-client": "npm:^11.1.0"
+    "@metamask/keyring-sdk": "npm:^3.1.0"
     "@metamask/keyring-snap-sdk": "npm:^10.0.0"
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/messenger": "npm:^1.1.1"
@@ -6791,7 +6791,7 @@ __metadata:
     uuid: "npm:^9.0.1"
   peerDependencies:
     "@metamask/keyring-api": ^24.0.0
-  checksum: 10/256b67b17ff03f27032e29ecf278e090acf60e4422b72318b1209ec3589484f8313377a588dbabedbe0c18899d57b2df018380d34a30c8cf56635966f6ea3f4b
+  checksum: 10/b6ebaa5f223aeb3d28ad6c8bfe708763c3721acddc97999f099b2a9e1378cf94b3b844c8f03ea11719e2d48f1d127787fa85e23c6e607dc38cd6961545c462be
   languageName: node
   linkType: hard
 
@@ -6912,7 +6912,7 @@ __metadata:
     tar: "npm:^7.5.22"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     unzipper: "npm:^0.12.3"
     yaml: "npm:^2.9.1"
@@ -6948,7 +6948,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   peerDependencies:
@@ -6963,14 +6963,14 @@ __metadata:
     "@lavamoat/allow-scripts": "npm:^5.1.0"
     "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
     "@metamask/7715-permission-types": "npm:^1.0.0"
-    "@metamask/abi-utils": "npm:^2.0.3"
+    "@metamask/abi-utils": "npm:^2.0.4"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/delegation-core": "npm:^2.2.1"
     "@metamask/delegation-deployments": "npm:^1.4.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
-    "@metamask/snaps-controllers": "npm:^19.0.0"
+    "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/transaction-controller": "npm:^72.1.0"
@@ -6982,7 +6982,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7002,7 +7002,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7020,7 +7020,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   bin:
     java-tron-up: ./dist/bin/java-tron-up.js
@@ -7097,7 +7097,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     webextension-polyfill-ts: "npm:^0.26.0"
   languageName: unknown
@@ -7145,7 +7145,7 @@ __metadata:
     "@metamask/eth-sig-util": "npm:^9.0.0"
     "@metamask/eth-simple-keyring": "npm:^13.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
@@ -7161,34 +7161,34 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     ulid: "npm:^2.4.0"
     uuid: "npm:^11.1.1"
   languageName: unknown
   linkType: soft
 
-"@metamask/keyring-internal-api@npm:^12.0.0":
-  version: 12.0.0
-  resolution: "@metamask/keyring-internal-api@npm:12.0.0"
+"@metamask/keyring-internal-api@npm:^12.1.0":
+  version: 12.1.0
+  resolution: "@metamask/keyring-internal-api@npm:12.1.0"
   dependencies:
-    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
-  checksum: 10/7d0512ad659168924d66251c0313e29fc158527da87c28966e080cc35932c326246c304abc983541cdc4f5dd28ad1b8e7f311fb358e55af6048a7f6eab0e203c
+  checksum: 10/7319992a2956015d3ba4bba917786bf579a209c86253adb036bdf2c3e9493b4114387a4f2e8643e00ac09b281785e2e3c097c2916a9695cfe7fa71303b8d9a80
   languageName: node
   linkType: hard
 
-"@metamask/keyring-internal-snap-client@npm:^11.0.0":
-  version: 11.0.0
-  resolution: "@metamask/keyring-internal-snap-client@npm:11.0.0"
+"@metamask/keyring-internal-snap-client@npm:^11.1.0":
+  version: 11.1.0
+  resolution: "@metamask/keyring-internal-snap-client@npm:11.1.0"
   dependencies:
-    "@metamask/keyring-api": "npm:^24.0.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
+    "@metamask/keyring-api": "npm:^24.1.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/keyring-snap-client": "npm:^10.0.0"
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/messenger": "npm:^1.1.1"
-  checksum: 10/058d4fa73d8a24199106393264e5a722cc8d0eed3fbbbcb5ccd40c314220a101f373bf3077c4d1a7b789235116a524fdfa5c816d27c5abd078b652eafa02cdd3
+  checksum: 10/03bcad12b31bcd4493727f63c5ffa0d5b840dd6db44fb5922257cd4595bdaa63df963b86cf02305ed9659061b09745fec73c9dd2e6c8783d4aaeb307b4b9df80
   languageName: node
   linkType: hard
 
@@ -7265,7 +7265,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/geolocation-controller": "npm:^2.0.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
     "@noble/ciphers": "npm:^1.3.0"
@@ -7283,7 +7283,7 @@ __metadata:
     ts-jest: "npm:^29.4.14"
     tweetnacl: "npm:^1.0.3"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7301,7 +7301,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     yaml: "npm:^2.9.1"
   languageName: unknown
@@ -7322,7 +7322,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -7346,7 +7346,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -7413,7 +7413,7 @@ __metadata:
     ts-jest: "npm:^29.4.14"
     tstyche: "npm:^7.2.5"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   peerDependencies:
     typescript: ">=5.0.0"
@@ -7446,7 +7446,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7475,7 +7475,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7501,7 +7501,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7530,7 +7530,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7552,7 +7552,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7568,17 +7568,17 @@ __metadata:
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-hd-keyring": "npm:^15.0.0"
-    "@metamask/eth-snap-keyring": "npm:^24.0.0"
+    "@metamask/eth-snap-keyring": "npm:^24.1.0"
     "@metamask/key-tree": "npm:^10.1.1"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/keyring-snap-client": "npm:^10.0.0"
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snap-account-service": "npm:^4.0.0"
-    "@metamask/snaps-controllers": "npm:^19.0.0"
+    "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
@@ -7592,7 +7592,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
     webextension-polyfill: "npm:^0.12.0"
@@ -7618,7 +7618,7 @@ __metadata:
     "@metamask/permission-controller": "npm:^14.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/safe-event-emitter": "npm:^3.1.3"
-    "@metamask/snaps-controllers": "npm:^19.0.0"
+    "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/utils": "npm:^12.0.0"
     "@open-rpc/meta-schema": "npm:^1.14.9"
     "@open-rpc/schema-utils-js": "npm:^2.0.5"
@@ -7630,7 +7630,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7645,7 +7645,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
     "@metamask/superstruct": "npm:^3.4.1"
@@ -7662,7 +7662,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7676,11 +7676,11 @@ __metadata:
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/keyring-snap-client": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/polling-controller": "npm:^17.0.0"
-    "@metamask/snaps-controllers": "npm:^19.0.0"
+    "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/utils": "npm:^12.0.0"
@@ -7692,7 +7692,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -7715,7 +7715,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7741,7 +7741,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7782,14 +7782,14 @@ __metadata:
     jest-environment-jsdom: "npm:^30.5.2"
     jest-when: "npm:^4.0.3"
     lodash-es: "npm:^4.18.1"
-    loglevel: "npm:^1.8.1"
+    loglevel: "npm:^1.9.2"
     nock: "npm:^13.5.6"
     node-fetch: "npm:^2.7.0"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uri-js: "npm:^4.4.1"
     uuid: "npm:^11.1.1"
@@ -7808,7 +7808,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/multichain-network-controller": "npm:^4.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
-    "@metamask/slip44": "npm:^4.3.0"
+    "@metamask/slip44": "npm:^4.5.0"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -7819,20 +7819,18 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
 
-"@metamask/nonce-tracker@npm:^6.0.0":
-  version: 6.0.0
-  resolution: "@metamask/nonce-tracker@npm:6.0.0"
+"@metamask/nonce-tracker@npm:^6.1.0":
+  version: 6.1.0
+  resolution: "@metamask/nonce-tracker@npm:6.1.0"
   dependencies:
     "@ethersproject/providers": "npm:^5.7.2"
-    async-mutex: "npm:^0.3.1"
-  peerDependencies:
-    "@metamask/eth-block-tracker": ">=9"
-  checksum: 10/e62edd38eeaba6d917bc3aed38017294f2bfdb59120a9fb4f093fe96a46d8d9214453a802fe782faaf4a007f4cd5f393607c70a2ff8479ecd7ef18827cad067a
+    async-mutex: "npm:^0.5.0"
+  checksum: 10/a20cf7084348ef7bdcd9e57e873ca34bf8e04ee43a2ab08634a3ad47fddb632d0e170c1dff03b4ca5bac34a24c35c542fcec509f3c23ce483834082f41b50e4a
   languageName: node
   linkType: hard
 
@@ -7849,7 +7847,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
@@ -7863,13 +7861,13 @@ __metadata:
     jest: "npm:^30.5.2"
     jest-environment-jsdom: "npm:^30.5.2"
     lodash-es: "npm:^4.18.1"
-    loglevel: "npm:^1.8.1"
+    loglevel: "npm:^1.9.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     semver: "npm:^7.8.5"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -7960,7 +7958,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -7969,7 +7967,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/passkey-controller@workspace:packages/passkey-controller"
   dependencies:
-    "@levischuck/tiny-cbor": "npm:^0.3.3"
+    "@levischuck/tiny-cbor": "npm:^0.3.6"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
@@ -7986,7 +7984,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8052,7 +8050,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8076,7 +8074,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8085,7 +8083,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/perps-controller@workspace:packages/perps-controller"
   dependencies:
-    "@metamask/abi-utils": "npm:^2.0.3"
+    "@metamask/abi-utils": "npm:^2.0.4"
     "@metamask/account-tree-controller": "npm:^11.0.1"
     "@metamask/authenticated-user-storage": "npm:^4.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
@@ -8093,12 +8091,12 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/geolocation-controller": "npm:^2.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
-    "@metamask/subscription-controller": "npm:^12.0.1"
+    "@metamask/subscription-controller": "npm:^13.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -8112,7 +8110,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
     viem: "npm:^2.56.8"
@@ -8135,7 +8133,7 @@ __metadata:
     "@types/punycode": "npm:^2.1.4"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
-    ethereum-cryptography: "npm:^2.2.1"
+    ethereum-cryptography: "npm:^3.2.0"
     fastest-levenshtein: "npm:^1.0.16"
     jest: "npm:^30.5.2"
     nock: "npm:^13.5.6"
@@ -8143,7 +8141,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8157,7 +8155,7 @@ __metadata:
     "@docusaurus/preset-classic": "npm:^3.10.2"
     "@docusaurus/theme-common": "npm:^3.10.2"
     "@docusaurus/types": "npm:^3.10.2"
-    "@easyops-cn/docusaurus-search-local": "npm:^0.55.1"
+    "@easyops-cn/docusaurus-search-local": "npm:^0.55.3"
     "@jest/globals": "npm:^30.5.2"
     "@mdx-js/react": "npm:^3.1.1"
     "@metamask/auto-changelog": "npm:^6.2.1"
@@ -8201,7 +8199,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -8231,7 +8229,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8245,7 +8243,7 @@ __metadata:
     "@metamask/base-data-service": "npm:^2.1.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -8255,7 +8253,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8269,11 +8267,11 @@ __metadata:
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/polling-controller": "npm:^17.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
-    "@metamask/snaps-controllers": "npm:^19.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
+    "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
@@ -8288,13 +8286,13 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
   linkType: soft
 
-"@metamask/profile-sync-controller@npm:^34.0.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
+"@metamask/profile-sync-controller@npm:^34.0.3, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
   dependencies:
@@ -8304,16 +8302,16 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/cryptography": "npm:^1.1.0"
+    "@metamask/cryptography": "npm:^1.1.2"
     "@metamask/eth-hd-keyring": "npm:^15.0.0"
     "@metamask/key-tree": "npm:^10.1.1"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
-    "@metamask/keyring-internal-api": "npm:^12.0.0"
+    "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/seedless-onboarding-controller": "npm:^11.0.1"
+    "@metamask/seedless-onboarding-controller": "npm:^12.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
     "@noble/curves": "npm:^1.9.7"
@@ -8326,12 +8324,12 @@ __metadata:
     immer: "npm:^11.1.18"
     jest: "npm:^30.5.2"
     jest-environment-jsdom: "npm:^30.5.2"
-    loglevel: "npm:^1.8.1"
+    loglevel: "npm:^1.9.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
@@ -8361,7 +8359,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/ramps-controller@npm:^26.3.0, @metamask/ramps-controller@workspace:packages/ramps-controller":
+"@metamask/ramps-controller@npm:^27.0.0, @metamask/ramps-controller@workspace:packages/ramps-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/ramps-controller@workspace:packages/ramps-controller"
   dependencies:
@@ -8369,7 +8367,7 @@ __metadata:
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8381,7 +8379,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8402,7 +8400,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8425,7 +8423,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   peerDependencies:
@@ -8458,7 +8456,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -8502,7 +8500,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8517,7 +8515,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/seedless-onboarding-controller@npm:^11.0.1, @metamask/seedless-onboarding-controller@workspace:packages/seedless-onboarding-controller":
+"@metamask/seedless-onboarding-controller@npm:^12.0.0, @metamask/seedless-onboarding-controller@workspace:packages/seedless-onboarding-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/seedless-onboarding-controller@workspace:packages/seedless-onboarding-controller"
   dependencies:
@@ -8546,7 +8544,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8574,7 +8572,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8598,7 +8596,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8615,7 +8613,7 @@ __metadata:
     "@metamask/base-data-service": "npm:^2.1.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/signature-controller": "npm:^40.0.0"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -8629,7 +8627,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -8660,7 +8658,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   languageName: unknown
@@ -8675,10 +8673,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/slip44@npm:^4.3.0, @metamask/slip44@npm:^4.4.0":
-  version: 4.4.0
-  resolution: "@metamask/slip44@npm:4.4.0"
-  checksum: 10/296ac7c578bd35792c7e3942a9a0b7d9d7af76cf98358b97403c1ed483faa3c2fe6c71b1c3f8c7719fbfcf9fc73e5fa8707c89ac277ee9ce6c8bc4c694b2059d
+"@metamask/slip44@npm:^4.4.0, @metamask/slip44@npm:^4.5.0":
+  version: 4.5.0
+  resolution: "@metamask/slip44@npm:4.5.0"
+  checksum: 10/8450d4f5afa98e8f57c67a39f12aa413888c423505f22c05a3dc181be223f7742db017f54a99852acc3826abe74b22bf7247bccd78b810e509321c075e67516f
   languageName: node
   linkType: hard
 
@@ -8699,7 +8697,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
     "@metamask/polling-controller": "npm:^17.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.1.0"
@@ -8714,7 +8712,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8726,14 +8724,14 @@ __metadata:
     "@metamask/account-api": "npm:^2.1.0"
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
-    "@metamask/eth-snap-keyring": "npm:^24.0.0"
+    "@metamask/eth-snap-keyring": "npm:^24.1.0"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^28.1.0"
-    "@metamask/keyring-internal-snap-client": "npm:^11.0.0"
+    "@metamask/keyring-internal-snap-client": "npm:^11.1.0"
     "@metamask/keyring-snap-sdk": "npm:^10.0.0"
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/snaps-controllers": "npm:^19.0.0"
+    "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -8744,12 +8742,12 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
 
-"@metamask/snaps-controllers@npm:^19.0.0, @metamask/snaps-controllers@npm:^19.0.1":
+"@metamask/snaps-controllers@npm:^19.0.1":
   version: 19.0.1
   resolution: "@metamask/snaps-controllers@npm:19.0.1"
   dependencies:
@@ -8876,7 +8874,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/core-backend": "npm:^12.0.1"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/superstruct": "npm:^3.4.1"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8885,7 +8883,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8903,17 +8901,17 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   bin:
     solana-test-validator-up: ./dist/bin/solana-test-validator-up.js
   languageName: unknown
   linkType: soft
 
-"@metamask/stake-sdk@npm:^3.2.1":
-  version: 3.2.1
-  resolution: "@metamask/stake-sdk@npm:3.2.1"
-  checksum: 10/7404ac54e2bd426158b0ae92a2f4c420ef551d18d8a14293c5760b1da1c48cab88df9a7dcce7133f91bbe7899f6c2016642f0e41e170353b6b9ae4c6423d2ad5
+"@metamask/stake-sdk@npm:^3.4.0":
+  version: 3.4.0
+  resolution: "@metamask/stake-sdk@npm:3.4.0"
+  checksum: 10/32241bf7a904b0b12568467482b28f550eae1a4d97ffb7487a1cd1614d43f3b584d78dc96df72ece024a0402d3591c19d79f370a3955ea4b11369f000c309a08
   languageName: node
   linkType: hard
 
@@ -8929,7 +8927,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -8958,12 +8956,12 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
 
-"@metamask/subscription-controller@npm:^12.0.1, @metamask/subscription-controller@workspace:packages/subscription-controller":
+"@metamask/subscription-controller@npm:^13.0.0, @metamask/subscription-controller@workspace:packages/subscription-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/subscription-controller@workspace:packages/subscription-controller"
   dependencies:
@@ -8983,9 +8981,9 @@ __metadata:
     "@metamask/money-account-upgrade-controller": "npm:^5.1.0"
     "@metamask/money-account-utils": "npm:^2.1.0"
     "@metamask/polling-controller": "npm:^17.0.0"
-    "@metamask/profile-sync-controller": "npm:^34.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
-    "@metamask/seedless-onboarding-controller": "npm:^11.0.1"
+    "@metamask/seedless-onboarding-controller": "npm:^12.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -9000,7 +8998,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -9063,7 +9061,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^37.0.1"
-    "@metamask/nonce-tracker": "npm:^6.0.0"
+    "@metamask/nonce-tracker": "npm:^6.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^12.0.0"
@@ -9076,7 +9074,7 @@ __metadata:
     bn.js: "npm:^5.2.5"
     deepmerge: "npm:^4.3.1"
     eth-method-registry: "npm:^4.0.0"
-    ethereum-cryptography: "npm:^2.2.1"
+    ethereum-cryptography: "npm:^3.2.0"
     fast-json-patch: "npm:^3.1.1"
     immer: "npm:^11.1.18"
     jest: "npm:^30.5.2"
@@ -9086,7 +9084,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   peerDependencies:
@@ -9112,7 +9110,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^37.0.1"
-    "@metamask/ramps-controller": "npm:^26.3.0"
+    "@metamask/ramps-controller": "npm:^27.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/sentinel-api-service": "npm:^2.1.0"
     "@metamask/transaction-controller": "npm:^72.1.0"
@@ -9128,7 +9126,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -9162,7 +9160,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
   peerDependencies:
@@ -9216,7 +9214,7 @@ __metadata:
     ts-jest: "npm:^29.4.14"
     tstyche: "npm:^7.2.5"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
     web3: "npm:^4.16.0"
@@ -9258,7 +9256,7 @@ __metadata:
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@metamask/wallet": "npm:^16.0.1"
+    "@metamask/wallet": "npm:^17.0.0"
     "@oclif/core": "npm:^4.10.5"
     "@types/better-sqlite3": "npm:^7.6.13"
     "@types/jest": "npm:^30.0.0"
@@ -9286,7 +9284,7 @@ __metadata:
     "@docusaurus/preset-classic": "npm:^3.10.2"
     "@docusaurus/theme-common": "npm:^3.10.2"
     "@docusaurus/types": "npm:^3.10.2"
-    "@easyops-cn/docusaurus-search-local": "npm:^0.55.1"
+    "@easyops-cn/docusaurus-search-local": "npm:^0.55.3"
     "@mdx-js/react": "npm:^3.1.1"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-data-service": "npm:^2.1.0"
@@ -9310,7 +9308,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/wallet@npm:^16.0.1, @metamask/wallet@workspace:packages/wallet":
+"@metamask/wallet@npm:^17.0.0, @metamask/wallet@workspace:packages/wallet":
   version: 0.0.0-use.local
   resolution: "@metamask/wallet@workspace:packages/wallet"
   dependencies:
@@ -9331,10 +9329,10 @@ __metadata:
     "@metamask/passkey-controller": "npm:^4.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
-    "@metamask/seedless-onboarding-controller": "npm:^11.0.1"
+    "@metamask/seedless-onboarding-controller": "npm:^12.0.0"
     "@metamask/shield-controller": "npm:^7.0.4"
     "@metamask/storage-service": "npm:^2.0.0"
-    "@metamask/subscription-controller": "npm:^12.0.1"
+    "@metamask/subscription-controller": "npm:^13.0.0"
     "@metamask/transaction-controller": "npm:^72.1.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -9344,7 +9342,7 @@ __metadata:
     rimraf: "npm:^6.1.3"
     ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
@@ -9391,7 +9389,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/ciphers@npm:^1.2.1, @noble/ciphers@npm:^1.3.0":
+"@noble/ciphers@npm:1.3.0, @noble/ciphers@npm:^1.2.1, @noble/ciphers@npm:^1.3.0":
   version: 1.3.0
   resolution: "@noble/ciphers@npm:1.3.0"
   checksum: 10/051660051e3e9e2ca5fb9dece2885532b56b7e62946f89afa7284a0fb8bc02e2bd1c06554dba68162ff42d295b54026456084198610f63c296873b2f1cd7a586
@@ -9413,6 +9411,15 @@ __metadata:
   dependencies:
     "@noble/hashes": "npm:1.4.0"
   checksum: 10/f433a2e8811ae345109388eadfa18ef2b0004c1f79417553241db4f0ad0d59550be6298a4f43d989c627e9f7551ffae6e402a4edf0173981e6da95fc7cab5123
+  languageName: node
+  linkType: hard
+
+"@noble/curves@npm:1.9.0":
+  version: 1.9.0
+  resolution: "@noble/curves@npm:1.9.0"
+  dependencies:
+    "@noble/hashes": "npm:1.8.0"
+  checksum: 10/f2c5946310722fee23e04ed747f21ce72e0436e38e1fa620d226a8c613262e7d0dbab5341f14caf92936089d01d9e9231964c409cd1ac2a73a075f3cdb1acc41
   languageName: node
   linkType: hard
 
@@ -14067,15 +14074,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"async-mutex@npm:^0.3.1":
-  version: 0.3.2
-  resolution: "async-mutex@npm:0.3.2"
-  dependencies:
-    tslib: "npm:^2.3.1"
-  checksum: 10/cf0b02f7f916d202a727e15a64d51110c3258a719588ca263875024172aa9368efa5dbec6dc4f4fd10e35744e238e1075306a93ce86549de642d5f7d0c06bc23
-  languageName: node
-  linkType: hard
-
 "async-mutex@npm:^0.5.0":
   version: 0.5.0
   resolution: "async-mutex@npm:0.5.0"
@@ -17055,6 +17053,19 @@ __metadata:
     "@scure/bip32": "npm:1.4.0"
     "@scure/bip39": "npm:1.3.0"
   checksum: 10/ab123bbfe843500ac2d645ce9edc4bc814962ffb598db6bf8bf01fbecac656e6c81ff4cf2472f1734844bbcbad2bf658d8b699cb7248d768e0f06ae13ecf43b8
+  languageName: node
+  linkType: hard
+
+"ethereum-cryptography@npm:^3.2.0":
+  version: 3.2.0
+  resolution: "ethereum-cryptography@npm:3.2.0"
+  dependencies:
+    "@noble/ciphers": "npm:1.3.0"
+    "@noble/curves": "npm:1.9.0"
+    "@noble/hashes": "npm:1.8.0"
+    "@scure/bip32": "npm:1.7.0"
+    "@scure/bip39": "npm:1.6.0"
+  checksum: 10/35c72fdfe26861e20b6a37bca9b4f22517d0fe130370d2b0071890225ca10a30848c8c784a1389544de2b5308f22a76a6e60c234449b8a504c5a4c092a04785c
   languageName: node
   linkType: hard
 
@@ -20379,9 +20390,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"knip@npm:^6.38.0":
-  version: 6.38.0
-  resolution: "knip@npm:6.38.0"
+"knip@npm:^6.39.0":
+  version: 6.39.0
+  resolution: "knip@npm:6.39.0"
   dependencies:
     fdir: "npm:^6.5.0"
     formatly: "npm:^0.7.0"
@@ -20399,7 +20410,7 @@ __metadata:
   bin:
     knip: bin/knip.js
     knip-bun: bin/knip-bun.js
-  checksum: 10/c66af85bcb66201687b742397287c20035d0580be11064cf311e865880465b00ac927b2ee961584d41e99149106b8012542802961e33a5e78240e7698284488b
+  checksum: 10/0c83b312381c8e8542baf4d266c7bb4331d6445b7cc0417d0d966579a0d24a2e08071ab06f0fb521af2dac8914f24b217473b3a3d6c997395008510b9e5c5012
   languageName: node
   linkType: hard
 
@@ -20547,7 +20558,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"loglevel@npm:^1.8.1, loglevel@npm:^1.9.2":
+"loglevel@npm:^1.9.2":
   version: 1.9.2
   resolution: "loglevel@npm:1.9.2"
   checksum: 10/6153d8db308323f7ee20130bc40309e7a976c30a10379d8666b596d9c6441965c3e074c8d7ee3347fe5cfc059c0375b6f3e8a10b93d5b813cc5547f5aa412a29
@@ -26693,7 +26704,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:^2.0.0, tslib@npm:^2.0.3, tslib@npm:^2.1.0, tslib@npm:^2.3.1, tslib@npm:^2.4.0, tslib@npm:^2.6.0, tslib@npm:^2.8.1":
+"tslib@npm:^2.0.0, tslib@npm:^2.0.3, tslib@npm:^2.1.0, tslib@npm:^2.4.0, tslib@npm:^2.6.0, tslib@npm:^2.8.1":
   version: 2.8.1
   resolution: "tslib@npm:2.8.1"
   checksum: 10/3e2e043d5c2316461cb54e5c7fe02c30ef6dccb3384717ca22ae5c6b5bc95232a6241df19c622d9c73b809bea33b187f6dbc73030963e29950c2141bc32a79f7
@@ -26839,12 +26850,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typedoc-plugin-missing-exports@npm:^2.0.0":
-  version: 2.3.0
-  resolution: "typedoc-plugin-missing-exports@npm:2.3.0"
+"typedoc-plugin-missing-exports@npm:^4.1.4":
+  version: 4.1.4
+  resolution: "typedoc-plugin-missing-exports@npm:4.1.4"
   peerDependencies:
-    typedoc: 0.24.x || 0.25.x
-  checksum: 10/83ff8affd82fa39a81931e825ef31b51b7470613c71601fde6ff413a5c7571e30734698092a38a437f12c5d3264010696ce9ca806d43485aa11e8208cb4cb323
+    typedoc: ^0.28.1
+  checksum: 10/e913a239eb183faf4495e9239db240f6421cae0260919534d43bb951862aa7c3f998fee14b3d3a03fd89c52b97ecc0496ae2b209c53e2dbc3a37f65c08ff4d8e
   languageName: node
   linkType: hard
 
