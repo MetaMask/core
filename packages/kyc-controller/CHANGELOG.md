@@ -9,25 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `KycService.resetWrappingKeys`, which posts
-  `POST /sessions/{sessionId}/wrapping-keys` with `sessionClientPublicKey`
-  and returns `UkycSessionResponse`
-  ([#10692](https://github.com/MetaMask/core/pull/10692))
-- Export `CAPABILITY_AUTHORIZATION_STATUSES`,
-  `CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH`,
-  `FINAL_STATUSES_TO_SKIP_AUTH_REFRESH`,
-  `needsCapabilityAuthorizationRefresh`, `KYC_STATUSES`, and
-  `FINAL_STATUSES_TO_STOP_POLLING`
-  ([#10692](https://github.com/MetaMask/core/pull/10692))
+- Add `KycService.resetWrappingKeys`, which posts `POST /sessions/{sessionId}/wrapping-keys` with `sessionClientPublicKey` and returns `UkycSessionResponse` ([#10692](https://github.com/MetaMask/core/pull/10692))
+- Export `CAPABILITY_AUTHORIZATION_STATUSES`, `CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH`, `FINAL_STATUSES_TO_SKIP_AUTH_REFRESH`, `needsCapabilityAuthorizationRefresh`, `KYC_STATUSES`, and `FINAL_STATUSES_TO_STOP_POLLING` ([#10692](https://github.com/MetaMask/core/pull/10692))
 - Added exported `KYC_STATUSES` and `TERMINAL_SESSION_STATUSES`, so consumers can reuse the KYC status vocabulary and the terminal session-status set (`approved`, `rejected`, `retry`) from the package entry point instead of redefining them locally ([#10771](https://github.com/MetaMask/core/pull/10771))
 
 ### Changed
 
-- Refresh and resubmit the UKYC capability authorization when
-  `capabilityAuthorizationStatus` is `new` or `expired` while resuming a
-  session in `startSession` (skipped when `finalStatus` is `approved` or
-  `rejected`)
-  ([#10692](https://github.com/MetaMask/core/pull/10692))
+- Refresh and resubmit the UKYC capability authorization when `capabilityAuthorizationStatus` is `new` or `expired` while resuming a session in `startSession` (skipped when `finalStatus` is `approved` or `rejected`) ([#10692](https://github.com/MetaMask/core/pull/10692))
 - Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
 
 ## [0.7.0]
