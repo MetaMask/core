@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/slip44` from `^4.3.0` to `^4.5.0` ([#10736](https://github.com/MetaMask/core/pull/10736))
 
+### Fixed
+
+- Preserve existing network enablement when an auto-enabled network from the config registry is added ([#10763](https://github.com/MetaMask/core/pull/10763))
+
 ## [7.0.2]
 
 ### Changed
