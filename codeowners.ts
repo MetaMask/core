@@ -382,6 +382,9 @@ const config = {
     'wallet-framework-docs': {
       teams: ['@MetaMask/core-platform'],
     },
+    'watch-only-account-service': {
+      teams: ['@MetaMask/accounts-engineers'],
+    },
   },
   overrides: [
     { pattern: '/.github/', owners: ['@MetaMask/core-platform'] },

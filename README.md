@@ -141,6 +141,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/utils`](packages/utils)
 - [`@metamask/wallet`](packages/wallet)
 - [`@metamask/wallet-cli`](packages/wallet-cli)
+- [`@metamask/watch-only-account-service`](packages/watch-only-account-service)
 
 <!-- end package list -->
 
