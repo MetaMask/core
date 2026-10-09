@@ -1,42 +1,21 @@
-/**
- * Common duration constants, in milliseconds.
- */
-export enum Duration {
-  /**
-   * A millisecond.
-   */
-  Millisecond = 1,
+export type Duration =
+  | 'millisecond'
+  | 'second'
+  | 'minute'
+  | 'hour'
+  | 'day'
+  | 'week'
+  | 'year';
 
-  /**
-   * A second, in milliseconds.
-   */
-  Second = 1000, // Millisecond * 1000
-
-  /**
-   * A minute, in milliseconds.
-   */
-  Minute = 60_000, // Second * 60
-
-  /**
-   * An hour, in milliseconds.
-   */
-  Hour = 3_600_000, // Minute * 60
-
-  /**
-   * A day, in milliseconds.
-   */
-  Day = 86_400_000, // Hour * 24
-
-  /**
-   * A week, in milliseconds.
-   */
-  Week = 604_800_000, // Day * 7
-
-  /**
-   * A year, in milliseconds.
-   */
-  Year = 31_536_000_000, // Day * 365
-}
+const MILLISECOND_DURATIONS: Record<Duration, number> = {
+  millisecond: 1,
+  second: 1000,
+  minute: 60_000,
+  hour: 3_600_000,
+  day: 86_400_000,
+  week: 604_800_000,
+  year: 31_536_000_000,
+};
 
 const isNonNegativeInteger = (number: number): boolean =>
   Number.isInteger(number) && number >= 0;
@@ -58,7 +37,7 @@ const assertIsNonNegativeInteger = (number: number, name: string): void => {
  */
 export function inMilliseconds(count: number, duration: Duration): number {
   assertIsNonNegativeInteger(count, 'count');
-  return count * duration;
+  return count * MILLISECOND_DURATIONS[duration];
 }
 
 /**

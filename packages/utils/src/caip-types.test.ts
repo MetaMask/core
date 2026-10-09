@@ -25,7 +25,6 @@ import {
   isCaipChainId,
   isCaipNamespace,
   isCaipReference,
-  KnownCaipNamespace,
   parseCaipAccountId,
   parseCaipAssetId,
   parseCaipAssetType,
@@ -555,8 +554,8 @@ describe('toCaipChainId', () => {
     );
   });
 
-  it.each(Object.values(KnownCaipNamespace))(
-    'treats %s as a valid namespace',
+  it.each(['bip122', 'solana', 'stellar', 'tron', 'eip155', 'wallet'])(
+    'treats "%s" as a valid namespace',
     (namespace) => {
       expect(isCaipNamespace(namespace)).toBe(true);
     },

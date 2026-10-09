@@ -1,39 +1,50 @@
-import { Duration, inMilliseconds, timeSince } from './index.js';
+import { inMilliseconds, timeSince } from './index.js';
 
 describe('time utilities', () => {
-  describe('Duration', () => {
-    it('has the correct values', () => {
-      expect(Duration.Millisecond).toBe(1);
-      expect(Duration.Second).toBe(Duration.Millisecond * 1000);
-      expect(Duration.Minute).toBe(Duration.Second * 60);
-      expect(Duration.Hour).toBe(Duration.Minute * 60);
-      expect(Duration.Day).toBe(Duration.Hour * 24);
-      expect(Duration.Week).toBe(Duration.Day * 7);
-      expect(Duration.Year).toBe(Duration.Day * 365);
-    });
-  });
-
   describe('inMilliseconds', () => {
     it('throws if the number is negative or a float', () => {
-      expect(() => inMilliseconds(1.1, Duration.Second)).toThrow(
+      expect(() => inMilliseconds(1.1, 'second')).toThrow(
         '"count" must be a non-negative integer. Received: "1.1".',
       );
 
-      expect(() => inMilliseconds(-1, Duration.Second)).toThrow(
+      expect(() => inMilliseconds(-1, 'second')).toThrow(
         '"count" must be a non-negative integer. Received: "-1".',
       );
     });
 
-    it('counts durations correctly', () => {
-      // A count that won't overflow for any Duration value.
-      const getRandomCount = (): number => Math.floor(Math.random() * 1000);
+    it('returns the correct duration in milliseconds for a millisecond duration', () => {
+      expect(inMilliseconds(1, 'millisecond')).toBe(1);
+      expect(inMilliseconds(1000, 'millisecond')).toBe(1_000);
+    });
 
-      Object.values(Duration).forEach((duration) => {
-        const count = getRandomCount();
-        expect(inMilliseconds(count, duration as Duration)).toBe(
-          count * (duration as Duration),
-        );
-      });
+    it('returns the correct duration in milliseconds for a second duration', () => {
+      expect(inMilliseconds(1, 'second')).toBe(1_000);
+      expect(inMilliseconds(60, 'second')).toBe(60_000);
+    });
+
+    it('returns the correct duration in milliseconds for a minute duration', () => {
+      expect(inMilliseconds(1, 'minute')).toBe(60_000);
+      expect(inMilliseconds(60, 'minute')).toBe(3_600_000);
+    });
+
+    it('returns the correct duration in milliseconds for an hour duration', () => {
+      expect(inMilliseconds(1, 'hour')).toBe(3_600_000);
+      expect(inMilliseconds(24, 'hour')).toBe(86_400_000);
+    });
+
+    it('returns the correct duration in milliseconds for a day duration', () => {
+      expect(inMilliseconds(1, 'day')).toBe(86_400_000);
+      expect(inMilliseconds(7, 'day')).toBe(604_800_000);
+    });
+
+    it('returns the correct duration in milliseconds for a week duration', () => {
+      expect(inMilliseconds(1, 'week')).toBe(604_800_000);
+      expect(inMilliseconds(52, 'week')).toBe(31_449_600_000);
+    });
+
+    it('returns the correct duration in milliseconds for a year duration', () => {
+      expect(inMilliseconds(1, 'year')).toBe(31_536_000_000);
+      expect(inMilliseconds(10, 'year')).toBe(315_360_000_000);
     });
   });
 
