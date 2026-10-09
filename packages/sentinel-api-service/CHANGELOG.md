@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Allow `simulateTransactions` `getUrl` to return `{ url, authorization }` so callers can replace the bearer token
+- Allow `simulateTransactions` `getUrl` to return `{ url, authorization }` so callers can replace the bearer token [#10778](https://github.com/MetaMask/core/pull/10778)
   - The query key stores a SHA-256 digest of that authorization value, so concurrent calls with different tokens are not merged and the token is not published in cache events
 
 ## [2.1.0]
