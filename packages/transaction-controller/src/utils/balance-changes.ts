@@ -244,7 +244,8 @@ function getNativeBalanceChange(
 
   const senderGain = hexToBN(newBalance)
     .sub(hexToBN(previousBalance))
-    .add(hexToBN(txParams.value ?? '0x0'));
+    .add(hexToBN(txParams.value ?? '0x0'))
+    .add(getNestedValue(request.nestedTransactions));
 
   const refund = BN.min(unusedGasRefund, BN.max(senderGain, new BN(0)));
   const offset = new BN(String(gasCost ?? 0)).sub(refund);
@@ -969,9 +970,19 @@ function getRequiredBalance(request: GetBalanceChangesRequest): BN {
   const gasPrice = hexToBN(txParams.maxFeePerGas ?? txParams.gasPrice ?? '0x0');
   const value = hexToBN(txParams.value ?? '0x0');
 
-  const nestedValue = (request.nestedTransactions ?? [])
-    .map((tx) => hexToBN(tx.value ?? '0x0'))
-    .reduce((acc, val) => acc.add(val), new BN(0));
+  const nestedValue = getNestedValue(request.nestedTransactions);
 
   return gasLimit.mul(gasPrice).add(value).add(nestedValue);
+}
+
+/**
+ * Sum the native values of nested transactions.
+ *
+ * @param nestedTransactions - The nested transactions of a batch.
+ * @returns The total native value as a BN.
+ */
+function getNestedValue(nestedTransactions?: NestedTransactionMetadata[]): BN {
+  return (nestedTransactions ?? [])
+    .map((tx) => hexToBN(tx.value ?? '0x0'))
+    .reduce((acc, val) => acc.add(val), new BN(0));
 }
