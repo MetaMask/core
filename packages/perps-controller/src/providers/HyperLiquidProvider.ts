@@ -2905,22 +2905,35 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Read support for the active account without initializing the provider.
+   * Read support for an account context without initializing the provider.
    * Successful results are stable for the provider session and coalesced by
    * account and network. Failed probes fail open and remain retryable.
    *
-   * @returns Whether the active account can submit Hyperliquid actions.
+   * @param context - An operation-scoped account context. Defaults to the
+   * currently active account and network.
+   * @returns Whether the account can submit Hyperliquid actions.
    */
-  async #getAccountSupportForCurrentContext(): Promise<PerpsAccountSupport> {
-    const userAddress = await this.#walletService.getUserAddressWithDefault();
-    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+  async #getAccountSupportForContext(context?: {
+    userAddress: string;
+    network: 'mainnet' | 'testnet';
+    infoClient?: InfoClient;
+  }): Promise<PerpsAccountSupport> {
+    const userAddress =
+      context?.userAddress ??
+      (await this.#walletService.getUserAddressWithDefault());
+    const network =
+      context?.network ??
+      (this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet');
     const cacheKey = `${network}:${userAddress.toLowerCase()}`;
     const cachedSupport = this.#accountSupportByContext.get(cacheKey);
     if (cachedSupport) {
       return cachedSupport;
     }
 
-    const probe = this.#isHyperliquidMultiSigAccount(userAddress);
+    const probe = this.#isHyperliquidMultiSigAccount(
+      userAddress,
+      context?.infoClient,
+    );
     const support = probe.then(
       (isMultiSig): PerpsAccountSupport =>
         isMultiSig
@@ -2948,7 +2961,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * signer set for the active account.
    */
   async #assertAccountSupported(): Promise<void> {
-    const support = await this.#getAccountSupportForCurrentContext();
+    const support = await this.#getAccountSupportForContext();
     if (!support.isSupported) {
       throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
     }
@@ -3155,7 +3168,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       // surfaced on the Perps tab on every entry (TAT-3214). Probe right
       // before the write so accounts that never reach one (already compatible,
       // deferred, unknown mode) do not pay the extra round trip.
-      const accountSupport = await this.#getAccountSupportForCurrentContext();
+      const accountSupport = await this.#getAccountSupportForContext({
+        userAddress,
+        network,
+        infoClient,
+      });
       if (!accountSupport.isSupported) {
         this.#deps.debugLogger.log(
           '[ensureUnifiedAccountEnabled] Multi-sig account, skipping unified account migration',
@@ -13554,7 +13571,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async getAccountSupport(): Promise<PerpsAccountSupport> {
     await this.#ensureReady();
-    return this.#getAccountSupportForCurrentContext();
+    return this.#getAccountSupportForContext();
   }
 
   /**
