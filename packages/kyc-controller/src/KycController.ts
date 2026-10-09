@@ -1053,20 +1053,34 @@ export class KycController extends BaseController<
    * `encryptionDataKey` is attested by the idOS enclave; `ukycCapabilityToken`
    * by the idOS relay.
    *
+   * Any failure is logged and rethrown as a single friendly error. Authorizations
+   * are not submitted after that.
+   *
    * @param encryptionDataKey - Encryption schema for the data encryption key.
    * @param capabilityTokenSchema - Encryption schema for the capability token.
+   * @throws When a JWKS cannot be loaded or a `jwtChain` does not verify.
    */
   async #verifyWrappingKeys(
     encryptionDataKey: EncryptionSchema,
     capabilityTokenSchema: EncryptionSchema,
   ): Promise<void> {
-    const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] =
-      await Promise.all([
-        this.messenger.call('KycService:fetchIdosEnclaveJwks'),
-        this.messenger.call('KycService:fetchIdosRelayJwks'),
-      ]);
-    assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
-    assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    try {
+      const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] =
+        await Promise.all([
+          this.messenger.call('KycService:fetchIdosEnclaveJwks'),
+          this.messenger.call('KycService:fetchIdosRelayJwks'),
+        ]);
+      assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
+      assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    } catch (error) {
+      console.error(
+        'KycController: something went wrong while verifying session encryption keys.',
+        error,
+      );
+      throw new Error(
+        'Something went wrong while verifying your session. Please try again.',
+      );
+    }
   }
 
   /**

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `KycController.startSession` logs a message and throws "Something went wrong while verifying your session. Please try again." when an issuer JWKS cannot be fetched or a `jwtChain` does not verify, and does not submit authorizations after that failure
+- `KycService.fetchIdosEnclaveJwks` and `KycService.fetchIdosRelayJwks` throw when the JWKS `keys` array is empty
+
 ## [0.8.0]
 
 ### Added

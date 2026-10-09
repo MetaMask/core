@@ -187,13 +187,15 @@ const EncryptionSchemaStruct = type({
 });
 export type EncryptionSchema = Infer<typeof EncryptionSchemaStruct>;
 
-// A single Ed25519 (OKP) JWK. `type` (not `object`) keeps optional/extra JWK
-// fields (`use`, `alg`) from failing validation.
+// A single Ed25519 (OKP) JWK. `type` (not `object`) keeps extra JWK fields from
+// failing validation. `use` and `alg` are read during jwtChain verification.
 const JwkStruct = type({
   kty: string(),
   crv: string(),
   x: string(),
   kid: string(),
+  use: optional(string()),
+  alg: optional(string()),
 });
 const JwksResponseStruct = type({ keys: array(JwkStruct) });
 export type JwksResponse = Infer<typeof JwksResponseStruct>;
@@ -688,7 +690,15 @@ export class KycService extends BaseDataService<
       { method: 'GET' },
       { authenticated: false },
     );
-    return this.#validateResponse(data, JwksResponseStruct, responseLabel);
+    const jwks = this.#validateResponse(
+      data,
+      JwksResponseStruct,
+      responseLabel,
+    );
+    if (jwks.keys.length === 0) {
+      throw new Error(`KycService: ${responseLabel} contained no keys.`);
+    }
+    return jwks;
   }
 
   /**

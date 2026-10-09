@@ -183,7 +183,16 @@ describe('KycService', () => {
   describe('fetchIdosEnclaveJwks', () => {
     it('fetches the JWKS from the idOS enclave well-known path', async () => {
       const response = {
-        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
+        keys: [
+          {
+            kty: 'OKP',
+            crv: 'Ed25519',
+            x: 'pub',
+            kid: 'k1',
+            use: 'sig',
+            alg: 'EdDSA',
+          },
+        ],
       };
       nock(MOCK_IDOS_ENCLAVE_URL)
         .get('/.well-known/jwks.json')
@@ -210,6 +219,39 @@ describe('KycService', () => {
 
       await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
         /Malformed response received from idOS enclave JWKS API/u,
+      );
+    });
+
+    it('throws when the JWKS request fails', async () => {
+      nock(MOCK_IDOS_ENCLAVE_URL)
+        .get('/.well-known/jwks.json')
+        .reply(503, { message: 'unavailable' });
+      const { service } = getService();
+
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /failed with status '503': unavailable/u,
+      );
+    });
+
+    it('throws when the JWKS body is not JSON', async () => {
+      nock(MOCK_IDOS_ENCLAVE_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, 'not-json');
+      const { service } = getService();
+
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /not valid JSON/u,
+      );
+    });
+
+    it('throws when the JWKS contains no keys', async () => {
+      nock(MOCK_IDOS_ENCLAVE_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, { keys: [] });
+      const { service } = getService();
+
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /idOS enclave JWKS contained no keys/u,
       );
     });
   });
@@ -243,6 +285,28 @@ describe('KycService', () => {
 
       await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
         /Malformed response received from idOS relay JWKS API/u,
+      );
+    });
+
+    it('throws when the JWKS request fails', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/.well-known/jwks.json')
+        .reply(502, { error: 'bad gateway' });
+      const { service } = getService();
+
+      await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
+        /failed with status '502': bad gateway/u,
+      );
+    });
+
+    it('throws when the JWKS contains no keys', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, { keys: [] });
+      const { service } = getService();
+
+      await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
+        /idOS relay JWKS contained no keys/u,
       );
     });
   });

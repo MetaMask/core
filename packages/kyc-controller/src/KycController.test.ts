@@ -12,7 +12,10 @@ import {
 import type { KycControllerMessenger } from './KycController.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import type { KycConsentRecord, KycSessionDisclaimers } from './types.js';
-import { verifyJwtChain } from './ukyc/jwtChain.js';
+import {
+  assertAttestedServerPublicKey,
+  verifyJwtChain,
+} from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 
 jest.mock('./ukyc/jwtChain', () => {
@@ -34,9 +37,26 @@ jest.mock('./ukyc/wrapEncryptionKey', () => {
 const mockVerifyJwtChain = verifyJwtChain as jest.MockedFunction<
   typeof verifyJwtChain
 >;
+const mockAssertAttestedServerPublicKey =
+  assertAttestedServerPublicKey as jest.MockedFunction<
+    typeof assertAttestedServerPublicKey
+  >;
 const mockWrapEncryptionKey = wrapEncryptionKey as jest.MockedFunction<
   typeof wrapEncryptionKey
 >;
+
+const ENCRYPTION_SCHEMA = {
+  serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
+  jwtChain: 'jwt.chain.sig',
+};
+
+const ENCLAVE_JWKS = {
+  keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'enclave-pub', kid: 'enclave' }],
+};
+
+const RELAY_JWKS = {
+  keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'relay-pub', kid: 'relay' }],
+};
 
 const MOCK_SESSION_DISCLAIMERS: KycSessionDisclaimers = {
   idOS: [
@@ -260,6 +280,103 @@ describe('KycController', () => {
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
         expect(controller.state.sessionStatus).toBeNull();
       });
+    });
+
+    it('verifies both encryption schemas before submitting authorizations', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+        await controller.startSession({
+          vendor: 'iron',
+          email: 'a@b.co',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(handlers.fetchIdosEnclaveJwks).toHaveBeenCalledTimes(1);
+        expect(handlers.fetchIdosRelayJwks).toHaveBeenCalledTimes(1);
+        expect(mockAssertAttestedServerPublicKey).toHaveBeenNthCalledWith(
+          1,
+          ENCLAVE_JWKS.keys,
+          ENCRYPTION_SCHEMA,
+        );
+        expect(mockAssertAttestedServerPublicKey).toHaveBeenNthCalledWith(
+          2,
+          RELAY_JWKS.keys,
+          ENCRYPTION_SCHEMA,
+        );
+        expect(
+          handlers.fetchIdosEnclaveJwks.mock.invocationCallOrder[0],
+        ).toBeLessThan(
+          mockAssertAttestedServerPublicKey.mock.invocationCallOrder[0],
+        );
+        expect(
+          mockAssertAttestedServerPublicKey.mock.invocationCallOrder[1],
+        ).toBeLessThan(handlers.setAuthorizations.mock.invocationCallOrder[0]);
+      });
+    });
+
+    it('logs a friendly error and does not submit authorizations when a JWKS fetch fails', async () => {
+      const consoleError = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      try {
+        await withController(async ({ controller, handlers }) => {
+          handlers.getSessionStatusForVendor.mockResolvedValue(null);
+          const cause = new Error('enclave down');
+          handlers.fetchIdosEnclaveJwks.mockRejectedValue(cause);
+
+          await expect(
+            controller.startSession({
+              vendor: 'iron',
+              email: 'a@b.co',
+              aal2Token: AAL2_TOKEN,
+            }),
+          ).rejects.toThrow(
+            'Something went wrong while verifying your session. Please try again.',
+          );
+          expect(consoleError).toHaveBeenCalledWith(
+            'KycController: something went wrong while verifying session encryption keys.',
+            cause,
+          );
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+          expect(controller.state.sessionStatus).toBeNull();
+        });
+      } finally {
+        consoleError.mockRestore();
+      }
+    });
+
+    it('logs a friendly error and does not submit authorizations when jwtChain verification fails', async () => {
+      const consoleError = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      try {
+        await withController(async ({ controller, handlers }) => {
+          handlers.getSessionStatusForVendor.mockResolvedValue(null);
+          const cause = new Error('bad token');
+          mockAssertAttestedServerPublicKey.mockImplementation(() => {
+            throw cause;
+          });
+
+          await expect(
+            controller.startSession({
+              vendor: 'iron',
+              email: 'a@b.co',
+              aal2Token: AAL2_TOKEN,
+            }),
+          ).rejects.toThrow(
+            'Something went wrong while verifying your session. Please try again.',
+          );
+          expect(consoleError).toHaveBeenCalledWith(
+            'KycController: something went wrong while verifying session encryption keys.',
+            cause,
+          );
+          expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+          expect(controller.state.sessionStatus).toBeNull();
+        });
+      } finally {
+        consoleError.mockRestore();
+      }
     });
   });
 
@@ -1091,11 +1208,6 @@ type WithControllerOptions = {
   options: Partial<ConstructorParameters<typeof KycController>[0]>;
 };
 
-const ENCRYPTION_SCHEMA = {
-  serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
-  jwtChain: 'jwt.chain.sig',
-};
-
 /**
  * Builds a UKYC session-creation payload with encryption schemas.
  *
@@ -1212,8 +1324,8 @@ function withController<ReturnValue>(
       ...MOCK_SESSION_DISCLAIMERS,
       credentialReusabilityConsentGiven: true,
     }),
-    fetchIdosEnclaveJwks: jest.fn().mockResolvedValue({ keys: [] }),
-    fetchIdosRelayJwks: jest.fn().mockResolvedValue({ keys: [] }),
+    fetchIdosEnclaveJwks: jest.fn().mockResolvedValue(ENCLAVE_JWKS),
+    fetchIdosRelayJwks: jest.fn().mockResolvedValue(RELAY_JWKS),
     createUkycSession: jest.fn().mockResolvedValue(ukycSessionResponse()),
     setAuthorizations: jest.fn().mockResolvedValue(sessionStatus('approved')),
     createJourney: jest
@@ -1294,6 +1406,7 @@ function withController<ReturnValue>(
     handlers.performSetStorage,
   );
 
+  mockAssertAttestedServerPublicKey.mockReset();
   mockVerifyJwtChain.mockReturnValue({
     sessionServerPublicKeyX: 'spk-x',
     nonce: 'n',
