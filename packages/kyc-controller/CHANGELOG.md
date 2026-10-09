@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `KycController.hasCompletedSessionDisclaimers` now reports completion from session `consentStatus === 'given'` instead of fetching the session disclaimer catalog ([#10760](https://github.com/MetaMask/core/pull/10760))
+  - This no longer throws a 409 when the session is already in a terminal state
 - Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
 
 ## [0.7.0]
