@@ -75,6 +75,14 @@ export const FINAL_STATUSES_TO_STOP_POLLING: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Terminal `finalStatus` values (`approved`, `rejected`, `retry`).
+ * Same set as {@link FINAL_STATUSES_TO_STOP_POLLING}, exported under the
+ * name consumers import from the package entry point.
+ */
+export const TERMINAL_SESSION_STATUSES: ReadonlySet<string> =
+  FINAL_STATUSES_TO_STOP_POLLING;
+
+/**
  * Capability-authorization status values returned on {@link KycSessionStatus}.
  *
  * - `new` — no capability token has been submitted yet.
@@ -120,9 +128,9 @@ export type KycSessionStatus = {
   /** UKYC session id. */
   id: string;
   /**
-   * The overall status of the session. Terminal values (e.g. `approved`,
-   * `completed`, `rejected`, `failed`, `blocked`) are finished decisions; any
-   * other value (e.g. `pending`) means the vendor is still processing.
+   * The overall status of the session. Values in `TERMINAL_SESSION_STATUSES`
+   * (`approved`, `rejected`, `retry`) are finished decisions; any other value
+   * (e.g. `pending`) means the vendor is still processing.
    */
   finalStatus: string;
   /** Optional human-readable message describing the status. */

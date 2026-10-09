@@ -23,4 +23,20 @@ describe('@metamask/kyc-controller', () => {
       serviceName: 'KycService',
     });
   });
+
+  it('exports the KYC status constants', () => {
+    expect(packageExports.KYC_STATUSES).toStrictEqual({
+      approved: 'approved',
+      rejected: 'rejected',
+      retry: 'retry',
+      new: 'new',
+      pending: 'pending',
+    });
+    expect(packageExports.TERMINAL_SESSION_STATUSES).toBeInstanceOf(Set);
+    expect([...packageExports.TERMINAL_SESSION_STATUSES].sort()).toStrictEqual([
+      'approved',
+      'rejected',
+      'retry',
+    ]);
+  });
 });

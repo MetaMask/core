@@ -92,6 +92,7 @@ export type {
   X25519KeyPair,
 } from './crypto.js';
 
+export { KYC_STATUSES, TERMINAL_SESSION_STATUSES } from './types.js';
 export type {
   KycCatalogDocument,
   KycConsentDocument,
@@ -113,7 +114,6 @@ export {
   FINAL_STATUSES_TO_SKIP_AUTH_REFRESH,
   CAPABILITY_AUTHORIZATION_STATUSES,
   CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH,
-  KYC_STATUSES,
   needsCapabilityAuthorizationRefresh,
   FINAL_STATUSES_TO_STOP_POLLING,
 } from './types.js';

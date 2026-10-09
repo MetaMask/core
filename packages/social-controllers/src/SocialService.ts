@@ -593,25 +593,34 @@ export class SocialService extends BaseDataService<
   /**
    * Fetches a trader's MetaMask followers.
    *
-   * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`. Requires a bearer
-   * token; the trader is identified by `addressOrId`, not the JWT subject (see
-   * {@link fetchMyFollowers} for the current user's inbound list).
+   * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`. Pass
+   * `mutuals: true` to append `?mutuals=true` (profiles that follow both this
+   * trader and the authenticated user; `count` is the mutual total). Requires a
+   * bearer token; the trader is identified by `addressOrId`, not the JWT
+   * subject (see {@link fetchMyFollowers} for the current user's inbound list).
    *
    * @param options - Options bag.
    * @param options.addressOrId - Wallet address or Clicker profile ID.
+   * @param options.mutuals - When true, request mutual followers only.
    * @returns The followers response.
    */
   async fetchFollowers(
     options: FetchFollowersOptions,
   ): Promise<FollowersResponse> {
-    const { addressOrId } = options;
+    const { addressOrId, mutuals } = options;
+    const mutualsOnly = mutuals === true;
 
     const followersResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchFollowers`, addressOrId],
+      queryKey: [`${this.name}:fetchFollowers`, addressOrId, mutualsOnly],
       queryFn: async () => {
-        const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/followers`;
+        const url = new URL(
+          `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/followers`,
+        );
+        if (mutualsOnly) {
+          url.searchParams.append('mutuals', 'true');
+        }
         const authHeaders = await this.#getAuthHeaders();
-        const response = await fetch(url, { headers: authHeaders });
+        const response = await fetch(url.toString(), { headers: authHeaders });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED,

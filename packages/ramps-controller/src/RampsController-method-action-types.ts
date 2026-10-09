@@ -447,8 +447,13 @@ export type RampsControllerRegisterMoneyAccountWalletAction = {
  * The read uses the persisted KYC session. `refreshKyc` performs one
  * session-status GET when a session id is already stored and `finalStatus`
  * is not terminal. `refreshAutoramps` lists autoramps when KYC is approved,
- * unless this wallet already has a usable route. It does not sign, post a
- * self-hosted address, create an autoramp, or start KYC polling.
+ * unless this wallet already has a usable route. An approved session with no
+ * usable autoramp returns `needs_wallet_registration` or
+ * `needs_source_currency` only when
+ * `GET /neobank/customers/{external_id}/external` reports
+ * `status: 'Active'`. Any other customer status returns `not_ready`.
+ * It does not sign, post a self-hosted address, create an autoramp, or start
+ * KYC polling.
  *
  * Overlapping calls share one run.
  *
