@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock, Mocked } from 'vitest';
+import type { Mock, Mocked, MockedFunction } from 'vitest';
 
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
@@ -29,11 +29,17 @@ import {
   createMockInfrastructure,
 } from '../../helpers/serviceMocks.js';
 
+type MockPerpsProvider = Mocked<PerpsProvider> & {
+  getAccountSupport: MockedFunction<
+    NonNullable<PerpsProvider['getAccountSupport']>
+  >;
+};
+
 // Create a comprehensive mock provider
 const createMockProvider = (
   providerId: PerpsProviderType,
-): Mocked<PerpsProvider> => {
-  const mockProvider: Mocked<PerpsProvider> = {
+): MockPerpsProvider => {
+  const mockProvider: MockPerpsProvider = {
     protocolId: providerId,
 
     // Asset routes
@@ -202,8 +208,8 @@ const createMockOrder = (orderId: string, symbol: string): Order =>
 describe('AggregatedPerpsProvider', () => {
   let aggregatedProvider: AggregatedPerpsProvider;
   let routedProvider: PerpsProvider;
-  let mockHLProvider: Mocked<PerpsProvider>;
-  let mockLighterProvider: Mocked<PerpsProvider>;
+  let mockHLProvider: ReturnType<typeof createMockProvider>;
+  let mockLighterProvider: ReturnType<typeof createMockProvider>;
   let mockInfrastructure: ReturnType<typeof createMockInfrastructure>;
 
   beforeEach(() => {
@@ -678,7 +684,11 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('treats a provider without an account support hook as supported', async () => {
-      delete mockLighterProvider.getAccountSupport;
+      const {
+        getAccountSupport: _getAccountSupport,
+        ...providerWithoutAccountSupport
+      } = mockLighterProvider;
+      aggregatedProvider.addProvider('lighter', providerWithoutAccountSupport);
 
       const result = await aggregatedProvider.getAccountSupport({
         providerId: 'lighter',
@@ -2459,7 +2469,7 @@ describe('AggregatedPerpsProvider', () => {
     it('delegates getWebSocketConnectionState to default provider', () => {
       // Arrange
       (
-        mockHLProvider as Mocked<PerpsProvider> & {
+        mockHLProvider as MockPerpsProvider & {
           getWebSocketConnectionState: Mock;
         }
       ).getWebSocketConnectionState = vi
@@ -2493,7 +2503,7 @@ describe('AggregatedPerpsProvider', () => {
       // Arrange
       const unsubscribe = vi.fn();
       (
-        mockHLProvider as Mocked<PerpsProvider> & {
+        mockHLProvider as MockPerpsProvider & {
           subscribeToConnectionState: Mock;
         }
       ).subscribeToConnectionState = vi.fn().mockReturnValue(unsubscribe);
@@ -2530,7 +2540,7 @@ describe('AggregatedPerpsProvider', () => {
     it('delegates reconnect to default provider', async () => {
       // Arrange
       (
-        mockHLProvider as Mocked<PerpsProvider> & {
+        mockHLProvider as MockPerpsProvider & {
           reconnect: Mock;
         }
       ).reconnect = vi.fn().mockResolvedValue(undefined);
@@ -2541,7 +2551,7 @@ describe('AggregatedPerpsProvider', () => {
       // Assert
       expect(
         (
-          mockHLProvider as Mocked<PerpsProvider> & {
+          mockHLProvider as MockPerpsProvider & {
             reconnect: Mock;
           }
         ).reconnect,
