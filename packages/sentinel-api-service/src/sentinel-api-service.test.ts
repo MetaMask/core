@@ -5,6 +5,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { bytesToHex, sha256, stringToBytes } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import nock, { cleanAll as nockCleanAll } from 'nock';
 
@@ -637,6 +638,126 @@ describe('SentinelApiService', () => {
 
       expect(getUrl).toHaveBeenCalledWith(MAINNET_URL);
       expect(result).toStrictEqual(MOCK_SIMULATION_RESPONSE);
+      service.destroy();
+    });
+
+    it('uses the authorization returned by getUrl', async () => {
+      const { service, rootMessenger } = createService({
+        clientId: 'extension',
+        clientVersion: '1.2.3',
+      });
+      registerBearerToken(rootMessenger, async () => 'jwt-token');
+      mockNetworks();
+      const proxyUrl = 'https://proxy.example.com/proxy';
+      const scope = nock('https://proxy.example.com', {
+        reqheaders: {
+          'x-client-id': 'extension',
+          'x-client-version': '1.2.3',
+          authorization: 'Bearer shield',
+        },
+      })
+        .post('/proxy')
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: '1',
+          result: MOCK_SIMULATION_RESPONSE,
+        });
+
+      const result = await service.simulateTransactions(
+        CHAIN_ID_MAINNET,
+        MOCK_SIMULATION_REQUEST,
+        {
+          getUrl: () => ({
+            url: proxyUrl,
+            authorization: 'Bearer shield',
+          }),
+        },
+      );
+
+      expect(result).toStrictEqual(MOCK_SIMULATION_RESPONSE);
+      scope.done();
+      service.destroy();
+    });
+
+    it('does not expose the getUrl authorization in cache update events', async () => {
+      const { service, rootMessenger } = createService();
+      mockNetworks();
+      nock('https://proxy.example.com').post('/proxy').reply(200, {
+        jsonrpc: '2.0',
+        id: '1',
+        result: MOCK_SIMULATION_RESPONSE,
+      });
+      const cacheUpdates: unknown[] = [];
+      rootMessenger.subscribe('SentinelApiService:cacheUpdated', (payload) => {
+        cacheUpdates.push(payload);
+      });
+
+      await service.simulateTransactions(
+        CHAIN_ID_MAINNET,
+        MOCK_SIMULATION_REQUEST,
+        {
+          getUrl: () => ({
+            url: 'https://proxy.example.com/proxy',
+            authorization: 'Bearer shield-secret',
+          }),
+        },
+      );
+
+      const authorizationDigest = bytesToHex(
+        await sha256(stringToBytes('Bearer shield-secret')),
+      );
+
+      expect(cacheUpdates.length).toBeGreaterThan(0);
+      expect(JSON.stringify(cacheUpdates)).toContain(authorizationDigest);
+      expect(JSON.stringify(cacheUpdates)).not.toContain('shield-secret');
+      service.destroy();
+    });
+
+    it('sends each concurrent simulation with its own getUrl authorization', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const proxyUrl = 'https://proxy.example.com/proxy';
+      const sentAuthorizations: string[] = [];
+      const BEARER_TOKEN_A = 'Bearer token-a';
+      const BEARER_TOKEN_B = 'Bearer token-b';
+      const scope = nock('https://proxy.example.com')
+        .post('/proxy')
+        .times(2)
+        .reply(function () {
+          const { authorization } = this.req.headers;
+          sentAuthorizations.push(
+            Array.isArray(authorization)
+              ? authorization.join(',')
+              : (authorization ?? ''),
+          );
+          return [
+            200,
+            { jsonrpc: '2.0', id: '1', result: { transactions: [] } },
+          ];
+        });
+
+      await Promise.all([
+        service.simulateTransactions(
+          CHAIN_ID_MAINNET,
+          MOCK_SIMULATION_REQUEST,
+          {
+            getUrl: () => ({ url: proxyUrl, authorization: BEARER_TOKEN_A }),
+          },
+        ),
+        service.simulateTransactions(
+          CHAIN_ID_MAINNET,
+          MOCK_SIMULATION_REQUEST,
+          {
+            getUrl: () => ({ url: proxyUrl, authorization: BEARER_TOKEN_B }),
+          },
+        ),
+      ]);
+
+      expect([...sentAuthorizations].sort()).toStrictEqual([
+        BEARER_TOKEN_A,
+        BEARER_TOKEN_B,
+      ]);
+      scope.done();
       service.destroy();
     });
 

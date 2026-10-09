@@ -1,6 +1,7 @@
 import { BaseDataService } from '@metamask/base-data-service';
 import { handleWhen, HttpError } from '@metamask/controller-utils';
 import { validate } from '@metamask/superstruct';
+import { bytesToHex, sha256, stringToBytes } from '@metamask/utils';
 import type { Hex, Json } from '@metamask/utils';
 
 import {
@@ -247,34 +248,64 @@ export class SentinelApiService extends BaseDataService<
   /**
    * Simulates transactions against the Sentinel API via
    * `infura_simulateTransactions`. Not cached, since each request body is
-   * unique and stale simulations must not be reused.
+   * unique and stale simulations must not be reused. An authorization
+   * override is represented in the query key by its SHA-256 digest so
+   * concurrent calls only share an in-flight request when they use the same
+   * token, without the token leaving the service in cache events.
    *
    * @param chainId - The chain ID to simulate on.
    * @param request - The simulation request.
    * @param options - Additional options.
    * @param options.getUrl - Optional callback that receives the default
-   * Sentinel URL resolved for the chain and returns the URL to use instead.
-   * Lets consumers rewrite the request URL (for example to route through the
+   * Sentinel URL resolved for the chain and returns the URL to use instead,
+   * or an object with that URL and an `authorization` header value. Lets
+   * consumers rewrite the request URL (for example to route through the
    * MetaMask Shield proxy) without the service knowing about those concerns.
+   * When `authorization` is returned, it replaces the bearer token.
    * @returns The simulation response.
    */
   async simulateTransactions(
     chainId: Hex,
     request: SentinelSimulationRequest,
-    options: { getUrl?: (defaultUrl: string) => string | Promise<string> } = {},
+    options: {
+      getUrl?: (
+        defaultUrl: string,
+      ) =>
+        | string
+        | { url: string; authorization?: string }
+        | Promise<string | { url: string; authorization?: string }>;
+    } = {},
   ): Promise<SentinelSimulationResponse> {
     const defaultUrl = await this.#resolveUrl(chainId, 'confirmations');
-    const url = options.getUrl ? await options.getUrl(defaultUrl) : defaultUrl;
+    const resolvedUrl = options.getUrl
+      ? await options.getUrl(defaultUrl)
+      : defaultUrl;
+    const url = typeof resolvedUrl === 'string' ? resolvedUrl : resolvedUrl.url;
+    const authorization =
+      typeof resolvedUrl === 'string' ? undefined : resolvedUrl.authorization;
+    const authorizationKey =
+      authorization === undefined
+        ? false
+        : bytesToHex(await sha256(stringToBytes(authorization)));
 
     const result = await this.fetchQuery({
-      queryKey: [`${this.name}:simulateTransactions`, chainId, request, url],
+      queryKey: [
+        `${this.name}:simulateTransactions`,
+        chainId,
+        request,
+        url,
+        authorizationKey,
+      ],
       staleTime: 0,
       queryFn: async (): Promise<Json> => {
         log('simulateTransactions', 'Request', url, request);
 
-        const rpcResult = await this.#jsonRpc(url, RPC_METHOD_SIMULATE, [
-          request,
-        ]);
+        const rpcResult = await this.#jsonRpc(
+          url,
+          RPC_METHOD_SIMULATE,
+          [request],
+          authorization,
+        );
 
         const [error] = validate(rpcResult, SentinelSimulationResponseStruct);
         if (error) {
@@ -387,10 +418,21 @@ export class SentinelApiService extends BaseDataService<
    * @param url - The URL to post to.
    * @param method - The JSON-RPC method name.
    * @param params - The JSON-RPC params.
+   * @param authorization - Optional `Authorization` header value. When set,
+   * replaces the bearer token.
    * @returns The `result` field of the JSON-RPC response.
    */
-  async #jsonRpc(url: string, method: string, params: Json[]): Promise<Json> {
+  async #jsonRpc(
+    url: string,
+    method: string,
+    params: Json[],
+    authorization?: string,
+  ): Promise<Json> {
     const headers = await this.#getHeaders();
+
+    if (authorization) {
+      headers.Authorization = authorization;
+    }
 
     const response = await this.#fetch(url, {
       method: 'POST',
