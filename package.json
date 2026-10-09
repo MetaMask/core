@@ -14,6 +14,7 @@
   "files": [],
   "type": "module",
   "scripts": {
+    "audit-script": "node ./scripts/audit-script.ts",
     "build": "yarn tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run build:docs",
@@ -147,6 +148,7 @@
   },
   "scriptsConfig": {
     "#default": "lavamoat/scripts.strict.json",
+    "audit-script": "lavamoat/scripts.yarn.json",
     "postinstall": "lavamoat/scripts.yarn.json",
     "skills:postinstall": "lavamoat/scripts.skills.json"
   }
