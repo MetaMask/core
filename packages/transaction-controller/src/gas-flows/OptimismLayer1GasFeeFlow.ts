@@ -15,6 +15,8 @@ const FALLBACK_OPTIMISM_STACK_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.OPBNB,
   CHAIN_IDS.OPBNB_TESTNET,
   CHAIN_IDS.ZORA,
+  CHAIN_IDS.INK,
+  CHAIN_IDS.INK_SEPOLIA,
 ];
 
 // Default oracle address now provided by base class
