@@ -71,12 +71,14 @@ export type SocialServiceFetchClosedPositionsAction = {
 /**
  * Fetches a trader's MetaMask followers.
  *
- * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`. Requires a bearer
- * token; the trader is identified by `addressOrId`, not the JWT subject (see
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`. Pass
+ * `mutuals: true` to append `?mutuals=true`. Requires a bearer token; the trader
+ * is identified by `addressOrId`, not the JWT subject (see
  * {@link fetchMyFollowers} for the current user's inbound list).
  *
  * @param options - Options bag.
  * @param options.addressOrId - Wallet address or Clicker profile ID.
+ * @param options.mutuals - When true, request mutual followers only.
  * @returns The followers response.
  */
 export type SocialServiceFetchFollowersAction = {
