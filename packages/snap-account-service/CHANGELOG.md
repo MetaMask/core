@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-internal-snap-client` from `^11.0.0` to `^11.1.0` ([#10734](https://github.com/MetaMask/core/pull/10734))
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
 - Bump `@metamask/eth-snap-keyring` from `^24.0.0` to `^24.1.0` ([#10732](https://github.com/MetaMask/core/pull/10732))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.1.0` ([#10717](https://github.com/MetaMask/core/pull/10717))
 
 ## [4.0.0]
 
