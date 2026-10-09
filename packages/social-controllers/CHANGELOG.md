@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `fetchMyFollowing` method to `SocialService` (and the `SocialService:fetchMyFollowing` messenger action) as an alias of `fetchFollowing`. Both call `GET /users/me/following`. Prefer `fetchMyFollowing` in new code so it pairs with `fetchMyFollowers`; `fetchFollowing` is unchanged ([#10701](https://github.com/MetaMask/core/pull/10701))
+- Add `fetchTraderFollowing` method to `SocialService` (and the `SocialService:fetchTraderFollowing` messenger action) for another trader's outbound follows. Calls bearer-authenticated `GET /traders/:addressOrId/following` (social-api [#380](https://github.com/consensys-vertical-apps/va-mmcx-social-api/pull/380)) and returns `FollowingResponse` (`following` profile summaries plus total `count`). Distinct from `fetchFollowing`, which loads the **current user's** list via `GET /users/me/following`. `fetchFollowers` uses the same auth model for `GET /traders/:addressOrId/followers` ([#10689](https://github.com/MetaMask/core/pull/10689))
+- Add `fetchMyFollowers` method to `SocialService` (and the `SocialService:fetchMyFollowers` messenger action) for the authenticated user's inbound followers. Calls `GET /users/me/followers` and returns `FollowersResponse` (`followers` profile summaries plus total `count`) ([#10649](https://github.com/MetaMask/core/pull/10649))
+
+### Changed
+
+- Allow `boughtUsd`, `soldUsd`, `realizedPnl`, and `costBasis` to be `null` on `Position` / feed items, matching incomplete Clicker metrics the social-api may serialize as JSON `null` ([#10753](https://github.com/MetaMask/core/pull/10753))
+- Drop individual `fetchFeed`, `fetchTraderFeed`, and `fetchTokenFeed` items that fail validation instead of rejecting the whole page ([#10753](https://github.com/MetaMask/core/pull/10753))
+- Update `SocialRealtimeService` to subscribe to the trending Social feed channel and forward every valid event from batched notifications ([#10751](https://github.com/MetaMask/core/pull/10751))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
+
+## [3.6.0]
+
+### Added
+
+- Add `block`, `fetchBlockedProfiles`, and `fetchBlockedContent` methods to `SocialService` (and the matching `SocialService:block`, `SocialService:fetchBlockedProfiles`, and `SocialService:fetchBlockedContent` messenger actions) for the social-api moderation block endpoints ([#10656](https://github.com/MetaMask/core/pull/10656))
+  - `block` calls `PUT /moderation/block` with exactly one of `profileId`, `commentId`, or `replyId`, plus an optional `reason`. The endpoint returns 204.
+  - `fetchBlockedProfiles` calls `GET /moderation/blocks/profiles` and returns traders the caller has blocked, most recently blocked first. Pass `cursor` from the previous page; `cursor` is `null` on the last page.
+  - `fetchBlockedContent` calls `GET /moderation/blocks/content` and returns comments and replies the caller has blocked, most recently blocked first, with the same cursor pagination.
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [3.5.0]
+
+### Added
+
+- Add `SocialRealtimeService` for subscribing to Social realtime feed events through the shared backend WebSocket connection ([#10561](https://github.com/MetaMask/core/pull/10561))
+
+### Changed
+
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+- Bump `@metamask/core-backend` from `^11.0.0` to `^12.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
+
+## [3.4.0]
+
+### Added
+
+- Add `createSwapComment` method to `SocialService` (and the `SocialService:createSwapComment` messenger action) to create an author Call (user post) on the caller's own swap. Calls `POST /swap-comments` with `commentText` and exactly one of `positionUid` or `tradeInFlight`, plus optional `source`. `commentText` may include a `https://static.klipy.com/...gif` file URL (allowlisted by social-api). Returns `SwapCommentResponse` ([#10471](https://github.com/MetaMask/core/pull/10471))
+
+## [3.3.0]
+
+### Added
+
+- Add `fetchTokenFeed` method to `SocialService` (and the `SocialService:fetchTokenFeed` messenger action) for one token's positions as feed items. Calls `GET /tokens/:chain/:contractAddress/feed`, where `chain` is `TokenFeedChain` (`base`, `bsc`, `ethereum`, `hyperliquid`, `robinhood`, or `solana`), with optional `status` (`open` or `closed`; omit for both), `limit`, and cursor pagination (`olderThan`/`newerThan`). Reuses existing `FeedResponse` / `FeedItem` validation ([#10458](https://github.com/MetaMask/core/pull/10458))
+
 ## [3.2.0]
 
 ### Added
@@ -213,7 +263,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.6.0...HEAD
+[3.6.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.5.0...@metamask/social-controllers@3.6.0
+[3.5.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.4.0...@metamask/social-controllers@3.5.0
+[3.4.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.3.0...@metamask/social-controllers@3.4.0
+[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.2.0...@metamask/social-controllers@3.3.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.1.0...@metamask/social-controllers@3.2.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.2...@metamask/social-controllers@3.1.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.1...@metamask/social-controllers@3.0.2

@@ -56,7 +56,7 @@ jobs:
         if: matrix.node-version == '24.x'
         run: |
           if [[ -n "$MERGE_BASE" ]]; then
-            OUTPUT=$(yarn tsx scripts/get-changed-workspaces.mts --merge-base "$MERGE_BASE" --head-ref "$HEAD_SHA")
+            OUTPUT=$(yarn get-changed-workspaces --merge-base "$MERGE_BASE" --head-ref "$HEAD_SHA")
             PACKAGES=$(echo "$OUTPUT" | jq -c '.names')
             if [[ $(echo "$OUTPUT" | jq '.hasRootChange') == "true" ]]; then
               CHANGED_PATHS="full"
@@ -87,6 +87,7 @@ jobs:
           - lint:dependencies
           - lint:misc:check
           - lint:teams
+          - lint:tsc:check
           - lint:tsconfigs:all
           - messenger-action-types:check
           - readme-content:check
@@ -109,8 +110,8 @@ jobs:
             exit 1
           fi
 
-  lint-eslint:
-    name: Lint (lint:eslint)
+  lint-oxlint:
+    name: Lint (lint:oxlint)
     runs-on: ubuntu-latest
     if: needs.prepare.outputs.changed-paths != '[]'
     needs: prepare
@@ -125,19 +126,7 @@ jobs:
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
       - name: Lint
-        run: |
-          if [[ "$CHANGED_PATHS" == "full" ]]; then
-            echo "Running ESLint on all packages."
-            echo ""
-            yarn lint:eslint
-          else
-            echo "Running ESLint on:"
-            echo "$CHANGED_PATHS" | jq -r '"- " + .[]'
-            echo ""
-            echo "$CHANGED_PATHS" | jq -r '.[]' | xargs yarn lint:eslint
-          fi
-        env:
-          CHANGED_PATHS: ${{ needs.prepare.outputs.changed-paths }}
+        run: yarn lint:oxlint
       - name: Require clean working directory
         shell: bash
         run: |

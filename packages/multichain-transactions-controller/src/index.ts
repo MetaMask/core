@@ -10,6 +10,7 @@ export type {
   MultichainTransactionsControllerMessenger,
   MultichainTransactionsControllerTransactionSubmittedEvent,
   MultichainTransactionsControllerTransactionConfirmedEvent,
+  MultichainTransactionsControllerTransactionFailedEvent,
 } from './MultichainTransactionsController.js';
 export type { MultichainTransactionsControllerUpdateTransactionsForAccountAction } from './MultichainTransactionsController-method-action-types.js';
 export { MultichainNetwork, MultichainNativeAsset } from './constants.js';

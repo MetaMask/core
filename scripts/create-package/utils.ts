@@ -6,9 +6,9 @@ import path from 'path';
 import { format as prettierFormat } from 'prettier';
 import type { Options as PrettierOptions } from 'prettier';
 
-import { MonorepoFiles, Placeholders } from './constants.js';
-import type { FileMap } from './fs-utils.js';
-import { readAllFiles, writeFiles } from './fs-utils.js';
+import { MonorepoFiles, Placeholders } from './constants.ts';
+import type { FileMap } from './fs-utils.ts';
+import { readAllFiles, writeFiles } from './fs-utils.ts';
 
 const REPO_ROOT = path.join(import.meta.dirname, '..', '..');
 const REPO_TS_CONFIG = path.join(REPO_ROOT, MonorepoFiles.TsConfig);

@@ -51,7 +51,7 @@ const createV2Engine = (
       }): Json | Promise<Readonly<Json> | undefined> => {
         if (request.method === method) {
           return typeof result === 'function'
-            ? result(request as JsonRpcRequest, context)
+            ? result(request, context)
             : result;
         }
         return next();

@@ -6,6 +6,7 @@ import type {
   TransactionControllerGetTransactionsAction,
 } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
+import { hasProperty } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { camelCase, isArray, isObject, mapKeys, mapValues } from 'lodash-es';
 
@@ -155,15 +156,26 @@ export async function handleFetch(request: string, options?: RequestInit) {
   const json = await response.json();
   if (!response.ok) {
     console.log(`response`, response);
-    throw new Error(
-      `Fetch error:${JSON.stringify({
-        status: response.status,
-        ...mapKeysToCamel(json),
-      })}`,
-    );
+    throw Object.assign(new Error(`Fetch error: ${response.status}`), {
+      data: mapKeysToCamel(json),
+    });
   }
   return json;
 }
+
+export const getErrorData = (error: unknown): string => {
+  if (error && typeof error === 'object' && hasProperty(error, 'data')) {
+    const { data } = error;
+    if (data && typeof data === 'object') {
+      if (hasProperty(data, 'error') && typeof data.error === 'string') {
+        return data.error;
+      }
+      return JSON.stringify(data);
+    }
+  }
+
+  return error instanceof Error ? error.message : String(error);
+};
 
 export const isSmartTransactionCancellable = (
   stxStatus: SmartTransactionsStatus,

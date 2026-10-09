@@ -76,7 +76,7 @@ const SubscriptionCardPaymentMethodStruct = type({
   type: enums([PAYMENT_TYPES.byCard]),
   card: type({
     brand: string(),
-    displayBrand: string(),
+    displayBrand: optional(string()),
     last4: string(),
   }),
 });
@@ -99,8 +99,8 @@ const SubscriptionPaymentMethodStruct = union([
 export const SubscriptionStruct = type({
   id: string(),
   products: array(ProductStruct),
-  currentPeriodStart: optional(string()),
-  currentPeriodEnd: optional(string()),
+  currentPeriodStart: string(),
+  currentPeriodEnd: string(),
   cancelAtPeriodEnd: optional(boolean()),
   status: SubscriptionStatusStruct,
   interval: RecurringIntervalStruct,
@@ -110,16 +110,16 @@ export const SubscriptionStruct = type({
   trialEnd: optional(string()),
   endDate: optional(string()),
   canceledAt: optional(string()),
-  cancelType: optional(CancelTypeStruct),
+  cancelType: CancelTypeStruct,
   inactiveAt: optional(string()),
-  isEligibleForSupport: optional(boolean()),
+  isEligibleForSupport: boolean(),
   billingCycles: optional(number()),
   lastInvoice: optional(
     type({
       id: string(),
       status: InvoicePaymentStatusStruct,
       errorCode: optional(CryptoPaymentErrorStruct),
-      updatedAt: string(),
+      updatedAt: optional(string()),
     }),
   ),
 });
@@ -170,11 +170,6 @@ export const SubscriptionBenefitsResponseStruct = type({
 
 export const StartSubscriptionResponseStruct = type({
   checkoutSessionUrl: string(),
-});
-
-export const StartCryptoSubscriptionResponseStruct = type({
-  subscriptionId: string(),
-  status: SubscriptionStatusStruct,
 });
 
 export const UpdatePaymentMethodCardResponseStruct = type({
@@ -245,7 +240,7 @@ const TokenPaymentInfoStruct: Struct<TokenPaymentInfo> = lazy(() =>
       sources: optional(array(TokenPaymentInfoStruct)),
     }),
   ]),
-) as Struct<TokenPaymentInfo>;
+);
 
 const ChainPaymentInfoStruct = type({
   chainId: StrictHexStruct,

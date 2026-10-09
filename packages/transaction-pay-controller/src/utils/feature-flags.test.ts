@@ -16,7 +16,6 @@ import {
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
-  getAssetsUnifyStateFeature,
   getFallbackGas,
   getFiatAssetPerTransactionType,
   getFiatEnabledTypes,
@@ -334,7 +333,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      const slippage = getSlippage(messenger, '0x1' as Hex, TOKEN_ADDRESS_MOCK);
+      const slippage = getSlippage(messenger, '0x1', TOKEN_ADDRESS_MOCK);
 
       expect(slippage).toBe(TOKEN_SPECIFIC_SLIPPAGE_MOCK);
     });
@@ -354,11 +353,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      const slippage = getSlippage(
-        messenger,
-        CHAIN_ID_MOCK,
-        '0xabc123def456' as Hex,
-      );
+      const slippage = getSlippage(messenger, CHAIN_ID_MOCK, '0xabc123def456');
 
       expect(slippage).toBe(TOKEN_SPECIFIC_SLIPPAGE_MOCK);
     });
@@ -521,7 +516,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(getEIP7702UpgradeContractAddress(messenger, '0xaabb' as Hex)).toBe(
+      expect(getEIP7702UpgradeContractAddress(messenger, '0xaabb')).toBe(
         CONTRACT_ADDRESS_MOCK,
       );
     });
@@ -952,7 +947,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(isChainExcludedFromInfura(messenger, '0xa' as Hex)).toBe(true);
+      expect(isChainExcludedFromInfura(messenger, '0xa')).toBe(true);
     });
   });
 
@@ -1239,85 +1234,6 @@ describe('Feature Flags Utils', () => {
 
       expect(getServerPollingTimeout(messenger)).toBe(45000);
     });
-  });
-
-  describe('getAssetsUnifyStateFeature', () => {
-    type AssetsUnifyingState =
-      | {
-          enabled: boolean;
-          featureVersion: string | null;
-        }
-      | undefined;
-
-    const failureCases: {
-      description: string;
-      assetsUnifyingState: AssetsUnifyingState;
-    }[] = [
-      {
-        description: 'returns false when assetsUnifyState is not set',
-        assetsUnifyingState: undefined,
-      },
-      {
-        description: 'returns false when assetsUnifyState.enabled is false',
-        assetsUnifyingState: {
-          enabled: false,
-          featureVersion: '1',
-        },
-      },
-      {
-        description:
-          'returns false when featureVersion does not match expected version',
-        assetsUnifyingState: {
-          enabled: true,
-          featureVersion: '2',
-        },
-      },
-    ];
-
-    const successCases = [
-      {
-        description:
-          'returns true when assetsUnifyState is enabled and featureVersion matches',
-        assetsUnifyingState: {
-          enabled: true,
-          featureVersion: '1',
-        },
-      },
-    ];
-
-    const arrangeMocks = (assetsUnifyState: AssetsUnifyingState): void => {
-      const defaultRemoteFeatureFlagsState =
-        getDefaultRemoteFeatureFlagControllerState();
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...defaultRemoteFeatureFlagsState,
-        remoteFeatureFlags: {
-          ...defaultRemoteFeatureFlagsState.remoteFeatureFlags,
-          ...(assetsUnifyState ? { assetsUnifyState } : {}),
-        },
-      });
-    };
-
-    it.each(failureCases)(
-      '$description',
-      ({ assetsUnifyingState }: (typeof failureCases)[number]) => {
-        arrangeMocks(assetsUnifyingState);
-
-        const result = getAssetsUnifyStateFeature(messenger);
-
-        expect(result).toBe(false);
-      },
-    );
-
-    it.each(successCases)(
-      '$description',
-      ({ assetsUnifyingState }: (typeof successCases)[number]) => {
-        arrangeMocks(assetsUnifyingState);
-
-        const result = getAssetsUnifyStateFeature(messenger);
-
-        expect(result).toBe(true);
-      },
-    );
   });
 
   describe('getStrategyOrder', () => {

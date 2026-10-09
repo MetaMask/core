@@ -430,6 +430,26 @@ describe('Resimulate Utils', () => {
         );
       });
 
+      it('uses the current block if the transaction is trusted', () => {
+        getPercentageChangeMock.mockReturnValueOnce(
+          VALUE_COMPARISON_PERCENT_THRESHOLD + 1,
+        );
+
+        const result = shouldResimulate(
+          TRANSACTION_META_MOCK,
+          {
+            ...TRANSACTION_META_MOCK,
+            simulationData: SIMULATION_DATA_MOCK,
+          },
+          true,
+        );
+
+        expect(result).toStrictEqual({
+          blockTime: undefined,
+          resimulate: true,
+        });
+      });
+
       it('does not resimulate if simulation data changed but value and native balance match', () => {
         getPercentageChangeMock.mockReturnValueOnce(0);
 

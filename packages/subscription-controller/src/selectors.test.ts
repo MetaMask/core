@@ -56,6 +56,8 @@ const MOCK_MONEY_ACCOUNT_SUBSCRIPTION: Subscription = {
       unitDecimals: 2,
     },
   ],
+  currentPeriodStart: '2024-01-01T00:00:00Z',
+  currentPeriodEnd: '2024-02-01T00:00:00Z',
   status: SUBSCRIPTION_STATUSES.paused,
   interval: RECURRING_INTERVALS.month,
   paymentMethod: {
@@ -67,6 +69,8 @@ const MOCK_MONEY_ACCOUNT_SUBSCRIPTION: Subscription = {
       error: 'insufficient_balance',
     },
   },
+  cancelType: CANCEL_TYPES.ALLOWED_IMMEDIATE,
+  isEligibleForSupport: false,
   lastInvoice: {
     id: 'in_money_account',
     status: 'FAILED',

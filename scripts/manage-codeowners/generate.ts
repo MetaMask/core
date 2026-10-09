@@ -1,6 +1,6 @@
-import { assembleCodeownersSections } from './assemble.js';
-import { renderCodeownersSection } from './render.js';
-import type { CodeownersConfig } from './types.js';
+import { assembleCodeownersSections } from './assemble.ts';
+import { renderCodeownersSection } from './render.ts';
+import type { CodeownersConfig } from './types.ts';
 
 /**
  * The lines that appear before the CODEOWNERS rules.

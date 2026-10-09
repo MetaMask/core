@@ -46,12 +46,15 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.snap: {
       return 'Snap Account';
     }
+    // NOTE: We don't use those keyrings/accounts within this controller. However, since this
+    // function only use the keyring type to return a name, we still support it here in case
+    // clients need it.
+    // FIXME: This should probably live in the `KeyringController` package instead.
     case KeyringTypes.money: {
-      // NOTE: We don't use Money keyring/accounts within this controller. However, since this
-      // function only use the keyring type to return a name, we still support it here in case
-      // clients need it.
-      // FIXME: This should probably live in the `KeyringController` package instead.
       return 'Money';
+    }
+    case KeyringTypes.mpc: {
+      return 'MPC';
     }
     default: {
       throw new Error(`Unknown keyring ${keyringType}`);
@@ -97,7 +100,7 @@ export function isNormalKeyringType(
   return (
     !isSnapKeyringType(keyringType) &&
     !isSnapKeyringV2Type(keyringType) &&
-    !isMoneyKeyringType(keyringType)
+    !isSkippedKeyringType(keyringType)
   );
 }
 
@@ -155,6 +158,32 @@ export function isMoneyKeyringType(
   keyringType: KeyringTypes | string,
 ): boolean {
   return keyringType === (KeyringTypes.money as string);
+}
+
+/**
+ * Check if a keyring type is a MPC keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is a MPC keyring, false otherwise.
+ */
+export function isMpcKeyringType(keyringType: KeyringTypes | string): boolean {
+  return keyringType === (KeyringTypes.mpc as string);
+}
+
+/**
+ * Check if a keyring type is a skipped keyring (Money or MPC keyring).
+ *
+ * A skipped keyring is one that should be ignored during account
+ * re-synchronization with the `KeyringController` (through `:stateChange` events
+ * or `updateAccounts` calls).
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is considered a skipped keyring, false otherwise.
+ */
+export function isSkippedKeyringType(
+  keyringType: KeyringTypes | string,
+): boolean {
+  return isMoneyKeyringType(keyringType) || isMpcKeyringType(keyringType);
 }
 
 /**

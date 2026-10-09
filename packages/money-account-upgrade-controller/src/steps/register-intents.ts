@@ -4,34 +4,43 @@ import type {
   SendIntentParams,
 } from '@metamask/chomp-api-service';
 
+import type { VaultDelegationType } from '../types.js';
 import {
-  equalsIgnoreCase,
-  makeHasVedaRedeemerCaveat,
+  getVaultDelegations,
+  makeMatchesVaultDelegation,
 } from './delegation-matchers.js';
 import type { Step } from './step.js';
 
-type IntentMetadataType = SendIntentParams['metadata']['type'];
+const VAULT_DELEGATION_TYPES: VaultDelegationType[] = [
+  'cash-deposit',
+  'cash-withdrawal',
+  'cash-deposit-premium',
+  'cash-withdrawal-premium',
+];
 
 /**
  * Parses a delegation's metadata `type` field — typed as `string` in storage —
- * into the narrow set of CHOMP intent types. Throws if the field carries any
- * other value, since registering it as an intent would be a category error.
+ * into the narrow set of vault CHOMP intent types. Throws if the field carries
+ * any other value, since registering it as a vault intent would be a category
+ * error.
  *
  * @param type - The `type` field from `DelegationMetadata`.
- * @returns The same value, narrowed to `IntentMetadataType`.
+ * @returns The same value, narrowed to `VaultDelegationType`.
  */
-function parseIntentMetadataType(type: string): IntentMetadataType {
-  if (type !== 'cash-deposit' && type !== 'cash-withdrawal') {
+function parseIntentMetadataType(type: string): VaultDelegationType {
+  const vaultType = VAULT_DELEGATION_TYPES.find((entry) => entry === type);
+  if (!vaultType) {
     throw new Error(
-      `Expected delegation type to be "cash-deposit" or "cash-withdrawal", got "${type}"`,
+      `Expected delegation type to be one of ${VAULT_DELEGATION_TYPES.join(', ')}, got "${type}"`,
     );
   }
-  return type;
+  return vaultType;
 }
 
 /**
  * Registers CHOMP intents for the auto-deposit / auto-withdrawal delegations
- * persisted by the build-delegation step.
+ * persisted by the build-delegation step, for the base vault and, when
+ * configured, the premium vault.
  *
  * For each stored delegation between this account and CHOMP's delegate on
  * this chain, the step builds an intent referencing the stored
@@ -53,6 +62,7 @@ export const registerIntentsStep: Step = {
     boringVaultAddress,
     delegateAddress,
     musdTokenAddress,
+    premiumVault,
     redeemerEnforcer,
     vedaVaultAdapterAddress,
   }) {
@@ -67,23 +77,20 @@ export const registerIntentsStep: Step = {
         .map((intent: IntentEntry) => intent.delegationHash.toLowerCase()),
     );
 
-    const hasVedaRedeemerCaveat = makeHasVedaRedeemerCaveat(
-      redeemerEnforcer,
+    const matchers = getVaultDelegations({
+      musdTokenAddress,
+      boringVaultAddress,
       vedaVaultAdapterAddress,
+      premiumVault,
+    }).map((delegation) =>
+      makeMatchesVaultDelegation(
+        { address, chainId, delegateAddress, redeemerEnforcer },
+        delegation,
+      ),
     );
 
-    const configuredTokenAddresses = [musdTokenAddress, boringVaultAddress];
-    const matchesConfiguredToken = (entry: DelegationResponse): boolean =>
-      configuredTokenAddresses.some((tokenAddress) =>
-        equalsIgnoreCase(entry.metadata.tokenAddress, tokenAddress),
-      );
-
     const needsIntent = (entry: DelegationResponse): boolean =>
-      equalsIgnoreCase(entry.signedDelegation.delegator, address) &&
-      equalsIgnoreCase(entry.signedDelegation.delegate, delegateAddress) &&
-      equalsIgnoreCase(entry.metadata.chainIdHex, chainId) &&
-      matchesConfiguredToken(entry) &&
-      hasVedaRedeemerCaveat(entry) &&
+      matchers.some((matches) => matches(entry)) &&
       !activeIntentHashes.has(entry.metadata.delegationHash.toLowerCase());
 
     const toIntent = (entry: DelegationResponse): SendIntentParams => ({

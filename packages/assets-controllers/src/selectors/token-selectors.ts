@@ -563,15 +563,15 @@ function mergeAssets(
   ][]) {
     const existingAccountGroupAssets = existingAssets[accountGroupId];
 
-    if (!existingAccountGroupAssets) {
-      existingAssets[accountGroupId] = {};
-      for (const [network, chainAssets] of Object.entries(accountAssets)) {
-        existingAssets[accountGroupId][network] = [...chainAssets];
-      }
-    } else {
+    if (existingAccountGroupAssets) {
       for (const [network, chainAssets] of Object.entries(accountAssets)) {
         existingAccountGroupAssets[network] ??= [];
         existingAccountGroupAssets[network].push(...chainAssets);
+      }
+    } else {
+      existingAssets[accountGroupId] = {};
+      for (const [network, chainAssets] of Object.entries(accountAssets)) {
+        existingAssets[accountGroupId][network] = [...chainAssets];
       }
     }
   }
@@ -604,7 +604,7 @@ function getFiatBalanceForEvmToken(
     const currencyRate = currencyRates[nativeCurrencySymbol];
 
     if (!currencyRate?.conversionRate) {
-      return undefined;
+      return;
     }
 
     const fiatBalance =
@@ -618,13 +618,13 @@ function getFiatBalanceForEvmToken(
   }
 
   if (!tokenMarketData) {
-    return undefined;
+    return;
   }
 
   const currencyRate = currencyRates[tokenMarketData.currency];
 
   if (!currencyRate?.conversionRate) {
-    return undefined;
+    return;
   }
 
   const fiatBalance =
@@ -654,7 +654,7 @@ function getFiatBalanceForMultichainAsset(
   const assetMarketData = multichainConversionRates[assetId];
 
   if (!assetMarketData?.rate) {
-    return undefined;
+    return;
   }
 
   return {

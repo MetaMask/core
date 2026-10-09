@@ -11,10 +11,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `operatorFeeScalar`, `operatorFeeConstant`, and `tokenRatio` fields to `TransactionReceipt` for OP Stack / Mantle Arsia receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
 - Export `getOperatorFeeFromReceipt` and `getLayer1FeeFromReceipt` helpers to derive L1 + operator fees from transaction receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
+- Add `isTransactionTrusted` to `TransactionControllerOptions` to limit future-block re-simulation to untrusted transactions ([#10747](https://github.com/MetaMask/core/pull/10747))
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/core-backend` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/nonce-tracker` from `^6.0.0` to `^6.1.0` ([#10735](https://github.com/MetaMask/core/pull/10735))
+- Bump `ethereum-cryptography` from `^2.2.1` to `^3.2.0` ([#10599](https://github.com/MetaMask/core/pull/10599))
 
 ### Fixed
 
 - Refresh `transactionMeta.layer1GasFee` from the receipt on confirmation so Activity Details include Mantle operator fee (and OP Stack L1 fee) based on inclusion-time values rather than the pre-confirm estimate alone ([#9630](https://github.com/MetaMask/core/pull/9630))
+- Recognize Ink Mainnet and Ink Sepolia as OP Stack networks when estimating Layer 1 gas fees ([#10707](https://github.com/MetaMask/core/pull/10707))
+
+## [72.1.0]
+
+### Changed
+
+- Include a `RedeemerEnforcer` caveat in EIP-7702 gas fee token simulations via `suggestFees.withRedeemerEnforcer` ([#10615](https://github.com/MetaMask/core/pull/10615))
+
+- Bump `ethereum-cryptography` from `^2.1.2` to `^2.2.1` ([#10485](https://github.com/MetaMask/core/pull/10485))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `@ethersproject/wallet` from `^5.7.0` to `^5.8.0` ([#10484](https://github.com/MetaMask/core/pull/10484))
+- Bump `@metamask/core-backend` from `^11.0.0` to `^12.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
+
+## [72.0.1]
+
+### Fixed
+
+- Only exclude the simulated gas cost from `nativeBalanceChange` when the sender was actually charged it ([#10343](https://github.com/MetaMask/core/pull/10343))
+  - Previously the gas cost was always added back to the sender's new balance, which reported an incoming native balance change for outgoing transactions when the simulation did not charge the sender, such as when the transaction has no fee per gas or the chain credits the fee recipient without debiting the sender.
+  - Gas is also left in the balance when the sender lost exactly the transaction value, which is how Arc simulations report native sends.
 
 ## [72.0.0]
 
@@ -2797,7 +2825,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.1.0...HEAD
+[72.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.1...@metamask/transaction-controller@72.1.0
+[72.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.0...@metamask/transaction-controller@72.0.1
 [72.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@71.0.0...@metamask/transaction-controller@72.0.0
 [71.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.1.0...@metamask/transaction-controller@71.0.0
 [70.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.1...@metamask/transaction-controller@70.1.0

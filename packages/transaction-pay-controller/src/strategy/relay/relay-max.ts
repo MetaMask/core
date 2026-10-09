@@ -13,14 +13,10 @@ import type {
 import { prefixError } from '../../utils/error-prefix.js';
 import { isAtomicMaxEnabled } from '../../utils/feature-flags.js';
 import {
-  getGasStationEligibility,
-  getGasStationCostInSourceTokenRaw,
-} from '../../utils/gas-station.js';
-import {
-  getNativeToken,
-  getTokenBalance,
-  getTokenInfo,
-} from '../../utils/token.js';
+  shouldUseGasStation,
+  resolveGasStationCost,
+} from '../../utils/gas-payment.js';
+import { getTokenInfo } from '../../utils/token.js';
 import { QuoteError } from '../../utils/validation.js';
 import { ATOMIC_PROMOTION_FAILURE_PREFIX } from './constants.js';
 import { isSubsidizedRelayQuote } from './relay-submit-execute.js';
@@ -39,12 +35,6 @@ enum GasCostEstimateSource {
 type GasCostEstimate = {
   amount: BigNumber;
   source: GasCostEstimateSource;
-};
-
-type NativeBalanceCheckResult = {
-  hasEnoughNativeBalance: boolean;
-  nativeBalance?: string;
-  nativeGasCostRaw?: string;
 };
 
 type GetSingleQuoteFn = (
@@ -168,7 +158,7 @@ export async function getRelayMaxGasStationQuote(
   getSingleQuote: GetSingleQuoteFn,
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger } = fullRequest;
-  const { sourceChainId, sourceTokenAmount } = request;
+  const { sourceTokenAmount } = request;
   const context: MaxAmountQuoteContext = {
     fullRequest,
     getSingleQuote,
@@ -182,32 +172,21 @@ export async function getRelayMaxGasStationQuote(
     return phase1Quote;
   }
 
-  const nativeBalanceCheck = checkEnoughNativeBalanceIfSourceGasFeeTokenNotUsed(
-    phase1Quote,
+  // A source-token gas fee means the native balance is irrelevant, so skip the
+  // balance check entirely rather than comparing against a cost the user will
+  // never pay in native token.
+  const useGasStation = shouldUseGasStation({
     messenger,
+    nativeGasCostRaw: phase1Quote.fees.isSourceGasFeeToken
+      ? undefined
+      : phase1Quote.fees.sourceNetwork.max.raw,
     request,
-  );
+  });
 
-  if (nativeBalanceCheck.hasEnoughNativeBalance) {
+  if (!useGasStation) {
     return fallbackToPhase1(
       phase1Quote,
-      'Native balance is sufficient for gas',
-      {
-        nativeBalance: nativeBalanceCheck.nativeBalance,
-        nativeGasCost: nativeBalanceCheck.nativeGasCostRaw,
-      },
-    );
-  }
-
-  const gasStationEligibility = getGasStationEligibility(
-    messenger,
-    sourceChainId,
-  );
-
-  if (!gasStationEligibility.isEligible) {
-    return fallbackToPhase1(
-      phase1Quote,
-      'Gas station is disabled or unsupported',
+      'Native balance covers gas or gas station is unavailable',
     );
   }
 
@@ -312,32 +291,6 @@ export async function getRelayMaxGasStationQuote(
   return phase2Quote;
 }
 
-function checkEnoughNativeBalanceIfSourceGasFeeTokenNotUsed(
-  quote: TransactionPayQuote<RelayQuote>,
-  messenger: TransactionPayControllerMessenger,
-  request: QuoteRequest,
-): NativeBalanceCheckResult {
-  if (quote.fees.isSourceGasFeeToken) {
-    return { hasEnoughNativeBalance: false };
-  }
-
-  const nativeGasCostRaw = quote.fees.sourceNetwork.max.raw;
-  const nativeBalance = getTokenBalance(
-    messenger,
-    request.from,
-    request.sourceChainId,
-    getNativeToken(request.sourceChainId),
-  );
-
-  return {
-    hasEnoughNativeBalance: new BigNumber(nativeBalance).isGreaterThanOrEqualTo(
-      nativeGasCostRaw,
-    ),
-    nativeBalance,
-    nativeGasCostRaw,
-  };
-}
-
 function getAdjustedSourceAmount(
   sourceAmount: BigNumber,
   estimatedGasCost: BigNumber,
@@ -424,7 +377,9 @@ async function getGasCostFromQuoteOrGasStation(
     0,
   );
 
-  const gasStationCost = await getGasStationCostInSourceTokenRaw({
+  // Native balance and chain eligibility were already checked before the probe
+  // flow started, so only the source-token pricing is needed here.
+  const gasStationCost = await resolveGasStationCost({
     firstStepData,
     messenger,
     request: {
@@ -436,12 +391,12 @@ async function getGasCostFromQuoteOrGasStation(
     totalItemCount,
   });
 
-  if (!gasStationCost) {
+  if (!gasStationCost.amount) {
     return undefined;
   }
 
   return {
-    amount: new BigNumber(gasStationCost.raw),
+    amount: new BigNumber(gasStationCost.amount.raw),
     source: GasCostEstimateSource.GasStation,
   };
 }

@@ -209,7 +209,7 @@ describe('transation', () => {
       const metadata = {
         ...USER_OPERATION_METADATA_MOCK,
         chainId: '0x5',
-      } as UserOperationMetadata;
+      };
 
       const transactionMetadata = getTransactionMetadata(metadata);
 

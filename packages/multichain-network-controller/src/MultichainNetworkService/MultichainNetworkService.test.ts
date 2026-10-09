@@ -90,7 +90,7 @@ describe('MultichainNetworkService', () => {
       const manyAccountIds: CaipAccountId[] = [];
       for (let i = 1; i <= 30; i++) {
         manyAccountIds.push(
-          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}` as CaipAccountId,
+          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}`,
         );
       }
 
@@ -131,7 +131,7 @@ describe('MultichainNetworkService', () => {
       const manyAccountIds: CaipAccountId[] = [];
       for (let i = 1; i <= 30; i++) {
         manyAccountIds.push(
-          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}` as CaipAccountId,
+          `${KnownCaipNamespace.Eip155}:${i}:${MOCK_EVM_ADDRESS}`,
         );
       }
 

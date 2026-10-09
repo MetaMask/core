@@ -44,7 +44,7 @@ describe('buildTokenListMap', () => {
   });
 
   it('returns an empty map when the token array is empty', () => {
-    expect(buildTokenListMap([], '0x1' as Hex)).toStrictEqual({});
+    expect(buildTokenListMap([], '0x1')).toStrictEqual({});
   });
 });
 
@@ -127,7 +127,7 @@ describe('TokenListService', () => {
     mockedFetchTokenListByChainId.mockResolvedValue(undefined);
 
     const service = new TokenListService();
-    expect(await service.fetchTokensByChainId('0x1' as Hex)).toStrictEqual({});
+    expect(await service.fetchTokensByChainId('0x1')).toStrictEqual({});
 
     service.destroy();
   });
@@ -147,7 +147,7 @@ describe('TokenListService', () => {
       async (_chainId, abortSignal) => {
         // Mirror token-service: aborted fetches resolve to undefined, not a list.
         if (abortSignal.aborted) {
-          return undefined;
+          return;
         }
         return [apiToken];
       },

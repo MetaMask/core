@@ -15,11 +15,6 @@ function createMockContext(overrides?: Partial<Context>): Context {
       dataTypes: ['balance', 'metadata', 'price'],
     },
     response: {},
-    getAssetsState: jest.fn().mockReturnValue({
-      assetsInfo: {},
-      assetsBalance: {},
-      customAssets: {},
-    }),
     ...overrides,
   };
 }

@@ -20,10 +20,16 @@
       "path": "../delegation-controller"
     },
     {
+      "path": "../geolocation-controller"
+    },
+    {
       "path": "../messenger"
     },
     {
       "path": "../money-account-balance-service"
+    },
+    {
+      "path": "../money-account-upgrade-controller"
     },
     {
       "path": "../money-account-utils"
@@ -36,6 +42,9 @@
     },
     {
       "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../seedless-onboarding-controller"
     },
     {
       "path": "../transaction-controller"

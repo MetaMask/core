@@ -189,7 +189,7 @@ describe('RpcBalanceFetcher', () => {
         try {
           return await operation();
         } catch {
-          return undefined;
+          return;
         }
       },
     );
@@ -225,7 +225,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -256,7 +256,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -293,7 +293,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -327,7 +327,7 @@ describe('RpcBalanceFetcher', () => {
       await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID, MOCK_CHAIN_ID_2],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -340,7 +340,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_2 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_2,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -368,7 +368,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -382,7 +382,7 @@ describe('RpcBalanceFetcher', () => {
       await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -399,7 +399,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -416,7 +416,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -432,7 +432,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -453,7 +453,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID, MOCK_CHAIN_ID_2],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -485,7 +485,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
         unprocessedTokens,
       });
@@ -527,7 +527,7 @@ describe('RpcBalanceFetcher', () => {
       await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID, MOCK_CHAIN_ID_2],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
         unprocessedTokens,
       });
@@ -575,7 +575,7 @@ describe('RpcBalanceFetcher', () => {
       await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
         unprocessedTokens,
       });
@@ -609,7 +609,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -649,7 +649,7 @@ describe('RpcBalanceFetcher', () => {
       await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -680,7 +680,7 @@ describe('RpcBalanceFetcher', () => {
       await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -730,7 +730,7 @@ describe('RpcBalanceFetcher', () => {
       await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -779,7 +779,7 @@ describe('RpcBalanceFetcher', () => {
       await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -807,7 +807,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -842,7 +842,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -863,7 +863,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -893,7 +893,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID_2], // Polygon - no staking support
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -920,7 +920,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -941,7 +941,7 @@ describe('RpcBalanceFetcher', () => {
       const result = await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 

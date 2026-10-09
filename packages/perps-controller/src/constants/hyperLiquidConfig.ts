@@ -15,7 +15,10 @@ import type {
   TradingDefaultsConfig,
   FeeRatesConfig,
 } from '../types/perps-types.js';
-import { STRATEGY_ORDER_TYPES } from '../utils/orderTypes.js';
+import {
+  STRATEGY_ORDER_TYPES,
+  TRIGGER_ORDER_TYPES,
+} from '../utils/orderTypes.js';
 import { PROVIDER_CONFIG } from './perpsConfig.js';
 
 // Network constants
@@ -182,6 +185,18 @@ export const HIP3_FEE_CONFIG = {
   FeeMultiplier: 2,
 } as const;
 
+/**
+ * EIP-712 primary type of every HyperLiquid L1 action (orders, cancels,
+ * leverage, ...). Only L1 actions may be signed by an agent; every other
+ * request is a user-signed action for the main account.
+ */
+export const HYPERLIQUID_L1_ACTION_PRIMARY_TYPE = 'Agent';
+
+/**
+ * EIP-712 domain name of every HyperLiquid L1 action.
+ */
+export const HYPERLIQUID_L1_ACTION_DOMAIN_NAME = 'Exchange';
+
 const BUILDER_FEE_MAX_FEE_DECIMAL = 0.001;
 
 // Builder fee configuration
@@ -199,7 +214,7 @@ export const BUILDER_FEE_CONFIG = {
 };
 
 /**
- * Strategies that HyperLiquid can execute for its routed perp markets.
+ * Strategies and standalone trigger orders HyperLiquid executes for its markets.
  * Providers own this declaration so clients never infer support from a
  * provider name.
  */
@@ -207,6 +222,20 @@ export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
   status: 'ready',
   providerId: PROVIDER_CONFIG.DefaultProvider,
   supportedStrategies: Object.freeze([...STRATEGY_ORDER_TYPES]),
+  supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
+  positionTpsl: Object.freeze({
+    supportsExpectedPosition: true,
+    childOrderIds: 'request-correlated',
+    takeProfitOrderType: 'take_profit_limit',
+    stopLossOrderType: 'stop_market',
+    defaultCoverage: 'dynamic-position',
+    partialCoverage: Object.freeze({
+      single: true,
+      pair: 'independent',
+      replacement: 'cancel-before-create',
+      recovery: 'provider-default',
+    }),
+  }),
 }) satisfies DirectProviderOrderCapabilities;
 
 // Referral code configuration

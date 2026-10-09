@@ -159,7 +159,7 @@ export class Wallet {
           return await instance.destroy();
         }
         /* istanbul ignore next */
-        return undefined;
+        return;
       }),
     );
   }

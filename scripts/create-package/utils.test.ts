@@ -3,8 +3,8 @@ import * as commentJson from 'comment-json';
 import type { Stats } from 'fs';
 import path from 'path';
 
-import { MonorepoFiles } from './constants.js';
-import type { PackageData } from './utils.js';
+import { MonorepoFiles } from './constants.ts';
+import type { PackageData } from './utils.ts';
 
 // `jest.mock` does not apply to ES modules, so the module registry is stubbed
 // with `jest.unstable_mockModule` and the modules under test are imported

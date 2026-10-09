@@ -19,7 +19,10 @@ import type {
   CapabilityAuthorization,
   EncryptionSchema,
 } from './KycService.js';
-import { isSumSubFlowCompleted } from './providers/sumsub.js';
+import {
+  isSumSubFlowCompleted,
+  isSumSubFlowFailed,
+} from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import {
   areSessionDisclaimersCompleted,
@@ -57,11 +60,26 @@ import {
 
 export const controllerName = 'KycController';
 
+export const KYC_PROVIDER_FLOW_STATUSES = [
+  'not_started',
+  'submitted',
+  'abandoned',
+  'failed',
+] as const;
+
+/**
+ * Durable outcome of the identity-provider flow.
+ *
+ * Unlike the KYC session's `finalStatus`, this distinguishes a newly-created
+ * pending session from a provider flow that the customer actually submitted.
+ */
+export type KycProviderFlowStatus = (typeof KYC_PROVIDER_FLOW_STATUSES)[number];
+
 // Lifetime of the read-only `ukyc_capability_token` minted when creating a
 // UKYC session. The storage-and-auth spec requires the token's `expires_at` to
 // cover the KYC session's expected lifetime — including the provider journey —
 // rather than a fixed short window, so this is a session-scoped window.
-const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
+const UKYC_CAPABILITY_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
 // How often to poll UKYC session status until a terminal `finalStatus`.
 const SESSION_STATUS_POLL_INTERVAL_MS = 15_000;
@@ -82,6 +100,9 @@ export type KycControllerState = {
 
   /** Latest UKYC session status, or `null` when none has been fetched. */
   sessionStatus: KycSessionStatus | null;
+
+  /** Last durable identity-provider flow outcome for this session. */
+  providerFlowStatus: KycProviderFlowStatus;
 
   // TODO: Check if we need truly need to persist these accepted disclaimers
   /**
@@ -134,6 +155,12 @@ const kycControllerMetadata = {
     usedInUi: true,
   },
   sessionStatus: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: true,
+  },
+  providerFlowStatus: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: true,
@@ -194,6 +221,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     vendor: null,
     geoCountry: null,
     sessionStatus: null,
+    providerFlowStatus: 'not_started',
     vendorDisclaimersAccepted: getDefaultKycVendorDisclaimersAccepted(),
     providerDisclaimersAccepted: getDefaultKycProviderDisclaimersAccepted(),
     idosDisclaimersAccepted: null,
@@ -224,7 +252,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'reset',
   'clearState',
   'getSessionStatusForVendor',
+  'getProviderFlowStatus',
   'refreshSessionStatus',
+  'readSessionStatus',
+  'fetchSessionStatusOnce',
   'startSessionStatusPolling',
   'fetchSessionDisclaimers',
   'recordSessionDisclaimers',
@@ -336,11 +367,15 @@ export class KycController extends BaseController<
    * @param params - The session parameters.
    * @param params.vendor - Identity vendor for the session.
    * @param params.email - Account email associated with the session.
+   * @param params.aal2Token - AAL2 authentication token. Required only when a
+   * UKYC session must be created, where it is sent as the Authorization bearer
+   * value. Omit it when reusing an existing session.
    * @returns The current or newly created session status.
    */
   async startSession(params: {
     vendor: KycVendor;
     email: string; // TODO: This will be removed once partnerIdentityTokens are fully ready
+    aal2Token?: string;
   }): Promise<KycSessionStatus> {
     if (this.state.email !== null && this.state.email !== params.email) {
       throw new Error(
@@ -367,6 +402,9 @@ export class KycController extends BaseController<
       state.email = params.email;
       state.vendor = params.vendor;
       state.geoCountry = geoCountry;
+      if (state.sessionStatus === null) {
+        state.providerFlowStatus = 'not_started';
+      }
     });
 
     if (this.state.sessionStatus === null) {
@@ -383,12 +421,22 @@ export class KycController extends BaseController<
 
       // TODO: Probably move this into it's own method? Feels like startSession is a little overloaded.
       // It's assumed that if the session does not exist, the customer does not exist either
+      if (!params.aal2Token) {
+        throw new Error(
+          'KycController.startSession: aal2Token is required to create a KYC session.',
+        );
+      }
+
       await this.messenger.call('KycService:createVendorCustomer', {
         vendor: params.vendor,
         email: params.email,
       });
 
-      return this.#createUkycSession({ vendor: params.vendor, geoCountry });
+      return this.#createUkycSession({
+        vendor: params.vendor,
+        geoCountry,
+        aal2Token: params.aal2Token,
+      });
     }
     // TODO: Should this made a call to check if the session is up-to-date?
     return this.state.sessionStatus;
@@ -413,6 +461,7 @@ export class KycController extends BaseController<
       state.vendor = null;
       state.geoCountry = null;
       state.sessionStatus = null;
+      state.providerFlowStatus = 'not_started';
       state.vendorDisclaimersAccepted =
         getDefaultKycVendorDisclaimersAccepted();
       state.providerDisclaimersAccepted =
@@ -435,6 +484,15 @@ export class KycController extends BaseController<
   }
 
   /**
+   * Returns the durable outcome of the identity-provider flow.
+   *
+   * @returns The latest provider-flow status.
+   */
+  getProviderFlowStatus(): KycProviderFlowStatus {
+    return this.state.providerFlowStatus;
+  }
+
+  /**
    * Returns the current session status and starts polling when it is not yet
    * terminal.
    *
@@ -449,6 +507,36 @@ export class KycController extends BaseController<
       this.startSessionStatusPolling();
     }
     return this.state.sessionStatus;
+  }
+
+  /**
+   * Returns the persisted session status.
+   *
+   * Does not call the network and does not start session-status polling.
+   *
+   * @returns The session on state, or `null` when none is stored.
+   */
+  readSessionStatus(): KycSessionStatus | null {
+    return this.state.sessionStatus;
+  }
+
+  /**
+   * Fetches `GET /sessions/{id}/status` once and writes the result onto state.
+   *
+   * Does not start the session-status polling timer.
+   *
+   * @param sessionId - UKYC session id.
+   * @returns The fetched session status.
+   */
+  async fetchSessionStatusOnce(sessionId: string): Promise<KycSessionStatus> {
+    const sessionStatus = await this.messenger.call(
+      'KycService:getSessionStatus',
+      { sessionId },
+    );
+    this.update((state) => {
+      state.sessionStatus = sessionStatus;
+    });
+    return sessionStatus;
   }
 
   /**
@@ -545,14 +633,17 @@ export class KycController extends BaseController<
    * submits both via authorizations. Stores `sumsub.sessionId`.
    * kyc-api returns the existing session if one with the same vendor and canonicalUserId already exists.
    *
-   * @param params - Vendor and country used to create the session.
+   * @param params - Vendor, country, and AAL2 token used to create the session.
    * @param params.vendor - Identity vendor for the UKYC session.
    * @param params.geoCountry - ISO 3166-1 alpha-3 country of residence.
+   * @param params.aal2Token - AAL2 authentication token sent as the
+   * Authorization bearer value for session creation.
    * @returns The created session.
    */
   async #createUkycSession(params: {
     vendor: KycVendor;
     geoCountry: string;
+    aal2Token: string;
   }): Promise<KycSessionStatus> {
     // Establish a per-session X25519 keypair used to seal both secrets. The
     // private half stays on the device; the public half is registered on the
@@ -573,6 +664,7 @@ export class KycController extends BaseController<
       sessionClientPublicKey,
       residenceCountry: params.geoCountry,
       vendor: params.vendor,
+      aal2Token: params.aal2Token,
     });
 
     await this.#verifyWrappingKeys(encryptionDataKey, capabilityTokenSchema);
@@ -824,7 +916,7 @@ export class KycController extends BaseController<
    * @param params - Optional SDK presentation options.
    * @param params.locale - BCP-47 locale for the SDK UI.
    * @param params.debug - Enables SDK debug logging.
-   * @returns A promise that settles when the provider flow finishes.
+   * @returns The durable provider-flow outcome.
    */
   launchProviderFlow({
     locale,
@@ -832,7 +924,7 @@ export class KycController extends BaseController<
   }: {
     locale?: string;
     debug?: boolean;
-  }): Promise<void> {
+  }): Promise<KycProviderFlowStatus> {
     // Currently only sumsub is supported and must be used for Iron
     return this.#launchSumsubFlow({ locale, debug });
   }
@@ -863,76 +955,97 @@ export class KycController extends BaseController<
    * @param params - Optional parameters.
    * @param params.locale - BCP-47 locale for the SDK UI.
    * @param params.debug - Enables SDK debug logging.
-   * @returns The SDK result.
+   * @returns The durable provider-flow outcome.
    */
   async #launchSumsubFlow(params?: {
     locale?: string;
     debug?: boolean;
-  }): Promise<void> {
+  }): Promise<KycProviderFlowStatus> {
+    const sessionId = this.state.sessionStatus?.id;
+    if (!this.#sumsubLauncher.isAvailable() || !sessionId) {
+      this.update((state) => {
+        state.providerFlowStatus = 'failed';
+      });
+      return 'failed';
+    }
+
     try {
-      if (!this.#sumsubLauncher.isAvailable()) {
-        throw new Error('SumSub SDK is not available in this runtime.');
+      // TODO: check if the sumsub and idos disclaimers are accepted
+      const { applicantAccessToken } = await this.messenger.call(
+        'KycService:createJourney',
+        sessionId,
+      );
+
+      // Track whether the SDK ever reported a successful completion or its own
+      // failure. A resolved `launch` alone does not imply success — the
+      // applicant may have abandoned the flow, or the SDK may have reported
+      // that it could not run.
+      let reachedCompletion = false;
+      let sdkFailed = false;
+
+      const result = await this.#sumsubLauncher.launch({
+        applicantAccessToken,
+        onTokenExpiration: async () => {
+          const journey = await this.messenger.call(
+            'KycService:createJourney',
+            sessionId,
+          );
+          return journey.applicantAccessToken;
+        },
+        onStatusChange: (_prev, next) => {
+          if (isSumSubFlowCompleted(next)) {
+            reachedCompletion = true;
+          }
+          if (isSumSubFlowFailed(next)) {
+            sdkFailed = true;
+          }
+        },
+        locale: params?.locale ?? 'en',
+        debug: params?.debug ?? false,
+      });
+
+      // Some native SDKs resolve with their final status without first
+      // delivering the corresponding state-change callback.
+      reachedCompletion ||= isSumSubFlowCompleted(result.status);
+      sdkFailed ||= isSumSubFlowFailed(result.status);
+
+      const currentSessionStatus = this.state.sessionStatus;
+      if (currentSessionStatus?.id !== sessionId) {
+        return 'failed';
       }
 
-      try {
-        if (!this.state.sessionStatus) {
-          throw new Error('no session was found');
-        }
-
-        const sessionId = this.state.sessionStatus.id;
-
-        // TODO: check if the sumsub and idos disclaimers are accepted
-
-        const { applicantAccessToken } = await this.messenger.call(
-          'KycService:createJourney',
-          sessionId,
-        );
-
-        // Track whether the SDK ever reported a successful completion. A resolved
-        // `launch` alone does not imply success — the applicant may have
-        // abandoned the flow or the SDK may have reported a non-success outcome.
-        let reachedCompletion = false;
-
-        const result = await this.#sumsubLauncher.launch({
-          applicantAccessToken,
-          onTokenExpiration: async () => {
-            const journey = await this.messenger.call(
-              'KycService:createJourney',
-              sessionId,
-            );
-            return journey.applicantAccessToken;
-          },
-          onStatusChange: (_prev, next) => {
-            if (isSumSubFlowCompleted(next)) {
-              reachedCompletion = true;
-            }
-          },
-          locale: params?.locale ?? 'en',
-          debug: params?.debug ?? false,
+      if (sdkFailed) {
+        this.update((state) => {
+          state.providerFlowStatus = 'failed';
         });
-
-        // Some native SDKs resolve with their final status without first
-        // delivering the corresponding state-change callback.
-        reachedCompletion ||= isSumSubFlowCompleted(result.status);
-
-        // Once the SDK completes, the authoritative verification decision comes
-        // from the UKYC backend, not the SDK result. Fetch session status once.
-        const currentSessionStatus = this.state.sessionStatus;
-        if (reachedCompletion && currentSessionStatus) {
-          // TODO: is this too optimistic?
-          this.update((state) => {
-            state.sessionStatus = {
-              ...currentSessionStatus,
-              finalStatus: 'pending',
-            };
-          });
-          this.startSessionStatusPolling();
-        }
-      } catch {
-        // TODO: Figure out if the sessionAlreadyCompletedError is still needed
+        return 'failed';
       }
+
+      if (reachedCompletion) {
+        // Once the SDK completes, the authoritative verification decision comes
+        // from the UKYC backend, not the SDK result.
+        this.update((state) => {
+          state.sessionStatus = {
+            ...currentSessionStatus,
+            finalStatus: 'pending',
+          };
+          state.providerFlowStatus = 'submitted';
+        });
+        this.startSessionStatusPolling();
+        return 'submitted';
+      }
+
+      this.update((state) => {
+        state.providerFlowStatus = 'abandoned';
+      });
+      return 'abandoned';
     } catch {
-      // Launcher unavailability and session errors currently fail closed.
+      if (this.state.sessionStatus?.id === sessionId) {
+        this.update((state) => {
+          state.providerFlowStatus = 'failed';
+        });
+      }
+      return 'failed';
     }
   }
 

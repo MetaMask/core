@@ -87,7 +87,7 @@ describe('createBlockRefRewriteMiddleware', () => {
           request,
           next,
         }): Promise<Readonly<Json | void> | undefined> => {
-          capturedRequest = { ...request } as JsonRpcRequest;
+          capturedRequest = { ...request };
           return next();
         },
         createFinalMiddlewareWithDefaultResult(),
@@ -124,7 +124,7 @@ describe('createBlockRefRewriteMiddleware', () => {
           request,
           next,
         }): Promise<Readonly<Json | void> | undefined> => {
-          capturedRequest = { ...request } as JsonRpcRequest;
+          capturedRequest = { ...request };
           return next();
         },
         createFinalMiddlewareWithDefaultResult(),
@@ -161,7 +161,7 @@ describe('createBlockRefRewriteMiddleware', () => {
           request,
           next,
         }): Promise<Readonly<Json | void> | undefined> => {
-          capturedRequest = { ...request } as JsonRpcRequest;
+          capturedRequest = { ...request };
           return next();
         },
         createFinalMiddlewareWithDefaultResult(),

@@ -390,12 +390,14 @@ export async function mfaEnroll(
  * @param env - Authentication environment.
  * @param accessToken - Primary profile access token.
  * @param params - Flow identifier and enrollment proof.
+ * @returns The assertion JWT proving the enrolled credential, and its lifetime
+ * in seconds.
  */
 export async function mfaEnrollComplete(
   env: Env,
   accessToken: string,
   params: EnrollmentCompletionParams,
-): Promise<void> {
+): Promise<MfaVerificationAssertion> {
   let body: MfaEnrollCompleteRequest = {
     credential_type: params.credential_type,
     flow_id: params.flow_id,
@@ -417,6 +419,7 @@ export async function mfaEnrollComplete(
     body,
   });
   assertValidMfaResponse(json, MfaEnrollCompleteResponseStruct);
+  return { token: json.token, expiresIn: json.expires_in };
 }
 
 /**

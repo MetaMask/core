@@ -1,5 +1,5 @@
-import { generateCodeownersFileContent } from './generate.js';
-import type { CodeownersConfig } from './types.js';
+import { generateCodeownersFileContent } from './generate.ts';
+import type { CodeownersConfig } from './types.ts';
 
 describe('generateCodeownersFileContent', () => {
   it('renders the preamble, Packages section, and Overrides section', () => {

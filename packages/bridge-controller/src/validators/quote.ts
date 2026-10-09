@@ -35,6 +35,7 @@ export enum DiscountType {
   VIP = 'vip',
   PROMO = 'promo',
   DAO = 'dao',
+  SUBSCRIPTION = 'subscription',
 }
 
 export const FeeDataSchema = type({

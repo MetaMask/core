@@ -97,7 +97,7 @@ describe('submitMoneyAccountVaultDeposit', () => {
       if (transactionId === 'child-2') {
         return { hash: '0xvault' } as TransactionMeta;
       }
-      return undefined;
+      return;
     });
     waitForTransactionConfirmedMock.mockResolvedValue();
   });
@@ -186,8 +186,8 @@ describe('submitMoneyAccountVaultDeposit', () => {
 
   it('submits pre-built depositCalls without calling getAmountData', async () => {
     const depositCalls: BatchTransactionParams[] = [
-      { data: '0xwithdrawApprove' as Hex, to: '0xw-approve' as Hex },
-      { data: '0xwithdrawDeposit' as Hex, to: '0xw-deposit' as Hex },
+      { data: '0xwithdrawApprove', to: '0xw-approve' },
+      { data: '0xwithdrawDeposit', to: '0xw-deposit' },
     ];
     const callMock = jest.fn((action: string) => {
       if (action === 'TransactionController:addTransactionBatch') {
@@ -237,9 +237,7 @@ describe('submitMoneyAccountVaultDeposit', () => {
 
   it('uses moneyAccountAddress override instead of transaction.txParams.from', async () => {
     const overrideAddress = '0x2222222222222222222222222222222222222222' as Hex;
-    const depositCalls: BatchTransactionParams[] = [
-      { data: '0xd' as Hex, to: '0xt' as Hex },
-    ];
+    const depositCalls: BatchTransactionParams[] = [{ data: '0xd', to: '0xt' }];
     const callMock = jest.fn((action: string) => {
       if (action === 'TransactionController:addTransactionBatch') {
         return Promise.resolve({ batchId: 'batch-id' });
@@ -377,7 +375,7 @@ describe('submitMoneyAccountVaultDeposit', () => {
       if (transactionId === TRANSACTION_ID_MOCK) {
         return TRANSACTION_MOCK;
       }
-      return undefined;
+      return;
     });
 
     await expect(callSubmit({ callMock })).rejects.toThrow(

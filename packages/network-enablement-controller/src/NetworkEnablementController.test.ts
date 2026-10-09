@@ -2283,7 +2283,7 @@ describe('NetworkEnablementController', () => {
         Object.entries(controller.state.enabledNetworkMap).map(
           ([namespace, networks]) => [namespace, { ...networks }],
         ),
-      ) as typeof controller.state.enabledNetworkMap;
+      );
 
       controller.enableNetwork('0xa4b1');
 
@@ -2321,7 +2321,7 @@ describe('NetworkEnablementController', () => {
         Object.entries(controller.state.enabledNetworkMap).map(
           ([namespace, networks]) => [namespace, { ...networks }],
         ),
-      ) as typeof controller.state.enabledNetworkMap;
+      );
 
       rootMessenger.publish('NetworkController:networkAdded', {
         chainId: '0x999',

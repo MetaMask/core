@@ -56,6 +56,13 @@ export const BYTES_FIXTURES = [
     bigint: BigInt('2147478946'),
     base64: 'f//tog==',
   },
+  {
+    bytes: new Uint8Array(new SharedArrayBuffer(4)).fill(1),
+    hexadecimal: '0x01010101',
+    number: 16843009,
+    bigint: BigInt('16843009'),
+    base64: 'AQEBAQ==',
+  },
 ];
 
 // Byte arrays and their equivalent hex strings and `bigint`s. There is no

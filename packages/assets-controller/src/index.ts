@@ -172,6 +172,7 @@ export {
 } from './middlewares/index.js';
 export type {
   CustomAssetGraduationMiddlewareOptions,
+  DetectionMiddlewareOptions,
   RpcFallbackMiddlewareOptions,
 } from './middlewares/index.js';
 

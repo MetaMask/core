@@ -104,6 +104,9 @@ export async function getGasFeeTokens({
         withTransfer: true,
         withFeeTransfer: true,
         with7702,
+        // The EIP-7702 publish hook always restricts redemption to the relay
+        // signers via a RedeemerEnforcer caveat, so include it in the estimate.
+        withRedeemerEnforcer: with7702,
       },
     });
 

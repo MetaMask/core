@@ -26,6 +26,7 @@ import {
   quantizeBuilderFeeTenthsBps,
   resolveSubscriptionWaiverRate,
 } from '../utils/subscriptionFeeWaiver.js';
+import { isMissingActionHandlerError } from './missingActionHandler.js';
 
 /**
  * Default MetaMask builder fee, in basis points.
@@ -127,25 +128,6 @@ export class RewardsIntegrationService {
   ) {
     this.#deps = deps;
     this.#messenger = messenger;
-  }
-
-  /**
-   * Get chain ID for a network client via DI network controller
-   *
-   * @param networkClientId - The network client identifier to look up.
-   * @returns The chain ID string, or undefined if the network client is not found.
-   */
-  #getChainIdForNetwork(networkClientId: string): string | undefined {
-    try {
-      const networkClient = this.#messenger.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
-      return networkClient.configuration.chainId;
-    } catch {
-      // Network client may not exist
-      return undefined;
-    }
   }
 
   /**
@@ -533,14 +515,21 @@ export class RewardsIntegrationService {
         // Definitive "not entitled", even thrown synchronously.
         return null;
       }
-      // An unregistered action throws a recognisable "no handler" error; any
-      // other synchronous throw came from a handler that exists and failed, so
-      // it must not be mistaken for an absent action and cached as `null` —
-      // including on the very first call, before one has ever answered.
-      if (!isUnregisteredActionError(error) && !this.#deps.subscription) {
+      // An unregistered or undelegated action throws a recognisable "no
+      // handler" error; any other synchronous throw came from a handler that
+      // exists and failed, so it must not be mistaken for an absent action and
+      // cached as `null` — including on the very first call, before one has
+      // ever answered.
+      if (
+        !isMissingActionHandlerError(
+          error,
+          'SubscriptionController:getBenefits',
+        ) &&
+        !this.#deps.subscription
+      ) {
         throw error;
       }
-      // Otherwise: unregistered action, or a throw with a DI source to fall
+      // Otherwise: missing handler, or a throw with a DI source to fall
       // back to.
     }
 
@@ -646,7 +635,13 @@ export class RewardsIntegrationService {
           registration = Promise.resolve(result);
         }
       } catch (error) {
-        if (!isUnregisteredActionError(error) && !this.#deps.subscription) {
+        if (
+          !isMissingActionHandlerError(
+            error,
+            'SubscriptionController:registerAddress',
+          ) &&
+          !this.#deps.subscription
+        ) {
           throw error;
         }
       }
@@ -714,6 +709,19 @@ export class RewardsIntegrationService {
   }
 
   /**
+   * Log that the rewards discount is unavailable because the host does not
+   * provide a NetworkController action.
+   *
+   * @param error - The missing-handler error from the messenger.
+   */
+  #logNetworkControllerNotProvided(error: unknown): void {
+    this.#deps.debugLogger.log(
+      'RewardsIntegrationService: Fee discount unavailable (NetworkController not provided)',
+      { error: ensureError(error).message },
+    );
+  }
+
+  /**
    * Resolve the rewards (VIP + season) discount for the selected account.
    *
    * @returns The discount in basis points, or undefined when unavailable.
@@ -729,10 +737,44 @@ export class RewardsIntegrationService {
         return undefined;
       }
 
-      // Get the chain ID via DI network controller
-      const networkState = this.#messenger.call('NetworkController:getState');
-      const { selectedNetworkClientId } = networkState;
-      const chainId = this.#getChainIdForNetwork(selectedNetworkClientId);
+      // Get the chain ID via DI network controller. A host without
+      // NetworkController (or one that does not delegate it) simply has no
+      // rewards discount: the fee falls back to the next source. Each read
+      // checks only its own action, so a handler failing on a missing
+      // dependency of its own is still reported below.
+      let selectedNetworkClientId: string;
+      try {
+        ({ selectedNetworkClientId } = this.#messenger.call(
+          'NetworkController:getState',
+        ));
+      } catch (error) {
+        if (!isMissingActionHandlerError(error, 'NetworkController:getState')) {
+          throw error;
+        }
+        this.#logNetworkControllerNotProvided(error);
+        return undefined;
+      }
+
+      let chainId: string | undefined;
+      let chainIdError: string | undefined;
+      try {
+        chainId = this.#messenger.call(
+          'NetworkController:getNetworkClientById',
+          selectedNetworkClientId,
+        ).configuration.chainId;
+      } catch (error) {
+        if (
+          isMissingActionHandlerError(
+            error,
+            'NetworkController:getNetworkClientById',
+          )
+        ) {
+          this.#logNetworkControllerNotProvided(error);
+          return undefined;
+        }
+        // Network client may not exist; reported below with the cause.
+        chainIdError = ensureError(error).message;
+      }
 
       if (!chainId) {
         this.#deps.logger.error(
@@ -743,6 +785,7 @@ export class RewardsIntegrationService {
               name: 'RewardsIntegrationService.calculateUserFeeDiscount',
               data: {
                 selectedNetworkClientId,
+                ...(chainIdError && { error: chainIdError }),
               },
             },
           },
@@ -821,25 +864,6 @@ export class RewardsIntegrationService {
       return undefined;
     }
   }
-}
-
-/**
- * Whether a messenger call failed because no handler is registered.
- *
- * `Messenger.call` reports an unregistered action with a distinctive message.
- * Anything else thrown synchronously came from a handler that does exist, and
- * conflating the two would cache a real failure as "no subscription".
- *
- * @param error - The error thrown by the messenger call.
- * @returns True when the action has no registered handler.
- */
-function isUnregisteredActionError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    /handler.*not.*registered|no.*handler.*registered|A handler for .* has not been registered/iu.test(
-      error.message,
-    )
-  );
 }
 
 /**

@@ -115,7 +115,7 @@ export class PendingTransactionTracker {
     messenger: TransactionControllerMessenger;
     networkClientId: NetworkClientId;
   }) {
-    this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
+    this.hub = new EventEmitter();
 
     const chainId = getChainId({ messenger, networkClientId });
 

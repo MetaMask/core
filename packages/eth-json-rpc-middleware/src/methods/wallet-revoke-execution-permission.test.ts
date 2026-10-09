@@ -74,7 +74,7 @@ describe('wallet_revokeExecutionPermission', () => {
   });
 
   it('throws if missing properties', async () => {
-    (request as JsonRpcRequest).params = {} as never;
+    (request as JsonRpcRequest).params = {};
 
     await expect(callMethod()).rejects.toThrow('Invalid params');
   });

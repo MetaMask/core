@@ -383,7 +383,7 @@ export class NetworkEnablementController extends BaseController<
       });
 
       // Enable Solana mainnet if it exists in MultichainNetworkController configurations
-      const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
+      const solanaKeys = deriveKeys(SolScope.Mainnet);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
           SolScope.Mainnet
@@ -397,7 +397,7 @@ export class NetworkEnablementController extends BaseController<
       }
 
       // Enable Bitcoin mainnet if it exists in MultichainNetworkController configurations
-      const bitcoinKeys = deriveKeys(BtcScope.Mainnet as CaipChainId);
+      const bitcoinKeys = deriveKeys(BtcScope.Mainnet);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
           BtcScope.Mainnet
@@ -411,7 +411,7 @@ export class NetworkEnablementController extends BaseController<
       }
 
       // Enable Tron mainnet if it exists in MultichainNetworkController configurations
-      const tronKeys = deriveKeys(TrxScope.Mainnet as CaipChainId);
+      const tronKeys = deriveKeys(TrxScope.Mainnet);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
           TrxScope.Mainnet
@@ -424,7 +424,7 @@ export class NetworkEnablementController extends BaseController<
       }
 
       // Enable Stellar mainnet if it exists in MultichainNetworkController configurations
-      const stellarKeys = deriveKeys(XlmScope.Pubnet as CaipChainId);
+      const stellarKeys = deriveKeys(XlmScope.Pubnet);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
           XlmScope.Pubnet

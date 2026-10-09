@@ -2,10 +2,10 @@
   "extends": "../../tsconfig.packages.json",
   "references": [
     {
-      "path": "../assets-controller"
+      "path": "../accounts-controller"
     },
     {
-      "path": "../assets-controllers"
+      "path": "../assets-controller"
     },
     {
       "path": "../base-controller"

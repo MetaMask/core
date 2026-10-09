@@ -26,4 +26,18 @@ export type UpgradeConfig = {
   redeemerEnforcer: Hex;
   /** Address of the ValueLteEnforcer caveat enforcer. */
   valueLteEnforcer: Hex;
+  /** The premium vault (pvmUSD), from the `moneyAccountPremiumVaultConfig` flag when served. */
+  premiumVault?: {
+    boringVaultAddress: Hex;
+    vedaVaultAdapterAddress: Hex;
+  };
 };
+
+/**
+ * The CHOMP intent type of a vault deposit or withdrawal delegation.
+ */
+export type VaultDelegationType =
+  | 'cash-deposit'
+  | 'cash-withdrawal'
+  | 'cash-deposit-premium'
+  | 'cash-withdrawal-premium';

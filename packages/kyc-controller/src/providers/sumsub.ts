@@ -135,3 +135,16 @@ const SUMSUB_COMPLETED_STATUSES: ReadonlySet<string> =
 export function isSumSubFlowCompleted(status: unknown): boolean {
   return typeof status === 'string' && SUMSUB_COMPLETED_STATUSES.has(status);
 }
+
+/**
+ * Checks whether a SumSub status means the SDK itself could not run.
+ *
+ * Distinct from a user closing the flow before submitting (`Incomplete`,
+ * `Initial`, or `Ready`).
+ *
+ * @param status - Status from a launcher callback or launch result.
+ * @returns Whether the SDK failed to run.
+ */
+export function isSumSubFlowFailed(status: unknown): boolean {
+  return status === 'Failed';
+}

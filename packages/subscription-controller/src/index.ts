@@ -12,6 +12,7 @@ export type {
   SubscriptionControllerGetSubscriptionsAction,
   SubscriptionControllerGetBenefitsAction,
   SubscriptionControllerGetSubscriptionByProductAction,
+  SubscriptionControllerIsUserEligibleForTrialAction,
   SubscriptionControllerGetSubscriptionsEligibilitiesAction,
   SubscriptionControllerCancelSubscriptionAction,
   SubscriptionControllerUnCancelSubscriptionAction,
@@ -190,10 +191,28 @@ export {
 } from './subscription-delegation/SubscriptionDelegationService.js';
 export type { SubscriptionDelegationServicePrepareDelegationAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
 export type { SubscriptionDelegationServiceCheckMoneyAccountBalanceAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
+export type { SubscriptionDelegationServiceStartSubscriptionWithDelegationAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
 export type {
+  ChompIntentType,
+  CommitAuthorizationBundleRequest,
+  CommitAuthorizationBundleResult,
+  DecodedPermission,
+  MoneyAccountAuthorizationReason,
   MoneyAccountBalanceCheckRequest,
   MoneyAccountBalanceCheckResult,
   PrepareSubscriptionDelegationRequest,
+  PrepareAuthorizationBundleResult,
   PreparedSubscriptionDelegation,
+  PreparedSubscriptionDelegationBundle,
+  PreparedSubscriptionPermission,
+  SignedSubscriptionDelegation,
+  StartSubscriptionWithDelegationRequest,
+  StartSubscriptionWithDelegationResult,
+  SubscriptionDelegationTypedData,
+  SubscriptionPermissionId,
+  UnsignedSubscriptionDelegation,
 } from './subscription-delegation/types.js';
-export { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './subscription-delegation/types.js';
+export {
+  CASH_SUBSCRIPTION_DELEGATION_TYPE,
+  SUBSCRIPTION_DELEGATION_POLICY_VERSION,
+} from './subscription-delegation/types.js';

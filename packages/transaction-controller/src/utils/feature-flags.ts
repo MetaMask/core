@@ -604,7 +604,7 @@ function getFeatureFlags(
 
     log('Retrieved feature flags', featureFlags);
 
-    return featureFlags as TransactionControllerFeatureFlags;
+    return featureFlags;
   } catch {
     log('RemoteFeatureFlagController not available');
     return undefined;

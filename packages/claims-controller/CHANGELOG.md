@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
+
+## [1.0.3]
+
+### Changed
+
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
 ## [1.0.2]
 
 ### Changed
@@ -207,7 +219,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generateMessageForClaimSignature`: generate message to sign for the claim signature.
   - `verifyClaimSignature`: verify claim signature produced by user.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.3...HEAD
+[1.0.3]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.2...@metamask/claims-controller@1.0.3
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.1...@metamask/claims-controller@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.0...@metamask/claims-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.6.2...@metamask/claims-controller@1.0.0

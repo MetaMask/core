@@ -69,6 +69,8 @@ const MOCK_SUMSUB_DISCLAIMERS_ACCEPTED: KycConsentRecord[] =
     version,
   }));
 
+const AAL2_TOKEN = 'aal2-token';
+
 describe('KycController', () => {
   describe('constructor', () => {
     it('accepts initial state merged over defaults', async () => {
@@ -98,6 +100,7 @@ describe('KycController', () => {
         const result = await controller.startSession({
           vendor: 'iron',
           email: 'a@b.co',
+          aal2Token: AAL2_TOKEN,
         });
 
         expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
@@ -108,6 +111,7 @@ describe('KycController', () => {
           expect.objectContaining({
             residenceCountry: 'USA',
             vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
           }),
         );
         expect(
@@ -159,7 +163,10 @@ describe('KycController', () => {
           handlers.getGeoCountry.mockResolvedValue('USA');
 
           expect(
-            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            await controller.startSession({
+              vendor: 'iron',
+              email: 'a@b.co',
+            }),
           ).toStrictEqual(sessionStatus('pending'));
           expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
@@ -173,7 +180,10 @@ describe('KycController', () => {
         { options: { state: { email: 'a@b.co' } } },
         async ({ controller }) => {
           await expect(
-            controller.startSession({ vendor: 'iron', email: 'other@b.co' }),
+            controller.startSession({
+              vendor: 'iron',
+              email: 'other@b.co',
+            }),
           ).rejects.toThrow(
             'KycController already initialized with a different email',
           );
@@ -186,7 +196,10 @@ describe('KycController', () => {
         { options: { state: { vendor: 'moonpay' } } },
         async ({ controller }) => {
           await expect(
-            controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            controller.startSession({
+              vendor: 'iron',
+              email: 'a@b.co',
+            }),
           ).rejects.toThrow(
             'KycController already initialized with a different vendor',
           );
@@ -201,13 +214,33 @@ describe('KycController', () => {
           handlers.getGeoCountry.mockResolvedValue('DEU');
 
           await expect(
-            controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            controller.startSession({
+              vendor: 'iron',
+              email: 'a@b.co',
+            }),
           ).rejects.toThrow(
             'KycController already initialized with a different geoCountry',
           );
           expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
         },
       );
+    });
+
+    it('does not create a session when aal2Token is missing', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+          }),
+        ).rejects.toThrow(/aal2Token is required to create a KYC session/u);
+        expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
     });
 
     it('does not create a UKYC session when creating the vendor customer fails', async () => {
@@ -218,7 +251,11 @@ describe('KycController', () => {
         );
 
         await expect(
-          controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
         ).rejects.toThrow('customer failed');
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
         expect(controller.state.sessionStatus).toBeNull();
@@ -304,6 +341,70 @@ describe('KycController', () => {
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
+        },
+      );
+    });
+  });
+
+  describe('readSessionStatus', () => {
+    it('returns null when no session is stored', async () => {
+      await withController(({ controller, handlers }) => {
+        expect(controller.readSessionStatus()).toBeNull();
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns the persisted session without fetching', async () => {
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        ({ controller, handlers }) => {
+          expect(controller.readSessionStatus()).toStrictEqual(
+            sessionStatus('pending'),
+          );
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        },
+      );
+    });
+  });
+
+  describe('fetchSessionStatusOnce', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('writes one session-status GET and does not poll', async () => {
+      jest.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          expect(await controller.fetchSessionStatusOnce('sid')).toStrictEqual(
+            sessionStatus('approved'),
+          );
+          expect(controller.state.sessionStatus).toMatchInlineSnapshot(`
+            {
+              "externalUserId": "ext-1",
+              "finalStatus": "approved",
+              "id": "sid",
+              "kycStatus": "approved",
+              "vendor": "sumsub",
+              "vendorStatus": "approved",
+            }
+          `);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+
+          await jest.advanceTimersByTimeAsync(60_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -739,10 +840,64 @@ describe('KycController', () => {
         async ({ controller, handlers, launcher }) => {
           launcher.launch.mockResolvedValue({ status: 'Completed' });
 
-          await controller.launchProviderFlow({ locale: 'en', debug: false });
+          const result = await controller.launchProviderFlow({
+            locale: 'en',
+            debug: false,
+          });
 
+          expect(result).toBe('submitted');
           expect(handlers.createJourney).toHaveBeenCalledWith('sid');
           expect(launcher.launch).toHaveBeenCalled();
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+        },
+      );
+    });
+
+    it('records abandonment when SumSub closes before submission', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Incomplete' });
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('abandoned');
+          expect(controller.state.providerFlowStatus).toBe('abandoned');
+        },
+      );
+    });
+
+    it('records failure when SumSub reports that it could not run', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Failed' });
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('failed');
+        },
+      );
+    });
+
+    it('records failure when SumSub reports Failed through a status change', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(
+            async (params: {
+              onStatusChange: (previous: string, next: string) => void;
+            }) => {
+              params.onStatusChange('Ready', 'Failed');
+              return { status: 'Ready' };
+            },
+          );
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('failed');
         },
       );
     });
@@ -764,8 +919,9 @@ describe('KycController', () => {
           );
           handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
 
-          await controller.launchProviderFlow({});
+          const result = await controller.launchProviderFlow({});
 
+          expect(result).toBe('submitted');
           expect(launcher.launch).toHaveBeenCalledWith(
             expect.objectContaining({ locale: 'en', debug: false }),
           );
@@ -801,21 +957,65 @@ describe('KycController', () => {
         async ({ controller, handlers, launcher }) => {
           launcher.isAvailable.mockReturnValue(false);
 
-          await controller.launchProviderFlow({});
+          const result = await controller.launchProviderFlow({});
 
+          expect(result).toBe('failed');
           expect(handlers.createJourney).not.toHaveBeenCalled();
           expect(launcher.launch).not.toHaveBeenCalled();
+          expect(controller.state.providerFlowStatus).toBe('failed');
         },
       );
     });
 
     it('does nothing when there is no session', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
-        await controller.launchProviderFlow({});
+        const result = await controller.launchProviderFlow({});
 
+        expect(result).toBe('failed');
         expect(handlers.createJourney).not.toHaveBeenCalled();
         expect(launcher.launch).not.toHaveBeenCalled();
+        expect(controller.state.providerFlowStatus).toBe('failed');
       });
+    });
+
+    it('records failure when the provider launcher throws', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockRejectedValue(new Error('launcher unavailable'));
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('failed');
+        },
+      );
+    });
+
+    it('does not update a reset session when the provider launcher throws', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(async () => {
+            controller.clearState();
+            throw new Error('launcher unavailable');
+          });
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.providerFlowStatus).toBe('not_started');
+        },
+      );
+    });
+
+    it('returns the persisted provider flow status', async () => {
+      await withController(
+        { options: { state: { providerFlowStatus: 'abandoned' } } },
+        ({ controller }) => {
+          expect(controller.getProviderFlowStatus()).toBe('abandoned');
+        },
+      );
     });
   });
 
@@ -1097,7 +1297,7 @@ function withController<ReturnValue>(
 
   const controller = new KycController({
     messenger,
-    sumsubLauncher: launcher as unknown as KycSumSubLauncher,
+    sumsubLauncher: launcher,
     ...options,
   });
 

@@ -6,6 +6,9 @@
   },
   "references": [
     {
+      "path": "../analytics-controller/tsconfig.build.json"
+    },
+    {
       "path": "../base-controller/tsconfig.build.json"
     },
     {

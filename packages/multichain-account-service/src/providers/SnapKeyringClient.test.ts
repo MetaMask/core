@@ -14,7 +14,7 @@ function makeSender(response: unknown = []): {
   send: jest.Mock;
 } {
   const send = jest.fn().mockResolvedValue(response);
-  return { sender: { send } as unknown as Sender, send };
+  return { sender: { send }, send };
 }
 
 describe('createSnapKeyringClient', () => {

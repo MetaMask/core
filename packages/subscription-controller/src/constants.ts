@@ -98,10 +98,15 @@ export enum SubscriptionDelegationServiceErrorMessage {
   MissingMoneyAccountVaultConfig = 'Money Account vault configuration is missing or invalid',
   DelegationContractsNotFound = 'Subscription delegation contracts were not found for the configured chain',
   PricingConfigurationNotFound = 'Subscription delegation pricing configuration was not found',
+  InvalidRecipientAddress = 'Subscription delegation recipient must be a valid 20-byte address',
   InsufficientBalance = 'Money Account balance is insufficient for the subscription funding requirement',
   ChompRejectedDelegation = 'CHOMP rejected the subscription delegation',
   ChompMissingDelegationHash = 'CHOMP verify response did not include a delegation hash',
   ChompDelegationHashMismatch = 'CHOMP verify response delegation hash does not match the locally computed hash',
+  ChainMismatch = 'Subscription delegation chain does not match the Money Account chain',
+  ReusableDelegationInvalid = 'Reusable subscription delegation is missing or invalid',
+  TrialEligibilityChanged = 'Subscription trial eligibility changed after authorization',
+  ChompIntentNotActive = 'CHOMP subscription intent is not active',
 }
 
 export const DEFAULT_POLLING_INTERVAL = 5 * 60 * 1_000; // 5 minutes
@@ -111,3 +116,43 @@ export const ACTIVE_SUBSCRIPTION_STATUSES = [
   SUBSCRIPTION_STATUSES.trialing,
   SUBSCRIPTION_STATUSES.provisional,
 ] as string[];
+
+/**
+ * ISO 3166-1 alpha-2 country codes eligible for refund (EU 27 + EEA).
+ *
+ * Used to set `isEligibleForRefund` when starting a subscription.
+ */
+export const REFUND_ELIGIBLE_COUNTRIES: ReadonlySet<string> = new Set([
+  // EU 27
+  'AT',
+  'BE',
+  'BG',
+  'HR',
+  'CY',
+  'CZ',
+  'DK',
+  'EE',
+  'FI',
+  'FR',
+  'DE',
+  'GR',
+  'HU',
+  'IE',
+  'IT',
+  'LV',
+  'LT',
+  'LU',
+  'MT',
+  'NL',
+  'PL',
+  'PT',
+  'RO',
+  'SK',
+  'SI',
+  'ES',
+  'SE',
+  // EEA (non-EU)
+  'IS',
+  'LI',
+  'NO',
+]);

@@ -210,7 +210,7 @@ describe('AccountsApiBalanceFetcher', () => {
         try {
           return await operation();
         } catch {
-          return undefined;
+          return;
         }
       },
     );
@@ -255,7 +255,7 @@ describe('AccountsApiBalanceFetcher', () => {
 
     it('should return false for unsupported chain IDs', () => {
       expect(balanceFetcher.supports(MOCK_UNSUPPORTED_CHAIN_ID)).toBe(false);
-      expect(balanceFetcher.supports('0x123' as ChainIdHex)).toBe(false);
+      expect(balanceFetcher.supports('0x123')).toBe(false);
     });
   });
 
@@ -268,7 +268,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -280,7 +280,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_UNSUPPORTED_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -307,7 +307,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -344,7 +344,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -378,7 +378,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -435,7 +435,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: largeAccountList,
       });
 
@@ -515,7 +515,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: largeAccountList,
       });
 
@@ -556,7 +556,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -590,7 +590,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -621,9 +621,9 @@ describe('AccountsApiBalanceFetcher', () => {
       mockFetchMultiChainBalancesV4.mockResolvedValue(MOCK_BALANCES_RESPONSE);
 
       await balanceFetcher.fetch({
-        chainIds: [MOCK_CHAIN_ID, '0x89' as ChainIdHex], // Ethereum and Polygon
+        chainIds: [MOCK_CHAIN_ID, '0x89'], // Ethereum and Polygon
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -655,7 +655,7 @@ describe('AccountsApiBalanceFetcher', () => {
       await mobileBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -688,7 +688,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -733,7 +733,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -772,7 +772,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -794,7 +794,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -835,7 +835,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: ['0x1'],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -881,7 +881,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: ['0x1'],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -938,7 +938,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: ['0x1'],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -973,9 +973,9 @@ describe('AccountsApiBalanceFetcher', () => {
       );
 
       const result = await balanceFetcher.fetch({
-        chainIds: ['0x1', '0xa86a' as ChainIdHex],
+        chainIds: ['0x1', '0xa86a'],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1038,7 +1038,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1067,7 +1067,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1091,7 +1091,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1127,7 +1127,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_UNSUPPORTED_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1169,7 +1169,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [polygonChainId], // Polygon is API-supported but not staking-supported
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1246,7 +1246,7 @@ describe('AccountsApiBalanceFetcher', () => {
         const result = await balanceFetcher.fetch({
           chainIds: [testChainId], // 0x4268 is in mocked SupportedStakedBalanceNetworks but not in modified STAKING_CONTRACT_ADDRESS_BY_CHAINID
           queryAllAccounts: false,
-          selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+          selectedAccount: MOCK_ADDRESS_1,
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
         });
 
@@ -1308,7 +1308,7 @@ describe('AccountsApiBalanceFetcher', () => {
         const result = await testFetcher.fetch({
           chainIds: [MOCK_CHAIN_ID], // Use mainnet which has staking support
           queryAllAccounts: false,
-          selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+          selectedAccount: MOCK_ADDRESS_1,
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
         });
 
@@ -1344,7 +1344,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await fetcherWithoutProvider.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1377,7 +1377,7 @@ describe('AccountsApiBalanceFetcher', () => {
       await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1392,7 +1392,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1420,7 +1420,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1467,7 +1467,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await fetcherWithProvider.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1500,7 +1500,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1575,7 +1575,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1601,7 +1601,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1635,7 +1635,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1664,7 +1664,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1705,7 +1705,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1774,7 +1774,7 @@ describe('AccountsApiBalanceFetcher', () => {
         fetcherWithProvider.fetch({
           chainIds: [MOCK_CHAIN_ID],
           queryAllAccounts: false,
-          selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+          selectedAccount: MOCK_ADDRESS_1,
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
         }),
       ).rejects.toThrow('Accounts API request timed out or failed');
@@ -1808,10 +1808,9 @@ describe('AccountsApiBalanceFetcher', () => {
       mockFetchMultiChainBalancesV4.mockResolvedValue(highPrecisionResponse);
 
       const result = await balanceFetcher.fetch({
-        chainIds: ['0xa4b1' as ChainIdHex], // Arbitrum
+        chainIds: ['0xa4b1'], // Arbitrum
         queryAllAccounts: false,
-        selectedAccount:
-          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045' as ChecksumAddress,
+        selectedAccount: '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1856,7 +1855,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1895,7 +1894,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1930,7 +1929,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1962,7 +1961,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -1990,7 +1989,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -2018,7 +2017,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -2049,7 +2048,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -2095,7 +2094,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
@@ -2196,7 +2195,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: largeAccountList,
       });
 
@@ -2307,7 +2306,7 @@ describe('AccountsApiBalanceFetcher', () => {
       const result = await balanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID],
         queryAllAccounts: true,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        selectedAccount: MOCK_ADDRESS_1,
         allAccounts: largeAccountList,
       });
 
@@ -2337,7 +2336,7 @@ describe('AccountsApiBalanceFetcher', () => {
         balanceFetcherNoStaking.fetch({
           chainIds: [MOCK_CHAIN_ID],
           queryAllAccounts: false,
-          selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+          selectedAccount: MOCK_ADDRESS_1,
           allAccounts: MOCK_INTERNAL_ACCOUNTS,
         }),
       ).rejects.toThrow('Accounts API request timed out or failed');

@@ -42,8 +42,8 @@ function buildQuote(
       sourceTokenAddress: TOKEN_ADDRESS_MOCK,
       sourceTokenAmount: sourceAmountRaw,
       targetAmountMinimum: '0',
-      targetChainId: '0x1' as Hex,
-      targetTokenAddress: '0x4444444444444444444444444444444444444444' as Hex,
+      targetChainId: '0x1',
+      targetTokenAddress: '0x4444444444444444444444444444444444444444',
       ...overrides,
     },
     sourceAmount: { fiat: '0', human: '0', raw: sourceAmountRaw, usd: '0' },
@@ -293,7 +293,7 @@ describe('validateQuoteExecution', () => {
               {
                 data: TRANSFER_DATA_MOCK as Hex,
                 from: FROM_MOCK,
-                to: nativeAddress as Hex,
+                to: nativeAddress,
               },
             ],
           }),
@@ -327,7 +327,7 @@ describe('validateQuoteExecution', () => {
           simulation: buildSimulation({
             transactions: [
               {
-                data: '0xdeadbeef' as Hex, // not a transfer selector
+                data: '0xdeadbeef', // not a transfer selector
                 from: FROM_MOCK,
                 to: TOKEN_ADDRESS_MOCK,
               },
@@ -353,9 +353,9 @@ describe('validateQuoteExecution', () => {
             transactions: [
               {
                 // Unwrap on some other contract, not a source-token transfer.
-                data: '0xdeadbeef' as Hex,
+                data: '0xdeadbeef',
                 from: FROM_MOCK,
-                to: '0x9999999999999999999999999999999999999999' as Hex,
+                to: '0x9999999999999999999999999999999999999999',
               },
               {
                 // Transfer of 500 source token that only exists post-unwrap.
@@ -387,9 +387,9 @@ describe('validateQuoteExecution', () => {
                 to: TOKEN_ADDRESS_MOCK,
               },
               {
-                data: '0xdeadbeef' as Hex,
+                data: '0xdeadbeef',
                 from: FROM_MOCK,
-                to: '0x9999999999999999999999999999999999999999' as Hex,
+                to: '0x9999999999999999999999999999999999999999',
               },
             ],
           }),
@@ -410,7 +410,7 @@ describe('validateQuoteExecution', () => {
                 data: TRANSFER_DATA_MOCK as Hex,
                 from: FROM_MOCK,
                 // Transfer on a different token, not the quote's source token.
-                to: '0x9999999999999999999999999999999999999999' as Hex,
+                to: '0x9999999999999999999999999999999999999999',
               },
             ],
           }),

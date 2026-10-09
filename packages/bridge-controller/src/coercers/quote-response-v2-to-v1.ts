@@ -206,7 +206,7 @@ export const toQuoteResponseV1 = (
   // V1 quote
   if (is(quoteResponse, QuoteResponseSchemaV1)) {
     errorMessage += ' unmodified QuoteResponseV1';
-    return quoteResponse as QuoteResponseV1 & QuoteMetadata;
+    return quoteResponse;
   }
 
   try {

@@ -1,8 +1,8 @@
 # Linting and formatting code
 
-[ESLint](https://eslint.org) v9 (via [MetaMask's shared ESLint configurations](https://github.com/MetaMask/eslint-config)) is used to check for code quality issues, and [Prettier](https://prettier.io/docs/en/) is used to format files.
+[Oxlint](https://oxc.rs/docs/guide/usage/linter) v1 (via [MetaMask's shared Oxlint configurations](https://github.com/MetaMask/oxlint-config)) is used to check for code quality issues, and [Oxfmt](https://oxc.rs/docs/guide/usage/formatter) is used to format files.
 
-If you need to customize the behavior of ESLint, see `eslint.config.mjs` in the root.
+If you need to customize the behavior of Oxlint, see `oxlint.config.ts` in the root.
 
 - Run `yarn lint` to lint all files and show possible violations across the monorepo.
 - Run `yarn lint:fix` to fix any automatically fixable violations.

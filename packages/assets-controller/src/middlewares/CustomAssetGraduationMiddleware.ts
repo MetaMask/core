@@ -5,6 +5,7 @@ import { forDataTypes } from '../types.js';
 import type {
   AccountId,
   AssetBalance,
+  AssetsControllerState,
   Caip19AssetId,
   Middleware,
 } from '../types.js';
@@ -17,6 +18,8 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 export type CustomAssetGraduationMiddlewareOptions = {
   getSelectedAccountId: () => AccountId | undefined;
   removeCustomAsset: (accountId: AccountId, assetId: Caip19AssetId) => void;
+  /** Current AssetsController state. Used to read customAssets for the selected account. */
+  getAssetsState: () => AssetsControllerState;
 };
 
 /**
@@ -48,9 +51,12 @@ export class CustomAssetGraduationMiddleware {
     assetId: Caip19AssetId,
   ) => void;
 
+  readonly #getAssetsState: () => AssetsControllerState;
+
   constructor(options: CustomAssetGraduationMiddlewareOptions) {
     this.#getSelectedAccountId = options.getSelectedAccountId;
     this.#removeCustomAsset = options.removeCustomAsset;
+    this.#getAssetsState = options.getAssetsState;
   }
 
   getName(): string {
@@ -69,7 +75,7 @@ export class CustomAssetGraduationMiddleware {
         return next(ctx);
       }
 
-      const state = ctx.getAssetsState();
+      const state = this.#getAssetsState();
       const customForAccount = state.customAssets?.[accountId] ?? [];
       if (customForAccount.length === 0) {
         return next(ctx);

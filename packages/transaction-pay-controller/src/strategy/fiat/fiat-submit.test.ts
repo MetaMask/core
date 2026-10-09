@@ -449,7 +449,7 @@ describe('submitFiatQuotes', () => {
         return { isUnlocked: false };
       }
       if (action === 'TransactionPayController:getFiatOptions') {
-        return undefined;
+        return;
       }
       if (action === 'RampsController:getOrder') {
         return order;
@@ -579,7 +579,7 @@ describe('submitFiatQuotes', () => {
         return { isUnlocked: true };
       }
       if (action === 'TransactionPayController:getFiatOptions') {
-        return undefined;
+        return;
       }
       if (action === 'RampsController:getOrder') {
         return getFiatOrderMock();
@@ -815,7 +815,7 @@ describe('submitFiatQuotes', () => {
       }
 
       if (action === 'TransactionPayController:getFiatOptions') {
-        return undefined;
+        return;
       }
 
       if (action === 'RampsController:getOrder') {
@@ -880,7 +880,7 @@ describe('submitFiatQuotes', () => {
       }
 
       if (action === 'TransactionPayController:getFiatOptions') {
-        return undefined;
+        return;
       }
 
       if (action === 'RampsController:getOrder') {
@@ -959,7 +959,7 @@ describe('submitFiatQuotes', () => {
         };
       }
       if (action === 'TransactionPayController:getFiatOptions') {
-        return undefined;
+        return;
       }
       if (action === 'RampsController:getOrder') {
         return pendingOrder;
@@ -1110,8 +1110,8 @@ describe('submitFiatQuotes', () => {
     const MUSD_TRANSACTION_MOCK = {
       id: TRANSACTION_ID_MOCK,
       nestedTransactions: [
-        { data: '0xoldApprove' as Hex, to: '0xapprove' as Hex },
-        { data: '0xoldDeposit' as Hex, to: '0xdeposit' as Hex },
+        { data: '0xoldApprove', to: '0xapprove' },
+        { data: '0xoldDeposit', to: '0xdeposit' },
       ],
       txParams: { from: MONEY_ACCOUNT_ADDRESS },
       type: 'batch',
@@ -1179,10 +1179,10 @@ describe('submitFiatQuotes', () => {
         transaction: {
           ...MUSD_TRANSACTION_MOCK,
           nestedTransactions: [
-            { data: '0xapprove' as Hex, to: '0xapprove' as Hex },
-            { data: '0xdeposit' as Hex, to: '0xdeposit' as Hex },
+            { data: '0xapprove', to: '0xapprove' },
+            { data: '0xdeposit', to: '0xdeposit' },
           ],
-        } as TransactionMeta,
+        },
       });
 
       const result = await submitFiatQuotes(request);
@@ -1293,7 +1293,7 @@ describe('submitFiatQuotes', () => {
         }
 
         if (action === 'TransactionPayController:getFiatOptions') {
-          return undefined;
+          return;
         }
 
         if (action === 'RampsController:getOrder') {
@@ -1358,7 +1358,7 @@ describe('submitFiatQuotes', () => {
         }
 
         if (action === 'TransactionPayController:getFiatOptions') {
-          return undefined;
+          return;
         }
 
         if (action === 'RampsController:getOrder') {

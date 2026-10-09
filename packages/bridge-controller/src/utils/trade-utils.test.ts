@@ -152,22 +152,18 @@ describe('Trade utils', () => {
 
   describe('isStellarTrade', () => {
     it('returns true for xdrBase64 object', () => {
-      expect(
-        isStellarTrade({ xdrBase64: 'AAAABg==' } as unknown as Trade),
-      ).toBe(true);
+      expect(isStellarTrade({ xdrBase64: 'AAAABg==' })).toBe(true);
     });
 
     it('returns true for xdr object', () => {
-      expect(isStellarTrade({ xdr: 'AAAABg==' } as unknown as Trade)).toBe(
-        true,
-      );
+      expect(isStellarTrade({ xdr: 'AAAABg==' })).toBe(true);
     });
 
     it('returns false for Tron trade', () => {
       expect(
         isStellarTrade({
           raw_data_hex: 'ab',
-        } as unknown as Trade),
+        }),
       ).toBe(false);
     });
   });
@@ -182,7 +178,7 @@ describe('Trade utils', () => {
       expect(
         extractTradeData({
           xdrBase64: 'stellarXdrPayload',
-        } as unknown as Trade),
+        }),
       ).toBe('stellarXdrPayload');
     });
 
@@ -190,7 +186,7 @@ describe('Trade utils', () => {
       expect(
         extractTradeData({
           xdr: 'stellarXdrAlt',
-        } as unknown as Trade),
+        }),
       ).toBe('stellarXdrAlt');
     });
 
