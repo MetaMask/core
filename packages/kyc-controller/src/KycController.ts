@@ -504,25 +504,55 @@ export class KycController extends BaseController<
 
   // TODO: Perhaps this should be renamed to resumeSession()?
   /**
-   * Starts session-status polling when `finalStatus` is still in progress.
+   * Returns the session already stored on state, then refreshes it in the
+   * background.
    *
-   * Returns the session already stored on state. The poll fetches the latest
-   * status and refreshes capability authorization when a changed payload
-   * reports it as `new` or `expired`.
+   * The background work fetches `GET /sessions/{id}/status` and writes it onto
+   * state, then resubmits capability authorization when the fetched status
+   * reports it as `new` or `expired` (skipped when `finalStatus` is `approved`
+   * or `rejected`). It starts session-status polling when the session on state
+   * is still in progress. A fetch or authorization failure is logged and does
+   * not throw from this method.
    *
-   * @returns The persisted session status.
+   * @returns The session status stored at call time.
    * @throws If there is no session on state.
    */
-  async refreshSessionStatus(): Promise<KycSessionStatus> {
+  refreshSessionStatus(): KycSessionStatus {
     if (!this.state.sessionStatus) {
       throw new Error('No session was found');
     }
 
-    if (
-      !FINAL_STATUSES_TO_STOP_POLLING.has(this.state.sessionStatus.finalStatus)
-    ) {
-      this.startSessionStatusPolling();
-    }
+    // TODO: Clean this up after have a established a pattern for resuming
+    // Purposely not awaiting this
+    (async () => {
+      // Unreachable: the caller already returned when no session is stored.
+      /* istanbul ignore if */
+      if (!this.state.sessionStatus) {
+        throw new Error('No session was found');
+      }
+      try {
+        const sessionStatus = await this.messenger.call(
+          'KycService:getSessionStatus',
+          { sessionId: this.state.sessionStatus.id },
+        );
+
+        this.update((state) => {
+          state.sessionStatus = sessionStatus;
+        });
+        // TODO: Should we resume polling here?
+        await this.#refreshAuthorizationsIfNeeded();
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error refreshing session status:', error);
+      }
+      if (
+        !FINAL_STATUSES_TO_STOP_POLLING.has(
+          this.state.sessionStatus.finalStatus,
+        )
+      ) {
+        this.startSessionStatusPolling();
+      }
+    })();
     return this.state.sessionStatus;
   }
 
@@ -559,11 +589,9 @@ export class KycController extends BaseController<
   /**
    * Starts polling `GET /sessions/{id}/status` for
    * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
-   * the result onto state only when the payload changed, and then refreshes
-   * capability authorization when that payload reports it as `new` or
-   * `expired`. A refresh failure is logged and does not stop the loop. The
-   * loop stops once `finalStatus` is `approved`, `rejected`, or `retry`, or
-   * when {@link reset} / {@link clearState} runs.
+   * the result onto state only when the payload changed. The loop stops once
+   * `finalStatus` is `approved`, `rejected`, or `retry`, or when {@link reset}
+   * / {@link clearState} runs.
    *
    * @throws If there is no current session id to poll.
    */
@@ -623,14 +651,6 @@ export class KycController extends BaseController<
         this.update((state) => {
           state.sessionStatus = sessionStatus;
         });
-
-        // TODO: Once we have a established a pattern for resuming, move this logic out
-        // of the polling loop
-        try {
-          await this.#refreshAuthorizationsIfNeeded();
-        } catch (error) {
-          console.error('Error refreshing authorizations', error);
-        }
       }
 
       if (FINAL_STATUSES_TO_STOP_POLLING.has(sessionStatus.finalStatus)) {

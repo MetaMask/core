@@ -60,13 +60,17 @@ export type KycControllerGetProviderFlowStatusAction = {
 };
 
 /**
- * Starts session-status polling when `finalStatus` is still in progress.
+ * Returns the session already stored on state, then refreshes it in the
+ * background.
  *
- * Returns the session already stored on state. The poll fetches the latest
- * status and refreshes capability authorization when a changed payload
- * reports it as `new` or `expired`.
+ * The background work fetches `GET /sessions/{id}/status` and writes it onto
+ * state, then resubmits capability authorization when the fetched status
+ * reports it as `new` or `expired` (skipped when `finalStatus` is `approved`
+ * or `rejected`). It starts session-status polling when the session on state
+ * is still in progress. A fetch or authorization failure is logged and does
+ * not throw from this method.
  *
- * @returns The persisted session status.
+ * @returns The session status stored at call time.
  * @throws If there is no session on state.
  */
 export type KycControllerRefreshSessionStatusAction = {
@@ -102,11 +106,9 @@ export type KycControllerFetchSessionStatusOnceAction = {
 /**
  * Starts polling `GET /sessions/{id}/status` for
  * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
- * the result onto state only when the payload changed, and then refreshes
- * capability authorization when that payload reports it as `new` or
- * `expired`. A refresh failure is logged and does not stop the loop. The
- * loop stops once `finalStatus` is `approved`, `rejected`, or `retry`, or
- * when {@link reset} / {@link clearState} runs.
+ * the result onto state only when the payload changed. The loop stops once
+ * `finalStatus` is `approved`, `rejected`, or `retry`, or when {@link reset}
+ * / {@link clearState} runs.
  *
  * @throws If there is no current session id to poll.
  */
