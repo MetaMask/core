@@ -3581,6 +3581,53 @@ describe('TradingService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Order rejected');
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Order rejected' }),
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            feature: 'perps',
+            operation: 'position_management',
+            action: 'flip_position',
+          }),
+          context: {
+            name: 'TradingService',
+            data: expect.objectContaining({
+              method: 'flipPosition',
+              symbol: 'BTC',
+              providerError: 'Order rejected',
+            }),
+          },
+        }),
+      );
+    });
+
+    it.each([
+      PERPS_ERROR_CODES.KEYRING_LOCKED,
+      PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+    ])('does not log a resolved flip failure for %s', async (errorCode) => {
+      mockProvider.placeOrder.mockResolvedValue({
+        success: false,
+        error: errorCode,
+      });
+
+      const result = await tradingService.flipPosition({
+        provider: mockProvider,
+        position: mockPosition,
+        context: mockContext,
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: errorCode,
+      });
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.TradeTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          error_message: errorCode,
+        }),
+      );
     });
 
     it('tracks analytics on success', async () => {
@@ -3869,6 +3916,23 @@ describe('TradingService', () => {
             asset: 'BTC',
             error_message: 'insufficient margin',
             reduce_only: false,
+          }),
+        );
+        expect(mockDeps.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'insufficient margin' }),
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              feature: 'perps',
+              operation: 'position_management',
+              action: 'flip_position',
+            }),
+            context: {
+              name: 'TradingService',
+              data: expect.objectContaining({
+                method: 'flipPosition',
+                symbol: 'BTC',
+              }),
+            },
           }),
         );
       });

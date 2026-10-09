@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Log deposit transaction failures that reject after confirmation, for both deposit-only and deposit-and-order, with `financial_operations` / `financial_deposit` tags, and leave user cancellation unlogged ([#10681](https://github.com/MetaMask/core/pull/10681))
+- Log flip results that resolve `success: false` with `position_management` / `flip_position` tags, and leave `KEYRING_LOCKED` and `EXCHANGE_ACCOUNT_NOT_FOUND` unlogged ([#10681](https://github.com/MetaMask/core/pull/10681))
 
 ## [20.0.0]
 
