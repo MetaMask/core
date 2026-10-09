@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added exported `KYC_STATUSES` and `TERMINAL_SESSION_STATUSES`, so consumers can reuse the KYC status vocabulary and the terminal session-status set (`approved`, `rejected`, `retry`) from the package entry point instead of redefining them locally
+- Added exported `KYC_STATUSES` and `TERMINAL_SESSION_STATUSES`, so consumers can reuse the KYC status vocabulary and the terminal session-status set (`approved`, `rejected`, `retry`) from the package entry point instead of redefining them locally ([#10771](https://github.com/MetaMask/core/pull/10771))
 
 ### Changed
 
