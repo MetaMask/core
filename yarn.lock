@@ -1932,20 +1932,20 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@contentful/rich-text-html-renderer@npm:^16.5.2":
-  version: 16.6.9
-  resolution: "@contentful/rich-text-html-renderer@npm:16.6.9"
+"@contentful/rich-text-html-renderer@npm:^16.6.10":
+  version: 16.6.10
+  resolution: "@contentful/rich-text-html-renderer@npm:16.6.10"
   dependencies:
-    "@contentful/rich-text-types": "npm:^16.8.4"
+    "@contentful/rich-text-types": "npm:^16.8.5"
     escape-html: "npm:^1.0.3"
-  checksum: 10/10bdcee4c01b89e5ab54ccab592bad7d3658fdd32ee58e2d5d18628a59ca47c7393c8dec41e96172b4c171f7fb4d2d1d6b9da9d6eeebbe5ed83fc3de8c4c0c89
+  checksum: 10/fdf5121524355c96cd8a4628b2cc50a61b9b9d37da167dd983cc8fa24fa822427809d00064ebca9b85b8f40d92719f0b86f0e4ea4eaa8d078656ed56c51df6bb
   languageName: node
   linkType: hard
 
-"@contentful/rich-text-types@npm:^16.8.4":
-  version: 16.8.4
-  resolution: "@contentful/rich-text-types@npm:16.8.4"
-  checksum: 10/22e0a165545f32cc51d1e6231a9e7b617af98c452ecfb28ace9ba8a53b89bb2d940019ffae00ef2bc77c998630a66bfc88d01031e732afb11172f877064aa5b2
+"@contentful/rich-text-types@npm:^16.8.5":
+  version: 16.8.5
+  resolution: "@contentful/rich-text-types@npm:16.8.5"
+  checksum: 10/7c1ec7088cc39bbd8f5edc14867ed3d59d06a55f2c92e6c62913aa2312056e920528e6ca6d59780b32c6fe2ab89c429b9f0bce9a52f456be7260f458527ccc3b
   languageName: node
   linkType: hard
 
@@ -7838,7 +7838,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/notification-services-controller@workspace:packages/notification-services-controller"
   dependencies:
-    "@contentful/rich-text-html-renderer": "npm:^16.5.2"
+    "@contentful/rich-text-html-renderer": "npm:^16.6.10"
     "@lavamoat/allow-scripts": "npm:^5.1.0"
     "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
     "@metamask/authenticated-user-storage": "npm:^4.1.0"
