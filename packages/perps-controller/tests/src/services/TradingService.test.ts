@@ -2362,6 +2362,7 @@ describe('TradingService', () => {
       });
 
       expect(result).toEqual(mockFailureResult);
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'Insufficient liquidity' }),
         expect.objectContaining({

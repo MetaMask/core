@@ -1678,6 +1678,14 @@ class LighterAccountNotFoundError extends Error {
   }
 }
 
+const SILENT_LIGHTER_TRADING_ERRORS = new Set<string>([
+  PERPS_ERROR_CODES.ORDER_MARGIN_MODE_INVALID,
+  PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID,
+  PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
+  'A partial protection size requires its trigger price',
+  'Lighter margin adjustment requires exact micro-USDC precision',
+]);
+
 /**
  * Session-bound work stopped because the provider disconnected or the wallet
  * switched accounts while it ran.
@@ -1977,8 +1985,8 @@ export class LighterProvider implements PerpsProvider {
    * Forward a failed trading operation to the platform logger without
    * classifying or rewriting the provider error.
    *
-   * Retryable keyring/session failures and local intent validation remain
-   * caller-visible but are not reported.
+   * Retryable keyring/session failures, missing accounts, and local intent
+   * validation remain caller-visible but are not reported.
    *
    * @param error - The provider or venue failure.
    * @param method - The provider method that failed.
@@ -1993,13 +2001,11 @@ export class LighterProvider implements PerpsProvider {
     extra?: Record<string, unknown>,
   ): Error => {
     const wrappedError = ensureError(error, `LighterProvider.${method}`);
-    const isLocalValidationError =
-      wrappedError.message === PERPS_ERROR_CODES.ORDER_MARGIN_MODE_INVALID ||
-      wrappedError.message === PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID;
     if (
       !isKeyringLockedError(wrappedError) &&
       !(wrappedError instanceof LighterSessionCancelledError) &&
-      !isLocalValidationError
+      !(wrappedError instanceof LighterAccountNotFoundError) &&
+      !SILENT_LIGHTER_TRADING_ERRORS.has(wrappedError.message)
     ) {
       this.#deps.logger.error(
         wrappedError,
@@ -11134,6 +11140,7 @@ export class LighterProvider implements PerpsProvider {
   async placeOrder(
     input: OrderParams,
     inheritedGeneration?: number,
+    reportFailure = true,
   ): Promise<OrderResult> {
     const params = { ...input };
     if (
@@ -11749,18 +11756,20 @@ export class LighterProvider implements PerpsProvider {
         providerId: 'lighter',
       };
     } catch (caughtError) {
-      const wrappedError = this.#reportTradingError(
-        caughtError,
-        'placeOrder',
-        {
-          operation: PERPS_ERROR_OPERATION.OrderManagement,
-          action: PERPS_ERROR_ACTION.PlaceOrder,
-        },
-        {
-          symbol: params.symbol,
-          orderType: params.orderType,
-        },
-      );
+      const wrappedError = reportFailure
+        ? this.#reportTradingError(
+            caughtError,
+            'placeOrder',
+            {
+              operation: PERPS_ERROR_OPERATION.OrderManagement,
+              action: PERPS_ERROR_ACTION.PlaceOrder,
+            },
+            {
+              symbol: params.symbol,
+              orderType: params.orderType,
+            },
+          )
+        : ensureError(caughtError, 'LighterProvider.placeOrder');
       this.#deps.debugLogger.log('[LighterProvider] placeOrder failed', {
         error: String(wrappedError),
         ...this.#getErrorContext('placeOrder', { symbol: params.symbol }),
@@ -14259,6 +14268,7 @@ export class LighterProvider implements PerpsProvider {
           maxSlippageBps: params.maxSlippageBps,
         },
         generationAtIntent,
+        false,
       );
     } catch (error) {
       const wrappedError = ensureError(error, 'LighterProvider.closePosition');

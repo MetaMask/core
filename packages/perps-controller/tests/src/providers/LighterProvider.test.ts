@@ -3557,7 +3557,12 @@ describe('LighterProvider', () => {
     ])(
       'refuses displayed Scale preview drift in %s before signer or financial writes',
       async (_name, changes) => {
-        const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+        const deps = createMockInfrastructure();
+        const built = buildProvider({
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: deps,
+        });
+        const logError = getLoggerErrorMock(deps);
         scaleVenue(built);
         const preview = await built.provider.getScalePriceLadder({
           symbol: 'BTC',
@@ -3588,6 +3593,7 @@ describe('LighterProvider', () => {
         });
         expect(built.calls).toStrictEqual([]);
         expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(logError).not.toHaveBeenCalled();
       },
     );
 
@@ -10054,6 +10060,42 @@ describe('LighterProvider', () => {
       });
       expect(logError).not.toHaveBeenCalled();
     });
+
+    it.each(['api-error', 'empty-response'] as const)(
+      'does not report an address-bearing account-not-found %s',
+      async (response) => {
+        const deps = createMockInfrastructure();
+        const { provider, clientInstance } = buildProvider({
+          configuredAccountIndex: null,
+          registeredKey: '9c'.repeat(40),
+          platformDependencies: deps,
+        });
+        const logError = getLoggerErrorMock(deps);
+        if (response === 'api-error') {
+          clientInstance.getAccountsByL1Address.mockRejectedValue(
+            new LighterApiError('account not found', 21100),
+          );
+        } else {
+          clientInstance.getAccountsByL1Address.mockResolvedValue({
+            code: 200,
+            l1Address: ACCOUNT.l1Address,
+            subAccounts: [],
+          });
+        }
+
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit',
+          price: '90000',
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('No Lighter account exists');
+        expect(logError).not.toHaveBeenCalled();
+      },
+    );
 
     it('does not claim or send an isolated-margin update when leverage is omitted', async () => {
       const { provider, calls } = buildProvider();
@@ -16796,7 +16838,9 @@ describe('LighterProvider', () => {
     it.each(['takeProfitSize', 'stopLossSize'] as const)(
       'rejects a price-less partial %s without setup',
       async (field) => {
-        const built = buildProvider();
+        const deps = createMockInfrastructure();
+        const built = buildProvider({ platformDependencies: deps });
+        const logError = getLoggerErrorMock(deps);
         const result = await built.provider.updatePositionTPSL({
           symbol: 'BTC',
           [field]: '0.03',
@@ -16807,6 +16851,7 @@ describe('LighterProvider', () => {
         );
         expect(built.calls).toHaveLength(0);
         expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
+        expect(logError).not.toHaveBeenCalled();
       },
     );
 
@@ -24058,7 +24103,11 @@ describe('LighterProvider', () => {
       );
 
       it('refuses fractional micro-USDC rather than signing rounded collateral', async () => {
-        const { provider, clientInstance, calls } = buildProvider();
+        const deps = createMockInfrastructure();
+        const { provider, clientInstance, calls } = buildProvider({
+          platformDependencies: deps,
+        });
+        const logError = getLoggerErrorMock(deps);
         clientInstance.getAccountByIndex.mockResolvedValue({
           code: 200,
           accounts: [
@@ -24079,6 +24128,7 @@ describe('LighterProvider', () => {
             .success,
         ).toBe(false);
         expect(calls).toHaveLength(0);
+        expect(logError).not.toHaveBeenCalled();
       });
 
       it('reports exact failed margin execution without claiming success or pending acceptance', async () => {
@@ -26036,6 +26086,25 @@ describe('LighterProvider', () => {
   });
 
   describe('closePosition semantics', () => {
+    it('leaves delegated placement failure reporting to the close service', async () => {
+      const deps = createMockInfrastructure();
+      const { provider, clientInstance } = buildProvider({
+        platformDependencies: deps,
+      });
+      const logError = getLoggerErrorMock(deps);
+      clientInstance.sendTx.mockRejectedValueOnce(
+        new Error('Lighter close venue unavailable'),
+      );
+
+      const result = await provider.closePosition({ symbol: 'BTC' });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: 'Lighter close venue unavailable',
+      });
+      expect(logError).not.toHaveBeenCalled();
+    });
+
     it('routes a limit close with the requested price, not a market order', async () => {
       const { provider, calls } = buildProvider();
       const result = await provider.closePosition({
