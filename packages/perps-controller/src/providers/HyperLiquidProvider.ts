@@ -749,6 +749,12 @@ type BuilderFeeSetupContext = {
   builderAddress: string;
 };
 
+type AccountSupportContext = {
+  lifecycleGeneration: number;
+  network: 'testnet' | 'mainnet';
+  userAddress: string;
+};
+
 /**
  * Classify one entry of a cancel response.
  *
@@ -2882,10 +2888,11 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async #isHyperliquidMultiSigAccount(
     userAddress: string,
-    infoClient = this.#clientService.getInfoClient(),
+    infoClient?: InfoClient,
   ): Promise<boolean | undefined> {
     try {
-      const signers = await infoClient.userToMultiSigSigners({
+      const reader = infoClient ?? this.#clientService.getInfoClient();
+      const signers = await reader.userToMultiSigSigners({
         user: userAddress,
       });
       return signers !== null && signers !== undefined;
@@ -2902,6 +2909,24 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
       return undefined;
     }
+  }
+
+  #getAccountSupportCacheKey(
+    network: 'mainnet' | 'testnet',
+    userAddress: string,
+  ): string {
+    return `${network}:${userAddress.toLowerCase()}`;
+  }
+
+  #recordAccountSupport(
+    network: 'mainnet' | 'testnet',
+    userAddress: string,
+    support: PerpsAccountSupport,
+  ): void {
+    this.#accountSupportByContext.set(
+      this.#getAccountSupportCacheKey(network, userAddress),
+      Promise.resolve(support),
+    );
   }
 
   /**
@@ -2924,7 +2949,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const network =
       context?.network ??
       (this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet');
-    const cacheKey = `${network}:${userAddress.toLowerCase()}`;
+    const cacheKey = this.#getAccountSupportCacheKey(network, userAddress);
     const cachedSupport = this.#accountSupportByContext.get(cacheKey);
     if (cachedSupport) {
       return cachedSupport;
@@ -2939,32 +2964,75 @@ export class HyperLiquidProvider implements PerpsProvider {
         isMultiSig
           ? { isSupported: false, reason: 'multi_sig_account' }
           : { isSupported: true },
+      (): PerpsAccountSupport => ({ isSupported: true }),
     );
     this.#accountSupportByContext.set(cacheKey, support);
 
     probe
-      .then((isMultiSig) => {
-        if (
-          isMultiSig === undefined &&
-          this.#accountSupportByContext.get(cacheKey) === support
-        ) {
-          this.#accountSupportByContext.delete(cacheKey);
-        }
-      })
+      .then(
+        (isMultiSig) => {
+          if (
+            isMultiSig === undefined &&
+            this.#accountSupportByContext.get(cacheKey) === support
+          ) {
+            this.#accountSupportByContext.delete(cacheKey);
+          }
+        },
+        () => {
+          if (this.#accountSupportByContext.get(cacheKey) === support) {
+            this.#accountSupportByContext.delete(cacheKey);
+          }
+        },
+      )
       .catch(() => undefined);
 
     return support;
   }
 
+  async #assertAccountContextCurrent(
+    context: AccountSupportContext,
+    operation: string,
+  ): Promise<void> {
+    this.#assertProviderLifecycleCurrent(
+      context.lifecycleGeneration,
+      operation,
+    );
+    const currentAddress = await this.#walletService
+      .getUserAddressWithDefault()
+      .catch(() => undefined);
+    this.#assertProviderLifecycleCurrent(
+      context.lifecycleGeneration,
+      operation,
+    );
+    const currentNetwork = this.#clientService.isTestnetMode()
+      ? 'testnet'
+      : 'mainnet';
+    if (
+      currentAddress?.toLowerCase() !== context.userAddress.toLowerCase() ||
+      currentNetwork !== context.network
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+  }
+
   /**
    * Stop an action before signing when Hyperliquid reports a native multi-sig
    * signer set for the active account.
+   *
+   * @returns The account context whose support was checked.
    */
-  async #assertAccountSupported(): Promise<void> {
-    const support = await this.#getAccountSupportForContext();
+  async #assertAccountSupported(): Promise<AccountSupportContext> {
+    const context: AccountSupportContext = {
+      lifecycleGeneration: this.#lifecycleGeneration,
+      network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
+      userAddress: await this.#walletService.getUserAddressWithDefault(),
+    };
+    const support = await this.#getAccountSupportForContext(context);
+    await this.#assertAccountContextCurrent(context, 'Account support check');
     if (!support.isSupported) {
       throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
     }
+    return context;
   }
 
   /**
@@ -3285,6 +3353,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           '[ensureUnifiedAccountEnabled] Multi-sig account (race/probe fallback), skipping unified account migration',
           { user: userAddress, network, mode: currentMode },
         );
+        this.#recordAccountSupport(network, userAddress, {
+          isSupported: false,
+          reason: 'multi_sig_account',
+        });
         this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
           ...(currentMode && {
             [PERPS_EVENT_PROPERTY.PREVIOUS_ABSTRACTION_MODE]: currentMode,
@@ -3629,12 +3701,13 @@ export class HyperLiquidProvider implements PerpsProvider {
   }): Promise<BuilderFeeSetupContext | undefined> {
     // First ensure basic initialization is complete
     await this.#ensureReady();
-    await this.#assertAccountSupported();
+    const accountContext = await this.#assertAccountSupported();
 
     // The migration was deferred during init to avoid a signing prompt on
     // Perps section open. Drive it here, gated by its own cache so
     // already-migrated users are not re-prompted.
     await this.#ensureUnifiedAccountEnabled({ allowUserSigning: true });
+    await this.#assertAccountContextCurrent(accountContext, 'Trading setup');
 
     // Reset right before the check, with no await in between, so a failure
     // above does not leave the setup for an order to run.
@@ -3696,6 +3769,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const builderFeeSetupContext = options.requiresBuilderFee
       ? await this.#ensureBuilderFeeSetup(options.builderFeeApprovalFailureCode)
       : undefined;
+    await this.#assertAccountContextCurrent(accountContext, 'Trading setup');
 
     this.#deps.debugLogger.log(
       '[ensureReadyForTrading] Trading setup complete',
@@ -12253,6 +12327,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Ensure provider is ready
       await this.#ensureReady();
+      const accountContext = await this.#assertAccountSupported();
 
       // Use the target DEX's current slice or one targeted HTTP read before
       // deriving the position side.
@@ -12301,6 +12376,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       // Call SDK to update isolated margin
+      await this.#assertAccountContextCurrent(accountContext, 'Margin update');
       const exchangeClient = this.#clientService.getExchangeClient();
       const result = await exchangeClient.updateIsolatedMargin({
         asset: assetId,
@@ -15166,7 +15242,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Step 4: Ensure client is ready
       this.#deps.debugLogger.log('HyperLiquidProvider: ENSURING CLIENT READY');
       await this.#ensureReady();
-      await this.#assertAccountSupported();
+      const accountContext = await this.#assertAccountSupported();
       await this.#ensureUnifiedAccountEnabled({ allowUserSigning: true });
       const exchangeClient = this.#clientService.getExchangeClient();
       this.#deps.debugLogger.log('HyperLiquidProvider: CLIENT READY');
@@ -15231,6 +15307,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         timestamp: new Date().toISOString(),
       });
 
+      await this.#assertAccountContextCurrent(accountContext, 'Withdrawal');
       const result = await exchangeClient.withdraw3({
         destination,
         amount: params.amount,
@@ -15353,14 +15430,13 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error('Source and destination DEX must be different');
       }
 
-      // Get user address
-      const userAddress = await this.#walletService.getUserAddressWithDefault();
+      // Ensure client ready
+      await this.#ensureReady();
+      const accountContext = await this.#assertAccountSupported();
+      const { userAddress } = accountContext;
       this.#deps.debugLogger.log('HyperLiquidProvider: USER ADDRESS', {
         userAddress,
       });
-
-      // Ensure client ready
-      await this.#ensureReady();
       const exchangeClient = this.#clientService.getExchangeClient();
 
       // Execute transfer using SDK sendAsset()
@@ -15374,6 +15450,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         },
       );
 
+      await this.#assertAccountContextCurrent(accountContext, 'DEX transfer');
       const result = await exchangeClient.sendAsset({
         destination: userAddress,
         sourceDex: params.sourceDex,

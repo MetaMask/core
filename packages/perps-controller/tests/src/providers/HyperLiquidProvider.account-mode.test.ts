@@ -406,6 +406,44 @@ describe('HyperLiquidProvider', () => {
       expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(2);
     });
 
+    it('retries support checks after the info client becomes available', async () => {
+      const reconnectingProvider = createTestProvider({
+        hip3Enabled: true,
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['ETH', 1],
+        ],
+      });
+      await reconnectingProvider.getAccountSupport();
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      );
+      const recoveredInfoClient = createMockInfoClient({
+        userToMultiSigSigners: jest.fn().mockResolvedValue({
+          authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+          threshold: 1,
+        }),
+      });
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error(PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED);
+        })
+        .mockReturnValue(recoveredInfoClient);
+
+      const firstResult = await reconnectingProvider.getAccountSupport();
+      const secondResult = await reconnectingProvider.getAccountSupport();
+
+      expect(firstResult).toEqual({ isSupported: true });
+      expect(secondResult).toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      expect(recoveredInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+
     it('blocks order signing for an unsupported account', async () => {
       const exchangeClient = createMockExchangeClient();
       mockClientService.getExchangeClient = jest
@@ -454,6 +492,75 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(exchangeClient.withdraw3).not.toHaveBeenCalled();
+    });
+
+    it('blocks an action when the selected account changes during its support check', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const exchangeClient = createMockExchangeClient();
+      let resolveProbe!: (value: null) => void;
+      let markProbeStarted!: () => void;
+      const probeResult = new Promise<null>((resolve) => {
+        resolveProbe = resolve;
+      });
+      const probeStarted = new Promise<void>((resolve) => {
+        markProbeStarted = resolve;
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockImplementation(() => {
+        markProbeStarted();
+        return probeResult;
+      });
+
+      const withdrawal = provider.withdraw({
+        amount: '100',
+        destination: '0x1234567890123456789012345678901234567890' as Hex,
+        assetId:
+          'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+      });
+      await probeStarted;
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        switchedAddress,
+      );
+      resolveProbe(null);
+
+      await expect(withdrawal).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(exchangeClient.withdraw3).not.toHaveBeenCalled();
+    });
+
+    it('blocks margin and DEX-transfer signing for an unsupported account', async () => {
+      const exchangeClient = createMockExchangeClient();
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+        authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+        threshold: 1,
+      });
+
+      await expect(
+        provider.updateMargin({ symbol: 'BTC', amount: '-1' }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      await expect(
+        provider.transferBetweenDexs({
+          sourceDex: '',
+          destinationDex: 'xyz',
+          amount: '10',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      expect(exchangeClient.updateIsolatedMargin).not.toHaveBeenCalled();
+      expect(exchangeClient.sendAsset).not.toHaveBeenCalled();
     });
   });
 
@@ -1787,6 +1894,22 @@ describe('HyperLiquidProvider', () => {
         attempted: true,
         enabled: false,
       });
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      await expect(
+        provider.withdraw({
+          amount: '100',
+          destination: USER_ADDRESS as Hex,
+          assetId:
+            'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      expect(mockExchangeClient.withdraw3).not.toHaveBeenCalled();
     });
 
     it('still migrates single-signer accounts when the multi-sig probe fails', async () => {
