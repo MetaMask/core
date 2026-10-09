@@ -1,4 +1,5 @@
-import { createEnum, EnumValue } from './enum.js';
+import { createEnum } from './enum.js';
+import type { EnumValue } from './enum.js';
 
 /**
  * Common duration constants, in milliseconds.

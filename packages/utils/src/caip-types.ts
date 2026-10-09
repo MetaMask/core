@@ -1,6 +1,7 @@
 import type { Infer } from '@metamask/superstruct';
 
-import { createEnum, EnumValue } from './enum.js';
+import { createEnum } from './enum.js';
+import type { EnumValue } from './enum.js';
 import { definePattern } from './superstruct.js';
 
 export const CAIP_CHAIN_ID_REGEX =

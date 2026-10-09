@@ -2,7 +2,8 @@
 // Types
 //
 
-import { createEnum, EnumValue } from './enum.js';
+import { createEnum } from './enum.js';
+import type { EnumValue } from './enum.js';
 
 /**
  * Makes every specified property of the specified object type mutable.
