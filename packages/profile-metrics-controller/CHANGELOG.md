@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
 - Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+- Bump `@metamask/snaps-utils` from `^12.1.2` to `^12.6.1` ([#10738](https://github.com/MetaMask/core/pull/10738))
 
 ## [5.1.3]
 
