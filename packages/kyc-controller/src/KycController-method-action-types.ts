@@ -60,10 +60,13 @@ export type KycControllerGetProviderFlowStatusAction = {
 };
 
 /**
- * Returns the current session status and starts polling when it is not yet
- * terminal.
+ * Returns the session already stored on state.
  *
- * @returns The current session status.
+ * Starts session-status polling when `finalStatus` is not `approved`,
+ * `rejected`, or `retry`. Does not fetch status or refresh capability
+ * authorization.
+ *
+ * @returns The session status stored at call time.
  * @throws If there is no session on state.
  */
 export type KycControllerRefreshSessionStatusAction = {
@@ -99,9 +102,11 @@ export type KycControllerFetchSessionStatusOnceAction = {
 /**
  * Starts polling `GET /sessions/{id}/status` for
  * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
- * the result onto state only when the payload changed. The loop stops once
- * `finalStatus` is `approved`, `rejected`, or `retry`, or when
- * {@link reset} / {@link clearState} runs.
+ * the result onto state only when the payload changed. The first poll runs
+ * immediately. Each later wait starts at 10 seconds and grows by 10 seconds
+ * after every poll, including a failed one. Starting the loop again resets
+ * that delay. The loop stops once `finalStatus` is `approved`, `rejected`,
+ * or `retry`, or when {@link reset} / {@link clearState} runs.
  *
  * @throws If there is no current session id to poll.
  */

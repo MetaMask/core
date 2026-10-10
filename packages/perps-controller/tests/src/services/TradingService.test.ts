@@ -1074,14 +1074,19 @@ describe('TradingService', () => {
           name: expect.any(String),
           id: 'mock-trace-id',
           tags: expect.objectContaining({
-            payment_token: 'perps_balance',
+            pay_token_symbol: 'perps_balance',
           }),
         }),
       );
-      expect(mockDeps.tracer.endTrace).toHaveBeenCalled();
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'ok',
+          data: expect.objectContaining({ success: true }),
+        }),
+      );
     });
 
-    it('adds payment_token tag for order trace (perps_balance when not tradeWithToken)', async () => {
+    it('adds pay_token_symbol tag for order trace (perps_balance when not tradeWithToken)', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',
         isBuy: true,
@@ -1108,13 +1113,13 @@ describe('TradingService', () => {
       expect(mockDeps.tracer.trace).toHaveBeenCalledWith(
         expect.objectContaining({
           tags: expect.objectContaining({
-            payment_token: 'perps_balance',
+            pay_token_symbol: 'perps_balance',
           }),
         }),
       );
     });
 
-    it('adds payment_token tag for order trace (token symbol when tradeWithToken)', async () => {
+    it('adds pay_token_symbol tag for order trace (token symbol when tradeWithToken)', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',
         isBuy: true,
@@ -1148,7 +1153,7 @@ describe('TradingService', () => {
       expect(mockDeps.tracer.trace).toHaveBeenCalledWith(
         expect.objectContaining({
           tags: expect.objectContaining({
-            payment_token: 'ETH',
+            pay_token_symbol: 'ETH',
           }),
         }),
       );
@@ -1179,6 +1184,12 @@ describe('TradingService', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe('Insufficient margin');
       expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalled();
+      expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'error',
+          data: expect.objectContaining({ success: false }),
+        }),
+      );
     });
 
     it('handles provider exception during order placement', async () => {
@@ -1611,9 +1622,18 @@ describe('TradingService', () => {
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'Order already filled' }),
         expect.objectContaining({
-          controller: 'TradingService',
-          method: 'cancelOrder',
-          symbol: 'BTC',
+          tags: expect.objectContaining({
+            feature: 'perps',
+            operation: 'order_management',
+            action: 'cancel_order',
+          }),
+          context: {
+            name: 'TradingService',
+            data: expect.objectContaining({
+              method: 'cancelOrder',
+              symbol: 'BTC',
+            }),
+          },
         }),
       );
     });
@@ -1933,14 +1953,22 @@ describe('TradingService', () => {
           new Error(
             'cancelOrders batch failure: 2/2 failed (2 reported) - BTC/order-1: rate limit; ETH/order-2: not found',
           ),
-          {
-            controller: 'TradingService',
-            method: 'cancelOrders',
-            successCount: 0,
-            failureCount: 2,
-            reportedFailureCount: 2,
-            cancelAll: true,
-          },
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              operation: 'order_management',
+              action: 'cancel_order',
+            }),
+            context: {
+              name: 'TradingService',
+              data: expect.objectContaining({
+                method: 'cancelOrders',
+                successCount: 0,
+                failureCount: 2,
+                reportedFailureCount: 2,
+                cancelAll: true,
+              }),
+            },
+          }),
         ],
       ]);
     });
@@ -2036,14 +2064,22 @@ describe('TradingService', () => {
           new Error(
             'cancelOrders batch failure: 2/2 failed (1 reported) - ETH/order-2: rate limit',
           ),
-          {
-            controller: 'TradingService',
-            method: 'cancelOrders',
-            successCount: 0,
-            failureCount: 2,
-            reportedFailureCount: 1,
-            cancelAll: true,
-          },
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              operation: 'order_management',
+              action: 'cancel_order',
+            }),
+            context: {
+              name: 'TradingService',
+              data: expect.objectContaining({
+                method: 'cancelOrders',
+                successCount: 0,
+                failureCount: 2,
+                reportedFailureCount: 1,
+                cancelAll: true,
+              }),
+            },
+          }),
         ],
       ]);
     });
@@ -2406,12 +2442,21 @@ describe('TradingService', () => {
       });
 
       expect(result).toEqual(mockFailureResult);
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'Insufficient liquidity' }),
         expect.objectContaining({
-          controller: 'TradingService',
-          method: 'closePosition',
-          symbol: 'BTC',
+          tags: expect.objectContaining({
+            operation: 'position_management',
+            action: 'close_position',
+          }),
+          context: {
+            name: 'TradingService',
+            data: expect.objectContaining({
+              method: 'closePosition',
+              symbol: 'BTC',
+            }),
+          },
         }),
       );
     });
@@ -2746,15 +2791,23 @@ describe('TradingService', () => {
           new Error(
             'closePositions batch failure: 2/2 failed (2 reported) - BTC: insufficient liquidity; ETH: min size',
           ),
-          {
-            controller: 'TradingService',
-            method: 'closePositions',
-            successCount: 0,
-            failureCount: 2,
-            reportedFailureCount: 2,
-            symbols: 0,
-            closeAll: true,
-          },
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              operation: 'position_management',
+              action: 'close_position',
+            }),
+            context: {
+              name: 'TradingService',
+              data: expect.objectContaining({
+                method: 'closePositions',
+                successCount: 0,
+                failureCount: 2,
+                reportedFailureCount: 2,
+                symbols: 0,
+                closeAll: true,
+              }),
+            },
+          }),
         ],
       ]);
     });
@@ -2826,15 +2879,23 @@ describe('TradingService', () => {
           new Error(
             'closePositions batch failure: 2/2 failed (1 reported) - ETH: min size',
           ),
-          {
-            controller: 'TradingService',
-            method: 'closePositions',
-            successCount: 0,
-            failureCount: 2,
-            reportedFailureCount: 1,
-            symbols: 0,
-            closeAll: true,
-          },
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              operation: 'position_management',
+              action: 'close_position',
+            }),
+            context: {
+              name: 'TradingService',
+              data: expect.objectContaining({
+                method: 'closePositions',
+                successCount: 0,
+                failureCount: 2,
+                reportedFailureCount: 1,
+                symbols: 0,
+                closeAll: true,
+              }),
+            },
+          }),
         ],
       ]);
     });
@@ -3231,9 +3292,17 @@ describe('TradingService', () => {
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'TPSL provider failure' }),
         expect.objectContaining({
-          controller: 'TradingService',
-          method: 'updatePositionTPSL',
-          symbol: 'BTC',
+          tags: expect.objectContaining({
+            operation: 'position_management',
+            action: 'position_tpsl_update',
+          }),
+          context: {
+            name: 'TradingService',
+            data: expect.objectContaining({
+              method: 'updatePositionTPSL',
+              symbol: 'BTC',
+            }),
+          },
         }),
       );
     });
@@ -3581,6 +3650,7 @@ describe('TradingService', () => {
         size: '1',
         orderType: 'market',
         leverage: 10,
+        deferProviderErrorReport: true,
       });
       expect(mockProvider.placeOrder).not.toHaveBeenCalledWith(
         expect.objectContaining({
@@ -3604,6 +3674,53 @@ describe('TradingService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Order rejected');
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Order rejected' }),
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            feature: 'perps',
+            operation: 'position_management',
+            action: 'flip_position',
+          }),
+          context: {
+            name: 'TradingService',
+            data: expect.objectContaining({
+              method: 'flipPosition',
+              symbol: 'BTC',
+              providerError: 'Order rejected',
+            }),
+          },
+        }),
+      );
+    });
+
+    it.each([
+      PERPS_ERROR_CODES.KEYRING_LOCKED,
+      PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+    ])('does not log a resolved flip failure for %s', async (errorCode) => {
+      mockProvider.placeOrder.mockResolvedValue({
+        success: false,
+        error: errorCode,
+      });
+
+      const result = await tradingService.flipPosition({
+        provider: mockProvider,
+        position: mockPosition,
+        context: mockContext,
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: errorCode,
+      });
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.TradeTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          error_message: errorCode,
+        }),
+      );
     });
 
     it('tracks analytics on success', async () => {
@@ -3725,6 +3842,7 @@ describe('TradingService', () => {
         size: '1',
         orderType: 'market',
         leverage: 10,
+        deferProviderErrorReport: true,
       });
     });
   });
@@ -3892,6 +4010,23 @@ describe('TradingService', () => {
             asset: 'BTC',
             error_message: 'insufficient margin',
             reduce_only: false,
+          }),
+        );
+        expect(mockDeps.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'insufficient margin' }),
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              feature: 'perps',
+              operation: 'position_management',
+              action: 'flip_position',
+            }),
+            context: {
+              name: 'TradingService',
+              data: expect.objectContaining({
+                method: 'flipPosition',
+                symbol: 'BTC',
+              }),
+            },
           }),
         );
       });

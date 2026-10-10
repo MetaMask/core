@@ -184,6 +184,16 @@ import {
 } from '../utils/accountUtils.js';
 import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
 import {
+  PERPS_ERROR_ACTION,
+  PERPS_ERROR_COMPONENT,
+  PERPS_ERROR_OPERATION,
+  createPerpsErrorContext,
+} from '../utils/errorContext.js';
+import type {
+  PerpsErrorTags,
+  PerpsLoggerOptions,
+} from '../utils/errorContext.js';
+import {
   ensureError,
   isHyperLiquidMultiSigRequiredError,
   isHyperLiquidUserNotFoundError,
@@ -1037,6 +1047,7 @@ type HandleOrderErrorParams = {
   symbol: string;
   orderType: OrderType;
   isBuy: boolean;
+  reportFailure: boolean;
 };
 
 type GetOrFetchPriceParams = {
@@ -2465,12 +2476,14 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param error - The caught error.
    * @param method - The write that failed.
    * @param extra - Context for the log.
+   * @param errorTags - Bounded tags describing the failed write.
    * @returns The mapped error.
    */
   async #reportWriteError(
     error: unknown,
     method: string,
     extra: Record<string, unknown>,
+    errorTags: PerpsErrorTags,
   ): Promise<Error> {
     const signerFailure = await this.#handleSignerFailure(error, method, extra);
     if (signerFailure) {
@@ -2479,7 +2492,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     const mappedError = this.#mapError(error);
     this.#deps.logger.error(
       mappedError,
-      await this.#getTradingErrorContext(method, mappedError, extra),
+      await this.#getTradingErrorContext(method, mappedError, extra, errorTags),
     );
     return mappedError;
   }
@@ -3271,9 +3284,17 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       this.#deps.logger.error(
         ensureError(error, 'HyperLiquidProvider.ensureUnifiedAccountEnabled'),
-        this.#getErrorContext('ensureUnifiedAccountEnabled', {
-          note: 'Could not enable Unified Account (user rejected, or network error)',
-        }),
+        this.#getErrorContext(
+          'ensureUnifiedAccountEnabled',
+          {
+            note: 'Could not enable Unified Account (user rejected, or network error)',
+          },
+          {
+            operation: PERPS_ERROR_OPERATION.ConnectionManagement,
+            component: PERPS_ERROR_COMPONENT.ConnectionManager,
+            action: PERPS_ERROR_ACTION.ConnectionConnection,
+          },
+        ),
       );
     }
   }
@@ -4911,6 +4932,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param method - The method name where the error occurred
    * @param extra - Optional additional context fields (becomes searchable context data)
+   * @param errorTags - Optional bounded tags used by error dashboards
    * @returns LoggerErrorOptions with tags (searchable) and context (searchable)
    * @private
    * @example
@@ -4921,25 +4943,16 @@ export class HyperLiquidProvider implements PerpsProvider {
   #getErrorContext(
     method: string,
     extra?: Record<string, unknown>,
-  ): {
-    tags?: Record<string, string | number>;
-    context?: { name: string; data: Record<string, unknown> };
-    extras?: Record<string, unknown>;
-  } {
-    return {
-      tags: {
-        feature: PERPS_CONSTANTS.FeatureName,
-        provider: this.protocolId,
-        network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
-      },
-      context: {
-        name: 'HyperLiquidProvider',
-        data: {
-          method,
-          ...extra,
-        },
-      },
-    };
+    errorTags?: PerpsErrorTags,
+  ): PerpsLoggerOptions {
+    return createPerpsErrorContext({
+      contextName: 'HyperLiquidProvider',
+      method,
+      provider: this.protocolId,
+      network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
+      errorTags,
+      data: extra,
+    });
   }
 
   #isMappedAccountModeExchangeError(error: Error): boolean {
@@ -4953,6 +4966,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     method: string,
     error: Error,
     extra?: Record<string, unknown>,
+    errorTags?: PerpsErrorTags,
   ): Promise<{
     tags?: Record<string, string | number>;
     context?: { name: string; data: Record<string, unknown> };
@@ -4972,7 +4986,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         // Best-effort context enrichment only.
       }
     }
-    return this.#getErrorContext(method, contextExtra);
+    return this.#getErrorContext(method, contextExtra, errorTags);
   }
 
   /**
@@ -5859,11 +5873,18 @@ export class HyperLiquidProvider implements PerpsProvider {
               rebalanceError,
               'HyperLiquidProvider.placeOrder:autoRebalance',
             ),
-            this.#getErrorContext('placeOrder:autoRebalance', {
-              dex: dexName,
-              excessAmount: excessAmount.toFixed(2),
-              note: 'Auto-rebalance failed - funds remain on HIP-3 DEX',
-            }),
+            this.#getErrorContext(
+              'placeOrder:autoRebalance',
+              {
+                dex: dexName,
+                excessAmount: excessAmount.toFixed(2),
+                note: 'Auto-rebalance failed - funds remain on HIP-3 DEX',
+              },
+              {
+                operation: PERPS_ERROR_OPERATION.OrderManagement,
+                action: PERPS_ERROR_ACTION.PlaceOrder,
+              },
+            ),
           );
           return false;
         }
@@ -5885,10 +5906,17 @@ export class HyperLiquidProvider implements PerpsProvider {
           balanceCheckError,
           'HyperLiquidProvider.placeOrder:postOrderBalanceCheck',
         ),
-        this.#getErrorContext('placeOrder:postOrderBalanceCheck', {
-          dex: dexName,
-          note: 'Failed to verify post-order balance for auto-rebalance',
-        }),
+        this.#getErrorContext(
+          'placeOrder:postOrderBalanceCheck',
+          {
+            dex: dexName,
+            note: 'Failed to verify post-order balance for auto-rebalance',
+          },
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.PlaceOrder,
+          },
+        ),
       );
       return false;
     }
@@ -5943,22 +5971,36 @@ export class HyperLiquidProvider implements PerpsProvider {
       } else {
         this.#deps.logger.error(
           new Error(rollbackResult.error ?? 'Rollback transfer failed'),
-          this.#getErrorContext('placeOrder:rollback', {
-            dex: dexName,
-            amount: transferInfo.amount.toFixed(USDC_DECIMALS),
-            note: 'Rollback failed - funds remain on HIP-3 DEX',
-          }),
+          this.#getErrorContext(
+            'placeOrder:rollback',
+            {
+              dex: dexName,
+              amount: transferInfo.amount.toFixed(USDC_DECIMALS),
+              note: 'Rollback failed - funds remain on HIP-3 DEX',
+            },
+            {
+              operation: PERPS_ERROR_OPERATION.OrderManagement,
+              action: PERPS_ERROR_ACTION.PlaceOrder,
+            },
+          ),
         );
       }
     } catch (rollbackError) {
       // Log but don't throw - original order error is more important
       this.#deps.logger.error(
         ensureError(rollbackError, 'HyperLiquidProvider.placeOrder:rollback'),
-        this.#getErrorContext('placeOrder:rollback:exception', {
-          dex: dexName,
-          amount: transferInfo.amount.toFixed(USDC_DECIMALS),
-          note: 'Rollback threw exception - funds remain on HIP-3 DEX',
-        }),
+        this.#getErrorContext(
+          'placeOrder:rollback:exception',
+          {
+            dex: dexName,
+            amount: transferInfo.amount.toFixed(USDC_DECIMALS),
+            note: 'Rollback threw exception - funds remain on HIP-3 DEX',
+          },
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.PlaceOrder,
+          },
+        ),
       );
     }
   }
@@ -6366,7 +6408,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #handleOrderError(
     params: HandleOrderErrorParams,
   ): Promise<OrderResult> {
-    const { error, symbol, orderType, isBuy } = params;
+    const { error, symbol, orderType, isBuy, reportFailure } = params;
     const signerFailure = await this.#handleSignerFailure(error, 'placeOrder', {
       symbol,
       orderType,
@@ -6376,25 +6418,34 @@ export class HyperLiquidProvider implements PerpsProvider {
       return createErrorResult(signerFailure, { success: false });
     }
     const mappedError = this.#mapError(error);
+    const isExpectedAccountState = isHyperLiquidUserNotFoundError(error);
 
     // A wallet with no Hyperliquid account is an expected pre-account state,
     // not an app defect — same policy already applied to every other
     // user-scoped exchange write in this provider. Keep it out of Sentry; the
     // failure is still reported to the caller (and to trade analytics) via the
     // mapped EXCHANGE_ACCOUNT_NOT_FOUND code below.
-    if (isHyperLiquidUserNotFoundError(error)) {
+    if (isExpectedAccountState) {
       this.#deps.debugLogger.log(
         '[handleOrderError] Wallet has no Hyperliquid account, order cannot be placed',
         { symbol, orderType, isBuy },
       );
-    } else {
+    } else if (reportFailure) {
       this.#deps.logger.error(
         mappedError,
-        await this.#getTradingErrorContext('placeOrder', mappedError, {
-          symbol,
-          orderType,
-          isBuy,
-        }),
+        await this.#getTradingErrorContext(
+          'placeOrder',
+          mappedError,
+          {
+            symbol,
+            orderType,
+            isBuy,
+          },
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.PlaceOrder,
+          },
+        ),
       );
     }
 
@@ -6407,11 +6458,20 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Refactored to use helper methods for better maintainability and reduced complexity.
    * Each helper method is focused on a single responsibility.
    *
-   * @param params - Order parameters
+   * @param input - Order parameters
    * @param retryCount - Internal retry counter to prevent infinite loops (default: 0)
+   * @param reportFailure - Whether this call owns provider-level error reporting.
    * @returns A promise that resolves to the result.
    */
-  async placeOrder(params: OrderParams, retryCount = 0): Promise<OrderResult> {
+  async placeOrder(
+    input: OrderParams,
+    retryCount = 0,
+    reportFailure = true,
+  ): Promise<OrderResult> {
+    const deferProviderErrorReport = input.deferProviderErrorReport === true;
+    const params = { ...input };
+    delete params.deferProviderErrorReport;
+    const shouldReportFailure = reportFailure && !deferProviderErrorReport;
     if (params.expectedScaleLadder !== undefined) {
       return {
         success: false,
@@ -6681,6 +6741,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             symbol: params.symbol,
             orderType: params.orderType,
             isBuy: params.isBuy,
+            reportFailure: shouldReportFailure,
           });
         }
 
@@ -6707,6 +6768,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               : undefined,
           },
           1, // Retry count = 1, prevents further retries
+          shouldReportFailure,
         );
       }
 
@@ -6715,6 +6777,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         symbol: params.symbol,
         orderType: params.orderType,
         isBuy: params.isBuy,
+        reportFailure: shouldReportFailure,
       });
     }
   }
@@ -9014,11 +9077,19 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       return await this.#cancelChaseOrder(params);
     } catch (error) {
-      const mappedError = await this.#reportWriteError(error, 'cancelOrder', {
-        orderId: params.orderId,
-        coin: params.symbol,
-        orderType: params.orderType,
-      });
+      const mappedError = await this.#reportWriteError(
+        error,
+        'cancelOrder',
+        {
+          orderId: params.orderId,
+          coin: params.symbol,
+          orderType: params.orderType,
+        },
+        {
+          operation: PERPS_ERROR_OPERATION.OrderManagement,
+          action: PERPS_ERROR_ACTION.CancelOrder,
+        },
+      );
       return createErrorResult(mappedError, {
         success: false,
         orderId: params.orderId,
@@ -10150,11 +10221,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       this.#deps.logger.error(
         ensureError(error, 'HyperLiquidProvider.editOrder'),
-        this.#getErrorContext('editOrder', {
-          orderId: params.orderId,
-          coin: params.newOrder.symbol,
-          orderType: params.newOrder.orderType,
-        }),
+        this.#getErrorContext(
+          'editOrder',
+          {
+            orderId: params.orderId,
+            coin: params.newOrder.symbol,
+            orderType: params.newOrder.orderType,
+          },
+          {
+            operation: PERPS_ERROR_OPERATION.OrderManagement,
+            action: PERPS_ERROR_ACTION.EditOrder,
+          },
+        ),
       );
       return createErrorResult(error, { success: false });
     }
@@ -10251,10 +10329,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         orderId: params.orderId,
       });
     } catch (error) {
-      const mappedError = await this.#reportWriteError(error, 'cancelOrder', {
-        orderId: params.orderId,
-        coin: params.symbol,
-      });
+      const mappedError = await this.#reportWriteError(
+        error,
+        'cancelOrder',
+        {
+          orderId: params.orderId,
+          coin: params.symbol,
+        },
+        {
+          operation: PERPS_ERROR_OPERATION.OrderManagement,
+          action: PERPS_ERROR_ACTION.CancelOrder,
+        },
+      );
       return createErrorResult(mappedError, {
         success: false,
         orderId: params.orderId,
@@ -10402,9 +10488,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         }
       }
     } catch (error) {
-      const mappedError = await this.#reportWriteError(error, 'cancelOrders', {
-        orderCount: params.length,
-      });
+      const mappedError = await this.#reportWriteError(
+        error,
+        'cancelOrders',
+        {
+          orderCount: params.length,
+        },
+        {
+          operation: PERPS_ERROR_OPERATION.OrderManagement,
+          action: PERPS_ERROR_ACTION.CancelOrder,
+        },
+      );
       for (const result of results) {
         if (
           !result.success &&
@@ -10780,9 +10874,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (!signerFailure) {
         this.#deps.logger.error(
           safeError,
-          this.#getErrorContext('closePositions', {
-            positionCount: positionsToClose.length,
-          }),
+          this.#getErrorContext(
+            'closePositions',
+            {
+              positionCount: positionsToClose.length,
+            },
+            {
+              operation: PERPS_ERROR_OPERATION.PositionManagement,
+              action: PERPS_ERROR_ACTION.ClosePosition,
+            },
+          ),
         );
       }
       // Return all selected positions as failed, including unavailable DEXes.
@@ -11472,12 +11573,19 @@ export class HyperLiquidProvider implements PerpsProvider {
               this.#deps.logger.error(
                 restorationFailure ??
                   new Error(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST),
-                this.#getErrorContext('updatePositionTPSL', {
-                  symbol,
-                  stage: 'restoration',
-                  protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
-                  childOrderIds: restoredOrderIds,
-                }),
+                this.#getErrorContext(
+                  'updatePositionTPSL',
+                  {
+                    symbol,
+                    stage: 'restoration',
+                    protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+                    childOrderIds: restoredOrderIds,
+                  },
+                  {
+                    operation: PERPS_ERROR_OPERATION.PositionManagement,
+                    action: PERPS_ERROR_ACTION.PositionTpslUpdate,
+                  },
+                ),
               );
             }
           }
@@ -11597,11 +11705,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         const updateError = new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
         this.#deps.logger.error(
           updateError,
-          this.#getErrorContext('updatePositionTPSL', {
-            symbol: params.symbol,
-            hasTakeProfit: params.takeProfitPrice !== undefined,
-            hasStopLoss: params.stopLossPrice !== undefined,
-          }),
+          this.#getErrorContext(
+            'updatePositionTPSL',
+            {
+              symbol: params.symbol,
+              hasTakeProfit: params.takeProfitPrice !== undefined,
+              hasStopLoss: params.stopLossPrice !== undefined,
+            },
+            {
+              operation: PERPS_ERROR_OPERATION.PositionManagement,
+              action: PERPS_ERROR_ACTION.PositionTpslUpdate,
+            },
+          ),
         );
         return createErrorResult(updateError, {
           success: false,
@@ -11782,12 +11897,19 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (cleanupFailure && recoverableOrderIds.length > 0) {
         this.#deps.logger.error(
           cleanupFailure,
-          this.#getErrorContext('updatePositionTPSL', {
-            symbol,
-            stage: 'cleanup',
-            protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
-            childOrderIds: recoverableOrderIds,
-          }),
+          this.#getErrorContext(
+            'updatePositionTPSL',
+            {
+              symbol,
+              stage: 'cleanup',
+              protectionStatus: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+              childOrderIds: recoverableOrderIds,
+            },
+            {
+              operation: PERPS_ERROR_OPERATION.PositionManagement,
+              action: PERPS_ERROR_ACTION.PositionTpslUpdate,
+            },
+          ),
         );
         return createProtectionLostResult(recoverableOrderIds);
       }
@@ -11836,11 +11958,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       this.#deps.logger.error(
         ensureError(error, 'HyperLiquidProvider.updatePositionTPSL'),
-        this.#getErrorContext('updatePositionTPSL', {
-          symbol: params.symbol,
-          hasTakeProfit: params.takeProfitPrice !== undefined,
-          hasStopLoss: params.stopLossPrice !== undefined,
-        }),
+        this.#getErrorContext(
+          'updatePositionTPSL',
+          {
+            symbol: params.symbol,
+            hasTakeProfit: params.takeProfitPrice !== undefined,
+            hasStopLoss: params.stopLossPrice !== undefined,
+          },
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.PositionTpslUpdate,
+          },
+        ),
       );
       return createErrorResult(error, { success: false });
     }
@@ -11966,27 +12095,31 @@ export class HyperLiquidProvider implements PerpsProvider {
       const isFullClose = closeSizeNum >= absPositionSize;
 
       // Execute position close with consistent slippage handling
-      const result = await this.placeOrder({
-        symbol: params.symbol,
-        isBuy,
-        size: closeSize,
-        orderType: params.orderType ?? 'market',
-        price: params.price,
-        reduceOnly: true,
-        isFullClose,
-        // Pass through price and slippage parameters for consistent validation
-        currentPrice,
-        // A close of the whole position must submit exactly the live position
-        // size. Forwarding usdAmount would make placeOrder recompute the size as
-        // usdAmount / currentPrice — discarding the clamp above, since usdAmount
-        // is the source of truth there — and submit more than the position
-        // holds, which is rejected with "Reduce only order would increase
-        // position". Genuine partial closes keep usdAmount so their size stays
-        // USD-accurate.
-        usdAmount: isFullClose ? undefined : params.usdAmount,
-        priceAtCalculation: params.priceAtCalculation,
-        maxSlippageBps: params.maxSlippageBps,
-      });
+      const result = await this.placeOrder(
+        {
+          symbol: params.symbol,
+          isBuy,
+          size: closeSize,
+          orderType: params.orderType ?? 'market',
+          price: params.price,
+          reduceOnly: true,
+          isFullClose,
+          // Pass through price and slippage parameters for consistent validation
+          currentPrice,
+          // A close of the whole position must submit exactly the live position
+          // size. Forwarding usdAmount would make placeOrder recompute the size as
+          // usdAmount / currentPrice — discarding the clamp above, since usdAmount
+          // is the source of truth there — and submit more than the position
+          // holds, which is rejected with "Reduce only order would increase
+          // position". Genuine partial closes keep usdAmount so their size stays
+          // USD-accurate.
+          usdAmount: isFullClose ? undefined : params.usdAmount,
+          priceAtCalculation: params.priceAtCalculation,
+          maxSlippageBps: params.maxSlippageBps,
+        },
+        0,
+        false,
+      );
 
       // Return freed margin using native abstraction or programmatic transfer
       if (
@@ -12022,14 +12155,13 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return result;
     } catch (error) {
-      this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.closePosition'),
-        this.#getErrorContext('closePosition', {
-          coin: params.symbol,
-          orderType: params.orderType,
-        }),
-      );
-      return createErrorResult(error, { success: false });
+      const safeError = ensureError(error, 'HyperLiquidProvider.closePosition');
+      this.#deps.debugLogger.log('[closePosition] Close failed', {
+        error: safeError.message,
+        coin: params.symbol,
+        orderType: params.orderType,
+      });
+      return createErrorResult(safeError, { success: false });
     }
   }
 
@@ -12134,10 +12266,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       const safeError = ensureError(error, 'HyperLiquidProvider.updateMargin');
       this.#deps.logger.error(
         safeError,
-        this.#getErrorContext('updateMargin', {
-          symbol: params.symbol,
-          amount: params.amount,
-        }),
+        this.#getErrorContext(
+          'updateMargin',
+          {
+            symbol: params.symbol,
+            amount: params.amount,
+          },
+          {
+            operation: PERPS_ERROR_OPERATION.PositionManagement,
+            action: PERPS_ERROR_ACTION.UpdateMargin,
+          },
+        ),
       );
       return {
         success: false,
@@ -15084,11 +15223,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
       this.#deps.logger.error(
         safeError,
-        this.#getErrorContext('withdraw', {
-          assetId: params.assetId,
-          amount: params.amount,
-          destination: params.destination,
-        }),
+        this.#getErrorContext(
+          'withdraw',
+          {
+            assetId: params.assetId,
+            amount: params.amount,
+            destination: params.destination,
+          },
+          {
+            operation: PERPS_ERROR_OPERATION.FinancialOperations,
+            action: PERPS_ERROR_ACTION.FinancialWithdrawal,
+          },
+        ),
       );
       return createErrorResult(error, { success: false });
     }
