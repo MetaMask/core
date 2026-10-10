@@ -78,7 +78,7 @@
     "@metamask/preferences-controller": "^24.0.0",
     "@metamask/profile-sync-controller": "^34.0.3",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
-    "@metamask/rpc-errors": "^7.0.2",
+    "@metamask/rpc-errors": "^7.0.3",
     "@metamask/snaps-controllers": "^19.0.1",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
