@@ -57,7 +57,7 @@
     "@metamask/config-registry-controller": "^5.0.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
-    "@metamask/rpc-errors": "^7.0.2",
+    "@metamask/rpc-errors": "^7.0.3",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/storage-service": "^2.0.0",
     "@metamask/superstruct": "^3.4.1",
