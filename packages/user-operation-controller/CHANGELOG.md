@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
+- Bump `immer` from `^9.0.21` to `^11.1.21` ([#10382](https://github.com/MetaMask/core/pull/10382), [#10723](https://github.com/MetaMask/core/pull/10723))
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.2.0` ([#10462](https://github.com/MetaMask/core/pull/10462), [#10652](https://github.com/MetaMask/core/pull/10652), [#10772](https://github.com/MetaMask/core/pull/10772))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))

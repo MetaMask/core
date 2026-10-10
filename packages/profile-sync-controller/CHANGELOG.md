@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `loglevel` from `^1.8.1` to `^1.9.2` ([#10724](https://github.com/MetaMask/core/pull/10724))
+- Bump `immer` from `^11.1.18` to `^11.1.21` ([#10723](https://github.com/MetaMask/core/pull/10723))
 
 ## [34.0.3]
 
