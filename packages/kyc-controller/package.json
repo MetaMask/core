@@ -64,7 +64,7 @@
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^1.8.0",
     "@scure/base": "^1.2.6",
-    "@tanstack/query-core": "^5.103.2",
+    "@tanstack/query-core": "^5.104.1",
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
