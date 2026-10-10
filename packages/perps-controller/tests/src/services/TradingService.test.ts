@@ -51,6 +51,10 @@ describe('TradingService', () => {
     source: 'default',
     subscription: { eligible: false, reason: 'no-source' },
   };
+  const hyperliquidMainnetScope = {
+    providerId: 'hyperliquid',
+    isTestnet: false,
+  } as const;
 
   const createContextWithRewards = (): ServiceContext =>
     createMockServiceContext({
@@ -145,6 +149,57 @@ describe('TradingService', () => {
       );
     });
 
+    it('resolves a grant for the aggregated provider write route, passes it, then clears it', async () => {
+      const resolution: PerpsFeeResolution = {
+        feeBips: 2,
+        discountBips: 8000,
+        source: 'grant',
+        subscription: { eligible: false, reason: 'no-source' },
+      };
+      const params: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        providerId: 'hyperliquid',
+      };
+      const aggregatedProvider = {
+        ...mockProvider,
+        protocolId: 'aggregated',
+        getWriteProviderId: jest.fn(() => 'hyperliquid' as const),
+        setUserFeeResolution: jest.fn(),
+      } as unknown as jest.Mocked<PerpsProvider>;
+      mockRewardsIntegrationService.resolveFee.mockResolvedValue(resolution);
+      aggregatedProvider.placeOrder.mockImplementation(async () => {
+        expect(
+          aggregatedProvider.setUserFeeResolution,
+        ).toHaveBeenLastCalledWith(resolution);
+        expect(aggregatedProvider.setUserFeeDiscount).not.toHaveBeenCalled();
+        return { success: true };
+      });
+
+      await tradingService.placeOrder({
+        provider: aggregatedProvider,
+        params,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(1);
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        undefined,
+        { providerId: 'hyperliquid', isTestnet: false },
+      );
+      expect(aggregatedProvider.getWriteProviderId).toHaveBeenCalledWith(
+        'hyperliquid',
+      );
+      expect(aggregatedProvider.placeOrder).toHaveBeenCalledWith(params);
+      expect(aggregatedProvider.setUserFeeResolution).toHaveBeenLastCalledWith(
+        undefined,
+      );
+      expect(aggregatedProvider.setUserFeeDiscount).not.toHaveBeenCalled();
+    });
+
     it('preserves the subscription source through order construction', async () => {
       mockProvider.setUserFeeResolution = jest.fn();
       const subscriptionResolution: PerpsFeeResolution = {
@@ -204,6 +259,7 @@ describe('TradingService', () => {
       // "no notional to blend against" branch and charge a full waiver.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -228,6 +284,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         900,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -310,6 +367,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -336,6 +394,7 @@ describe('TradingService', () => {
       // 0.02 BTC at the 50000 midpoint of the ladder.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -386,6 +445,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         2500,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -408,6 +468,7 @@ describe('TradingService', () => {
       // the resolver's pre-existing "no notional" behavior.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         undefined,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2093,6 +2154,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         25000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2111,6 +2173,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         5000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2136,6 +2199,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         25000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2152,6 +2216,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         4800,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2445,6 +2510,7 @@ describe('TradingService', () => {
       // 25000 only — the lighter position is not reachable by this write.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         25000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2485,6 +2551,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         10000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2522,6 +2589,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2889,6 +2957,7 @@ describe('TradingService', () => {
       // 0.05 BTC at the 55000 trigger, not the position's 25000.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         2750,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2914,6 +2983,7 @@ describe('TradingService', () => {
       // 0.1 BTC at the 45000 stop-loss trigger.
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         4500,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2938,6 +3008,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         22500,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2958,6 +3029,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         27500,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -2980,6 +3052,7 @@ describe('TradingService', () => {
 
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           30000,
+          hyperliquidMainnetScope,
         );
         expect(mockGetPositions).toHaveBeenCalledTimes(1);
       },
@@ -3002,6 +3075,7 @@ describe('TradingService', () => {
 
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         undefined,
+        hyperliquidMainnetScope,
       );
     });
 
@@ -3764,6 +3838,38 @@ describe('TradingService', () => {
         leverage: 10,
         deferProviderErrorReport: true,
       });
+    });
+
+    it('places the flip on the same provider the fee grant is scoped to', async () => {
+      // Aggregated writes fall back to the default provider when placeOrder
+      // omits providerId. The grant is already scoped to the position venue,
+      // so a non-default flip must carry that same route.
+      mockProvider.getWriteProviderId = jest.fn(
+        (providerId?: string) => providerId ?? 'hyperliquid',
+      ) as never;
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.flipPosition({
+        provider: mockProvider,
+        position: { ...mockPosition, providerId: 'lighter' },
+        context: mockContext,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        50000,
+        { providerId: 'lighter', isTestnet: false },
+      );
+      expect(mockProvider.placeOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          symbol: 'BTC',
+          isBuy: false,
+          size: '1',
+          orderType: 'market',
+          leverage: 10,
+          providerId: 'lighter',
+          deferProviderErrorReport: true,
+        }),
+      );
     });
   });
 

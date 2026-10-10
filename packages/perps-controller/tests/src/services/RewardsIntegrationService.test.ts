@@ -1,5 +1,9 @@
 import { RewardsIntegrationService } from '../../../src/services/RewardsIntegrationService.js';
-import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
+import type {
+  PerpsPlatformDependencies,
+  PerpsTradingFeeGrant,
+} from '../../../src/types/index.js';
+import { quantizeBuilderFeeTenthsBps } from '../../../src/utils/subscriptionFeeWaiver.js';
 /* eslint-disable */
 import {
   createMockEvmAccount,
@@ -252,6 +256,19 @@ describe('RewardsIntegrationService', () => {
     const FRESH_MS = 60_000;
     const MAX_STALE_MS = 10 * 60 * 1000;
     const NOW = 1_700_000_000_000;
+    const HYPERLIQUID_MAINNET_SCOPE = {
+      providerId: 'hyperliquid',
+      isTestnet: false,
+    } as const;
+
+    const createGrant = (
+      overrides: Partial<PerpsTradingFeeGrant> = {},
+    ): PerpsTradingFeeGrant => ({
+      ...HYPERLIQUID_MAINNET_SCOPE,
+      feeBips: 2,
+      expiresAt: NOW + 60_000,
+      ...overrides,
+    });
 
     /**
      * Build a benefits payload that passes the eligibility gate by default.
@@ -328,6 +345,15 @@ describe('RewardsIntegrationService', () => {
       return getPerpsBenefits;
     };
 
+    const wireGrant = (getPerpsTradingFeeGrant: jest.Mock) => {
+      (
+        mockDeps.rewards as unknown as {
+          getPerpsTradingFeeGrant?: jest.Mock;
+        }
+      ).getPerpsTradingFeeGrant = getPerpsTradingFeeGrant;
+      return getPerpsTradingFeeGrant;
+    };
+
     beforeEach(() => {
       jest.useFakeTimers();
       jest.setSystemTime(NOW);
@@ -393,6 +419,411 @@ describe('RewardsIntegrationService', () => {
         source: 'subscription',
       });
     });
+
+    it('passes the requested scope and uses a matching grant', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      const getGrant = wireGrant(
+        jest.fn().mockResolvedValue(createGrant({ feeBips: 3 })),
+      );
+
+      await expect(
+        service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
+      ).resolves.toMatchObject({
+        source: 'grant',
+        feeBips: 3,
+        discountBips: 7000,
+      });
+      expect(getGrant).toHaveBeenCalledWith(HYPERLIQUID_MAINNET_SCOPE);
+    });
+
+    it('supports matching candidates for provider routes other than Hyperliquid', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      const lighterMainnetScope = {
+        providerId: 'lighter',
+        isTestnet: false,
+      } as const;
+      const getGrant = wireGrant(
+        jest.fn().mockResolvedValue(
+          createGrant({
+            ...lighterMainnetScope,
+            feeBips: 2,
+          }),
+        ),
+      );
+
+      await expect(
+        service.resolveFee(undefined, lighterMainnetScope),
+      ).resolves.toMatchObject({
+        source: 'grant',
+        feeBips: 2,
+      });
+      expect(getGrant).toHaveBeenCalledWith(lighterMainnetScope);
+    });
+
+    it('fails closed without calling the grant dependency when scope is omitted', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      const getGrant = wireGrant(
+        jest.fn().mockResolvedValue(createGrant({ feeBips: 2 })),
+      );
+
+      await expect(service.resolveFee()).resolves.toMatchObject({
+        source: 'default',
+        feeBips: DEFAULT_FEE_BIPS,
+      });
+      expect(getGrant).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        candidateScope: { providerId: 'lighter', isTestnet: false },
+        label: 'provider',
+      },
+      {
+        candidateScope: { providerId: 'hyperliquid', isTestnet: true },
+        label: 'network',
+      },
+    ])(
+      'rejects a candidate with a mismatched $label scope',
+      async ({ candidateScope }) => {
+        (
+          mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+        ).mockResolvedValue(null);
+        const getGrant = wireGrant(
+          jest.fn().mockResolvedValue(
+            createGrant({
+              ...candidateScope,
+              feeBips: 2,
+            }),
+          ),
+        );
+
+        await expect(
+          service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
+        ).resolves.toMatchObject({
+          source: 'default',
+          feeBips: DEFAULT_FEE_BIPS,
+        });
+        expect(getGrant).toHaveBeenCalledWith(HYPERLIQUID_MAINNET_SCOPE);
+      },
+    );
+
+    it('keeps calculateUserFeeDiscount grant-free unless scope is explicit', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      const getGrant = wireGrant(
+        jest.fn().mockResolvedValue(createGrant({ feeBips: 2 })),
+      );
+
+      await expect(service.calculateUserFeeDiscount()).resolves.toBeUndefined();
+      expect(getGrant).not.toHaveBeenCalled();
+
+      await expect(
+        service.calculateUserFeeDiscount(undefined, HYPERLIQUID_MAINNET_SCOPE),
+      ).resolves.toBe(8000);
+      expect(getGrant).toHaveBeenCalledTimes(1);
+    });
+
+    it('preserves VIP-only behavior when the optional grant method is absent', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(6500);
+      delete (
+        mockDeps.rewards as {
+          getPerpsTradingFeeGrant?: unknown;
+        }
+      ).getPerpsTradingFeeGrant;
+
+      await expect(
+        service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
+      ).resolves.toMatchObject({
+        source: 'rewards',
+        feeBips: 3.5,
+        discountBips: 6500,
+      });
+    });
+
+    it.each([
+      { vipDiscountBips: 6500, grantFeeBips: 2, source: 'grant', feeBips: 2 },
+      {
+        vipDiscountBips: 6500,
+        grantFeeBips: 4,
+        source: 'rewards',
+        feeBips: 3.5,
+      },
+    ])(
+      'selects $source when VIP and grant are both available',
+      async ({ vipDiscountBips, grantFeeBips, source, feeBips }) => {
+        (
+          mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+        ).mockResolvedValue(vipDiscountBips);
+        wireGrant(
+          jest.fn().mockResolvedValue(createGrant({ feeBips: grantFeeBips })),
+        );
+
+        await expect(
+          service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
+        ).resolves.toMatchObject({
+          source,
+          feeBips,
+        });
+      },
+    );
+
+    it('leaves a quantized VIP/grant tie with rewards', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(6460);
+      wireGrant(jest.fn().mockResolvedValue(createGrant({ feeBips: 3.51 })));
+
+      const resolution = await service.resolveFee(
+        undefined,
+        HYPERLIQUID_MAINNET_SCOPE,
+      );
+
+      expect(resolution.source).toBe('rewards');
+      expect(quantizeBuilderFeeTenthsBps(resolution.discountBips ?? 0)).toBe(
+        35,
+      );
+    });
+
+    it('uses the default when neither independent rewards source is available', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireGrant(jest.fn().mockResolvedValue(null));
+
+      await expect(
+        service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
+      ).resolves.toMatchObject({
+        source: 'default',
+        feeBips: DEFAULT_FEE_BIPS,
+        discountBips: undefined,
+      });
+    });
+
+    it('accepts a zero-fee grant', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(6500);
+      wireGrant(jest.fn().mockResolvedValue(createGrant({ feeBips: 0 })));
+
+      await expect(
+        service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
+      ).resolves.toMatchObject({
+        source: 'grant',
+        feeBips: 0,
+        discountBips: 10000,
+      });
+    });
+
+    it('ignores an above-default grant', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireGrant(jest.fn().mockResolvedValue(createGrant({ feeBips: 11 })));
+
+      expect(
+        (await service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE)).source,
+      ).toBe('default');
+    });
+
+    it('ignores expired grants', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireGrant(
+        jest
+          .fn()
+          .mockResolvedValue(createGrant({ feeBips: 0, expiresAt: NOW })),
+      );
+
+      expect(
+        (await service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE)).source,
+      ).toBe('default');
+    });
+
+    it.each([
+      { feeBips: Number.NaN, expiresAt: NOW + 60_000 },
+      { feeBips: Number.POSITIVE_INFINITY, expiresAt: NOW + 60_000 },
+      { feeBips: -1, expiresAt: NOW + 60_000 },
+      { feeBips: 0, expiresAt: Number.NaN },
+      { feeBips: 0, expiresAt: Number.POSITIVE_INFINITY },
+    ])('ignores a malformed grant %#', async (grant) => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireGrant(jest.fn().mockResolvedValue(createGrant(grant)));
+
+      expect(
+        (await service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE)).source,
+      ).toBe('default');
+    });
+
+    it('keeps VIP when grant retrieval fails', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(6500);
+      wireGrant(jest.fn().mockRejectedValue(new Error('Grant unavailable')));
+
+      await expect(
+        service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
+      ).resolves.toMatchObject({
+        source: 'rewards',
+        feeBips: 3.5,
+      });
+    });
+
+    it('keeps grant when VIP retrieval fails', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockRejectedValue(new Error('VIP unavailable'));
+      wireGrant(jest.fn().mockResolvedValue(createGrant({ feeBips: 2 })));
+
+      await expect(
+        service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
+      ).resolves.toMatchObject({
+        source: 'grant',
+        feeBips: 2,
+      });
+    });
+
+    it('retrieves the grant on every resolution without caching', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      const getGrant = wireGrant(
+        jest
+          .fn()
+          .mockResolvedValueOnce(createGrant({ feeBips: 2 }))
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(createGrant({ feeBips: 1 })),
+      );
+
+      expect(
+        (await service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE))
+          .feeBips,
+      ).toBe(2);
+      expect(
+        (await service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE)).source,
+      ).toBe('default');
+      expect(
+        (await service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE))
+          .feeBips,
+      ).toBe(1);
+      expect(getGrant).toHaveBeenCalledTimes(3);
+    });
+
+    it('checks grant expiry after the concurrent VIP request settles', async () => {
+      let releaseVip: (value: number | null) => void = () => undefined;
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockImplementation(
+        async () =>
+          await new Promise<number | null>((resolve) => {
+            releaseVip = resolve;
+          }),
+      );
+      const getGrant = wireGrant(
+        jest
+          .fn()
+          .mockResolvedValue(
+            createGrant({ feeBips: 0, expiresAt: NOW + 1_000 }),
+          ),
+      );
+
+      const resolution = service.resolveFee(
+        undefined,
+        HYPERLIQUID_MAINNET_SCOPE,
+      );
+      await Promise.resolve();
+      expect(getGrant).toHaveBeenCalledTimes(1);
+      jest.setSystemTime(NOW + 1_000);
+      releaseVip(6500);
+
+      await expect(resolution).resolves.toMatchObject({
+        source: 'rewards',
+        feeBips: 3.5,
+      });
+    });
+
+    it('retrieves the grant without a selected account or network', async () => {
+      setupMessengerDefaults({
+        'AccountTreeController:getAccountsFromSelectedAccountGroup': [],
+        'NetworkController:getState': () => {
+          throw new Error('Network unavailable');
+        },
+      });
+      const getGrant = wireGrant(
+        jest.fn().mockResolvedValue(createGrant({ feeBips: 2 })),
+      );
+
+      await expect(
+        service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
+      ).resolves.toMatchObject({
+        source: 'grant',
+        feeBips: 2,
+      });
+      expect(getGrant).toHaveBeenCalledWith(HYPERLIQUID_MAINNET_SCOPE);
+    });
+
+    it.each([
+      {
+        grantFeeBips: 4,
+        remainingNotionalUsd: 1000,
+        source: 'subscription',
+        feeBips: 0,
+      },
+      {
+        grantFeeBips: 4,
+        remainingNotionalUsd: 500,
+        source: 'grant',
+        feeBips: 4,
+      },
+      {
+        grantFeeBips: 5,
+        remainingNotionalUsd: 500,
+        source: 'grant',
+        feeBips: 5,
+      },
+      {
+        grantFeeBips: 5,
+        remainingNotionalUsd: 510,
+        source: 'subscription',
+        feeBips: 4.9,
+      },
+    ])(
+      'resolves a $grantFeeBips-bip grant against a subscription covering $remainingNotionalUsd USD to $source',
+      async ({ grantFeeBips, remainingNotionalUsd, source, feeBips }) => {
+        (
+          mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+        ).mockResolvedValue(null);
+        wireGrant(
+          jest.fn().mockResolvedValue(createGrant({ feeBips: grantFeeBips })),
+        );
+        wireSubscription(
+          jest.fn().mockResolvedValue(createBenefits({ remainingNotionalUsd })),
+        );
+        await service.refreshSubscriptionBenefits();
+
+        const resolution = await service.resolveFee(
+          1000,
+          HYPERLIQUID_MAINNET_SCOPE,
+        );
+
+        expect(resolution.source).toBe(source);
+        expect(resolution.feeBips).toBeCloseTo(feeBips);
+        expect(quantizeBuilderFeeTenthsBps(resolution.discountBips ?? 0)).toBe(
+          feeBips * 10,
+        );
+      },
+    );
 
     it('resolves the subscription source to a 0 bips fee only when the eligibility gate passes', async () => {
       const cases = [

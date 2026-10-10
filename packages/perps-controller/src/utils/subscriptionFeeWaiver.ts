@@ -348,8 +348,9 @@ export function markSubscriptionCloid(params: {
  */
 export function quantizeBuilderFeeTenthsBps(discountBips: number): number {
   return Math.floor(
-    BUILDER_FEE_CONFIG.MaxFeeTenthsBps *
-      (1 - discountBips / BASIS_POINTS_DIVISOR),
+    (BUILDER_FEE_CONFIG.MaxFeeTenthsBps *
+      (BASIS_POINTS_DIVISOR - discountBips)) /
+      BASIS_POINTS_DIVISOR,
   );
 }
 
@@ -385,7 +386,11 @@ export function applyFeeResolution(params: {
 }): FeeCalculationResult {
   const { fees, resolution, amount, chargesBuilderFee } = params;
 
-  if (resolution === undefined || fees.metamaskFeeRate === undefined) {
+  if (
+    resolution === undefined ||
+    fees.metamaskFeeRate === undefined ||
+    chargesBuilderFee === false
+  ) {
     return fees;
   }
 

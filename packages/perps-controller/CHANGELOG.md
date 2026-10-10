@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the optional route-aware `PerpsPlatformDependencies.rewards.getPerpsTradingFeeGrant(scope)` integration and exported `PerpsTradingFeeGrant` type for independent, expiring fee candidates. Candidates carry `providerId` and `isTestnet`; Core accepts only an exact match for the routed resolver scope. The corresponding Mobile integration supplies Hyperliquid mainnet candidates, while Core remains provider-agnostic for future routes such as Lighter. ([#10664](https://github.com/MetaMask/core/pull/10664))
+- Add optional `FeeCalculationResult.feeSource`, reporting the winning source (`default`, `rewards`, `grant`, or `subscription`) from the same operation that repriced a fee preview. It is absent when no resolution applies or the placement carries no MetaMask builder fee; submission resolves again against its actual provider route. ([#10664](https://github.com/MetaMask/core/pull/10664))
+
 ### Changed
 
+- **BREAKING:** Add `'grant'` to `PerpsFeeSource`; exhaustive consumers must handle the new winner. Keep `getPerpsDiscountForAccount` as `Promise<number | null>` for VIP/season and retrieve grants independently through optional `getPerpsTradingFeeGrant`. ([#10664](https://github.com/MetaMask/core/pull/10664))
+  - Clients that expose grants return the requested `providerId` and `isTestnet` with an absolute `feeBips` and Unix-millisecond `expiresAt`. Core retrieves both rewards candidates concurrently, validates fee, expiry, and exact route scope after they settle, selects the lowest valid fee after venue quantization, and does not cache grants.
+- Restrict grant retrieval to explicitly scoped previews and submissions. Calls without provider scope retain VIP/season, subscription, and default resolution without invoking the optional grant dependency; scoped calls are provider-agnostic and reject mismatched candidates. ([#10664](https://github.com/MetaMask/core/pull/10664))
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/abi-utils` from `^2.0.3` to `^2.0.4` ([#10715](https://github.com/MetaMask/core/pull/10715))
 - Perps error logs include bounded `feature`, `operation`, `action`, and `component` tags for connection, order, position, deposit, and withdrawal failures, while retaining diagnostic values in the log context ([#10681](https://github.com/MetaMask/core/pull/10681))
@@ -19,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Log deposit transaction failures that reject after confirmation, for both deposit-only and deposit-and-order, with `financial_operations` / `financial_deposit` tags, and leave user cancellation unlogged ([#10681](https://github.com/MetaMask/core/pull/10681))
 - Log flip results that resolve `success: false` with `position_management` / `flip_position` tags, and leave `KEYRING_LOCKED` and `EXCHANGE_ACCOUNT_NOT_FOUND` unlogged ([#10681](https://github.com/MetaMask/core/pull/10681))
 - Add optional `OrderParams.deferProviderErrorReport`. A flip sets it so HyperLiquid and Lighter do not log `place_order` for that failure, and `flipPosition` logs it once as `position_management` / `flip_position`. Delegated close failures likewise log once as `position_management` / `close_position`. Expected signer, account, session, and selected local-validation outcomes stay unlogged ([#10681](https://github.com/MetaMask/core/pull/10681))
+- Route `flipPosition` through `position.providerId` so the fee grant and the flip `placeOrder` use the same venue. Aggregated providers otherwise resolve the grant for the position's venue and submit the order to the default provider.
 
 ## [20.0.0]
 

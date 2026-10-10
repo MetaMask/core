@@ -1351,12 +1351,12 @@ export class MarketDataService {
         chargesBuilderFee: fees.chargesMetamaskBuilderFee,
       });
 
-      // Read-only preview of the same cached benefits snapshot the fee resolver
-      // reads. Surfacing eligibility and the remaining notional must not mutate
-      // the cap or the cache.
-      return context.subscriptionFeeWaiver
-        ? { ...priced, subscription: context.subscriptionFeeWaiver }
-        : priced;
+      return {
+        ...priced,
+        ...(context.subscriptionFeeWaiver && {
+          subscription: context.subscriptionFeeWaiver,
+        }),
+      };
     } catch (error) {
       this.#deps.logger.error(
         ensureError(error, 'MarketDataService.calculateFees'),

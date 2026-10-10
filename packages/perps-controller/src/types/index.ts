@@ -2174,7 +2174,6 @@ export type FeeCalculationResult = {
   // Total fees (protocol + MetaMask)
   feeRate?: number; // Total fee rate as decimal (e.g., 0.00145 for 0.145%), undefined when unavailable
   feeAmount?: number; // Total fee amount in USD (when amount is provided)
-
   // Protocol-specific base fees
   protocolFeeRate?: number; // Protocol fee rate (e.g., 0.00045 for HyperLiquid taker), undefined when unavailable
   protocolFeeAmount?: number; // Protocol fee amount in USD
@@ -2331,11 +2330,29 @@ export type PerpsSubscriptionFeeWaiverStatus = {
 /**
  * Fee source that won the unified resolver.
  *
- * `rewards` covers both VIP and season discounts: `RewardsController` already
- * returns the better of the two as a single discount, so the perps controller
- * treats them as one source rather than re-deriving the split.
+ * `rewards` covers the account-scoped VIP and season discount. `grant` is an
+ * independent route-scoped trading-fee grant supplied by RewardsController.
  */
-export type PerpsFeeSource = 'default' | 'rewards' | 'subscription';
+export type PerpsFeeSource = 'default' | 'rewards' | 'grant' | 'subscription';
+
+/**
+ * Provider route for resolving route-specific fee candidates.
+ */
+export type PerpsFeeResolverScope = {
+  providerId: string;
+  isTestnet: boolean;
+};
+
+/**
+ * Independent RewardsController fee candidate for one exact provider route.
+ */
+export type PerpsTradingFeeGrant = PerpsFeeResolverScope & {
+  /** Absolute MetaMask builder fee, in basis points. */
+  feeBips: number;
+
+  /** Expiry as a Unix timestamp in milliseconds. */
+  expiresAt: number;
+};
 
 /**
  * Outcome of the unified fee resolver.
@@ -3398,10 +3415,10 @@ export type PerpsPlatformDependencies = {
   // === Rewards (DI — no RewardsController in Core yet) ===
   rewards: {
     /**
-     * Get fee discount for an account from the RewardsController.
-     * Returns discount in basis points (e.g., 6500 = 65% discount), or null
-     * when subscription state hasn't hydrated yet — callers should skip
-     * caching null results and retry on the next fee calculation.
+     * Get the VIP and season fee discount for an account.
+     *
+     * Returns a numeric discount in basis points (e.g., 6500 = 65%), or `null`
+     * when rewards state has not hydrated yet.
      *
      * Pass the perps MetaMask builder base fee in bips so the rewards
      * controller can convert an absolute VIP fee into a discount fraction.
@@ -3410,6 +3427,22 @@ export type PerpsPlatformDependencies = {
       caipAccountId: `${string}:${string}:${string}`,
       baseFeeBips: number,
     ): Promise<number | null>;
+
+    /**
+     * Get the independent trading fee grant for an explicit provider route.
+     *
+     * The client owns grant retrieval, authentication, payload validation, and
+     * deciding which routes it supports. Core calls this only when the resolver
+     * has an explicit scope, validates the returned fee, expiry, and exact scope
+     * match after concurrent candidate work settles, and compares valid
+     * candidates with the other fee sources.
+     *
+     * Optional so clients predating grant support retain their existing
+     * behavior.
+     */
+    getPerpsTradingFeeGrant?(
+      scope: PerpsFeeResolverScope,
+    ): Promise<PerpsTradingFeeGrant | null>;
   };
 
   // === Subscription (DI — benefits endpoint is owned by the Subscription team) ===
