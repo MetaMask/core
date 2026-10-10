@@ -532,6 +532,127 @@ describe('HyperLiquidProvider', () => {
       expect(exchangeClient.withdraw3).not.toHaveBeenCalled();
     });
 
+    it('does not migrate the account selected after a delayed abstraction read', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const exchangeClient = createMockExchangeClient();
+      let resolveAbstraction!: (value: 'default') => void;
+      let markAbstractionReadStarted!: () => void;
+      const delayedAbstraction = new Promise<'default'>((resolve) => {
+        resolveAbstraction = resolve;
+      });
+      const abstractionReadStarted = new Promise<void>((resolve) => {
+        markAbstractionReadStarted = resolve;
+      });
+      const userAbstraction = jest
+        .fn()
+        // Browsing initialization observes the legacy mode and defers.
+        .mockResolvedValueOnce('default')
+        // Action-time setup is the read whose result must stay bound to A.
+        .mockImplementationOnce(() => {
+          markAbstractionReadStarted();
+          return delayedAbstraction;
+        });
+      mockWalletService.requiresSignatureConfirmation.mockReturnValue(true);
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction,
+          userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+        }),
+      );
+
+      const order = provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      });
+      await abstractionReadStarted;
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        switchedAddress,
+      );
+      resolveAbstraction('default');
+
+      await expect(order).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(exchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('does not update leverage or place an order after a delayed account read switches accounts', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const exchangeClient = createMockExchangeClient();
+      let resolvePositions!: (
+        value: Awaited<ReturnType<typeof mockInfoClient.clearinghouseState>>,
+      ) => void;
+      let markPositionsReadStarted!: () => void;
+      const positionsReadStarted = new Promise<void>((resolve) => {
+        markPositionsReadStarted = resolve;
+      });
+      const delayedPositions = new Promise<
+        Awaited<ReturnType<typeof mockInfoClient.clearinghouseState>>
+      >((resolve) => {
+        resolvePositions = resolve;
+      });
+      const readyState = await mockInfoClient.clearinghouseState({
+        user: '0x1234567890123456789012345678901234567890',
+      });
+      const guardedInfoClient = createMockInfoClient({
+        userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+        userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+      });
+      guardedInfoClient.clearinghouseState
+        // Default-margin-mode resolution after trading readiness.
+        .mockImplementationOnce(() => {
+          markPositionsReadStarted();
+          return delayedPositions;
+        });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getReferral.mockReturnValue({ attempted: true, success: true });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getBuilderFee.mockReturnValue({ attempted: true, success: true });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockReturnValue(guardedInfoClient);
+
+      const order = provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        leverage: 5,
+        orderType: 'market',
+      });
+      await positionsReadStarted;
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        switchedAddress,
+      );
+      resolvePositions(readyState);
+
+      await expect(order).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
     it('blocks margin and DEX-transfer signing for an unsupported account', async () => {
       const exchangeClient = createMockExchangeClient();
       mockClientService.getExchangeClient = jest
