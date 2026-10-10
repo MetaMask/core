@@ -6358,7 +6358,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
         success: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
       });
-      expect(transfer.mock.calls).toStrictEqual([[PRE_ORDER_TRANSFER]]);
+      expect(transfer.mock.calls).toStrictEqual([
+        [PRE_ORDER_TRANSFER, expect.any(Object)],
+      ]);
       expect(order).not.toHaveBeenCalled();
       expect(reportedErrors()).toStrictEqual([]);
     });
@@ -6389,8 +6391,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
         expect(result).toStrictEqual({ success: false, error: ORDER_FAILURE });
         expect(transfer.mock.calls).toStrictEqual([
-          [PRE_ORDER_TRANSFER],
-          [ROLLBACK_TRANSFER],
+          [PRE_ORDER_TRANSFER, expect.any(Object)],
+          [ROLLBACK_TRANSFER, expect.any(Object)],
         ]);
         expect(reportedErrors()).toStrictEqual(reported);
         expect(unsignedTransferNotes()).toStrictEqual(notes);
@@ -6434,8 +6436,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
           averagePrice: '3000',
         });
         expect(transfer.mock.calls).toStrictEqual([
-          [PRE_ORDER_TRANSFER],
-          [REBALANCE_TRANSFER],
+          [PRE_ORDER_TRANSFER, expect.any(Object)],
+          [REBALANCE_TRANSFER, expect.any(Object)],
         ]);
         expect(reportedErrors()).toStrictEqual(reported);
         expect(unsignedTransferNotes()).toStrictEqual(notes);
