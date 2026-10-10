@@ -1155,7 +1155,7 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
-    it('retries size-based order with currentPrice when rejected for $10 minimum', async () => {
+    it('retries a size-based order without applying its stale calculation snapshot to the synthesized USD amount', async () => {
       // Create provider with PUMP in the asset mapping
       provider = createTestProvider({
         initialAssetMapping: [
@@ -1217,6 +1217,11 @@ describe('HyperLiquidProvider', () => {
         size: '2553',
         orderType: 'market',
         currentPrice: 0.003918,
+        // Exact-size orders do not derive their size from this snapshot. The
+        // minimum-order retry synthesizes a USD amount from currentPrice, so it
+        // must not turn this stale snapshot into a PRICE_MOVED rejection.
+        priceAtCalculation: 0.003,
+        maxSlippageBps: 300,
       };
 
       mockClientService.getExchangeClient = jest.fn().mockReturnValue({

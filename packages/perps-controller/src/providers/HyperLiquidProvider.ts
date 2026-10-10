@@ -6697,6 +6697,14 @@ export class HyperLiquidProvider implements PerpsProvider {
           {
             ...params,
             usdAmount: adjustedUsdAmount,
+            // This USD amount was derived from the effective price solely to
+            // grow an exact-size order past the venue minimum. Preserve the
+            // original exact-size semantics instead of applying its unrelated
+            // calculation snapshot to the retry. Genuine USD-sized orders keep
+            // their snapshot guard.
+            priceAtCalculation: params.usdAmount
+              ? params.priceAtCalculation
+              : undefined,
           },
           1, // Retry count = 1, prevents further retries
         );
