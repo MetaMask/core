@@ -7291,7 +7291,7 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@noble/ciphers": "npm:^1.3.0"
     "@noble/curves": "npm:^1.9.7"
-    "@noble/hashes": "npm:^1.8.0"
+    "@noble/hashes": "npm:^2.4.0"
     "@scure/base": "npm:^1.2.6"
     "@tanstack/query-core": "npm:^5.103.2"
     "@types/jest": "npm:^30.0.0"
@@ -7996,7 +7996,7 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@noble/ciphers": "npm:^1.3.0"
     "@noble/curves": "npm:^1.9.7"
-    "@noble/hashes": "npm:^1.8.0"
+    "@noble/hashes": "npm:^2.4.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
@@ -8149,7 +8149,7 @@ __metadata:
     "@metamask/eth-sig-util": "npm:^9.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/transaction-controller": "npm:^72.2.0"
-    "@noble/hashes": "npm:^1.8.0"
+    "@noble/hashes": "npm:^2.4.0"
     "@types/jest": "npm:^30.0.0"
     "@types/punycode": "npm:^2.1.4"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8336,7 +8336,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
     "@noble/curves": "npm:^1.9.7"
-    "@noble/hashes": "npm:^1.8.0"
+    "@noble/hashes": "npm:^2.4.0"
     "@signinwithethereum/siwe": "npm:^4.2.1"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8553,7 +8553,7 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@noble/ciphers": "npm:^1.3.0"
     "@noble/curves": "npm:^1.9.7"
-    "@noble/hashes": "npm:^1.8.0"
+    "@noble/hashes": "npm:^2.4.0"
     "@types/elliptic": "npm:^6"
     "@types/jest": "npm:^30.0.0"
     "@types/json-stable-stringify-without-jsonify": "npm:^1.0.2"
@@ -9217,7 +9217,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@noble/hashes": "npm:^1.8.0"
+    "@noble/hashes": "npm:^2.4.0"
     "@scure/base": "npm:^1.2.6"
     "@types/debug": "npm:^4.1.7"
     "@types/jest": "npm:^30.0.0"
@@ -9483,10 +9483,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/hashes@npm:^2.2.0":
-  version: 2.2.0
-  resolution: "@noble/hashes@npm:2.2.0"
-  checksum: 10/b1b78bedc2a01394be047429f3d888905015fe8a09f1b7e43e0b5736b54133df62f73dcc73ede43af38e96e86156afb45b86973fdeaa95d9f0880333c3fc0907
+"@noble/hashes@npm:^2.2.0, @noble/hashes@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@noble/hashes@npm:2.4.0"
+  checksum: 10/88d4cdd6cef00f412a39f65bda1d24cba2264c6cacdd1c6c48d7ed66fd9be865ffb7231024fb81177975c684b8a463879b89c5ae6960370b05a546c0fd8afa2c
   languageName: node
   linkType: hard
 
