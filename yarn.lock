@@ -3333,6 +3333,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@ethereumjs/common@npm:^10.1.3":
+  version: 10.1.3
+  resolution: "@ethereumjs/common@npm:10.1.3"
+  dependencies:
+    "@ethereumjs/util": "npm:^10.1.3"
+    eventemitter3: "npm:^5.0.1"
+  checksum: 10/6791d02b724bb8a325cb1676a319668f5b9698e8cfe8663eecc754e692edf4de06f2dd9d9ba68a7d31182f09ed7e59399e348f04fd42c6a85a83ffbb141ceacc
+  languageName: node
+  linkType: hard
+
 "@ethereumjs/common@npm:^3.2.0":
   version: 3.2.0
   resolution: "@ethereumjs/common@npm:3.2.0"
@@ -3352,6 +3362,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@ethereumjs/rlp@npm:^10.1.3":
+  version: 10.1.3
+  resolution: "@ethereumjs/rlp@npm:10.1.3"
+  bin:
+    rlp: bin/rlp.cjs
+  checksum: 10/133772dc63837ced485cd666feafc09402bd04195e6f854712f19ce6fb9d5a28a9515c57f12150d26a262aca8939f860dae69e42c3f934fec359d4800beef837
+  languageName: node
+  linkType: hard
+
 "@ethereumjs/rlp@npm:^4.0.1":
   version: 4.0.1
   resolution: "@ethereumjs/rlp@npm:4.0.1"
@@ -3367,6 +3386,19 @@ __metadata:
   bin:
     rlp: bin/rlp.cjs
   checksum: 10/2af80d98faf7f64dfb6d739c2df7da7350ff5ad52426c3219897e843ee441215db0ffa346873200a6be6d11142edb9536e66acd62436b5005fa935baaf7eb6bd
+  languageName: node
+  linkType: hard
+
+"@ethereumjs/tx@npm:^10.1.3":
+  version: 10.1.3
+  resolution: "@ethereumjs/tx@npm:10.1.3"
+  dependencies:
+    "@ethereumjs/common": "npm:^10.1.3"
+    "@ethereumjs/rlp": "npm:^10.1.3"
+    "@ethereumjs/util": "npm:^10.1.3"
+    "@noble/curves": "npm:^2.0.1"
+    "@noble/hashes": "npm:^2.0.1"
+  checksum: 10/5b62923c7ca965de95d823ba314de0f9f935c22f18fd39750723cfcf079baf621bcc0870ecbec6087e5a8b02882f66810b2a7ebbd9291344bc1710f224d1e067
   languageName: node
   linkType: hard
 
@@ -3391,6 +3423,17 @@ __metadata:
     "@ethereumjs/util": "npm:^9.1.0"
     ethereum-cryptography: "npm:^2.2.1"
   checksum: 10/8d2c0a69ab37015f945f9de065cfb9f05e8e79179efeed725ea0a14760c3eb8ff900bcf915bb71ec29fe2f753db35d1b78a15ac4ddec489e87c995dec1ba6e85
+  languageName: node
+  linkType: hard
+
+"@ethereumjs/util@npm:^10.1.3":
+  version: 10.1.3
+  resolution: "@ethereumjs/util@npm:10.1.3"
+  dependencies:
+    "@ethereumjs/rlp": "npm:^10.1.3"
+    "@noble/curves": "npm:^2.0.1"
+    "@noble/hashes": "npm:^2.0.1"
+  checksum: 10/d2c0cde3b1c2b76fa26146402207bcb9d7af0dd4c0eed1d65452e6e115e67e8aecaad491531c067c86112a6c3001277594b81470444fdd28ddf12f309ee0da95
   languageName: node
   linkType: hard
 
@@ -5388,7 +5431,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
-    "@ethereumjs/util": "npm:^9.1.0"
+    "@ethereumjs/util": "npm:^10.1.3"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -5623,7 +5666,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controller@workspace:packages/assets-controller"
   dependencies:
-    "@ethereumjs/util": "npm:^9.1.0"
+    "@ethereumjs/util": "npm:^10.1.3"
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.8.0"
     "@metamask/account-tree-controller": "npm:^11.0.1"
@@ -5675,7 +5718,7 @@ __metadata:
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
     "@babel/runtime": "npm:^7.29.7"
-    "@ethereumjs/util": "npm:^9.1.0"
+    "@ethereumjs/util": "npm:^10.1.3"
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/address": "npm:^5.8.0"
     "@ethersproject/bignumber": "npm:^5.8.0"
@@ -7153,9 +7196,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
-    "@ethereumjs/common": "npm:^4.4.0"
-    "@ethereumjs/tx": "npm:^5.4.0"
-    "@ethereumjs/util": "npm:^9.1.0"
+    "@ethereumjs/common": "npm:^10.1.3"
+    "@ethereumjs/tx": "npm:^10.1.3"
+    "@ethereumjs/util": "npm:^10.1.3"
     "@lavamoat/allow-scripts": "npm:^5.1.0"
     "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
@@ -7582,7 +7625,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
   dependencies:
-    "@ethereumjs/util": "npm:^9.1.0"
+    "@ethereumjs/util": "npm:^10.1.3"
     "@metamask/account-api": "npm:^2.1.0"
     "@metamask/accounts-controller": "npm:^40.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
@@ -9061,10 +9104,10 @@ __metadata:
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
     "@babel/runtime": "npm:^7.29.7"
-    "@ethereumjs/common": "npm:^4.4.0"
-    "@ethereumjs/rlp": "npm:^5.0.2"
-    "@ethereumjs/tx": "npm:^5.4.0"
-    "@ethereumjs/util": "npm:^9.1.0"
+    "@ethereumjs/common": "npm:^10.1.3"
+    "@ethereumjs/rlp": "npm:^10.1.3"
+    "@ethereumjs/tx": "npm:^10.1.3"
+    "@ethereumjs/util": "npm:^10.1.3"
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/wallet": "npm:^5.8.0"
@@ -9213,7 +9256,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/utils@workspace:packages/utils"
   dependencies:
-    "@ethereumjs/tx": "npm:^5.4.0"
+    "@ethereumjs/tx": "npm:^10.1.3"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/superstruct": "npm:^3.4.1"
@@ -9462,6 +9505,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noble/curves@npm:^2.0.1":
+  version: 2.4.0
+  resolution: "@noble/curves@npm:2.4.0"
+  dependencies:
+    "@noble/hashes": "npm:2.4.0"
+  checksum: 10/9d9c592c500a6248068200ce46e1bde5e4df03c4162a528397f7a5f02c885a0408dc20d365e6224b63efef3fc3ea26fc1c9c8338d602fc78991feadb2e425968
+  languageName: node
+  linkType: hard
+
 "@noble/hashes@npm:1.3.2":
   version: 1.3.2
   resolution: "@noble/hashes@npm:1.3.2"
@@ -9483,10 +9535,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/hashes@npm:^2.2.0":
-  version: 2.2.0
-  resolution: "@noble/hashes@npm:2.2.0"
-  checksum: 10/b1b78bedc2a01394be047429f3d888905015fe8a09f1b7e43e0b5736b54133df62f73dcc73ede43af38e96e86156afb45b86973fdeaa95d9f0880333c3fc0907
+"@noble/hashes@npm:2.4.0, @noble/hashes@npm:^2.0.1, @noble/hashes@npm:^2.2.0":
+  version: 2.4.0
+  resolution: "@noble/hashes@npm:2.4.0"
+  checksum: 10/88d4cdd6cef00f412a39f65bda1d24cba2264c6cacdd1c6c48d7ed66fd9be865ffb7231024fb81177975c684b8a463879b89c5ae6960370b05a546c0fd8afa2c
   languageName: node
   linkType: hard
 
