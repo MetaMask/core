@@ -1830,7 +1830,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.request.params).not.toHaveProperty('options');
     });
 
-    it('should not include asset ID options for Solana trades even when asset IDs are provided', () => {
+    it('should include Solana asset ID options when asset IDs are provided', () => {
       const solanaTrade = 'ABCD' as never;
 
       const mockAccount = {
@@ -1850,6 +1850,44 @@ describe('Bridge Status Controller Transaction Utils', () => {
         mockAccount.metadata.snap.id,
         sourceAssetId,
         destAssetId,
+      );
+
+      expect(result).toMatchObject({
+        origin: 'metamask',
+        snapId: 'test-snap-id',
+        handler: 'onClientRequest',
+        request: {
+          id: expect.any(String),
+          jsonrpc: '2.0',
+          method: 'signAndSendTransaction',
+          params: {
+            transaction: 'ABCD',
+            scope: formatChainIdToCaip(ChainId.SOLANA),
+            accountId: 'test-account-id',
+            options: {
+              sourceAssetId,
+              destAssetId,
+            },
+          },
+        },
+      });
+    });
+
+    it('should omit Solana asset ID options when source and destination asset IDs are not provided', () => {
+      const solanaTrade = 'ABCD' as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const result = snaps.getClientRequest(
+        solanaTrade,
+        ChainId.SOLANA,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
       );
 
       expect(result.request.params).not.toHaveProperty('options');
