@@ -562,6 +562,118 @@ describe('HyperLiquidProvider', () => {
       expect(exchangeClient.updateIsolatedMargin).not.toHaveBeenCalled();
       expect(exchangeClient.sendAsset).not.toHaveBeenCalled();
     });
+
+    it('blocks order signing when action-time setup detects multi-signature support', async () => {
+      mockWalletService.requiresSignatureConfirmation.mockReturnValue(true);
+      const exchangeClient = createMockExchangeClient();
+      const userToMultiSigSigners = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('Network unavailable'))
+        .mockResolvedValueOnce({
+          authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+          threshold: 1,
+        });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('default'),
+          userToMultiSigSigners,
+        }),
+      );
+
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      expect(userToMultiSigSigners).toHaveBeenCalledTimes(2);
+      expect(exchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('blocks withdrawal signing when action-time setup gets an authoritative multi-signature rejection', async () => {
+      mockWalletService.requiresSignatureConfirmation.mockReturnValue(true);
+      const exchangeClient = createMockExchangeClient({
+        agentSetAbstraction: jest
+          .fn()
+          .mockRejectedValue(new Error('ApiRequestError: Multi-sig required')),
+      });
+      const userToMultiSigSigners = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('Network unavailable'))
+        .mockResolvedValueOnce(null);
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('default'),
+          userToMultiSigSigners,
+        }),
+      );
+
+      await expect(
+        provider.withdraw({
+          amount: '100',
+          destination: '0x1234567890123456789012345678901234567890' as Hex,
+          assetId:
+            'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      expect(userToMultiSigSigners).toHaveBeenCalledTimes(2);
+      expect(exchangeClient.agentSetAbstraction).toHaveBeenCalledWith({
+        abstraction: 'u',
+      });
+      expect(exchangeClient.withdraw3).not.toHaveBeenCalled();
+      expect(
+        mockPlatformDependencies.metrics.trackPerpsEvent,
+      ).not.toHaveBeenCalledWith(
+        'Perp Account Setup',
+        expect.objectContaining({ status: 'failed' }),
+      );
+    });
+
+    it('does not re-probe a transient support failure when setup learns nothing new', async () => {
+      const exchangeClient = createMockExchangeClient();
+      const userToMultiSigSigners = jest
+        .fn()
+        .mockRejectedValue(new Error('Network unavailable'));
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+          userToMultiSigSigners,
+        }),
+      );
+
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({ success: true });
+
+      expect(userToMultiSigSigners).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('getUserNonFundingLedgerUpdates', () => {
