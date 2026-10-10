@@ -1,5 +1,7 @@
 import type { Infer } from '@metamask/superstruct';
 
+import { createEnum } from './enum.js';
+import type { EnumValue } from './enum.js';
 import { definePattern } from './superstruct.js';
 
 export const CAIP_CHAIN_ID_REGEX =
@@ -131,18 +133,47 @@ export const CaipAssetTypeOrIdStruct = definePattern<
 export type CaipAssetTypeOrId = Infer<typeof CaipAssetTypeOrIdStruct>;
 
 /** Known CAIP namespaces. */
-export enum KnownCaipNamespace {
-  /** BIP-122 (Bitcoin) compatible chains. */
-  Bip122 = 'bip122',
-  /** Solana compatible chains */
-  Solana = 'solana',
-  /** Stellar compatible chains */
-  Stellar = 'stellar',
-  /** Tron compatible chains */
-  Tron = 'tron',
-  /** EIP-155 compatible chains. */
-  Eip155 = 'eip155',
-  Wallet = 'wallet',
+// oxlint-disable-next-line no-redeclare
+export const KnownCaipNamespace = createEnum({
+  /**
+   * BIP-122 (Bitcoin) compatible chains.
+   */
+  Bip122: 'bip122',
+
+  /**
+   * Solana compatible chains
+   */
+  Solana: 'solana',
+
+  /**
+   * Stellar compatible chains
+   */
+  Stellar: 'stellar',
+
+  /**
+   * Tron compatible chains
+   */
+  Tron: 'tron',
+
+  /**
+   * EIP-155 compatible chains.
+   */
+  Eip155: 'eip155',
+
+  Wallet: 'wallet',
+});
+
+// oxlint-disable-next-line no-redeclare
+export type KnownCaipNamespace = EnumValue<typeof KnownCaipNamespace>;
+
+// oxlint-disable-next-line typescript/no-namespace, no-redeclare
+export declare namespace KnownCaipNamespace {
+  type Bip122 = typeof KnownCaipNamespace.Bip122;
+  type Solana = typeof KnownCaipNamespace.Solana;
+  type Stellar = typeof KnownCaipNamespace.Stellar;
+  type Tron = typeof KnownCaipNamespace.Tron;
+  type Eip155 = typeof KnownCaipNamespace.Eip155;
+  type Wallet = typeof KnownCaipNamespace.Wallet;
 }
 
 /**
