@@ -63,7 +63,7 @@
     "@metamask/keyring-utils": "^5.0.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/snap-account-service": "^4.0.0",
-    "@metamask/snaps-controllers": "^19.0.1",
+    "@metamask/snaps-controllers": "^21.1.1",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
     "@metamask/superstruct": "^3.4.1",
