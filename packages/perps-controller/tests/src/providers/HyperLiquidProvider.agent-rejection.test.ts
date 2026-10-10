@@ -1040,6 +1040,7 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(order).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+          errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
         });
         expect(onAgentRejected).not.toHaveBeenCalled();
         // The referral set up for the first order, the order, then the next
@@ -1189,6 +1190,7 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+          errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
         });
         expect(onAgentRejected).not.toHaveBeenCalled();
         // Kept, so the next L1 action does not ask again.
@@ -1388,6 +1390,7 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
       expect(order).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
       });
       expect(onAgentRejected).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();
