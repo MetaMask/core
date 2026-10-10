@@ -229,6 +229,43 @@ describe('Snaps Utils', () => {
         }
       `);
     });
+
+    it('omits the swap asset ids for an approval transaction', async () => {
+      const snapId = 'test-snap-id';
+      const transaction = 'base64-encoded-approval';
+      const accountId = 'test-account-id';
+
+      const mockCall = jest.fn((...args: unknown[]) => {
+        const [action] = args;
+        if (action === 'SnapController:handleRequest') {
+          return Promise.resolve({ transactionId: 'approval-tx-id' });
+        }
+      });
+      const messenger = {
+        call: (...args: unknown[]) => mockCall(...args),
+      } as unknown as BridgeStatusControllerMessenger;
+
+      await handleNonEvmTx(
+        messenger,
+        transaction,
+        {
+          quote: {
+            srcChainId: ChainId.SOLANA,
+            srcAsset: { symbol: 'SOL', assetId: 'solana:src/slip44:501' },
+            destAsset: { symbol: 'USDC', assetId: 'solana:dest/token:usdc' },
+          },
+          sentAmount: { amount: '1000000000' },
+        } as never,
+        { id: accountId, metadata: { snap: { id: snapId } } } as never,
+        true,
+      );
+
+      const [, request] = mockCall.mock.calls[0] as [
+        string,
+        { request: { params: { options?: unknown } } },
+      ];
+      expect(request.request.params.options).toBeUndefined();
+    });
   });
 
   describe('createClientTransactionRequest', () => {

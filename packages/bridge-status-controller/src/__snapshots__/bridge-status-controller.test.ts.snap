@@ -5842,8 +5842,6 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should handle 
         "params": {
           "accountId": "tron-account-1",
           "options": {
-            "destAssetId": "tron:728126428/slip44:195",
-            "sourceAssetId": "tron:728126428/slip44:195",
             "type": undefined,
             "visible": undefined,
           },
@@ -5947,8 +5945,6 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
         "params": {
           "accountId": "tron-account-1",
           "options": {
-            "destAssetId": "tron:728126428/slip44:195",
-            "sourceAssetId": "tron:728126428/slip44:195",
             "type": undefined,
             "visible": undefined,
           },
@@ -6174,8 +6170,6 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
         "params": {
           "accountId": "tron-account-1",
           "options": {
-            "destAssetId": "tron:728126428/slip44:195",
-            "sourceAssetId": "tron:728126428/slip44:195",
             "type": undefined,
             "visible": undefined,
           },
