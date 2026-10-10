@@ -1046,6 +1046,7 @@ type HandleOrderErrorParams = {
   symbol: string;
   orderType: OrderType;
   isBuy: boolean;
+  reportFailure: boolean;
 };
 
 type GetOrFetchPriceParams = {
@@ -6403,7 +6404,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #handleOrderError(
     params: HandleOrderErrorParams,
   ): Promise<OrderResult> {
-    const { error, symbol, orderType, isBuy } = params;
+    const { error, symbol, orderType, isBuy, reportFailure } = params;
     const signerFailure = await this.#handleSignerFailure(error, 'placeOrder', {
       symbol,
       orderType,
@@ -6413,18 +6414,19 @@ export class HyperLiquidProvider implements PerpsProvider {
       return createErrorResult(signerFailure, { success: false });
     }
     const mappedError = this.#mapError(error);
+    const isExpectedAccountState = isHyperLiquidUserNotFoundError(error);
 
     // A wallet with no Hyperliquid account is an expected pre-account state,
     // not an app defect — same policy already applied to every other
     // user-scoped exchange write in this provider. Keep it out of Sentry; the
     // failure is still reported to the caller (and to trade analytics) via the
     // mapped EXCHANGE_ACCOUNT_NOT_FOUND code below.
-    if (isHyperLiquidUserNotFoundError(error)) {
+    if (isExpectedAccountState) {
       this.#deps.debugLogger.log(
         '[handleOrderError] Wallet has no Hyperliquid account, order cannot be placed',
         { symbol, orderType, isBuy },
       );
-    } else {
+    } else if (reportFailure) {
       this.#deps.logger.error(
         mappedError,
         await this.#getTradingErrorContext(
@@ -6452,15 +6454,20 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Refactored to use helper methods for better maintainability and reduced complexity.
    * Each helper method is focused on a single responsibility.
    *
-   * @param params - Order parameters
+   * @param input - Order parameters
    * @param retryCount - Internal retry counter to prevent infinite loops (default: 0)
+   * @param reportFailure - Whether this call owns provider-level error reporting.
    * @returns A promise that resolves to the result.
    */
-  async placeOrder(params: OrderParams, retryCount = 0): Promise<OrderResult> {
-    // Flip asks the provider not to consume the Sentry event. HyperLiquid
-    // still reports placeOrder through #handleOrderError; this only keeps the
-    // flag off the venue payload.
+  async placeOrder(
+    input: OrderParams,
+    retryCount = 0,
+    reportFailure = true,
+  ): Promise<OrderResult> {
+    const deferProviderErrorReport = input.deferProviderErrorReport === true;
+    const params = { ...input };
     delete params.deferProviderErrorReport;
+    const shouldReportFailure = reportFailure && !deferProviderErrorReport;
     if (params.expectedScaleLadder !== undefined) {
       return {
         success: false,
@@ -6730,6 +6737,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             symbol: params.symbol,
             orderType: params.orderType,
             isBuy: params.isBuy,
+            reportFailure: shouldReportFailure,
           });
         }
 
@@ -6748,6 +6756,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             usdAmount: adjustedUsdAmount,
           },
           1, // Retry count = 1, prevents further retries
+          shouldReportFailure,
         );
       }
 
@@ -6756,6 +6765,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         symbol: params.symbol,
         orderType: params.orderType,
         isBuy: params.isBuy,
+        reportFailure: shouldReportFailure,
       });
     }
   }
@@ -12073,27 +12083,31 @@ export class HyperLiquidProvider implements PerpsProvider {
       const isFullClose = closeSizeNum >= absPositionSize;
 
       // Execute position close with consistent slippage handling
-      const result = await this.placeOrder({
-        symbol: params.symbol,
-        isBuy,
-        size: closeSize,
-        orderType: params.orderType ?? 'market',
-        price: params.price,
-        reduceOnly: true,
-        isFullClose,
-        // Pass through price and slippage parameters for consistent validation
-        currentPrice,
-        // A close of the whole position must submit exactly the live position
-        // size. Forwarding usdAmount would make placeOrder recompute the size as
-        // usdAmount / currentPrice — discarding the clamp above, since usdAmount
-        // is the source of truth there — and submit more than the position
-        // holds, which is rejected with "Reduce only order would increase
-        // position". Genuine partial closes keep usdAmount so their size stays
-        // USD-accurate.
-        usdAmount: isFullClose ? undefined : params.usdAmount,
-        priceAtCalculation: params.priceAtCalculation,
-        maxSlippageBps: params.maxSlippageBps,
-      });
+      const result = await this.placeOrder(
+        {
+          symbol: params.symbol,
+          isBuy,
+          size: closeSize,
+          orderType: params.orderType ?? 'market',
+          price: params.price,
+          reduceOnly: true,
+          isFullClose,
+          // Pass through price and slippage parameters for consistent validation
+          currentPrice,
+          // A close of the whole position must submit exactly the live position
+          // size. Forwarding usdAmount would make placeOrder recompute the size as
+          // usdAmount / currentPrice — discarding the clamp above, since usdAmount
+          // is the source of truth there — and submit more than the position
+          // holds, which is rejected with "Reduce only order would increase
+          // position". Genuine partial closes keep usdAmount so their size stays
+          // USD-accurate.
+          usdAmount: isFullClose ? undefined : params.usdAmount,
+          priceAtCalculation: params.priceAtCalculation,
+          maxSlippageBps: params.maxSlippageBps,
+        },
+        0,
+        false,
+      );
 
       // Return freed margin using native abstraction or programmatic transfer
       if (
@@ -12129,21 +12143,13 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return result;
     } catch (error) {
-      this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.closePosition'),
-        this.#getErrorContext(
-          'closePosition',
-          {
-            coin: params.symbol,
-            orderType: params.orderType,
-          },
-          {
-            operation: PERPS_ERROR_OPERATION.PositionManagement,
-            action: PERPS_ERROR_ACTION.ClosePosition,
-          },
-        ),
-      );
-      return createErrorResult(error, { success: false });
+      const safeError = ensureError(error, 'HyperLiquidProvider.closePosition');
+      this.#deps.debugLogger.log('[closePosition] Close failed', {
+        error: safeError.message,
+        coin: params.symbol,
+        orderType: params.orderType,
+      });
+      return createErrorResult(safeError, { success: false });
     }
   }
 

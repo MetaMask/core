@@ -23,6 +23,7 @@ import type {
   LiveDataConfig,
   OrderParams,
 } from '../../../src/types/index.js';
+import { wasProviderErrorReported } from '../../../src/utils/errorContext.js';
 import {
   validateAssetSupport,
   validateBalance,
@@ -833,6 +834,99 @@ describe('HyperLiquidProvider', () => {
             }),
           }),
         );
+      });
+
+      it('defers a flip order failure to the caller without mutating its params', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            order: jest
+              .fn()
+              .mockRejectedValue(new Error('Flip venue unavailable')),
+          }),
+        );
+        const orderParams: OrderParams = {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '1',
+          orderType: 'market',
+          leverage: 10,
+          deferProviderErrorReport: true,
+        };
+
+        const result = await provider.placeOrder(orderParams);
+
+        expect(result).toMatchObject({
+          success: false,
+          error: 'Flip venue unavailable',
+        });
+        expect(wasProviderErrorReported(result)).toBe(false);
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+        expect(orderParams.deferProviderErrorReport).toBe(true);
+      });
+
+      it('preserves deferred reporting through the minimum-order retry', async () => {
+        const order = jest
+          .fn()
+          .mockRejectedValueOnce(
+            new Error('Order must have minimum value of $10'),
+          )
+          .mockRejectedValueOnce(new Error('Flip retry venue unavailable'));
+        mockClientService.getExchangeClient = jest
+          .fn()
+          .mockReturnValue(createMockExchangeClient({ order }));
+
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.1',
+          orderType: 'market',
+          deferProviderErrorReport: true,
+        });
+
+        expect(order).toHaveBeenCalledTimes(2);
+        expect(result).toMatchObject({
+          success: false,
+          error: 'Flip retry venue unavailable',
+        });
+        expect(wasProviderErrorReported(result)).toBe(false);
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+      });
+
+      it('defers the nested place-order failure for closePosition', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            order: jest
+              .fn()
+              .mockRejectedValue(new Error('Close venue unavailable')),
+          }),
+        );
+
+        const result = await provider.closePosition({
+          symbol: 'BTC',
+          orderType: 'market',
+        });
+
+        expect(result).toMatchObject({
+          success: false,
+          error: 'Close venue unavailable',
+        });
+        expect(wasProviderErrorReported(result)).toBe(false);
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+      });
+
+      it('defers a close setup failure to the service boundary', async () => {
+        const result = await provider.closePosition({
+          symbol: 'BTC',
+          orderType: 'market',
+          size: '0',
+        });
+
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
+        });
+        expect(wasProviderErrorReported(result)).toBe(false);
+        expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
       });
 
       it('succeeds with market order without current price or usdAmount (uses fetched price)', async () => {
