@@ -65,7 +65,7 @@
     "@metamask/wallet": "^17.0.0",
     "@oclif/core": "^4.10.5",
     "better-sqlite3": "^13.0.3",
-    "immer": "^11.1.18"
+    "immer": "^11.1.21"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
