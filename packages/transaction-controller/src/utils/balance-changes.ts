@@ -198,6 +198,10 @@ export async function getBalanceChanges(
 /**
  * Extract the native balance change from a simulation response.
  *
+ * The simulated gas cost is added back only when the sender was charged it, and
+ * the unused gas refund is removed only when the simulation created native
+ * balance without charging the sender; the two adjustments never apply together.
+ *
  * @param request - Simulation request.
  * @param response - Simulation response.
  * @returns Native balance change or undefined if unchanged.
@@ -223,16 +227,30 @@ function getNativeBalanceChange(
     return undefined;
   }
 
+  const isBalanceCreated = isNativeBalanceCreated(stateDiff);
+
   const gasCost = isGasCostDeductedFromSender(
     txParams,
     previousBalance,
     newBalance,
-    stateDiff,
+    isBalanceCreated,
   )
     ? transactionResponse.gasCost
     : undefined;
 
-  return getSimulationBalanceChange(previousBalance, newBalance, gasCost);
+  const unusedGasRefund = isBalanceCreated
+    ? getUnusedGasRefund(txParams, transactionResponse)
+    : new BN(0);
+
+  const senderGain = hexToBN(newBalance)
+    .sub(hexToBN(previousBalance))
+    .add(hexToBN(txParams.value ?? '0x0'))
+    .add(getNestedValue(request.nestedTransactions));
+
+  const refund = BN.min(unusedGasRefund, BN.max(senderGain, new BN(0)));
+  const offset = new BN(String(gasCost ?? 0)).sub(refund);
+
+  return getSimulationBalanceChange(previousBalance, newBalance, offset);
 }
 
 /**
@@ -250,14 +268,15 @@ function getNativeBalanceChange(
  * @param txParams - Parameters of the simulated transaction.
  * @param previousBalance - Sender native balance before the simulation.
  * @param newBalance - Sender native balance after the simulation.
- * @param stateDiff - Native balances before and after the simulation.
+ * @param isBalanceCreated - Whether the simulation increased the total native
+ * balance.
  * @returns Whether the gas cost was deducted from the sender.
  */
 function isGasCostDeductedFromSender(
   txParams: TransactionParams,
   previousBalance: Hex,
   newBalance: Hex,
-  stateDiff: SimulationResponseTransaction['stateDiff'],
+  isBalanceCreated: boolean,
 ): boolean {
   const feePerGas = (txParams.maxFeePerGas ?? txParams.gasPrice) as
     | Hex
@@ -275,7 +294,7 @@ function isGasCostDeductedFromSender(
     return false;
   }
 
-  return !isNativeBalanceCreated(stateDiff);
+  return !isBalanceCreated;
 }
 
 /**
@@ -305,6 +324,42 @@ function isNativeBalanceCreated(
   }, new BN(0));
 
   return totalBalanceChange.gt(new BN(0));
+}
+
+/**
+ * Calculate the unused gas refund credited to the sender when the simulation
+ * reports gas fees without debiting the sender.
+ *
+ * @param txParams - Parameters of the simulated transaction.
+ * @param transactionResponse - Simulation response for the transaction.
+ * @returns The refund in wei, or zero if it cannot be derived.
+ */
+function getUnusedGasRefund(
+  txParams: TransactionParams,
+  transactionResponse: SimulationResponseTransaction,
+): BN {
+  const { gasCost, gasUsed } = transactionResponse;
+  const gasLimit = txParams.gas as Hex | undefined;
+
+  if (!gasLimit || !gasUsed || gasCost === undefined || gasCost === null) {
+    return new BN(0);
+  }
+
+  const gasUsedBN = hexToBN(gasUsed);
+
+  if (gasUsedBN.isZero()) {
+    return new BN(0);
+  }
+
+  const unusedGas = hexToBN(gasLimit).sub(gasUsedBN);
+
+  if (unusedGas.lte(new BN(0))) {
+    return new BN(0);
+  }
+
+  const price = new BN(String(gasCost)).add(gasUsedBN.shrn(1)).div(gasUsedBN);
+
+  return unusedGas.mul(price);
 }
 
 /**
@@ -774,9 +829,9 @@ function extractRootRevert(
 function getSimulationBalanceChange(
   previousBalance: Hex,
   newBalance: Hex,
-  offset: number = 0,
+  offset: BN = new BN(0),
 ): SimulationBalanceChange | undefined {
-  const newBalanceBN = hexToBN(newBalance).add(new BN(offset));
+  const newBalanceBN = hexToBN(newBalance).add(offset);
   const previousBalanceBN = hexToBN(previousBalance);
   const differenceBN = newBalanceBN.sub(previousBalanceBN);
   const isDecrease = differenceBN.isNeg();
@@ -915,9 +970,19 @@ function getRequiredBalance(request: GetBalanceChangesRequest): BN {
   const gasPrice = hexToBN(txParams.maxFeePerGas ?? txParams.gasPrice ?? '0x0');
   const value = hexToBN(txParams.value ?? '0x0');
 
-  const nestedValue = (request.nestedTransactions ?? [])
-    .map((tx) => hexToBN(tx.value ?? '0x0'))
-    .reduce((acc, val) => acc.add(val), new BN(0));
+  const nestedValue = getNestedValue(request.nestedTransactions);
 
   return gasLimit.mul(gasPrice).add(value).add(nestedValue);
+}
+
+/**
+ * Sum the native values of nested transactions.
+ *
+ * @param nestedTransactions - The nested transactions of a batch.
+ * @returns The total native value as a BN.
+ */
+function getNestedValue(nestedTransactions?: NestedTransactionMetadata[]): BN {
+  return (nestedTransactions ?? [])
+    .map((tx) => hexToBN(tx.value ?? '0x0'))
+    .reduce((acc, val) => acc.add(val), new BN(0));
 }
