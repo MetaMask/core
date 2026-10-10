@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#10516](https://github.com/MetaMask/core/pull/10516))
 
 ## [3.1.2]
 

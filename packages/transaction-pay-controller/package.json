@@ -51,8 +51,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@ethersproject/abi": "^5.7.0",
-    "@ethersproject/contracts": "^5.7.0",
+    "@ethersproject/abi": "^5.8.0",
+    "@ethersproject/contracts": "^5.8.0",
     "@ethersproject/providers": "^5.8.0",
     "@metamask/accounts-controller": "^40.0.0",
     "@metamask/assets-controller": "^18.0.1",
