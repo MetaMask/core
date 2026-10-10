@@ -93,9 +93,6 @@ export const getClientRequest = (
 
   let options: Record<string, unknown> | undefined;
 
-  // Stellar, Solana, and Bitcoin trades expect the swap/bridge asset IDs in the
-  // request options; Tron also adds its own fields in the
-  // branch below.
   if (
     isStellarChainId(srcChainId) ||
     isSolanaChainId(srcChainId) ||
