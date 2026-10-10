@@ -9176,9 +9176,16 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     let { rebalancePromise } = trackedOrder;
     if (!rebalancePromise) {
-      rebalancePromise = this.#handleHip3PostOrderRebalance(
-        trackedOrder.hip3Transfer,
-      );
+      const { hip3Transfer } = trackedOrder;
+      rebalancePromise = this.#handleHip3PostOrderRebalance({
+        ...hip3Transfer,
+        accountContext: {
+          ...hip3Transfer.accountContext,
+          // TWAP tracking deliberately survives reconnects. Keep its stable
+          // account/network scope, but bind the cleanup write to this lifecycle.
+          lifecycleGeneration: this.#lifecycleGeneration,
+        },
+      });
       trackedOrder.rebalancePromise = rebalancePromise;
     }
 

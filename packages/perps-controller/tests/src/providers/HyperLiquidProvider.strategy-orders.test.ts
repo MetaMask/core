@@ -4505,7 +4505,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(transfer).toHaveBeenCalledTimes(2);
     });
 
-    it('retries a failed HIP-3 collateral rebalance after provider recreation', async () => {
+    it('retries a failed HIP-3 collateral rebalance with fresh context after reconnect', async () => {
       let twapPlaced = false;
       const clearinghouseState = jest.fn().mockImplementation(({ dex }) => {
         let withdrawable = '1000';
@@ -4575,26 +4575,31 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ).toMatchObject({ success: true, orderId: '987' });
       expect(initialTransfer).toHaveBeenCalledTimes(1);
       await provider.disconnect();
-
-      const recreatedProvider = createTestProvider({
-        hip3Enabled: true,
-        allowlistMarkets: ['xyz:*'],
-        useUnifiedAccount: false,
-        initialAssetMapping: [['xyz:TSLA', 110000]],
-      });
+      initialTransfer.mockRestore();
+      expect(await provider.initialize()).toMatchObject({ success: true });
       const rebalance = jest
-        .spyOn(recreatedProvider, 'transferBetweenDexs')
+        .spyOn(provider, 'transferBetweenDexs')
         .mockResolvedValueOnce({ success: false, error: 'transfer failed' })
         .mockResolvedValue({ success: true });
 
-      await recreatedProvider.getTwapOrders();
+      await provider.getTwapOrders();
       expect(rebalance).toHaveBeenCalledTimes(1);
 
-      await recreatedProvider.getTwapOrders();
+      await provider.getTwapOrders();
       expect(rebalance).toHaveBeenCalledTimes(2);
 
-      await recreatedProvider.getTwapOrders();
+      await provider.getTwapOrders();
       expect(rebalance).toHaveBeenCalledTimes(2);
+      expect(rebalance.mock.calls).toStrictEqual([
+        [
+          expect.any(Object),
+          expect.objectContaining({ lifecycleGeneration: 1 }),
+        ],
+        [
+          expect.any(Object),
+          expect.objectContaining({ lifecycleGeneration: 1 }),
+        ],
+      ]);
     });
   });
 
