@@ -9,6 +9,7 @@ import {
   extractTradeData,
   formatChainIdToCaip,
   formatChainIdToHex,
+  isBitcoinTrade,
   isCrossChain,
   isStellarTrade,
   isTronTrade,
@@ -91,10 +92,12 @@ export const getClientRequest = (
 
   let options: Record<string, unknown> | undefined;
 
-  // Only Stellar trades expect asset IDs in the request options. Passing them
-  // for other non-EVM chains (e.g. Bitcoin) breaks strict snap request
-  // validation and prevents the transaction from being broadcast.
-  if (isStellarTrade(trade)) {
+  // Stellar and Bitcoin trades expect asset IDs in the request options, and
+  // nothing else. Passing them for any other non-EVM chain breaks strict snap
+  // request validation and prevents the transaction from being broadcast. The
+  // asset IDs let the snap classify the transaction as a same-chain swap or a
+  // cross-chain bridge.
+  if (isStellarTrade(trade) || isBitcoinTrade(trade)) {
     if (sourceAssetId !== undefined || destAssetId !== undefined) {
       options = {
         ...(sourceAssetId !== undefined && {

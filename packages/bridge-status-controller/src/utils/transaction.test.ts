@@ -1752,7 +1752,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       ).not.toHaveProperty('destAssetId');
     });
 
-    it('should not include asset ID options for Bitcoin trades even when asset IDs are provided', () => {
+    it('should include Bitcoin asset ID options when asset IDs are provided', () => {
       const bitcoinTrade = {
         unsignedPsbtBase64: 'AAAABg==',
       } as never;
@@ -1774,6 +1774,46 @@ describe('Bridge Status Controller Transaction Utils', () => {
         mockAccount.metadata.snap.id,
         sourceAssetId,
         destAssetId,
+      );
+
+      expect(result).toMatchObject({
+        origin: 'metamask',
+        snapId: 'test-snap-id',
+        handler: 'onClientRequest',
+        request: {
+          id: expect.any(String),
+          jsonrpc: '2.0',
+          method: 'signAndSendTransaction',
+          params: {
+            transaction: 'AAAABg==',
+            scope: formatChainIdToCaip(ChainId.BTC),
+            accountId: 'test-account-id',
+            options: {
+              sourceAssetId,
+              destAssetId,
+            },
+          },
+        },
+      });
+    });
+
+    it('should omit Bitcoin asset ID options when source and destination asset IDs are not provided', () => {
+      const bitcoinTrade = {
+        unsignedPsbtBase64: 'AAAABg==',
+      } as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const result = snaps.getClientRequest(
+        bitcoinTrade,
+        ChainId.BTC,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
       );
 
       expect(result.request.params).not.toHaveProperty('options');
