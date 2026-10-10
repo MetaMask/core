@@ -22,6 +22,7 @@ export const createMockHyperLiquidProvider =
         totalBalance30dAgo: '9000',
       }),
       getMarkets: jest.fn(),
+      getAccountSupport: jest.fn().mockResolvedValue({ isSupported: true }),
       getOrderCapabilities: jest.fn().mockResolvedValue({
         status: 'ready',
         providerId: 'hyperliquid',

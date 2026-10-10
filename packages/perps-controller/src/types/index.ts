@@ -2447,6 +2447,29 @@ export type Funding = {
   transactionHash?: string; // Optional transaction hash
 };
 
+/**
+ * A provider-owned reason that the selected account cannot submit Perps
+ * actions through a route.
+ */
+export type PerpsAccountUnsupportedReason = 'multi_sig_account';
+
+/**
+ * Whether the selected account can submit Perps actions through a provider.
+ */
+export type PerpsAccountSupport =
+  | { isSupported: true }
+  | {
+      isSupported: false;
+      reason: PerpsAccountUnsupportedReason;
+    };
+
+/**
+ * Selects the provider route whose account support should be checked.
+ */
+export type GetAccountSupportParams = {
+  providerId?: PerpsProviderType;
+};
+
 export type PerpsProvider = {
   /** Local durable Scale inventory; unsupported providers omit the methods. */
   getScaleOrderGroups?(): Promise<ScaleOrderGroup[]>;
@@ -2459,6 +2482,14 @@ export type PerpsProvider = {
 
   /** Whether this provider routes individual requests by `providerId`. */
   readonly routesOrdersByProviderId?: boolean;
+
+  /**
+   * Return whether the selected account can submit actions through this
+   * provider. Providers that omit this hook are treated as supported.
+   */
+  getAccountSupport?(
+    params?: GetAccountSupportParams,
+  ): Promise<PerpsAccountSupport>;
 
   /**
    * Return order capabilities for the provider/market route. Providers may
