@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@types/uuid` from `^8.3.0` to `^9.0.8` ([#10117](https://github.com/MetaMask/core/pull/10117))
 - Bump `uuid` from `^8.3.2` to `^11.1.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
-- Bump `immer` from `^9.0.6` to `^11.1.18` ([#10331](https://github.com/MetaMask/core/pull/10331), [#10382](https://github.com/MetaMask/core/pull/10382))
+- Bump `immer` from `^9.0.6` to `^11.1.21` ([#10331](https://github.com/MetaMask/core/pull/10331), [#10382](https://github.com/MetaMask/core/pull/10382), [#10723](https://github.com/MetaMask/core/pull/10723))
 - Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.0` ([#10733](https://github.com/MetaMask/core/pull/10733))
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
 - Bump `@metamask/keyring-api` from `^24.0.0` to `^24.1.0` ([#10717](https://github.com/MetaMask/core/pull/10717))
