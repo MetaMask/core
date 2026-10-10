@@ -2632,7 +2632,7 @@ describe('BridgeStatusController', () => {
           symbol: 'USDC',
           name: 'USDC',
           decimals: 18,
-          assetId: 'eip155:1399811149/slip44:501',
+          assetId: `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`,
         },
         bridgeId: 'test-bridge',
         bridges: [],

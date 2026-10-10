@@ -9,8 +9,10 @@ import {
   extractTradeData,
   formatChainIdToCaip,
   formatChainIdToHex,
+  isBitcoinChainId,
   isCrossChain,
-  isStellarTrade,
+  isSolanaChainId,
+  isStellarChainId,
   isTronTrade,
 } from '@metamask/bridge-controller';
 import { SnapController } from '@metamask/snaps-controllers';
@@ -91,10 +93,11 @@ export const getClientRequest = (
 
   let options: Record<string, unknown> | undefined;
 
-  // Only Stellar trades expect asset IDs in the request options. Passing them
-  // for other non-EVM chains (e.g. Bitcoin) breaks strict snap request
-  // validation and prevents the transaction from being broadcast.
-  if (isStellarTrade(trade)) {
+  if (
+    isStellarChainId(srcChainId) ||
+    isSolanaChainId(srcChainId) ||
+    isBitcoinChainId(srcChainId)
+  ) {
     if (sourceAssetId !== undefined || destAssetId !== undefined) {
       options = {
         ...(sourceAssetId !== undefined && {
@@ -108,10 +111,15 @@ export const getClientRequest = (
   }
 
   if (isTronTrade(trade)) {
-    // Tron trades need the visible flag and contract type to be included in the request options
     options = {
       visible: trade.visible,
       type: trade.raw_data?.contract?.[0]?.type,
+      ...(sourceAssetId !== undefined && {
+        sourceAssetId,
+      }),
+      ...(destAssetId !== undefined && {
+        destAssetId,
+      }),
     };
   }
 
@@ -254,6 +262,7 @@ export const handleNonEvmTxResponse = (
  * @param trade - The trade data (can be approval or main trade)
  * @param quoteResponse - The quote response containing metadata
  * @param selectedAccount - The account to submit the transaction for
+ * @param isApproval - Whether the trade is the approval transaction rather than the main trade
  * @returns The transaction meta
  */
 export const handleNonEvmTx = async (
@@ -261,6 +270,7 @@ export const handleNonEvmTx = async (
   trade: Trade,
   quoteResponse: QuoteResponseV1<Trade, Trade> & QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
+  isApproval = false,
 ): Promise<TransactionMeta> => {
   if (!selectedAccount.metadata?.snap?.id) {
     throw new Error(
@@ -268,13 +278,17 @@ export const handleNonEvmTx = async (
     );
   }
 
+  // The quote's asset ids describe the swap/bridge transaction, not the token
+  // approval that precedes it. Passing them for the approval would make the snap
+  // classify the approval as a swap or a bridge, so they are only attached to
+  // the main trade.
   const request = getClientRequest(
     trade,
     quoteResponse.quote.srcChainId,
     selectedAccount.id,
     selectedAccount.metadata?.snap?.id,
-    quoteResponse.quote.srcAsset.assetId,
-    quoteResponse.quote.destAsset.assetId,
+    isApproval ? undefined : quoteResponse.quote.srcAsset.assetId,
+    isApproval ? undefined : quoteResponse.quote.destAsset.assetId,
   );
   const requestResponse = (await messenger.call(
     'SnapController:handleRequest',
