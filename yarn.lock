@@ -7527,6 +7527,33 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/money-account-mfa-whitelist@workspace:packages/money-account-mfa-whitelist":
+  version: 0.0.0-use.local
+  resolution: "@metamask/money-account-mfa-whitelist@workspace:packages/money-account-mfa-whitelist"
+  dependencies:
+    "@metamask/abi-utils": "npm:^2.0.4"
+    "@metamask/auto-changelog": "npm:^6.2.1"
+    "@metamask/delegation-controller": "npm:^4.0.0"
+    "@metamask/delegation-core": "npm:^2.2.1"
+    "@metamask/delegation-deployments": "npm:^1.4.0"
+    "@metamask/messenger": "npm:^3.0.0"
+    "@metamask/money-account-utils": "npm:^2.1.0"
+    "@metamask/transaction-controller": "npm:^72.1.0"
+    "@metamask/utils": "npm:^12.0.0"
+    "@noble/hashes": "npm:^1.8.0"
+    "@types/jest": "npm:^30.0.0"
+    "@typescript/native": "npm:typescript@^7.0.2"
+    deepmerge: "npm:^4.3.1"
+    ethers: "npm:^6.17.0"
+    jest: "npm:^30.5.2"
+    rimraf: "npm:^6.1.3"
+    ts-jest: "npm:^29.4.14"
+    typedoc: "npm:^0.28.20"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
+    typescript: "npm:@typescript/typescript6@^6.0.2"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/money-account-upgrade-controller@npm:^5.1.0, @metamask/money-account-upgrade-controller@workspace:packages/money-account-upgrade-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-upgrade-controller@workspace:packages/money-account-upgrade-controller"
