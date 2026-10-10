@@ -3016,6 +3016,29 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Block an action when another step has authoritatively corrected support
+   * for its captured account. A missing cache entry remains fail-open: this
+   * fence must not turn a transient probe failure into another network probe.
+   *
+   * @param context - The account, network, and lifecycle captured by the action.
+   * @param operation - Operation name included in lifecycle diagnostics.
+   */
+  async #assertNoKnownUnsupportedAccount(
+    context: AccountSupportContext,
+    operation: string,
+  ): Promise<void> {
+    await this.#assertAccountContextCurrent(context, operation);
+    const cachedSupport = this.#accountSupportByContext.get(
+      this.#getAccountSupportCacheKey(context.network, context.userAddress),
+    );
+    const support = cachedSupport ? await cachedSupport : undefined;
+    await this.#assertAccountContextCurrent(context, operation);
+    if (support && !support.isSupported) {
+      throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
+    }
+  }
+
+  /**
    * Stop an action before signing when Hyperliquid reports a native multi-sig
    * signer set for the active account.
    *
@@ -3707,7 +3730,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Perps section open. Drive it here, gated by its own cache so
     // already-migrated users are not re-prompted.
     await this.#ensureUnifiedAccountEnabled({ allowUserSigning: true });
-    await this.#assertAccountContextCurrent(accountContext, 'Trading setup');
+    await this.#assertNoKnownUnsupportedAccount(
+      accountContext,
+      'Trading setup',
+    );
 
     // Reset right before the check, with no await in between, so a failure
     // above does not leave the setup for an order to run.
@@ -3769,7 +3795,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     const builderFeeSetupContext = options.requiresBuilderFee
       ? await this.#ensureBuilderFeeSetup(options.builderFeeApprovalFailureCode)
       : undefined;
-    await this.#assertAccountContextCurrent(accountContext, 'Trading setup');
+    await this.#assertNoKnownUnsupportedAccount(
+      accountContext,
+      'Trading setup',
+    );
 
     this.#deps.debugLogger.log(
       '[ensureReadyForTrading] Trading setup complete',
@@ -15244,6 +15273,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       await this.#ensureReady();
       const accountContext = await this.#assertAccountSupported();
       await this.#ensureUnifiedAccountEnabled({ allowUserSigning: true });
+      await this.#assertNoKnownUnsupportedAccount(accountContext, 'Withdrawal');
       const exchangeClient = this.#clientService.getExchangeClient();
       this.#deps.debugLogger.log('HyperLiquidProvider: CLIENT READY');
 
@@ -15307,7 +15337,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         timestamp: new Date().toISOString(),
       });
 
-      await this.#assertAccountContextCurrent(accountContext, 'Withdrawal');
+      await this.#assertNoKnownUnsupportedAccount(accountContext, 'Withdrawal');
       const result = await exchangeClient.withdraw3({
         destination,
         amount: params.amount,
