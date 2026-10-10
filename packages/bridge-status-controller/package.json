@@ -60,7 +60,7 @@
     "@metamask/network-controller": "^37.0.1",
     "@metamask/polling-controller": "^17.0.0",
     "@metamask/profile-sync-controller": "^34.0.3",
-    "@metamask/snaps-controllers": "^19.0.1",
+    "@metamask/snaps-controllers": "^21.1.1",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/transaction-controller": "^72.2.0",
     "@metamask/utils": "^12.0.0",

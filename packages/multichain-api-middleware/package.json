@@ -56,7 +56,7 @@
     "@metamask/network-controller": "^37.0.1",
     "@metamask/permission-controller": "^14.0.0",
     "@metamask/rpc-errors": "^7.0.3",
-    "@metamask/snaps-controllers": "^19.0.1",
+    "@metamask/snaps-controllers": "^21.1.1",
     "@metamask/utils": "^12.0.0",
     "@open-rpc/meta-schema": "^1.14.9",
     "@open-rpc/schema-utils-js": "^2.0.5",
