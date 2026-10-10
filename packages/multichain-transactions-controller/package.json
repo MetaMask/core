@@ -59,7 +59,7 @@
     "@metamask/polling-controller": "^17.0.0",
     "@metamask/snaps-controllers": "^19.0.1",
     "@metamask/snaps-sdk": "^11.0.0",
-    "@metamask/snaps-utils": "^12.1.2",
+    "@metamask/snaps-utils": "^12.6.1",
     "@metamask/utils": "^12.0.0",
     "immer": "^11.1.18",
     "uuid": "^11.1.1"
