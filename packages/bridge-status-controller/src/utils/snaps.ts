@@ -9,10 +9,10 @@ import {
   extractTradeData,
   formatChainIdToCaip,
   formatChainIdToHex,
-  isBitcoinTrade,
+  isBitcoinChainId,
   isCrossChain,
   isSolanaChainId,
-  isStellarTrade,
+  isStellarChainId,
   isTronTrade,
 } from '@metamask/bridge-controller';
 import { SnapController } from '@metamask/snaps-controllers';
@@ -93,16 +93,13 @@ export const getClientRequest = (
 
   let options: Record<string, unknown> | undefined;
 
-  // Stellar, Solana, Bitcoin, and Tron trades expect asset IDs in the request
-  // options. For Stellar, Solana, and Bitcoin the options contain nothing else;
-  // Tron also adds its own fields in the branch below. Passing the asset IDs for
-  // any other non-EVM chain breaks strict snap request validation and prevents
-  // the transaction from being broadcast. The asset IDs let the snap classify
-  // the transaction as a same-chain swap or a cross-chain bridge.
+  // Stellar, Solana, and Bitcoin trades expect the swap/bridge asset IDs in the
+  // request options; Tron also adds its own fields in the
+  // branch below.
   if (
-    isStellarTrade(trade) ||
+    isStellarChainId(srcChainId) ||
     isSolanaChainId(srcChainId) ||
-    isBitcoinTrade(trade)
+    isBitcoinChainId(srcChainId)
   ) {
     if (sourceAssetId !== undefined || destAssetId !== undefined) {
       options = {
@@ -117,10 +114,6 @@ export const getClientRequest = (
   }
 
   if (isTronTrade(trade)) {
-    // Tron trades need the visible flag and contract type to be included in the
-    // request options. The swap/bridge asset ids are also passed so the Tron
-    // snap can classify the transaction as a same-chain swap or a cross-chain
-    // bridge, mirroring the Stellar snap.
     options = {
       visible: trade.visible,
       type: trade.raw_data?.contract?.[0]?.type,
