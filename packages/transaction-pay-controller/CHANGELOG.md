@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+- Fail fiat and second-leg submissions when the settled amount cannot be read from an on-chain transaction, rather than falling back to `order.cryptoAmount` or the quote minimum ([#10501](https://github.com/MetaMask/core/pull/10501))
+
+### Fixed
+
+- Zero source network fees for Relay quotes on Polymarket deposit-wallet Predict withdraws, as the Polymarket relayer pays origin gas ([#10501](https://github.com/MetaMask/core/pull/10501))
+- Set `isIntentComplete` on the parent transaction only after the non-atomic second leg of a Relay quote is submitted, so a failed second leg no longer leaves a failed transaction flagged as complete ([#10501](https://github.com/MetaMask/core/pull/10501))
 
 ## [30.0.3]
 
@@ -35,14 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/ramps-controller` from `^26.2.0` to `^26.3.0` ([#10741](https://github.com/MetaMask/core/pull/10741))
 - Bump `@metamask/ramps-controller` from `^26.1.0` to `^26.2.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/sentinel-api-service` from `^2.0.0` to `^2.1.0` ([#10746](https://github.com/MetaMask/core/pull/10746))
-- Fail fiat and second-leg submissions when the settled amount cannot be read from an on-chain transaction, rather than falling back to `order.cryptoAmount` or the quote minimum ([#10501](https://github.com/MetaMask/core/pull/10501))
 
 ### Fixed
 
 - Always set `excludeNativeTokenForFee` when origin gas is priced in the source token, so the fee shown in the quote is the fee the user is charged ([#10404](https://github.com/MetaMask/core/pull/10404))
   - Previously only the across strategy opted in, so for the relay and server strategies the `TransactionController` re-checked the native balance at publish time and silently dropped the gas fee token, billing the user in native token instead.
-- Zero source network fees for Relay quotes on Polymarket deposit-wallet Predict withdraws, as the Polymarket relayer pays origin gas ([#10501](https://github.com/MetaMask/core/pull/10501))
-- Set `isIntentComplete` on the parent transaction only after the non-atomic second leg of a Relay quote is submitted, so a failed second leg no longer leaves a failed transaction flagged as complete ([#10501](https://github.com/MetaMask/core/pull/10501))
 
 ## [30.0.1]
 
