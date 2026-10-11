@@ -1475,6 +1475,15 @@ describe('server-quotes', () => {
         { transaction: { chainId: '0x3' } },
       ],
       ['the target chain does not support EIP-7702', { eip7702Chain: false }],
+      [
+        'the calls are only on the top-level transaction',
+        {
+          transaction: {
+            nestedTransactions: undefined,
+            txParams: { data: '0x1234', from: FROM_MOCK },
+          },
+        },
+      ],
     ])(
       'is omitted when %s',
       async (

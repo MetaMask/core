@@ -305,6 +305,11 @@ async function buildServerQuoteRequest(
  * must support EIP-7702, and MetaMask must sponsor gas for the transaction on
  * that chain. Otherwise the user would need native gas on the target chain.
  *
+ * Temporarily, only nested transactions are supported as second-leg calls, as
+ * they are what the second leg re-encodes for the settled amount. Calls that
+ * exist only on the top-level transaction are not deferred, so a provider that
+ * cannot execute them declines rather than returning a funds-only quote.
+ *
  * @param options - Check options.
  * @param options.accountSupports7702 - Whether the account can sign EIP-7702
  * authorizations.
@@ -325,6 +330,7 @@ function canDeferCalls({
   transaction: TransactionMeta;
 }): boolean {
   return (
+    Boolean(transaction.nestedTransactions?.length) &&
     accountSupports7702 &&
     transaction.isGasFeeSponsored === true &&
     transaction.chainId === targetChainId &&
