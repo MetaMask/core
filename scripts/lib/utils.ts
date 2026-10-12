@@ -1,3 +1,7 @@
+// These functions are copied from `@metamask/utils` to avoid issues with
+// non-erasable syntax in that package.
+// See: https://github.com/MetaMask/core/pull/10784
+
 import fs from 'fs/promises';
 import { dirname } from 'path';
 import { ErrorWithCause } from 'pony-cause';
