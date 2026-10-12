@@ -133,8 +133,7 @@ const PREDICT_WITHDRAW_TRANSACTION_MOCK = {
 
 const DEPOSIT_STEP_MOCK = {
   chainId: 1,
-  data: '0xa9059cbb' as Hex,
-  id: 'deposit',
+  data: `0xa9059cbb${'1'.padStart(64, '0')}${'2'.padStart(64, '0')}` as Hex,
   to: SOURCE_TOKEN_ADDRESS_MOCK,
   type: 'transaction' as const,
   value: '0',
@@ -1666,6 +1665,35 @@ describe('server-quotes', () => {
       );
     });
 
+    it('ignores quotes that do not fund the deposit address with a plain token transfer', async () => {
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...NON_GASLESS_DEPOSIT_RESULT_MOCK,
+            quote: {
+              ...NON_GASLESS_DEPOSIT_RESULT_MOCK.quote,
+              steps: [
+                {
+                  ...DEPOSIT_STEP_MOCK,
+                  data: `${DEPOSIT_STEP_MOCK.data}abcd` as Hex,
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [DEPOSIT_WALLET_REQUEST_MOCK],
+        transaction: { txParams: { from: FROM_MOCK } } as TransactionMeta,
+      });
+
+      expect(result).toStrictEqual([]);
+    });
+
     it('does not charge source network fees, as the Polymarket relayer pays the gas', async () => {
       jest
         .mocked(calculateGasCost)
@@ -1867,7 +1895,7 @@ describe('server-quotes', () => {
             ...NON_GASLESS_DEPOSIT_RESULT_MOCK,
             quote: {
               ...NON_GASLESS_DEPOSIT_RESULT_MOCK.quote,
-              steps: [{ ...DEPOSIT_STEP_MOCK, id: 'swap' }],
+              steps: [{ ...DEPOSIT_STEP_MOCK, data: '0x12345678' }],
             },
           },
         ],

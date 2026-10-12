@@ -606,7 +606,8 @@ describe('submitServerQuotes', () => {
   });
 
   describe('Polymarket deposit wallet', () => {
-    const DEPOSIT_DATA_MOCK = '0xdepositdata' as Hex;
+    const DEPOSIT_DATA_MOCK =
+      `0xa9059cbb${'1'.padStart(64, '0')}${'2'.padStart(64, '0')}` as Hex;
     const PRE_SUBMIT_BALANCE_MOCK = 5n;
 
     const submitPolymarketWithdrawMock = jest.mocked(submitPolymarketWithdraw);
@@ -635,7 +636,6 @@ describe('submitServerQuotes', () => {
               {
                 chainId: 137,
                 data: DEPOSIT_DATA_MOCK,
-                id: 'deposit',
                 to: '0x4444444444444444444444444444444444444444',
                 type: 'transaction' as const,
                 value: '0',

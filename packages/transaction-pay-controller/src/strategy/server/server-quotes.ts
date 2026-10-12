@@ -192,7 +192,9 @@ async function fetchQuotes(
 
   const fulfilledResults = response.results.filter(
     (result): result is FulfilledServerQuoteResult =>
-      isFulfilledResult(result) && (!provider || result.provider === provider),
+      isFulfilledResult(result) &&
+      (!provider || result.provider === provider) &&
+      isUsableDepositAddressQuote(body, result),
   );
 
   const normalized = await Promise.all(
@@ -905,6 +907,31 @@ function isFulfilledResult(
     result.quote.input !== undefined &&
     result.quote.output !== undefined
   );
+}
+
+/**
+ * Whether a quote can be funded as requested. A deposit-address request is only
+ * usable when the quote funds the provider with a plain token transfer, since
+ * that transfer is what gets replaced by an unwrap straight to the deposit
+ * address.
+ *
+ * @param body - The built server quote request.
+ * @param result - Fulfilled provider result.
+ * @returns True when the quote is usable.
+ */
+function isUsableDepositAddressQuote(
+  body: ServerQuoteRequest,
+  result: FulfilledServerQuoteResult,
+): boolean {
+  if (!body.useDepositAddress || hasServerDepositStep(result.quote.steps)) {
+    return true;
+  }
+
+  log('Ignoring deposit address quote without a plain token transfer', {
+    provider: result.provider,
+  });
+
+  return false;
 }
 
 function decodeTransferRecipient(data: Hex): Hex {

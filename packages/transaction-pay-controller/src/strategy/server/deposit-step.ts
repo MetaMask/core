@@ -1,8 +1,12 @@
 import type { Hex } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import type { ServerQuote, ServerTransactionStep } from './types.js';
 
-const DEPOSIT_STEP_ID = 'deposit';
+const TOKEN_TRANSFER_FOUR_BYTE = '0xa9059cbb';
+
+// `0x` + 4-byte selector + two 32-byte arguments (recipient, amount).
+const TOKEN_TRANSFER_DATA_LENGTH = 2 + 8 + 64 * 2;
 
 /**
  * Whether a server quote routes through a deposit step, i.e. the user funds the
@@ -25,8 +29,20 @@ export function getServerDepositData(quote: ServerQuote): Hex | undefined {
   return quote.steps.find(isDepositStep)?.data;
 }
 
+/**
+ * Whether a step is a plain ERC-20 `transfer` with no extra calldata and no
+ * native value, which is how a provider deposit address is funded.
+ *
+ * @param step - Server quote step.
+ * @returns True when the step is a plain token transfer.
+ */
 function isDepositStep(
   step: ServerQuote['steps'][number],
 ): step is ServerTransactionStep {
-  return step.type === 'transaction' && step.id === DEPOSIT_STEP_ID;
+  return (
+    step.type === 'transaction' &&
+    step.data.length === TOKEN_TRANSFER_DATA_LENGTH &&
+    step.data.toLowerCase().startsWith(TOKEN_TRANSFER_FOUR_BYTE) &&
+    new BigNumber(step.value || '0').isZero()
+  );
 }
