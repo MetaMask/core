@@ -2,22 +2,21 @@ import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
+import type {
+  SentinelSimulationLog,
+  SentinelSimulationResponse,
+  SentinelSimulationResponseTransaction,
+} from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { simulateTransactions } from '../api/simulation-api.js';
-import type {
-  SimulationResponseLog,
-  SimulationResponseTransaction,
-} from '../api/simulation-api.js';
-import type { SimulationResponse } from '../api/simulation-api.js';
 import {
   SimulationInvalidResponseError,
   SimulationRevertedError,
 } from '../errors.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
-import type { GetSimulationConfig } from '../types.js';
 import { SimulationErrorCode, SimulationTokenStandard } from '../types.js';
 import type { GetBalanceChangesRequest } from './balance-changes.js';
 import { getBalanceChanges, SupportedToken } from './balance-changes.js';
@@ -67,7 +66,6 @@ const REQUEST_MOCK: GetBalanceChangesRequest = {
   chainId: '0x1',
   messenger: MESSENGER_MOCK,
   networkClientId: NETWORK_CLIENT_ID_MOCK,
-  getSimulationConfig: vi.fn(),
   txParams: {
     data: '0x123',
     from: USER_ADDRESS_MOCK,
@@ -128,13 +126,13 @@ const PARSED_WRAPPED_ERC20_DEPOSIT_EVENT_MOCK = {
   args: [USER_ADDRESS_MOCK, { toHexString: (): Hex => VALUE_MOCK }],
 } as unknown as LogDescription;
 
-const defaultResponseTx: SimulationResponseTransaction = {
+const defaultResponseTx: SentinelSimulationResponseTransaction = {
   return: encodeTo32ByteHex('0x0'),
   callTrace: { calls: [], logs: [] },
   stateDiff: { pre: {}, post: {} },
 };
 
-const RESPONSE_NESTED_LOGS_MOCK: SimulationResponse = {
+const RESPONSE_NESTED_LOGS_MOCK: SentinelSimulationResponse = {
   transactions: [
     {
       ...defaultResponseTx,
@@ -166,10 +164,10 @@ const RESPONSE_NESTED_LOGS_MOCK: SimulationResponse = {
  * @param contractAddress - The contract address.
  * @returns The raw log mock.
  */
-function createLogMock(contractAddress: string): SimulationResponseLog {
+function createLogMock(contractAddress: string): SentinelSimulationLog {
   return {
     address: contractAddress,
-  } as unknown as SimulationResponseLog;
+  } as unknown as SentinelSimulationLog;
 }
 
 /**
@@ -179,8 +177,8 @@ function createLogMock(contractAddress: string): SimulationResponseLog {
  * @returns Mock API response.
  */
 function createEventResponseMock(
-  logs: SimulationResponseLog[],
-): SimulationResponse {
+  logs: SentinelSimulationLog[],
+): SentinelSimulationResponse {
   return {
     transactions: [{ ...defaultResponseTx, callTrace: { calls: [], logs } }],
     sponsorship: {
@@ -202,7 +200,7 @@ function createNativeBalanceResponse(
   previousBalance: string,
   newBalance: string,
   gasCost: number = 0,
-): SimulationResponse {
+): SentinelSimulationResponse {
   return {
     transactions: [
       {
@@ -219,7 +217,7 @@ function createNativeBalanceResponse(
         },
       },
     ],
-  } as unknown as SimulationResponse;
+  } as unknown as SentinelSimulationResponse;
 }
 
 /**
@@ -232,7 +230,7 @@ function createNativeBalanceResponse(
 function createBalanceOfResponse(
   previousBalances: string[],
   newBalances: string[],
-): SimulationResponse {
+): SentinelSimulationResponse {
   return {
     transactions: [
       ...previousBalances.map((previousBalance) => ({
@@ -245,7 +243,7 @@ function createBalanceOfResponse(
         return: encodeTo32ByteHex(newBalance),
       })),
     ],
-  } as unknown as SimulationResponse;
+  } as unknown as SentinelSimulationResponse;
 }
 
 /**
@@ -464,7 +462,7 @@ describe('Balance Change Utils', () => {
               },
             },
           ],
-        } as unknown as SimulationResponse);
+        } as unknown as SentinelSimulationResponse);
 
         const result = await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -1264,9 +1262,9 @@ describe('Balance Change Utils', () => {
         // The ERC-721 token balance is only checked after the transaction since it is minted.
         expect(simulateTransactionsMock).toHaveBeenNthCalledWith(
           2,
+          MESSENGER_MOCK,
           REQUEST_MOCK.chainId,
           {
-            getSimulationConfig: REQUEST_MOCK.getSimulationConfig,
             transactions: [
               // ERC-20 balance before minting.
               {
@@ -1863,6 +1861,7 @@ describe('Balance Change Utils', () => {
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         expect.any(String),
         expect.objectContaining({
           transactions: [
@@ -1893,6 +1892,7 @@ describe('Balance Change Utils', () => {
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
         expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          MESSENGER_MOCK,
           expect.any(String),
           expect.objectContaining({
             overrides: {
@@ -1920,6 +1920,7 @@ describe('Balance Change Utils', () => {
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
         expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          MESSENGER_MOCK,
           expect.any(String),
           expect.objectContaining({
             overrides: {
@@ -1945,6 +1946,7 @@ describe('Balance Change Utils', () => {
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
         expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          MESSENGER_MOCK,
           expect.any(String),
           expect.objectContaining({
             overrides: {
@@ -1978,6 +1980,7 @@ describe('Balance Change Utils', () => {
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
         expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          MESSENGER_MOCK,
           expect.any(String),
           expect.objectContaining({
             overrides: {
@@ -1990,22 +1993,14 @@ describe('Balance Change Utils', () => {
       });
     });
 
-    it('forwards simulation config', async () => {
-      const getSimulationConfigMock: GetSimulationConfig = vi.fn();
-
-      const request = {
-        ...REQUEST_MOCK,
-        getSimulationConfig: getSimulationConfigMock,
-      };
-
-      await getBalanceChanges(request);
+    it('forwards the messenger to simulateTransactions', async () => {
+      await getBalanceChanges(REQUEST_MOCK);
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         expect.any(String),
-        expect.objectContaining({
-          getSimulationConfig: getSimulationConfigMock,
-        }),
+        expect.any(Object),
       );
     });
   });

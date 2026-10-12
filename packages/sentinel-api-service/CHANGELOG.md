@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `withRedeemerEnforcer` property to `suggestFees` in the `SentinelSimulationRequest` type ([#9476](https://github.com/MetaMask/core/pull/9476))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed

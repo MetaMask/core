@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { simulateTransactions } from '../api/simulation-api.js';
 import type {
   GasFeeToken,
-  GetSimulationConfig,
   TransactionControllerMessenger,
   TransactionMeta,
 } from '../index.js';
@@ -39,11 +38,12 @@ const TRANSACTION_META_MOCK = {
   },
 } as TransactionMeta;
 
+const MESSENGER_MOCK = {} as TransactionControllerMessenger;
+
 const REQUEST_MOCK: GetGasFeeTokensRequest = {
   chainId: CHAIN_ID_MOCK,
   isEIP7702GasFeeTokensEnabled: vi.fn().mockResolvedValue(true),
-  getSimulationConfig: vi.fn(),
-  messenger: {} as TransactionControllerMessenger,
+  messenger: MESSENGER_MOCK,
   publicKeyEIP7702: '0x123',
   transactionMeta: TRANSACTION_META_MOCK,
 };
@@ -378,8 +378,13 @@ describe('Gas Fee Tokens Utils', () => {
 
       await getGasFeeTokens(REQUEST_MOCK);
 
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
+        CHAIN_ID_MOCK,
+        expect.anything(),
+      );
       expect(
-        simulateTransactionsMock.mock.calls[0][1].suggestFees,
+        simulateTransactionsMock.mock.calls[0][2].suggestFees,
       ).toMatchObject({
         with7702: true,
         withRedeemerEnforcer: true,
@@ -403,8 +408,13 @@ describe('Gas Fee Tokens Utils', () => {
 
       await getGasFeeTokens(REQUEST_MOCK);
 
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
+        CHAIN_ID_MOCK,
+        expect.anything(),
+      );
       expect(
-        simulateTransactionsMock.mock.calls[0][1].suggestFees,
+        simulateTransactionsMock.mock.calls[0][2].suggestFees,
       ).toMatchObject({
         with7702: false,
         withRedeemerEnforcer: false,
@@ -429,6 +439,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(REQUEST_MOCK);
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         CHAIN_ID_MOCK,
         expect.objectContaining({
           transactions: [
@@ -469,6 +480,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(request);
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         CHAIN_ID_MOCK,
         expect.objectContaining({
           transactions: [
@@ -485,22 +497,14 @@ describe('Gas Fee Tokens Utils', () => {
       );
     });
 
-    it('forwards simulation config', async () => {
-      const getSimulationConfigMock: GetSimulationConfig = vi.fn();
-
-      const request = {
-        ...REQUEST_MOCK,
-        getSimulationConfig: getSimulationConfigMock,
-      };
-
-      await getGasFeeTokens(request);
+    it('forwards the messenger to simulateTransactions', async () => {
+      await getGasFeeTokens(REQUEST_MOCK);
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
         expect.any(String),
-        expect.objectContaining({
-          getSimulationConfig: getSimulationConfigMock,
-        }),
+        expect.any(Object),
       );
     });
   });
