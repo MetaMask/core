@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.2.0` ([#10462](https://github.com/MetaMask/core/pull/10462), [#10652](https://github.com/MetaMask/core/pull/10652), [#10772](https://github.com/MetaMask/core/pull/10772))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/rpc-errors` from `^7.0.2` to `^7.0.3` ([#10718](https://github.com/MetaMask/core/pull/10718))
 
 ## [42.0.1]
 

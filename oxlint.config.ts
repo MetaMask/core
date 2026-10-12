@@ -119,5 +119,33 @@ export default createConfig({
         ],
       },
     },
+
+    {
+      files: ['scripts/**/*.ts'],
+      excludeFiles: ['scripts/**/*.test.ts'],
+      rules: {
+        // Disallow importing from `@metamask/utils(/node)` in scripts, since
+        // it uses non-erasable syntax, so type stripping with Node.js does not
+        // work. We can remove this once we update it to remove the non-erasable
+        // syntax.
+        'eslint/no-restricted-imports': [
+          'error',
+          {
+            paths: [
+              {
+                name: '@metamask/utils',
+                message:
+                  'Do not import from `@metamask/utils` in scripts. If required, copy the function to `./scripts/lib/utils.ts` instead.',
+              },
+              {
+                name: '@metamask/utils/node',
+                message:
+                  'Do not import from `@metamask/utils/node` in scripts. If required, copy the function to `./scripts/lib/utils.ts` instead.',
+              },
+            ],
+          },
+        ],
+      },
+    },
   ],
 });

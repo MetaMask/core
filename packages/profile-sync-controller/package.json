@@ -97,7 +97,7 @@
     "@metamask/keyring-api": "^24.1.0",
     "@metamask/keyring-internal-api": "^12.1.0",
     "@metamask/providers": "^22.1.1",
-    "@metamask/rpc-errors": "^7.0.2",
+    "@metamask/rpc-errors": "^7.0.3",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.3.1",
