@@ -261,7 +261,7 @@ export class ProfileController extends BaseController<
       displayName: response.display_name,
       bio: response.bio ?? '',
       linkedAddresses: response.linked_addresses,
-      avatarUrl: response.avatar_url ?? '',
+      avatarUrl: response.avatar_url,
       tradingPrivacy: response.trading_privacy,
       connectedToX: response.connected_to_x,
       createdAt: response.created_at,
