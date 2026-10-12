@@ -14,6 +14,7 @@ import type {
   ProfileServiceCreateProfileAction,
   ProfileServiceDeleteProfileAction,
   ProfileServiceDisconnectXAction,
+  ProfileServiceGetProfileAction,
   ProfileServiceGetXAccountAction,
   ProfileServiceGetXAuthUrlAction,
   ProfileServiceReplaceProfileAction,
@@ -120,7 +121,8 @@ type AllowedActions =
   | ProfileServiceConnectXAction
   | ProfileServiceGetXAccountAction
   | ProfileServiceGetXAuthUrlAction
-  | ProfileServiceDisconnectXAction;
+  | ProfileServiceDisconnectXAction
+  | ProfileServiceGetProfileAction;
 
 export type AllowedEvents = never;
 
@@ -180,6 +182,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkUsernameAvailability',
   'connectX',
   'fetchAndUpdateXAccount',
+  'fetchAndUpdateProfile',
   'getXAuthorizationUrl',
   'disconnectX',
 ] as const;
@@ -390,17 +393,14 @@ export class ProfileController extends BaseController<
 
   /**
    * Completes the X OAuth flow for the profile in state and returns the
-   * linked X profile. Updates controller state with the linked X profile
-   * and marks the profile in state as connected to X.
+   * linked X profile. Updates controller state with the linked X profile.
    *
    * @param params - The parameters for the X OAuth flow.
    * @param params.code - The OAuth authorization code from the X redirect.
    * @param params.state - The state parameter returned by the X redirect.
    * @returns The linked X profile.
-   * @throws If no profile has been created yet.
    */
   async connectX(params: { code: string; state: string }): Promise<XProfile> {
-    this.#getProfileIdOrThrow();
     const response = await this.messenger.call('ProfileService:connectX', {
       code: params.code,
       state: params.state,
@@ -408,7 +408,6 @@ export class ProfileController extends BaseController<
     const mapped = this.#mapXResponseToXProfile(response);
     this.update((state) => {
       state.xProfile = mapped;
-      state.profile.connectedToX = true;
     });
     return mapped;
   }
@@ -430,15 +429,31 @@ export class ProfileController extends BaseController<
   }
 
   /**
+   * Fetches a profile by its identifier and updates state.
+   *
+   * @param profileId - The profile identifier to fetch.
+   * @returns The fetched profile.
+   */
+  async fetchAndUpdateProfile(profileId: string): Promise<Profile> {
+    const response = await this.messenger.call(
+      'ProfileService:getProfile',
+      profileId,
+    );
+    const mapped = this.#mapApiResponseToProfile(response);
+    this.update((state) => {
+      state.profile = mapped;
+    });
+    return mapped;
+  }
+
+  /**
    * Initiates the X OAuth flow by fetching the authorization URL from the backend.
    * The profile is resolved server-side from the verified bearer token.
    * Returns session data for the caller to use; nothing is stored in controller state.
    *
    * @returns The X authorization URL and state parameter.
-   * @throws If no profile has been created yet.
    */
   async getXAuthorizationUrl(): Promise<ConnectXSession> {
-    this.#getProfileIdOrThrow();
     const response = await this.messenger.call('ProfileService:getXAuthUrl');
     return { authorizationUrl: response.url, state: response.state };
   }
