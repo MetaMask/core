@@ -89,9 +89,9 @@ async function hkdf(
   keyLength: number,
   options: HkdfOptions = {},
 ): Promise<Uint8Array<ArrayBuffer>> {
-  if (ikm.byteLength === 0) {
+  if (ikm.byteLength === 0 && !options.unsafeInputKeyingMaterial) {
     throw new Error(
-      `Unsafe input keying material length: IKM must not be zero bytes for HKDF-${hash}.`,
+      `Unsafe input keying material length: IKM must not be zero bytes for HKDF-${hash}. To bypass this check, set the \`unsafeInputKeyingMaterial\` option to \`true\`.`,
     );
   }
 

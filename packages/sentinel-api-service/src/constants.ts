@@ -59,6 +59,12 @@ export const DEFAULT_ENVIRONMENT = SentinelEnvironment.Prod;
 export const NETWORKS_SUBDOMAIN = 'ethereum-mainnet';
 
 /**
+ * The REST path used to retrieve the configuration of a single network. Must
+ * be requested against the subdomain of the network in question.
+ */
+export const ENDPOINT_NETWORK = 'network';
+
+/**
  * The REST path used to retrieve the supported-network registry.
  */
 export const ENDPOINT_NETWORKS = 'networks';
@@ -68,6 +74,13 @@ export const ENDPOINT_NETWORKS = 'networks';
  * transaction by UUID.
  */
 export const ENDPOINT_SMART_TRANSACTIONS = 'smart-transactions';
+
+/**
+ * How long the single network configuration (`/network`) response is
+ * considered fresh. The configuration is stable, so caching it avoids
+ * re-fetching on every request.
+ */
+export const NETWORK_STALE_TIME_MS = 5 * 60 * 1000;
 
 /**
  * How long the network registry (`/networks`) response is considered fresh.

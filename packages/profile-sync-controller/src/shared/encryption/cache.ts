@@ -2,9 +2,9 @@ import { SHARED_SALT } from './constants.js';
 import { byteArrayToBase64 } from './utils.js';
 
 type CachedEntry = {
-  salt: Uint8Array;
+  salt: Uint8Array<ArrayBuffer>;
   base64Salt: string;
-  key: Uint8Array;
+  key: Uint8Array<ArrayBuffer>;
 };
 
 const MAX_PASSWORD_CACHES = 100;
@@ -14,7 +14,7 @@ const MAX_SALT_CACHES = 100;
  * In-Memory Caching derived keys based from a given salt and password.
  */
 type PasswordMemCachedKDF = {
-  [hashedPassword: string]: Map<string, Uint8Array>;
+  [hashedPassword: string]: Map<string, Uint8Array<ArrayBuffer>>;
 };
 let inMemCachedKDF: PasswordMemCachedKDF = {};
 const getPasswordCache = (hashedPassword: string) => {
@@ -31,7 +31,7 @@ const getPasswordCache = (hashedPassword: string) => {
  */
 export function getCachedKeyBySalt(
   hashedPassword: string,
-  salt: Uint8Array,
+  salt: Uint8Array<ArrayBuffer>,
 ): CachedEntry | undefined {
   const cache = getPasswordCache(hashedPassword);
   const base64Salt = byteArrayToBase64(salt);
@@ -82,8 +82,8 @@ export function getCachedKeyGeneratedWithSharedSalt(
  */
 export function setCachedKey(
   hashedPassword: string,
-  salt: Uint8Array,
-  key: Uint8Array,
+  salt: Uint8Array<ArrayBuffer>,
+  key: Uint8Array<ArrayBuffer>,
 ): void {
   // Max password caches
   if (Object.keys(inMemCachedKDF).length > MAX_PASSWORD_CACHES) {

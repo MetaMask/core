@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/chomp-api-service` from `^6.0.0` to `^6.0.1` ([#10626](https://github.com/MetaMask/core/pull/10626))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
 
 ## [5.1.0]
 

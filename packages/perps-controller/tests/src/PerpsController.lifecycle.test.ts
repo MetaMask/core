@@ -11,6 +11,7 @@ import {
   createDeferred,
   createMockInfrastructure,
   createMockMessenger,
+  createPartiallyDelegatedMessenger,
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
@@ -890,6 +891,43 @@ describe('PerpsController', () => {
       // Assert — geolocation was never called
       expect(testMockCall).not.toHaveBeenCalledWith(
         'GeolocationController:getGeolocation',
+      );
+    });
+  });
+
+  describe('required messenger actions', () => {
+    it('logs an error when GeolocationController is not delegated', async () => {
+      const testInfrastructure = createMockInfrastructure();
+      const undelegated = createPartiallyDelegatedMessenger();
+      const testMockCall = jest.fn().mockImplementation((action: string) => {
+        if (action === 'RemoteFeatureFlagController:getState') {
+          return { remoteFeatureFlags: {} };
+        }
+        if (action === 'GeolocationController:getGeolocation') {
+          return undelegated.call(
+            action as 'GeolocationController:getGeolocation',
+          );
+        }
+        return undefined;
+      });
+      const testController = new TestablePerpsController({
+        messenger: createMockMessenger({ call: testMockCall }),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: testInfrastructure,
+      });
+
+      await testController.refreshEligibility();
+
+      expect(testInfrastructure.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message:
+            'A handler for GeolocationController:getGeolocation has not been delegated to PerpsController',
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({ method: 'refreshEligibility' }),
+          }),
+        }),
       );
     });
   });

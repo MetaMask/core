@@ -22,7 +22,6 @@ import type {
 import { HYPERLIQUID_CONFIG } from '../constants/hyperLiquidConfig.js';
 import {
   TP_SL_CONFIG,
-  PERPS_CONSTANTS,
   ABSTRACTION_MODE_REFRESH_THROTTLE_MS,
 } from '../constants/perpsConfig.js';
 import type {
@@ -57,6 +56,13 @@ import {
   calculateWeightedReturnOnEquity,
 } from '../utils/accountUtils.js';
 import type { AddSpotBalanceOptions } from '../utils/accountUtils.js';
+import {
+  PERPS_ERROR_ACTION,
+  PERPS_ERROR_COMPONENT,
+  PERPS_ERROR_OPERATION,
+  createPerpsErrorContext,
+} from '../utils/errorContext.js';
+import type { PerpsLoggerOptions } from '../utils/errorContext.js';
 import { ensureError } from '../utils/errorUtils.js';
 import {
   adaptPositionFromSDK,
@@ -77,6 +83,15 @@ import {
 } from '../utils/orderTypes.js';
 import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
+
+/**
+ * What the service needs from the wallet: the account, and the wallet
+ * adapters it (re)initializes the SDK clients with.
+ */
+type SubscriptionWallet = Pick<
+  HyperLiquidWalletService,
+  'createWalletAdapter' | 'getUserAddressWithDefault'
+>;
 
 /**
  * Cap on *terminal* TWAP schedules retained per account from the venue's
@@ -110,7 +125,7 @@ export class HyperLiquidSubscriptionService {
   // Service dependencies
   readonly #clientService: HyperLiquidClientService;
 
-  readonly #walletService: HyperLiquidWalletService;
+  readonly #walletService: SubscriptionWallet;
 
   // HIP-3 feature flag support
   #hip3Enabled: boolean;
@@ -458,7 +473,7 @@ export class HyperLiquidSubscriptionService {
 
   constructor(
     clientService: HyperLiquidClientService,
-    walletService: HyperLiquidWalletService,
+    walletService: SubscriptionWallet,
     platformDependencies: PerpsPlatformDependencies,
     hip3Enabled?: boolean,
     enabledDexs?: string[],
@@ -646,25 +661,19 @@ export class HyperLiquidSubscriptionService {
   #getErrorContext(
     method: string,
     extra?: Record<string, unknown>,
-  ): {
-    tags?: Record<string, string | number>;
-    context?: { name: string; data: Record<string, unknown> };
-    extras?: Record<string, unknown>;
-  } {
-    return {
-      tags: {
-        feature: PERPS_CONSTANTS.FeatureName,
-        provider: 'hyperliquid',
-        network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
+  ): PerpsLoggerOptions {
+    return createPerpsErrorContext({
+      contextName: 'HyperLiquidSubscriptionService',
+      method,
+      provider: 'hyperliquid',
+      network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
+      errorTags: {
+        operation: PERPS_ERROR_OPERATION.ConnectionManagement,
+        component: PERPS_ERROR_COMPONENT.ConnectionManager,
+        action: PERPS_ERROR_ACTION.ConnectionConnection,
       },
-      context: {
-        name: 'HyperLiquidSubscriptionService',
-        data: {
-          method,
-          ...extra,
-        },
-      },
-    };
+      data: extra,
+    });
   }
 
   /**

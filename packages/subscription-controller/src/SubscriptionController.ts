@@ -3,9 +3,11 @@ import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
 } from '@metamask/base-controller';
+import type { GeolocationControllerGetGeolocationDataAction } from '@metamask/geolocation-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { SeedlessOnboardingControllerGetIsUserAuthenticatedAction } from '@metamask/seedless-onboarding-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -15,6 +17,7 @@ import {
   ACTIVE_SUBSCRIPTION_STATUSES,
   controllerName,
   DEFAULT_POLLING_INTERVAL,
+  REFUND_ELIGIBLE_COUNTRIES,
   SubscriptionControllerErrorMessage,
   SubscriptionDelegationServiceErrorMessage,
 } from './constants.js';
@@ -127,7 +130,9 @@ type AllowedActions =
   | SubscriptionServiceSubmitUserEventAction
   | SubscriptionServiceAssignUserToCohortAction
   | SubscriptionServiceLinkRewardsAction
-  | AuthenticationController.AuthenticationControllerPerformSignOutAction;
+  | AuthenticationController.AuthenticationControllerPerformSignOutAction
+  | SeedlessOnboardingControllerGetIsUserAuthenticatedAction
+  | GeolocationControllerGetGeolocationDataAction;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -247,6 +252,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSubscriptions',
   'getBenefits',
   'getSubscriptionByProduct',
+  'isUserEligibleForTrial',
   'getSubscriptionsEligibilities',
   'cancelSubscription',
   'unCancelSubscription',
@@ -478,6 +484,41 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Whether the user is eligible to start a trial for the given product.
+   *
+   * Shield is eligible when the user has not trialed Shield before.
+   * Money Account Plus is eligible when the user has not trialed it before
+   * and is authenticated with social login. Only an unlocked wallet can
+   * subscribe, so `SeedlessOnboardingController:getIsUserAuthenticated` is a
+   * sufficient social-login check.
+   *
+   * @param productType - The product to check.
+   * @returns Whether the user is eligible for a trial.
+   */
+  async isUserEligibleForTrial(productType: ProductType): Promise<boolean> {
+    if (this.state.trialedProducts.includes(productType)) {
+      return false;
+    }
+
+    switch (productType) {
+      case PRODUCT_TYPES.SHIELD:
+        return true;
+      case PRODUCT_TYPES.MONEY_ACCOUNT_PLUS:
+        return await this.messenger.call(
+          'SeedlessOnboardingController:getIsUserAuthenticated',
+        );
+      default: {
+        // `productType` is `never` here. A new `PRODUCT_TYPES` member fails
+        // compilation until this switch handles it.
+        const unexpectedProduct: never = productType;
+        throw new Error(
+          `Unexpected product type: ${String(unexpectedProduct)}`,
+        );
+      }
+    }
+  }
+
+  /**
    * Get the subscriptions eligibilities.
    *
    * @param request - Optional request object containing user balance to check cohort eligibility.
@@ -553,6 +594,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * `isTrialRequested` on the request is ignored and overwritten from pricing
    * (`trialPeriodDays > 0`) and `trialedProducts`.
    *
+   * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
+   * from geolocation (EU/EEA), or `false` if the lookup fails.
+   *
    * @param request - The start subscription request.
    * @returns The checkout session response.
    */
@@ -571,6 +615,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
           request.products,
           request.recurringInterval,
         ),
+        isEligibleForRefund: await this.#getIsEligibleForRefund(
+          request.isEligibleForRefund,
+        ),
       },
     );
     // note: no need to trigger access token refresh after startSubscriptionWithCard request because this only return stripe checkout session url, subscription not created yet
@@ -586,6 +633,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    *
    * `isTrialRequested` on the request is ignored and overwritten from pricing
    * (`trialPeriodDays > 0`) and `trialedProducts`.
+   *
+   * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
+   * from geolocation (EU/EEA), or `false` if the lookup fails.
    *
    * @param request - The start crypto subscription request.
    * @returns The start crypto subscription response.
@@ -624,6 +674,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       {
         ...subscriptionRequest,
         isTrialRequested,
+        isEligibleForRefund: await this.#getIsEligibleForRefund(
+          request.isEligibleForRefund,
+        ),
       },
     );
 
@@ -1287,6 +1340,33 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       );
       return productPrice.trialPeriodDays > 0;
     });
+  }
+
+  /**
+   * Returns the caller-provided refund eligibility when set. Otherwise
+   * resolves it from geolocation (EU/EEA), or `false` if the lookup fails.
+   *
+   * @param isEligibleForRefund - Caller-provided eligibility, if any.
+   * @returns Whether the user is eligible for a refund.
+   */
+  async #getIsEligibleForRefund(
+    isEligibleForRefund?: boolean,
+  ): Promise<boolean> {
+    if (isEligibleForRefund !== undefined) {
+      return isEligibleForRefund;
+    }
+
+    try {
+      const { country } = await this.messenger.call(
+        'GeolocationController:getGeolocationData',
+      );
+      return (
+        country !== null && REFUND_ELIGIBLE_COUNTRIES.has(country.toUpperCase())
+      );
+    } catch (error) {
+      log('Failed to resolve geolocation for refund eligibility', error);
+      return false;
+    }
   }
 
   #findCryptoPaymentMethod(

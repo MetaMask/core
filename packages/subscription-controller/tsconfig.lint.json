@@ -39,6 +39,9 @@
       "path": "../delegation-controller/tsconfig.lint.json"
     },
     {
+      "path": "../geolocation-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../money-account-balance-service/tsconfig.lint.json"
     },
     {
@@ -51,7 +54,7 @@
       "path": "../remote-feature-flag-controller/tsconfig.lint.json"
     },
     {
-      "path": "../approval-controller/tsconfig.lint.json"
+      "path": "../seedless-onboarding-controller/tsconfig.lint.json"
     }
   ]
 }

@@ -5,6 +5,7 @@ import type { MockAnyNamespace } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
 
 import {
+  extractPixDepositInstructions,
   mapNeoBankAutorampToRemoteSnapshot,
   NeoBankService,
 } from './NeoBankService.js';
@@ -123,6 +124,19 @@ describe('NeoBankService', () => {
       });
     });
 
+    it('falls back to recipient.address when recipient_account is absent', () => {
+      expect(
+        mapNeoBankAutorampToRemoteSnapshot({
+          id: 'ar-1',
+          customer_id: 'cust-1',
+          status: 'Pending',
+          recipient: { address: '0xfrom-recipient-field' },
+        }),
+      ).toMatchObject({
+        walletAddress: '0xfrom-recipient-field',
+      });
+    });
+
     it('marks deposit rails not ready when Approved without rails', () => {
       expect(
         mapNeoBankAutorampToRemoteSnapshot({
@@ -132,6 +146,36 @@ describe('NeoBankService', () => {
         }),
       ).toMatchObject({
         depositRailsSummary: { ready: false },
+      });
+    });
+  });
+
+  describe('extractPixDepositInstructions', () => {
+    it('returns null for a non-array deposit_rails value', () => {
+      expect(extractPixDepositInstructions(undefined)).toBeNull();
+      expect(extractPixDepositInstructions(null)).toBeNull();
+    });
+
+    it('skips non-object rails and non-Pix rails', () => {
+      expect(
+        extractPixDepositInstructions([
+          null,
+          'skip',
+          { type: 'Iban', br_code: 'iban' },
+          { type: 'Pix', br_code: '', instruction: 'Pay' },
+          {
+            type: 'Pix',
+            br_code: '00020126',
+            instruction: 'Pay with PIX',
+            pix_key: 'pix@example.com',
+            expires_at: '2026-12-01T00:00:00Z',
+          },
+        ]),
+      ).toStrictEqual({
+        brCode: '00020126',
+        instruction: 'Pay with PIX',
+        pixKey: 'pix@example.com',
+        expiresAt: '2026-12-01T00:00:00Z',
       });
     });
   });
@@ -285,6 +329,242 @@ describe('NeoBankService', () => {
 
       await expect(service.getAutoramps()).rejects.toThrow(
         'Malformed response received from neo-bank autoramps API',
+      );
+    });
+
+    it('unwraps a paged list', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(true)
+        .reply(200, {
+          items: [
+            {
+              id: 'ar-1',
+              customer_id: 'cust-1',
+              status: 'Approved',
+              wallet_address: '0xabc',
+            },
+          ],
+        });
+
+      const service = createService();
+
+      expect(await service.getAutoramps()).toMatchObject([
+        { id: 'ar-1', customerId: 'cust-1', walletAddress: '0xabc' },
+      ]);
+    });
+
+    it('follows cursors for one customer until the list is complete', async () => {
+      const firstPage = nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(
+          (query) =>
+            query.customer_id === 'cust-1' &&
+            query.page_size === '100' &&
+            query.cursor === undefined,
+        )
+        .reply(200, {
+          items: [
+            {
+              id: 'ar-1',
+              customer_id: 'cust-1',
+              status: 'Approved',
+              wallet_address: '0xabc',
+            },
+          ],
+          cursor: 'page-2',
+        });
+      const secondPage = nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(
+          (query) =>
+            query.customer_id === 'cust-1' &&
+            query.page_size === '100' &&
+            query.cursor === 'page-2',
+        )
+        .reply(200, {
+          items: [
+            {
+              id: 'ar-2',
+              customer_id: 'cust-1',
+              status: 'Authorized',
+              wallet_address: '0xdef',
+            },
+          ],
+        });
+
+      const service = createService();
+
+      expect(
+        await service.getAutoramps({ customerId: 'cust-1' }),
+      ).toMatchObject([
+        { id: 'ar-1', walletAddress: '0xabc' },
+        { id: 'ar-2', walletAddress: '0xdef' },
+      ]);
+      expect(firstPage.isDone()).toBe(true);
+      expect(secondPage.isDone()).toBe(true);
+    });
+
+    it('stops when a cursor repeats', async () => {
+      let calls = 0;
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(true)
+        .times(3)
+        .reply(() => {
+          calls += 1;
+          return [
+            200,
+            {
+              items: [
+                {
+                  id: `ar-${calls}`,
+                  customer_id: 'cust-1',
+                  status: 'Approved',
+                  wallet_address: '0xabc',
+                },
+              ],
+              cursor: 'same-cursor',
+            },
+          ];
+        });
+
+      const service = createService();
+
+      expect(
+        await service.getAutoramps({ customerId: 'cust-1' }),
+      ).toMatchObject([{ id: 'ar-1' }, { id: 'ar-2' }]);
+      expect(calls).toBe(2);
+    });
+  });
+
+  describe('getPixDepositInstructions', () => {
+    it('reads the PIX rail from the autoramp', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, {
+          id: 'ar-1',
+          status: 'Approved',
+          deposit_rails: [
+            {
+              type: 'Pix',
+              br_code: '00020126',
+              instruction: 'Pay with PIX',
+              pix_key: 'pix@example.com',
+            },
+          ],
+        });
+
+      const service = createService();
+
+      expect(await service.getPixDepositInstructions('ar-1')).toStrictEqual({
+        brCode: '00020126',
+        instruction: 'Pay with PIX',
+        pixKey: 'pix@example.com',
+      });
+    });
+
+    it('returns null when no PIX rail is present', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, { id: 'ar-1', status: 'Created', deposit_rails: [] });
+
+      const service = createService();
+
+      expect(await service.getPixDepositInstructions('ar-1')).toBeNull();
+    });
+
+    it('throws when the autoramp response is not an object', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, 'null', { 'Content-Type': 'application/json' });
+
+      const service = createService();
+
+      await expect(service.getPixDepositInstructions('ar-1')).rejects.toThrow(
+        'Malformed response received from neo-bank autoramp API',
+      );
+    });
+  });
+
+  describe('listAutorampTransactions', () => {
+    it('unwraps a paged transaction list', async () => {
+      const scope = nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query(
+          (query) =>
+            query.autoramp_id === 'ar-1' && query.sort_order === 'desc',
+        )
+        .reply(200, {
+          items: [
+            {
+              id: 'tx-1',
+              autoramp_id: 'ar-1',
+              status: 'Completed',
+              created_at: '2026-06-01T00:00:00Z',
+              source_amount: {
+                amount: '100.00',
+                currency: { type: 'Fiat', code: 'BRL' },
+              },
+              destination_amount: {
+                amount: '18.00',
+                currency: {
+                  type: 'Crypto',
+                  token: 'mUSD',
+                  blockchain: 'Monad',
+                },
+              },
+            },
+          ],
+        });
+
+      const service = createService();
+
+      expect(await service.listAutorampTransactions('ar-1')).toStrictEqual([
+        {
+          id: 'tx-1',
+          autorampId: 'ar-1',
+          status: 'Completed',
+          sourceAmount: '100.00',
+          destinationAmount: '18.00',
+          createdAt: '2026-06-01T00:00:00Z',
+        },
+      ]);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('throws when a transaction is missing an id', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query(
+          (query) =>
+            query.autoramp_id === 'ar-1' && query.sort_order === 'desc',
+        )
+        .reply(200, { items: [{ status: 'Completed' }] });
+
+      const service = createService();
+
+      await expect(service.listAutorampTransactions('ar-1')).rejects.toThrow(
+        'Malformed response received from neo-bank autoramp transactions API',
+      );
+    });
+
+    it('throws when a transaction is missing status', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query(
+          (query) =>
+            query.autoramp_id === 'ar-1' && query.sort_order === 'desc',
+        )
+        .reply(200, { items: [{ id: 'tx-1' }] });
+
+      const service = createService();
+
+      await expect(service.listAutorampTransactions('ar-1')).rejects.toThrow(
+        'Malformed response received from neo-bank autoramp transactions API',
       );
     });
   });

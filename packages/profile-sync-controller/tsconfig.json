@@ -5,6 +5,9 @@
       "path": "../base-controller"
     },
     {
+      "path": "../cryptography/"
+    },
+    {
       "path": "../controller-utils"
     },
     {

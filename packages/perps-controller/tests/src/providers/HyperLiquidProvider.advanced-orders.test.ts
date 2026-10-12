@@ -2482,26 +2482,46 @@ describe('HyperLiquidProvider', () => {
       stopLossCount: 0,
     };
 
-    it('places partial TP/SL as standalone reduce-only triggers', async () => {
+    it.each([undefined, 'independent'] as const)(
+      'places partial TP/SL as standalone reduce-only triggers linkage=%s',
+      async (partialPairLinkage) => {
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          partialPairLinkage,
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          stopLossSize: '0.06',
+          position,
+        });
+
+        expect(result.success).toBe(true);
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        // A quantity cannot be expressed under positionTpsl grouping
+        expect(request.grouping).toBe('na');
+        expect(request.orders).toHaveLength(2);
+        expect(request.orders[0].s).toBe('0.04');
+        expect(request.orders[0].r).toBe(true);
+        expect(request.orders[1].s).toBe('0.06');
+        expect(request.orders[1].r).toBe(true);
+      },
+    );
+
+    it('rejects an explicit native OCO linkage before trading setup', async () => {
       const result = await provider.updatePositionTPSL({
         symbol: 'BTC',
         takeProfitPrice: '60000',
-        takeProfitSize: '0.04',
         stopLossPrice: '45000',
-        stopLossSize: '0.06',
-        position,
+        takeProfitSize: '0.04',
+        stopLossSize: '0.04',
+        partialPairLinkage: 'equal-quantity-oco',
       });
-
-      expect(result.success).toBe(true);
-      const request = (mockClientService.getExchangeClient().order as jest.Mock)
-        .mock.calls[0][0];
-      // A quantity cannot be expressed under positionTpsl grouping
-      expect(request.grouping).toBe('na');
-      expect(request.orders).toHaveLength(2);
-      expect(request.orders[0].s).toBe('0.04');
-      expect(request.orders[0].r).toBe(true);
-      expect(request.orders[1].s).toBe('0.06');
-      expect(request.orders[1].r).toBe(true);
+      expect(result.success).toBe(false);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
     });
 
     it('keeps whole-position TP/SL on positionTpsl grouping with size 0', async () => {

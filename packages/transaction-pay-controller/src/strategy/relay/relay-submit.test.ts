@@ -468,6 +468,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
+          excludeNativeTokenForFee: true,
           gasFeeToken: TOKEN_ADDRESS_MOCK,
         }),
       );
@@ -765,6 +766,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
+          excludeNativeTokenForFee: true,
           gasFeeToken: TOKEN_ADDRESS_MOCK,
         }),
       );

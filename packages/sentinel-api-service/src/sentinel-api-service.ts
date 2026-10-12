@@ -6,9 +6,11 @@ import type { Hex, Json } from '@metamask/utils';
 import {
   BASE_URL_TEMPLATE,
   DEFAULT_ENVIRONMENT,
+  ENDPOINT_NETWORK,
   ENDPOINT_NETWORKS,
   ENDPOINT_SMART_TRANSACTIONS,
   ENVIRONMENT_DOMAIN,
+  NETWORK_STALE_TIME_MS,
   NETWORKS_STALE_TIME_MS,
   NETWORKS_SUBDOMAIN,
   RPC_METHOD_SEND_RELAY,
@@ -24,6 +26,7 @@ import { projectLogger, createModuleLogger } from './logger.js';
 import {
   SentinelSmartTransactionResponseStruct,
   SentinelNetworkRegistryStruct,
+  SentinelNetworkStruct,
   SentinelRelaySubmitResponseStruct,
   SentinelSimulationResponseStruct,
 } from './structs.js';
@@ -43,6 +46,7 @@ import type {
 const log = createModuleLogger(projectLogger, serviceName);
 
 const MESSENGER_EXPOSED_METHODS = [
+  'getNetwork',
   'getNetworks',
   'simulateTransactions',
   'submitRelayTransaction',
@@ -54,6 +58,8 @@ const MESSENGER_EXPOSED_METHODS = [
  * API (`tx-sentinel-<network>.api.cx.metamask.io`).
  *
  * It exposes one method per Sentinel endpoint:
+ * - {@link SentinelApiService.getNetwork} — the configuration of a single
+ * network (`/network`), cached since it is stable.
  * - {@link SentinelApiService.getNetworks} — the supported-network registry
  * (`/networks`), cached since it is stable and identical across subdomains.
  * - {@link SentinelApiService.simulateTransactions} — transaction simulation
@@ -139,6 +145,59 @@ export class SentinelApiService extends BaseDataService<
     );
 
     log('Initialized');
+  }
+
+  /**
+   * Fetches the configuration of a single network from the `/network`
+   * endpoint of that network's subdomain. The subdomain is resolved from the
+   * supported-network registry. The result is cached, as the configuration is
+   * stable.
+   *
+   * @param chainId - The chain ID of the network.
+   * @returns The network configuration.
+   */
+  async getNetwork(chainId: Hex): Promise<SentinelNetwork> {
+    const registryEntry = await this.#getRegistryEntry(chainId);
+
+    if (!registryEntry) {
+      throw new SentinelChainNotSupportedError(chainId);
+    }
+
+    const url = `${this.#buildUrl(registryEntry.network)}${ENDPOINT_NETWORK}`;
+
+    const result = await this.fetchQuery({
+      queryKey: [`${this.name}:getNetwork`, chainId],
+      staleTime: NETWORK_STALE_TIME_MS,
+      queryFn: async (): Promise<Json> => {
+        const headers = await this.#getHeaders();
+
+        log('getNetwork', 'Request', url);
+
+        const response = await this.#fetch(url, { headers });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Sentinel API: Network request failed with status '${response.status}'`,
+          );
+        }
+
+        const json = (await response.json()) as Json;
+
+        const [error] = validate(json, SentinelNetworkStruct);
+        if (error) {
+          throw new SentinelApiResponseValidationError(
+            `Sentinel API: Malformed response from network endpoint: ${error.message}`,
+          );
+        }
+
+        log('getNetwork', 'Response', json);
+
+        return json;
+      },
+    });
+
+    return result as unknown as SentinelNetwork;
   }
 
   /**
@@ -425,7 +484,7 @@ export class SentinelApiService extends BaseDataService<
     chainId: Hex,
     capability: 'confirmations' | 'relayTransactions',
   ): Promise<string> {
-    const network = await this.#getNetwork(chainId);
+    const network = await this.#getRegistryEntry(chainId);
 
     if (!network?.[capability]) {
       throw new SentinelChainNotSupportedError(chainId, capability);
@@ -440,7 +499,7 @@ export class SentinelApiService extends BaseDataService<
    * @param chainId - The chain ID to look up.
    * @returns The network entry, or undefined if not present.
    */
-  async #getNetwork(chainId: Hex): Promise<SentinelNetwork | undefined> {
+  async #getRegistryEntry(chainId: Hex): Promise<SentinelNetwork | undefined> {
     const registry = await this.getNetworks();
     const chainIdDecimal = BigInt(chainId).toString(10);
     return registry[chainIdDecimal];

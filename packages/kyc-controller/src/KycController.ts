@@ -24,11 +24,11 @@ import {
   isSumSubFlowFailed,
 } from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
+import { consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
 import {
-  areSessionDisclaimersCompleted,
-  consentRecordsFromAcceptedList,
-} from './sessionDisclaimers.js';
-import { TERMINAL_SESSION_STATUSES } from './types.js';
+  needsCapabilityAuthorizationRefresh,
+  FINAL_STATUSES_TO_STOP_POLLING,
+} from './types.js';
 import type {
   KycConsentRecord,
   KycDisclaimer,
@@ -79,10 +79,11 @@ export type KycProviderFlowStatus = (typeof KYC_PROVIDER_FLOW_STATUSES)[number];
 // UKYC session. The storage-and-auth spec requires the token's `expires_at` to
 // cover the KYC session's expected lifetime — including the provider journey —
 // rather than a fixed short window, so this is a session-scoped window.
-const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
+const UKYC_CAPABILITY_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
-// How often to poll UKYC session status until a terminal `finalStatus`.
-const SESSION_STATUS_POLL_INTERVAL_MS = 15_000;
+// First wait between UKYC session-status polls. Each later wait grows by this
+// step, so the delays are 10s, 20s, 30s, and so on.
+const SESSION_STATUS_POLL_INTERVAL_MS = 10_000;
 
 // === STATE ===
 
@@ -254,6 +255,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSessionStatusForVendor',
   'getProviderFlowStatus',
   'refreshSessionStatus',
+  'readSessionStatus',
+  'fetchSessionStatusOnce',
   'startSessionStatusPolling',
   'fetchSessionDisclaimers',
   'recordSessionDisclaimers',
@@ -365,11 +368,15 @@ export class KycController extends BaseController<
    * @param params - The session parameters.
    * @param params.vendor - Identity vendor for the session.
    * @param params.email - Account email associated with the session.
+   * @param params.aal2Token - AAL2 authentication token. Required only when a
+   * UKYC session must be created, where it is sent as the Authorization bearer
+   * value. Omit it when reusing an existing session.
    * @returns The current or newly created session status.
    */
   async startSession(params: {
     vendor: KycVendor;
     email: string; // TODO: This will be removed once partnerIdentityTokens are fully ready
+    aal2Token?: string;
   }): Promise<KycSessionStatus> {
     if (this.state.email !== null && this.state.email !== params.email) {
       throw new Error(
@@ -410,21 +417,38 @@ export class KycController extends BaseController<
         this.update((state) => {
           state.sessionStatus = sessionStatus;
         });
-        return sessionStatus;
+        return this.#refreshAuthorizationsIfNeeded();
       }
 
       // TODO: Probably move this into it's own method? Feels like startSession is a little overloaded.
       // It's assumed that if the session does not exist, the customer does not exist either
+      if (!params.aal2Token) {
+        throw new Error(
+          'KycController.startSession: aal2Token is required to create a KYC session.',
+        );
+      }
+
       await this.messenger.call('KycService:createVendorCustomer', {
         vendor: params.vendor,
         email: params.email,
       });
 
-      return this.#createUkycSession({ vendor: params.vendor, geoCountry });
+      return this.#createUkycSession({
+        vendor: params.vendor,
+        geoCountry,
+        aal2Token: params.aal2Token,
+      });
     }
-    // TODO: Should this made a call to check if the session is up-to-date?
-    return this.state.sessionStatus;
+    const sessionStatus = await this.messenger.call(
+      'KycService:getSessionStatus',
+      { sessionId: this.state.sessionStatus.id },
+    );
+
+    this.update((state) => {
+      state.sessionStatus = sessionStatus;
+    });
     // TODO: Should we resume polling here?
+    return this.#refreshAuthorizationsIfNeeded();
   }
 
   /**
@@ -476,29 +500,67 @@ export class KycController extends BaseController<
     return this.state.providerFlowStatus;
   }
 
+  // TODO: Perhaps this should be renamed to resumeSession()?
   /**
-   * Returns the current session status and starts polling when it is not yet
-   * terminal.
+   * Returns the session already stored on state.
    *
-   * @returns The current session status.
+   * Starts session-status polling when `finalStatus` is not `approved`,
+   * `rejected`, or `retry`. Does not fetch status or refresh capability
+   * authorization.
+   *
+   * @returns The session status stored at call time.
    * @throws If there is no session on state.
    */
   refreshSessionStatus(): KycSessionStatus {
     if (!this.state.sessionStatus) {
       throw new Error('No session was found');
     }
-    if (!TERMINAL_SESSION_STATUSES.has(this.state.sessionStatus.finalStatus)) {
+    if (
+      !FINAL_STATUSES_TO_STOP_POLLING.has(this.state.sessionStatus.finalStatus)
+    ) {
       this.startSessionStatusPolling();
     }
     return this.state.sessionStatus;
   }
 
   /**
+   * Returns the persisted session status.
+   *
+   * Does not call the network and does not start session-status polling.
+   *
+   * @returns The session on state, or `null` when none is stored.
+   */
+  readSessionStatus(): KycSessionStatus | null {
+    return this.state.sessionStatus;
+  }
+
+  /**
+   * Fetches `GET /sessions/{id}/status` once and writes the result onto state.
+   *
+   * Does not start the session-status polling timer.
+   *
+   * @param sessionId - UKYC session id.
+   * @returns The fetched session status.
+   */
+  async fetchSessionStatusOnce(sessionId: string): Promise<KycSessionStatus> {
+    const sessionStatus = await this.messenger.call(
+      'KycService:getSessionStatus',
+      { sessionId },
+    );
+    this.update((state) => {
+      state.sessionStatus = sessionStatus;
+    });
+    return sessionStatus;
+  }
+
+  /**
    * Starts polling `GET /sessions/{id}/status` for
    * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
-   * the result onto state only when the payload changed. The loop stops once
-   * `finalStatus` is `approved`, `rejected`, or `retry`, or when
-   * {@link reset} / {@link clearState} runs.
+   * the result onto state only when the payload changed. The first poll runs
+   * immediately. Each later wait starts at 10 seconds and grows by 10 seconds
+   * after every poll, including a failed one. Starting the loop again resets
+   * that delay. The loop stops once `finalStatus` is `approved`, `rejected`,
+   * or `retry`, or when {@link reset} / {@link clearState} runs.
    *
    * @throws If there is no current session id to poll.
    */
@@ -510,18 +572,20 @@ export class KycController extends BaseController<
 
     this.#stopSessionStatusPolling();
     const token = this.#sessionStatusPollToken;
+    let completedPolls = 0;
 
     const tick = async (): Promise<void> => {
       const shouldStop = await this.#pollSessionStatusOnce(sessionId, token);
       if (shouldStop) {
         return;
       }
+      completedPolls += 1;
       this.#sessionStatusPollTimer = setTimeout(() => {
         this.#sessionStatusPollTimer = null;
         // `tick` swallows its own errors and therefore never rejects.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         tick();
-      }, SESSION_STATUS_POLL_INTERVAL_MS);
+      }, SESSION_STATUS_POLL_INTERVAL_MS * completedPolls);
       this.#sessionStatusPollTimer.unref?.();
     };
 
@@ -560,7 +624,7 @@ export class KycController extends BaseController<
         });
       }
 
-      if (TERMINAL_SESSION_STATUSES.has(sessionStatus.finalStatus)) {
+      if (FINAL_STATUSES_TO_STOP_POLLING.has(sessionStatus.finalStatus)) {
         this.#stopSessionStatusPolling();
         return true;
       }
@@ -582,19 +646,23 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Creates a UKYC session, wraps the `data_encryption_key` and
+   * Creates or reuses a UKYC session, wraps the `data_encryption_key` and
    * `ukyc_capability_token` against the returned encryption schemas, and
-   * submits both via authorizations. Stores `sumsub.sessionId`.
-   * kyc-api returns the existing session if one with the same vendor and canonicalUserId already exists.
+   * submits both via authorizations. Stores the resulting session status.
+   * kyc-api returns the existing session if one with the same vendor and
+   * canonicalUserId already exists.
    *
-   * @param params - Vendor and country used to create the session.
+   * @param params - Vendor, country, and AAL2 token used to create the session.
    * @param params.vendor - Identity vendor for the UKYC session.
    * @param params.geoCountry - ISO 3166-1 alpha-3 country of residence.
-   * @returns The created session.
+   * @param params.aal2Token - AAL2 authentication token sent as the
+   * Authorization bearer value for session creation.
+   * @returns The created or refreshed session status.
    */
   async #createUkycSession(params: {
     vendor: KycVendor;
     geoCountry: string;
+    aal2Token: string;
   }): Promise<KycSessionStatus> {
     // Establish a per-session X25519 keypair used to seal both secrets. The
     // private half stays on the device; the public half is registered on the
@@ -609,20 +677,64 @@ export class KycController extends BaseController<
     // that earlier step.
     const {
       sessionId,
-      encryptionDataKey,
+      encryptionDataKey: encryptionDataKeySchema,
       ukycCapabilityToken: capabilityTokenSchema,
     } = await this.messenger.call('KycService:createUkycSession', {
       sessionClientPublicKey,
       residenceCountry: params.geoCountry,
       vendor: params.vendor,
+      aal2Token: params.aal2Token,
     });
 
-    await this.#verifyWrappingKeys(encryptionDataKey, capabilityTokenSchema);
+    return this.#setAuthorizations({
+      sessionId,
+      sessionClientPrivateKey,
+      sessionClientPublicKey,
+      encryptionDataKeySchema,
+      capabilityTokenSchema,
+    });
+  }
+
+  /**
+   * Verifies encryption schemas, wraps the `data_encryption_key` and
+   * `ukyc_capability_token`, and submits both via
+   * {@link KycService.setAuthorizations}. Stores the resulting session status.
+   *
+   * @param params - Session key material and encryption schemas.
+   * @param params.sessionId - UKYC session id to authorize.
+   * @param params.sessionClientPrivateKey - Per-session X25519 private key
+   * used to seal both secrets.
+   * @param params.sessionClientPublicKey - Matching public key registered on
+   * the session (must correspond to `sessionClientPrivateKey`).
+   * @param params.encryptionDataKeySchema - Encryption schema for the data
+   * encryption key.
+   * @param params.capabilityTokenSchema - Encryption schema for the capability
+   * token.
+   * @returns The session status after authorizations are applied.
+   */
+  async #setAuthorizations(params: {
+    sessionId: string;
+    sessionClientPrivateKey: Uint8Array;
+    sessionClientPublicKey: string;
+    encryptionDataKeySchema: EncryptionSchema;
+    capabilityTokenSchema: EncryptionSchema;
+  }): Promise<KycSessionStatus> {
+    const {
+      sessionId,
+      sessionClientPrivateKey,
+      encryptionDataKeySchema,
+      capabilityTokenSchema,
+    } = params;
+
+    await this.#verifyWrappingKeys(
+      encryptionDataKeySchema,
+      capabilityTokenSchema,
+    );
 
     const { wrappedEncryptionDataKey, wrappedUkycCapabilityToken } =
       await this.#generateWrappedAuthorizations(
         sessionClientPrivateKey,
-        encryptionDataKey,
+        encryptionDataKeySchema,
         capabilityTokenSchema,
       );
 
@@ -640,6 +752,63 @@ export class KycController extends BaseController<
     });
 
     return sessionStatus;
+  }
+
+  /**
+   * Mints a new per-session X25519 keypair, reissues wrapping keys for the
+   * current session, and submits wrapped authorizations.
+   *
+   * @returns The session status after authorizations are applied.
+   * @throws If there is no session on state.
+   */
+  async #refreshAuthorizations(): Promise<KycSessionStatus> {
+    const sessionId = this.state.sessionStatus?.id;
+    if (!sessionId) {
+      throw new Error('No session was found');
+    }
+
+    const sessionClientPrivateKey = x25519.utils.randomSecretKey();
+    const sessionClientPublicKey = toBase64Url(
+      x25519.getPublicKey(sessionClientPrivateKey),
+    );
+
+    const {
+      encryptionDataKey: encryptionDataKeySchema,
+      ukycCapabilityToken: capabilityTokenSchema,
+    } = await this.messenger.call('KycService:resetWrappingKeys', {
+      sessionId,
+      sessionClientPublicKey,
+    });
+
+    return this.#setAuthorizations({
+      sessionId,
+      sessionClientPrivateKey,
+      sessionClientPublicKey,
+      encryptionDataKeySchema,
+      capabilityTokenSchema,
+    });
+  }
+
+  /**
+   * Refreshes and resubmits the UKYC capability authorization when the current
+   * session reports it as `new` or `expired`. Uses the `sessionStatus` already
+   * on state (callers are responsible for refreshing status when needed).
+   * No-ops when KYC has already finished (`finalStatus` is `approved` or
+   * `rejected`) or the capability token is `pending`, `stored`, or `wiped`.
+   *
+   * @returns The current or refreshed session status.
+   * @throws If there is no session on state when a refresh is required.
+   */
+  async #refreshAuthorizationsIfNeeded(): Promise<KycSessionStatus> {
+    const { sessionStatus } = this.state;
+    if (!sessionStatus) {
+      throw new Error('No session was found');
+    }
+
+    if (!needsCapabilityAuthorizationRefresh(sessionStatus)) {
+      return sessionStatus;
+    }
+    return this.#refreshAuthorizations();
   }
 
   /**
@@ -751,25 +920,25 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Fetches session-scoped disclaimers and reports whether every document is
-   * consented and credential reuse was accepted.
+   * Fetches the current session status and reports whether consent was given.
    *
-   * @returns Whether session disclaimers are complete.
+   * @returns Whether `consentStatus` is `given`.
    * @throws If there is no session on state.
    */
   async hasCompletedSessionDisclaimers(): Promise<boolean> {
     if (!this.state.sessionStatus) {
       throw new Error('No session was found');
     }
-    // TODO: validate if this shorcut check is sufficient
-    // return this.state.sessionStatus.consentStatus === 'given';
 
-    const disclaimers = await this.messenger.call(
-      'KycService:fetchSessionDisclaimersBySessionId',
+    // TODO: remove this explicit call to the service and use the state directly
+    // after we have established the pattern for resuming a session after wallet
+    // restart more concretely
+    const sessionStatus = await this.messenger.call(
+      'KycService:getSessionStatus',
       { sessionId: this.state.sessionStatus.id },
     );
 
-    return areSessionDisclaimersCompleted(disclaimers);
+    return sessionStatus.consentStatus === 'given';
   }
 
   /**
@@ -882,25 +1051,12 @@ export class KycController extends BaseController<
   /**
    * Runs the SumSub document-verification sub-flow end to end:
    *
-   *  1. creates a UKYC session, receiving per-secret encryption schemas;
-   *  2. verifies the `encryptionDataKey` schema's `jwtChain` against the
-   *     idOS enclave JWKS and the `ukycCapabilityToken` schema's `jwtChain` against
-   *     the idOS relay JWKS, then confirms each attested session server public
-   *     key;
-   *  3. derives the `data_encryption_key` from the wallet's UKYC
-   *     `local_user_secret` and wraps it for the session server;
-   *  4. mints a client-signed, read-only `ukyc_capability_token`, wraps it the
-   *     same way as the encryption key, and submits both via authorizations;
-   *  5. fetches the SumSub applicant access token; and
-   *  6. presents the SDK via the injected launcher.
+   *  1. fetches the SumSub applicant access token; and
+   *  2. presents the SDK via the injected launcher.
    *
-   * If a UKYC session already exists (the consents path creates it before
-   * recording session disclaimers), steps 1–4 are skipped.
-   *
-   * If authorizations report the applicant is already approved on the relay
-   * while the vendor is still finalizing (`kycStatus: approved`,
-   * `finalStatus: pending`), the sub-flow stops at step 4 with a
-   * `vendorProcessing` status and a message rather than launching the SDK.
+   * Capability authorization must already be valid on
+   * {@link KycControllerState.sessionStatus} (see
+   * {@link KycController.#refreshAuthorizationsIfNeeded}).
    *
    * @param params - Optional parameters.
    * @param params.locale - BCP-47 locale for the SDK UI.

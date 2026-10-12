@@ -23,18 +23,11 @@ import {
   getPayStrategiesConfig,
   getSlippage,
 } from '../../utils/feature-flags.js';
-import {
-  getGasStationCostInSourceTokenRaw,
-  getGasStationEligibility,
-} from '../../utils/gas-station.js';
+import { resolveGasStationCost } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
-import {
-  getNativeToken,
-  getTokenBalance,
-  getTokenFiatRate,
-} from '../../utils/token.js';
+import { getTokenFiatRate } from '../../utils/token.js';
 import type { AcrossDestination } from './across-actions.js';
 import { getAcrossDestination } from './across-actions.js';
 import { hasUnsupportedTransactionAuthorizationList } from './authorization-list.js';
@@ -692,50 +685,23 @@ async function calculateSourceNetworkCost(
     ? combinePostQuoteGas(result, transaction, swapTx, messenger)
     : result;
 
-  const nativeBalance = getTokenBalance(
-    messenger,
-    from,
-    sourceChainId,
-    getNativeToken(sourceChainId),
-  );
-  const hasNativeBalance = new BigNumber(nativeBalance).isGreaterThanOrEqualTo(
-    finalResult.sourceNetwork.max.raw,
-  );
-
-  if (isPredictWithdraw && !accountSupports7702) {
-    return finalResult;
-  }
-
-  if (hasNativeBalance && !isPredictWithdraw) {
-    return finalResult;
-  }
-
-  const gasStationEligibility = getGasStationEligibility(
-    messenger,
-    sourceChainId,
-  );
-
-  if (gasStationEligibility.isDisabledChain) {
-    log('Skipping Across gas station as disabled chain', { sourceChainId });
-    return finalResult;
-  }
-
-  if (!gasStationEligibility.chainSupportsGasStation) {
-    log('Skipping Across gas station as chain does not support EIP-7702', {
-      sourceChainId,
-    });
-    return finalResult;
-  }
-
   const firstTransaction = orderedTransactions[0];
 
-  const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
+  // Predict withdraws always consult the gas station: the user's source token
+  // lives in the Safe, so a healthy native balance does not mean they can
+  // actually pay gas. They do require an EIP-7702 capable account, since the
+  // withdraw is submitted as a 7702 batch.
+  const { amount: gasFeeTokenCost, isAvailable } = await resolveGasStationCost({
+    accountSupports7702: isPredictWithdraw ? accountSupports7702 : undefined,
     firstStepData: {
       data: firstTransaction.data,
       to: firstTransaction.to,
       value: firstTransaction.value,
     },
     messenger,
+    nativeGasCostRaw: isPredictWithdraw
+      ? undefined
+      : finalResult.sourceNetwork.max.raw,
     request: {
       from,
       sourceChainId,
@@ -757,7 +723,7 @@ async function calculateSourceNetworkCost(
       estimate: gasFeeTokenCost,
       max: gasFeeTokenCost,
     };
-  } else if (isPredictWithdraw) {
+  } else if (isAvailable && isPredictWithdraw) {
     gasFeeTokenNetwork = calculateSourceGasFeeTokenNetworkFallback({
       messenger,
       nativeSourceNetwork: finalResult.sourceNetwork,

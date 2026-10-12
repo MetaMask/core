@@ -133,6 +133,7 @@ export enum KeyringTypes {
   lattice = 'Lattice Hardware',
   snap = 'Snap Keyring',
   money = 'Money Keyring',
+  mpc = 'MPC Keyring',
   /* eslint-enable @typescript-eslint/naming-convention */
 }
 

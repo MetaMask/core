@@ -1,17 +1,28 @@
-import { EncAccountDataType } from '@metamask/toprf-secure-backup';
+import {
+  EncAccountDataType,
+  TOPRFError,
+  TOPRFErrorCode,
+} from '@metamask/toprf-secure-backup';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
-import { createMockJWTToken } from '../tests/mocks/utils.js';
-import { SecretType } from './constants.js';
-import { SecretMetadata } from './SecretMetadata.js';
-import type { DecodedNodeAuthToken } from './types.js';
+import { createMockJWTToken } from '../../tests/mocks/utils.js';
+import {
+  SeedlessOnboardingControllerErrorMessage,
+  SecretType,
+} from '../constants.js';
+import { SecretMetadata } from '../SecretMetadata.js';
+import type { DecodedNodeAuthToken } from '../types.js';
 import {
   decodeNodeAuthToken,
   decodeJWTToken,
   compareAndGetLatestToken,
   getInvalidPrimarySecretDataTypeErrorData,
   getSecretTypeFromDataType,
+  isAuthTokenError,
+  isMaxKeyChainLengthError,
+  isTokenNearExpiry,
+  parseVaultData,
 } from './utils.js';
 
 describe('utils', () => {
@@ -143,7 +154,7 @@ describe('utils', () => {
       }).toThrow('Invalid JWT token format');
     });
 
-    it('should handle token with special characters in string fields', () => {
+    it('should handle JWT token with special characters in string fields', () => {
       const mockToken = createMockJWTToken({
         aud: 'https://example.com/audience',
         iss: 'https://issuer.example.com',
@@ -267,6 +278,97 @@ describe('utils', () => {
       expect(getInvalidPrimarySecretDataTypeErrorData(secrets)).toStrictEqual([
         SecretType.Mnemonic,
       ]);
+    });
+  });
+
+  describe('isTokenNearExpiry', () => {
+    it('uses exact expiry when no issued-at timestamp is provided', () => {
+      expect(isTokenNearExpiry(100, undefined, 99)).toBe(false);
+      expect(isTokenNearExpiry(100, undefined, 100)).toBe(true);
+    });
+
+    it('returns true during the final ten percent of the token lifetime', () => {
+      expect(isTokenNearExpiry(100, 0, 89)).toBe(false);
+      expect(isTokenNearExpiry(100, 0, 90)).toBe(true);
+    });
+
+    it('falls back to exact expiry for malformed lifetimes', () => {
+      expect(isTokenNearExpiry(100, 100, 99)).toBe(false);
+      expect(isTokenNearExpiry(100, 100, 100)).toBe(true);
+    });
+  });
+
+  describe('parseVaultData', () => {
+    const validVaultData = {
+      toprfEncryptionKey: 'toprf-encryption-key',
+      toprfPwEncryptionKey: 'toprf-password-encryption-key',
+      toprfAuthKeyPair: 'toprf-auth-key-pair',
+      revokeToken: 'revoke-token',
+      accessToken: 'access-token',
+    };
+
+    it('parses valid serialized vault data', () => {
+      expect(parseVaultData(JSON.stringify(validVaultData))).toStrictEqual(
+        validVaultData,
+      );
+    });
+
+    it('throws VaultDataError for non-string or malformed data', () => {
+      expect(() => parseVaultData(undefined)).toThrow(
+        SeedlessOnboardingControllerErrorMessage.VaultDataError,
+      );
+      expect(() => parseVaultData('not-json')).toThrow(
+        SeedlessOnboardingControllerErrorMessage.VaultDataError,
+      );
+    });
+
+    it('throws InvalidVaultData for a parsed value with an invalid shape', () => {
+      expect(() =>
+        parseVaultData(JSON.stringify({ ...validVaultData, accessToken: 1 })),
+      ).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidAccessToken);
+    });
+  });
+
+  describe('TOPRF error predicates', () => {
+    it('identifies authentication token errors', () => {
+      expect(
+        isAuthTokenError(
+          new TOPRFError(TOPRFErrorCode.AuthTokenExpired, 'expired'),
+        ),
+      ).toBe(true);
+      expect(
+        isAuthTokenError(
+          new TOPRFError(TOPRFErrorCode.InvalidAuthToken, 'invalid'),
+        ),
+      ).toBe(true);
+      expect(
+        isAuthTokenError(
+          new TOPRFError(
+            TOPRFErrorCode.MaxKeyChainLengthExceeded,
+            'max key chain length',
+          ),
+        ),
+      ).toBe(false);
+      expect(isAuthTokenError(new Error('not a TOPRF error'))).toBe(false);
+    });
+
+    it('identifies max key chain length errors', () => {
+      expect(
+        isMaxKeyChainLengthError(
+          new TOPRFError(
+            TOPRFErrorCode.MaxKeyChainLengthExceeded,
+            'max key chain length',
+          ),
+        ),
+      ).toBe(true);
+      expect(
+        isMaxKeyChainLengthError(
+          new TOPRFError(TOPRFErrorCode.AuthTokenExpired, 'expired'),
+        ),
+      ).toBe(false);
+      expect(isMaxKeyChainLengthError(new Error('not a TOPRF error'))).toBe(
+        false,
+      );
     });
   });
 });

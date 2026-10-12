@@ -161,6 +161,7 @@ describe('submitServerQuotes', () => {
     findNetworkClientIdByChainIdMock,
     getControllerStateMock,
     getDelegationTransactionMock,
+    getKeyringControllerStateMock,
     getPaymentOverrideDataMock,
     getTransactionControllerStateMock,
     messenger,
@@ -181,6 +182,17 @@ describe('submitServerQuotes', () => {
       quotes: [cloneDeep(QUOTE_MOCK)],
       transaction: cloneDeep(TRANSACTION_META_MOCK),
     };
+
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: [ORIGINAL_FROM_MOCK, QUOTE_FROM_MOCK],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
+    });
 
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_MOCK);
@@ -535,8 +547,131 @@ describe('submitServerQuotes', () => {
       expect(addTxMock).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
+          excludeNativeTokenForFee: true,
           gasFeeToken: reqWithGasFeeToken.quotes[0].request.sourceTokenAddress,
         }),
+      );
+    });
+
+    it('passes gasFeeToken to the batch when fees.isSourceGasFeeToken is true', async () => {
+      const reqWithGasFeeToken = buildNonGaslessRequest({
+        steps: [
+          ORIGINAL_QUOTE_MOCK.steps[0],
+          {
+            type: 'transaction' as const,
+            chainId: 137,
+            data: '0xseconddata' as Hex,
+            to: '0x9999999999999999999999999999999999999999' as Hex,
+            value: '0x20',
+          },
+        ],
+      });
+
+      reqWithGasFeeToken.quotes[0].fees.isSourceGasFeeToken = true;
+
+      await submitServerQuotes(reqWithGasFeeToken);
+
+      expect(addTxBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTxBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          excludeNativeTokenForFee: true,
+          gasFeeToken: reqWithGasFeeToken.quotes[0].request.sourceTokenAddress,
+        }),
+      );
+    });
+
+    const buildSponsoredRequest = (
+      overrides: Partial<ServerQuote> = {},
+    ): PayStrategyExecuteRequest<ServerQuote> => {
+      const sponsoredRequest = buildNonGaslessRequest(overrides);
+      const { chainId } = sponsoredRequest.transaction;
+
+      // Sponsorship only applies when the quote never leaves the parent
+      // transaction's chain.
+      sponsoredRequest.quotes[0].request.sourceChainId = chainId;
+      sponsoredRequest.quotes[0].request.targetChainId = chainId;
+      sponsoredRequest.transaction.isGasFeeSponsored = true;
+
+      return sponsoredRequest;
+    };
+
+    it('passes isGasFeeSponsored when the parent is sponsored and the route is same-chain', async () => {
+      await submitServerQuotes(buildSponsoredRequest());
+
+      expect(addTxMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ isGasFeeSponsored: true }),
+      );
+    });
+
+    it('suppresses gasFeeToken when sponsored', async () => {
+      const sponsoredRequest = buildSponsoredRequest();
+
+      // Sponsorship outranks the gas fee token, so the user must not also be
+      // billed in the source token for gas MetaMask is covering.
+      sponsoredRequest.quotes[0].fees.isSourceGasFeeToken = true;
+
+      await submitServerQuotes(sponsoredRequest);
+
+      const [, options] = addTxMock.mock.calls[0];
+
+      expect(options).toMatchObject({ isGasFeeSponsored: true });
+      expect(options?.gasFeeToken).toBeUndefined();
+      expect(options?.excludeNativeTokenForFee).toBeUndefined();
+    });
+
+    it('passes isGasFeeSponsored to the batch when sponsored', async () => {
+      await submitServerQuotes(
+        buildSponsoredRequest({
+          steps: [
+            ORIGINAL_QUOTE_MOCK.steps[0],
+            {
+              type: 'transaction' as const,
+              chainId: 137,
+              data: '0xseconddata' as Hex,
+              to: '0x9999999999999999999999999999999999999999' as Hex,
+              value: '0x20',
+            },
+          ],
+        }),
+      );
+
+      expect(addTxBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({ isGasFeeSponsored: true }),
+      );
+    });
+
+    it('passes isGasFeeSponsored as false when the parent is explicitly unsponsored', async () => {
+      const unsponsoredRequest = buildSponsoredRequest();
+      unsponsoredRequest.transaction.isGasFeeSponsored = false;
+
+      await submitServerQuotes(unsponsoredRequest);
+
+      // An explicit `false` and an absent flag are not equivalent to the
+      // `TransactionController`, so the evaluated result must be forwarded.
+      expect(addTxMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ isGasFeeSponsored: false }),
+      );
+    });
+
+    it('omits isGasFeeSponsored when the parent sponsorship is unknown', async () => {
+      await submitServerQuotes(buildNonGaslessRequest());
+
+      const [, options] = addTxMock.mock.calls[0];
+
+      expect(options?.isGasFeeSponsored).toBeUndefined();
+    });
+
+    it('does not sponsor a cross-chain route even when the parent is sponsored', async () => {
+      const crossChainRequest = buildSponsoredRequest();
+      crossChainRequest.quotes[0].request.sourceChainId = '0x89';
+
+      await submitServerQuotes(crossChainRequest);
+
+      expect(addTxMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ isGasFeeSponsored: false }),
       );
     });
 

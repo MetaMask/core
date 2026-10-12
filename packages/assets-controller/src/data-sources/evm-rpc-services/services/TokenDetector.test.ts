@@ -1,5 +1,6 @@
+import { numberToHex } from '@metamask/utils';
+
 import type { MulticallClient } from '../clients/index.js';
-import type { TokensApiClient } from '../clients/TokensApiClient.js';
 import type {
   Address,
   BalanceOfResponse,
@@ -47,14 +48,27 @@ function createMockTokenList(
   return tokens.map((token) => ({ ...token }));
 }
 
-function createMockTokensApiClient(
+function createMockTokenApi(
   tokenListByChain: Record<ChainId, TokenListEntry[]> = {},
-): jest.Mocked<TokensApiClient> {
+): {
+  fetchV2SupportedNetworks: jest.Mock;
+  fetchV1SuggestedOccurrenceFloors: jest.Mock;
+  fetchTokenList: jest.Mock;
+} {
   return {
-    fetchTokenList: jest.fn((chainId: ChainId) =>
-      Promise.resolve(tokenListByChain[chainId] ?? []),
+    fetchV2SupportedNetworks: jest.fn(() =>
+      Promise.resolve({
+        fullSupport: ['eip155:1', 'eip155:137'],
+        partialSupport: [],
+      }),
     ),
-  } as unknown as jest.Mocked<TokensApiClient>;
+    fetchV1SuggestedOccurrenceFloors: jest.fn(() =>
+      Promise.resolve({ '1': 3, '137': 3 }),
+    ),
+    fetchTokenList: jest.fn((chainId: number) => {
+      return Promise.resolve(tokenListByChain[numberToHex(chainId)] ?? []);
+    }),
+  };
 }
 
 function createMockBalanceResponse(
@@ -78,7 +92,7 @@ type WithControllerOptions = {
 type WithControllerCallback<ReturnValue> = (params: {
   controller: TokenDetector;
   mockMulticallClient: jest.Mocked<MulticallClient>;
-  mockTokensApiClient: jest.Mocked<TokensApiClient>;
+  mockTokenApi: ReturnType<typeof createMockTokenApi>;
 }) => Promise<ReturnValue> | ReturnValue;
 
 async function withController<ReturnValue>(
@@ -97,15 +111,15 @@ async function withController<ReturnValue>(
   const { config, tokenListByChain = {} } = options;
 
   const mockMulticallClient = createMockMulticallClient();
-  const mockTokensApiClient = createMockTokensApiClient(tokenListByChain);
+  const mockTokenApi = createMockTokenApi(tokenListByChain);
   const controller = new TokenDetector(
     mockMulticallClient,
-    mockTokensApiClient,
+    mockTokenApi,
     config,
   );
 
   try {
-    return await fn({ controller, mockMulticallClient, mockTokensApiClient });
+    return await fn({ controller, mockMulticallClient, mockTokenApi });
   } finally {
     controller.stopAllPolling();
   }
@@ -370,11 +384,106 @@ describe('TokenDetector', () => {
     it('calls the Tokens API with the correct chain ID', async () => {
       await withController(
         { tokenListByChain: {} },
-        async ({ controller, mockTokensApiClient }) => {
+        async ({ controller, mockTokenApi }) => {
           await controller.getTokensToCheck(POLYGON_CHAIN_ID);
-          expect(mockTokensApiClient.fetchTokenList).toHaveBeenCalledWith(
-            POLYGON_CHAIN_ID,
+          expect(mockTokenApi.fetchTokenList).toHaveBeenCalledWith(
+            137,
+            expect.objectContaining({ occurrenceFloor: 3 }),
+            expect.any(Object),
           );
+        },
+      );
+    });
+
+    it('reuses the last supported-networks list when a later refresh fails', async () => {
+      const tokenList = createMockTokenList([
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        { tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList } },
+        async ({ controller, mockTokenApi }) => {
+          expect(
+            await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+          ).toStrictEqual([TEST_TOKEN_1]);
+
+          mockTokenApi.fetchV2SupportedNetworks.mockRejectedValueOnce(
+            new Error('Token API 503'),
+          );
+
+          expect(
+            await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+          ).toStrictEqual([TEST_TOKEN_1]);
+          expect(mockTokenApi.fetchTokenList).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
+    it('returns no tokens when the first supported-networks fetch fails', async () => {
+      const tokenList = createMockTokenList([
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        { tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList } },
+        async ({ controller, mockTokenApi }) => {
+          mockTokenApi.fetchV2SupportedNetworks.mockRejectedValueOnce(
+            new Error('Token API 503'),
+          );
+
+          expect(
+            await controller.getTokensToCheck(MAINNET_CHAIN_ID),
+          ).toStrictEqual([]);
+          expect(mockTokenApi.fetchTokenList).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('keeps a chain unsupported when a failed refresh follows a list that omitted it', async () => {
+      const tokenList = createMockTokenList([
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        {
+          tokenListByChain: {
+            [MAINNET_CHAIN_ID]: tokenList,
+            [POLYGON_CHAIN_ID]: tokenList,
+          },
+        },
+        async ({ controller, mockTokenApi }) => {
+          mockTokenApi.fetchV2SupportedNetworks.mockResolvedValueOnce({
+            fullSupport: ['eip155:1'],
+            partialSupport: [],
+          });
+
+          expect(
+            await controller.getTokensToCheck(POLYGON_CHAIN_ID),
+          ).toStrictEqual([]);
+
+          mockTokenApi.fetchV2SupportedNetworks.mockRejectedValueOnce(
+            new Error('Token API 503'),
+          );
+
+          expect(
+            await controller.getTokensToCheck(POLYGON_CHAIN_ID),
+          ).toStrictEqual([]);
+          expect(mockTokenApi.fetchTokenList).not.toHaveBeenCalled();
         },
       );
     });
@@ -462,7 +571,7 @@ describe('TokenDetector', () => {
       );
     });
 
-    it('includes detected asset but omits detectedBalances when token list entry has no decimals', async () => {
+    it('records a balance with 18 decimals when the token list omits decimals', async () => {
       const tokenList: TokenListEntry[] = [
         {
           address: TEST_TOKEN_1,
@@ -494,7 +603,12 @@ describe('TokenDetector', () => {
           );
 
           expect(result.detectedAssets).toHaveLength(1);
-          expect(result.detectedBalances).toHaveLength(0);
+          expect(result.detectedBalances).toStrictEqual([
+            expect.objectContaining({
+              decimals: 18,
+              formattedBalance: '0.000000001',
+            }),
+          ]);
         },
       );
     });

@@ -1,10 +1,12 @@
+import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
+import { VaultData } from '../types.js';
 import {
+  assertIsEncryptedKeyringEncryptionKeySet,
+  assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
   assertIsValidPassword,
   assertIsValidVaultData,
 } from './assertions.js';
-import { SeedlessOnboardingControllerErrorMessage } from './constants.js';
-import { VaultData } from './types.js';
 
 describe('assertIsValidPassword', () => {
   it('should throw when password is not a string', () => {
@@ -206,6 +208,28 @@ describe('assertIsPasswordOutdatedCacheValid', () => {
       assertIsPasswordOutdatedCacheValid(-Infinity);
     }).toThrow(
       SeedlessOnboardingControllerErrorMessage.InvalidPasswordOutdatedCache,
+    );
+  });
+});
+
+describe('encrypted key assertions', () => {
+  it('accepts non-empty encrypted key values', () => {
+    expect(() => {
+      assertIsEncryptedKeyringEncryptionKeySet('encrypted-keyring-key');
+      assertIsEncryptedSeedlessEncryptionKeySet('encrypted-seedless-key');
+    }).not.toThrow();
+  });
+
+  it('rejects missing encrypted key values', () => {
+    expect(() => {
+      assertIsEncryptedKeyringEncryptionKeySet(undefined);
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.EncryptedKeyringEncryptionKeyNotSet,
+    );
+    expect(() => {
+      assertIsEncryptedSeedlessEncryptionKeySet('');
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.EncryptedSeedlessEncryptionKeyNotSet,
     );
   });
 });

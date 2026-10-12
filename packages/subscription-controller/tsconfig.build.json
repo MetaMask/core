@@ -6,9 +6,6 @@
   },
   "references": [
     {
-      "path": "../approval-controller/tsconfig.build.json"
-    },
-    {
       "path": "../authenticated-user-storage/tsconfig.build.json"
     },
     {
@@ -25,6 +22,9 @@
     },
     {
       "path": "../delegation-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../geolocation-controller/tsconfig.build.json"
     },
     {
       "path": "../messenger/tsconfig.build.json"
@@ -46,6 +46,9 @@
     },
     {
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../seedless-onboarding-controller/tsconfig.build.json"
     },
     {
       "path": "../transaction-controller/tsconfig.build.json"

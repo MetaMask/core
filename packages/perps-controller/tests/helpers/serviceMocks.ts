@@ -427,3 +427,48 @@ export const keyringCalls = (call: jest.SpyInstance): string[] =>
   call.mock.calls
     .map(([action]: [unknown]) => String(action))
     .filter((action) => action.startsWith('KeyringController:'));
+
+/**
+ * Create a real PerpsController messenger whose host registers and delegates
+ * only the given actions, like a host that does not provide every optional
+ * controller. Any other action throws the real `Messenger` error
+ * (`A handler for <Action> has not been delegated to PerpsController`).
+ *
+ * @param handlers - Action handlers the host registers and delegates.
+ * @returns The PerpsController messenger.
+ */
+export const createPartiallyDelegatedMessenger = (
+  handlers: Record<string, (...args: any[]) => unknown> = {},
+): PerpsControllerMessenger => {
+  const root: RootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  const messenger: PerpsControllerMessenger = new Messenger({
+    namespace: 'PerpsController',
+    parent: root,
+  });
+  const actions = Object.keys(handlers) as any[];
+  for (const action of actions) {
+    root.registerActionHandler(action, handlers[action] as any);
+  }
+  root.delegate({ actions, messenger });
+  return messenger;
+};
+
+/**
+ * Call `action` from a real messenger in `namespace` whose host provides no
+ * handlers, so it throws the real nested `Messenger` error — as a delegated
+ * handler does when its own dependency is missing.
+ *
+ * @param namespace - Namespace of the messenger making the nested call.
+ * @param action - The action it calls.
+ * @returns Never; always throws.
+ */
+export const callMissingFrom = (namespace: string, action: string): never => {
+  const root = new Messenger<MockAnyNamespace, any>({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  const messenger = new Messenger<string, any, never, typeof root>({
+    namespace,
+    parent: root,
+  });
+  return messenger.call(action as never) as never;
+};

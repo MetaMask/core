@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2]
+
+### Fixed
+
+- Only pass `additionalData` to AES-GCM `encrypt` and `decrypt` when it is provided, as browsers such as Chrome reject `additionalData: undefined` ([#10757](https://github.com/MetaMask/core/pull/10757))
+
+## [1.1.1]
+
+### Fixed
+
+- Export AES-GCM IV length ([#10654](https://github.com/MetaMask/core/pull/10654))
+
+## [1.1.0]
+
+### Added
+
+- Add an `additionalData` option to AES-GCM `encrypt` and `decrypt` ([#10628](https://github.com/MetaMask/core/pull/10628))
+- Allow HKDF functions to derive from an empty input when `unsafeInputKeyingMaterial` is set ([#10628](https://github.com/MetaMask/core/pull/10628))
+
 ### Fixed
 
 - Narrow return type for AES `encrypt` function to `Uint8Array<ArrayBuffer>` ([#10623](https://github.com/MetaMask/core/pull/10623))
@@ -25,5 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `encrypt` and `decrypt` functions for AES-GCM symmetric encryption exported via `@metamask/cryptography/aes-gcm`
   - Add `getRandomBytes` function for generating cryptographically secure random bytes
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/cryptography@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/cryptography@1.1.2...HEAD
+[1.1.2]: https://github.com/MetaMask/core/compare/@metamask/cryptography@1.1.1...@metamask/cryptography@1.1.2
+[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/cryptography@1.1.0...@metamask/cryptography@1.1.1
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/cryptography@1.0.0...@metamask/cryptography@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/cryptography@1.0.0

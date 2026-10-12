@@ -5,10 +5,16 @@
       "path": "../base-controller"
     },
     {
+      "path": "../cryptography"
+    },
+    {
       "path": "../keyring-controller"
     },
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../analytics-controller"
     },
     {
       "path": "../utils"

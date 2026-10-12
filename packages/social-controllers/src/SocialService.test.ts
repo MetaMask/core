@@ -640,6 +640,32 @@ describe('SocialService', () => {
       );
     });
 
+    it('accepts null buy-side money fields on an otherwise valid position', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [
+              {
+                ...mockPosition,
+                boughtUsd: null,
+                costBasis: null,
+              },
+            ],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchOpenPositions({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.positions[0]?.boughtUsd).toBeNull();
+      expect(result.positions[0]?.costBasis).toBeNull();
+    });
+
     it('passes through perp metadata on positions and trades', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -874,6 +900,44 @@ describe('SocialService', () => {
       );
     });
 
+    it('appends mutuals=true when mutuals option is set', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowersResponse),
+      });
+
+      const service = createService();
+      await service.fetchFollowers({
+        addressOrId: '0x1234',
+        mutuals: true,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/traders/0x1234/followers?mutuals=true`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('does not append mutuals when mutuals is false', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowersResponse),
+      });
+
+      const service = createService();
+      await service.fetchFollowers({
+        addressOrId: '0x1234',
+        mutuals: false,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/traders/0x1234/followers`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
     it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
@@ -883,6 +947,18 @@ describe('SocialService', () => {
         service.fetchFollowers({ addressOrId: '0x1234' }),
       ).rejects.toThrow(
         `${SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED}: 500`,
+      );
+    });
+
+    it('throws HttpError on non-ok response when mutuals is true', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = createService();
+
+      await expect(
+        service.fetchFollowers({ addressOrId: '0x1234', mutuals: true }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED}: 404`,
       );
     });
 
@@ -897,6 +973,22 @@ describe('SocialService', () => {
 
       await expect(
         service.fetchFollowers({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
+      );
+    });
+
+    it('throws when response schema is invalid with mutuals true', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ followers: 'not-an-array', count: 1 }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchFollowers({ addressOrId: '0x1234', mutuals: true }),
       ).rejects.toThrow(
         SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
       );
@@ -919,6 +1011,60 @@ describe('SocialService', () => {
         service.fetchFollowers({ addressOrId: '0x1234' }),
       ).rejects.toThrow(
         SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
+      );
+    });
+  });
+
+  describe('fetchTraderFollowing', () => {
+    const mockFollowingResponse = {
+      following: [mockProfileSummary],
+      count: 1,
+    };
+
+    it('fetches following from correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowingResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderFollowing({
+        addressOrId: '0x1234',
+      });
+
+      expect(result).toStrictEqual(mockFollowingResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/traders/0x1234/following`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTraderFollowing({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_FAILED}: 500`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ following: 'not-an-array', count: 1 }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTraderFollowing({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_INVALID_RESPONSE,
       );
     });
   });
@@ -1088,13 +1234,44 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws when the feed item is missing its actor', async () => {
+    it('drops feed items that fail validation instead of rejecting the page', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
         json: () =>
           Promise.resolve({
-            items: [{ ...mockPosition, timestamp: 1700000000 }],
+            items: [{ ...mockPosition, timestamp: 1700000000 }, mockFeedItem],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items).toStrictEqual([mockFeedItem]);
+    });
+
+    it('throws when the feed envelope is missing pagination', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ items: [mockFeedItem] }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchFeed()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+      );
+    });
+
+    it('throws when items is not an array', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: 'not-an-array',
             pagination: { olderCursor: null, newerCursor: null },
           }),
       });
@@ -1104,6 +1281,33 @@ describe('SocialService', () => {
       await expect(service.fetchFeed()).rejects.toThrow(
         SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
       );
+    });
+
+    it('accepts null buy-side money fields on an otherwise valid item', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [
+              {
+                ...mockFeedItem,
+                boughtUsd: null,
+                costBasis: null,
+                soldUsd: 0,
+                realizedPnl: 0,
+              },
+            ],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]?.boughtUsd).toBeNull();
+      expect(result.items[0]?.costBasis).toBeNull();
     });
 
     it('throws when the pagination shape is invalid', async () => {
@@ -1536,6 +1740,90 @@ describe('SocialService', () => {
       const service = createService();
       await service.fetchFollowing();
       await service.fetchFollowing();
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('fetchMyFollowing', () => {
+    const mockFollowingResponse = {
+      following: [mockProfileSummary],
+      count: 1,
+    };
+
+    it('aliases fetchFollowing on the /users/me/following endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowingResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchMyFollowing();
+
+      expect(result).toStrictEqual(mockFollowingResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/me/following`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+  });
+
+  describe('fetchMyFollowers', () => {
+    const mockFollowersResponse = {
+      followers: [mockProfileSummary],
+      count: 1,
+    };
+
+    it('fetches followers from the /users/me/followers endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowersResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchMyFollowers();
+
+      expect(result).toStrictEqual(mockFollowersResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/me/followers`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(service.fetchMyFollowers()).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_FAILED}: 500`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ followers: 'not-an-array', count: 1 }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchMyFollowers()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_INVALID_RESPONSE,
+      );
+    });
+
+    it('always fetches fresh data on repeated calls (staleTime: 0)', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowersResponse),
+      });
+
+      const service = createService();
+      await service.fetchMyFollowers();
+      await service.fetchMyFollowers();
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
@@ -2010,6 +2298,318 @@ describe('SocialService', () => {
       );
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('block', () => {
+    it('sends PUT with a profile target and reason to /moderation/block', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      const result = await service.block({
+        profileId: mockProfileSummary.profileId,
+        reason: 'spam',
+      });
+
+      expect(result).toBeUndefined();
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/moderation/block`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          profileId: mockProfileSummary.profileId,
+          reason: 'spam',
+        }),
+      });
+    });
+
+    it('sends a comment target without a reason', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      await service.block({ commentId: 'comment-1' });
+
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/moderation/block`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ commentId: 'comment-1' }),
+      });
+    });
+
+    it('sends a reply target', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      await service.block({ replyId: 'reply-1', reason: 'harassment' });
+
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/moderation/block`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ replyId: 'reply-1', reason: 'harassment' }),
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 400 });
+
+      const service = createService();
+
+      await expect(
+        service.block({ profileId: mockProfileSummary.profileId }),
+      ).rejects.toThrow(`${SocialServiceErrorMessage.BLOCK_FAILED}: 400`);
+    });
+
+    it('always sends the request on repeated calls (staleTime: 0)', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      await service.block({ commentId: 'comment-1' });
+      await service.block({ commentId: 'comment-1' });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('is callable via messenger action', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const messenger = createMessenger();
+      // eslint-disable-next-line no-new
+      new SocialService({ messenger, baseUrl: BASE_URL });
+
+      const result = await messenger.call('SocialService:block', {
+        replyId: 'reply-1',
+      });
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('fetchBlockedProfiles', () => {
+    const mockBlockedProfilesResponse = {
+      items: [
+        {
+          blockedAt: 1700000000,
+          reason: 'spam',
+          profile: mockProfileSummary,
+        },
+      ],
+      cursor: '1710000000000',
+    };
+
+    it('fetches the first page from /moderation/blocks/profiles', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockBlockedProfilesResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchBlockedProfiles();
+
+      expect(result).toStrictEqual(mockBlockedProfilesResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/moderation/blocks/profiles`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('sends the cursor query param for the next page', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({ ...mockBlockedProfilesResponse, cursor: null }),
+      });
+
+      const service = createService();
+      const result = await service.fetchBlockedProfiles({
+        cursor: '1710000000000',
+      });
+
+      expect(result.cursor).toBeNull();
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/moderation/blocks/profiles?cursor=1710000000000`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('accepts a profile that omits imageUrl', async () => {
+      const { imageUrl: _imageUrl, ...profileWithoutImage } =
+        mockProfileSummary;
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [
+              {
+                blockedAt: 1700000000,
+                reason: null,
+                profile: profileWithoutImage,
+              },
+            ],
+            cursor: null,
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchBlockedProfiles();
+
+      expect(result.items[0]?.profile).toStrictEqual(profileWithoutImage);
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 401 });
+
+      const service = createService();
+
+      await expect(service.fetchBlockedProfiles()).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_BLOCKED_PROFILES_FAILED}: 401`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ items: 'not-an-array', cursor: null }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchBlockedProfiles()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_BLOCKED_PROFILES_INVALID_RESPONSE,
+      );
+    });
+
+    it('is callable via messenger action', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockBlockedProfilesResponse),
+      });
+
+      const messenger = createMessenger();
+      // eslint-disable-next-line no-new
+      new SocialService({ messenger, baseUrl: BASE_URL });
+
+      const result = await messenger.call(
+        'SocialService:fetchBlockedProfiles',
+        { cursor: '1710000000000' },
+      );
+
+      expect(result).toStrictEqual(mockBlockedProfilesResponse);
+    });
+  });
+
+  describe('fetchBlockedContent', () => {
+    const mockBlockedContentResponse = {
+      items: [
+        {
+          blockedAt: 1700000000,
+          reason: 'misleading',
+          type: 'comment',
+          id: 'comment-1',
+          text: 'this is a post',
+          createdAt: 1690000000,
+          author: mockProfileSummary,
+        },
+        {
+          blockedAt: 1690000000,
+          reason: null,
+          type: 'reply',
+          id: 'reply-1',
+          text: 'this is a reply',
+          createdAt: 1680000000,
+          author: null,
+        },
+      ],
+      cursor: null,
+    };
+
+    it('fetches the first page from /moderation/blocks/content', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockBlockedContentResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchBlockedContent();
+
+      expect(result).toStrictEqual(mockBlockedContentResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/moderation/blocks/content`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('sends the cursor query param for the next page', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockBlockedContentResponse),
+      });
+
+      const service = createService();
+      await service.fetchBlockedContent({ cursor: '1710000000000' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/moderation/blocks/content?cursor=1710000000000`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(service.fetchBlockedContent()).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_BLOCKED_CONTENT_FAILED}: 500`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [{ ...mockBlockedContentResponse.items[0], type: 'post' }],
+            cursor: null,
+          }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchBlockedContent()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_BLOCKED_CONTENT_INVALID_RESPONSE,
+      );
+    });
+
+    it('is callable via messenger action', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockBlockedContentResponse),
+      });
+
+      const messenger = createMessenger();
+      // eslint-disable-next-line no-new
+      new SocialService({ messenger, baseUrl: BASE_URL });
+
+      const result = await messenger.call('SocialService:fetchBlockedContent');
+
+      expect(result).toStrictEqual(mockBlockedContentResponse);
     });
   });
 });

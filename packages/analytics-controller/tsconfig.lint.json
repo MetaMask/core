@@ -16,6 +16,9 @@
     },
     {
       "path": "../utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../config-registry-controller/tsconfig.lint.json"
     }
   ]
 }

@@ -225,10 +225,19 @@ export type Position = {
    * responses from a social-api that predates the field.
    */
   isOpen?: boolean;
-  boughtUsd: number;
-  soldUsd: number;
-  realizedPnl: number;
-  costBasis: number;
+  /**
+   * Total USD spent buying into the position. `null` when Clicker stats are
+   * incomplete (the social-api used to JSON-serialize `NaN` as `null`).
+   */
+  boughtUsd: number | null;
+  /** Total USD received from sells. `null` when stats are incomplete. */
+  soldUsd: number | null;
+  /** Realized profit or loss in USD. `null` when stats are incomplete. */
+  realizedPnl: number | null;
+  /**
+   * USD cost basis of the remaining holdings. `null` when stats are incomplete.
+   */
+  costBasis: number | null;
   trades: Trade[];
   lastTradeAt: number;
   /** Daylight-hosted token image URL. */
@@ -446,7 +455,8 @@ export type FeedResponse = {
 // ---------------------------------------------------------------------------
 
 /**
- * Response from `GET /v1/traders/:addressOrId/followers`.
+ * Response from `GET /v1/users/me/followers` and bearer-authenticated
+ * `GET /v1/traders/:addressOrId/followers` (optionally `?mutuals=true`).
  */
 export type FollowersResponse = {
   followers: ProfileSummary[];
@@ -458,7 +468,8 @@ export type FollowersResponse = {
 // ---------------------------------------------------------------------------
 
 /**
- * Response from `GET /v1/users/me/following`.
+ * Response from `GET /v1/users/me/following` and bearer-authenticated
+ * `GET /v1/traders/:addressOrId/following`.
  */
 export type FollowingResponse = {
   following: ProfileSummary[];
@@ -508,6 +519,17 @@ export type FetchPositionsOptions = {
 };
 
 export type FetchFollowersOptions = {
+  /** Wallet address or Clicker profile ID. */
+  addressOrId: string;
+  /**
+   * When true, requests `GET .../followers?mutuals=true` so `followers` are
+   * profiles that follow both this trader and the authenticated user; `count` is
+   * the mutual total. Omit or false returns the trader's full follower list.
+   */
+  mutuals?: boolean;
+};
+
+export type FetchTraderFollowingOptions = {
   /** Wallet address or Clicker profile ID. */
   addressOrId: string;
 };
@@ -599,6 +621,100 @@ export type FollowOptions = {
 export type UnfollowOptions = {
   /** Array of wallet addresses or profile IDs to unfollow. */
   targets: string[];
+};
+
+// ---------------------------------------------------------------------------
+// Moderation blocks
+// ---------------------------------------------------------------------------
+
+/**
+ * Options for `PUT /v1/moderation/block`. Provide exactly one target. Blocking
+ * the same target again replaces `reason` when one is given.
+ */
+export type BlockOptions =
+  | {
+      /** Profile id (UUID) of the trader to block. */
+      profileId: string;
+      /** Free-form reason stored on the block. Max 1000 characters. */
+      reason?: string;
+    }
+  | {
+      /** Swap comment (post) to block. */
+      commentId: string;
+      /** Free-form reason stored on the block. Max 1000 characters. */
+      reason?: string;
+    }
+  | {
+      /** Comment reply to block. */
+      replyId: string;
+      /** Free-form reason stored on the block. Max 1000 characters. */
+      reason?: string;
+    };
+
+/**
+ * Options for the cursor-paginated moderation list endpoints. Omit `cursor`
+ * for the first page.
+ */
+export type FetchBlockedListOptions = {
+  /** The `cursor` from the previous page. */
+  cursor?: string;
+};
+
+/**
+ * A trader the current user has blocked.
+ */
+export type BlockedProfile = {
+  /** When the block was placed, in Unix epoch seconds. */
+  blockedAt: number;
+  /** Reason given when the block was placed, if any. */
+  reason: string | null;
+  /** The blocked trader. */
+  profile: ProfileSummary;
+};
+
+/**
+ * Response from `GET /v1/moderation/blocks/profiles`.
+ */
+export type BlockedProfilesResponse = {
+  /** Blocked traders, most recently blocked first. */
+  items: BlockedProfile[];
+  /** Pass as `cursor` for the next page. `null` on the last page. */
+  cursor: string | null;
+};
+
+/**
+ * Whether a blocked content row is a swap comment or a reply.
+ */
+export type BlockedContentType = 'comment' | 'reply';
+
+/**
+ * A comment or reply the current user has blocked.
+ */
+export type BlockedContent = {
+  /** When the block was placed, in Unix epoch seconds. */
+  blockedAt: number;
+  /** Reason given when the block was placed, if any. */
+  reason: string | null;
+  /** Whether `id` refers to a swap comment or a reply. */
+  type: BlockedContentType;
+  /** Comment or reply id (UUID). */
+  id: string;
+  /** Text of the blocked comment or reply. */
+  text: string;
+  /** When the content was posted, in Unix epoch seconds. */
+  createdAt: number;
+  /** Author of the content. `null` when the profile cannot be resolved. */
+  author: ProfileSummary | null;
+};
+
+/**
+ * Response from `GET /v1/moderation/blocks/content`.
+ */
+export type BlockedContentResponse = {
+  /** Blocked comments and replies, most recently blocked first. */
+  items: BlockedContent[];
+  /** Pass as `cursor` for the next page. `null` on the last page. */
+  cursor: string | null;
 };
 
 // ---------------------------------------------------------------------------

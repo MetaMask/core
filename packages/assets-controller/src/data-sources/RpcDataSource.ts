@@ -1,5 +1,6 @@
 import { Web3Provider } from '@ethersproject/providers';
 import { toHex } from '@metamask/controller-utils';
+import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
@@ -50,12 +51,10 @@ import {
   isStakingContractAssetId,
   MulticallClient,
   TokenDetector,
-  TokensApiClient,
 } from './evm-rpc-services/index.js';
 import type {
   BalancePollingInput,
   DetectionPollingInput,
-  TokenListQueryClient,
 } from './evm-rpc-services/index.js';
 import type {
   Address,
@@ -106,12 +105,6 @@ export type RpcDataSourceConfig = {
   /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
   isOnboarded?: () => boolean;
   timeout?: number;
-  /**
-   * Optional shared TanStack Query client used by `TokensApiClient` to cache
-   * token-list responses across detector polls. Pass `apiPlatformClient.queryClient`
-   * to share the cache with other API clients in the host app.
-   */
-  queryClient?: TokenListQueryClient;
 };
 
 export type RpcDataSourceOptions = {
@@ -142,11 +135,8 @@ export type RpcDataSourceOptions = {
   useExternalService?: () => boolean;
   /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
   isOnboarded?: () => boolean;
-  /**
-   * Optional shared TanStack Query client used by `TokensApiClient` to cache
-   * token-list responses across detector polls.
-   */
-  queryClient?: TokenListQueryClient;
+  /** ApiPlatformClient for API calls with caching. Token detection uses `token`. */
+  queryApiClient: ApiPlatformClient;
 
   /** Returns the asset type ('native' | 'erc20' | 'spl') for the given CAIP-19 asset ID */
   getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
@@ -337,16 +327,9 @@ export class RpcDataSource extends AbstractDataSource<
       }
     });
 
-    // Initialize TokenDetector with polling interval. The TokensApiClient is
-    // configured with the shared TanStack Query client (when the controller
-    // provides one) so concurrent detector polls/accounts/instances share a
-    // single in-flight request and cached result per chain.
-    const tokensApiClient = new TokensApiClient({
-      queryClient: options.queryClient,
-    });
     this.#tokenDetector = new TokenDetector(
       this.#multicallClient,
-      tokensApiClient,
+      options.queryApiClient.token,
       {
         pollingInterval: detectionInterval,
         tokenDetectionEnabled: this.#tokenDetectionEnabled,
