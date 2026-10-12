@@ -121,9 +121,9 @@ export type ProfileControllerGetXAuthorizationUrlAction = {
 };
 
 /**
-  * Disconnects the X account linked to the given profile. If the given
-  * profile matches the profile in state, clears `xProfile` from state and
-  * marks the profile in state as no longer connected to X.
+ * Disconnects the X account linked to the given profile. If the given
+ * profile matches the profile in state, clears `xProfile` from state and
+ * marks the profile in state as no longer connected to X.
  *
  * @param profileId - The ID of the profile to disconnect the linked X account
  * from (sourced from {@link getProfile}).
