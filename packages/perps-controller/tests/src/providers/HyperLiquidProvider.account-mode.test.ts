@@ -445,6 +445,53 @@ describe('HyperLiquidProvider', () => {
       expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
     });
 
+    it('corrects cached support after a status-based order rejection', async () => {
+      const exchangeClient = createMockExchangeClient({
+        order: jest.fn().mockResolvedValue({
+          status: 'ok',
+          response: {
+            data: { statuses: [{ error: 'Multi-sig required' }] },
+          },
+        }),
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getReferral.mockReturnValue({ attempted: true, success: true });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getBuilderFee.mockReturnValue({ attempted: true, success: true });
+
+      await provider.getAccountSupport();
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+    });
+
     it('attributes a delayed rejection to the account that signed the write', async () => {
       const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
       let rejectOrder!: (reason: Error) => void;
@@ -555,6 +602,54 @@ describe('HyperLiquidProvider', () => {
         error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
       });
       expect(exchangeClient.withdraw3).toHaveBeenCalledTimes(1);
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+    });
+
+    it('corrects cached support after a status-based cancellation rejection', async () => {
+      const exchangeClient = createMockExchangeClient({
+        cancel: jest.fn().mockResolvedValue({
+          status: 'ok',
+          response: {
+            data: { statuses: [{ error: 'Multi-sig required' }] },
+          },
+        }),
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getReferral.mockReturnValue({ attempted: true, success: true });
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: true,
+      });
+      const cancellation = {
+        orderId: '123',
+        symbol: 'BTC',
+      };
+      await expect(provider.cancelOrder(cancellation)).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      await expect(provider.cancelOrder(cancellation)).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
       expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
     });
 
