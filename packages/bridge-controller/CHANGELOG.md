@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [82.0.3]
+
 ### Changed
 
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
@@ -14,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
 - Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
 - Bump `@metamask/keyring-api` from `^24.0.0` to `^24.1.0` ([#10717](https://github.com/MetaMask/core/pull/10717))
+- Bump `@metamask/assets-controller` from `^18.0.1` to `^19.0.0` ([#10788](https://github.com/MetaMask/core/pull/10788))
 
 ## [82.0.2]
 
@@ -2135,7 +2138,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.3...HEAD
+[82.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.2...@metamask/bridge-controller@82.0.3
 [82.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.1...@metamask/bridge-controller@82.0.2
 [82.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.0...@metamask/bridge-controller@82.0.1
 [82.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.4.0...@metamask/bridge-controller@82.0.0

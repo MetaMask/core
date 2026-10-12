@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getXAuthorizationUrl` method to `ProfileController` for initiating the X OAuth flow. It requires a profile to exist, fetches the authorization URL via `ProfileService:getXAuthUrl` (the profile is resolved server-side from the verified bearer token), and returns the authorization URL and state parameter as ephemeral session data, without storing them in controller state ([#10668](https://github.com/MetaMask/core/pull/10668))
+- Add `disconnectX` method to `ProfileController` for unlinking the X account from a profile. It delegates to `ProfileService:disconnectX`, and when the disconnected profile matches the profile in state, clears `xProfile` from controller state and sets `connectedToX` to `false` ([#10668](https://github.com/MetaMask/core/pull/10668))
+- Add `disconnectX` method to `ProfileService` for sending an authenticated `DELETE` request to the `profiles/{profileId}/x` endpoint; a `404` response is treated as success (the X account is already disconnected) ([#10668](https://github.com/MetaMask/core/pull/10668))
+
 ### Changed
 
+- `getXAuthorizationUrl` no longer accepts a `linkedAddress` parameter and now throws if no profile exists in state
+- `connectX` now throws if no profile exists in state, and updates controller state (`xProfile`, `profile.connectedToX`) on success instead of deferring persistence to `createProfile`. `createProfile` no longer persists a linked X profile from its response
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
+
+### Fixed
+
+- Fix the `ProfileController` messenger event type: the controller exposes `ProfileController:stateChanged` (emitted on state changes), not `ProfileController:stateChange` ([#10668](https://github.com/MetaMask/core/pull/10668))
 
 ## [1.0.1]
 
