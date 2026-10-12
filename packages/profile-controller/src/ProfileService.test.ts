@@ -35,7 +35,7 @@ const mockProfileResponse = {
   updated_at: '2024-01-02T00:00:00Z',
 };
 
-const mockXConnectResponse = {
+const mockConnectXResponse = {
   x_user_id: 'x-user-123',
   x_profile_url: 'https://x.com/degengirl',
   username: 'degengirl',
@@ -448,25 +448,6 @@ describe('ProfileService', () => {
       );
     });
 
-    it('sends the linked_address query parameter when a linked address is given', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve(mockAuthUrlResponse),
-      });
-
-      const service = createService();
-      const result = await service.getXAuthUrl(
-        'eip155:0:0x1234567890abcdef1234567890abcdef12345678',
-      );
-
-      expect(result).toStrictEqual(mockAuthUrlResponse);
-      expect(mockFetch).toHaveBeenCalledWith(
-        `${V1_URL}/profiles/x/authentication-url?linked_address=eip155%3A0%3A0x1234567890abcdef1234567890abcdef12345678`,
-        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
-      );
-    });
-
     it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
@@ -497,7 +478,7 @@ describe('ProfileService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockXConnectResponse),
+        json: () => Promise.resolve(mockConnectXResponse),
       });
 
       const params: ConnectXParams = {
@@ -507,7 +488,7 @@ describe('ProfileService', () => {
       const service = createService();
       const result = await service.connectX(params);
 
-      expect(result).toStrictEqual(mockXConnectResponse);
+      expect(result).toStrictEqual(mockConnectXResponse);
       expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/profiles/x/connect`, {
         method: 'POST',
         headers: {
@@ -516,26 +497,6 @@ describe('ProfileService', () => {
         },
         body: JSON.stringify(params),
       });
-    });
-
-    it('parses profile_created when the backend reports it', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            ...mockXConnectResponse,
-            profile_created: true,
-          }),
-      });
-
-      const service = createService();
-      const result = await service.connectX({
-        code: 'auth-code-123',
-        state: 'state-xyz',
-      });
-
-      expect(result.profile_created).toBe(true);
     });
 
     it('invalidates the cached profile so the next getProfile reflects the connection', async () => {
@@ -552,7 +513,7 @@ describe('ProfileService', () => {
         .mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: () => Promise.resolve(mockXConnectResponse),
+          json: () => Promise.resolve(mockConnectXResponse),
         })
         .mockResolvedValueOnce({
           ok: true,
@@ -618,13 +579,13 @@ describe('ProfileService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockXConnectResponse),
+        json: () => Promise.resolve(mockConnectXResponse),
       });
 
       const service = createService();
       const result = await service.getXAccount();
 
-      expect(result).toStrictEqual(mockXConnectResponse);
+      expect(result).toStrictEqual(mockConnectXResponse);
       expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/profiles/x/account`, {
         headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
       });

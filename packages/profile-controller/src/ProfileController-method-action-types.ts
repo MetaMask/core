@@ -27,7 +27,6 @@ export type ProfileControllerGetXProfileAction = {
 
 /**
  * Creates a new MetaMask profile, updates state, and returns the created profile.
- * If the user had previously connected X, also updates xProfile in state.
  *
  * @param params - The profile creation parameters.
  * @returns The created MetaMask profile.
@@ -81,24 +80,15 @@ export type ProfileControllerCheckUsernameAvailabilityAction = {
 };
 
 /**
- * Completes the X OAuth flow, updates xProfile and profile in state, and
- * returns the connect result. The backend creates the profile if it does
- * not exist yet (username derived from the X handle), so the profile is
- * always fetched from the backend after a successful connect.
- *
- * The linked X profile is persisted in state immediately after the connect
- * succeeds. If the follow-up profile fetch fails, the X link remains
- * persisted, the profile in state is left unchanged, and a clear error is
- * thrown. `connectX` must not be retried because the OAuth code is
- * single-use.
+ * Completes the X OAuth flow for the profile in state and returns the
+ * linked X profile. Updates controller state with the linked X profile
+ * and marks the profile in state as connected to X.
  *
  * @param params - The parameters for the X OAuth flow.
  * @param params.code - The OAuth authorization code from the X redirect.
  * @param params.state - The state parameter returned by the X redirect.
- * @param params.profileId - The canonical profile ID the X account is
- * linked to (sourced from the auth session).
- * @returns The refreshed profile, the linked X profile, and whether the
- * backend created the profile during the connect.
+ * @returns The linked X profile.
+ * @throws If no profile has been created yet.
  */
 export type ProfileControllerConnectXAction = {
   type: `ProfileController:connectX`;
@@ -122,14 +112,12 @@ export type ProfileControllerFetchAndUpdateXAccountAction = {
  * The profile is resolved server-side from the verified bearer token.
  * Returns session data for the caller to use; nothing is stored in controller state.
  *
- * @param params - Optional parameters for initiating the X OAuth flow.
- * @param params.linkedAddress - Optional CAIP-10 account ID to link to the
- * profile when it does not exist yet.
  * @returns The X authorization URL and state parameter.
+ * @throws If no profile has been created yet.
  */
-export type ProfileControllerStartXConnectAction = {
-  type: `ProfileController:startXConnect`;
-  handler: ProfileController['startXConnect'];
+export type ProfileControllerStartConnectXAction = {
+  type: `ProfileController:startConnectX`;
+  handler: ProfileController['startConnectX'];
 };
 
 /**
@@ -157,5 +145,5 @@ export type ProfileControllerMethodActions =
   | ProfileControllerCheckUsernameAvailabilityAction
   | ProfileControllerConnectXAction
   | ProfileControllerFetchAndUpdateXAccountAction
-  | ProfileControllerStartXConnectAction
+  | ProfileControllerStartConnectXAction
   | ProfileControllerDisconnectXAction;

@@ -46,7 +46,7 @@ const mockMappedProfile: Profile = {
   updatedAt: '2024-01-02T00:00:00Z',
 };
 
-const mockXConnectResponse = {
+const mockConnectXResponse = {
   x_user_id: 'x-user-123',
   x_profile_url: 'https://x.com/degengirl',
   username: 'degengirl',
@@ -71,7 +71,7 @@ const mockXAuthUrlResponse = {
   state: 'oauth-state-123',
 };
 
-const mockXConnectSession = {
+const mockConnectXSession = {
   authorizationUrl:
     'https://x.com/i/oauth2/authorize?code_challenge=challenge-123',
   state: 'oauth-state-123',
@@ -110,7 +110,6 @@ function getMessenger(
       'ProfileService:deleteProfile',
       'ProfileService:checkUsernameAvailability',
       'ProfileService:connectX',
-      'ProfileService:getProfile',
       'ProfileService:getXAccount',
       'ProfileService:getXAuthUrl',
       'ProfileService:disconnectX',
@@ -235,7 +234,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAccount',
-        jest.fn().mockResolvedValue(mockXConnectResponse),
+        jest.fn().mockResolvedValue(mockConnectXResponse),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -351,14 +350,14 @@ describe('ProfileController', () => {
       expect(controller.state.profile.connectedToX).toBe(true);
     });
 
-    it('also updates xProfile in state when x_profile is included in the response', async () => {
+    it('does not update xProfile in state even when x_profile is included in the response', async () => {
       const rootMessenger = getRootMessenger();
       mockServiceAction(
         rootMessenger,
         'ProfileService:createProfile',
         jest.fn().mockResolvedValue({
           ...mockProfileResponse,
-          x_profile: mockXConnectResponse,
+          x_profile: mockConnectXResponse,
         }),
       );
 
@@ -375,7 +374,8 @@ describe('ProfileController', () => {
         avatar_url: 'https://example.com/avatar.png',
       });
 
-      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
+      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
+      expect(controller.state.xProfile).toBeUndefined();
     });
 
     it('is callable via messenger action', async () => {
@@ -502,7 +502,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAccount',
-        jest.fn().mockResolvedValue(mockXConnectResponse),
+        jest.fn().mockResolvedValue(mockConnectXResponse),
       );
       mockServiceAction(
         rootMessenger,
@@ -569,24 +569,36 @@ describe('ProfileController', () => {
   });
 
   describe('connectX', () => {
-    it('connects, fetches the profile, persists both in state, and returns the connect result', async () => {
+    it('throws if no profile is set in state and does not call the service', async () => {
       const rootMessenger = getRootMessenger();
-      const connectXMock = jest.fn().mockResolvedValue({
-        ...mockXConnectResponse,
-        profile_created: true,
-      });
+      const connectXMock = jest.fn().mockResolvedValue(mockConnectXResponse);
       mockServiceAction(rootMessenger, 'ProfileService:connectX', connectXMock);
-      const getProfileMock = jest.fn().mockResolvedValue({
-        ...mockProfileResponse,
-        connected_to_x: true,
-      });
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:getProfile',
-        getProfileMock,
-      );
 
-      const { controller, messenger } = createController({ rootMessenger });
+      const { controller } = createController({ rootMessenger });
+
+      await expect(
+        controller.connectX({ code: 'auth-code-123', state: 'state-xyz' }),
+      ).rejects.toThrow('ProfileController: no profile found in state');
+      expect(connectXMock).not.toHaveBeenCalled();
+      expect(controller.state).toStrictEqual(
+        getDefaultProfileControllerState(),
+      );
+    });
+
+    it('calls ProfileService:connectX with code and state, returns the X profile, and persists it in state', async () => {
+      const rootMessenger = getRootMessenger();
+      const connectXMock = jest.fn().mockResolvedValue(mockConnectXResponse);
+      mockServiceAction(rootMessenger, 'ProfileService:connectX', connectXMock);
+
+      const { controller, messenger } = createController({
+        rootMessenger,
+        state: {
+          profile: {
+            ...getDefaultProfileControllerState().profile,
+            profileId: 'profile-123',
+          },
+        },
+      });
       const stateChangedListener = jest.fn();
       messenger.subscribe(
         'ProfileController:stateChanged',
@@ -596,176 +608,94 @@ describe('ProfileController', () => {
       const result = await controller.connectX({
         code: 'auth-code-123',
         state: 'state-xyz',
-        profileId: 'profile-123',
       });
 
       expect(connectXMock).toHaveBeenCalledWith({
         code: 'auth-code-123',
         state: 'state-xyz',
       });
-      expect(getProfileMock).toHaveBeenCalledWith('profile-123');
-      expect(result).toStrictEqual({
-        profile: { ...mockMappedProfile, connectedToX: true },
-        xProfile: mockMappedXProfile,
-        profileCreated: true,
-      });
-      expect(controller.state.profile).toStrictEqual({
-        ...mockMappedProfile,
-        connectedToX: true,
-      });
+      expect(result).toStrictEqual(mockMappedXProfile);
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
-      // xProfile is persisted in its own update before the profile fetch,
-      // then the profile update emits a second state change.
-      expect(stateChangedListener).toHaveBeenCalledTimes(2);
+      expect(controller.state.profile.connectedToX).toBe(true);
+      expect(stateChangedListener).toHaveBeenCalledTimes(1);
     });
 
-    it('defaults profileCreated to false when the backend does not report it', async () => {
-      const rootMessenger = getRootMessenger();
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:connectX',
-        jest.fn().mockResolvedValue(mockXConnectResponse),
-      );
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:getProfile',
-        jest.fn().mockResolvedValue(mockProfileResponse),
-      );
-
-      const { controller } = createController({ rootMessenger });
-      const result = await controller.connectX({
-        code: 'auth-code-123',
-        state: 'state-xyz',
-        profileId: 'profile-123',
-      });
-
-      expect(result.profileCreated).toBe(false);
-    });
-
-    it('persists xProfile and rethrows when the follow-up profile fetch fails', async () => {
-      const rootMessenger = getRootMessenger();
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:connectX',
-        jest.fn().mockResolvedValue({
-          ...mockXConnectResponse,
-          profile_created: true,
-        }),
-      );
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:getProfile',
-        jest.fn().mockRejectedValue(new Error('503 Service Unavailable')),
-      );
-
-      const { controller } = createController({ rootMessenger });
-
-      await expect(
-        controller.connectX({
-          code: 'auth-code-123',
-          state: 'state-xyz',
-          profileId: 'profile-123',
-        }),
-      ).rejects.toThrow(
-        'ProfileController: connected the X account, but failed to fetch the profile afterwards',
-      );
-      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
-      expect(controller.state.profile).toStrictEqual(
-        getDefaultProfileControllerState().profile,
-      );
-    });
-
-    it('leaves the existing profile in state unchanged when the follow-up fetch fails', async () => {
-      const rootMessenger = getRootMessenger();
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:connectX',
-        jest.fn().mockResolvedValue(mockXConnectResponse),
-      );
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:getProfile',
-        jest.fn().mockRejectedValue(new Error('503 Service Unavailable')),
-      );
-
-      const { controller } = createController({
-        rootMessenger,
-        state: { profile: mockMappedProfile },
-      });
-
-      await expect(
-        controller.connectX({
-          code: 'auth-code-123',
-          state: 'state-xyz',
-          profileId: mockMappedProfile.profileId,
-        }),
-      ).rejects.toThrow('failed to fetch the profile afterwards');
-      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
-      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
-    });
-
-    it('does not touch state or fetch the profile when the connect itself fails', async () => {
+    it('does not touch state when the connect fails', async () => {
       const rootMessenger = getRootMessenger();
       mockServiceAction(
         rootMessenger,
         'ProfileService:connectX',
         jest.fn().mockRejectedValue(new Error('401 Unauthorized')),
       );
-      const getProfileMock = jest.fn();
+
+      const { controller } = createController({
+        rootMessenger,
+        state: {
+          profile: {
+            ...getDefaultProfileControllerState().profile,
+            profileId: 'profile-123',
+          },
+        },
+      });
+
+      await expect(
+        controller.connectX({ code: 'bad-code', state: 'state-xyz' }),
+      ).rejects.toThrow('401 Unauthorized');
+      expect(controller.state.xProfile).toBeUndefined();
+      expect(controller.state.profile.connectedToX).toBe(false);
+    });
+
+    it('is callable via messenger action and persists state', async () => {
+      const rootMessenger = getRootMessenger();
       mockServiceAction(
         rootMessenger,
-        'ProfileService:getProfile',
-        getProfileMock,
+        'ProfileService:connectX',
+        jest.fn().mockResolvedValue(mockConnectXResponse),
+      );
+
+      const { controller } = createController({
+        rootMessenger,
+        state: {
+          profile: {
+            ...getDefaultProfileControllerState().profile,
+            profileId: 'profile-123',
+          },
+        },
+      });
+
+      const result = await rootMessenger.call('ProfileController:connectX', {
+        code: 'auth-code-123',
+        state: 'state-xyz',
+      });
+
+      expect(result).toStrictEqual(mockMappedXProfile);
+      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
+      expect(controller.state.profile.connectedToX).toBe(true);
+    });
+  });
+
+  describe('startConnectX', () => {
+    it('throws if no profile is set in state and does not call the service', async () => {
+      const rootMessenger = getRootMessenger();
+      const getXAuthUrlMock = jest.fn().mockResolvedValue(mockXAuthUrlResponse);
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getXAuthUrl',
+        getXAuthUrlMock,
       );
 
       const { controller } = createController({ rootMessenger });
 
-      await expect(
-        controller.connectX({
-          code: 'bad-code',
-          state: 'state-xyz',
-          profileId: 'profile-123',
-        }),
-      ).rejects.toThrow('401 Unauthorized');
-      expect(getProfileMock).not.toHaveBeenCalled();
+      await expect(controller.startConnectX()).rejects.toThrow(
+        'ProfileController: no profile found in state',
+      );
+      expect(getXAuthUrlMock).not.toHaveBeenCalled();
       expect(controller.state).toStrictEqual(
         getDefaultProfileControllerState(),
       );
     });
 
-    it('is callable via messenger action', async () => {
-      const rootMessenger = getRootMessenger();
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:connectX',
-        jest.fn().mockResolvedValue(mockXConnectResponse),
-      );
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:getProfile',
-        jest.fn().mockResolvedValue(mockProfileResponse),
-      );
-
-      const { controller } = createController({ rootMessenger });
-
-      const result = await rootMessenger.call('ProfileController:connectX', {
-        code: 'auth-code-123',
-        state: 'state-xyz',
-        profileId: 'profile-123',
-      });
-
-      expect(result).toStrictEqual({
-        profile: mockMappedProfile,
-        xProfile: mockMappedXProfile,
-        profileCreated: false,
-      });
-      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
-      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
-    });
-  });
-
-  describe('startXConnect', () => {
-    it('calls ProfileService:getXAuthUrl and returns the authorization URL and state', async () => {
+    it('calls ProfileService:getXAuthUrl with no arguments, returns the authorization URL and state, and does not update controller state', async () => {
       const rootMessenger = getRootMessenger();
       const getXAuthUrlMock = jest.fn().mockResolvedValue(mockXAuthUrlResponse);
       mockServiceAction(
@@ -774,47 +704,21 @@ describe('ProfileController', () => {
         getXAuthUrlMock,
       );
 
-      const { controller } = createController({ rootMessenger });
-      const result = await controller.startXConnect();
+      const { controller } = createController({
+        rootMessenger,
+        state: {
+          profile: {
+            ...getDefaultProfileControllerState().profile,
+            profileId: 'profile-123',
+          },
+        },
+      });
+      const stateBefore = controller.state;
+      const result = await controller.startConnectX();
 
       expect(getXAuthUrlMock).toHaveBeenCalledTimes(1);
       expect(getXAuthUrlMock).toHaveBeenCalledWith();
-      expect(result).toStrictEqual(mockXConnectSession);
-    });
-
-    it('passes the linked address to ProfileService:getXAuthUrl when given', async () => {
-      const rootMessenger = getRootMessenger();
-      const getXAuthUrlMock = jest.fn().mockResolvedValue(mockXAuthUrlResponse);
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:getXAuthUrl',
-        getXAuthUrlMock,
-      );
-
-      const { controller } = createController({ rootMessenger });
-      const result = await controller.startXConnect({
-        linkedAddress: 'eip155:0:0x1234567890abcdef1234567890abcdef12345678',
-      });
-
-      expect(getXAuthUrlMock).toHaveBeenCalledWith(
-        'eip155:0:0x1234567890abcdef1234567890abcdef12345678',
-      );
-      expect(result).toStrictEqual(mockXConnectSession);
-      expect(controller.state.xProfile).toBeUndefined();
-    });
-
-    it('does not update controller state', async () => {
-      const rootMessenger = getRootMessenger();
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:getXAuthUrl',
-        jest.fn().mockResolvedValue(mockXAuthUrlResponse),
-      );
-
-      const { controller } = createController({ rootMessenger });
-      const stateBefore = controller.state;
-      await controller.startXConnect();
-
+      expect(result).toStrictEqual(mockConnectXSession);
       expect(controller.state).toStrictEqual(stateBefore);
     });
 
@@ -826,12 +730,20 @@ describe('ProfileController', () => {
         jest.fn().mockResolvedValue(mockXAuthUrlResponse),
       );
 
-      const { controller } = createController({ rootMessenger });
+      const { controller } = createController({
+        rootMessenger,
+        state: {
+          profile: {
+            ...getDefaultProfileControllerState().profile,
+            profileId: 'profile-123',
+          },
+        },
+      });
       const result = await rootMessenger.call(
-        'ProfileController:startXConnect',
+        'ProfileController:startConnectX',
       );
 
-      expect(result).toStrictEqual(mockXConnectSession);
+      expect(result).toStrictEqual(mockConnectXSession);
       expect(controller.state.xProfile).toBeUndefined();
     });
   });
@@ -839,7 +751,7 @@ describe('ProfileController', () => {
   describe('fetchAndUpdateXAccount', () => {
     it('calls ProfileService:getXAccount and updates xProfile in state', async () => {
       const rootMessenger = getRootMessenger();
-      const getXAccountMock = jest.fn().mockResolvedValue(mockXConnectResponse);
+      const getXAccountMock = jest.fn().mockResolvedValue(mockConnectXResponse);
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAccount',
@@ -867,7 +779,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAccount',
-        jest.fn().mockResolvedValue(mockXConnectResponse),
+        jest.fn().mockResolvedValue(mockConnectXResponse),
       );
 
       const { controller, messenger } = createController({

@@ -1,8 +1,7 @@
 export type {
   Profile,
   XProfile,
-  XConnectSession,
-  XConnectResult,
+  ConnectXSession,
   ProfileControllerState,
   ProfileControllerGetStateAction,
   ProfileControllerActions,
@@ -24,7 +23,7 @@ export type {
   ProfileControllerFetchAndUpdateXAccountAction,
   ProfileControllerGetXProfileAction,
   ProfileControllerReplaceProfileAction,
-  ProfileControllerStartXConnectAction,
+  ProfileControllerStartConnectXAction,
   ProfileControllerUpdateProfileAction,
 } from './ProfileController-method-action-types.js';
 export type {
@@ -36,7 +35,6 @@ export type {
   ConnectXParams,
   UsernameAvailabilityResponse,
   XAuthUrlResponse,
-  XConnectResponse,
   ConnectXResponse,
   XAccountResponse,
   ProfileServiceActions,

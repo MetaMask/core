@@ -22,7 +22,6 @@ import {
 import type { Infer } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
 import { CaipAccountIdStruct } from '@metamask/utils';
-import type { CaipAccountId } from '@metamask/utils';
 
 import type { ProfileServiceMethodActions } from './ProfileService-method-action-types.js';
 
@@ -84,7 +83,7 @@ const XAuthUrlResponseStruct = structType({
   state: sensitive(string()),
 });
 
-const XConnectResponseStruct = structType({
+const ConnectXResponseStruct = structType({
   x_user_id: string(),
   x_profile_url: string(),
   username: string(),
@@ -94,20 +93,9 @@ const XConnectResponseStruct = structType({
   updated_at: string(),
 });
 
-/**
- * Response shape for POST /v1/profiles/x/connect: the linked X account plus
- * `profile_created`, indicating whether the backend created the MetaMask
- * profile during the connect. Optional so older backends that do not send
- * the field still validate.
- */
-const ConnectXResponseStruct = intersection([
-  XConnectResponseStruct,
-  structType({ profile_created: optional(boolean()) }),
-]);
-
 const CreateProfileResponseStruct = intersection([
   ProfileApiResponseStruct,
-  structType({ x_profile: optional(XConnectResponseStruct) }),
+  structType({ x_profile: optional(ConnectXResponseStruct) }),
 ]);
 
 const ConnectXParamsStruct = structType({
@@ -172,16 +160,13 @@ export type UsernameAvailabilityResponse = Infer<
 >;
 
 /** The response shape returned when connecting or fetching an X account. */
-export type XConnectResponse = Infer<typeof XConnectResponseStruct>;
-
-/** The response shape returned when completing the X connect flow. */
 export type ConnectXResponse = Infer<typeof ConnectXResponseStruct>;
 
 /** The response shape returned when requesting the X OAuth authentication URL. */
 export type XAuthUrlResponse = Infer<typeof XAuthUrlResponseStruct>;
 
-/** Alias for {@link XConnectResponse} returned when fetching the linked X account. */
-export type XAccountResponse = XConnectResponse;
+/** Alias for {@link ConnectXResponse} returned when fetching the linked X account. */
+export type XAccountResponse = ConnectXResponse;
 
 /** Parameters for creating a new MetaMask profile. */
 export type CreateProfileParams = Infer<typeof CreateProfileParamsStruct>;
@@ -497,34 +482,27 @@ export class ProfileService extends BaseDataService<
    * Fetches the X OAuth PKCE authorization URL and its associated state parameter.
    * The profile is resolved server-side from the verified bearer token.
    *
-   * @param linkedAddress - Optional CAIP-10 account ID to link to the profile
-   * when it does not exist yet; sent as the `linked_address` query parameter.
    * @returns An object containing the authorization URL and the state token.
    * @throws {HttpError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
-  async getXAuthUrl(linkedAddress?: CaipAccountId): Promise<XAuthUrlResponse> {
+  async getXAuthUrl(): Promise<XAuthUrlResponse> {
     return this.executeMutation({
       mutationKey: [`${this.name}:getXAuthUrl`],
       responseStruct: XAuthUrlResponseStruct,
       mutationFn: async () =>
         this.#fetch<XAuthUrlResponse>('profiles/x/authentication-url', {
           error: ProfileServiceErrorMessage.GET_X_AUTH_URL_FAILED,
-          ...(linkedAddress === undefined
-            ? {}
-            : { searchParams: { linked_address: linkedAddress } }),
         }),
     });
   }
 
   /**
    * Completes the X OAuth PKCE flow and links the X account to the profile.
-   * The backend creates the profile if it does not exist yet (username derived
-   * from the X handle) and reports that via `profile_created`.
+   * The profile is resolved server-side from the verified bearer token.
    *
    * @param params - The OAuth callback code and state from the X redirect.
-   * @returns The linked X account data, plus `profile_created` when the
-   * backend created the profile during the connect.
+   * @returns The linked X account data.
    * @throws {HttpError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
@@ -557,9 +535,9 @@ export class ProfileService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getXAccount`],
       staleTime: 0,
-      responseStruct: XConnectResponseStruct,
+      responseStruct: ConnectXResponseStruct,
       queryFn: async () =>
-        this.#fetch<XConnectResponse>('profiles/x/account', {
+        this.#fetch<ConnectXResponse>('profiles/x/account', {
           error: ProfileServiceErrorMessage.GET_X_ACCOUNT_FAILED,
         }),
     });
