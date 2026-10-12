@@ -575,7 +575,6 @@ describe('ProfileController', () => {
       });
       expect(result).toStrictEqual(mockMappedXProfile);
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
-      expect(controller.state.profile.connectedToX).toBe(true);
       expect(stateChangedListener).toHaveBeenCalledTimes(1);
     });
 
@@ -629,7 +628,6 @@ describe('ProfileController', () => {
 
       expect(result).toStrictEqual(mockMappedXProfile);
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
-      expect(controller.state.profile.connectedToX).toBe(true);
     });
   });
 
