@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
 - Fail fiat and second-leg submissions when the settled amount cannot be read from an on-chain transaction, rather than falling back to `order.cryptoAmount` or the quote minimum ([#10501](https://github.com/MetaMask/core/pull/10501))
+- Bump `@metamask/assets-controller` from `^18.0.1` to `^19.0.0` ([#10788](https://github.com/MetaMask/core/pull/10788))
 
 ### Fixed
 
