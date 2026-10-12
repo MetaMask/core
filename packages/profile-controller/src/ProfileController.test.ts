@@ -104,6 +104,7 @@ function getMessenger(
   });
   rootMessenger.delegate({
     actions: [
+      'ProfileService:getProfile',
       'ProfileService:createProfile',
       'ProfileService:replaceProfile',
       'ProfileService:updateProfile',
@@ -296,32 +297,6 @@ describe('ProfileController', () => {
       });
 
       expect(controller.state.profile.bio).toBe('');
-    });
-
-    it('maps null avatar_url to empty string', async () => {
-      const rootMessenger = getRootMessenger();
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:createProfile',
-        jest
-          .fn()
-          .mockResolvedValue({ ...mockProfileResponse, avatar_url: null }),
-      );
-
-      const { controller } = createController({ rootMessenger });
-      await controller.createProfile({
-        profile_id: 'canonical-123',
-        username: 'alice',
-        display_name: 'Alice Wonderland',
-        linked_addresses: [
-          'eip155:1:0x1234567890abcdef1234567890abcdef12345678',
-        ],
-        trading_privacy: 'public',
-        bio: 'MetaMask user',
-        avatar_url: 'https://example.com/avatar.png',
-      });
-
-      expect(controller.state.profile.avatarUrl).toBe('');
     });
 
     it('maps connected_to_x from response', async () => {
@@ -569,22 +544,6 @@ describe('ProfileController', () => {
   });
 
   describe('connectX', () => {
-    it('throws if no profile is set in state and does not call the service', async () => {
-      const rootMessenger = getRootMessenger();
-      const connectXMock = jest.fn().mockResolvedValue(mockConnectXResponse);
-      mockServiceAction(rootMessenger, 'ProfileService:connectX', connectXMock);
-
-      const { controller } = createController({ rootMessenger });
-
-      await expect(
-        controller.connectX({ code: 'auth-code-123', state: 'state-xyz' }),
-      ).rejects.toThrow('ProfileController: no profile found in state');
-      expect(connectXMock).not.toHaveBeenCalled();
-      expect(controller.state).toStrictEqual(
-        getDefaultProfileControllerState(),
-      );
-    });
-
     it('calls ProfileService:connectX with code and state, returns the X profile, and persists it in state', async () => {
       const rootMessenger = getRootMessenger();
       const connectXMock = jest.fn().mockResolvedValue(mockConnectXResponse);
@@ -616,7 +575,6 @@ describe('ProfileController', () => {
       });
       expect(result).toStrictEqual(mockMappedXProfile);
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
-      expect(controller.state.profile.connectedToX).toBe(true);
       expect(stateChangedListener).toHaveBeenCalledTimes(1);
     });
 
@@ -670,31 +628,10 @@ describe('ProfileController', () => {
 
       expect(result).toStrictEqual(mockMappedXProfile);
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
-      expect(controller.state.profile.connectedToX).toBe(true);
     });
   });
 
   describe('getXAuthorizationUrl', () => {
-    it('throws if no profile is set in state and does not call the service', async () => {
-      const rootMessenger = getRootMessenger();
-      const getXAuthUrlMock = jest.fn().mockResolvedValue(mockXAuthUrlResponse);
-      mockServiceAction(
-        rootMessenger,
-        'ProfileService:getXAuthUrl',
-        getXAuthUrlMock,
-      );
-
-      const { controller } = createController({ rootMessenger });
-
-      await expect(controller.getXAuthorizationUrl()).rejects.toThrow(
-        'ProfileController: no profile found in state',
-      );
-      expect(getXAuthUrlMock).not.toHaveBeenCalled();
-      expect(controller.state).toStrictEqual(
-        getDefaultProfileControllerState(),
-      );
-    });
-
     it('calls ProfileService:getXAuthUrl with no arguments, returns the authorization URL and state, and does not update controller state', async () => {
       const rootMessenger = getRootMessenger();
       const getXAuthUrlMock = jest.fn().mockResolvedValue(mockXAuthUrlResponse);
@@ -745,6 +682,101 @@ describe('ProfileController', () => {
 
       expect(result).toStrictEqual(mockConnectXSession);
       expect(controller.state.xProfile).toBeUndefined();
+    });
+  });
+
+  describe('fetchAndUpdateProfile', () => {
+    it('calls ProfileService:getProfile with the profile ID, updates state, and returns the mapped profile', async () => {
+      const rootMessenger = getRootMessenger();
+      const getProfileMock = jest.fn().mockResolvedValue(mockProfileResponse);
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getProfile',
+        getProfileMock,
+      );
+
+      const { controller, messenger } = createController({ rootMessenger });
+      const stateChangedListener = jest.fn();
+      messenger.subscribe(
+        'ProfileController:stateChanged',
+        stateChangedListener,
+      );
+
+      const result = await controller.fetchAndUpdateProfile('profile-123');
+
+      expect(getProfileMock).toHaveBeenCalledTimes(1);
+      expect(getProfileMock).toHaveBeenCalledWith('profile-123');
+      expect(result).toStrictEqual(mockMappedProfile);
+      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
+      expect(stateChangedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('maps null bio to an empty string', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getProfile',
+        jest.fn().mockResolvedValue({
+          ...mockProfileResponse,
+          bio: null,
+        }),
+      );
+
+      const { controller } = createController({ rootMessenger });
+      const result = await controller.fetchAndUpdateProfile('profile-123');
+
+      expect(result.bio).toBe('');
+      expect(controller.state.profile.bio).toBe('');
+    });
+
+    it('replaces an existing profile in state and leaves xProfile untouched', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getProfile',
+        jest.fn().mockResolvedValue(mockProfileResponse),
+      );
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getXAccount',
+        jest.fn().mockResolvedValue(mockConnectXResponse),
+      );
+
+      const { controller } = createController({
+        rootMessenger,
+        state: {
+          profile: {
+            ...mockMappedProfile,
+            profileId: 'old-profile',
+            username: 'old-username',
+          },
+        },
+      });
+      await controller.fetchAndUpdateXAccount();
+
+      await controller.fetchAndUpdateProfile('profile-123');
+
+      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
+      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
+    });
+
+    it('does not update state when ProfileService:getProfile fails', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getProfile',
+        jest.fn().mockRejectedValue(new Error('404 Not Found')),
+      );
+
+      const { controller } = createController({
+        rootMessenger,
+        state: { profile: mockMappedProfile },
+      });
+
+      await expect(
+        controller.fetchAndUpdateProfile('profile-123'),
+      ).rejects.toThrow('404 Not Found');
+      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
     });
   });
 

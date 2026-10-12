@@ -58,7 +58,7 @@ const ProfileApiResponseStruct = structType({
   display_name: string(),
   bio: nullable(string()),
   linked_addresses: array(CaipAccountIdStruct),
-  avatar_url: nullable(string()),
+  avatar_url: string(),
   trading_privacy: TradingPrivacyStruct,
   connected_to_x: boolean(),
   created_at: string(),
