@@ -53,7 +53,7 @@
     "@ethereumjs/util": "^9.1.0",
     "@metamask/base-controller": "^10.0.0",
     "@metamask/eth-snap-keyring": "^24.1.0",
-    "@metamask/keyring-api": "^24.0.0",
+    "@metamask/keyring-api": "^24.1.0",
     "@metamask/keyring-controller": "^28.1.0",
     "@metamask/keyring-internal-api": "^12.1.0",
     "@metamask/keyring-sdk": "^3.1.0",
@@ -71,7 +71,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/providers": "^22.1.0",
+    "@metamask/providers": "^22.1.1",
     "@types/jest": "^30.0.0",
     "@types/readable-stream": "^2.3.0",
     "@typescript/native": "npm:typescript@^7.0.2",
