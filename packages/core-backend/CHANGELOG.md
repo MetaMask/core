@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.1.0]
 
-### Uncategorized
-
-- chore(deps): update dependency typedoc-plugin-missing-exports to v4 ([#10762](https://github.com/MetaMask/core/pull/10762))
-- chore(deps): update dependency typedoc-plugin-missing-exports to ^2.3.0 ([#10710](https://github.com/MetaMask/core/pull/10710))
-- chore(deps): update dependency typedoc to ^0.28.20 ([#10731](https://github.com/MetaMask/core/pull/10731))
-
 ### Added
 
 - Add `occurrenceFloor`, `includeNativeAssets`, and `includeRwaData` query options to `TokenApiClient.fetchTokenList` (`GET /tokens/{chainId}`) ([#10672](https://github.com/MetaMask/core/pull/10672))
