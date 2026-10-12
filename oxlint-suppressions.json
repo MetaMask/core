@@ -5579,6 +5579,20 @@
       "count": 2
     }
   },
+  "packages/seedless-onboarding-controller/src/utils.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 2
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
   "packages/seedless-onboarding-controller/tests/mocks/vaultEncryptor.ts": {
     "typescript/no-unsafe-argument": {
       "count": 6
