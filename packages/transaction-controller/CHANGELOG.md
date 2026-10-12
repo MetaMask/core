@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `daFootprintGasScalar`, `operatorFeeScalar`, `operatorFeeConstant`, and `tokenRatio` fields to `TransactionReceipt` for OP Stack / Mantle Arsia receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
-- Export `getOperatorFeeFromReceipt` and `getLayer1FeeFromReceipt` helpers to derive L1 + operator fees from transaction receipts, using the Jovian operator fee formula when the receipt has `daFootprintGasScalar` and the Isthmus formula otherwise ([#9630](https://github.com/MetaMask/core/pull/9630))
 - Add `isTransactionTrusted` to `TransactionControllerOptions` to limit future-block re-simulation to untrusted transactions ([#10747](https://github.com/MetaMask/core/pull/10747))
 
 ### Changed
@@ -22,8 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Set `layer1GasFee` from the receipt `l1Fee` plus operator fee when a transaction confirms, including external transactions added via `confirmExternalTransaction`, so the fee matches the amount paid onchain instead of the pre-confirmation estimate ([#9630](https://github.com/MetaMask/core/pull/9630))
-  - A gas fee poll that resolves after confirmation no longer overwrites this value
 - Recognize Ink Mainnet and Ink Sepolia as OP Stack networks when estimating Layer 1 gas fees ([#10707](https://github.com/MetaMask/core/pull/10707))
 
 ## [72.1.0]

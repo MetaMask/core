@@ -16,8 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Add the L1 and operator fee to the base network fee returned by `getLocalTransactionFees`, so Mantle and other OP Stack activity shows the fee paid onchain
-  - The fee comes from the transaction receipt, or from `layer1GasFee` when the receipt has no L1 fee fields ([#9630](https://github.com/MetaMask/core/pull/9630))
+- Add the L1 fee and operator fee from the transaction receipt to the base network fee returned by `getLocalTransactionFees`, so Mantle and other OP Stack activity shows the fee paid onchain ([#9630](https://github.com/MetaMask/core/pull/9630))
+  - The operator fee uses the Jovian formula when the receipt has `daFootprintGasScalar`, and the Isthmus formula otherwise
 
 ## [3.0.4]
 

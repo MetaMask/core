@@ -178,7 +178,6 @@ import {
   getNetworkClientId,
   rpcRequest,
 } from './utils/provider.js';
-import { getLayer1FeeFromReceipt } from './utils/receipt-fees.js';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry.js';
 import {
   updatePostTransactionBalance,
@@ -1804,11 +1803,6 @@ export class TransactionController extends BaseController<
       };
       if (baseFeePerGas) {
         updatedTransactionMeta.baseFeePerGas = baseFeePerGas;
-      }
-
-      const layer1GasFee = getLayer1FeeFromReceipt(transactionReceipt);
-      if (layer1GasFee !== undefined) {
-        updatedTransactionMeta.layer1GasFee = layer1GasFee;
       }
 
       // Update same nonce local transactions as dropped and define replacedBy properties.
