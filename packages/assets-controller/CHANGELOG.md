@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.0]
+
 ### Uncategorized
 
 - test(assets-controller): extract reusable asset surface fixtures ([#10781](https://github.com/MetaMask/core/pull/10781))
@@ -1158,7 +1160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@18.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@18.0.1...@metamask/assets-controller@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@18.0.0...@metamask/assets-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@17.0.0...@metamask/assets-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.2...@metamask/assets-controller@17.0.0
