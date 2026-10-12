@@ -2946,6 +2946,42 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Replace an optimistic support result after the venue authoritatively
+   * rejects a write from the account that supplied its signature.
+   *
+   * The captured context, rather than the currently selected account, owns the
+   * rejection because selection may change while the request is in flight.
+   *
+   * @param error - The failed write or mapped account-mode error.
+   * @param accountContext - Account and network that authorized the write.
+   * @returns Whether the rejection requires Hyperliquid multi-signature.
+   */
+  #recordUnsupportedAccountFromError(
+    error: unknown,
+    accountContext: AccountSupportContext,
+  ): boolean {
+    const isMultiSigRequired =
+      isHyperLiquidMultiSigRequiredError(error) ||
+      ensureError(
+        error,
+        'HyperLiquidProvider.recordUnsupportedAccountFromError',
+      ).message === PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED;
+    if (!isMultiSigRequired) {
+      return false;
+    }
+
+    this.#recordAccountSupport(
+      accountContext.network,
+      accountContext.userAddress,
+      {
+        isSupported: false,
+        reason: 'multi_sig_account',
+      },
+    );
+    return true;
+  }
+
+  /**
    * Read support for an account context without initializing the provider.
    * Successful results are stable for the provider session and coalesced by
    * account and network. Failed probes fail open and remain retryable.
@@ -3726,6 +3762,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         '[ensureBuilderFeeSetup] Builder fee approval failed',
         error,
       );
+      if (
+        accountContext &&
+        this.#recordUnsupportedAccountFromError(error, accountContext)
+      ) {
+        throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
+      }
       // A signer that could not sign is retryable, not an approval failure.
       if (approvalFailureCode || options.reportSignerFailure) {
         const signerFailure = await this.#classifySignerFailure(error);
@@ -5318,6 +5360,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     const lifecycleGeneration =
       accountContext?.lifecycleGeneration ?? this.#lifecycleGeneration;
     const { network, userAddress, builderAddress } = params;
+    const supportContext: AccountSupportContext = accountContext ?? {
+      lifecycleGeneration,
+      network,
+      userAddress,
+    };
     this.#assertProviderLifecycleCurrent(
       lifecycleGeneration,
       'Builder fee approval',
@@ -5437,10 +5484,20 @@ export class HyperLiquidProvider implements PerpsProvider {
         const exchangeClient = this.#clientService.getExchangeClient();
         const maxFeeRate = BUILDER_FEE_CONFIG.MaxFeeRate;
 
-        await exchangeClient.approveBuilderFee({
+        const approvalResult = await exchangeClient.approveBuilderFee({
           builder: builderAddress,
           maxFeeRate,
         });
+        if (approvalResult.status !== 'ok') {
+          const approvalError = new Error(
+            `Builder fee approval failed: ${JSON.stringify(approvalResult)}`,
+          );
+          this.#recordUnsupportedAccountFromError(
+            approvalError,
+            supportContext,
+          );
+          throw approvalError;
+        }
 
         // Verify approval was successful before caching
         const afterApprovalDecimal = await this.#checkBuilderFeeApproval(
@@ -5485,6 +5542,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       completeInFlight();
     } catch (error) {
+      this.#recordUnsupportedAccountFromError(error, supportContext);
       if (
         ensureError(error, 'HyperLiquidProvider.ensureBuilderFeeApproval')
           .message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
@@ -6491,17 +6549,22 @@ export class HyperLiquidProvider implements PerpsProvider {
       accountContext,
       'Leverage update',
     );
-    const exchangeClient = this.#clientService.getExchangeClient();
-    const leverageResult = await exchangeClient.updateLeverage({
-      asset: assetId,
-      isCross: marginMode === 'cross',
-      leverage,
-    });
+    try {
+      const exchangeClient = this.#clientService.getExchangeClient();
+      const leverageResult = await exchangeClient.updateLeverage({
+        asset: assetId,
+        isCross: marginMode === 'cross',
+        leverage,
+      });
 
-    if (leverageResult.status !== 'ok') {
-      throw new Error(
-        `Failed to update leverage: ${JSON.stringify(leverageResult)}`,
-      );
+      if (leverageResult.status !== 'ok') {
+        throw new Error(
+          `Failed to update leverage: ${JSON.stringify(leverageResult)}`,
+        );
+      }
+    } catch (error) {
+      this.#recordUnsupportedAccountFromError(error, accountContext);
+      throw error;
     }
 
     this.#deps.debugLogger.log('Leverage updated successfully:', {
@@ -6708,6 +6771,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         averagePrice: filledOrder?.avgPx,
       };
     } catch (orderError) {
+      this.#recordUnsupportedAccountFromError(
+        orderError,
+        params.accountContext,
+      );
       // Failure - rollback transfer
       if (transferInfo && dexName) {
         await this.#handleHip3OrderRollback({
@@ -7205,6 +7272,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     try {
       result = await submit();
     } catch (error) {
+      this.#recordUnsupportedAccountFromError(error, accountContext);
       if (dexName && transferInfo) {
         await this.#handleHip3OrderRollback({
           accountContext,
@@ -7213,6 +7281,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
       }
       throw error;
+    }
+    if (!result.success && result.error) {
+      this.#recordUnsupportedAccountFromError(
+        new Error(result.error),
+        accountContext,
+      );
     }
 
     const resultFilledSize = new BigNumber(result.filledSize ?? 0);
@@ -10082,9 +10156,14 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Apply both signer invalidation and account-shape classification to writes.
    *
    * @param error - Failed protection write.
+   * @param accountContext - Account and network that authorized the write.
    * @returns Actionable error retaining the venue message when unmapped.
    */
-  async #classifyProtectionWriteError(error: unknown): Promise<Error> {
+  async #classifyProtectionWriteError(
+    error: unknown,
+    accountContext: AccountSupportContext,
+  ): Promise<Error> {
+    this.#recordUnsupportedAccountFromError(error, accountContext);
     return (
       (await this.#classifySignerFailure(error)) ??
       (isHyperLiquidMultiSigRequiredError(error)
@@ -10589,14 +10668,23 @@ export class HyperLiquidProvider implements PerpsProvider {
         'Order modification',
       );
       const exchangeClient = this.#clientService.getExchangeClient();
-      const result = await exchangeClient.modify({
-        oid:
-          typeof params.orderId === 'string' ? params.orderId : params.orderId,
-        order: newOrder,
-      });
+      try {
+        const result = await exchangeClient.modify({
+          oid:
+            typeof params.orderId === 'string'
+              ? params.orderId
+              : params.orderId,
+          order: newOrder,
+        });
 
-      if (result.status !== 'ok') {
-        throw new Error(`Order modification failed: ${JSON.stringify(result)}`);
+        if (result.status !== 'ok') {
+          throw new Error(
+            `Order modification failed: ${JSON.stringify(result)}`,
+          );
+        }
+      } catch (error) {
+        this.#recordUnsupportedAccountFromError(error, accountContext);
+        throw error;
       }
 
       // `params.orderId` is the order that was just REPLACED, so returning it
@@ -10951,14 +11039,15 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<ClosePositionsResult> {
     // Declare outside try block so it's accessible in catch block
     let positionsToClose: Position[] = [];
+    let accountContext: AccountSupportContext | undefined;
     const unavailableResults: ClosePositionsResult['results'] = [];
 
     try {
       // Batch preparation needs trading readiness but not builder approval yet.
       // The provider-owned market policy is resolved from the positions below.
-      const { accountContext } = await this.#ensureReadyForTrading({
+      ({ accountContext } = await this.#ensureReadyForTrading({
         requiresBuilderFee: false,
-      });
+      }));
 
       // Selected symbols only need the DEXes they belong to. Loading every
       // market group would refuse a BTC close when an unrelated HIP-3 DEX
@@ -11229,6 +11318,14 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Parse response statuses (one per order)
       const { statuses } = result.response.data;
+      for (const status of statuses) {
+        if (hasProperty(status, 'error') && typeof status.error === 'string') {
+          this.#recordUnsupportedAccountFromError(
+            createStatusError(status.error, result),
+            accountContext,
+          );
+        }
+      }
       const successCount = statuses.filter(
         (stat) =>
           isStatusObject(stat) &&
@@ -11303,6 +11400,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         ],
       };
     } catch (error) {
+      if (accountContext) {
+        this.#recordUnsupportedAccountFromError(error, accountContext);
+      }
       const signerFailure = await this.#handleSignerFailure(
         error,
         'closePositions',
@@ -11982,7 +12082,10 @@ export class HyperLiquidProvider implements PerpsProvider {
             });
             statuses = result.response?.data?.statuses ?? [];
           } catch (error) {
-            const failure = await this.#classifyProtectionWriteError(error);
+            const failure = await this.#classifyProtectionWriteError(
+              error,
+              accountContext,
+            );
             restorationFailure = failure;
             statuses =
               this.#readProtectionErrorStatuses(error) ??
@@ -12064,10 +12167,16 @@ export class HyperLiquidProvider implements PerpsProvider {
         cancelRequests,
         async (error) => {
           if (cancelGuardFailure !== undefined) {
-            throw await this.#classifyProtectionWriteError(cancelGuardFailure);
+            throw await this.#classifyProtectionWriteError(
+              cancelGuardFailure,
+              accountContext,
+            );
           }
           if (isHyperLiquidMultiSigRequiredError(error)) {
-            throw await this.#classifyProtectionWriteError(error);
+            throw await this.#classifyProtectionWriteError(
+              error,
+              accountContext,
+            );
           }
         },
       );
@@ -12195,7 +12304,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         responseAccepted = result.status === 'ok';
       } catch (error) {
         // Drop and report a rejected agent before restoration signs.
-        placementFailure = await this.#classifyProtectionWriteError(error);
+        placementFailure = await this.#classifyProtectionWriteError(
+          error,
+          accountContext,
+        );
         await assertScope();
         const statuses = this.#readProtectionErrorStatuses(error);
         if (statuses !== undefined) {
@@ -12337,7 +12449,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           ) {
             // Old protection has already changed. Classification must not
             // throw away this batch's still-live replacement identities.
-            cleanupFailure = await this.#classifyProtectionWriteError(error);
+            cleanupFailure = await this.#classifyProtectionWriteError(
+              error,
+              accountContext,
+            );
           }
         },
       );
@@ -12641,6 +12756,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * - ntli: Amount in micro-units (amount * 1e6)
    */
   async updateMargin(params: UpdateMarginParams): Promise<MarginResult> {
+    let accountContext: AccountSupportContext | undefined;
     try {
       this.#deps.debugLogger.log('Updating position margin:', params);
 
@@ -12648,7 +12764,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Ensure provider is ready
       await this.#ensureReady();
-      const accountContext = await this.#assertAccountSupported();
+      accountContext = await this.#assertAccountSupported();
 
       // Use the target DEX's current slice or one targeted HTTP read before
       // deriving the position side.
@@ -12718,6 +12834,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         success: true,
       };
     } catch (error) {
+      const isMultiSigRequired = accountContext
+        ? this.#recordUnsupportedAccountFromError(error, accountContext)
+        : false;
       const signerFailure = await this.#handleSignerFailure(
         error,
         'updateMargin',
@@ -12728,7 +12847,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (signerFailure) {
         return { success: false, error: signerFailure.message };
       }
-      const safeError = ensureError(error, 'HyperLiquidProvider.updateMargin');
+      const safeError = isMultiSigRequired
+        ? new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED)
+        : ensureError(error, 'HyperLiquidProvider.updateMargin');
       this.#deps.logger.error(
         safeError,
         this.#getErrorContext(
@@ -15471,6 +15592,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns Result with txHash (HyperLiquid internal) and withdrawal ID
    */
   async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
+    let accountContext: AccountSupportContext | undefined;
     try {
       this.#deps.debugLogger.log('HyperLiquidProvider: STARTING WITHDRAWAL', {
         params,
@@ -15566,7 +15688,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Step 4: Ensure client is ready
       this.#deps.debugLogger.log('HyperLiquidProvider: ENSURING CLIENT READY');
       await this.#ensureReady();
-      const accountContext = await this.#assertAccountSupported();
+      accountContext = await this.#assertAccountSupported();
       await this.#ensureUnifiedAccountEnabled({
         allowUserSigning: true,
         accountContext,
@@ -15673,7 +15795,16 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      const errorMessage = `Withdrawal failed: ${String(result.status)}`;
+      const rejection = new Error(
+        `Withdrawal failed: ${JSON.stringify(result)}`,
+      );
+      const isMultiSigRequired = this.#recordUnsupportedAccountFromError(
+        rejection,
+        accountContext,
+      );
+      const errorMessage = isMultiSigRequired
+        ? PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED
+        : `Withdrawal failed: ${String(result.status)}`;
       this.#deps.debugLogger.log('HyperLiquidProvider: WITHDRAWAL FAILED', {
         error: errorMessage,
         status: result.status,
@@ -15685,16 +15816,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         error: errorMessage,
       };
     } catch (error) {
+      const isMultiSigRequired = accountContext
+        ? this.#recordUnsupportedAccountFromError(error, accountContext)
+        : false;
       const signerFailure = await this.#handleSignerFailure(error, 'withdraw', {
         assetId: params.assetId,
       });
       if (signerFailure) {
         return createErrorResult(signerFailure, { success: false });
       }
-      const safeError = ensureError(
-        error,
-        'HyperLiquidProvider.initiateWithdrawal',
-      );
+      const safeError = isMultiSigRequired
+        ? new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED)
+        : ensureError(error, 'HyperLiquidProvider.initiateWithdrawal');
       this.#deps.debugLogger.log('HyperLiquidProvider: WITHDRAWAL EXCEPTION', {
         error: safeError.message,
         errorType: safeError.name,
@@ -15717,7 +15850,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
         ),
       );
-      return createErrorResult(error, { success: false });
+      return createErrorResult(safeError, { success: false });
     }
   }
 
@@ -15748,6 +15881,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: TransferBetweenDexsParams,
     expectedContext?: AccountSupportContext,
   ): Promise<TransferBetweenDexsResult> {
+    let accountContext: AccountSupportContext | undefined;
     try {
       this.#deps.debugLogger.log('HyperLiquidProvider: STARTING DEX TRANSFER', {
         params,
@@ -15765,8 +15899,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Ensure client ready
       await this.#ensureReady();
-      const accountContext =
-        await this.#assertAccountSupported(expectedContext);
+      accountContext = await this.#assertAccountSupported(expectedContext);
       const { userAddress } = accountContext;
       this.#deps.debugLogger.log('HyperLiquidProvider: USER ADDRESS', {
         userAddress,
@@ -15811,8 +15944,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
+      if (
+        this.#recordUnsupportedAccountFromError(
+          new Error(`DEX transfer failed: ${JSON.stringify(result)}`),
+          accountContext,
+        )
+      ) {
+        throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
+      }
       throw new Error(PERPS_ERROR_CODES.TRANSFER_FAILED);
     } catch (error) {
+      const isMultiSigRequired = accountContext
+        ? this.#recordUnsupportedAccountFromError(error, accountContext)
+        : false;
       const signerFailure = await this.#handleSignerFailure(
         error,
         'transferBetweenDexs',
@@ -15821,10 +15965,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (signerFailure) {
         return { success: false, error: signerFailure.message };
       }
-      const safeError = ensureError(
-        error,
-        'HyperLiquidProvider.transferToSpot',
-      );
+      const safeError = isMultiSigRequired
+        ? new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED)
+        : ensureError(error, 'HyperLiquidProvider.transferToSpot');
       this.#deps.debugLogger.log('❌ HyperLiquidProvider: TRANSFER FAILED', {
         error: safeError.message,
         params,
@@ -17533,6 +17676,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
+      if (
+        accountContext &&
+        this.#recordUnsupportedAccountFromError(error, accountContext)
+      ) {
+        completeInFlight();
+        return;
+      }
+
       // Safety net: wallet looked registered but the SDK still rejects with
       // "User or API Wallet 0x... does not exist." Do not forward to Sentry.
       // The walletRegistered cache stores positive observations only, so no
@@ -17715,8 +17866,25 @@ export class HyperLiquidProvider implements PerpsProvider {
         result,
       );
 
+      if (
+        result?.status !== 'ok' &&
+        accountContext &&
+        this.#recordUnsupportedAccountFromError(
+          new Error(`Referral setup failed: ${JSON.stringify(result)}`),
+          accountContext,
+        )
+      ) {
+        return false;
+      }
+
       return result?.status === 'ok';
     } catch (error) {
+      if (
+        accountContext &&
+        this.#recordUnsupportedAccountFromError(error, accountContext)
+      ) {
+        throw error;
+      }
       // Retryable (a locked keyring, an unavailable agent, or one the venue
       // rejected): `#ensureReferralSet` retries at the next entry, so it is
       // not an error to report.
