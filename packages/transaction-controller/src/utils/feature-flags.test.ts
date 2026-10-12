@@ -24,6 +24,7 @@ import {
   getTimeoutAttempts,
   getReplaceUnderpricedDappGasFeesEnabled,
   getReplaceUnderpricedSavedGasFeesEnabled,
+  getEIP2780Type4GasEstimationEnabled,
 } from './feature-flags.js';
 import { isValidSignature } from './signature.js';
 
@@ -855,6 +856,11 @@ describe('Feature Flags Utils', () => {
       'getReplaceUnderpricedSavedGasFeesEnabled',
       getReplaceUnderpricedSavedGasFeesEnabled,
       'replaceUnderpricedSavedGasFees' as const,
+    ],
+    [
+      'getEIP2780Type4GasEstimationEnabled',
+      getEIP2780Type4GasEstimationEnabled,
+      'eip2780Type4GasEstimation' as const,
     ],
   ])('%s', (_name, getter, flagKey) => {
     it('returns false if no feature flags set', () => {

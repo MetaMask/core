@@ -21,6 +21,7 @@ import {
   generateEIP7702BatchTransaction,
 } from './eip7702.js';
 import {
+  getEIP2780Type4GasEstimationEnabled,
   getGasEstimateBuffer,
   getGasEstimateFallback,
 } from './feature-flags.js';
@@ -195,6 +196,18 @@ const AUTHORIZATION_LIST_MOCK: AuthorizationList = [
   },
 ];
 
+const SIGNED_AUTHORIZATION_MOCK = {
+  address: '0xcccccccccccccccccccccccccccccccccccccccc',
+  chainId: '0x1',
+  nonce: '0x6',
+  r: '0xe2582357434f268c18dd7e2920dd3a911bfc6fc5e498bf7eb33fa0f484bd1488',
+  s: '0x6300c28d38a634904af92933b5b31433536a7cee8a505945c13ade9f3a1a5427',
+  yParity: '0x0',
+} as const;
+
+const SIGNED_AUTHORIZATION_AUTHORITY_MOCK =
+  '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266';
+
 const TRANSACTION_META_MOCK = {
   networkClientId: NETWORK_CLIENT_ID_MOCK,
   txParams: {
@@ -228,6 +241,9 @@ describe('gas', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
   const getGasEstimateFallbackMock = jest.mocked(getGasEstimateFallback);
   const getGasEstimateBufferMock = jest.mocked(getGasEstimateBuffer);
+  const getEIP2780Type4GasEstimationEnabledMock = jest.mocked(
+    getEIP2780Type4GasEstimationEnabled,
+  );
   const generateEIP7702BatchTransactionMock = jest.mocked(
     generateEIP7702BatchTransaction,
   );
@@ -1069,6 +1085,10 @@ describe('gas', () => {
     });
 
     describe('with type 4 transaction and data to self', () => {
+      beforeEach(() => {
+        getEIP2780Type4GasEstimationEnabledMock.mockReturnValue(false);
+      });
+
       it('returns combination of provider estimate and simulation', async () => {
         mockQuery({
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -1319,6 +1339,328 @@ describe('gas', () => {
           },
         });
       });
+    });
+  });
+
+  describe('estimateGas with EIP-2780 type 4 gas estimation enabled', () => {
+    const TYPE_4_TX_PARAMS_MOCK: TransactionParams = {
+      ...TRANSACTION_META_MOCK.txParams,
+      authorizationList: AUTHORIZATION_LIST_MOCK,
+      to: TRANSACTION_META_MOCK.txParams.from,
+      type: TransactionEnvelopeType.setCode,
+    };
+
+    /**
+     * Call estimateGas for a type 4 transaction.
+     *
+     * @param txParams - Overrides for the transaction parameters.
+     * @param isSimulationEnabled - Whether simulation is enabled.
+     * @returns The estimateGas result.
+     */
+    async function estimateType4Gas(
+      txParams: Partial<TransactionParams> = {},
+      isSimulationEnabled = true,
+    ): ReturnType<typeof estimateGas> {
+      return await estimateGas({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        isSimulationEnabled,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
+        txParams: { ...TYPE_4_TX_PARAMS_MOCK, ...txParams },
+      });
+    }
+
+    /**
+     * Mock a single simulated transaction in the simulation API response.
+     *
+     * @param transaction - The simulated transaction.
+     */
+    function mockSimulationResponse(
+      transaction: Partial<SimulationResponseTransaction>,
+    ): void {
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [transaction],
+      } as SimulationResponse);
+    }
+
+    beforeEach(() => {
+      getEIP2780Type4GasEstimationEnabledMock.mockReturnValue(true);
+
+      mockQuery({
+        getBlockByNumberResponse: {
+          gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          number: BLOCK_NUMBER_MOCK,
+        },
+        estimateGasResponse: toHex(GAS_2_MOCK),
+      });
+    });
+
+    it('resolves the flag using the transaction chain ID', async () => {
+      mockSimulationResponse({ gasLimit: toHex(SIMULATE_GAS_MOCK) });
+
+      await estimateType4Gas();
+
+      expect(getEIP2780Type4GasEstimationEnabledMock).toHaveBeenCalledWith(
+        CHAIN_ID_MOCK,
+        MESSENGER_MOCK,
+      );
+    });
+
+    it('returns simulated gas from single outer request for upgrade with data', async () => {
+      mockSimulationResponse({ gasLimit: toHex(SIMULATE_GAS_MOCK) });
+
+      const result = await estimateType4Gas();
+
+      expect(result).toStrictEqual({
+        estimatedGas: toHex(SIMULATE_GAS_MOCK),
+        blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+        simulationFails: undefined,
+        gasRevert: undefined,
+        isUpgradeWithData: true,
+      });
+
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        transactions: [
+          {
+            authorizationList: [
+              {
+                address: AUTHORIZATION_LIST_MOCK[0].address,
+                from: TRANSACTION_META_MOCK.txParams.from,
+              },
+            ],
+            data: TRANSACTION_META_MOCK.txParams.data,
+            from: TRANSACTION_META_MOCK.txParams.from,
+            to: TRANSACTION_META_MOCK.txParams.from,
+            value: TRANSACTION_META_MOCK.txParams.value,
+          },
+        ],
+      });
+
+      expectEstimateGasNotCalled();
+    });
+
+    it.each([
+      ['empty data', '0x'],
+      ['no data', undefined],
+    ])(
+      'returns simulated gas from single outer request for upgrade only with %s',
+      async (_title, data) => {
+        mockSimulationResponse({ gasLimit: toHex(SIMULATE_GAS_MOCK) });
+
+        const result = await estimateType4Gas({ data });
+
+        expect(result).toStrictEqual({
+          estimatedGas: toHex(SIMULATE_GAS_MOCK),
+          blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          simulationFails: undefined,
+          gasRevert: undefined,
+          isUpgradeWithData: false,
+        });
+
+        expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          transactions: [
+            {
+              authorizationList: [
+                {
+                  address: AUTHORIZATION_LIST_MOCK[0].address,
+                  from: TRANSACTION_META_MOCK.txParams.from,
+                },
+              ],
+              data,
+              from: TRANSACTION_META_MOCK.txParams.from,
+              to: TRANSACTION_META_MOCK.txParams.from,
+              value: TRANSACTION_META_MOCK.txParams.value,
+            },
+          ],
+        });
+
+        expectEstimateGasNotCalled();
+      },
+    );
+
+    it.each([
+      ['with value', '0x0de0', '0xde0'],
+      ['with no value', undefined, '0x0'],
+    ])(
+      'includes normalized outer value in simulation request %s',
+      async (_title, value, expectedValue) => {
+        mockSimulationResponse({ gasLimit: toHex(SIMULATE_GAS_MOCK) });
+
+        await estimateType4Gas({ to: TO_MOCK, value });
+
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          transactions: [
+            expect.objectContaining({
+              to: TO_MOCK,
+              value: expectedValue,
+            }),
+          ],
+        });
+      },
+    );
+
+    it('maps pre-signed foreign authorization to recovered authority in mixed list', async () => {
+      mockSimulationResponse({ gasLimit: toHex(SIMULATE_GAS_MOCK) });
+
+      const result = await estimateType4Gas({
+        authorizationList: [
+          ...AUTHORIZATION_LIST_MOCK,
+          SIGNED_AUTHORIZATION_MOCK,
+        ],
+      });
+
+      expect(result.estimatedGas).toBe(toHex(SIMULATE_GAS_MOCK));
+      expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(
+        simulateTransactionsMock.mock.calls[0][1].transactions[0]
+          .authorizationList,
+      ).toStrictEqual([
+        {
+          address: AUTHORIZATION_LIST_MOCK[0].address,
+          from: TRANSACTION_META_MOCK.txParams.from,
+        },
+        {
+          address: SIGNED_AUTHORIZATION_MOCK.address,
+          from: SIGNED_AUTHORIZATION_AUTHORITY_MOCK,
+        },
+      ]);
+
+      expectEstimateGasNotCalled();
+    });
+
+    it('returns simulationFails if authority of signed authorization in mixed list cannot be determined', async () => {
+      const result = await estimateType4Gas({
+        authorizationList: [
+          ...AUTHORIZATION_LIST_MOCK,
+          { ...SIGNED_AUTHORIZATION_MOCK, r: '0x0', s: '0x0' },
+        ],
+      });
+
+      expect(result.simulationFails?.reason).toBe(
+        'Cannot determine authority of signed authorization',
+      );
+
+      expect(simulateTransactionsMock).not.toHaveBeenCalled();
+      expectEstimateGasNotCalled();
+    });
+
+    it('uses node estimate of exact outer transaction if all authorizations signed', async () => {
+      const result = await estimateType4Gas({
+        authorizationList: [SIGNED_AUTHORIZATION_MOCK],
+      });
+
+      expect(result).toStrictEqual({
+        estimatedGas: toHex(GAS_2_MOCK),
+        blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+        simulationFails: undefined,
+        gasRevert: undefined,
+        isUpgradeWithData: true,
+      });
+
+      expect(rpcRequestMock).toHaveBeenCalledWith({
+        messenger: MESSENGER_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        method: 'eth_estimateGas',
+        params: [
+          {
+            ...TYPE_4_TX_PARAMS_MOCK,
+            authorizationList: [SIGNED_AUTHORIZATION_MOCK],
+          },
+        ],
+      });
+
+      expect(
+        rpcRequestMock.mock.calls.filter(
+          ([{ method }]) => method === 'eth_estimateGas',
+        ),
+      ).toHaveLength(1);
+
+      expect(simulateTransactionsMock).not.toHaveBeenCalled();
+    });
+
+    it.each<[string, Partial<SimulationResponseTransaction>, string?]>([
+      [
+        'simulation error',
+        { error: 'execution reverted', gasLimit: toHex(SIMULATE_GAS_MOCK) },
+        'Simulation failed: execution reverted',
+      ],
+      ['missing gas limit', { gasUsed: toHex(SIMULATE_GAS_MOCK) }, undefined],
+      ['zero gas limit', { gasLimit: '0x0' }, undefined],
+    ])(
+      'returns simulationFails without legacy fallback if %s',
+      async (_title, transaction, expectedReason) => {
+        mockSimulationResponse(transaction);
+
+        const result = await estimateType4Gas();
+
+        expect(result).toStrictEqual({
+          estimatedGas: toHex(
+            Math.floor(BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER_35_PERCENT),
+          ),
+          blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          gasRevert: undefined,
+          isUpgradeWithData: true,
+          simulationFails: {
+            debug: {
+              blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+              blockNumber: BLOCK_NUMBER_MOCK,
+            },
+            errorKey: undefined,
+            reason: expectedReason ?? 'No simulated gas returned',
+          },
+        });
+
+        expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+        expectEstimateGasNotCalled();
+      },
+    );
+
+    it('returns simulationFails without dummy signature node estimate if simulation disabled', async () => {
+      const result = await estimateType4Gas({}, false);
+
+      expect(result.simulationFails?.reason).toBe(
+        'Cannot estimate type 4 transaction with unsigned authorizations as simulation disabled',
+      );
+
+      expect(simulateTransactionsMock).not.toHaveBeenCalled();
+      expectEstimateGasNotCalled();
+    });
+
+    it('uses existing node estimate if no authorization list', async () => {
+      const result = await estimateType4Gas({ authorizationList: undefined });
+
+      expect(result.estimatedGas).toBe(toHex(GAS_2_MOCK));
+      expect(simulateTransactionsMock).not.toHaveBeenCalled();
+    });
+
+    it('applies gas buffer once in updateGas', async () => {
+      mockSimulationResponse({ gasLimit: toHex(SIMULATE_GAS_MOCK) });
+
+      updateGasRequest.isSimulationEnabled = true;
+      updateGasRequest.txMeta.txParams = { ...TYPE_4_TX_PARAMS_MOCK };
+
+      await updateGas(updateGasRequest);
+
+      expect(getGasEstimateBufferMock).toHaveBeenCalledTimes(1);
+      expect(getGasEstimateBufferMock).toHaveBeenCalledWith({
+        chainId: CHAIN_ID_MOCK,
+        isCustomRPC: false,
+        isUpgradeWithData: true,
+        messenger: MESSENGER_MOCK,
+      });
+
+      expect(updateGasRequest.txMeta.gasLimitNoBuffer).toBe(
+        toHex(SIMULATE_GAS_MOCK),
+      );
+
+      expect(updateGasRequest.txMeta.txParams.gas).toBe(
+        toHex(Math.floor(SIMULATE_GAS_MOCK * 1.5)),
+      );
     });
   });
 
