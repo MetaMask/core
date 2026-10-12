@@ -1,12 +1,12 @@
 import type { NetworkClientId } from '@metamask/network-controller';
+import type {
+  SentinelSimulationResponse,
+  SentinelSimulationResponseTransaction,
+} from '@metamask/sentinel-api-service';
 import { remove0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 
-import type {
-  SimulationResponse,
-  SimulationResponseTransaction,
-} from '../api/simulation-api.js';
 import { simulateTransactions } from '../api/simulation-api.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import { TransactionEnvelopeType } from '../types.js';
@@ -59,7 +59,6 @@ const BLOCK_GAS_LIMIT_MOCK = 123456789;
 const BLOCK_NUMBER_MOCK = '0x5678';
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId' as NetworkClientId;
 const FALLBACK_MULTIPLIER_35_PERCENT = 0.35;
-const GET_SIMULATION_CONFIG_MOCK = jest.fn();
 const MAX_GAS_MULTIPLIER = MAX_GAS_BLOCK_PERCENT / 100;
 const CHAIN_ID_MOCK = '0x123';
 const GAS_2_MOCK = 12345;
@@ -103,7 +102,8 @@ const MESSENGER_MOCK = {
 } as unknown as jest.Mocked<TransactionControllerMessenger>;
 
 function mockMessengerCall(): void {
-  const messengerCallMock = jest.mocked(MESSENGER_MOCK.call);
+  // eslint-disable-next-line jest/unbound-method
+  const messengerCallMock = MESSENGER_MOCK.call as unknown as jest.Mock;
 
   messengerCallMock.mockImplementation((action: string) => {
     if (action === 'NetworkController:getNetworkClientById') {
@@ -185,9 +185,9 @@ const TRANSACTION_BATCH_REQUEST_MOCK: TransactionBatchSingleRequest[] = [
   },
 ];
 
-const SIMULATED_TRANSACTIONS_RESPONSE_MOCK: SimulationResponse = {
+const SIMULATED_TRANSACTIONS_RESPONSE_MOCK: SentinelSimulationResponse = {
   transactions: [{ gasLimit: GAS_MOCK_1 }, { gasLimit: GAS_MOCK_2 }],
-} as unknown as SimulationResponse;
+} as unknown as SentinelSimulationResponse;
 
 const AUTHORIZATION_LIST_MOCK: AuthorizationList = [
   {
@@ -209,7 +209,6 @@ const UPDATE_GAS_REQUEST_MOCK = {
   txMeta: TRANSACTION_META_MOCK,
   isCustomNetwork: false,
   isSimulationEnabled: false,
-  getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
   messenger: MESSENGER_MOCK,
 } as UpdateGasRequest;
 
@@ -630,7 +629,6 @@ describe('gas', () => {
       const result = await estimateGas({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -656,7 +654,6 @@ describe('gas', () => {
       const result = await estimateGas({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -692,7 +689,6 @@ describe('gas', () => {
       const result = await estimateGas({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -718,7 +714,6 @@ describe('gas', () => {
       const result = await estimateGas({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -741,7 +736,6 @@ describe('gas', () => {
       const result = await estimateGas({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -767,7 +761,6 @@ describe('gas', () => {
       const result = await estimateGas({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -799,7 +792,6 @@ describe('gas', () => {
       const result = await estimateGas({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -826,7 +818,6 @@ describe('gas', () => {
       const result = await estimateGas({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -851,7 +842,6 @@ describe('gas', () => {
       const result = await estimateGas({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
@@ -868,7 +858,6 @@ describe('gas', () => {
       await estimateGas({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: {
           ...TRANSACTION_META_MOCK.txParams,
@@ -900,7 +889,6 @@ describe('gas', () => {
       await estimateGas({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: {
           ...TRANSACTION_META_MOCK.txParams,
@@ -943,7 +931,6 @@ describe('gas', () => {
         await estimateGas({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           isSimulationEnabled: false,
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -983,7 +970,6 @@ describe('gas', () => {
       await estimateGas({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         isSimulationEnabled: false,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         messenger: MESSENGER_MOCK,
         txParams: {
           ...TRANSACTION_META_MOCK.txParams,
@@ -1027,7 +1013,7 @@ describe('gas', () => {
               gasLimit: toHex(SIMULATE_GAS_MOCK),
             },
           ],
-        } as SimulationResponse);
+        } as SentinelSimulationResponse);
 
         mockQuery({
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -1038,7 +1024,6 @@ describe('gas', () => {
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           ignoreDelegationSignatures: true,
           isSimulationEnabled: true,
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: TRANSACTION_META_MOCK.txParams,
         });
@@ -1058,7 +1043,6 @@ describe('gas', () => {
             networkClientId: NETWORK_CLIENT_ID_MOCK,
             ignoreDelegationSignatures: true,
             isSimulationEnabled: false,
-            getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
             messenger: MESSENGER_MOCK,
             txParams: TRANSACTION_META_MOCK.txParams,
           }),
@@ -1081,12 +1065,11 @@ describe('gas', () => {
               gasLimit: toHex(SIMULATE_GAS_MOCK),
             },
           ],
-        } as SimulationResponse);
+        } as SentinelSimulationResponse);
 
         const result = await estimateGas({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           isSimulationEnabled: true,
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -1117,12 +1100,11 @@ describe('gas', () => {
               gasUsed: toHex(SIMULATE_GAS_MOCK),
             },
           ],
-        } as SimulationResponse);
+        } as SentinelSimulationResponse);
 
         await estimateGas({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           isSimulationEnabled: true,
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -1178,12 +1160,11 @@ describe('gas', () => {
               gasUsed: toHex(SIMULATE_GAS_MOCK),
             },
           ],
-        } as SimulationResponse);
+        } as SentinelSimulationResponse);
 
         await estimateGas({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           isSimulationEnabled: true,
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -1193,22 +1174,25 @@ describe('gas', () => {
           },
         });
 
-        expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-          transactions: [
-            {
-              ...TRANSACTION_META_MOCK.txParams,
-              to: TRANSACTION_META_MOCK.txParams.from,
-            },
-          ],
-          overrides: {
-            [TRANSACTION_META_MOCK.txParams.from]: {
-              code:
-                DELEGATION_PREFIX +
-                remove0x(AUTHORIZATION_LIST_MOCK[0].address),
+        expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          MESSENGER_MOCK,
+          CHAIN_ID_MOCK,
+          {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK.txParams,
+                to: TRANSACTION_META_MOCK.txParams.from,
+              },
+            ],
+            overrides: {
+              [TRANSACTION_META_MOCK.txParams.from]: {
+                code:
+                  DELEGATION_PREFIX +
+                  remove0x(AUTHORIZATION_LIST_MOCK[0].address),
+              },
             },
           },
-        });
+        );
       });
 
       it('does provider estimation if simulation is disabled', async () => {
@@ -1220,7 +1204,6 @@ describe('gas', () => {
         const result = await estimateGas({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           isSimulationEnabled: false,
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -1252,12 +1235,11 @@ describe('gas', () => {
               gasUsed: undefined,
             },
           ],
-        } as SimulationResponse);
+        } as SentinelSimulationResponse);
 
         const result = await estimateGas({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           isSimulationEnabled: true,
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -1289,12 +1271,11 @@ describe('gas', () => {
               gasUsed: undefined,
             },
           ],
-        } as SimulationResponse);
+        } as SentinelSimulationResponse);
 
         const result = await estimateGas({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           isSimulationEnabled: true,
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
@@ -1396,12 +1377,11 @@ describe('gas', () => {
             gasLimit: toHex(INTRINSIC_GAS),
           },
         ],
-      } as SimulationResponse);
+      } as SentinelSimulationResponse);
 
       const result = await estimateGasBatch({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         isAtomicBatchSupported: isAtomicBatchSupportedMock,
         messenger: MESSENGER_MOCK,
         transactions: BATCH_TX_PARAMS_MOCK,
@@ -1461,7 +1441,6 @@ describe('gas', () => {
       const result = await estimateGasBatch({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         isAtomicBatchSupported: isAtomicBatchSupportedMock,
         messenger: MESSENGER_MOCK,
         transactions: BATCH_TX_PARAMS_MOCK,
@@ -1513,7 +1492,6 @@ describe('gas', () => {
       const result = await estimateGasBatch({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         isAtomicBatchSupported: isAtomicBatchSupportedMock,
         messenger: MESSENGER_MOCK,
         transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
@@ -1551,7 +1529,6 @@ describe('gas', () => {
       const result = await estimateGasBatch({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         isAtomicBatchSupported: isAtomicBatchSupportedMock,
         messenger: MESSENGER_MOCK,
         transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
@@ -1585,7 +1562,6 @@ describe('gas', () => {
       const result = await estimateGasBatch({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         isAtomicBatchSupported: isAtomicBatchSupportedMock,
         messenger: MESSENGER_MOCK,
         transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
@@ -1611,7 +1587,6 @@ describe('gas', () => {
         estimateGasBatch({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           from: FROM_MOCK,
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
           isAtomicBatchSupported: isAtomicBatchSupportedMock,
           messenger: MESSENGER_MOCK,
           transactions: BATCH_TX_PARAMS_MOCK,
@@ -1625,7 +1600,6 @@ describe('gas', () => {
       const result = await estimateGasBatch({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         isAtomicBatchSupported: isAtomicBatchSupportedMock,
         messenger: MESSENGER_MOCK,
         transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
@@ -1649,7 +1623,6 @@ describe('gas', () => {
       const result = await estimateGasBatch({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         isAtomicBatchSupported: isAtomicBatchSupportedMock,
         messenger: MESSENGER_MOCK,
         transactions: BATCH_TX_PARAMS_MOCK,
@@ -1660,19 +1633,22 @@ describe('gas', () => {
         gasLimits: [21000, 500000],
       });
 
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-        transactions: [
-          {
-            ...BATCH_TX_PARAMS_MOCK[0],
-            from: FROM_MOCK,
-          },
-          {
-            ...BATCH_TX_PARAMS_MOCK[1],
-            from: FROM_MOCK,
-          },
-        ],
-      });
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
+        CHAIN_ID_MOCK,
+        {
+          transactions: [
+            {
+              ...BATCH_TX_PARAMS_MOCK[0],
+              from: FROM_MOCK,
+            },
+            {
+              ...BATCH_TX_PARAMS_MOCK[1],
+              from: FROM_MOCK,
+            },
+          ],
+        },
+      );
     });
 
     it('prefers provided gas over simulated gas when both available', async () => {
@@ -1701,7 +1677,6 @@ describe('gas', () => {
       const result = await estimateGasBatch({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         isAtomicBatchSupported: isAtomicBatchSupportedMock,
         messenger: MESSENGER_MOCK,
         transactions: mixedBatchParams,
@@ -1721,29 +1696,31 @@ describe('gas', () => {
         },
       ]);
 
-      jest.mocked(MESSENGER_MOCK.call).mockImplementation((action: string) => {
-        if (action === 'NetworkController:getNetworkClientById') {
-          return {
-            configuration: { chainId: CHAIN_ID_MOCK },
-            provider: {},
-          };
-        }
+      (MESSENGER_MOCK.call as unknown as jest.Mock).mockImplementation(
+        (action: string) => {
+          if (action === 'NetworkController:getNetworkClientById') {
+            return {
+              configuration: { chainId: CHAIN_ID_MOCK },
+              provider: {},
+            };
+          }
 
-        if (action === 'KeyringController:getState') {
-          return {
-            keyrings: [
-              {
-                type: 'Ledger Hardware',
-                accounts: [FROM_MOCK],
-              },
-            ],
-          };
-        }
+          if (action === 'KeyringController:getState') {
+            return {
+              keyrings: [
+                {
+                  type: 'Ledger Hardware',
+                  accounts: [FROM_MOCK],
+                },
+              ],
+            };
+          }
 
-        return {
-          remoteFeatureFlags: {},
-        };
-      });
+          return {
+            remoteFeatureFlags: {},
+          };
+        },
+      );
 
       simulateTransactionsMock.mockResolvedValue(
         SIMULATED_TRANSACTIONS_RESPONSE_MOCK,
@@ -1752,7 +1729,6 @@ describe('gas', () => {
       const result = await estimateGasBatch({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
         isAtomicBatchSupported: isAtomicBatchSupportedMock,
         messenger: MESSENGER_MOCK,
         transactions: BATCH_TX_PARAMS_MOCK,
@@ -1814,7 +1790,7 @@ describe('gas', () => {
       const result = await simulateGasBatch({
         chainId: CHAIN_ID_MOCK,
         from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
         transactions: TRANSACTION_BATCH_REQUEST_MOCK,
       });
 
@@ -1824,25 +1800,30 @@ describe('gas', () => {
       });
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-        transactions: [
-          {
-            ...TRANSACTION_BATCH_REQUEST_MOCK[0].params,
-            from: FROM_MOCK,
-          },
-          {
-            ...TRANSACTION_BATCH_REQUEST_MOCK[1].params,
-            from: FROM_MOCK,
-          },
-        ],
-      });
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
+        CHAIN_ID_MOCK,
+        {
+          transactions: [
+            {
+              ...TRANSACTION_BATCH_REQUEST_MOCK[0].params,
+              from: FROM_MOCK,
+            },
+            {
+              ...TRANSACTION_BATCH_REQUEST_MOCK[1].params,
+              from: FROM_MOCK,
+            },
+          ],
+        },
+      );
     });
 
     it('throws an error if the simulated response does not match the number of transactions', async () => {
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [
-          { gasLimit: GAS_MOCK_1 } as unknown as SimulationResponseTransaction,
+          {
+            gasLimit: GAS_MOCK_1,
+          } as unknown as SentinelSimulationResponseTransaction,
         ], // Only one transaction returned
         sponsorship: {
           isSponsored: false,
@@ -1854,7 +1835,7 @@ describe('gas', () => {
         simulateGasBatch({
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          messenger: MESSENGER_MOCK,
           transactions: TRANSACTION_BATCH_REQUEST_MOCK,
         }),
       ).rejects.toThrow(
@@ -1869,7 +1850,7 @@ describe('gas', () => {
         transactions: [
           { gasLimit: undefined },
           { gasLimit: GAS_MOCK_2 },
-        ] as unknown as SimulationResponseTransaction[],
+        ] as unknown as SentinelSimulationResponseTransaction[],
         sponsorship: {
           isSponsored: false,
           error: null,
@@ -1880,7 +1861,7 @@ describe('gas', () => {
         simulateGasBatch({
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          messenger: MESSENGER_MOCK,
           transactions: TRANSACTION_BATCH_REQUEST_MOCK,
         }),
       ).rejects.toThrow(
@@ -1902,7 +1883,7 @@ describe('gas', () => {
       const result = await simulateGasBatch({
         chainId: CHAIN_ID_MOCK,
         from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
         transactions: [],
       });
 
@@ -1912,10 +1893,13 @@ describe('gas', () => {
       });
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-        transactions: [],
-      });
+      expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        MESSENGER_MOCK,
+        CHAIN_ID_MOCK,
+        {
+          transactions: [],
+        },
+      );
     });
 
     it('throws an error if the simulation fails', async () => {
@@ -1927,7 +1911,7 @@ describe('gas', () => {
         simulateGasBatch({
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
-          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          messenger: MESSENGER_MOCK,
           transactions: TRANSACTION_BATCH_REQUEST_MOCK,
         }),
       ).rejects.toThrow(

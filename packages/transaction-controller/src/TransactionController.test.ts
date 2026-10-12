@@ -627,6 +627,7 @@ describe('TransactionController', () => {
         'NetworkController:getNetworkClientRegistry',
         'NetworkController:getState',
         'RemoteFeatureFlagController:getState',
+        'SentinelApiService:simulateTransactions',
       ],
     });
 
@@ -2476,7 +2477,7 @@ describe('TransactionController', () => {
     describe('updates simulation data', () => {
       it('by default', async () => {
         getBalanceChangesMock.mockImplementationOnce(async (request) => {
-          await request.getSimulationConfig('https://testurl.com');
+          await request.getSimulationConfig?.('https://testurl.com');
           return {
             simulationData: SIMULATION_DATA_RESULT_MOCK,
           };
@@ -2624,7 +2625,7 @@ describe('TransactionController', () => {
 
       it('with getSimulationConfig', async () => {
         getBalanceChangesMock.mockImplementationOnce(async (request) => {
-          await request.getSimulationConfig('https://testurl.com');
+          await request.getSimulationConfig?.('https://testurl.com');
           return {
             simulationData: SIMULATION_DATA_RESULT_MOCK,
           };
