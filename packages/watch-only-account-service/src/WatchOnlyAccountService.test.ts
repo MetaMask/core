@@ -1,11 +1,11 @@
+import type { KeyringAccount } from '@metamask/keyring-api';
+import type { RestrictedController } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import type { KeyringAccount } from '@metamask/keyring-api';
-import type { RestrictedController } from '@metamask/keyring-controller';
 
 import { WatchOnlyAccountDisabledError } from './errors.js';
 import type { WatchOnlyAccountServiceMessenger } from './WatchOnlyAccountService.js';
