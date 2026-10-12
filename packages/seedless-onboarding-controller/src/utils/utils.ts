@@ -33,7 +33,9 @@ import { assertIsValidVaultData } from './assertions.js';
  * @returns The decoded node auth token.
  */
 export function decodeNodeAuthToken(token: string): DecodedNodeAuthToken {
-  return JSON.parse(bytesToString(base64ToBytes(token))) as DecodedNodeAuthToken;
+  return JSON.parse(
+    bytesToString(base64ToBytes(token)),
+  ) as DecodedNodeAuthToken;
 }
 
 /**
