@@ -5184,10 +5184,18 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param message - The status entry's error.
    * @param answer - The venue answer with the entry.
+   * @param accountContext - Account and network that authorized the write.
    * @returns The mapped error.
    */
-  async #mapStatusError(message: string, answer: unknown): Promise<Error> {
+  async #mapStatusError(
+    message: string,
+    answer: unknown,
+    accountContext?: AccountSupportContext,
+  ): Promise<Error> {
     const error = createStatusError(message, answer);
+    if (accountContext) {
+      this.#recordUnsupportedAccountFromError(error, accountContext);
+    }
     return (await this.#classifySignerFailure(error)) ?? this.#mapError(error);
   }
 
@@ -6737,6 +6745,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       const status = result.response?.data?.statuses?.[0];
+      if (hasProperty(status, 'error') && typeof status.error === 'string') {
+        throw createStatusError(status.error, result);
+      }
       // Note: `in` narrows the HyperLiquid SDK discriminated union to the
       // branch that has the property; `hasProperty` types the property as
       // `unknown`, losing downstream access to `.oid`, `.totalSz`, `.avgPx`.
@@ -9587,10 +9598,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       isStatusObject(status) && typeof status.error === 'string'
         ? status.error
         : 'TWAP cancellation failed';
-    return createErrorResult(await this.#mapStatusError(rawError, result), {
-      success: false,
-      orderId: params.orderId,
-    });
+    return createErrorResult(
+      await this.#mapStatusError(rawError, result, accountContext),
+      {
+        success: false,
+        orderId: params.orderId,
+      },
+    );
   }
 
   /**
@@ -10701,6 +10715,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         session.orderId === params.orderId ||
         session.replacingOrderId === params.orderId,
     );
+    let accountContext: AccountSupportContext | undefined;
     try {
       if (owningChase) {
         this.#stopChaseSession(owningChase[0]);
@@ -10730,9 +10745,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(coinValidation.error);
       }
 
-      const { accountContext } = await this.#ensureReadyForTrading({
+      ({ accountContext } = await this.#ensureReadyForTrading({
         requiresBuilderFee: false,
-      });
+      }));
 
       const asset = await this.#getAssetIdWithRepair({
         symbol: params.symbol,
@@ -10770,11 +10785,17 @@ export class HyperLiquidProvider implements PerpsProvider {
           ? status.error
           : 'Order cancellation failed';
 
-      return createErrorResult(await this.#mapStatusError(rawError, result), {
-        success: false,
-        orderId: params.orderId,
-      });
+      return createErrorResult(
+        await this.#mapStatusError(rawError, result, accountContext),
+        {
+          success: false,
+          orderId: params.orderId,
+        },
+      );
     } catch (error) {
+      if (accountContext) {
+        this.#recordUnsupportedAccountFromError(error, accountContext);
+      }
       const mappedError = await this.#reportWriteError(
         error,
         'cancelOrder',
