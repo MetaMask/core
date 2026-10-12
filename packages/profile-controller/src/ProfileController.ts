@@ -180,7 +180,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkUsernameAvailability',
   'connectX',
   'fetchAndUpdateXAccount',
-  'startConnectX',
+  'getXAuthorizationUrl',
   'disconnectX',
 ] as const;
 
@@ -437,15 +437,16 @@ export class ProfileController extends BaseController<
    * @returns The X authorization URL and state parameter.
    * @throws If no profile has been created yet.
    */
-  async startConnectX(): Promise<ConnectXSession> {
+  async getXAuthorizationUrl(): Promise<ConnectXSession> {
     this.#getProfileIdOrThrow();
     const response = await this.messenger.call('ProfileService:getXAuthUrl');
     return { authorizationUrl: response.url, state: response.state };
   }
 
   /**
-   * Disconnects the X account linked to the given profile, clears xProfile from
-   * state, and marks the profile in state as no longer connected to X.
+   * Disconnects the X account linked to the given profile. If the given
+   * profile matches the profile in state, clears `xProfile` from state and
+   * marks the profile in state as no longer connected to X.
    *
    * @param profileId - The ID of the profile to disconnect the linked X account
    * from (sourced from {@link getProfile}).
@@ -453,8 +454,8 @@ export class ProfileController extends BaseController<
   async disconnectX(profileId: string): Promise<void> {
     await this.messenger.call('ProfileService:disconnectX', profileId);
     this.update((state) => {
-      state.xProfile = undefined;
       if (state.profile.profileId === profileId) {
+        state.xProfile = undefined;
         state.profile.connectedToX = false;
       }
     });

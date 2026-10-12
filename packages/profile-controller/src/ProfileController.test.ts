@@ -674,7 +674,7 @@ describe('ProfileController', () => {
     });
   });
 
-  describe('startConnectX', () => {
+  describe('getXAuthorizationUrl', () => {
     it('throws if no profile is set in state and does not call the service', async () => {
       const rootMessenger = getRootMessenger();
       const getXAuthUrlMock = jest.fn().mockResolvedValue(mockXAuthUrlResponse);
@@ -686,7 +686,7 @@ describe('ProfileController', () => {
 
       const { controller } = createController({ rootMessenger });
 
-      await expect(controller.startConnectX()).rejects.toThrow(
+      await expect(controller.getXAuthorizationUrl()).rejects.toThrow(
         'ProfileController: no profile found in state',
       );
       expect(getXAuthUrlMock).not.toHaveBeenCalled();
@@ -714,7 +714,7 @@ describe('ProfileController', () => {
         },
       });
       const stateBefore = controller.state;
-      const result = await controller.startConnectX();
+      const result = await controller.getXAuthorizationUrl();
 
       expect(getXAuthUrlMock).toHaveBeenCalledTimes(1);
       expect(getXAuthUrlMock).toHaveBeenCalledWith();
@@ -740,7 +740,7 @@ describe('ProfileController', () => {
         },
       });
       const result = await rootMessenger.call(
-        'ProfileController:startConnectX',
+        'ProfileController:getXAuthorizationUrl',
       );
 
       expect(result).toStrictEqual(mockConnectXSession);
@@ -810,12 +810,17 @@ describe('ProfileController', () => {
       expect(stateChangedListener).toHaveBeenCalledTimes(1);
     });
 
-    it('does not change profile.connectedToX when the profile ID does not match state', async () => {
+    it('does not change state when the profile ID does not match state', async () => {
       const rootMessenger = getRootMessenger();
       mockServiceAction(
         rootMessenger,
         'ProfileService:disconnectX',
         jest.fn().mockResolvedValue(undefined),
+      );
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:getXAccount',
+        jest.fn().mockResolvedValue(mockConnectXResponse),
       );
 
       const { controller } = createController({
@@ -828,10 +833,12 @@ describe('ProfileController', () => {
           },
         },
       });
+      await controller.fetchAndUpdateXAccount();
+      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
 
       await controller.disconnectX('other-profile');
 
-      expect(controller.state.xProfile).toBeUndefined();
+      expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
       expect(controller.state.profile.connectedToX).toBe(true);
     });
 

@@ -23,7 +23,7 @@ export type {
   ProfileControllerFetchAndUpdateXAccountAction,
   ProfileControllerGetXProfileAction,
   ProfileControllerReplaceProfileAction,
-  ProfileControllerStartConnectXAction,
+  ProfileControllerGetXAuthorizationUrlAction,
   ProfileControllerUpdateProfileAction,
 } from './ProfileController-method-action-types.js';
 export type {
