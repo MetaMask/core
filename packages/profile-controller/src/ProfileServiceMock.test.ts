@@ -161,6 +161,15 @@ describe('buildMockProfileService', () => {
 
       expect(result).toStrictEqual(MOCK_X_CONNECT_RESPONSE);
     });
+
+    it('registers disconnectX resolving without error', async () => {
+      const messenger = createMessenger();
+      buildMockProfileService(messenger);
+
+      expect(
+        await messenger.call('ProfileService:disconnectX', 'p1'),
+      ).toBeUndefined();
+    });
   });
 
   describe('handler overrides', () => {
@@ -177,6 +186,17 @@ describe('buildMockProfileService', () => {
       const result = await messenger.call('ProfileService:getProfile', 'p1');
 
       expect(result).toStrictEqual(customProfile);
+    });
+
+    it('uses a custom disconnectX handler when provided', async () => {
+      const messenger = createMessenger();
+      const disconnectX = jest.fn().mockResolvedValue(undefined);
+      buildMockProfileService(messenger, { disconnectX });
+
+      await messenger.call('ProfileService:disconnectX', 'profile-123');
+
+      expect(disconnectX).toHaveBeenCalledTimes(1);
+      expect(disconnectX).toHaveBeenCalledWith('profile-123');
     });
 
     it('uses a custom checkUsernameAvailability handler when provided', async () => {

@@ -9,7 +9,7 @@ import type {
   UsernameAvailabilityResponse,
   XAccountResponse,
   XAuthUrlResponse,
-  XConnectResponse,
+  ConnectXResponse,
 } from './ProfileService.js';
 
 export const MOCK_PROFILE_API_RESPONSE: ProfileApiResponse = {
@@ -31,7 +31,7 @@ export const MOCK_PROFILE_API_RESPONSE: ProfileApiResponse = {
   updated_at: '2024-01-01T00:00:00.000Z',
 };
 
-export const MOCK_X_CONNECT_RESPONSE: XConnectResponse = {
+export const MOCK_X_CONNECT_RESPONSE: ConnectXResponse = {
   x_user_id: 'mock-x-user-id',
   x_profile_url: 'https://x.com/mockuser',
   username: 'mockuser',
@@ -64,8 +64,9 @@ export type MockProfileServiceHandlers = {
     username: string,
   ) => Promise<UsernameAvailabilityResponse>;
   getXAuthUrl?: () => Promise<XAuthUrlResponse>;
-  connectX?: (params: ConnectXParams) => Promise<XConnectResponse>;
+  connectX?: (params: ConnectXParams) => Promise<ConnectXResponse>;
   getXAccount?: () => Promise<XAccountResponse>;
+  disconnectX?: (profileId: string) => Promise<void>;
 };
 
 /**
@@ -133,12 +134,17 @@ export function buildMockProfileService(
   messenger.registerActionHandler(
     'ProfileService:connectX',
     handlers.connectX ??
-      (async (_params): Promise<XConnectResponse> => MOCK_X_CONNECT_RESPONSE),
+      (async (_params): Promise<ConnectXResponse> => MOCK_X_CONNECT_RESPONSE),
   );
 
   messenger.registerActionHandler(
     'ProfileService:getXAccount',
     handlers.getXAccount ??
       (async (): Promise<XAccountResponse> => MOCK_X_CONNECT_RESPONSE),
+  );
+
+  messenger.registerActionHandler(
+    'ProfileService:disconnectX',
+    handlers.disconnectX ?? (async (_profileId): Promise<void> => undefined),
   );
 }
