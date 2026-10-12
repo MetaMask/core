@@ -1,7 +1,7 @@
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
-  ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -13,7 +13,9 @@ import type {
   ProfileServiceConnectXAction,
   ProfileServiceCreateProfileAction,
   ProfileServiceDeleteProfileAction,
+  ProfileServiceDisconnectXAction,
   ProfileServiceGetXAccountAction,
+  ProfileServiceGetXAuthUrlAction,
   ProfileServiceReplaceProfileAction,
   ProfileServiceUpdateProfileAction,
 } from './ProfileService-method-action-types.js';
@@ -24,7 +26,7 @@ import type {
   ReplaceProfileParams,
   UpdateProfileParams,
   UsernameAvailabilityResponse,
-  XConnectResponse,
+  ConnectXResponse,
 } from './ProfileService.js';
 
 const controllerName = 'ProfileController';
@@ -73,6 +75,14 @@ export type XProfile = {
   updatedAt: string;
 };
 
+/** Ephemeral session data for initiating the X OAuth flow. Not stored in controller state. */
+export type ConnectXSession = {
+  /** The X authorization URL to open in a system browser. */
+  authorizationUrl: string;
+  /** The OAuth state parameter to compare against the X redirect callback. */
+  state: string;
+};
+
 /** State managed by ProfileController. */
 export type ProfileControllerState = {
   profile: Profile;
@@ -93,7 +103,7 @@ export type ProfileControllerActions =
   | ProfileControllerMethodActions;
 
 /** The `ProfileController:stateChanged` event type. */
-export type ProfileControllerChangeEvent = ControllerStateChangeEvent<
+export type ProfileControllerChangeEvent = ControllerStateChangedEvent<
   typeof controllerName,
   ProfileControllerState
 >;
@@ -108,7 +118,9 @@ type AllowedActions =
   | ProfileServiceDeleteProfileAction
   | ProfileServiceCheckUsernameAvailabilityAction
   | ProfileServiceConnectXAction
-  | ProfileServiceGetXAccountAction;
+  | ProfileServiceGetXAccountAction
+  | ProfileServiceGetXAuthUrlAction
+  | ProfileServiceDisconnectXAction;
 
 export type AllowedEvents = never;
 
@@ -168,6 +180,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkUsernameAvailability',
   'connectX',
   'fetchAndUpdateXAccount',
+  'getXAuthorizationUrl',
+  'disconnectX',
 ] as const;
 
 // === CONTROLLER ===
@@ -258,7 +272,7 @@ export class ProfileController extends BaseController<
    * @param response - The API response to map.
    * @returns The mapped X profile.
    */
-  #mapXResponseToXProfile(response: XConnectResponse): XProfile {
+  #mapXResponseToXProfile(response: ConnectXResponse): XProfile {
     return {
       xUserId: response.x_user_id,
       xProfileUrl: response.x_profile_url,
@@ -293,7 +307,6 @@ export class ProfileController extends BaseController<
 
   /**
    * Creates a new MetaMask profile, updates state, and returns the created profile.
-   * If the user had previously connected X, also updates xProfile in state.
    *
    * @param params - The profile creation parameters.
    * @returns The created MetaMask profile.
@@ -306,9 +319,6 @@ export class ProfileController extends BaseController<
     const mapped = this.#mapApiResponseToProfile(response);
     this.update((state) => {
       state.profile = mapped;
-      if (response.x_profile) {
-        state.xProfile = this.#mapXResponseToXProfile(response.x_profile);
-      }
     });
     return mapped;
   }
@@ -379,23 +389,34 @@ export class ProfileController extends BaseController<
   }
 
   /**
-   * Completes the X OAuth PKCE flow, updates xProfile in state, and returns the X profile.
+   * Completes the X OAuth flow for the profile in state and returns the
+   * linked X profile. Updates controller state with the linked X profile
+   * and marks the profile in state as connected to X.
    *
-   * @param params - The parameters for the X OAuth PKCE flow.
+   * @param params - The parameters for the X OAuth flow.
    * @param params.code - The OAuth authorization code from the X redirect.
    * @param params.state - The state parameter returned by the X redirect.
    * @returns The linked X profile.
+   * @throws If no profile has been created yet.
    */
   async connectX(params: { code: string; state: string }): Promise<XProfile> {
-    const response = await this.messenger.call(
-      'ProfileService:connectX',
-      params,
-    );
-    return this.#mapXResponseToXProfile(response);
+    this.#getProfileIdOrThrow();
+    const response = await this.messenger.call('ProfileService:connectX', {
+      code: params.code,
+      state: params.state,
+    });
+    const mapped = this.#mapXResponseToXProfile(response);
+    this.update((state) => {
+      state.xProfile = mapped;
+      state.profile.connectedToX = true;
+    });
+    return mapped;
   }
 
   /**
-   * Fetches the X account linked to the current profile, updates state, and returns the X profile.
+   * Fetches the X account linked to the authenticated profile, updates state,
+   * and returns the X profile. The profile is resolved server-side from the
+   * verified bearer token.
    *
    * @returns The linked X profile.
    */
@@ -406,5 +427,37 @@ export class ProfileController extends BaseController<
       state.xProfile = mapped;
     });
     return mapped;
+  }
+
+  /**
+   * Initiates the X OAuth flow by fetching the authorization URL from the backend.
+   * The profile is resolved server-side from the verified bearer token.
+   * Returns session data for the caller to use; nothing is stored in controller state.
+   *
+   * @returns The X authorization URL and state parameter.
+   * @throws If no profile has been created yet.
+   */
+  async getXAuthorizationUrl(): Promise<ConnectXSession> {
+    this.#getProfileIdOrThrow();
+    const response = await this.messenger.call('ProfileService:getXAuthUrl');
+    return { authorizationUrl: response.url, state: response.state };
+  }
+
+  /**
+   * Disconnects the X account linked to the given profile. If the given
+   * profile matches the profile in state, clears `xProfile` from state and
+   * marks the profile in state as no longer connected to X.
+   *
+   * @param profileId - The ID of the profile to disconnect the linked X account
+   * from (sourced from {@link getProfile}).
+   */
+  async disconnectX(profileId: string): Promise<void> {
+    await this.messenger.call('ProfileService:disconnectX', profileId);
+    this.update((state) => {
+      if (state.profile.profileId === profileId) {
+        state.xProfile = undefined;
+        state.profile.connectedToX = false;
+      }
+    });
   }
 }
