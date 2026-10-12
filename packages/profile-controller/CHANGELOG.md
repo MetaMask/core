@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `getXAuthorizationUrl` method to `ProfileController` for initiating the X OAuth flow. It requires a profile to exist, fetches the authorization URL via `ProfileService:getXAuthUrl` (the profile is resolved server-side from the verified bearer token), and returns the authorization URL and state parameter as ephemeral session data, without storing them in controller state ([#10668](https://github.com/MetaMask/core/pull/10668))
 - Add `disconnectX` method to `ProfileController` for unlinking the X account from a profile. It delegates to `ProfileService:disconnectX`, and when the disconnected profile matches the profile in state, clears `xProfile` from controller state and sets `connectedToX` to `false` ([#10668](https://github.com/MetaMask/core/pull/10668))
 - Add `disconnectX` method to `ProfileService` for sending an authenticated `DELETE` request to the `profiles/{profileId}/x` endpoint; a `404` response is treated as success (the X account is already disconnected) ([#10668](https://github.com/MetaMask/core/pull/10668))
+- Add `fetchAndUpdateProfile` method to the `ProfileController` to fetch a profile from the profile-api and update the controller's state ([#10793](https://github.com/MetaMask/core/pull/10793))
 
 ### Changed
 
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix the `ProfileController` messenger event type: the controller exposes `ProfileController:stateChanged` (emitted on state changes), not `ProfileController:stateChange` ([#10668](https://github.com/MetaMask/core/pull/10668))
+- Fix the `ProfileController`'s `connectX` and `getXAuthorizationUrl` methods to prevent throwing when a profile ID doesn't exist in state ([#10793](https://github.com/MetaMask/core/pull/10793))
 
 ## [1.0.1]
 
