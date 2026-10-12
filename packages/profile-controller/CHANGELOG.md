@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix the `ProfileController` messenger event type: the controller exposes `ProfileController:stateChanged` (emitted on state changes), not `ProfileController:stateChange` ([#10668](https://github.com/MetaMask/core/pull/10668))
 - Fix the `ProfileController`'s `connectX` and `getXAuthorizationUrl` methods to prevent throwing when a profile ID doesn't exist in state ([#10793](https://github.com/MetaMask/core/pull/10793))
+- Fix the `ProfileService`'s response type to not have `avatar_url` as nullable ([#10793](https://github.com/MetaMask/core/pull/10793))
 
 ## [1.0.1]
 
