@@ -28,6 +28,15 @@ export type SimulationRequest = SentinelSimulationRequest & {
    * Transaction-controller-only field; not forwarded to the Sentinel API.
    */
   getSimulationConfig?: GetSimulationConfig;
+
+  /** Whether to include available token fees. */
+  suggestFees?: SentinelSimulationRequest['suggestFees'] & {
+    /**
+     * Whether to include a RedeemerEnforcer caveat, restricting redemption to
+     * the relay signers, in the delegation used for the EIP-7702 estimate.
+     */
+    withRedeemerEnforcer?: boolean;
+  };
 };
 
 /**
