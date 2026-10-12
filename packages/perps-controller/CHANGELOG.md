@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/abi-utils` from `^2.0.3` to `^2.0.4` ([#10715](https://github.com/MetaMask/core/pull/10715))
+- Perps error logs include bounded `feature`, `operation`, `action`, and `component` tags for connection, order, position, deposit, and withdrawal failures, while retaining diagnostic values in the log context ([#10681](https://github.com/MetaMask/core/pull/10681))
+- Trade traces pass an explicit `ok` or `error` status to `PerpsTracer.endTrace`, the place-order payment-token attribute is named `pay_token_symbol` so Sentry does not scrub its value, and Lighter trading failures are forwarded to Sentry with their original provider message and bounded operation/action tags ([#10685](https://github.com/MetaMask/core/pull/10685))
+
+### Fixed
+
+- Log deposit transaction failures that reject after confirmation, for both deposit-only and deposit-and-order, with `financial_operations` / `financial_deposit` tags, and leave user cancellation unlogged ([#10681](https://github.com/MetaMask/core/pull/10681))
+- Log flip results that resolve `success: false` with `position_management` / `flip_position` tags, and leave `KEYRING_LOCKED` and `EXCHANGE_ACCOUNT_NOT_FOUND` unlogged ([#10681](https://github.com/MetaMask/core/pull/10681))
+- Add optional `OrderParams.deferProviderErrorReport`. A flip sets it so HyperLiquid and Lighter do not log `place_order` for that failure, and `flipPosition` logs it once as `position_management` / `flip_position`. Delegated close failures likewise log once as `position_management` / `close_position`. Expected signer, account, session, and selected local-validation outcomes stay unlogged ([#10681](https://github.com/MetaMask/core/pull/10681))
 
 ## [20.0.0]
 

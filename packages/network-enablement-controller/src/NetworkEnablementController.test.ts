@@ -88,7 +88,9 @@ function getRootMessenger(): RootMessenger {
  * @returns A mock RegistryNetworkConfig object.
  */
 function createMockRegistryNetworkConfig(
-  overrides: Partial<RegistryNetworkConfig> = {},
+  overrides: Partial<Omit<RegistryNetworkConfig, 'config'>> & {
+    config?: Partial<RegistryNetworkConfig['config']>;
+  } = {},
 ): RegistryNetworkConfig {
   const base: RegistryNetworkConfig = {
     chainId: 'eip155:1',
@@ -3565,6 +3567,179 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
       expect(controller.isNetworkEnabled('0xe708')).toBe(true);
       expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+    });
+
+    it('leaves active selection unchanged and adds network disabled when auto-enabled network is added in single-network mode', async () => {
+      const {
+        controller,
+        rootMessenger,
+        configRegistryControllerGetStateMock,
+      } = setupController();
+
+      configRegistryControllerGetStateMock.mockReturnValue({
+        configs: {
+          networks: {
+            'eip155:5042': createMockRegistryNetworkConfig({
+              chainId: 'eip155:5042',
+              config: {
+                isAutoEnabled: true,
+                isActive: true,
+                isDeprecated: false,
+              },
+            }),
+          },
+        },
+        version: '1',
+        lastFetched: Date.now(),
+        etag: 'mock-etag',
+      });
+
+      controller.disableNetwork('0xe708');
+      controller.disableNetwork('0x2105');
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0x13b2',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Arc',
+        nativeCurrency: 'ARC',
+        rpcEndpoints: [
+          {
+            url: 'https://rpc.arc.network',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(controller.isNetworkEnabled('0x13b2')).toBe(false);
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155]['0x13b2'],
+      ).toBe(false);
+      expect(
+        controller.state.nativeAssetIdentifiers['eip155:5042'],
+      ).toBeDefined();
+    });
+
+    it('leaves active selection unchanged and adds network disabled when auto-enabled network is added in popular networks mode', async () => {
+      const {
+        controller,
+        rootMessenger,
+        configRegistryControllerGetStateMock,
+      } = setupController();
+
+      configRegistryControllerGetStateMock.mockReturnValue({
+        configs: {
+          networks: {
+            'eip155:5042': createMockRegistryNetworkConfig({
+              chainId: 'eip155:5042',
+              config: {
+                isAutoEnabled: true,
+                isActive: true,
+                isDeprecated: false,
+                isFeatured: true,
+              },
+            }),
+          },
+        },
+        version: '1',
+        lastFetched: Date.now(),
+        etag: 'mock-etag',
+      });
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true);
+
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0x13b2',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Arc',
+        nativeCurrency: 'ARC',
+        rpcEndpoints: [
+          {
+            url: 'https://rpc.arc.network',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(controller.isNetworkEnabled('0x13b2')).toBe(false);
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(true);
+      expect(
+        controller.state.enabledNetworkMap[KnownCaipNamespace.Eip155]['0x13b2'],
+      ).toBe(false);
+    });
+
+    it('preserves existing enablement state when an already-configured auto-enabled network is added', async () => {
+      const {
+        controller,
+        rootMessenger,
+        configRegistryControllerGetStateMock,
+      } = setupController({
+        config: {
+          state: {
+            enabledNetworkMap: {
+              [KnownCaipNamespace.Eip155]: {
+                '0x1': true,
+                '0x13b2': true,
+              },
+            },
+          },
+        },
+      });
+
+      configRegistryControllerGetStateMock.mockReturnValue({
+        configs: {
+          networks: {
+            'eip155:5042': createMockRegistryNetworkConfig({
+              chainId: 'eip155:5042',
+              config: {
+                isAutoEnabled: true,
+                isActive: true,
+                isDeprecated: false,
+              },
+            }),
+          },
+        },
+        version: '1',
+        lastFetched: Date.now(),
+        etag: 'mock-etag',
+      });
+
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0x13b2',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Arc',
+        nativeCurrency: 'ARC',
+        rpcEndpoints: [
+          {
+            url: 'https://rpc.arc.network',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(controller.isNetworkEnabled('0x13b2')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
     });
   });
 });
