@@ -1796,7 +1796,7 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
-  it('middleware removes handled chains from next request', async () => {
+  it('middleware keeps every requested chain for later lane stages', async () => {
     const { controller } = await setupController({ supportedChains: [1] });
 
     const next = jest.fn().mockResolvedValue(undefined);
@@ -1809,7 +1809,7 @@ describe('AccountsApiDataSource', () => {
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({
         request: expect.objectContaining({
-          chainIds: [CHAIN_POLYGON],
+          chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
         }),
       }),
     );
@@ -2266,7 +2266,7 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
-    it('claims handled chains on v6 when tokenDetectionEnabled is false', async () => {
+    it('keeps requested chains on v6 when tokenDetectionEnabled is false', async () => {
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: true },
         tokenDetectionEnabled: (): boolean => false,
@@ -2294,7 +2294,7 @@ describe('AccountsApiDataSource', () => {
       expect(nextFn).toHaveBeenCalledWith(
         expect.objectContaining({
           request: expect.objectContaining({
-            chainIds: [],
+            chainIds: [CHAIN_MAINNET],
           }),
         }),
       );
