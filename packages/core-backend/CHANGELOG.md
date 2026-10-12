@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
+- `BackendWebSocketService` routes notifications by exact channel name and `subscriptionId`. Account-activity chain-wildcard matching, stale-subscription channel fallback, and nested payload unwrapping have been removed ([#10754](https://github.com/MetaMask/core/pull/10754))
 
 ## [12.0.1]
 
