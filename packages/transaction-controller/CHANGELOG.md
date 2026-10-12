@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `eip2780Type4GasEstimation` to the `confirmations_transactions` remote feature flag, resolved per chain with `perChainConfig[chainId] ?? default ?? false` ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - When enabled for a chain, type-4 transactions with unsigned authorizations are estimated with a single Simulation API request for the outer transaction, including an `authorizationList` with the authority of each entry, instead of combining separate upgrade and execution estimates.
+  - The authority of a pre-signed authorization is recovered from its signature, and estimation fails if it cannot be recovered.
+  - Type-4 transactions with only signed authorizations are estimated using `eth_estimateGas` on the selected network.
+  - A simulation error, or a missing or zero `gasLimit`, is recorded as `simulationFails` instead of falling back to the legacy estimate.
+  - When disabled, existing type-4 estimation is unchanged.
+
 ## [72.2.1]
 
 ### Changed

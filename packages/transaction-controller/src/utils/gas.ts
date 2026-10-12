@@ -15,6 +15,7 @@ import {
 import { BigNumber } from 'bignumber.js';
 
 import { simulateTransactions } from '../api/simulation-api.js';
+import type { SimulationRequestTransaction } from '../api/simulation-api.js';
 import { projectLogger } from '../logger.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import { TransactionEnvelopeType } from '../types.js';
@@ -33,8 +34,11 @@ import {
   DELEGATION_PREFIX,
   doesAccountSupportEIP7702,
   generateEIP7702BatchTransaction,
+  getAuthorizationAuthority,
+  isAuthorizationSigned,
 } from './eip7702.js';
 import {
+  getEIP2780Type4GasEstimationEnabled,
   getGasEstimateBuffer,
   getGasEstimateFallback,
 } from './feature-flags.js';
@@ -186,8 +190,25 @@ export async function estimateGas({
     Boolean(data) &&
     data !== '0x';
 
+  const outerEstimateAuthorizationList =
+    txParams.type === TransactionEnvelopeType.setCode &&
+    authorizationList?.length &&
+    getEIP2780Type4GasEstimationEnabled(chainId, messenger)
+      ? authorizationList
+      : undefined;
+
   try {
-    if (isSimulationEnabled && isUpgradeWithData) {
+    if (outerEstimateAuthorizationList) {
+      estimatedGas = await estimateGasType4Outer({
+        authorizationList: outerEstimateAuthorizationList,
+        chainId,
+        getSimulationConfig,
+        isSimulationEnabled,
+        messenger,
+        networkClientId,
+        txParams: request,
+      });
+    } else if (isSimulationEnabled && isUpgradeWithData) {
       estimatedGas = await estimateGasUpgradeWithDataToSelf(
         request,
         messenger,
@@ -657,9 +678,81 @@ async function estimateGasUpgradeWithDataToSelf(
 }
 
 /**
- * Simulate the required gas using the simulation API.
+ * Estimate the gas for a type 4 transaction as one outer transaction.
+ *
+ * Used when the EIP-2780 type-4 gas estimation is enabled for the chain.
+ * Fully signed authorization lists are estimated by the selected node.
+ * Otherwise, a single Simulation API request is sent for the exact outer
+ * transaction, including the authorization list with the real authority of
+ * each entry, so that any runtime authorization charges are included.
  *
  * @param options - The options object.
+ * @param options.authorizationList - The original authorization list of the transaction.
+ * @param options.chainId - The chain ID of the transaction.
+ * @param options.getSimulationConfig - The function to get the simulation configuration.
+ * @param options.isSimulationEnabled - Whether the simulation is enabled.
+ * @param options.messenger - The messenger instance for communication.
+ * @param options.networkClientId - The network client ID.
+ * @param options.txParams - The normalized transaction parameters.
+ * @returns The estimated gas.
+ */
+async function estimateGasType4Outer({
+  authorizationList,
+  chainId,
+  getSimulationConfig,
+  isSimulationEnabled,
+  messenger,
+  networkClientId,
+  txParams,
+}: {
+  authorizationList: AuthorizationList;
+  chainId: Hex;
+  getSimulationConfig: GetSimulationConfig;
+  isSimulationEnabled: boolean;
+  messenger: TransactionControllerMessenger;
+  networkClientId: NetworkClientId;
+  txParams: TransactionParams;
+}): Promise<Hex> {
+  if (authorizationList.every(isAuthorizationSigned)) {
+    log('Estimating type 4 gas using node as all authorizations signed');
+    return await estimateGasNode(messenger, networkClientId, txParams);
+  }
+
+  if (!isSimulationEnabled) {
+    throw new Error(
+      'Cannot estimate type 4 transaction with unsigned authorizations as simulation disabled',
+    );
+  }
+
+  const simulationAuthorizationList = authorizationList.map((authorization) => {
+    const authority = getAuthorizationAuthority(authorization, txParams.from);
+
+    if (!authority) {
+      throw new Error('Cannot determine authority of signed authorization');
+    }
+
+    return { address: authorization.address, from: authority };
+  });
+
+  log('Estimating type 4 gas using simulation', simulationAuthorizationList);
+
+  return await simulateGas({
+    authorizationList: simulationAuthorizationList,
+    chainId,
+    getSimulationConfig,
+    transaction: txParams,
+  });
+}
+
+/**
+ * Simulate the required gas using the simulation API.
+ *
+ * If an authorization list is provided, it is included in the simulated
+ * transaction instead of a sender code override, and the response must
+ * include a non-zero gas limit and no error.
+ *
+ * @param options - The options object.
+ * @param options.authorizationList - The authorization list with the authority of each entry.
  * @param options.chainId - The chain ID of the transaction.
  * @param options.delegationAddress - The delegation address of the sender to mock.
  * @param options.getSimulationConfig - The function to get the simulation configuration.
@@ -667,38 +760,50 @@ async function estimateGasUpgradeWithDataToSelf(
  * @returns The simulated gas.
  */
 async function simulateGas({
+  authorizationList,
   chainId,
   delegationAddress,
   getSimulationConfig,
   transaction,
 }: {
+  authorizationList?: SimulationRequestTransaction['authorizationList'];
   chainId: Hex;
   delegationAddress?: Hex;
   getSimulationConfig: GetSimulationConfig;
   transaction: TransactionParams;
 }): Promise<Hex> {
-  const response = await simulateTransactions(chainId, {
-    getSimulationConfig,
-    transactions: [
-      {
-        to: transaction.to as Hex,
-        from: transaction.from as Hex,
-        data: transaction.data as Hex,
-        value: transaction.value as Hex,
-      },
-    ],
-    overrides: {
-      [transaction.from]: {
-        code:
-          delegationAddress &&
-          ((DELEGATION_PREFIX + remove0x(delegationAddress)) as Hex),
-      },
-    },
-  });
+  const simulationTransaction: SimulationRequestTransaction = {
+    to: transaction.to as Hex,
+    from: transaction.from as Hex,
+    data: transaction.data as Hex,
+    value: transaction.value as Hex,
+  };
 
-  const gasLimit = response?.transactions?.[0].gasLimit;
+  const response = authorizationList
+    ? await simulateTransactions(chainId, {
+        getSimulationConfig,
+        transactions: [{ ...simulationTransaction, authorizationList }],
+      })
+    : await simulateTransactions(chainId, {
+        getSimulationConfig,
+        transactions: [simulationTransaction],
+        overrides: {
+          [transaction.from]: {
+            code:
+              delegationAddress &&
+              ((DELEGATION_PREFIX + remove0x(delegationAddress)) as Hex),
+          },
+        },
+      });
 
-  if (!gasLimit) {
+  const simulatedTransaction = response?.transactions?.[0];
+  const gasLimit = simulatedTransaction?.gasLimit;
+
+  if (authorizationList && simulatedTransaction?.error) {
+    throw new Error(`Simulation failed: ${simulatedTransaction.error}`);
+  }
+
+  if (!gasLimit || (authorizationList && hexToBN(gasLimit).isZero())) {
     throw new Error('No simulated gas returned');
   }
 

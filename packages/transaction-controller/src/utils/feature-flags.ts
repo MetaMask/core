@@ -226,6 +226,23 @@ export type TransactionControllerFeatureFlags = {
        */
       default?: boolean;
     };
+
+    /**
+     * EIP-2780 rollout: estimate type-4 transactions as one outer transaction
+     * via the Simulation API, instead of the legacy split upgrade + execution
+     * estimate. Enable per chain once Sentinel supports it there.
+     * This is a rollout switch only and does not indicate EIP-2780 activation.
+     * Temporary: remove with the legacy path once enabled on all EIP-7702 chains.
+     */
+    eip2780Type4GasEstimation?: {
+      /** Enablement on a per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: boolean;
+      };
+
+      /** Default enablement when no chain-specific value is set. */
+      default?: boolean;
+    };
   };
 };
 
@@ -544,6 +561,25 @@ export function getReplaceUnderpricedSavedGasFeesEnabled(
     replaceUnderpricedSavedGasFeesFlags?.default ??
     false
   );
+}
+
+/**
+ * Retrieves whether type-4 transactions should be estimated as one outer
+ * transaction via the Simulation API (EIP-2780 rollout).
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns Whether the outer type-4 gas estimation is enabled.
+ */
+export function getEIP2780Type4GasEstimationEnabled(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): boolean {
+  const flags =
+    getFeatureFlags(messenger)?.[FeatureFlag.Transactions]
+      ?.eip2780Type4GasEstimation;
+
+  return flags?.perChainConfig?.[chainId] ?? flags?.default ?? false;
 }
 
 /**
