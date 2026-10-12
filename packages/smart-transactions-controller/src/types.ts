@@ -36,12 +36,12 @@ export enum Kind {
 
 /** API */
 export enum APIType {
-  'GET_FEES',
-  'ESTIMATE_GAS',
-  'SUBMIT_TRANSACTIONS',
-  'CANCEL',
-  'BATCH_STATUS',
-  'LIVENESS',
+  GET_FEES,
+  ESTIMATE_GAS,
+  SUBMIT_TRANSACTIONS,
+  CANCEL,
+  BATCH_STATUS,
+  LIVENESS,
 }
 
 /** SmartTransactions */
