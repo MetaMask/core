@@ -1865,10 +1865,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/runtime@npm:^7.1.2, @babel/runtime@npm:^7.10.3, @babel/runtime@npm:^7.12.13, @babel/runtime@npm:^7.12.5, @babel/runtime@npm:^7.23.9, @babel/runtime@npm:^7.25.9, @babel/runtime@npm:^7.29.7":
-  version: 7.29.10
-  resolution: "@babel/runtime@npm:7.29.10"
-  checksum: 10/883bb39a09f4773cf46cdd7ba0080ef6b30ff996a4ed21f8d34511ec0836122e697716533da5efc9b5016f763110b19aa07e81cec6e2036fe72cb26aad556af2
+"@babel/runtime@npm:^7.1.2, @babel/runtime@npm:^7.10.3, @babel/runtime@npm:^7.12.13, @babel/runtime@npm:^7.12.5, @babel/runtime@npm:^7.25.9, @babel/runtime@npm:^7.29.7":
+  version: 7.29.7
+  resolution: "@babel/runtime@npm:7.29.7"
+  checksum: 10/9883b4951787779fd382b121f22f92966d85f19434841f65fb00b2dfec232107e139683f47c6f252891826ad8ee18317b46c3a0e4819116a9885f47b46d7126a
   languageName: node
   linkType: hard
 
@@ -5360,7 +5360,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/multichain-account-service": "npm:^14.1.0"
     "@metamask/profile-sync-controller": "npm:^34.0.3"
-    "@metamask/providers": "npm:^22.1.0"
+    "@metamask/providers": "npm:^22.1.1"
     "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
@@ -5400,7 +5400,7 @@ __metadata:
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
-    "@metamask/providers": "npm:^22.1.0"
+    "@metamask/providers": "npm:^22.1.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
     "@metamask/watch-only-keyring": "npm:^0.1.0"
@@ -5652,7 +5652,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-utils": "npm:^12.1.2"
-    "@metamask/transaction-controller": "npm:^72.1.0"
+    "@metamask/transaction-controller": "npm:^72.2.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
@@ -5675,7 +5675,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
-    "@babel/runtime": "npm:^7.23.9"
+    "@babel/runtime": "npm:^7.29.7"
     "@ethereumjs/util": "npm:^9.1.0"
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/address": "npm:^5.8.0"
@@ -5710,14 +5710,14 @@ __metadata:
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/preferences-controller": "npm:^24.0.0"
     "@metamask/profile-sync-controller": "npm:^34.0.3"
-    "@metamask/providers": "npm:^22.1.0"
+    "@metamask/providers": "npm:^22.1.1"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
-    "@metamask/rpc-errors": "npm:^7.0.2"
+    "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/storage-service": "npm:^2.0.0"
-    "@metamask/transaction-controller": "npm:^72.1.0"
+    "@metamask/transaction-controller": "npm:^72.2.0"
     "@metamask/utils": "npm:^12.0.0"
     "@tanstack/query-core": "npm:^5.103.2"
     "@types/bn.js": "npm:^5.2.0"
@@ -5936,7 +5936,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/transaction-controller": "npm:^72.1.0"
+    "@metamask/transaction-controller": "npm:^72.2.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -6125,7 +6125,7 @@ __metadata:
     "@metamask/core-backend": "npm:^12.0.1"
     "@metamask/keyring-api": "npm:^24.2.0"
     "@metamask/slip44": "npm:^4.5.0"
-    "@metamask/transaction-controller": "npm:^72.1.0"
+    "@metamask/transaction-controller": "npm:^72.2.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -6502,7 +6502,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
     "@metamask/stake-sdk": "npm:^3.4.0"
-    "@metamask/transaction-controller": "npm:^72.1.0"
+    "@metamask/transaction-controller": "npm:^72.2.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.3.1"
@@ -7598,7 +7598,7 @@ __metadata:
     "@metamask/keyring-snap-client": "npm:^10.0.0"
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/providers": "npm:^22.1.0"
+    "@metamask/providers": "npm:^22.1.1"
     "@metamask/snap-account-service": "npm:^4.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/snaps-sdk": "npm:^11.0.0"
@@ -7831,7 +7831,7 @@ __metadata:
     "@metamask/multichain-network-controller": "npm:^4.0.0"
     "@metamask/network-controller": "npm:^37.0.1"
     "@metamask/slip44": "npm:^4.5.0"
-    "@metamask/transaction-controller": "npm:^72.1.0"
+    "@metamask/transaction-controller": "npm:^72.2.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8331,8 +8331,8 @@ __metadata:
     "@metamask/keyring-controller": "npm:^28.1.0"
     "@metamask/keyring-internal-api": "npm:^12.1.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/providers": "npm:^22.1.0"
-    "@metamask/rpc-errors": "npm:^7.0.2"
+    "@metamask/providers": "npm:^22.1.1"
+    "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/seedless-onboarding-controller": "npm:^12.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
@@ -8360,7 +8360,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/providers@npm:^22.1.0, @metamask/providers@npm:^22.1.1":
+"@metamask/providers@npm:^22.1.1":
   version: 22.1.1
   resolution: "@metamask/providers@npm:22.1.1"
   dependencies:
@@ -9057,7 +9057,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^72.1.0, @metamask/transaction-controller@npm:^72.2.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^72.2.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
