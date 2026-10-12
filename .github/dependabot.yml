@@ -14,6 +14,7 @@ updates:
         - '@lavamoat/*'
     groups:
       metamask-non-major:
+        applies-to: 'version-updates'
         patterns:
           - '@metamask/*'
           - '@lavamoat/*'
@@ -21,6 +22,7 @@ updates:
           - 'minor'
           - 'patch'
       external-non-major:
+        applies-to: 'version-updates'
         patterns:
           - '*'
         exclude-patterns:
