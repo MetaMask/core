@@ -682,6 +682,17 @@ describe('AccountsController', () => {
             }),
           ),
         ]);
+
+        // The synced Snap account must not share nested objects with the
+        // account returned by the keyring, so that controller state updates
+        // (and Immer's auto-freeze) cannot mutate or freeze the keyring's
+        // objects.
+        const snapAccount = accounts.find(
+          (account) => account.id === mockAccount3.id,
+        );
+        expect(snapAccount?.options).not.toBe(mockAccount3.options);
+        expect(snapAccount?.methods).not.toBe(mockAccount3.methods);
+        expect(snapAccount?.scopes).not.toBe(mockAccount3.scopes);
       });
 
       it('does not add Money or MPC keyring accounts', async () => {
@@ -963,6 +974,14 @@ describe('AccountsController', () => {
             importTime: expect.any(Number),
           },
         });
+
+        // The synced Snap account must not share nested objects with the
+        // account returned by the keyring, so that controller state updates
+        // (and Immer's auto-freeze) cannot mutate or freeze the keyring's
+        // objects.
+        expect(accounts[0].options).not.toBe(mockSnapV2KeyringAccount.options);
+        expect(accounts[0].methods).not.toBe(mockSnapV2KeyringAccount.methods);
+        expect(accounts[0].scopes).not.toBe(mockSnapV2KeyringAccount.scopes);
       });
 
       it('handles the event when a Snap v2 deleted the account before it was added', () => {
@@ -1134,6 +1153,13 @@ describe('AccountsController', () => {
         expect(accounts[0].metadata.lastSelected).toStrictEqual(
           expect.any(Number),
         );
+
+        // The synced account must not share nested objects with the keyring's
+        // own account, so that controller state updates (and Immer's
+        // auto-freeze) cannot mutate or freeze the keyring's objects.
+        expect(accounts[0].options).not.toBe(watchOnlyAccount.options);
+        expect(accounts[0].methods).not.toBe(watchOnlyAccount.methods);
+        expect(accounts[0].scopes).not.toBe(watchOnlyAccount.scopes);
       });
 
       it('handles the event when the watch-only keyring does not hold the address', async () => {
@@ -3587,6 +3613,13 @@ describe('AccountsController', () => {
           keyring: { type: KeyringType.WatchOnly },
         },
       });
+
+      // The synced account must not share nested objects with the keyring's
+      // own account, so that controller state updates (and Immer's
+      // auto-freeze) cannot mutate or freeze the keyring's objects.
+      expect(accounts[0].options).not.toBe(watchOnlyAccount.options);
+      expect(accounts[0].methods).not.toBe(watchOnlyAccount.methods);
+      expect(accounts[0].scopes).not.toBe(watchOnlyAccount.scopes);
     });
 
     it('skips Snap v2 account if no SnapKeyringV2 instance is found', async () => {

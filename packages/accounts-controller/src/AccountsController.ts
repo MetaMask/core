@@ -909,9 +909,19 @@ export class AccountsController extends BaseController<
       return undefined;
     }
 
+    const account = snapKeyring.getAccountByAddress(address);
+
     // This might be undefined if the Snap deleted the account before
     // reaching that point.
-    return snapKeyring.getAccountByAddress(address);
+    if (!account) {
+      return undefined;
+    }
+
+    // We force the copy of the keyring's account, to avoid sharing its
+    // nested objects (`options`, `methods`, `scopes`) with the keyring,
+    // which controller state updates could mutate or freeze (e.g. through
+    // Immer's auto-freeze).
+    return cloneDeep(account);
   }
 
   /**
@@ -972,21 +982,26 @@ export class AccountsController extends BaseController<
     return this.#getAccountFromV2Keyrings(
       KeyringType.Snap,
       address,
-      (account, keyringV2: SnapKeyringV2) => ({
-        ...account,
-        // We still have to use internal account for now, so we inject some metadata.
-        metadata: {
-          name: '',
-          importTime: Date.now(),
-          lastSelected: 0,
-          keyring: {
-            type: KeyringType.Snap,
+      (account, keyringV2: SnapKeyringV2) =>
+        // We force the copy of the keyring's account, to avoid sharing its
+        // nested objects (`options`, `methods`, `scopes`) with the keyring,
+        // which controller state updates could mutate or freeze (e.g. through
+        // Immer's auto-freeze).
+        cloneDeep({
+          ...account,
+          // We still have to use internal account for now, so we inject some metadata.
+          metadata: {
+            name: '',
+            importTime: Date.now(),
+            lastSelected: 0,
+            keyring: {
+              type: KeyringType.Snap,
+            },
+            snap: {
+              id: keyringV2.snapId,
+            },
           },
-          snap: {
-            id: keyringV2.snapId,
-          },
-        },
-      }),
+        }),
     );
   }
 
@@ -1007,18 +1022,23 @@ export class AccountsController extends BaseController<
     return this.#getAccountFromV2Keyrings(
       KeyringType.WatchOnly,
       address,
-      (account) => ({
-        ...account,
-        // We still have to use internal account for now, so we inject some metadata.
-        metadata: {
-          name: '',
-          importTime: Date.now(),
-          lastSelected: 0,
-          keyring: {
-            type: KeyringType.WatchOnly,
+      (account) =>
+        // We force the copy of the keyring's account, to avoid sharing its
+        // nested objects (`options`, `methods`, `scopes`) with the keyring,
+        // which controller state updates could mutate or freeze (e.g. through
+        // Immer's auto-freeze).
+        cloneDeep({
+          ...account,
+          // We still have to use internal account for now, so we inject some metadata.
+          metadata: {
+            name: '',
+            importTime: Date.now(),
+            lastSelected: 0,
+            keyring: {
+              type: KeyringType.WatchOnly,
+            },
           },
-        },
-      }),
+        }),
     );
   }
 
@@ -1304,22 +1324,17 @@ export class AccountsController extends BaseController<
     const isSnapKeyringV2 = isSnapKeyringV2Type(keyring.type);
 
     if (isSnapKeyringV1 || isSnapKeyringV2) {
-      let account: InternalAccount | undefined;
-
-      if (isSnapKeyringV1) {
-        account = this.#getAccountFromSnapKeyringV1(address);
-      } else {
-        account = this.#getAccountFromSnapKeyringV2(address);
-      }
+      const account = isSnapKeyringV1
+        ? this.#getAccountFromSnapKeyringV1(address)
+        : this.#getAccountFromSnapKeyringV2(address);
 
       if (account) {
-        // We force the copy here, to avoid mutating the reference returned by the Snap keyring.
-        account = cloneDeep(account);
-
         // MIGRATION: To avoid any existing Snap account migration, we are
         // just "adding" the new typed options that we need for multichain
         // accounts. Ultimately, we would need a real Snap account migrations
         // (being handled by each Snaps).
+        // NOTE: The account returned by the helpers above is a detached copy,
+        // so it is safe to mutate here.
         if (isHdSnapKeyringAccount(account)) {
           const options: HdSnapKeyringAccount['options'] = {
             ...account.options,
