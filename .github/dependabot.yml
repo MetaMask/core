@@ -7,11 +7,41 @@ updates:
     directory: '/'
     schedule:
       interval: 'daily'
+    # Our own packages are exempt from `npmMinimalAgeGate` in `.yarnrc.yml`, so
+    # they are exempt here too and move as soon as they are released. Everything
+    # else waits 3 days, which is the value that gate is set to.
     cooldown:
       default-days: 3
-    allow:
-      - dependency-name: '@metamask/*'
-      - dependency-name: '@lavamoat/*'
+      exclude:
+        - '@metamask/*'
+        - '@lavamoat/*'
+    # Major versions are deliberately left out of every group so they arrive one
+    # per pull request: they need the changelog read. Minor and patch updates are
+    # grouped, split by owner so a batch of our own releases is reviewed
+    # separately from a batch of third party ones.
+    #
+    # Dependabot cannot filter update types per scope within one entry, so this
+    # cannot suppress third party minor and patch updates while keeping ours.
+    # They arrive as one grouped pull request instead.
+    groups:
+      metamask-non-major:
+        patterns:
+          - '@metamask/*'
+          - '@lavamoat/*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      external-non-major:
+        patterns:
+          - '*'
+        exclude-patterns:
+          - '@metamask/*'
+          - '@lavamoat/*'
+        update-types:
+          - 'minor'
+          - 'patch'
+    # Version updates only; security updates are uncapped and unaffected.
+    open-pull-requests-limit: 10
     versioning-strategy: 'increase'
 
   - package-ecosystem: 'github-actions'
