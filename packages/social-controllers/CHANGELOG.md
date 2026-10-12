@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Set `staleTime: 0` on `fetchFollowers` and `fetchTraderFollowing` so follow-list refetches after follow/unfollow are not served from the 1-minute `BaseDataService` cache ([#xxxx](https://github.com/MetaMask/core/pull/xxxx))
+
 ### Changed
 
 - Bump `@metamask/core-backend` from `^12.0.1` to `^12.1.0` ([#10788](https://github.com/MetaMask/core/pull/10788))
