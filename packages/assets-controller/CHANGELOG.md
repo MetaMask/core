@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a transient, non-persisted per-account assets loading state (`assetsLoadingStatus`) that marks an account as `loading` from its first user-visible assets fetch until that fetch settles, and never re-marks it on later refreshes, with selectors to read it ([#10230](https://github.com/MetaMask/core/pull/10230))
+
 ### Changed
 
 - RPC token detection now loads supported networks, occurrence floors, and per-chain token lists through `queryApiClient.token` (`GET /v2/supportedNetworks`, `GET /v1/suggestedOccurrenceFloors`, `GET /tokens/{chainId}`), replacing the local `TokensApiClient` ([#10672](https://github.com/MetaMask/core/pull/10672))
