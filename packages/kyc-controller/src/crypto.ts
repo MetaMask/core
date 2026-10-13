@@ -25,7 +25,7 @@ import {
   getSharedSecret,
   generateKeyPair as nativeGenerateKeyPair,
 } from '@metamask/cryptography/x25519';
-import { bytesToHex, hexToBytes } from '@metamask/utils';
+import { bytesToHex, hexToBytes, remove0x } from '@metamask/utils';
 
 import { base64UrlToBytes } from './encoding.js';
 
@@ -90,7 +90,7 @@ export async function generateKeyPair(): Promise<X25519KeyPair> {
   return {
     privateKey,
     publicKey,
-    publicKeyHex: bytesToHex(publicKey),
+    publicKeyHex: remove0x(bytesToHex(publicKey)),
   };
 }
 
