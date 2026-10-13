@@ -10,8 +10,9 @@ import type { BackendWebSocketService } from './BackendWebSocketService.js';
  *
  * Connection Requirements (all must be true):
  * 1. Feature enabled (isEnabled() = true)
- * 2. Wallet unlocked (checked by getBearerToken)
- * 3. User signed in (checked by getBearerToken)
+ * 2. Basic functionality enabled (isBasicFunctionality() = true)
+ * 3. Wallet unlocked (checked by getBearerToken)
+ * 4. User signed in (checked by getBearerToken)
  *
  * Platform code should call this when app opens/foregrounds.
  * Automatically called on KeyringController:unlock event.

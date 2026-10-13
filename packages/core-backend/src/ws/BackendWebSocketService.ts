@@ -245,6 +245,24 @@ export type BackendWebSocketServiceOptions = {
   /** Optional callback to determine if connection should be enabled (default: always enabled) */
   isEnabled?: () => boolean;
 
+  /**
+   * Getter for basic functionality (matches the "Basic functionality" setting).
+   * When it returns true, the backend WebSocket may connect. When false, the
+   * service does not connect or reconnect, and an open socket is closed.
+   * Defaults to () => true when omitted.
+   */
+  isBasicFunctionality?: () => boolean;
+
+  /**
+   * Called by the service with an onChange callback. The consumer subscribes to
+   * its basic-functionality source and invokes onChange when the value changes.
+   * The service then connects or disconnects. May return an unsubscribe
+   * function called on destroy. Optional.
+   */
+  subscribeToBasicFunctionalityChange?: (
+    onChange: (isBasic: boolean) => void,
+  ) => void | (() => void);
+
   /** Optional callback to trace performance of WebSocket operations (default: no-op) */
   traceFn?: TraceCallback;
 };
@@ -378,6 +396,7 @@ export type BackendWebSocketServiceMessenger = Messenger<
  * - Call connect() when app opens/foregrounds
  * - Call disconnect() when app closes/backgrounds
  * - Provide isEnabled() callback (feature flag)
+ * - Provide isBasicFunctionality() when Basic Functionality can be turned off
  * - Call destroy() on app termination
  *
  * Real-Time Performance Optimizations:
@@ -396,10 +415,21 @@ export class BackendWebSocketService {
   readonly #messenger: BackendWebSocketServiceMessenger;
 
   readonly #options: Required<
-    Omit<BackendWebSocketServiceOptions, 'messenger' | 'isEnabled' | 'traceFn'>
+    Omit<
+      BackendWebSocketServiceOptions,
+      | 'messenger'
+      | 'isEnabled'
+      | 'isBasicFunctionality'
+      | 'subscribeToBasicFunctionalityChange'
+      | 'traceFn'
+    >
   >;
 
   readonly #isEnabled: (() => boolean) | undefined;
+
+  readonly #isBasicFunctionality: () => boolean;
+
+  #unsubscribeBasicFunctionality: (() => void) | undefined;
 
   readonly #trace: TraceCallback;
 
@@ -454,6 +484,7 @@ export class BackendWebSocketService {
   constructor(options: BackendWebSocketServiceOptions) {
     this.#messenger = options.messenger;
     this.#isEnabled = options.isEnabled;
+    this.#isBasicFunctionality = options.isBasicFunctionality ?? (() => true);
     // Default to no-op trace function to keep core platform-agnostic
     this.#trace =
       options.traceFn ??
@@ -479,6 +510,55 @@ export class BackendWebSocketService {
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+
+    if (options.subscribeToBasicFunctionalityChange) {
+      const unsubscribe = options.subscribeToBasicFunctionalityChange(
+        (_isBasic) => {
+          this.#handleBasicFunctionalityChange();
+        },
+      );
+      if (typeof unsubscribe === 'function') {
+        this.#unsubscribeBasicFunctionality = unsubscribe;
+      }
+    }
+  }
+
+  /**
+   * Whether a connection attempt is allowed.
+   *
+   * Both gates are required when provided: the product feature flag and the
+   * user's Basic Functionality setting.
+   *
+   * @returns True when the socket may connect.
+   */
+  #isConnectionAllowed(): boolean {
+    if (this.#isEnabled && !this.#isEnabled()) {
+      return false;
+    }
+    return this.#isBasicFunctionality();
+  }
+
+  /**
+   * Stop connection attempts and close an open socket.
+   */
+  #blockConnection(): void {
+    this.#clearTimers();
+    this.#reconnectAttempts = 0;
+    this.#newBackoff();
+    this.disconnect();
+  }
+
+  /**
+   * Apply a Basic Functionality change. The getter is the source of truth.
+   */
+  #handleBasicFunctionalityChange(): void {
+    if (!this.#isConnectionAllowed()) {
+      this.#blockConnection();
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.connect();
   }
 
   /**
@@ -527,8 +607,9 @@ export class BackendWebSocketService {
    *
    * Connection Requirements (all must be true):
    * 1. Feature enabled (isEnabled() = true)
-   * 2. Wallet unlocked (checked by getBearerToken)
-   * 3. User signed in (checked by getBearerToken)
+   * 2. Basic functionality enabled (isBasicFunctionality() = true)
+   * 3. Wallet unlocked (checked by getBearerToken)
+   * 4. User signed in (checked by getBearerToken)
    *
    * Platform code should call this when app opens/foregrounds.
    * Automatically called on KeyringController:unlock event.
@@ -536,12 +617,10 @@ export class BackendWebSocketService {
    * @returns Promise that resolves when connection is established
    */
   async connect(): Promise<void> {
-    // Priority 1: Check if feature is enabled via callback (feature flag check)
-    // If feature is disabled, stop all connection attempts
-    if (this.#isEnabled && !this.#isEnabled()) {
-      // Clear any pending reconnection attempts since feature is disabled
-      this.#clearTimers();
-      this.#reconnectAttempts = 0;
+    // Priority 1: Feature flag and Basic Functionality must both allow the socket.
+    // If either gate is closed, stop attempts and drop an open connection.
+    if (!this.#isConnectionAllowed()) {
+      this.#blockConnection();
       return;
     }
 
@@ -913,6 +992,9 @@ export class BackendWebSocketService {
    * Called when service is being destroyed or app is terminating
    */
   destroy(): void {
+    this.#unsubscribeBasicFunctionality?.();
+    this.#unsubscribeBasicFunctionality = undefined;
+
     // Always clear timers first to prevent reconnection attempts after destruction
     // This handles the case where destroy() is called while DISCONNECTED with a pending reconnect timer
     this.#clearTimers();
@@ -1522,11 +1604,9 @@ export class BackendWebSocketService {
       // Clear timer reference first
       this.#reconnectTimer = null;
 
-      // Check if connection is still enabled before reconnecting
-      if (this.#isEnabled && !this.#isEnabled()) {
-        this.#reconnectAttempts = 0;
-        // Create new backoff sequence when disabled
-        this.#newBackoff();
+      // Check if connection is still allowed before reconnecting
+      if (!this.#isConnectionAllowed()) {
+        this.#blockConnection();
         return;
       }
 
