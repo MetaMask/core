@@ -10,6 +10,7 @@ export { gasFeeController } from './gas-fee-controller/gas-fee-controller.js';
 export { keyringController } from './keyring-controller/keyring-controller.js';
 export { networkController } from './network-controller/network-controller.js';
 export { passkeyController } from './passkey-controller/passkey-controller.js';
+export { permissionController } from './permission-controller/permission-controller.js';
 export { remoteFeatureFlagController } from './remote-feature-flag-controller/remote-feature-flag-controller.js';
 export { seedlessOnboardingController } from './seedless-onboarding-controller/seedless-onboarding-controller.js';
 export { shieldApiService } from './shield-api-service/shield-api-service.js';
