@@ -23,7 +23,11 @@ export type {
 } from './MfaRecoveryController-method-action-types.js';
 export { CubistEscrowProvider } from './escrow-providers/cubist-escrow-provider.js';
 export type { CubistEscrowProviderOptions } from './escrow-providers/cubist-escrow-provider.js';
-export { IncompleteMutationError, MfaRecoveryError } from './errors.js';
+export {
+  IncompleteMutationError,
+  MfaRecoveryError,
+  MutationRejectedError,
+} from './errors.js';
 export {
   IDENTIFIER_AUTH_MODES,
   MIN_IDENTIFIERS,

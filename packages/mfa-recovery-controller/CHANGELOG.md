@@ -29,4 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `getRecoverySecret` now accepts an `IdentifierSession` returned by `authenticateIdentifier` instead of an `Identifier`
 
+### Fixed
+
+- Clear a pending mutation when every escrow rejects it before applying, so a second `register` or an update with a stale epoch does not stay in `writing`. `resume()` still retries an incomplete write, and `abort()` still refuses a `writing` mutation that may have been applied
+
 [Unreleased]: https://github.com/MetaMask/core/

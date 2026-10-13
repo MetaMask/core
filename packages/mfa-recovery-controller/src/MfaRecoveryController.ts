@@ -18,7 +18,11 @@ import {
   unixNow,
   wrapKeyId,
 } from './crypto.js';
-import { IncompleteMutationError, MfaRecoveryError } from './errors.js';
+import {
+  IncompleteMutationError,
+  MfaRecoveryError,
+  MutationRejectedError,
+} from './errors.js';
 import {
   isFulfilledResult,
   isMutationReceipt,
@@ -599,6 +603,11 @@ export class MfaRecoveryController extends BaseController<
       mutation,
       writing.receipts,
     );
+    const rejection = unanimousMutationRejection(results, writing.receipts);
+    if (rejection) {
+      await this.#clearPending();
+      throw rejection;
+    }
     await this.#persistPending({ ...writing, receipts });
 
     if (hasInvalidReceipt) {
@@ -808,4 +817,31 @@ export class MfaRecoveryController extends BaseController<
     );
     return await run;
   }
+}
+
+/**
+ * Every remaining escrow refused the mutation, and none has a receipt.
+ *
+ * @param results - Settled apply results for the remaining escrows.
+ * @param existingReceipts - Receipts already stored for this mutation.
+ * @returns The first refusal, or `null` when the write may have been applied.
+ */
+function unanimousMutationRejection(
+  results: PromiseSettledResult<MutationReceipt>[],
+  existingReceipts: MutationReceipt[],
+): MutationRejectedError | null {
+  if (existingReceipts.length > 0 || results.length === 0) {
+    return null;
+  }
+  let rejection: MutationRejectedError | null = null;
+  for (const result of results) {
+    if (
+      result.status !== 'rejected' ||
+      !(result.reason instanceof MutationRejectedError)
+    ) {
+      return null;
+    }
+    rejection ??= result.reason;
+  }
+  return rejection;
 }

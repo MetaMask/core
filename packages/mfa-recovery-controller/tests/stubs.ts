@@ -14,7 +14,7 @@ import {
   verifySignature,
   wrapKeyId,
 } from '../src/crypto.js';
-import { MfaRecoveryError } from '../src/errors.js';
+import { MfaRecoveryError, MutationRejectedError } from '../src/errors.js';
 import {
   MIN_IDENTIFIERS,
   getIdentifierAuthMode,
@@ -184,6 +184,8 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
   readonly #replicaIds: string[];
 
+  #applyCommitted = false;
+
   constructor(
     id: string,
     wrapKey: { publicKey: string; privateKey: string } = generateSigningKey(),
@@ -282,6 +284,28 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       throw new MfaRecoveryError('Injected apply failure', 'apply_failed');
     }
 
+    this.#applyCommitted = false;
+    try {
+      return await this.#applyMutation(
+        mutation,
+        authControllerToken,
+        identifierAuthorization,
+        payload,
+      );
+    } catch (error) {
+      if (!this.#applyCommitted && error instanceof MfaRecoveryError) {
+        throw new MutationRejectedError(error.message);
+      }
+      throw error;
+    }
+  }
+
+  async #applyMutation(
+    mutation: Mutation,
+    authControllerToken: AuthControllerToken,
+    identifierAuthorization: IdentifierAuthorization | null,
+    payload: MutationPayload,
+  ): Promise<MutationReceipt> {
     await this.#verifyMutationAuthorization(mutation, authControllerToken);
 
     const existing = this.#records.get(mutation.profileId)?.appliedMutations[
@@ -329,6 +353,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         mutation.profileId,
         registerPayload.identifiers,
       );
+      this.#applyCommitted = true;
       const next: RecoveryRecord = {
         profileId: mutation.profileId,
         identifiers: registerPayload.identifiers,
@@ -379,12 +404,14 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       await this.#assertPayloadHash(mutation, {
         recoverySecret,
       });
+      this.#applyCommitted = true;
       record.recoverySecret = recoverySecret;
     } else {
       const { identifiers } = payload as UpdateIdentifiersPayload;
       await this.#assertPayloadHash(mutation, payload);
       await this.#assertIdentifierOwnership(authControllerToken, identifiers);
       this.#assertIdentifiersAvailable(mutation.profileId, identifiers);
+      this.#applyCommitted = true;
       this.#replaceIdentifierIndex(
         mutation.profileId,
         record.identifiers,

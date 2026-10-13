@@ -28,3 +28,16 @@ export class IncompleteMutationError extends MfaRecoveryError {
     this.mutationId = mutationId;
   }
 }
+
+/**
+ * Thrown when an escrow refuses a mutation without applying it.
+ *
+ * When every escrow does this and none has a receipt, the controller clears
+ * the pending mutation. Start a new mutation; do not call `resume()`.
+ */
+export class MutationRejectedError extends MfaRecoveryError {
+  constructor(message: string) {
+    super(message, 'mutation_rejected');
+    this.name = 'MutationRejectedError';
+  }
+}

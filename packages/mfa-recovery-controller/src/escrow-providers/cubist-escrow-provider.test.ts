@@ -7,7 +7,7 @@ import {
   sign,
   wrapKeyId,
 } from '../crypto.js';
-import { MfaRecoveryError } from '../errors.js';
+import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
 import type {
   AuthControllerToken,
   EcPublicJwk,
@@ -172,6 +172,15 @@ describe('CubistEscrowProvider', () => {
       await expect(
         provider.applyMutation(MUTATION, TOKEN, AUTHORIZATION, PAYLOAD),
       ).rejects.toMatchObject({ code: 'escrow_response_invalid' });
+    });
+
+    it('reports a policy deny as a mutation rejection', async () => {
+      const { provider } = createProvider({
+        policy: { response: 'Deny', reason: 'version mismatch' },
+      });
+      await expect(
+        provider.applyMutation(MUTATION, TOKEN, null, PAYLOAD),
+      ).rejects.toBeInstanceOf(MutationRejectedError);
     });
   });
 
