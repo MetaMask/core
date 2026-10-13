@@ -30,6 +30,10 @@ import {
   logGasPaymentOutcome,
   resolveGasPayment,
 } from '../../utils/gas-payment.js';
+import {
+  submitPolymarketWithdraw,
+  sweepPolymarketDepositWallet,
+} from '../../utils/polymarket/withdraw.js';
 import { getNetworkClientId } from '../../utils/provider.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
@@ -49,11 +53,8 @@ import {
   RELAY_FAILURE_STATUSES,
   RELAY_PENDING_STATUSES,
 } from './constants.js';
+import { getRelayDepositData } from './deposit-step.js';
 import { submitHyperliquidWithdraw } from './hyperliquid-withdraw.js';
-import {
-  sweepPolymarketDepositWallet,
-  submitPolymarketWithdraw,
-} from './polymarket/withdraw.js';
 import { getRelayStatus } from './relay-api.js';
 import { submitViaRelayExecute } from './relay-submit-execute.js';
 import type {
@@ -174,7 +175,12 @@ async function executeSingleQuote(
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
   } else if (isPolymarket) {
     const { sourceHash, preSubmitUsdceBalance } =
-      await submitPolymarketWithdraw(quote, quote.request.from, messenger);
+      await submitPolymarketWithdraw({
+        depositData: getRelayDepositData(quote.original),
+        from: quote.request.from,
+        messenger,
+        sourceAmountRaw: quote.sourceAmount.raw,
+      });
     polymarketPreSubmitUsdceBalance = preSubmitUsdceBalance;
     setRelaySourceHash(transaction, messenger, sourceHash);
   } else {
@@ -196,8 +202,11 @@ async function executeSingleQuote(
   log('Relay request completed', completion);
 
   if (isPolymarket) {
-    await sweepPolymarketDepositWallet(quote.request.from, messenger, {
-      relayStatus: completion.status,
+    await sweepPolymarketDepositWallet({
+      from: quote.request.from,
+      isRefund:
+        completion.status === 'refund' || completion.status === 'refunded',
+      messenger,
       preSubmitUsdceBalance: polymarketPreSubmitUsdceBalance,
     });
 
