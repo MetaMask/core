@@ -556,12 +556,10 @@ export class BackendWebSocketService {
     // abort resolves that attempt without connecting, so start a new handshake
     // when the setting is back on.
     if (this.#connectionPromise) {
-      const inFlight = this.#connectionPromise;
-      await inFlight;
-      if (this.#connectionPromise === inFlight) {
-        this.#connectionPromise = null;
-      }
-      if (!this.#isConnectionAllowed() || this.#reconnectTimer) {
+      await this.#connectionPromise;
+      // The attempt that owns the promise clears it. If Basic Functionality
+      // turned off while this call waited, do not open another socket.
+      if (!this.#isConnectionAllowed()) {
         return;
       }
       // connect() returns immediately when the awaited attempt reached CONNECTED.

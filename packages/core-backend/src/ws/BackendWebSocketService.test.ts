@@ -981,6 +981,33 @@ describe('BackendWebSocketService', () => {
       );
     });
 
+    it('does not open another socket when a waiting connect ends with basic functionality off', async () => {
+      let isBasic = true;
+      await withService(
+        {
+          options: { isBasicFunctionality: () => isBasic },
+          mockWebSocketOptions: { autoConnect: false },
+        },
+        async ({ service, completeAsyncOperations }) => {
+          const firstConnect = service.connect();
+          await completeAsyncOperations(0);
+          const waitingConnect = service.connect();
+
+          isBasic = false;
+          service.disconnect();
+          await firstConnect;
+          await waitingConnect;
+          await completeAsyncOperations(5000);
+
+          expect(MockWebSocket.getInstanceCount()).toBe(1);
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+        },
+      );
+    });
+
     it('does not reconnect when disconnect aborts a CONNECTING handshake with code 1006', async () => {
       await withService(
         { mockWebSocketOptions: { autoConnect: false } },
