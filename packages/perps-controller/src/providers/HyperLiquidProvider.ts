@@ -7778,6 +7778,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (generation !== this.#strategyGeneration) {
       let remainsLive = true;
       try {
+        await this.#assertNoKnownUnsupportedAccount(
+          accountContext,
+          'Stale TWAP placement rollback',
+        );
         const cancelResult = await exchangeClient.twapCancel({
           a: assetId,
           t: running.twapId,
@@ -8012,6 +8016,27 @@ export class HyperLiquidProvider implements PerpsProvider {
       orderIds: string[];
       clientOrderIds: Hex[];
     }> => {
+      try {
+        await this.#assertNoKnownUnsupportedAccount(
+          accountContext,
+          'Scale placement rollback',
+        );
+      } catch (error) {
+        this.#deps.debugLogger.log(
+          'Scale placement rollback not signed after its account context changed',
+          {
+            error: ensureError(
+              error,
+              'HyperLiquidProvider.placeScaleOrder.rollback',
+            ).message,
+            groupId,
+          },
+        );
+        return {
+          orderIds: restingChildOrderIds,
+          clientOrderIds: cleanupClientOrderIds,
+        };
+      }
       const [orderIds, pendingClientOrderIds] = await Promise.all([
         this.#cancelOrderRequests(
           exchangeClient,
@@ -16085,11 +16110,20 @@ export class HyperLiquidProvider implements PerpsProvider {
    *   amount: '10'
    * });
    */
-  transferBetweenDexs(
-    params: TransferBetweenDexsParams,
-  ): Promise<TransferBetweenDexsResult>;
-
   async transferBetweenDexs(
+    params: TransferBetweenDexsParams,
+  ): Promise<TransferBetweenDexsResult> {
+    return await this.#transferBetweenDexs(params);
+  }
+
+  /**
+   * Transfer collateral with an optional context captured by a parent action.
+   *
+   * @param params - Transfer parameters.
+   * @param expectedContext - Context captured by the parent action.
+   * @returns The transfer result.
+   */
+  async #transferBetweenDexs(
     params: TransferBetweenDexsParams,
     expectedContext?: AccountSupportContext,
   ): Promise<TransferBetweenDexsResult> {
@@ -16196,12 +16230,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Invoke the public transfer path with an operation context that is hidden
-   * from the provider contract.
-   *
-   * The cast reaches the implementation-only second parameter while preserving
-   * the one-parameter public declaration. Calling through the public method
-   * also keeps existing instrumentation and test spies on that boundary.
+   * Transfer collateral using a context captured by a parent action.
    *
    * @param params - Transfer parameters.
    * @param accountContext - Original action context for the transfer.
@@ -16211,11 +16240,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     params: TransferBetweenDexsParams,
     accountContext: AccountSupportContext,
   ): Promise<TransferBetweenDexsResult> {
-    const transfer = this.transferBetweenDexs.bind(this) as unknown as (
-      transferParams: TransferBetweenDexsParams,
-      expectedContext: AccountSupportContext,
-    ) => Promise<TransferBetweenDexsResult>;
-    return await transfer(params, accountContext);
+    return await this.#transferBetweenDexs(params, accountContext);
   }
 
   /**
