@@ -153,7 +153,7 @@ describe('crypto', () => {
 
     it('throws for a JSON string that fails to parse', async () => {
       const keypair = await generateKeyPair();
-      expect(
+      await expect(
         decryptCredentials('{ not valid json', keypair.privateKey),
       ).rejects.toThrow(/looked like JSON but failed to parse/u);
     });
@@ -161,7 +161,7 @@ describe('crypto', () => {
     it('throws for base64 that decodes to non-JSON starting with a brace', async () => {
       const keypair = await generateKeyPair();
       const bad = base64.encode(utf8ToBytes('{ still not json'));
-      expect(decryptCredentials(bad, keypair.privateKey)).rejects.toThrow(
+      await expect(decryptCredentials(bad, keypair.privateKey)).rejects.toThrow(
         /base64-decoded to non-JSON/u,
       );
     });
@@ -169,7 +169,7 @@ describe('crypto', () => {
     it('throws for an opaque string that is neither JSON nor base64(JSON)', async () => {
       const keypair = await generateKeyPair();
       const bad = base64.encode(utf8ToBytes('hello world'));
-      expect(decryptCredentials(bad, keypair.privateKey)).rejects.toThrow(
+      await expect(decryptCredentials(bad, keypair.privateKey)).rejects.toThrow(
         /opaque string/u,
       );
     });
@@ -183,7 +183,7 @@ describe('crypto', () => {
 
     it('throws for an object missing required fields', async () => {
       const keypair = await generateKeyPair();
-      expect(
+      await expect(
         decryptCredentials(
           { ephemeralPublicKey: 'aa' } as EncryptedCredentialsEnvelope,
           keypair.privateKey,
@@ -193,7 +193,7 @@ describe('crypto', () => {
 
     it('reports the value type for a non-object input', async () => {
       const keypair = await generateKeyPair();
-      expect(
+      await expect(
         decryptCredentials(
           123 as unknown as EncryptedCredentialsEnvelope,
           keypair.privateKey,
@@ -208,9 +208,9 @@ describe('crypto', () => {
         { accessToken: 'x' },
         { ivLength: 16 },
       );
-      expect(decryptCredentials(envelope, keypair.privateKey)).rejects.toThrow(
-        /Unexpected IV length 16/u,
-      );
+      await expect(
+        decryptCredentials(envelope, keypair.privateKey),
+      ).rejects.toThrow(/Unexpected IV length 16/u);
     });
   });
 });
