@@ -2274,9 +2274,18 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, rootMessenger, mockService }) => {
-          mockService.unCancelSubscription.mockResolvedValue({
+          const uncancelledSubscription = {
             ...MOCK_SUBSCRIPTION,
             status: SUBSCRIPTION_STATUSES.active,
+          };
+          mockService.unCancelSubscription.mockResolvedValue(
+            uncancelledSubscription,
+          );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [uncancelledSubscription, mockSubscription2],
+            trialedProducts: [],
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
           });
           expect(
             await rootMessenger.call(
@@ -2287,13 +2296,99 @@ describe('SubscriptionController', () => {
             ),
           ).toBeUndefined();
           expect(controller.state.subscriptions).toStrictEqual([
-            { ...MOCK_SUBSCRIPTION, status: SUBSCRIPTION_STATUSES.active },
+            uncancelledSubscription,
             mockSubscription2,
           ]);
           expect(mockService.unCancelSubscription).toHaveBeenCalledWith({
             subscriptionId: MOCK_SUBSCRIPTION.id,
           });
           expect(mockService.unCancelSubscription).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should clear a stale cancelAtPeriodEnd when the uncancel response omits it', async () => {
+      const pendingCancellation = {
+        ...MOCK_SUBSCRIPTION,
+        cancelAtPeriodEnd: true,
+      };
+      const resumedSubscription = {
+        ...MOCK_SUBSCRIPTION,
+        status: SUBSCRIPTION_STATUSES.active,
+      };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [pendingCancellation],
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.unCancelSubscription.mockResolvedValue(
+            resumedSubscription,
+          );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [resumedSubscription],
+            trialedProducts: [],
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          });
+
+          await rootMessenger.call(
+            'SubscriptionController:unCancelSubscription',
+            {
+              subscriptionId: MOCK_SUBSCRIPTION.id,
+            },
+          );
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            resumedSubscription,
+          ]);
+          expect(
+            controller.state.subscriptions[0]?.cancelAtPeriodEnd,
+          ).toBeUndefined();
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should replace the subscription with the uncancel response when the subscription refresh fails', async () => {
+      const pendingCancellation = {
+        ...MOCK_SUBSCRIPTION,
+        cancelAtPeriodEnd: true,
+        canceledAt: '2024-01-15T00:00:00Z',
+      };
+      const resumedSubscription = {
+        ...MOCK_SUBSCRIPTION,
+        status: SUBSCRIPTION_STATUSES.active,
+      };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [pendingCancellation],
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.unCancelSubscription.mockResolvedValue(
+            resumedSubscription,
+          );
+          mockService.getSubscriptions.mockRejectedValue(
+            new SubscriptionServiceError('Failed to refresh subscriptions'),
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:unCancelSubscription',
+            {
+              subscriptionId: MOCK_SUBSCRIPTION.id,
+            },
+          );
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            resumedSubscription,
+          ]);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -2362,6 +2457,7 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_123456789',
           });
           expect(mockService.unCancelSubscription).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).not.toHaveBeenCalled();
         },
       );
     });
@@ -2382,6 +2478,12 @@ describe('SubscriptionController', () => {
           mockService.unCancelSubscription.mockResolvedValue(
             MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
           );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            trialedProducts: [],
+            productEntitlements: {},
+          });
           mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
 
           await rootMessenger.call(
@@ -2396,6 +2498,7 @@ describe('SubscriptionController', () => {
           ]);
           expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -2416,6 +2519,12 @@ describe('SubscriptionController', () => {
           mockService.unCancelSubscription.mockResolvedValue(
             MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
           );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            trialedProducts: [],
+            productEntitlements: {},
+          });
           mockService.getBenefits.mockRejectedValue(
             new SubscriptionServiceError('Failed to get benefits'),
           );
@@ -2434,6 +2543,7 @@ describe('SubscriptionController', () => {
           ]);
           expect(controller.state.benefits).toBeUndefined();
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
         },
       );
     });
