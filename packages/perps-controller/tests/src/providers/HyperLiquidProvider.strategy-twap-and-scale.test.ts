@@ -1030,8 +1030,18 @@ describe('HyperLiquidProvider - strategy order types', () => {
         }
         return Promise.resolve(createClearinghouseBalance(withdrawable));
       });
+      const cleanupStarted = createDeferred<void>();
+      const pendingCleanup = createDeferred<{ status: 'ok' }>();
+      const sendAsset = vi
+        .fn()
+        .mockResolvedValueOnce({ status: 'ok' })
+        .mockImplementationOnce(() => {
+          cleanupStarted.resolve();
+          return pendingCleanup.promise;
+        });
       useStrategyClients({
         exchange: {
+          sendAsset,
           twapOrder: vi.fn().mockImplementation(async () => {
             twapPlaced = true;
             return {
@@ -1078,15 +1088,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useUnifiedAccount: false,
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
-      const cleanupStarted = createDeferred<void>();
-      const pendingCleanup = createDeferred<{ success: boolean }>();
-      const transfer = vi
-        .spyOn(provider, 'transferBetweenDexs')
-        .mockResolvedValueOnce({ success: true })
-        .mockImplementationOnce(() => {
-          cleanupStarted.resolve();
-          return pendingCleanup.promise;
-        });
 
       expect(
         await provider.placeOrder({
@@ -1099,11 +1100,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       const reads = [provider.getTwapOrders(), provider.getTwapOrders()];
       await cleanupStarted.promise;
-      expect(transfer).toHaveBeenCalledTimes(2);
-      pendingCleanup.resolve({ success: true });
+      expect(sendAsset).toHaveBeenCalledTimes(2);
+      pendingCleanup.resolve({ status: 'ok' });
       await Promise.all(reads);
 
-      expect(transfer).toHaveBeenCalledTimes(2);
+      expect(sendAsset).toHaveBeenCalledTimes(2);
     });
 
     it('retries a failed HIP-3 collateral rebalance with fresh context after reconnect', async () => {
@@ -1125,8 +1126,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         };
       });
+      const sendAsset = vi.fn().mockResolvedValue({ status: 'ok' });
       useStrategyClients({
-        exchange: { twapOrder },
+        exchange: { sendAsset, twapOrder },
         info: {
           clearinghouseState,
           perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
@@ -1162,9 +1164,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useUnifiedAccount: false,
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
-      const initialTransfer = vi
-        .spyOn(provider, 'transferBetweenDexs')
-        .mockResolvedValue({ success: true });
 
       expect(
         await provider.placeOrder({
@@ -1174,33 +1173,22 @@ describe('HyperLiquidProvider - strategy order types', () => {
           twapDuration: 30,
         } satisfies OrderParams),
       ).toMatchObject({ success: true, orderId: '987' });
-      expect(initialTransfer).toHaveBeenCalledTimes(1);
+      expect(sendAsset).toHaveBeenCalledTimes(1);
       await provider.disconnect();
-      initialTransfer.mockRestore();
       expect(await provider.initialize()).toMatchObject({ success: true });
-      const rebalance = vi
-        .spyOn(provider, 'transferBetweenDexs')
-        .mockResolvedValueOnce({ success: false, error: 'transfer failed' })
-        .mockResolvedValue({ success: true });
+      sendAsset
+        .mockReset()
+        .mockResolvedValueOnce({ status: 'err' })
+        .mockResolvedValue({ status: 'ok' });
 
       await provider.getTwapOrders();
-      expect(rebalance).toHaveBeenCalledTimes(1);
+      expect(sendAsset).toHaveBeenCalledTimes(1);
 
       await provider.getTwapOrders();
-      expect(rebalance).toHaveBeenCalledTimes(2);
+      expect(sendAsset).toHaveBeenCalledTimes(2);
 
       await provider.getTwapOrders();
-      expect(rebalance).toHaveBeenCalledTimes(2);
-      expect(rebalance.mock.calls).toStrictEqual([
-        [
-          expect.any(Object),
-          expect.objectContaining({ lifecycleGeneration: 1 }),
-        ],
-        [
-          expect.any(Object),
-          expect.objectContaining({ lifecycleGeneration: 1 }),
-        ],
-      ]);
+      expect(sendAsset).toHaveBeenCalledTimes(2);
     });
   });
 

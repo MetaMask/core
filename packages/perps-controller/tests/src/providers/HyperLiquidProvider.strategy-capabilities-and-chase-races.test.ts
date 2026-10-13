@@ -3984,9 +3984,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
           response: { data: { statuses: [{ resting: { oid: 55 } }] } },
         };
       });
+      const sendAsset = vi.fn().mockImplementation(async () => {
+        transferred = true;
+        return { status: 'ok' };
+      });
       useStrategyClients({
         exchange: {
           order,
+          sendAsset,
           cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
@@ -4018,12 +4023,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useUnifiedAccount: false,
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
-      const transfer = vi
-        .spyOn(provider, 'transferBetweenDexs')
-        .mockImplementation(async () => {
-          transferred = true;
-          return { success: true };
-        });
 
       const placed = await provider.placeOrder({
         ...baseOrder,
@@ -4037,7 +4036,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         error: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
         childOrderIds: ['55'],
       });
-      expect(transfer).toHaveBeenCalledTimes(1);
+      expect(sendAsset).toHaveBeenCalledTimes(1);
     });
 
     it('places nothing when the teardown lands during the book read', async () => {
