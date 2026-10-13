@@ -265,7 +265,7 @@ async function buildServerQuoteRequest(
     // we can submit them ourselves once the funds land. Post-quote flows submit
     // their own calls and must not opt in.
     if (
-      canDeferCalls({
+      await canDeferCalls({
         accountSupports7702,
         messenger,
         targetChainId,
@@ -304,7 +304,7 @@ async function buildServerQuoteRequest(
  *
  * The second leg is an internal, sponsored EIP-7702 batch on the target chain,
  * so the account must be able to sign EIP-7702 authorizations, the target chain
- * must support EIP-7702, and MetaMask must sponsor gas for the transaction on
+ * must support EIP-7702, and the client must sponsor gas for the transaction on
  * that chain. Otherwise the user would need native gas on the target chain.
  *
  * Temporarily, only nested transactions are supported as second-leg calls, as
@@ -320,7 +320,7 @@ async function buildServerQuoteRequest(
  * @param options.transaction - Transaction being paid for.
  * @returns Whether the calls can be deferred to a second leg.
  */
-function canDeferCalls({
+async function canDeferCalls({
   accountSupports7702,
   messenger,
   targetChainId,
@@ -330,14 +330,20 @@ function canDeferCalls({
   messenger: TransactionPayControllerMessenger;
   targetChainId: Hex;
   transaction: TransactionMeta;
-}): boolean {
-  return (
-    Boolean(transaction.nestedTransactions?.length) &&
-    accountSupports7702 &&
-    transaction.isGasFeeSponsored === true &&
-    transaction.chainId === targetChainId &&
-    isEIP7702Chain(messenger, targetChainId)
-  );
+}): Promise<boolean> {
+  if (
+    !transaction.nestedTransactions?.length ||
+    !isEIP7702Chain(messenger, targetChainId)
+  ) {
+    return false;
+  }
+
+  return await getGasFeeSponsorship({
+    accountSupports7702,
+    messenger,
+    request: { sourceChainId: targetChainId, targetChainId },
+    transaction,
+  });
 }
 
 function normalizeAuthorizationList(

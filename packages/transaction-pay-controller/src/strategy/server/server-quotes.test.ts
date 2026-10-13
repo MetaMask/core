@@ -1457,11 +1457,11 @@ describe('server-quotes', () => {
     const SPONSORED_TRANSACTION_MOCK = {
       ...CONTRACT_CALL_TRANSACTION_MOCK,
       chainId: QUOTE_REQUEST_MOCK.targetChainId,
-      isGasFeeSponsored: true,
     } as TransactionMeta;
 
     beforeEach(() => {
       isEIP7702ChainMock.mockReturnValue(true);
+      isGasFeeSponsoredMock.mockResolvedValue({ isGasFeeSponsored: true });
     });
 
     it('opts in when we can run the embedded calls ourselves', async () => {
@@ -1476,6 +1476,9 @@ describe('server-quotes', () => {
         messenger,
         QUOTE_REQUEST_MOCK.targetChainId,
       );
+      expect(isGasFeeSponsoredMock).toHaveBeenCalledWith({
+        transaction: SPONSORED_TRANSACTION_MOCK,
+      });
       expect(fetchServerQuoteMock).toHaveBeenCalledWith(
         messenger,
         expect.objectContaining({ supportsDeferredCalls: true }),
@@ -1490,7 +1493,7 @@ describe('server-quotes', () => {
         'the account cannot sign EIP-7702 authorizations',
         { accountSupports7702: false },
       ],
-      ['gas is not sponsored', { transaction: { isGasFeeSponsored: false } }],
+      ['gas is not sponsored', { isGasFeeSponsored: false }],
       [
         'the transaction is not on the target chain',
         { transaction: { chainId: '0x3' } },
@@ -1512,16 +1515,19 @@ describe('server-quotes', () => {
         {
           accountSupports7702 = true,
           eip7702Chain = true,
+          isGasFeeSponsored = true,
           request = {},
           transaction = {},
         }: {
           accountSupports7702?: boolean;
           eip7702Chain?: boolean;
+          isGasFeeSponsored?: boolean;
           request?: Partial<QuoteRequest>;
           transaction?: Partial<TransactionMeta>;
         },
       ) => {
         isEIP7702ChainMock.mockReturnValue(eip7702Chain);
+        isGasFeeSponsoredMock.mockResolvedValue({ isGasFeeSponsored });
 
         await getServerQuotes({
           accountSupports7702,
