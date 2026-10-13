@@ -72,6 +72,17 @@ export type ServerQuoteRequest = {
   authorizationList?: ServerAuthorization[];
   supportsDeferredCalls?: boolean;
   supportsGasless?: boolean;
+
+  /**
+   * Whether the quote is funded with a plain token transfer to a provider
+   * deposit address, rather than by calling the provider contracts.
+   *
+   * The quote must fund the deposit with a single ERC-20
+   * `transfer(recipient, amount)` step that sends no native value and has no
+   * additional calldata, such as an appended request ID, so it can be replaced
+   * by an equivalent transfer to the same address. Quotes without such a step
+   * are ignored.
+   */
   useDepositAddress?: boolean;
 };
 
