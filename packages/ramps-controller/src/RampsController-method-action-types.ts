@@ -88,7 +88,7 @@ export type RampsControllerSetSelectedProviderAction = {
 };
 
 /**
- * Switches to the first provider in state that serves the given asset,
+ * Switches to the preferred provider in state that serves the given asset,
  * when the currently selected provider does not.
  *
  * This is the controller-level equivalent of UB2's BuildQuote tier-1
@@ -100,6 +100,12 @@ export type RampsControllerSetSelectedProviderAction = {
  * The compatibility check prefers the current provider's entry in
  * `providers.data` over the `providers.selected` copy, which can be stale
  * once a fresh providers list arrives.
+ *
+ * Among the providers that serve the asset, the new selection is:
+ * 1. The first provider the user has completed an order with before (most
+ * recent first). This keeps an existing KYC relationship instead of
+ * moving the user to a new provider.
+ * 2. Otherwise the first provider in `providers.data` (API ranking order).
  *
  * No-op when:
  * - `providers.data` is empty (providers not yet loaded)
@@ -402,10 +408,16 @@ export type RampsControllerAddAutorampAction = {
  *
  * The vendor `customer_id` is resolved via
  * {@link RampsController.resolveAutorampCustomerId} and injected into the
- * request (any caller-supplied `customer_id` is overwritten).
+ * request (any caller-supplied `customer_id` is overwritten). The caller
+ * supplies the fiat body. When that body names a source fiat and a
+ * recipient wallet, the idempotency key is derived from that fiat
+ * (`brl-musd-monad` or `usd-musd-monad`), the customer, the wallet, and
+ * rejected or cancelled autoramp ids. A caller-supplied key is used only
+ * when the body has no source fiat or recipient address.
  *
- * @param request - CreateAutoramp payload.
- * @param options - Optional idempotency key forwarded to the proxy.
+ * @param request - CreateAutoramp payload, including the source fiat.
+ * @param options - Optional idempotency key forwarded when the body does
+ * not identify a fiat route.
  * @param options.idempotencyKey - Value sent as `Idempotency-Key`.
  * @returns The created/updated local {@link AutorampAccount}.
  */
@@ -428,16 +440,31 @@ export type RampsControllerRegisterMoneyAccountWalletAction = {
 };
 
 /**
- * Refreshes KYC session facts and, when Iron has approved KYC, activates the
- * Money Account (wallet registration + autoramp). Hosts map the returned
+ * Reads VBA onboarding facts. Hosts map the returned
  * {@link VbaOnboardingSnapshot} onto their own funnel; this method does not
  * name screens.
  *
- * Overlapping calls share one run so polling cannot trigger duplicate wallet
- * signatures or autoramp creation.
+ * The read uses the persisted KYC session. `refreshKyc` performs one
+ * session-status GET when a session id is already stored and `finalStatus`
+ * is not terminal. `refreshAutoramps` lists autoramps when KYC is approved,
+ * unless this wallet already has a usable route. An approved session with no
+ * usable autoramp returns `needs_wallet_registration` or
+ * `needs_source_currency` only when
+ * `GET /neobank/customers/{external_id}/external` reports
+ * `status: 'Active'`. Any other customer status returns `not_ready`.
+ * It does not sign, post a self-hosted address, create an autoramp, or start
+ * KYC polling.
+ *
+ * Overlapping calls share one run.
  *
  * @param params - VBA onboarding parameters.
  * @param params.walletAddress - Monad Money Account wallet address.
+ * @param params.refreshKyc - When true, fetch session status once for a
+ * non-terminal persisted session. A failed GET keeps that session. Defaults
+ * to false.
+ * @param params.refreshAutoramps - When true, replace the autoramp cursor
+ * from `GET /neobank/autoramps` unless a usable route is already stored.
+ * Defaults to false.
  * @returns Independent KYC and autoramp facts for the current customer.
  */
 export type RampsControllerHydrateVbaOnboardingAction = {

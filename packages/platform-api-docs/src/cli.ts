@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import execa from 'execa';
+import { execa } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import npmWhich from 'npm-which';

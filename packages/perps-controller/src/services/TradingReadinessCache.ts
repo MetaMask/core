@@ -32,7 +32,7 @@ type SigningOperationState = {
 // Tracks whether the wallet has ever been observed on Hyperliquid.
 // Hyperliquid accounts only come into existence on first USDC deposit.
 // Before then, user-scoped exchange writes (agentSetAbstraction,
-// userSetAbstraction, setReferrer, ...) reject with
+// setReferrer, ...) reject with
 // "User or API Wallet 0x... does not exist."
 // Used to skip those writes proactively rather than catching the rejection.
 type WalletRegistrationState = {

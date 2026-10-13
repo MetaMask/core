@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
+- Bump `@metamask/contract-metadata` from `^2.4.0` to `^2.5.0` ([#10716](https://github.com/MetaMask/core/pull/10716))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
+- Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
+- Bump `@metamask/abi-utils` from `^2.0.3` to `^2.0.4` ([#10715](https://github.com/MetaMask/core/pull/10715))
+- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.2.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792))
+- Bump `@metamask/rpc-errors` from `^7.0.2` to `^7.0.3` ([#10718](https://github.com/MetaMask/core/pull/10718))
+- Bump `@metamask/core-backend` from `^12.0.1` to `^12.1.0` ([#10788](https://github.com/MetaMask/core/pull/10788))
+
+## [112.1.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/network-enablement-controller` from `^7.0.1` to `^7.0.2` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/account-tree-controller` from `^11.0.0` to `^11.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/core-backend` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [112.1.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^11.0.0` to `^12.0.0` ([#10648](https://github.com/MetaMask/core/pull/10648))
+
+## [112.1.0]
+
+### Added
+
+- Add optional `securityData` property to `RwaToken`, populated when `includeTokenSecurityData` is requested ([#10542](https://github.com/MetaMask/core/pull/10542))
+- Add optional `includeTokenSecurityData` property to `FetchRwasParams` ([#10542](https://github.com/MetaMask/core/pull/10542))
+
+### Changed
+
+- Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+- Bump `@ethersproject/bignumber` from `^5.7.0` to `^5.8.0` ([#10479](https://github.com/MetaMask/core/pull/10479))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@ethersproject/address` from `^5.7.0` to `^5.8.0` ([#10478](https://github.com/MetaMask/core/pull/10478))
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+- `NftController` now attributes its `PhishingController:bulkScanUrls` calls to the `nft-detection` request source, so NFT metadata URL scans are distinguishable from other callers in phishing-detection service metrics ([#10357](https://github.com/MetaMask/core/pull/10357))
+- Bump `@metamask/phishing-controller` from `^18.1.1` to `^18.2.0` ([#10633](https://github.com/MetaMask/core/pull/10633))
+
+## [112.0.4]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^10.0.1` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/multichain-account-service` from `^14.0.0` to `^14.1.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+- Bump `@metamask/profile-sync-controller` from `^32.3.1` to `^33.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
 ## [112.0.3]
 
 ### Changed
@@ -3531,7 +3587,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.2...HEAD
+[112.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.1...@metamask/assets-controllers@112.1.2
+[112.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.0...@metamask/assets-controllers@112.1.1
+[112.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.4...@metamask/assets-controllers@112.1.0
+[112.0.4]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.3...@metamask/assets-controllers@112.0.4
 [112.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.2...@metamask/assets-controllers@112.0.3
 [112.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.1...@metamask/assets-controllers@112.0.2
 [112.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.0...@metamask/assets-controllers@112.0.1

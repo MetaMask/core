@@ -130,7 +130,7 @@ function stakedAssetId(
   contractAddress: string,
 ): Caip19AssetId {
   const checksummed = toChecksumAddress(contractAddress);
-  return `${chainId}/erc20:${checksummed}` as Caip19AssetId;
+  return `${chainId}/erc20:${checksummed}`;
 }
 
 /**

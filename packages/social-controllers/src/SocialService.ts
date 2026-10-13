@@ -24,13 +24,21 @@ import {
 
 import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
 import type {
+  BlockedContentResponse,
+  BlockedProfilesResponse,
+  BlockOptions,
   CommentEngagement,
+  CreateSwapCommentOptions,
+  FeedItem,
   FeedResponse,
+  FetchBlockedListOptions,
   FetchFeedOptions,
   FetchFollowersOptions,
+  FetchTraderFollowingOptions,
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,
   FetchPositionsOptions,
+  FetchTokenFeedOptions,
   FetchTraderFeedOptions,
   FetchTraderProfileOptions,
   FollowersResponse,
@@ -42,6 +50,7 @@ import type {
   PositionsResponse,
   ReactToCommentOptions,
   RemoveCommentReactionOptions,
+  SwapCommentResponse,
   TraderProfileResponse,
   UnfollowOptions,
   UnfollowResponse,
@@ -85,10 +94,13 @@ const PositionStruct = structType({
   chain: string(),
   positionAmount: number(),
   isOpen: optional(boolean()),
-  boughtUsd: number(),
-  soldUsd: number(),
-  realizedPnl: number(),
-  costBasis: number(),
+  // Incomplete Clicker metrics serialize these as `null` (`undefined + n`
+  // becomes `NaN`, then JSON `null`). Rejecting the field used to fail the
+  // entire feed page, so they are nullable here.
+  boughtUsd: nullable(number()),
+  soldUsd: nullable(number()),
+  realizedPnl: nullable(number()),
+  costBasis: nullable(number()),
   trades: array(TradeStruct),
   lastTradeAt: number(),
   tokenImageUrl: optional(nullable(string())),
@@ -208,6 +220,32 @@ const AuthorCommentStruct = structType({
   engagement: CommentEngagementStruct,
 });
 
+const SwapCommentAuthorStruct = structType({
+  id: string(),
+  name: string(),
+  images: optional(
+    structType({
+      raw: nullable(string()),
+      xs: nullable(string()),
+      sm: nullable(string()),
+    }),
+  ),
+  addresses: optional(array(string())),
+  externalId: optional(string()),
+});
+
+const SwapCommentResponseStruct = structType({
+  uid: string(),
+  transactionHash: string(),
+  chain: string(),
+  tokenAddress: string(),
+  commentText: string(),
+  author: SwapCommentAuthorStruct,
+  timestamp: number(),
+  isAppUserComment: boolean(),
+  metrics: CommentEngagementStruct,
+});
+
 const FeedItemStruct = assign(
   PositionStruct,
   structType({
@@ -232,6 +270,44 @@ const FeedResponseStruct = structType({
   pagination: FeedPaginationStruct,
 });
 
+/**
+ * One malformed feed item must not blank the page. When the envelope is
+ * well-shaped, keep items that match {@link FeedItemStruct} and drop the rest.
+ * Still throw when `items` or `pagination` themselves are unusable.
+ *
+ * @param feedData - Parsed JSON body from a feed endpoint.
+ * @param invalidMessage - Error message to throw when the envelope is unusable.
+ * @returns The validated feed response, possibly with invalid items dropped.
+ */
+const parseFeedResponse = (
+  feedData: unknown,
+  invalidMessage: string,
+): FeedResponse => {
+  if (is(feedData, FeedResponseStruct)) {
+    return feedData;
+  }
+
+  if (
+    typeof feedData !== 'object' ||
+    feedData === null ||
+    !('items' in feedData) ||
+    !('pagination' in feedData)
+  ) {
+    throw new Error(invalidMessage);
+  }
+
+  const { items, pagination } = feedData;
+
+  if (!Array.isArray(items) || !is(pagination, FeedPaginationStruct)) {
+    throw new Error(invalidMessage);
+  }
+
+  return {
+    items: items.filter((item): item is FeedItem => is(item, FeedItemStruct)),
+    pagination,
+  };
+};
+
 const FollowersResponseStruct = structType({
   followers: array(ProfileSummaryStruct),
   count: number(),
@@ -250,6 +326,32 @@ const UnfollowResponseStruct = structType({
   unfollowed: array(ProfileSummaryStruct),
 });
 
+const BlockedProfileStruct = structType({
+  blockedAt: number(),
+  reason: nullable(string()),
+  profile: ProfileSummaryStruct,
+});
+
+const BlockedProfilesResponseStruct = structType({
+  items: array(BlockedProfileStruct),
+  cursor: nullable(string()),
+});
+
+const BlockedContentStruct = structType({
+  blockedAt: number(),
+  reason: nullable(string()),
+  type: enums(['comment', 'reply']),
+  id: string(),
+  text: string(),
+  createdAt: number(),
+  author: nullable(ProfileSummaryStruct),
+});
+
+const BlockedContentResponseStruct = structType({
+  items: array(BlockedContentStruct),
+  cursor: nullable(string()),
+});
+
 // ---------------------------------------------------------------------------
 // Messenger types
 // ---------------------------------------------------------------------------
@@ -260,17 +362,25 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchOpenPositions',
   'fetchClosedPositions',
   'fetchFollowers',
+  'fetchTraderFollowing',
   'fetchFollowing',
+  'fetchMyFollowing',
+  'fetchMyFollowers',
   'fetchPositionById',
   'fetchFeed',
   'fetchTraderFeed',
+  'fetchTokenFeed',
   'reactToComment',
   'removeCommentReaction',
+  'createSwapComment',
   'follow',
   'unfollow',
   'optOutOfLeaderboard',
   'optInToLeaderboard',
   'refreshNotificationPreferencesCache',
+  'block',
+  'fetchBlockedProfiles',
+  'fetchBlockedContent',
 ] as const;
 
 export type SocialServiceActions =
@@ -392,13 +502,13 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_LEADERBOARD_FAILED,
         );
-        const leaderboardData = await response.json();
+        const leaderboardData = (await response.json()) as unknown;
         if (!is(leaderboardData, LeaderboardResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_LEADERBOARD_INVALID_RESPONSE,
           );
         }
-        return leaderboardData as LeaderboardResponse;
+        return leaderboardData;
       },
     });
 
@@ -429,13 +539,13 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_TRADER_PROFILE_FAILED,
         );
-        const traderProfileData = await response.json();
+        const traderProfileData = (await response.json()) as unknown;
         if (!is(traderProfileData, TraderProfileResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
           );
         }
-        return traderProfileData as TraderProfileResponse;
+        return traderProfileData;
       },
     });
 
@@ -483,38 +593,90 @@ export class SocialService extends BaseDataService<
   /**
    * Fetches a trader's MetaMask followers.
    *
-   * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`.
+   * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`. Pass
+   * `mutuals: true` to append `?mutuals=true` (profiles that follow both this
+   * trader and the authenticated user; `count` is the mutual total). Requires a
+   * bearer token; the trader is identified by `addressOrId`, not the JWT
+   * subject (see {@link fetchMyFollowers} for the current user's inbound list).
    *
    * @param options - Options bag.
    * @param options.addressOrId - Wallet address or Clicker profile ID.
+   * @param options.mutuals - When true, request mutual followers only.
    * @returns The followers response.
    */
   async fetchFollowers(
     options: FetchFollowersOptions,
   ): Promise<FollowersResponse> {
-    const { addressOrId } = options;
+    const { addressOrId, mutuals } = options;
+    const mutualsOnly = mutuals === true;
 
     const followersResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchFollowers`, addressOrId],
+      queryKey: [`${this.name}:fetchFollowers`, addressOrId, mutualsOnly],
+      staleTime: 0,
       queryFn: async () => {
-        const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/followers`;
+        const url = new URL(
+          `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/followers`,
+        );
+        if (mutualsOnly) {
+          url.searchParams.append('mutuals', 'true');
+        }
         const authHeaders = await this.#getAuthHeaders();
-        const response = await fetch(url, { headers: authHeaders });
+        const response = await fetch(url.toString(), { headers: authHeaders });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED,
         );
-        const followersData = await response.json();
+        const followersData = (await response.json()) as unknown;
         if (!is(followersData, FollowersResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
           );
         }
-        return followersData as FollowersResponse;
+        return followersData;
       },
     });
 
     return followersResponse;
+  }
+
+  /**
+   * Fetches the list of traders a profile follows.
+   *
+   * Calls `GET ${baseUrl}/traders/${addressOrId}/following`. Requires a bearer
+   * token; the trader is identified by `addressOrId`, not the JWT subject (see
+   * {@link fetchFollowing} for the current user's outbound list).
+   *
+   * @param options - Options bag.
+   * @param options.addressOrId - Wallet address or Clicker profile ID.
+   * @returns The following response.
+   */
+  async fetchTraderFollowing(
+    options: FetchTraderFollowingOptions,
+  ): Promise<FollowingResponse> {
+    const { addressOrId } = options;
+
+    const followingResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchTraderFollowing`, addressOrId],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/following`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_FAILED,
+        );
+        const followingData = (await response.json()) as unknown;
+        if (!is(followingData, FollowingResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_INVALID_RESPONSE,
+          );
+        }
+        return followingData;
+      },
+    });
+
+    return followingResponse;
   }
 
   /**
@@ -541,13 +703,13 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_POSITION_BY_ID_FAILED,
         );
-        const positionData = await response.json();
+        const positionData = (await response.json()) as unknown;
         if (!is(positionData, PositionStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
           );
         }
-        return positionData as Position;
+        return positionData;
       },
     });
 
@@ -606,13 +768,11 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_FEED_FAILED,
         );
-        const feedData = await response.json();
-        if (!is(feedData, FeedResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
-          );
-        }
-        return feedData as FeedResponse;
+        const feedData = (await response.json()) as unknown;
+        return parseFeedResponse(
+          feedData,
+          SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+        );
       },
     });
 
@@ -676,17 +836,82 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_TRADER_FEED_FAILED,
         );
-        const feedData = await response.json();
-        if (!is(feedData, FeedResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
-          );
-        }
-        return feedData as FeedResponse;
+        const feedData = (await response.json()) as unknown;
+        return parseFeedResponse(
+          feedData,
+          SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
+        );
       },
     });
 
     return traderFeedResponse;
+  }
+
+  /**
+   * Fetches a page of positions in one token, most recently traded first.
+   *
+   * Calls `GET ${baseUrl}/tokens/${chain}/${contractAddress}/feed`. Unlike
+   * {@link fetchFeed}, this is scoped to a single token and does not accept
+   * `scope` or `chains`. Omit `status` to include both open and recently
+   * closed positions.
+   *
+   * The route is public, but the Authorization header is still sent so the
+   * social-api can hydrate `authorComment.engagement.userReaction` for the
+   * signed-in viewer.
+   *
+   * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+   * from a prior response back as `olderThan` to load older items, and
+   * `pagination.newerCursor` as `newerThan` to fetch newer items.
+   *
+   * @param options - Options bag.
+   * @param options.chain - Chain name where the token is deployed (`TokenFeedChain`).
+   * @param options.contractAddress - Token contract address.
+   * @param options.status - `open`, `closed`, or omit for both.
+   * @param options.limit - Number of results per page.
+   * @param options.olderThan - Cursor for older items (scroll down).
+   * @param options.newerThan - Cursor for newer items (refresh).
+   * @returns The feed response with items and pagination cursors.
+   */
+  async fetchTokenFeed(options: FetchTokenFeedOptions): Promise<FeedResponse> {
+    const tokenFeedResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchTokenFeed`, options],
+      staleTime: 0,
+      queryFn: async () => {
+        const { chain, contractAddress, status, limit, olderThan, newerThan } =
+          options;
+        const url = new URL(
+          `${this.#v1Url}/tokens/${encodeURIComponent(chain)}/${encodeURIComponent(contractAddress)}/feed`,
+        );
+        if (status) {
+          url.searchParams.append('status', status);
+        }
+        if (limit !== undefined) {
+          url.searchParams.append('limit', String(limit));
+        }
+        if (olderThan) {
+          url.searchParams.append('olderThan', olderThan);
+        }
+        if (newerThan) {
+          url.searchParams.append('newerThan', newerThan);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_TOKEN_FEED_FAILED,
+        );
+        const feedData = (await response.json()) as unknown;
+        return parseFeedResponse(
+          feedData,
+          SocialServiceErrorMessage.FETCH_TOKEN_FEED_INVALID_RESPONSE,
+        );
+      },
+    });
+
+    return tokenFeedResponse;
   }
 
   /**
@@ -720,13 +945,13 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.REACT_TO_COMMENT_FAILED,
         );
-        const metrics = await response.json();
+        const metrics = (await response.json()) as unknown;
         if (!is(metrics, CommentEngagementStruct)) {
           throw new Error(
             SocialServiceErrorMessage.REACT_TO_COMMENT_INVALID_RESPONSE,
           );
         }
-        return metrics as CommentEngagement;
+        return metrics;
       },
     });
   }
@@ -760,13 +985,73 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_FAILED,
         );
-        const metrics = await response.json();
+        const metrics = (await response.json()) as unknown;
         if (!is(metrics, CommentEngagementStruct)) {
           throw new Error(
             SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_INVALID_RESPONSE,
           );
         }
-        return metrics as CommentEngagement;
+        return metrics;
+      },
+    });
+  }
+
+  /**
+   * Creates an author Call (user post) on one of the current user's swaps.
+   *
+   * Calls `POST ${baseUrl}/swap-comments`. Identify the swap with
+   * `positionUid` (the `positionId` of a feed item or position) or, for a
+   * trade too recent to be indexed, `tradeInFlight`. Provide exactly one of
+   * those two fields.
+   *
+   * @param options - Options bag.
+   * @param options.commentText - Message body of the post. May include a
+   * `https://static.klipy.com/...gif` file URL; social-api rejects other links.
+   * @param options.source - Free-form origin label stored on the comment.
+   * @param options.positionUid - Position UUID (`positionId` / feed item id).
+   * @param options.tradeInFlight - Hash, chain, and token of a swap in flight.
+   * @returns The created swap comment.
+   */
+  async createSwapComment(
+    options: CreateSwapCommentOptions,
+  ): Promise<SwapCommentResponse> {
+    const { commentText, source, positionUid, tradeInFlight } = options;
+
+    return await this.fetchQuery({
+      queryKey: [
+        `${this.name}:createSwapComment`,
+        {
+          commentText,
+          source: source ?? null,
+          positionUid: positionUid ?? null,
+          tradeInFlight: tradeInFlight ?? null,
+        },
+      ],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/swap-comments`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            commentText,
+            ...(source === undefined ? {} : { source }),
+            ...(positionUid === undefined ? {} : { positionUid }),
+            ...(tradeInFlight === undefined ? {} : { tradeInFlight }),
+          }),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.CREATE_SWAP_COMMENT_FAILED,
+        );
+        const comment = (await response.json()) as unknown;
+        if (!is(comment, SwapCommentResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.CREATE_SWAP_COMMENT_INVALID_RESPONSE,
+          );
+        }
+        return comment;
       },
     });
   }
@@ -776,6 +1061,10 @@ export class SocialService extends BaseDataService<
    *
    * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
    * server-side from the JWT sub claim carried in the Authorization header.
+   *
+   * Prefer {@link fetchMyFollowing} in new code (pairs with
+   * {@link fetchMyFollowers}). This method is unchanged and remains the
+   * `/users/me/following` read.
    *
    * @returns The following response.
    */
@@ -791,17 +1080,62 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWING_FAILED,
         );
-        const followingData = await response.json();
+        const followingData = (await response.json()) as unknown;
         if (!is(followingData, FollowingResponseStruct)) {
           throw new Error(
             SocialServiceErrorMessage.FETCH_FOLLOWING_INVALID_RESPONSE,
           );
         }
-        return followingData as FollowingResponse;
+        return followingData;
       },
     });
 
     return followingResponse;
+  }
+
+  /**
+   * Fetches the list of traders the current user is following.
+   *
+   * Alias of {@link fetchFollowing}. Calls `GET ${baseUrl}/users/me/following`.
+   * Preferred name in new code so `/users/me` reads are both `fetchMy*`.
+   *
+   * @returns The following response.
+   */
+  async fetchMyFollowing(): Promise<FollowingResponse> {
+    return this.fetchFollowing();
+  }
+
+  /**
+   * Fetches the list of traders following the current user.
+   *
+   * Calls `GET ${baseUrl}/users/me/followers`. The caller is identified
+   * server-side from the JWT sub claim carried in the Authorization header.
+   *
+   * @returns The followers response.
+   */
+  async fetchMyFollowers(): Promise<FollowersResponse> {
+    const followersResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchMyFollowers`],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/users/me/followers`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_FAILED,
+        );
+        const followersData = (await response.json()) as unknown;
+        if (!is(followersData, FollowersResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_INVALID_RESPONSE,
+          );
+        }
+        return followersData;
+      },
+    });
+
+    return followersResponse;
   }
 
   /**
@@ -832,11 +1166,11 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FOLLOW_FAILED,
         );
-        const followData = await response.json();
+        const followData = (await response.json()) as unknown;
         if (!is(followData, FollowResponseStruct)) {
           throw new Error(SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE);
         }
-        return followData as FollowResponse;
+        return followData;
       },
     });
 
@@ -875,11 +1209,11 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.UNFOLLOW_FAILED,
         );
-        const unfollowData = await response.json();
+        const unfollowData = (await response.json()) as unknown;
         if (!is(unfollowData, UnfollowResponseStruct)) {
           throw new Error(SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE);
         }
-        return unfollowData as UnfollowResponse;
+        return unfollowData;
       },
     });
 
@@ -969,6 +1303,129 @@ export class SocialService extends BaseDataService<
   }
 
   /**
+   * Blocks a trader, swap comment, or reply for the current user.
+   *
+   * Calls `PUT ${baseUrl}/moderation/block`. Provide exactly one of
+   * `profileId`, `commentId`, or `replyId`. Blocking the same target again
+   * replaces `reason` when one is given. The caller is identified server-side
+   * from the JWT sub claim carried in the Authorization header.
+   *
+   * @param options - Options bag. Exactly one target, plus an optional reason.
+   * @param options.profileId - Profile id (UUID) of the trader to block.
+   * @param options.commentId - Swap comment to block.
+   * @param options.replyId - Comment reply to block.
+   * @param options.reason - Free-form reason stored on the block.
+   */
+  async block(options: BlockOptions): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:block`, options],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/moderation/block`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify(options),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.BLOCK_FAILED,
+        );
+        return null;
+      },
+    });
+  }
+
+  /**
+   * Fetches traders the current user has blocked.
+   *
+   * Calls `GET ${baseUrl}/moderation/blocks/profiles`. Results are most
+   * recently blocked first, 250 per page. The caller is identified
+   * server-side from the JWT sub claim carried in the Authorization header.
+   *
+   * @param options - Options bag.
+   * @param options.cursor - Cursor from the previous page. Omit for the first page.
+   * @returns The blocked profiles page.
+   */
+  async fetchBlockedProfiles(
+    options?: FetchBlockedListOptions,
+  ): Promise<BlockedProfilesResponse> {
+    const cursor = options?.cursor;
+
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:fetchBlockedProfiles`, cursor ?? null],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = new URL(`${this.#v1Url}/moderation/blocks/profiles`);
+        if (cursor) {
+          url.searchParams.append('cursor', cursor);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_BLOCKED_PROFILES_FAILED,
+        );
+        const blockedProfiles = (await response.json()) as unknown;
+        if (!is(blockedProfiles, BlockedProfilesResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_BLOCKED_PROFILES_INVALID_RESPONSE,
+          );
+        }
+        return blockedProfiles;
+      },
+    });
+  }
+
+  /**
+   * Fetches comments and replies the current user has blocked.
+   *
+   * Calls `GET ${baseUrl}/moderation/blocks/content`. Results are most
+   * recently blocked first, 250 per page. The caller is identified
+   * server-side from the JWT sub claim carried in the Authorization header.
+   *
+   * @param options - Options bag.
+   * @param options.cursor - Cursor from the previous page. Omit for the first page.
+   * @returns The blocked content page.
+   */
+  async fetchBlockedContent(
+    options?: FetchBlockedListOptions,
+  ): Promise<BlockedContentResponse> {
+    const cursor = options?.cursor;
+
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:fetchBlockedContent`, cursor ?? null],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = new URL(`${this.#v1Url}/moderation/blocks/content`);
+        if (cursor) {
+          url.searchParams.append('cursor', cursor);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_BLOCKED_CONTENT_FAILED,
+        );
+        const blockedContent = (await response.json()) as unknown;
+        if (!is(blockedContent, BlockedContentResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_BLOCKED_CONTENT_INVALID_RESPONSE,
+          );
+        }
+        return blockedContent;
+      },
+    });
+  }
+
+  /**
    * Shared helper for fetching open/closed positions.
    *
    * @param status - "open" or "closed".
@@ -1025,11 +1482,11 @@ export class SocialService extends BaseDataService<
           headers: authHeaders,
         });
         SocialService.#throwIfNotOk(response, failedMessage);
-        const positionsData = await response.json();
+        const positionsData = (await response.json()) as unknown;
         if (!is(positionsData, PositionsResponseStruct)) {
           throw new Error(invalidMessage);
         }
-        return positionsData as PositionsResponse;
+        return positionsData;
       },
     });
 

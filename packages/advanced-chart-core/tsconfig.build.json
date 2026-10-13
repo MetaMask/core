@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "lib": ["ES2020", "DOM", "ES2022.Array"]
+  },
+  "references": [],
+  "include": ["../../types", "./src"]
+}

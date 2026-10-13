@@ -44,6 +44,23 @@ export type SubscriptionControllerGetSubscriptionByProductAction = {
 };
 
 /**
+ * Whether the user is eligible to start a trial for the given product.
+ *
+ * Shield is eligible when the user has not trialed Shield before.
+ * Money Account Plus is eligible when the user has not trialed it before
+ * and is authenticated with social login. Only an unlocked wallet can
+ * subscribe, so `SeedlessOnboardingController:getIsUserAuthenticated` is a
+ * sufficient social-login check.
+ *
+ * @param productType - The product to check.
+ * @returns Whether the user is eligible for a trial.
+ */
+export type SubscriptionControllerIsUserEligibleForTrialAction = {
+  type: `SubscriptionController:isUserEligibleForTrial`;
+  handler: SubscriptionController['isUserEligibleForTrial'];
+};
+
+/**
  * Get the subscriptions eligibilities.
  *
  * @param request - Optional request object containing user balance to check cohort eligibility.
@@ -68,8 +85,13 @@ export type SubscriptionControllerUnCancelSubscriptionAction = {
  * Starts a card-paid subscription checkout session for the requested products
  * (e.g. Shield or Money Account Plus).
  *
- * `isTrialRequested` on the request is ignored and overwritten from pricing
- * (`trialPeriodDays > 0`) and `trialedProducts`.
+ * `isTrialRequested` on the request is ignored and overwritten from
+ * `isUserEligibleForTrial` and `trialPeriodDays > 0`. Shield is eligible
+ * when it has not been trialed. Money Account Plus is eligible when it has
+ * not been trialed and the user is authenticated with social login.
+ *
+ * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
+ * from geolocation (EU/EEA), or `false` if the lookup fails.
  *
  * @param request - The start subscription request.
  * @returns The checkout session response.
@@ -85,8 +107,13 @@ export type SubscriptionControllerStartSubscriptionWithCardAction = {
  * creates the subscription immediately, so local state is refreshed
  * afterwards.
  *
- * `isTrialRequested` on the request is ignored and overwritten from pricing
- * (`trialPeriodDays > 0`) and `trialedProducts`.
+ * `isTrialRequested` on the request is ignored and overwritten from
+ * `isUserEligibleForTrial` and `trialPeriodDays > 0`. Shield is eligible
+ * when it has not been trialed. Money Account Plus is eligible when it has
+ * not been trialed and the user is authenticated with social login.
+ *
+ * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
+ * from geolocation (EU/EEA), or `false` if the lookup fails.
  *
  * @param request - The start crypto subscription request.
  * @returns The start crypto subscription response.
@@ -288,6 +315,7 @@ export type SubscriptionControllerMethodActions =
   | SubscriptionControllerGetSubscriptionsAction
   | SubscriptionControllerGetBenefitsAction
   | SubscriptionControllerGetSubscriptionByProductAction
+  | SubscriptionControllerIsUserEligibleForTrialAction
   | SubscriptionControllerGetSubscriptionsEligibilitiesAction
   | SubscriptionControllerCancelSubscriptionAction
   | SubscriptionControllerUnCancelSubscriptionAction

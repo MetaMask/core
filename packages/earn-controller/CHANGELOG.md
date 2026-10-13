@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@ethersproject/bignumber` from `^5.7.0` to `^5.8.0` ([#10479](https://github.com/MetaMask/core/pull/10479))
+- Bump `@ethersproject/providers` from `^5.7.0` to `^5.8.0` ([#10482](https://github.com/MetaMask/core/pull/10482))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
+- Bump `@metamask/account-tree-controller` from `^11.0.0` to `^11.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
+- Bump `@metamask/stake-sdk` from `^3.2.1` to `^3.4.0` ([#10739](https://github.com/MetaMask/core/pull/10739))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.2.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792))
+
+## [13.0.2]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^10.0.1` to `^11.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
 ## [13.0.1]
 
 ### Changed
@@ -538,7 +554,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.2...HEAD
+[13.0.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.1...@metamask/earn-controller@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.0...@metamask/earn-controller@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.7...@metamask/earn-controller@13.0.0
 [12.2.7]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.6...@metamask/earn-controller@12.2.7

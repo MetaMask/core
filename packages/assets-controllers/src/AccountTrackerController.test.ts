@@ -110,7 +110,7 @@ describe('AccountTrackerController', () => {
         try {
           return await operation();
         } catch {
-          return undefined;
+          return;
         }
       },
     );
@@ -1822,7 +1822,7 @@ describe('AccountTrackerController', () => {
               try {
                 return await operation();
               } catch {
-                return undefined;
+                return;
               }
             },
           );
@@ -2412,7 +2412,7 @@ async function withController<ReturnValue>(
   const mockListPopularEvmNetworks = jest
     .fn()
     .mockReturnValue(
-      Object.keys(defaultNetworkState.networkConfigurationsByChainId) as Hex[],
+      Object.keys(defaultNetworkState.networkConfigurationsByChainId),
     );
   messenger.registerActionHandler(
     'NetworkEnablementController:listPopularEvmNetworks',

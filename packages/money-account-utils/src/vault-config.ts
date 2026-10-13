@@ -13,6 +13,12 @@ import type { Hex } from '@metamask/utils';
 export const MONEY_ACCOUNT_VAULT_CONFIG_FLAG_NAME = 'moneyAccountVaultConfig';
 
 /**
+ * The LaunchDarkly flag carrying the Money Account premium vault contracts.
+ */
+export const MONEY_ACCOUNT_PREMIUM_VAULT_CONFIG_FLAG_NAME =
+  'moneyAccountPremiumVaultConfig';
+
+/**
  * The Money Account vault contracts served via remote feature flags, with the
  * chain id and every address validated as known-good `Hex`.
  *
@@ -124,5 +130,23 @@ export function areMoneyAccountVaultConfigsEqual(
     a.accountantAddress === b.accountantAddress &&
     a.lensAddress === b.lensAddress &&
     a.underlyingToken === b.underlyingToken
+  );
+}
+
+/**
+ * Reads and parses the Money Account premium vault config out of the remote
+ * feature flags. The flag has the same shape as
+ * {@link MoneyAccountVaultConfig}; `boringVault` is the pvmUSD share token.
+ * The premium Veda adapter is supplied by CHOMP service details.
+ *
+ * @param remoteFeatureFlags - The remote feature flags.
+ * @returns The parsed vault config, or `undefined` when the flag is unserved
+ * or malformed.
+ */
+export function getMoneyAccountPremiumVaultConfig(
+  remoteFeatureFlags: Record<string, unknown> | undefined,
+): MoneyAccountVaultConfig | undefined {
+  return parseMoneyAccountVaultConfig(
+    remoteFeatureFlags?.[MONEY_ACCOUNT_PREMIUM_VAULT_CONFIG_FLAG_NAME],
   );
 }

@@ -61,7 +61,7 @@ export function getStrategiesByName(
         };
       } catch {
         onUnknownStrategy?.(strategyName);
-        return undefined;
+        return;
       }
     })
     .filter(

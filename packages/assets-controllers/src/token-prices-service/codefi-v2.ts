@@ -615,7 +615,7 @@ export function getAssetId({
         | undefined;
     }
 
-    return `${caipChainId}/erc20:${tokenAddress.toLowerCase()}` as CaipAssetType;
+    return `${caipChainId}/erc20:${tokenAddress.toLowerCase()}`;
   } catch {
     // This block should never be reached as long as using Typescript, but added for safety.
     return undefined;
@@ -802,7 +802,7 @@ export class CodefiTokenPricesServiceV2 implements AbstractTokenPricesService<
         });
 
         if (!assetId) {
-          return undefined;
+          return;
         }
 
         return {
@@ -841,7 +841,7 @@ export class CodefiTokenPricesServiceV2 implements AbstractTokenPricesService<
         const marketData = addressCryptoDataMap[assetWithId.assetId];
 
         if (!marketData) {
-          return undefined;
+          return;
         }
 
         return {

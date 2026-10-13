@@ -1,14 +1,14 @@
 import { shouldDeferUnifiedAccountSetup } from '../../../src/utils/hyperLiquidAbstraction.js';
 
 describe('shouldDeferUnifiedAccountSetup', () => {
-  it.each(['dexAbstraction', 'default', 'disabled'] as const)(
+  it.each(['default', 'disabled'] as const)(
     'defers %s setup when signing is not allowed',
     (currentMode) => {
       expect(shouldDeferUnifiedAccountSetup(currentMode, false)).toBe(true);
     },
   );
 
-  it.each(['dexAbstraction', 'default', 'disabled'] as const)(
+  it.each(['default', 'disabled'] as const)(
     'allows %s setup when signing is allowed',
     (currentMode) => {
       expect(shouldDeferUnifiedAccountSetup(currentMode, true)).toBe(false);

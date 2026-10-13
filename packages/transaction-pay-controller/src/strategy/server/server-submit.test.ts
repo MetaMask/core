@@ -17,6 +17,7 @@ import {
   getServerPollingInterval,
   getServerPollingTimeout,
 } from '../../utils/feature-flags.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import { getLiveTokenBalance } from '../../utils/token.js';
 import {
   collectTransactionIds,
@@ -25,7 +26,7 @@ import {
 } from '../../utils/transaction.js';
 import { getServerStatus, submitServerIntent } from './server-api.js';
 import { submitServerQuotes } from './server-submit.js';
-import { ServerProviderName, ServerStatus } from './types.js';
+import { ServerStatus } from './types.js';
 import type { ServerQuote, ServerSignatureStep } from './types.js';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -33,6 +34,7 @@ jest.mock('@metamask/controller-utils', () => ({
   successfulFetch: jest.fn(),
 }));
 jest.mock('../../utils/feature-flags');
+jest.mock('../../utils/second-leg');
 jest.mock('../../utils/token', () => ({
   ...jest.requireActual('../../utils/token'),
   getLiveTokenBalance: jest.fn(),
@@ -61,9 +63,9 @@ const TRANSACTION_META_MOCK = {
   time: 12345,
   txParams: {
     from: ORIGINAL_FROM_MOCK,
-    nonce: '0x7' as Hex,
-    to: '0x3333333333333333333333333333333333333333' as Hex,
-    value: '0x0' as Hex,
+    nonce: '0x7',
+    to: '0x3333333333333333333333333333333333333333',
+    value: '0x0',
   },
 } as TransactionMeta;
 
@@ -83,22 +85,22 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
     decimals: 6,
     formatted: '1.23',
     raw: '1230000',
-    token: '0x5555555555555555555555555555555555555555' as Hex,
+    token: '0x5555555555555555555555555555555555555555',
   },
   output: {
     chainId: 1,
     decimals: 6,
     formatted: '1',
     raw: '1000000',
-    token: '0x6666666666666666666666666666666666666666' as Hex,
+    token: '0x6666666666666666666666666666666666666666',
   },
-  provider: ServerProviderName.Relay,
+  provider: 'relay',
   steps: [
     {
       type: 'transaction' as const,
       chainId: 137,
-      data: '0xstepdata' as Hex,
-      to: '0x4444444444444444444444444444444444444444' as Hex,
+      data: '0xstepdata',
+      to: '0x4444444444444444444444444444444444444444',
       value: '0x10',
     },
   ],
@@ -121,11 +123,11 @@ const QUOTE_MOCK = {
     from: QUOTE_FROM_MOCK,
     sourceBalanceRaw: '10000000',
     sourceChainId: SOURCE_CHAIN_ID_MOCK,
-    sourceTokenAddress: '0x5555555555555555555555555555555555555555' as Hex,
+    sourceTokenAddress: '0x5555555555555555555555555555555555555555',
     sourceTokenAmount: '1230000',
     targetAmountMinimum: '1000000',
-    targetChainId: '0x1' as Hex,
-    targetTokenAddress: '0x6666666666666666666666666666666666666666' as Hex,
+    targetChainId: '0x1',
+    targetTokenAddress: '0x6666666666666666666666666666666666666666',
   },
   sourceAmount: { fiat: '1', human: '1', raw: '1230000', usd: '1' },
   strategy: 'server',
@@ -161,6 +163,7 @@ describe('submitServerQuotes', () => {
     findNetworkClientIdByChainIdMock,
     getControllerStateMock,
     getDelegationTransactionMock,
+    getKeyringControllerStateMock,
     getPaymentOverrideDataMock,
     getTransactionControllerStateMock,
     messenger,
@@ -181,6 +184,17 @@ describe('submitServerQuotes', () => {
       quotes: [cloneDeep(QUOTE_MOCK)],
       transaction: cloneDeep(TRANSACTION_META_MOCK),
     };
+
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: [ORIGINAL_FROM_MOCK, QUOTE_FROM_MOCK],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
+    });
 
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_MOCK);
@@ -217,7 +231,7 @@ describe('submitServerQuotes', () => {
       chainId: 137,
       data: DELEGATION_MOCK.data,
       id: ORIGINAL_QUOTE_MOCK.id,
-      provider: ServerProviderName.Relay,
+      provider: 'relay',
       to: DELEGATION_MOCK.to,
       value: '16',
     });
@@ -287,6 +301,112 @@ describe('submitServerQuotes', () => {
 
     expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
     expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe('second leg', () => {
+    const SECOND_LEG_HASH_MOCK = '0xsecondleg' as Hex;
+    const RECIPIENT_MOCK = '0x9999999999999999999999999999999999999999' as Hex;
+
+    const submitSecondLegMock = jest.mocked(submitSecondLeg);
+
+    beforeEach(() => {
+      submitSecondLegMock.mockResolvedValue({
+        transactionHash: SECOND_LEG_HASH_MOCK,
+      });
+
+      getServerStatusMock.mockResolvedValue({
+        status: ServerStatus.Confirmed,
+        targetHash: TARGET_HASH_MOCK,
+      });
+
+      request.quotes = [{ ...cloneDeep(QUOTE_MOCK), requiresSecondLeg: true }];
+    });
+
+    it('submits the second leg with the settlement hash and target token address', async () => {
+      const result = await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith({
+        chainId: '0x1',
+        from: QUOTE_FROM_MOCK,
+        messenger,
+        settlementHash: TARGET_HASH_MOCK,
+        tokenAddress: '0x6666666666666666666666666666666666666666',
+        transaction: expect.objectContaining({
+          id: ORIGINAL_TRANSACTION_ID_MOCK,
+        }),
+      });
+      expect(result).toStrictEqual({ transactionHash: SECOND_LEG_HASH_MOCK });
+    });
+
+    it('submits from the quote recipient when set', async () => {
+      request.quotes = [
+        {
+          ...cloneDeep(QUOTE_MOCK),
+          request: { ...QUOTE_MOCK.request, recipient: RECIPIENT_MOCK },
+          requiresSecondLeg: true,
+        },
+      ];
+
+      await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({ from: RECIPIENT_MOCK }),
+      );
+    });
+
+    it('falls back to the settlement hash when the second leg returns none', async () => {
+      submitSecondLegMock.mockResolvedValue({ transactionHash: undefined });
+
+      const result = await submitServerQuotes(request);
+
+      expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
+    });
+
+    it('passes no settlement hash when the intent confirmed without one', async () => {
+      getServerStatusMock.mockResolvedValue({
+        status: ServerStatus.Confirmed,
+        targetHash: undefined,
+      });
+
+      await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({ settlementHash: undefined }),
+      );
+    });
+
+    it('is skipped when the quote embedded the calls', async () => {
+      request.quotes = [cloneDeep(QUOTE_MOCK)];
+
+      const result = await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
+    });
+
+    it('marks the intent complete only after the second leg is submitted', async () => {
+      let isIntentCompleteDuringSecondLeg: boolean | undefined;
+
+      submitSecondLegMock.mockImplementation(async () => {
+        isIntentCompleteDuringSecondLeg = currentTransaction.isIntentComplete;
+        return { transactionHash: SECOND_LEG_HASH_MOCK };
+      });
+
+      await submitServerQuotes(request);
+
+      expect(isIntentCompleteDuringSecondLeg).toBeUndefined();
+      expect(currentTransaction.isIntentComplete).toBe(true);
+    });
+
+    it('does not mark the intent complete when the second leg fails', async () => {
+      submitSecondLegMock.mockRejectedValue(new Error('Second leg failed'));
+
+      await expect(submitServerQuotes(request)).rejects.toThrow(
+        'Second leg failed',
+      );
+
+      expect(currentTransaction.isIntentComplete).toBeUndefined();
+    });
   });
 
   it('marks the parent transaction isIntentComplete after confirmation', async () => {
@@ -374,7 +494,7 @@ describe('submitServerQuotes', () => {
         status: ServerStatus.Submitted,
       })
       .mockResolvedValueOnce({
-        sourceHash: '0xsecondsource' as Hex,
+        sourceHash: '0xsecondsource',
         status: ServerStatus.Confirmed,
         targetHash: TARGET_HASH_MOCK,
       });
@@ -400,12 +520,12 @@ describe('submitServerQuotes', () => {
     getControllerStateMock.mockReturnValue({
       transactionData: {},
       transactions: [],
-    } as never);
+    });
     getPaymentOverrideDataMock.mockResolvedValue({
       calls: [{ to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex }],
       recipient: undefined,
       authorizationList: undefined,
-    } as never);
+    });
 
     const req = {
       ...request,
@@ -460,10 +580,10 @@ describe('submitServerQuotes', () => {
       waitForTransactionConfirmedMock.mockResolvedValue(undefined);
       addTxMock.mockResolvedValue({
         result: Promise.resolve(SUBMITTED_TX_HASH_MOCK),
-      } as never);
+      });
       addTxBatchMock.mockResolvedValue({
         batchId: 'batch-id',
-      } as never);
+      });
     });
 
     const buildNonGaslessRequest = (
@@ -514,8 +634,8 @@ describe('submitServerQuotes', () => {
             {
               type: 'transaction' as const,
               chainId: 137,
-              data: '0xseconddata' as Hex,
-              to: '0x9999999999999999999999999999999999999999' as Hex,
+              data: '0xseconddata',
+              to: '0x9999999999999999999999999999999999999999',
               value: '0x20',
             },
           ],
@@ -535,8 +655,131 @@ describe('submitServerQuotes', () => {
       expect(addTxMock).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
+          excludeNativeTokenForFee: true,
           gasFeeToken: reqWithGasFeeToken.quotes[0].request.sourceTokenAddress,
         }),
+      );
+    });
+
+    it('passes gasFeeToken to the batch when fees.isSourceGasFeeToken is true', async () => {
+      const reqWithGasFeeToken = buildNonGaslessRequest({
+        steps: [
+          ORIGINAL_QUOTE_MOCK.steps[0],
+          {
+            type: 'transaction' as const,
+            chainId: 137,
+            data: '0xseconddata' as Hex,
+            to: '0x9999999999999999999999999999999999999999' as Hex,
+            value: '0x20',
+          },
+        ],
+      });
+
+      reqWithGasFeeToken.quotes[0].fees.isSourceGasFeeToken = true;
+
+      await submitServerQuotes(reqWithGasFeeToken);
+
+      expect(addTxBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTxBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          excludeNativeTokenForFee: true,
+          gasFeeToken: reqWithGasFeeToken.quotes[0].request.sourceTokenAddress,
+        }),
+      );
+    });
+
+    const buildSponsoredRequest = (
+      overrides: Partial<ServerQuote> = {},
+    ): PayStrategyExecuteRequest<ServerQuote> => {
+      const sponsoredRequest = buildNonGaslessRequest(overrides);
+      const { chainId } = sponsoredRequest.transaction;
+
+      // Sponsorship only applies when the quote never leaves the parent
+      // transaction's chain.
+      sponsoredRequest.quotes[0].request.sourceChainId = chainId;
+      sponsoredRequest.quotes[0].request.targetChainId = chainId;
+      sponsoredRequest.transaction.isGasFeeSponsored = true;
+
+      return sponsoredRequest;
+    };
+
+    it('passes isGasFeeSponsored when the parent is sponsored and the route is same-chain', async () => {
+      await submitServerQuotes(buildSponsoredRequest());
+
+      expect(addTxMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ isGasFeeSponsored: true }),
+      );
+    });
+
+    it('suppresses gasFeeToken when sponsored', async () => {
+      const sponsoredRequest = buildSponsoredRequest();
+
+      // Sponsorship outranks the gas fee token, so the user must not also be
+      // billed in the source token for gas MetaMask is covering.
+      sponsoredRequest.quotes[0].fees.isSourceGasFeeToken = true;
+
+      await submitServerQuotes(sponsoredRequest);
+
+      const [, options] = addTxMock.mock.calls[0];
+
+      expect(options).toMatchObject({ isGasFeeSponsored: true });
+      expect(options?.gasFeeToken).toBeUndefined();
+      expect(options?.excludeNativeTokenForFee).toBeUndefined();
+    });
+
+    it('passes isGasFeeSponsored to the batch when sponsored', async () => {
+      await submitServerQuotes(
+        buildSponsoredRequest({
+          steps: [
+            ORIGINAL_QUOTE_MOCK.steps[0],
+            {
+              type: 'transaction' as const,
+              chainId: 137,
+              data: '0xseconddata' as Hex,
+              to: '0x9999999999999999999999999999999999999999' as Hex,
+              value: '0x20',
+            },
+          ],
+        }),
+      );
+
+      expect(addTxBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({ isGasFeeSponsored: true }),
+      );
+    });
+
+    it('passes isGasFeeSponsored as false when the parent is explicitly unsponsored', async () => {
+      const unsponsoredRequest = buildSponsoredRequest();
+      unsponsoredRequest.transaction.isGasFeeSponsored = false;
+
+      await submitServerQuotes(unsponsoredRequest);
+
+      // An explicit `false` and an absent flag are not equivalent to the
+      // `TransactionController`, so the evaluated result must be forwarded.
+      expect(addTxMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ isGasFeeSponsored: false }),
+      );
+    });
+
+    it('omits isGasFeeSponsored when the parent sponsorship is unknown', async () => {
+      await submitServerQuotes(buildNonGaslessRequest());
+
+      const [, options] = addTxMock.mock.calls[0];
+
+      expect(options?.isGasFeeSponsored).toBeUndefined();
+    });
+
+    it('does not sponsor a cross-chain route even when the parent is sponsored', async () => {
+      const crossChainRequest = buildSponsoredRequest();
+      crossChainRequest.quotes[0].request.sourceChainId = '0x89';
+
+      await submitServerQuotes(crossChainRequest);
+
+      expect(addTxMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ isGasFeeSponsored: false }),
       );
     });
 
@@ -671,8 +914,8 @@ describe('submitServerQuotes', () => {
           {
             type: 'transaction' as const,
             chainId: 137,
-            data: '0xseconddata' as Hex,
-            to: '0x9999999999999999999999999999999999999999' as Hex,
+            data: '0xseconddata',
+            to: '0x9999999999999999999999999999999999999999',
             value: '0x20',
           },
         ],
@@ -715,7 +958,7 @@ describe('submitServerQuotes', () => {
     // our own beforeEach which runs after the outer one.
     beforeAll(() => {
       messenger.registerActionHandler(
-        'KeyringController:signTypedMessage' as never,
+        'KeyringController:signTypedMessage',
         signTypedMessageMock as never,
       );
     });
@@ -901,11 +1144,11 @@ describe('submitServerQuotes', () => {
       jest.mocked(waitForTransactionConfirmed).mockResolvedValue(undefined);
       addTxMock.mockResolvedValue({
         result: Promise.resolve('0xsubmitted' as Hex),
-      } as never);
+      });
       getControllerStateMock.mockReturnValue({
         transactionData: {},
         transactions: [],
-      } as never);
+      });
     });
 
     it('skips prepend when paymentOverride returns empty calls', async () => {
@@ -913,7 +1156,7 @@ describe('submitServerQuotes', () => {
         calls: [],
         recipient: undefined,
         authorizationList: undefined,
-      } as never);
+      });
 
       await submitServerQuotes(
         buildRequest({
@@ -939,7 +1182,7 @@ describe('submitServerQuotes', () => {
         calls: [overrideCall],
         recipient: undefined,
         authorizationList: undefined,
-      } as never);
+      });
 
       await submitServerQuotes(
         buildRequest({
@@ -1068,7 +1311,7 @@ describe('submitServerQuotes', () => {
         nestedTransactions: [
           {
             type: 'relayPerpsDeposit' as never,
-            to: '0x1111111111111111111111111111111111111111' as Hex,
+            to: '0x1111111111111111111111111111111111111111',
             data: '0x',
           },
         ],

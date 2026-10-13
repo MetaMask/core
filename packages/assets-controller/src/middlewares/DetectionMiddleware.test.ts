@@ -5,7 +5,7 @@ import type {
   Context,
   DataRequest,
   Caip19AssetId,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
 } from '../types.js';
 import { normalizeAssetId } from '../utils/index.js';
 import { DetectionMiddleware } from './DetectionMiddleware.js';
@@ -35,7 +35,7 @@ function createMockAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 function createDataRequest(
@@ -52,13 +52,13 @@ function createDataRequest(
     })),
     dataTypes: ['balance'],
     ...rest,
-  } as DataRequest;
+  };
 }
 
 function createAssetsState(
   metadataAssets: Caip19AssetId[] = [],
   assetsPrice: Caip19AssetId[] = [],
-): AssetsControllerStateInternal {
+): AssetsControllerState {
   const assetsInfo: Record<Caip19AssetId, { name: string }> = {};
   for (const assetId of metadataAssets) {
     assetsInfo[assetId] = { name: `Asset ${assetId}` };
@@ -72,25 +72,21 @@ function createAssetsState(
     assetsBalance: {},
     customAssets: {},
     assetsPrice: priceState,
-  } as AssetsControllerStateInternal;
+  } as AssetsControllerState;
 }
 
-function createMiddlewareContext(
-  overrides?: Partial<Context>,
-  stateMetadata: Caip19AssetId[] = [],
-  stateAssetsPrice: Caip19AssetId[] = [],
-): Context {
+function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest
-      .fn()
-      .mockReturnValue(createAssetsState(stateMetadata, stateAssetsPrice)),
     ...overrides,
   };
 }
 
-function setupController(): {
+function setupController(
+  stateMetadata: Caip19AssetId[] = [],
+  stateAssetsPrice: Caip19AssetId[] = [],
+): {
   middleware: DetectionMiddleware;
   messenger: Messenger<'DetectionMiddleware', never, never>;
 } {
@@ -98,7 +94,10 @@ function setupController(): {
     namespace: 'DetectionMiddleware',
   });
 
-  const middlewareInstance = new DetectionMiddleware();
+  const middlewareInstance = new DetectionMiddleware({
+    getAssetsState: (): AssetsControllerState =>
+      createAssetsState(stateMetadata, stateAssetsPrice),
+  });
 
   return {
     middleware: middlewareInstance,
@@ -137,20 +136,17 @@ describe('DetectionMiddleware', () => {
   });
 
   it('detects assets without metadata', async () => {
-    const { middleware } = setupController();
-    const context = createMiddlewareContext(
-      {
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_ASSET_1]: { amount: '1000' },
-              [MOCK_ASSET_2]: { amount: '2000' },
-            },
+    const { middleware } = setupController([]);
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_1]: { amount: '1000' },
+            [MOCK_ASSET_2]: { amount: '2000' },
           },
         },
       },
-      [],
-    );
+    });
     const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
@@ -166,20 +162,17 @@ describe('DetectionMiddleware', () => {
   });
 
   it('skips balance assets that already have metadata in state', async () => {
-    const { middleware } = setupController();
-    const context = createMiddlewareContext(
-      {
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_ASSET_1]: { amount: '1000' },
-              [MOCK_NATIVE_ASSET]: { amount: '2000' },
-            },
+    const { middleware } = setupController([MOCK_ASSET_1, MOCK_NATIVE_ASSET]);
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_1]: { amount: '1000' },
+            [MOCK_NATIVE_ASSET]: { amount: '2000' },
           },
         },
       },
-      [MOCK_ASSET_1, MOCK_NATIVE_ASSET],
-    );
+    });
     const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
@@ -190,21 +183,18 @@ describe('DetectionMiddleware', () => {
   });
 
   it('only detects assets not already in state (mixed scenario)', async () => {
-    const { middleware } = setupController();
-    const context = createMiddlewareContext(
-      {
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_ASSET_1]: { amount: '1000' },
-              [MOCK_ASSET_2]: { amount: '2000' },
-              [MOCK_NATIVE_ASSET]: { amount: '3000' },
-            },
+    const { middleware } = setupController([MOCK_ASSET_1]);
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_1]: { amount: '1000' },
+            [MOCK_ASSET_2]: { amount: '2000' },
+            [MOCK_NATIVE_ASSET]: { amount: '3000' },
           },
         },
       },
-      [MOCK_ASSET_1],
-    );
+    });
     const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
@@ -217,24 +207,21 @@ describe('DetectionMiddleware', () => {
   });
 
   it('handles multiple accounts, skipping assets already in state per account', async () => {
-    const { middleware } = setupController();
+    const { middleware } = setupController([MOCK_NATIVE_ASSET]);
     const account2Id = 'account-2-id';
-    const context = createMiddlewareContext(
-      {
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_ASSET_1]: { amount: '1000' },
-            },
-            [account2Id]: {
-              [MOCK_ASSET_2]: { amount: '2000' },
-              [MOCK_NATIVE_ASSET]: { amount: '3000' },
-            },
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_1]: { amount: '1000' },
+          },
+          [account2Id]: {
+            [MOCK_ASSET_2]: { amount: '2000' },
+            [MOCK_NATIVE_ASSET]: { amount: '3000' },
           },
         },
       },
-      [MOCK_NATIVE_ASSET],
-    );
+    });
     const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
@@ -248,23 +235,20 @@ describe('DetectionMiddleware', () => {
   });
 
   it('skips an account entirely when all its balance assets are already in state', async () => {
-    const { middleware } = setupController();
+    const { middleware } = setupController([MOCK_ASSET_1]);
     const account2Id = 'account-2-id';
-    const context = createMiddlewareContext(
-      {
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_ASSET_1]: { amount: '1000' },
-            },
-            [account2Id]: {
-              [MOCK_ASSET_2]: { amount: '2000' },
-            },
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_1]: { amount: '1000' },
+          },
+          [account2Id]: {
+            [MOCK_ASSET_2]: { amount: '2000' },
           },
         },
       },
-      [MOCK_ASSET_1],
-    );
+    });
     const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
@@ -298,20 +282,17 @@ describe('DetectionMiddleware', () => {
   });
 
   it('runs when dataTypes includes balance among others', async () => {
-    const { middleware } = setupController();
-    const context = createMiddlewareContext(
-      {
-        request: createDataRequest({ dataTypes: ['balance', 'metadata'] }),
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_ASSET_1]: { amount: '1000' },
-            },
+    const { middleware } = setupController([]);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ dataTypes: ['balance', 'metadata'] }),
+      response: {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_1]: { amount: '1000' },
           },
         },
       },
-      [],
-    );
+    });
     const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
@@ -355,21 +336,17 @@ describe('DetectionMiddleware', () => {
   });
 
   it('queues assetsForPriceUpdate for detected assets missing a price', async () => {
-    const { middleware } = setupController();
-    const context = createMiddlewareContext(
-      {
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_ASSET_1]: { amount: '1000' },
-              [MOCK_ASSET_2]: { amount: '2000' },
-            },
+    const { middleware } = setupController([], [MOCK_ASSET_1]);
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_1]: { amount: '1000' },
+            [MOCK_ASSET_2]: { amount: '2000' },
           },
         },
       },
-      [],
-      [MOCK_ASSET_1],
-    );
+    });
     const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
@@ -384,20 +361,16 @@ describe('DetectionMiddleware', () => {
   });
 
   it('does not queue assetsForPriceUpdate when all detected assets have prices', async () => {
-    const { middleware } = setupController();
-    const context = createMiddlewareContext(
-      {
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_ASSET_1]: { amount: '1000' },
-            },
+    const { middleware } = setupController([], [MOCK_ASSET_1]);
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_1]: { amount: '1000' },
           },
         },
       },
-      [],
-      [MOCK_ASSET_1],
-    );
+    });
     const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
@@ -410,20 +383,17 @@ describe('DetectionMiddleware', () => {
   });
 
   it('queues assetsForPriceUpdate for known balance assets that still lack a price', async () => {
-    const { middleware } = setupController();
+    const { middleware } = setupController([MOCK_NATIVE_ASSET]);
     // Asset already has metadata (known / seeded) but no price yet.
-    const context = createMiddlewareContext(
-      {
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_NATIVE_ASSET]: { amount: '0' },
-            },
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_NATIVE_ASSET]: { amount: '0' },
           },
         },
       },
-      [MOCK_NATIVE_ASSET],
-    );
+    });
     const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
@@ -439,18 +409,15 @@ describe('DetectionMiddleware', () => {
     const { middleware } = setupController();
     const middlewareFn = middleware.assetsMiddleware;
 
-    const context = createMiddlewareContext(
-      {
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_ASSET_1]: { amount: '1000' },
-            },
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_1]: { amount: '1000' },
           },
         },
       },
-      [],
-    );
+    });
     const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middlewareFn(context, next);

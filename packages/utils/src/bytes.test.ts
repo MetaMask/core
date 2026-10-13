@@ -414,7 +414,7 @@ describe('valueToBytes', () => {
       expect(valueToBytes(bigint)).toStrictEqual(bytes);
       expect(valueToBytes(number)).toStrictEqual(bytes);
       expect(valueToBytes(hexadecimal)).toStrictEqual(bytes);
-      expect(valueToBytes(bytes)).toBe(bytes);
+      expect(valueToBytes(bytes)).toStrictEqual(bytes);
     },
   );
 

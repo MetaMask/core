@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
+- Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
+- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+
+## [5.1.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.1.0` ([#10462](https://github.com/MetaMask/core/pull/10462), [#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [5.1.2]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.3.1` to `^33.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
 ## [5.1.1]
 
 ### Changed
@@ -271,7 +290,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.3...HEAD
+[5.1.3]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.2...@metamask/profile-metrics-controller@5.1.3
+[5.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.1...@metamask/profile-metrics-controller@5.1.2
 [5.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.0...@metamask/profile-metrics-controller@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.0.0...@metamask/profile-metrics-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.4...@metamask/profile-metrics-controller@5.0.0

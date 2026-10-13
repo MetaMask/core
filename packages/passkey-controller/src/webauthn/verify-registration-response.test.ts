@@ -552,7 +552,7 @@ describe('verifyRegistrationResponse edge cases', () => {
     unsupportedMap.set(COSEKEYS.X, new Uint8Array(32).fill(0x01));
     unsupportedMap.set(COSEKEYS.Y, new Uint8Array(32).fill(0x02));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const unsupportedKeyCBOR = encodeCBOR(unsupportedMap as any);
+    const unsupportedKeyCBOR = encodeCBOR(unsupportedMap);
 
     const credentialID = new Uint8Array(16).fill(0x32);
     const aaguid = new Uint8Array(16).fill(0);
@@ -1046,7 +1046,7 @@ describe('verifyRegistrationResponse missing public key fields', () => {
     coseMapNoAlg.set(COSEKEYS.X, new Uint8Array(32).fill(0x01));
     coseMapNoAlg.set(COSEKEYS.Y, new Uint8Array(32).fill(0x02));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const coseNoAlgCBOR = encodeCBOR(coseMapNoAlg as any);
+    const coseNoAlgCBOR = encodeCBOR(coseMapNoAlg);
 
     const credentialID = new Uint8Array(16).fill(0x40);
     const aaguid = new Uint8Array(16).fill(0);

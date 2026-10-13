@@ -10,9 +10,14 @@ const baseConfig = require('../../jest.config.packages.cjs');
 
 const displayName = path.basename(__dirname);
 
-module.exports = merge(baseConfig, {
+const config = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
+
+  // Unlike most packages, these tests run as ESM. `execa` is ESM-only, and the
+  // CommonJS transform would turn its import into a `require()` that Node
+  // cannot resolve before v24.9.
+  extensionsToTreatAsEsm: ['.ts'],
 
   // cli.ts is tested via execa subprocess in cli.test.ts; Jest can't instrument it
   coveragePathIgnorePatterns: ['./src/cli.ts'],
@@ -27,3 +32,11 @@ module.exports = merge(baseConfig, {
     },
   },
 });
+
+// `deepmerge` concatenates arrays, so the CommonJS transform inherited from the
+// base config has to be replaced outright rather than merged into.
+config.transform = {
+  '^.+\\.tsx?$': ['ts-jest', { useESM: true }],
+};
+
+module.exports = config;

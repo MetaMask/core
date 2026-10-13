@@ -1,4 +1,4 @@
-import type { CodeownersSection } from './types.js';
+import type { CodeownersSection } from './types.ts';
 
 /**
  * Renders a section in the CODEOWNERS file. This can either be a team section,

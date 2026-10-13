@@ -18,15 +18,16 @@ import {
   isRelayValidationEnabled,
 } from '../../utils/feature-flags.js';
 import {
+  buildPolymarketDepositWalletSimulation,
+  isPredictWithdraw,
+} from '../../utils/polymarket/withdraw.js';
+import {
   validateQuoteExecution,
   QuoteError,
   isQuoteError,
 } from '../../utils/validation.js';
 import type { QuoteSimulation } from '../../utils/validation.js';
-import {
-  buildPolymarketDepositWalletSimulation,
-  isPredictWithdraw,
-} from './polymarket/withdraw.js';
+import { getRelayDepositData } from './deposit-step.js';
 import { getRelayExecuteRequest } from './relay-submit-execute.js';
 import { getRelaySubmitCalls } from './relay-submit.js';
 import type { RelayExecuteRequest, RelayQuote } from './types.js';
@@ -70,10 +71,7 @@ export async function validateRelayQuotes(
         // Backwards compatibility: keep the entire quote batch (including
         // quotes that may have passed or not yet been validated) so that
         // clients can still show quote details alongside the balance error.
-        throw new QuoteError(
-          quoteError.info,
-          request.quotes as TransactionPayQuote<unknown>[],
-        );
+        throw new QuoteError(quoteError.info, request.quotes);
       }
       throw quoteError;
     }
@@ -113,11 +111,12 @@ async function buildValidationSimulation(
   quote: TransactionPayQuote<RelayQuote>,
 ): Promise<QuoteSimulation> {
   if (quote.request.isPolymarketDepositWallet) {
-    return await buildPolymarketDepositWalletSimulation(
-      quote,
-      quote.request.from,
-      request.messenger,
-    );
+    return await buildPolymarketDepositWalletSimulation({
+      depositData: getRelayDepositData(quote.original),
+      from: quote.request.from,
+      messenger: request.messenger,
+      sourceAmountRaw: quote.sourceAmount.raw,
+    });
   }
 
   const { calls } = await getRelaySubmitCalls({
@@ -237,7 +236,7 @@ function buildRelay7702BatchSimulation(
         data: batchTx.data,
         from,
         ...(gas === undefined || gas === 0 ? {} : { gas: toHex(gas) }),
-        to: batchTx.to as Hex,
+        to: batchTx.to,
         value: '0x0',
       },
     ],

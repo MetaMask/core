@@ -1,7 +1,11 @@
 /* eslint-disable */
-jest.mock('@nktkas/hyperliquid', () => ({}));
+// The provider checks cancel errors against the SDK's error class.
+jest.mock('@nktkas/hyperliquid', () => ({
+  HyperliquidError: class MockHyperliquidError extends Error {},
+}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
+import { HyperliquidError } from '@nktkas/hyperliquid';
 
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
@@ -64,6 +68,7 @@ jest.mock('../../../src/utils/standaloneInfoClient', () => ({
 }));
 
 jest.mock('../../../src/utils/hyperLiquidValidation', () => ({
+  ...jest.requireActual('../../../src/utils/hyperLiquidValidation'),
   validateOrderParams: jest.fn(),
   validateWithdrawalParams: jest.fn(),
   validateDepositParams: jest.fn(),
@@ -80,11 +85,6 @@ jest.mock('../../../src/utils/hyperLiquidValidation', () => ({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: jest.fn((error, defaultResponse) => ({
-    ...defaultResponse,
-    success: false,
-    error: error instanceof Error ? error.message : String(error),
-  })),
 }));
 
 // Mock adapter functions
@@ -343,9 +343,6 @@ const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
   agentSetAbstraction: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
   ...overrides,
 });
 
@@ -459,8 +456,8 @@ describe('HyperLiquidProvider', () => {
       getUserAddressWithDefault: jest
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isKeyringUnlocked: jest.fn().mockReturnValue(true),
-      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -521,13 +518,6 @@ describe('HyperLiquidProvider', () => {
       chainId: 'eip155:42161',
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
-    hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    );
     const hyperLiquidAdapter = jest.requireMock(
       '../../../src/utils/hyperLiquidAdapter',
     );
@@ -725,6 +715,25 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.placeOrder(orderParams);
 
       expect(result.success).toBe(false);
+    });
+
+    it('maps an immediate-match rejection to IOC_CANCEL with a code', async () => {
+      (
+        mockClientService.getExchangeClient().order as jest.Mock
+      ).mockRejectedValueOnce(new Error('Order could not immediately match'));
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.IOC_CANCEL,
+        errorCode: PERPS_ERROR_CODES.IOC_CANCEL,
+      });
     });
 
     it('edits an order successfully', async () => {
@@ -1146,7 +1155,7 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
-    it('retries size-based order with currentPrice when rejected for $10 minimum', async () => {
+    it('retries a size-based order without applying its stale calculation snapshot to the synthesized USD amount', async () => {
       // Create provider with PUMP in the asset mapping
       provider = createTestProvider({
         initialAssetMapping: [
@@ -1208,6 +1217,11 @@ describe('HyperLiquidProvider', () => {
         size: '2553',
         orderType: 'market',
         currentPrice: 0.003918,
+        // Exact-size orders do not derive their size from this snapshot. The
+        // minimum-order retry synthesizes a USD amount from currentPrice, so it
+        // must not turn this stale snapshot into a PRICE_MOVED rejection.
+        priceAtCalculation: 0.003,
+        maxSlippageBps: 300,
       };
 
       mockClientService.getExchangeClient = jest.fn().mockReturnValue({
@@ -2415,10 +2429,10 @@ describe('HyperLiquidProvider', () => {
       expect(getSubmittedOrder()).toMatchObject({ s: '0.1', r: true });
     });
 
-    it('rejects a full close whose price moved beyond maxSlippageBps', async () => {
-      // A full close submits the exact live size rather than a USD-derived one,
-      // but the caller's staleness guard must still apply: priceAtCalculation is
-      // 50000 and the live price is 40000, a 2000 bps move against a 300 bps cap
+    it('submits a full close when the local price snapshot is stale', async () => {
+      // A full close submits the exact live size rather than a USD-derived one.
+      // The venue-side slippage-capped price remains the execution protection,
+      // so the redundant local snapshot guard is skipped.
       primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
 
       const result = await provider.closePosition({
@@ -2430,11 +2444,12 @@ describe('HyperLiquidProvider', () => {
         position: createPositionSnapshot({ size: '0.1' }),
       });
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Price moved too much');
-      expect(
-        mockClientService.getExchangeClient().order,
-      ).not.toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({
+        p: '38800',
+        s: '0.1',
+        r: true,
+      });
     });
 
     it('submits the exact live size for a full close inside maxSlippageBps', async () => {
@@ -4081,6 +4096,27 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
+    it('tags margin update errors for the position-management dashboard', async () => {
+      primeFrozenAggregate([], [createCachedPosition()]);
+      updateIsolatedMargin.mockRejectedValue(new Error('API error'));
+
+      const result = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '1',
+      });
+
+      expect(result).toStrictEqual({ success: false, error: 'API error' });
+      expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            operation: 'position_management',
+            action: 'update_margin',
+          }),
+        }),
+      );
+    });
+
     it('does not update a position the live per-DEX slice reports closed', async () => {
       primeFrozenAggregate([createCachedPosition()], []);
 
@@ -4270,6 +4306,15 @@ describe('HyperLiquidProvider', () => {
         expect(result.failureCount).toBe(1);
         expect(result.results[0].success).toBe(false);
         expect(result.results[0].error).toBe('API error');
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+          expect.any(Error),
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              operation: 'order_management',
+              action: 'cancel_order',
+            }),
+          }),
+        );
       });
 
       it('maps recognized per-status batch cancel rejections to a standardized code', async () => {
@@ -4297,6 +4342,45 @@ describe('HyperLiquidProvider', () => {
         expect(result.results[1].error).toBe(
           PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
         );
+      });
+
+      it('keeps the orders the venue cancelled when the SDK throws for a failed entry', async () => {
+        const statuses = ['success', { error: 'multi-sig required' }];
+        const sdkError = Object.assign(
+          new HyperliquidError('cancel 1: multi-sig required'),
+          {
+            name: 'ApiRequestError',
+            response: {
+              status: 'ok',
+              response: { type: 'cancel', data: { statuses } },
+            },
+          },
+        );
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            cancel: jest.fn().mockRejectedValue(sdkError),
+          }),
+        );
+
+        const result = await provider.cancelOrders([
+          { orderId: '123', symbol: 'BTC' },
+          { orderId: '456', symbol: 'ETH' },
+        ]);
+
+        expect(result).toStrictEqual({
+          success: true,
+          successCount: 1,
+          failureCount: 1,
+          results: [
+            { orderId: '123', symbol: 'BTC', success: true },
+            {
+              orderId: '456',
+              symbol: 'ETH',
+              success: false,
+              error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+            },
+          ],
+        });
       });
 
       it('rejects a non-ok batch response even when its statuses say success', async () => {

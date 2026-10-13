@@ -18,6 +18,9 @@
       "path": "../controller-utils/tsconfig.lint.json"
     },
     {
+      "path": "../core-backend/tsconfig.lint.json"
+    },
+    {
       "path": "../profile-sync-controller/tsconfig.lint.json"
     }
   ]

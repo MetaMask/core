@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
+- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+
+## [7.0.4]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.1.0` ([#10462](https://github.com/MetaMask/core/pull/10462), [#10652](https://github.com/MetaMask/core/pull/10652))
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [7.0.3]
+
+### Changed
+
+- Bump `cockatiel` from `^3.1.2` to `^3.2.1` ([#10436](https://github.com/MetaMask/core/pull/10436))
+- Bump `@metamask/profile-sync-controller` from `^32.3.1` to `^33.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
 ## [7.0.2]
 
 ### Changed
@@ -327,7 +348,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.4...HEAD
+[7.0.4]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.3...@metamask/shield-controller@7.0.4
+[7.0.3]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.2...@metamask/shield-controller@7.0.3
 [7.0.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.1...@metamask/shield-controller@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.0...@metamask/shield-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.2...@metamask/shield-controller@7.0.0

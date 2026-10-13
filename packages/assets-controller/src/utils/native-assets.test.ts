@@ -3,7 +3,7 @@ import { fetchWithErrorHandling } from '@metamask/controller-utils';
 import {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
-  getDefaultNativeAssetBalance,
+  isNativeAssetId,
   NATIVE_ASSETS,
 } from './native-assets.js';
 import { normalizeAssetId } from './normalizeAssetId.js';
@@ -29,28 +29,24 @@ describe('buildNativeAssetsFromConstant', () => {
   });
 });
 
-describe('getDefaultNativeAssetBalance', () => {
-  it('seeds Stellar natives with zero spendable and reserve metadata', () => {
-    expect(
-      getDefaultNativeAssetBalance('stellar:pubnet/slip44:148'),
-    ).toStrictEqual({
-      amount: '0',
-      metadata: {
-        minimumReserveBalance: '0',
-        spendableBalance: '0',
-      },
-    });
+describe('isNativeAssetId', () => {
+  it('returns true for every NATIVE_ASSETS id', () => {
+    for (const assetId of Object.values(NATIVE_ASSETS)) {
+      expect(isNativeAssetId(assetId)).toBe(true);
+    }
   });
 
-  it('seeds non-Stellar natives as a plain zero amount', () => {
+  it('returns false for non-native tokens on a known chain', () => {
     expect(
-      getDefaultNativeAssetBalance(
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      isNativeAssetId(
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F',
       ),
-    ).toStrictEqual({ amount: '0' });
-    expect(getDefaultNativeAssetBalance('eip155:1/slip44:60')).toStrictEqual({
-      amount: '0',
-    });
+    ).toBe(false);
+    expect(
+      isNativeAssetId(
+        'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+      ),
+    ).toBe(false);
   });
 });
 

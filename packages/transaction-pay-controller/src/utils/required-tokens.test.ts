@@ -51,7 +51,7 @@ describe('Required Tokens Utils', () => {
           requiredAssets: [
             {
               address: tokenAddress,
-              amount: '0x2DC6C0' as Hex,
+              amount: '0x2DC6C0',
               standard: 'erc20',
             },
           ],
@@ -95,12 +95,12 @@ describe('Required Tokens Utils', () => {
           requiredAssets: [
             {
               address: tokenAddress1,
-              amount: '0x2DC6C0' as Hex,
+              amount: '0x2DC6C0',
               standard: 'erc20',
             },
             {
               address: tokenAddress2,
-              amount: '0x1E8480' as Hex,
+              amount: '0x1E8480',
               standard: 'erc20',
             },
           ],
@@ -123,7 +123,7 @@ describe('Required Tokens Utils', () => {
           requiredAssets: [
             {
               address: tokenAddress,
-              amount: '0x2DC6C0' as Hex,
+              amount: '0x2DC6C0',
               standard: 'erc20',
             },
           ],

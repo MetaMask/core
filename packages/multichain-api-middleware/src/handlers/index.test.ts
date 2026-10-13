@@ -29,8 +29,7 @@ const makeMockHooks = () =>
         },
       },
     ],
-    findNetworkClientIdByChainId: (() =>
-      '1') as Hooks['findNetworkClientIdByChainId'],
+    findNetworkClientIdByChainId: () => '1',
     requestPermissionsForOrigin: () =>
       Promise.resolve([{}, { id: '1', origin: 'test' }]),
     getNonEvmSupportedMethods: () => [],

@@ -932,6 +932,31 @@ describe('MultichainTransactionsController', () => {
     );
   });
 
+  it('publishes transactionFailed event when transaction fails', async () => {
+    const { rootMessenger, messenger } = setupController();
+
+    const failedTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '123',
+      status: 'failed' as const,
+    };
+
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [mockBtcAccount.id]: [failedTransaction],
+      },
+    });
+
+    await waitForAllPromises();
+
+    expect(publishSpy).toHaveBeenCalledWith(
+      'MultichainTransactionsController:transactionFailed',
+      failedTransaction,
+    );
+  });
+
   it('does not publish events for other transaction statuses', async () => {
     const { rootMessenger } = setupController();
 
@@ -959,6 +984,10 @@ describe('MultichainTransactionsController', () => {
       'MultichainTransactionsController:transactionSubmitted',
       expect.anything(),
     );
+    expect(publishSpy).not.toHaveBeenCalledWith(
+      'MultichainTransactionsController:transactionFailed',
+      expect.anything(),
+    );
   });
 
   it('publishes correct events for multiple transactions with different statuses', async () => {
@@ -980,6 +1009,11 @@ describe('MultichainTransactionsController', () => {
         id: '789',
         status: 'unconfirmed' as const,
       },
+      {
+        ...mockTransactionResult.data[0],
+        id: 'abc',
+        status: 'failed' as const,
+      },
     ];
 
     const publishSpy = jest.spyOn(messenger, 'publish');
@@ -999,6 +1033,10 @@ describe('MultichainTransactionsController', () => {
     expect(publishSpy).toHaveBeenCalledWith(
       'MultichainTransactionsController:transactionSubmitted',
       transactions[1],
+    );
+    expect(publishSpy).toHaveBeenCalledWith(
+      'MultichainTransactionsController:transactionFailed',
+      transactions[3],
     );
   });
 

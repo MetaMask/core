@@ -422,6 +422,7 @@ export type RwaToken = {
   decimals: number;
   name: string;
   rwaData: RwaTokenData;
+  securityData?: TokenSecurityData;
 };
 
 export type RwasResponse = {
@@ -461,6 +462,7 @@ export type FetchRwasParams = {
     | 'utilities'
     | 'energy'
     | 'real estate';
+  includeTokenSecurityData?: boolean;
   [key: string]: string | number | boolean | string[] | undefined;
 };
 

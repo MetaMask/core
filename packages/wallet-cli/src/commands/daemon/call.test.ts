@@ -91,7 +91,7 @@ describe('daemon call', () => {
 
   it('handles non-Error throws from sendCommand', async () => {
     mockSendCommand.mockImplementation(async () =>
-      Promise.reject('string error' as unknown as Error),
+      Promise.reject('string error'),
     );
 
     const { error } = await runCommand(DaemonCall, [ACTION]);

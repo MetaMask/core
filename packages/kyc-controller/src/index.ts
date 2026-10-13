@@ -3,6 +3,7 @@ export {
   getDefaultKycControllerState,
   getDefaultKycProviderDisclaimersAccepted,
   getDefaultKycVendorDisclaimersAccepted,
+  KYC_PROVIDER_FLOW_STATUSES,
   controllerName,
 } from './KycController.js';
 export type {
@@ -14,17 +15,21 @@ export type {
   KycControllerState,
   KycControllerStateChangeEvent,
   FetchSessionDisclaimersParams,
+  KycProviderFlowStatus,
 } from './KycController.js';
 export type {
   KycControllerClearStateAction,
   KycControllerFetchSessionDisclaimersAction,
   KycControllerFetchVendorDisclaimersAction,
+  KycControllerGetProviderFlowStatusAction,
   KycControllerGetSessionStatusForVendorAction,
   KycControllerHasCompletedSessionDisclaimersAction,
   KycControllerHasCompletedVendorDisclaimersAction,
   KycControllerLaunchProviderFlowAction,
   KycControllerRecordSessionDisclaimersAction,
   KycControllerRecordVendorDisclaimersAction,
+  KycControllerFetchSessionStatusOnceAction,
+  KycControllerReadSessionStatusAction,
   KycControllerRefreshSessionStatusAction,
   KycControllerResetAction,
   KycControllerStartSessionAction,
@@ -42,6 +47,7 @@ export type {
   FetchSessionDisclaimersByCountryParams,
   FetchSessionDisclaimersBySessionIdParams,
   GetSessionStatusParams,
+  ResetWrappingKeysParams,
   VendorCustomerResponse,
   JwksResponse,
   KycServiceActions,
@@ -69,6 +75,7 @@ export type {
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetSessionStatusForVendorAction,
+  KycServiceResetWrappingKeysAction,
   KycServiceSetAuthorizationsAction,
   KycServiceSubmitSessionDisclaimersAction,
   KycServiceSubmitVendorDisclaimersAction,
@@ -85,6 +92,7 @@ export type {
   X25519KeyPair,
 } from './crypto.js';
 
+export { KYC_STATUSES, TERMINAL_SESSION_STATUSES } from './types.js';
 export type {
   KycCatalogDocument,
   KycConsentDocument,
@@ -101,6 +109,13 @@ export type {
   KycMoonpayVendorDisclaimersAccepted,
   KycVendorDisclaimersAccepted,
   KycVendorSigning,
+} from './types.js';
+export {
+  FINAL_STATUSES_TO_SKIP_AUTH_REFRESH,
+  CAPABILITY_AUTHORIZATION_STATUSES,
+  CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH,
+  needsCapabilityAuthorizationRefresh,
+  FINAL_STATUSES_TO_STOP_POLLING,
 } from './types.js';
 export type {
   KycSumSubLaunchParams,

@@ -2,7 +2,13 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "dependencyDashboard": true,
+  "gitIgnoredAuthors": [
+    "41898282+github-actions[bot]@users.noreply.github.com"
+  ],
   "dependencyDashboardApproval": true,
+  "lockFileMaintenance": {
+    "enabled": true
+  },
   "minimumReleaseAge": "3 days",
   "postUpdateOptions": ["yarnDedupeHighest"],
   "rangeStrategy": "bump",
@@ -27,6 +33,14 @@
         "@lavamoat/**"
       ],
       "minimumReleaseAge": null
+    },
+    {
+      "matchPackageNames": [
+        "!@metamask/**",
+        "!@metamask-previews/**",
+        "!@types/**"
+      ],
+      "groupName": "{{#if sourceRepoSlug}}{{{sourceRepoSlug}}}{{else}}{{{depName}}}{{/if}}"
     }
   ]
 }

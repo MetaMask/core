@@ -98,12 +98,12 @@ describe('MFA services', () => {
     );
   });
 
-  it('completes passkey and email enrollment', async () => {
+  it('completes passkey and email enrollment and returns the assertion', async () => {
     mockFetch
       .mockResolvedValueOnce(response(MOCK_MFA_ENROLL_COMPLETE_RESPONSE))
       .mockResolvedValueOnce(response(MOCK_MFA_ENROLL_COMPLETE_RESPONSE));
 
-    await mfaEnrollComplete(Env.PRD, 'access-token', {
+    const passkeyCompletion = await mfaEnrollComplete(Env.PRD, 'access-token', {
       credential_type: 'passkey',
       flow_id: 'flow-id',
       passkey_attestation: registration,
@@ -114,10 +114,26 @@ describe('MFA services', () => {
       otp_code: '123456',
     });
 
+    expect(passkeyCompletion).toStrictEqual({
+      token: MOCK_MFA_ENROLL_COMPLETE_RESPONSE.token,
+      expiresIn: 900,
+    });
     const firstBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     const secondBody = JSON.parse(mockFetch.mock.calls[1][1].body);
     expect(firstBody.passkey_attestation).toBe(JSON.stringify(registration));
     expect(secondBody.otp_code).toBe('123456');
+  });
+
+  it('rejects an enrollment response without an assertion', async () => {
+    mockFetch.mockResolvedValueOnce(response({ expires_in: 900 }));
+
+    await expect(
+      mfaEnrollComplete(Env.PRD, 'access-token', {
+        credential_type: 'email_otp',
+        flow_id: 'flow-id',
+        otp_code: '123456',
+      }),
+    ).rejects.toMatchObject({ mfaCode: 'invalid_response' });
   });
 
   it('begins and completes passkey verification', async () => {
@@ -227,12 +243,22 @@ describe('MFA services', () => {
         status: 'revoked',
       }),
     ).toBeNull();
+  });
+
+  it('keeps email credentials listed without an address', () => {
     expect(
       toEnrolledCredential({
         credential_type: 'email_otp',
-        status: 'pending',
+        status: 'active',
       }),
-    ).toBeNull();
+    ).toStrictEqual({ type: 'email_otp', status: 'active', verified: true });
+    expect(
+      toEnrolledCredential({
+        credential_type: 'email_otp',
+        status: 'active',
+        email: { verified: true },
+      }),
+    ).toStrictEqual({ type: 'email_otp', status: 'active', verified: true });
   });
 
   it('derives email verification from status when the server omits it', () => {

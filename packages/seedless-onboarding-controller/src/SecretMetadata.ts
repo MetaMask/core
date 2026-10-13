@@ -12,7 +12,7 @@ import {
   SecretType,
 } from './constants.js';
 import type { SecretDataType } from './types.js';
-import { getSecretTypeFromDataType } from './utils.js';
+import { getSecretTypeFromDataType } from './utils/index.js';
 
 type ISecretMetadata<DataType extends SecretDataType = Uint8Array> = {
   data: DataType;

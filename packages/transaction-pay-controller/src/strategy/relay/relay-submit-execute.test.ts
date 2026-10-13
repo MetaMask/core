@@ -75,12 +75,12 @@ const ORIGINAL_QUOTE_MOCK = {
         {
           data: {
             chainId: 1,
-            data: '0x1234' as Hex,
+            data: '0x1234',
             from: FROM_MOCK,
             gas: '21000',
             maxFeePerGas: '25000000000',
             maxPriorityFeePerGas: '1000000000',
-            to: '0xfedcb' as Hex,
+            to: '0xfedcb',
             value: '1234',
           },
           status: 'complete',
@@ -131,7 +131,7 @@ describe('Relay Submit Execute', () => {
     successfulFetchMock.mockResolvedValue({
       ok: true,
       json: async () => EXECUTE_RESPONSE_MOCK,
-    } as Response);
+    });
 
     quote = {
       fees: {
@@ -162,9 +162,9 @@ describe('Relay Submit Execute', () => {
     allParams = [
       {
         from: FROM_MOCK,
-        to: '0xfedcb' as Hex,
-        data: '0x1234' as Hex,
-        value: '0x4d2' as Hex,
+        to: '0xfedcb',
+        data: '0x1234',
+        value: '0x4d2',
       },
     ];
   });
@@ -269,8 +269,8 @@ describe('Relay Submit Execute', () => {
     });
 
     it('does not use stale txParams.data from the incoming transaction', async () => {
-      transaction.txParams.data = '0xstaledata' as Hex;
-      transaction.txParams.to = '0xstaleto' as Hex;
+      transaction.txParams.data = '0xstaledata';
+      transaction.txParams.to = '0xstaleto';
 
       await submitViaRelayExecute(quote, transaction, messenger, allParams);
 
@@ -301,7 +301,7 @@ describe('Relay Submit Execute', () => {
     });
 
     it('throws when metamask.signature is missing', async () => {
-      quote.original.metamask.signature = undefined as never;
+      quote.original.metamask.signature = undefined;
 
       await expect(
         submitViaRelayExecute(quote, transaction, messenger, allParams),
@@ -389,7 +389,7 @@ describe('Relay Submit Execute', () => {
         json: async () => ({
           message: 'failed to decode param in array[0] invalid JSON input',
         }),
-      } as Response);
+      });
 
       await expect(
         submitViaRelayExecute(quote, transaction, messenger, allParams),
@@ -412,7 +412,7 @@ describe('Relay Submit Execute', () => {
           amountFormatted: '1.00',
           amountUsd: '1.00',
           currency: {
-            address: '0xtoken' as Hex,
+            address: '0xtoken',
             chainId: 137,
             decimals: 6,
           },
@@ -429,9 +429,9 @@ describe('Relay Submit Execute', () => {
       allParams = [
         {
           from: FROM_MOCK,
-          to: '0xfedcb' as Hex,
-          data: '0xa9059cbb000000000000000000000000abcdef1234567890abcdef1234567890abcdef120000000000000000000000000000000000000000000000000000000000989680' as Hex,
-          value: '0x4d2' as Hex,
+          to: '0xfedcb',
+          data: '0xa9059cbb000000000000000000000000abcdef1234567890abcdef1234567890abcdef120000000000000000000000000000000000000000000000000000000000989680',
+          value: '0x4d2',
         },
       ];
     });
@@ -473,7 +473,7 @@ describe('Relay Submit Execute', () => {
     });
 
     it('throws when quote is missing metamask.signature', async () => {
-      quote.original.metamask.signature = undefined as never;
+      quote.original.metamask.signature = undefined;
 
       await expect(
         submitViaRelayExecute(quote, transaction, messenger, allParams),
@@ -593,8 +593,8 @@ describe('Relay Submit Execute', () => {
     });
 
     it('does not regenerate batch txParams when regenerateBatchParams is false (default)', async () => {
-      transaction.txParams.data = '0xoriginaldata2' as Hex;
-      transaction.txParams.to = '0xoriginalto2' as Hex;
+      transaction.txParams.data = '0xoriginaldata2';
+      transaction.txParams.to = '0xoriginalto2';
 
       await getRelayExecuteRequest({
         allParams,
@@ -614,8 +614,8 @@ describe('Relay Submit Execute', () => {
     });
 
     it('does not regenerate txParams when regenerateBatchParams is false (default)', async () => {
-      transaction.txParams.data = '0xoriginaldata' as Hex;
-      transaction.txParams.to = '0xoriginalto' as Hex;
+      transaction.txParams.data = '0xoriginaldata';
+      transaction.txParams.to = '0xoriginalto';
 
       await getRelayExecuteRequest({
         allParams,

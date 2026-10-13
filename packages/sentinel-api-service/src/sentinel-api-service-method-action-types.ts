@@ -6,6 +6,20 @@
 import type { SentinelApiService } from './sentinel-api-service.js';
 
 /**
+ * Fetches the configuration of a single network from the `/network`
+ * endpoint of that network's subdomain. The subdomain is resolved from the
+ * supported-network registry. The result is cached, as the configuration is
+ * stable.
+ *
+ * @param chainId - The chain ID of the network.
+ * @returns The network configuration.
+ */
+export type SentinelApiServiceGetNetworkAction = {
+  type: `SentinelApiService:getNetwork`;
+  handler: SentinelApiService['getNetwork'];
+};
+
+/**
  * Fetches the Sentinel supported-network registry. The result is cached, as
  * the registry is stable and identical across network subdomains.
  *
@@ -65,6 +79,7 @@ export type SentinelApiServiceGetSmartTransactionAction = {
  * Union of all SentinelApiService action types.
  */
 export type SentinelApiServiceMethodActions =
+  | SentinelApiServiceGetNetworkAction
   | SentinelApiServiceGetNetworksAction
   | SentinelApiServiceSimulateTransactionsAction
   | SentinelApiServiceSubmitRelayTransactionAction

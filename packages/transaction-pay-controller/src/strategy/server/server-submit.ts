@@ -19,11 +19,19 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { accountSupports7702 } from '../../utils/7702.js';
 import {
   getServerPollingInterval,
   getServerPollingTimeout,
 } from '../../utils/feature-flags.js';
+import type { GasPayment } from '../../utils/gas-payment.js';
+import {
+  GasPaymentMode,
+  logGasPaymentOutcome,
+  resolveGasPayment,
+} from '../../utils/gas-payment.js';
 import { getNetworkClientId } from '../../utils/provider.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -47,6 +55,13 @@ import type {
 import { ServerStatus } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-strategy');
+
+/**
+ * Placeholder returned when an intent confirms without reporting a
+ * target-chain transaction hash, so there is no settlement to read amounts
+ * from.
+ */
+const MISSING_TARGET_HASH = '0x' as Hex;
 
 const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
   name: { name: 'name', type: 'string' },
@@ -144,6 +159,14 @@ async function executeSingleServerQuote(
 
   log('Server request completed', targetHash);
 
+  // Phase 4: submit the calls the quote could not execute itself, now that the
+  // funds have settled on the target chain.
+  const secondLegHash = quote.requiresSecondLeg
+    ? await submitServerSecondLeg(quote, messenger, transaction, targetHash)
+    : undefined;
+
+  // Only complete once every leg has landed, so a failed second leg does not
+  // leave the parent transaction flagged as achieved.
   updateTransaction(
     {
       transactionId: transaction.id,
@@ -155,7 +178,37 @@ async function executeSingleServerQuote(
     },
   );
 
-  return { transactionHash: targetHash };
+  return { transactionHash: secondLegHash ?? targetHash };
+}
+
+/**
+ * Submit the calls a server quote could not execute itself, from the account
+ * the funds settled on.
+ *
+ * @param quote - Server quote.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ * @param targetHash - Hash of the settlement on the target chain.
+ * @returns Hash of the second-leg transaction, if available.
+ */
+async function submitServerSecondLeg(
+  quote: TransactionPayQuote<ServerQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+  targetHash: Hex | undefined,
+): Promise<Hex | undefined> {
+  const { from, recipient, targetChainId, targetTokenAddress } = quote.request;
+
+  const { transactionHash } = await submitSecondLeg({
+    chainId: targetChainId,
+    from: recipient ?? from,
+    messenger,
+    settlementHash: targetHash === MISSING_TARGET_HASH ? undefined : targetHash,
+    tokenAddress: targetTokenAddress,
+    transaction,
+  });
+
+  return transactionHash;
 }
 
 /**
@@ -204,7 +257,18 @@ async function submitTransactionSteps(
     messenger,
   );
 
-  if (quote.original.gasless) {
+  const gasPayment = resolveGasPayment({
+    isDelegated: quote.original.gasless,
+    isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
+    sourceTokenAddress: quote.request.sourceTokenAddress,
+    sponsorship: {
+      accountSupports7702: accountSupports7702(messenger, quote.request.from),
+      request: quote.request,
+      transaction,
+    },
+  });
+
+  if (gasPayment.mode === GasPaymentMode.Delegation) {
     await submitViaServerExecute(
       quote,
       stepTransactions,
@@ -217,6 +281,7 @@ async function submitTransactionSteps(
       stepTransactions,
       messenger,
       transaction,
+      gasPayment,
     );
   }
 }
@@ -498,11 +563,11 @@ async function prependPostQuoteTransactions(
     );
   } else {
     prependedParams = {
-      data: transaction.txParams.data as Hex | undefined,
+      data: transaction.txParams.data,
       from: transaction.txParams.from,
       to: transaction.txParams.to,
-      value: transaction.txParams.value as Hex | undefined,
-    } as TransactionParams;
+      value: transaction.txParams.value,
+    };
   }
 
   // Ensure the prepended tx carries the same fee caps as the quote steps so
@@ -538,7 +603,7 @@ async function buildDelegatedOriginalParams(
 
   return {
     data: delegation.data,
-    from: transaction.txParams.from as Hex,
+    from: transaction.txParams.from,
     to: delegation.to,
     value: delegation.value,
   };
@@ -670,14 +735,13 @@ async function submitViaTransactionController(
   stepTransactions: StepTransaction[],
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
+  gasPayment: GasPayment,
 ): Promise<void> {
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { from, sourceChainId } = quote.request;
   const { gasLimits, is7702 } = quote.original.client;
+  const { excludeNativeTokenForFee, gasFeeToken } = gasPayment;
 
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
-  const gasFeeToken = quote.fees.isSourceGasFeeToken
-    ? sourceTokenAddress
-    : undefined;
 
   log('Submitting via TransactionController', {
     from,
@@ -714,7 +778,9 @@ async function submitViaTransactionController(
       const { params, type } = stepTransactions[0];
 
       const addTransactionOptions = {
+        excludeNativeTokenForFee,
         gasFeeToken,
+        isGasFeeSponsored: gasPayment.isGasFeeSponsored,
         isInternal: true,
         networkClientId,
         origin: ORIGIN_METAMASK,
@@ -765,7 +831,9 @@ async function submitViaTransactionController(
               disableSequential: true,
               gasLimit7702,
             }),
+        excludeNativeTokenForFee,
         gasFeeToken,
+        isGasFeeSponsored: gasPayment.isGasFeeSponsored,
         isInternal: true,
         networkClientId,
         origin: ORIGIN_METAMASK,
@@ -792,6 +860,11 @@ async function submitViaTransactionController(
   );
 
   log('Server transactions confirmed', transactionIds);
+
+  logGasPaymentOutcome(
+    gasPayment,
+    transactionIds.map((txId) => getTransaction(txId, messenger)),
+  );
 
   const lastId = transactionIds.at(-1);
   const sourceHash = lastId
@@ -965,7 +1038,7 @@ async function waitForServerCompletion(
       }
 
       if (statusResponse.status === ServerStatus.Confirmed) {
-        return statusResponse.targetHash ?? '0x';
+        return statusResponse.targetHash ?? MISSING_TARGET_HASH;
       }
 
       if (

@@ -24,9 +24,16 @@ export type {
   TransactionPayLegacyFormat,
 } from './formatStateForTransactionPay.js';
 export {
+  getDefaultNativeAssetBalance,
+  getZeroAssetBalance,
+  getZeroNativeAssetBalance,
+  getZeroTokenAssetBalance,
+  STELLAR_NATIVE_ZERO_BALANCE_METADATA,
+  STELLAR_TOKEN_ZERO_BALANCE_METADATA,
+} from './getZeroAssetBalance.js';
+export {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
-  getDefaultNativeAssetBalance,
+  isNativeAssetId,
   NATIVE_ASSETS,
-  STELLAR_NATIVE_ZERO_BALANCE_METADATA,
 } from './native-assets.js';

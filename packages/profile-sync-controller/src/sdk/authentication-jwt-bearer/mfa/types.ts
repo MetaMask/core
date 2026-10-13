@@ -102,7 +102,11 @@ export type EnrolledCredential =
       type: 'email_otp';
       status: MfaCredentialStatus;
       enrolledAt?: number;
-      email: string;
+      /**
+       * Absent when the server lists an email method without its address; the
+       * API marks the address optional.
+       */
+      email?: string;
       verified: boolean;
     };
 
@@ -137,7 +141,7 @@ export type EnrollmentProof =
       code: string;
     };
 
-export type StepUpChallenge =
+export type VerificationChallenge =
   | {
       type: 'passkey';
       flowId: string;
@@ -150,7 +154,7 @@ export type StepUpChallenge =
       expiresAt: number;
     };
 
-export type StepUpProof =
+export type VerificationProof =
   | {
       type: 'passkey';
       assertion: AuthenticationResponseJSON;
@@ -160,14 +164,17 @@ export type StepUpProof =
       code: string;
     };
 
-export type ElevatedProfileToken = {
+export type VerificationToken = {
   accessToken: string;
   expiresIn: number;
   obtainedAt: number;
   claims: {
     sub: string;
-    aal: 2;
-    amr: MfaCredentialType[];
+    /**
+     * Methods the verification used. Usually an `MfaCredentialType`, but the
+     * server may report other method names.
+     */
+    amr: (MfaCredentialType | (string & Record<never, never>))[];
     exp: number;
   };
 };
@@ -176,6 +183,13 @@ export type BeginEnrollmentRequest = {
   type: MfaCredentialType;
   email?: string;
   reason: TokenReason;
+  /**
+   * Maximum age, in milliseconds, of a verification session that may authorize
+   * this enrollment. Defaults to `ENROLLMENT_MAX_SESSION_AGE_MS`. A setup flow
+   * that proved a factor itself may pass the time elapsed since it started.
+   * Zero never uses the session.
+   */
+  maxSessionAgeMs?: number;
 };
 
 export type CompleteEnrollmentRequest = {
@@ -184,18 +198,18 @@ export type CompleteEnrollmentRequest = {
   reason: TokenReason;
 };
 
-export type BeginStepUpRequest = {
+export type BeginVerificationRequest = {
   type: MfaCredentialType;
   reason: TokenReason;
 };
 
-export type CompleteStepUpRequest = {
+export type CompleteVerificationRequest = {
   flowId: string;
-  proof: StepUpProof;
+  proof: VerificationProof;
   reason: TokenReason;
 };
 
-export type GetElevatedTokenRequest = {
+export type GetVerificationTokenRequest = {
   maxSessionAgeMs?: number;
 };
 
@@ -218,7 +232,7 @@ export type MfaErrorCode =
   | 'invalid_code'
   | 'invalid_assertion'
   | 'too_many_attempts'
-  | 'elevated_token_invalid'
+  | 'verification_token_invalid'
   | 'authentication_required'
   | 'server_error'
   | 'invalid_response'

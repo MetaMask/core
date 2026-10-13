@@ -1,5 +1,9 @@
 {
   "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true
+  },
   "references": [
     {
       "path": "../utils"

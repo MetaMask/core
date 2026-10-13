@@ -528,8 +528,8 @@ describe('EIP-5792', () => {
                 optional: false,
                 requiredAssets: [
                   {
-                    address: '0x123' as Hex,
-                    amount: '0x1' as Hex,
+                    address: '0x123',
+                    amount: '0x1',
                     standard: 'erc20',
                   },
                 ],
@@ -671,13 +671,13 @@ describe('EIP-5792', () => {
             optional: true,
             requiredAssets: [
               {
-                address: '0x123' as Hex,
-                amount: '0x2' as Hex,
+                address: '0x123',
+                amount: '0x2',
                 standard: 'erc20',
               },
               {
-                address: '0x123' as Hex,
-                amount: '0x3' as Hex,
+                address: '0x123',
+                amount: '0x3',
                 standard: 'erc20',
               },
             ],
@@ -799,8 +799,8 @@ describe('EIP-5792', () => {
                   optional: true,
                   requiredAssets: [
                     {
-                      address: '0xAAA' as Hex,
-                      amount: '0x1' as Hex,
+                      address: '0xAAA',
+                      amount: '0x1',
                       standard: 'erc20',
                     },
                   ],
@@ -814,8 +814,8 @@ describe('EIP-5792', () => {
                   optional: true,
                   requiredAssets: [
                     {
-                      address: '0xAAA' as Hex,
-                      amount: '0x2' as Hex,
+                      address: '0xAAA',
+                      amount: '0x2',
                       standard: 'erc20',
                     },
                   ],
@@ -851,8 +851,8 @@ describe('EIP-5792', () => {
               optional: true,
               requiredAssets: [
                 {
-                  address: '0xBBB' as Hex,
-                  amount: '0x5' as Hex,
+                  address: '0xBBB',
+                  amount: '0x5',
                   standard: 'erc20',
                 },
               ],
@@ -866,8 +866,8 @@ describe('EIP-5792', () => {
                   optional: true,
                   requiredAssets: [
                     {
-                      address: '0xBBB' as Hex,
-                      amount: '0x3' as Hex,
+                      address: '0xBBB',
+                      amount: '0x3',
                       standard: 'erc20',
                     },
                   ],

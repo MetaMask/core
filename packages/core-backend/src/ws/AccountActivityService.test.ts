@@ -57,7 +57,7 @@ const createMockInternalAccount = (overrides: {
   scopes?: InternalAccount['scopes'];
   options?: InternalAccount['options'];
 }): InternalAccount => ({
-  address: overrides.address.toLowerCase() as Hex,
+  address: overrides.address.toLowerCase(),
   id: `test-account-${overrides.address.slice(-6)}`,
   metadata: {
     name: 'Test Account',
@@ -295,7 +295,7 @@ const createServiceWithTestAccount = (
   const mockSelectedAccounts: InternalAccount[] = [
     {
       id: 'test-account-1',
-      address: accountAddress as Hex,
+      address: accountAddress,
       metadata: {
         name: 'Test Account',
         importTime: Date.now(),

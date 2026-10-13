@@ -526,8 +526,7 @@ export class QuoteStatusManager {
         QuoteStatusEntryStore.hash(entry),
       );
       return Boolean(
-        live &&
-        live.status.state === sentStatus &&
+        live?.status.state === sentStatus &&
         live.acknowledgedState !== sentStatus,
       );
     };
@@ -554,12 +553,12 @@ export class QuoteStatusManager {
             // The entry can only be absent if the store was cleared (e.g. via
             // `destroy`) while the request was in flight; nothing left to do.
             if (!current) {
-              return undefined;
+              return;
             }
             if (current.status.state !== sentStatus) {
               // The status advanced mid-flight; report the newer status.
               this.#processEntry(current);
-              return undefined;
+              return;
             }
             if (
               sentStatus === QuoteStatusState.FinalizedSuccess ||
@@ -570,7 +569,7 @@ export class QuoteStatusManager {
               // `reportSubmitted` for this quote is rejected instead of looping.
               this.#markCompleted(current);
 
-              return undefined;
+              return;
             }
             // A non-final status (e.g. `Submitted`) was accepted. The quote is
             // not done yet: it still needs to be finalized via a later
@@ -580,20 +579,20 @@ export class QuoteStatusManager {
             current.acknowledgedState = sentStatus;
             this.#quoteStatusEntryStore.update(current);
             this.#stopRetryTimerIfIdle();
-            return undefined;
+            return;
           }
           case QuoteStatusFetchWithRetryOutcomeType.NonRetryable:
             this.#handleNonRetryableUpdateStatusError(entry, outcome);
-            return undefined;
+            return;
           case QuoteStatusFetchWithRetryOutcomeType.Interrupted:
             this.#processEntry(entry);
-            return undefined;
+            return;
           case QuoteStatusFetchWithRetryOutcomeType.RetryableExhausted:
             entry.lastAttemptAt = Date.now();
             this.#quoteStatusEntryStore.update(entry);
-            return undefined;
+            return;
           default:
-            return undefined;
+            return;
         }
       })
       .catch(() => {

@@ -544,7 +544,7 @@ describe('TokenBalancesController', () => {
         try {
           return await operation();
         } catch {
-          return undefined;
+          return;
         }
       },
     );
@@ -1936,7 +1936,7 @@ describe('TokenBalancesController', () => {
               ],
             },
           },
-        } as unknown as TokensControllerState,
+        },
         [],
       );
 
@@ -3872,9 +3872,7 @@ describe('TokenBalancesController', () => {
       expect(controller.getChainPollingConfig('0x89')).toStrictEqual({
         interval: 30000,
       }); // Has tokens, no config
-      expect(
-        controller.getChainPollingConfig('0x38' as ChainIdHex),
-      ).toStrictEqual({
+      expect(controller.getChainPollingConfig('0x38')).toStrictEqual({
         interval: 30000,
       }); // No tokens, no config
     });
@@ -4879,7 +4877,7 @@ describe('TokenBalancesController', () => {
             return await operation();
           } catch (error) {
             console.error(error);
-            return undefined;
+            return;
           }
         },
       );
@@ -5360,13 +5358,12 @@ describe('TokenBalancesController', () => {
 
       // Spy on AccountTrackerController calls
       const updateNativeBalancesSpy = jest.fn();
-      jest.spyOn(tokenBalancesControllerMessenger, 'call').mockImplementation(((
-        action: string,
-        ...args: unknown[]
-      ) => {
-        updateNativeBalancesSpy(action, ...args);
-        return undefined;
-      }) as never);
+      jest
+        .spyOn(tokenBalancesControllerMessenger, 'call')
+        .mockImplementation((action: string, ...args: unknown[]) => {
+          updateNativeBalancesSpy(action, ...args);
+          return;
+        });
 
       // Emit balance update event for native token
       messenger.publish('AccountActivityService:balanceUpdated', {
@@ -6400,7 +6397,7 @@ describe('TokenBalancesController', () => {
               '0x123': [{ address: '0xtoken1', decimals: 18, symbol: 'TK1' }],
             },
           },
-        } as unknown as TokensControllerState,
+        },
         [],
       );
 
@@ -6520,11 +6517,7 @@ describe('TokenBalancesController', () => {
       const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
 
       // Publish the same state again - tokens haven't changed
-      messenger.publish(
-        'TokensController:stateChange',
-        initialTokens as unknown as TokensControllerState,
-        [],
-      );
+      messenger.publish('TokensController:stateChange', initialTokens, []);
 
       await jest.advanceTimersByTimeAsync(0);
 
@@ -7348,12 +7341,12 @@ describe('TokenBalancesController', () => {
           {
             success: true,
             value: new BN(100),
-            account: accountAddress as ChecksumAddress,
-            token: token1 as Hex,
-            chainId: chainId as ChainIdHex,
+            account: accountAddress,
+            token: token1,
+            chainId,
           },
         ],
-        unprocessedChainIds: ['0x89' as ChainIdHex],
+        unprocessedChainIds: ['0x89'],
       });
 
       await controller.updateBalances({
@@ -7402,7 +7395,7 @@ describe('TokenBalancesController', () => {
               success: true,
               value: new BN(1),
               account: accountAddress,
-              token: NATIVE_TOKEN_ADDRESS as Hex,
+              token: NATIVE_TOKEN_ADDRESS,
               chainId,
             },
           ],
@@ -7428,8 +7421,8 @@ describe('TokenBalancesController', () => {
             {
               success: true,
               value: new BN(200),
-              account: accountAddress as ChecksumAddress,
-              token: token1 as Hex,
+              account: accountAddress,
+              token: token1,
               chainId,
             },
           ],
@@ -7550,16 +7543,16 @@ describe('TokenBalancesController', () => {
           {
             success: true,
             value: new BN(100),
-            account: accountAddress as ChecksumAddress,
-            token: token1 as Hex,
-            chainId: chainId as ChainIdHex,
+            account: accountAddress,
+            token: token1,
+            chainId,
           },
           {
             success: false, // Should be skipped
             value: new BN(200),
-            account: accountAddress as ChecksumAddress,
-            token: token2 as Hex,
-            chainId: chainId as ChainIdHex,
+            account: accountAddress,
+            token: token2,
+            chainId,
           },
         ],
         unprocessedChainIds: [],
@@ -7610,16 +7603,16 @@ describe('TokenBalancesController', () => {
           {
             success: true,
             value: new BN(100),
-            account: accountAddress as ChecksumAddress,
-            token: token1 as Hex,
-            chainId: chainId as ChainIdHex,
+            account: accountAddress,
+            token: token1,
+            chainId,
           },
           {
             success: true,
             value: undefined, // Should be skipped
-            account: accountAddress as ChecksumAddress,
-            token: token2 as Hex,
-            chainId: chainId as ChainIdHex,
+            account: accountAddress,
+            token: token2,
+            chainId,
           },
         ],
         unprocessedChainIds: [],

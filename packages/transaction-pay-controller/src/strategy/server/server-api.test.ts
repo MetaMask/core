@@ -6,7 +6,7 @@ import {
   getServerStatus,
   submitServerIntent,
 } from './server-api.js';
-import { ServerProviderName, ServerStatus } from './types.js';
+import { ServerStatus } from './types.js';
 import type { ServerQuoteRequest, ServerSubmitRequest } from './types.js';
 
 jest.mock('../../utils/feature-flags');
@@ -19,14 +19,14 @@ const mockOkResponse = (body: unknown): jest.SpyInstance =>
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => body,
-  } as Response);
+  });
 
 const mockErrorResponse = (status: number, body: unknown): jest.SpyInstance =>
   fetchMock.mockResolvedValueOnce({
     ok: false,
     status,
     json: async () => body,
-  } as Response);
+  });
 
 const BASE_URL_MOCK = 'https://proxy.test/server';
 
@@ -62,7 +62,7 @@ describe('server-api', () => {
     const QUOTE_RESPONSE_MOCK = {
       results: [
         {
-          provider: ServerProviderName.Relay,
+          provider: 'relay',
           quote: {
             id: '0xid',
             input: {
@@ -147,7 +147,7 @@ describe('server-api', () => {
         json: async () => {
           throw new Error('not json');
         },
-      } as unknown as Response);
+      });
 
       await expect(
         fetchServerQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),
@@ -160,7 +160,7 @@ describe('server-api', () => {
       chainId: 1,
       data: '0xbbb',
       id: '0xid',
-      provider: ServerProviderName.Relay,
+      provider: 'relay',
       to: '0xaaa',
       value: '0',
     };
@@ -195,7 +195,7 @@ describe('server-api', () => {
 
   describe('getServerStatus', () => {
     const STATUS_PARAMS_MOCK = {
-      provider: ServerProviderName.Relay,
+      provider: 'relay',
       id: '0xabc',
     };
 

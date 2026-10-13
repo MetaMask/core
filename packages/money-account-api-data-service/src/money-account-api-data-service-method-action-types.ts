@@ -9,6 +9,10 @@ import type { MoneyAccountApiDataService } from './money-account-api-data-servic
  * Fetches the current vault positions for a given user address.
  *
  * @param address - The user's Ethereum address.
+ * @param options - Optional fetch options.
+ * @param options.fresh - When true, cancels in-flight reads, fetches with a
+ * zero stale time, invalidates the result for subsequent reads, and asks the
+ * Money API to skip its Nest response cache with `Cache-Control: no-cache`.
  * @returns The position response containing vault positions and an optional
  * `balance` summary (`null` when the API balance path is unavailable).
  */
@@ -61,10 +65,26 @@ export type MoneyAccountApiDataServiceFetchRateHistoryAction = {
 };
 
 /**
+ * Fetches the current Accountant exchange rate for a vault.
+ *
+ * The server returns 404 when the vault is not in the deployment registry
+ * or has no indexed rate yet.
+ *
+ * @param vaultAddress - The vault's Ethereum address.
+ * @param options - Optional chain ID filter. Omitted requests use the API default.
+ * @returns The current vault rate response.
+ */
+export type MoneyAccountApiDataServiceFetchVaultRateAction = {
+  type: `MoneyAccountApiDataService:fetchVaultRate`;
+  handler: MoneyAccountApiDataService['fetchVaultRate'];
+};
+
+/**
  * Union of all MoneyAccountApiDataService action types.
  */
 export type MoneyAccountApiDataServiceMethodActions =
   | MoneyAccountApiDataServiceFetchPositionsAction
   | MoneyAccountApiDataServiceFetchInterestAction
   | MoneyAccountApiDataServiceFetchHistoryAction
-  | MoneyAccountApiDataServiceFetchRateHistoryAction;
+  | MoneyAccountApiDataServiceFetchRateHistoryAction
+  | MoneyAccountApiDataServiceFetchVaultRateAction;

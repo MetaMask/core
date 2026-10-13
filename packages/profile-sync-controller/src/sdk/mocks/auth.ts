@@ -79,10 +79,6 @@ export const MOCK_MFA_ENROLL_EMAIL_RESPONSE = {
   expires_at: '2099-09-07T14:30:00Z',
 };
 
-export const MOCK_MFA_ENROLL_COMPLETE_RESPONSE = {
-  status: 'enrolled',
-};
-
 export const MOCK_MFA_VERIFY_PASSKEY_RESPONSE = {
   flow_id: 'verify-passkey-flow-id',
   expires_at: '2099-09-07T14:30:00Z',
@@ -109,6 +105,9 @@ export const MOCK_MFA_VERIFY_COMPLETE_RESPONSE = {
   profile_aliases: [],
 };
 
+export const MOCK_MFA_ENROLL_COMPLETE_RESPONSE =
+  MOCK_MFA_VERIFY_COMPLETE_RESPONSE;
+
 export const MOCK_MFA_CREDENTIALS_RESPONSE = {
   credentials: [
     {
@@ -132,11 +131,11 @@ export const MOCK_MFA_CREDENTIALS_RESPONSE = {
   ],
 };
 
-export const MOCK_ELEVATED_ACCESS_JWT =
+export const MOCK_VERIFICATION_ACCESS_JWT =
   'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJmODgyMjdiZC1iNjE1LTQxYTMtYjBiZS00NjdkZDc4MWE0YWQiLCJhYWwiOjIsImFtciI6WyJwYXNza2V5Il0sImV4cCI6NDEwMjQ0NDgwMH0.signature';
 
-export const MOCK_ELEVATED_ACCESS_TOKEN_RESPONSE = {
-  access_token: MOCK_ELEVATED_ACCESS_JWT,
+export const MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE = {
+  access_token: MOCK_VERIFICATION_ACCESS_JWT,
   expires_in: 900,
 };
 

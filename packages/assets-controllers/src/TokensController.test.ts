@@ -3325,7 +3325,7 @@ describe('TokensController', () => {
                       isERC721: false,
                       aggregators: [],
                       name: undefined,
-                      rwaData: { ticker: 'OLD' } as TokenRwaData,
+                      rwaData: { ticker: 'OLD' },
                     },
                   ],
                 },

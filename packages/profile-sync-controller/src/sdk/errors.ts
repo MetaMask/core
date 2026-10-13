@@ -52,9 +52,9 @@ export class CredentialAlreadyEnrolledError extends MfaError {
 }
 
 /**
- * The profile already has MFA credentials, so enrolling another requires an
- * `aal:2` access token; the client must complete a step-up and retry with the
- * same flow.
+ * The profile already has a credential that proves AAL2, so enrolling another
+ * requires an `aal:2` access token; the client must complete a verification
+ * and retry with the same flow.
  */
 export class StepUpRequiredError extends MfaError {
   constructor(message: string, status = HTTP_STATUS_CODES.FORBIDDEN) {
@@ -167,10 +167,10 @@ export class MfaUnavailableError extends MfaError {
   }
 }
 
-export class ElevatedTokenInvalidError extends MfaError {
+export class VerificationTokenInvalidError extends MfaError {
   constructor(message: string) {
-    super('elevated_token_invalid', message);
-    this.name = 'ElevatedTokenInvalidError';
+    super('verification_token_invalid', message);
+    this.name = 'VerificationTokenInvalidError';
   }
 }
 

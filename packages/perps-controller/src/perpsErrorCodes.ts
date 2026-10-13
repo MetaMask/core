@@ -76,6 +76,7 @@ export const PERPS_ERROR_CODES = {
   ORDER_STRATEGY_CANCEL_INCOMPLETE: 'ORDER_STRATEGY_CANCEL_INCOMPLETE', // Part of a strategy placement is still resting after a cancel; the handle stays valid for a retry
   ORDER_TWAP_DURATION_REQUIRED: 'ORDER_TWAP_DURATION_REQUIRED', // TWAP placed without twapDuration
   ORDER_TWAP_DURATION_INVALID: 'ORDER_TWAP_DURATION_INVALID', // twapDuration not a whole number of minutes within the venue's bounds
+  ORDER_SCALE_PREVIEW_STALE: 'ORDER_SCALE_PREVIEW_STALE', // Approved ladder or constraints changed; refresh the preview
   ORDER_SCALE_RANGE_REQUIRED: 'ORDER_SCALE_RANGE_REQUIRED', // Scale placed without both ladder bounds
   ORDER_SCALE_RANGE_INVALID: 'ORDER_SCALE_RANGE_INVALID', // Scale ladder bounds or skew are invalid
   ORDER_SCALE_COUNT_INVALID: 'ORDER_SCALE_COUNT_INVALID', // scaleNumOrders missing, non-integer, or outside the supported ladder size
@@ -94,6 +95,9 @@ export const PERPS_ERROR_CODES = {
   SUBSCRIPTION_CLIENT_NOT_AVAILABLE: 'SUBSCRIPTION_CLIENT_NOT_AVAILABLE',
   // Wallet/account errors
   NO_ACCOUNT_SELECTED: 'NO_ACCOUNT_SELECTED',
+  // The signer could not sign: a locked keyring or account signer, or, with
+  // HyperLiquid agent signing, an agent that is unavailable or that the venue
+  // rejected. Retryable.
   KEYRING_LOCKED: 'KEYRING_LOCKED',
   INVALID_ADDRESS_FORMAT: 'INVALID_ADDRESS_FORMAT',
   // Wallet has no account on the exchange yet (HyperLiquid creates accounts
@@ -126,6 +130,7 @@ export const PERPS_ERROR_CODES = {
   // Order execution errors
   ORDER_REJECTED: 'ORDER_REJECTED',
   SLIPPAGE_EXCEEDED: 'SLIPPAGE_EXCEEDED',
+  PRICE_MOVED: 'PRICE_MOVED',
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
   // Network/service errors
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
@@ -134,3 +139,16 @@ export const PERPS_ERROR_CODES = {
 
 export type PerpsErrorCode =
   (typeof PERPS_ERROR_CODES)[keyof typeof PERPS_ERROR_CODES];
+
+/**
+ * Checks whether a value is a known Perps error code.
+ *
+ * @param value - Value to classify.
+ * @returns Whether the value is a Perps error code.
+ */
+export function isPerpsErrorCode(value: unknown): value is PerpsErrorCode {
+  return (
+    typeof value === 'string' &&
+    Object.values(PERPS_ERROR_CODES).some((code) => code === value)
+  );
+}

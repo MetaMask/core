@@ -52,7 +52,7 @@ export function parseTypedMessage(data: string): SignTypedMessageDataV3V4 {
     return data;
   }
 
-  return JSON.parse(data) as unknown as SignTypedMessageDataV3V4;
+  return JSON.parse(data);
 }
 
 /**

@@ -135,7 +135,7 @@ function setup({
 
   rootMessenger.registerActionHandler(
     'AccountsController:getState',
-    mocks.AccountsController.getState as never,
+    mocks.AccountsController.getState,
   );
 
   const cache = new SnapAccountCache(messenger);
@@ -159,7 +159,7 @@ describe('SnapAccountCache', () => {
 
     it('lazily builds the cache from AccountsController state on first use', () => {
       const { cache, mocks } = setup({
-        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string }],
+        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID }],
       });
 
       expect(mocks.AccountsController.getState).not.toHaveBeenCalled();
@@ -171,7 +171,7 @@ describe('SnapAccountCache', () => {
 
     it('does not rebuild the cache on subsequent calls', () => {
       const { cache, mocks } = setup({
-        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string }],
+        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID }],
       });
 
       cache.getSnapId(MOCK_ACCOUNT_ID);
@@ -183,7 +183,7 @@ describe('SnapAccountCache', () => {
     it('skips accounts without a snap ID when building the cache', () => {
       const { cache } = setup({
         accounts: [
-          { id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string },
+          { id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID },
           { id: MOCK_NO_SNAP_ACCOUNT_ID },
         ],
       });
@@ -196,7 +196,7 @@ describe('SnapAccountCache', () => {
   describe('invalidate', () => {
     it('causes the next getSnapId call to rebuild from fresh state', () => {
       const { cache, mocks } = setup({
-        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string }],
+        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID }],
       });
 
       expect(cache.getSnapId(MOCK_ACCOUNT_ID)).toBe(MOCK_SNAP_ID);
@@ -204,7 +204,7 @@ describe('SnapAccountCache', () => {
 
       mocks.AccountsController.getState.mockReturnValue(
         buildAccountsState([
-          { id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID as string },
+          { id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID },
         ]),
       );
 
@@ -222,7 +222,7 @@ describe('SnapAccountCache', () => {
       cache.getSnapId(MOCK_ACCOUNT_ID); // initialize
 
       publishAccountsAdded(rootMessenger, [
-        { id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string },
+        { id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID },
       ]);
 
       expect(cache.getSnapId(MOCK_ACCOUNT_ID)).toBe(MOCK_SNAP_ID);
@@ -240,11 +240,11 @@ describe('SnapAccountCache', () => {
 
     it('is a no-op when the cache is not initialized', () => {
       const { cache, rootMessenger, mocks } = setup({
-        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string }],
+        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID }],
       });
 
       publishAccountsAdded(rootMessenger, [
-        { id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID as string },
+        { id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID },
       ]);
 
       // The cache is still uninitialized — the next getSnapId call rebuilds
@@ -257,7 +257,7 @@ describe('SnapAccountCache', () => {
   describe('on AccountsController:accountsRemoved', () => {
     it('removes accounts from an initialized cache', () => {
       const { cache, rootMessenger } = setup({
-        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string }],
+        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID }],
       });
 
       cache.getSnapId(MOCK_ACCOUNT_ID); // initialize
@@ -269,7 +269,7 @@ describe('SnapAccountCache', () => {
 
     it('is a no-op for unknown account IDs', () => {
       const { cache, rootMessenger } = setup({
-        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string }],
+        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID }],
       });
 
       cache.getSnapId(MOCK_ACCOUNT_ID); // initialize
@@ -281,7 +281,7 @@ describe('SnapAccountCache', () => {
 
     it('is a no-op when the cache is not initialized', () => {
       const { cache, rootMessenger, mocks } = setup({
-        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string }],
+        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID }],
       });
 
       publishAccountsRemoved(rootMessenger, [MOCK_ACCOUNT_ID]);

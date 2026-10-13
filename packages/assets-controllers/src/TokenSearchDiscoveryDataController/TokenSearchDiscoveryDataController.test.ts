@@ -83,7 +83,7 @@ function buildFoundTokenDisplayData(
   const priceData: EvmAssetWithMarketData<Hex, string> = {
     price: 10.5,
     currency: 'USD',
-    tokenAddress: tokenAddress as Hex,
+    tokenAddress,
     chainId: '0x1',
     allTimeHigh: 20,
     allTimeLow: 5,
@@ -303,7 +303,7 @@ describe('TokenSearchDiscoveryDataController', () => {
       const mockPriceData: EvmAssetWithMarketData<Hex, string> = {
         price: 10.5,
         currency: 'USD',
-        tokenAddress: tokenAddress as Hex,
+        tokenAddress,
         chainId: '0x1',
         allTimeHigh: 20,
         allTimeLow: 5,
@@ -442,7 +442,7 @@ describe('TokenSearchDiscoveryDataController', () => {
             EvmAssetWithMarketData<Hex, string>,
             'price' | 'currency'
           > = {
-            tokenAddress: tokenAddress as Hex,
+            tokenAddress,
             chainId: '0x1',
             allTimeHigh: 20,
             allTimeLow: 5,
@@ -511,7 +511,7 @@ describe('TokenSearchDiscoveryDataController', () => {
       const mockTokenPrice: EvmAssetWithMarketData<Hex, string> = {
         price: 10.5,
         currency: 'USD',
-        tokenAddress: tokenAddress as Hex,
+        tokenAddress,
         chainId: '0x1',
         allTimeHigh: 20,
         allTimeLow: 5,

@@ -80,6 +80,12 @@ module.exports = {
   // Here we ensure that Jest resolves `@metamask/*` imports to the uncompiled source code for packages that live in this repo.
   // NOTE: This must be synchronized with the `paths` option in `tsconfig.base.json`.
   moduleNameMapper: {
+    '^@metamask/perps-controller/constants/(.+)$': [
+      '<rootDir>/../perps-controller/src/constants/$1',
+    ],
+    '^@metamask/perps-controller/utils/(.+)$': [
+      '<rootDir>/../perps-controller/src/utils/$1',
+    ],
     // Strip .js extensions from relative imports so Jest resolves them to
     // the TypeScript source files.
     '^(\\.{1,2}/.+)\\.js$': '$1',
@@ -87,6 +93,7 @@ module.exports = {
       '<rootDir>/../json-rpc-engine/src/v2/index.ts',
     ],
     '^@metamask/utils/node$': ['<rootDir>/../utils/src/node.ts'],
+    '^@metamask/cryptography/(.+)$': ['<rootDir>/../cryptography/src/$1'],
     '^@metamask/(.+)$': [
       '<rootDir>/../$1/src',
       // Some @metamask/* packages we are referencing aren't in this monorepo,

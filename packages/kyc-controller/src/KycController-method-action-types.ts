@@ -12,6 +12,9 @@ import type { KycController } from './KycController.js';
  * @param params - The session parameters.
  * @param params.vendor - Identity vendor for the session.
  * @param params.email - Fallback account email associated with the session if unable to resolve from partner identity token
+ * @param params.aal2Token - AAL2 authentication token. Required only when a
+ * UKYC session must be created, where it is sent as the Authorization bearer
+ * value. Omit it when reusing an existing session.
  * @returns The current or newly created session status.
  */
 export type KycControllerStartSessionAction = {
@@ -47,10 +50,23 @@ export type KycControllerGetSessionStatusForVendorAction = {
 };
 
 /**
- * Returns the current session status and starts polling when it is not yet
- * terminal.
+ * Returns the durable outcome of the identity-provider flow.
  *
- * @returns The current session status.
+ * @returns The latest provider-flow status.
+ */
+export type KycControllerGetProviderFlowStatusAction = {
+  type: `KycController:getProviderFlowStatus`;
+  handler: KycController['getProviderFlowStatus'];
+};
+
+/**
+ * Returns the session already stored on state.
+ *
+ * Starts session-status polling when `finalStatus` is not `approved`,
+ * `rejected`, or `retry`. Does not fetch status or refresh capability
+ * authorization.
+ *
+ * @returns The session status stored at call time.
  * @throws If there is no session on state.
  */
 export type KycControllerRefreshSessionStatusAction = {
@@ -59,11 +75,38 @@ export type KycControllerRefreshSessionStatusAction = {
 };
 
 /**
+ * Returns the persisted session status.
+ *
+ * Does not call the network and does not start session-status polling.
+ *
+ * @returns The session on state, or `null` when none is stored.
+ */
+export type KycControllerReadSessionStatusAction = {
+  type: `KycController:readSessionStatus`;
+  handler: KycController['readSessionStatus'];
+};
+
+/**
+ * Fetches `GET /sessions/{id}/status` once and writes the result onto state.
+ *
+ * Does not start the session-status polling timer.
+ *
+ * @param sessionId - UKYC session id.
+ * @returns The fetched session status.
+ */
+export type KycControllerFetchSessionStatusOnceAction = {
+  type: `KycController:fetchSessionStatusOnce`;
+  handler: KycController['fetchSessionStatusOnce'];
+};
+
+/**
  * Starts polling `GET /sessions/{id}/status` for
  * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
- * the result onto state only when the payload changed. The loop stops once
- * `finalStatus` is `approved`, `rejected`, or `retry`, or when
- * {@link reset} / {@link clearState} runs.
+ * the result onto state only when the payload changed. The first poll runs
+ * immediately. Each later wait starts at 10 seconds and grows by 10 seconds
+ * after every poll, including a failed one. Starting the loop again resets
+ * that delay. The loop stops once `finalStatus` is `approved`, `rejected`,
+ * or `retry`, or when {@link reset} / {@link clearState} runs.
  *
  * @throws If there is no current session id to poll.
  */
@@ -113,10 +156,9 @@ export type KycControllerRecordSessionDisclaimersAction = {
 };
 
 /**
- * Fetches session-scoped disclaimers and reports whether every document is
- * consented and credential reuse was accepted.
+ * Fetches the current session status and reports whether consent was given.
  *
- * @returns Whether session disclaimers are complete.
+ * @returns Whether `consentStatus` is `given`.
  * @throws If there is no session on state.
  */
 export type KycControllerHasCompletedSessionDisclaimersAction = {
@@ -170,7 +212,7 @@ export type KycControllerHasCompletedVendorDisclaimersAction = {
  * @param params - Optional SDK presentation options.
  * @param params.locale - BCP-47 locale for the SDK UI.
  * @param params.debug - Enables SDK debug logging.
- * @returns A promise that settles when the provider flow finishes.
+ * @returns The durable provider-flow outcome.
  */
 export type KycControllerLaunchProviderFlowAction = {
   type: `KycController:launchProviderFlow`;
@@ -185,7 +227,10 @@ export type KycControllerMethodActions =
   | KycControllerResetAction
   | KycControllerClearStateAction
   | KycControllerGetSessionStatusForVendorAction
+  | KycControllerGetProviderFlowStatusAction
   | KycControllerRefreshSessionStatusAction
+  | KycControllerReadSessionStatusAction
+  | KycControllerFetchSessionStatusOnceAction
   | KycControllerStartSessionStatusPollingAction
   | KycControllerFetchSessionDisclaimersAction
   | KycControllerRecordSessionDisclaimersAction

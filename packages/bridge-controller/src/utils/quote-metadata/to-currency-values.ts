@@ -57,25 +57,23 @@ export const toCurrencyValues = (
           minAmountValueInCurrency,
         }),
       },
-      feeData:
-        feeData &&
-        ({
-          ...Object.fromEntries(
-            Object.values(FeeType)
-              .filter((feeType) => feeData[feeType])
-              .map((feeType) => [
-                feeType,
-                feeData[feeType]?.map((fee) =>
-                  toCurrency(fee, usdToFiatExchangeRate),
-                ),
-              ]),
+      feeData: feeData && {
+        ...Object.fromEntries(
+          Object.values(FeeType)
+            .filter((feeType) => feeData[feeType])
+            .map((feeType) => [
+              feeType,
+              feeData[feeType]?.map((fee) =>
+                toCurrency(fee, usdToFiatExchangeRate),
+              ),
+            ]),
+        ),
+        ...(feeData.reserve && {
+          reserve: feeData.reserve.map(
+            (reserve) => toCurrency(reserve, usdToFiatExchangeRate) ?? {},
           ),
-          ...(feeData.reserve && {
-            reserve: feeData.reserve.map(
-              (reserve) => toCurrency(reserve, usdToFiatExchangeRate) ?? {},
-            ),
-          }),
-        } as DeepPartial<QuoteResponse['quote']['feeData']>),
+        }),
+      },
       ...((priceImpactFiat ?? adjustedReturnFiat ?? costFiat) && {
         priceData: {
           ...(priceImpactFiat && {

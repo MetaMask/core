@@ -20,14 +20,14 @@ const SAFE_EXEC_TRANSACTION_INTERFACE = new Interface([
 ]);
 
 const REQUEST_MOCK: QuoteRequest = {
-  from: '0x1234567890123456789012345678901234567891' as Hex,
+  from: '0x1234567890123456789012345678901234567891',
   sourceBalanceRaw: '10000000000000000000',
   sourceChainId: '0x1',
-  sourceTokenAddress: '0xabc' as Hex,
+  sourceTokenAddress: '0xabc',
   sourceTokenAmount: '1000000000000000000',
   targetAmountMinimum: '123',
   targetChainId: '0x2',
-  targetTokenAddress: '0xdef' as Hex,
+  targetTokenAddress: '0xdef',
 };
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -175,7 +175,7 @@ describe('across-actions', () => {
     expect(() =>
       buildAcrossActionFromCall(
         {
-          data: '0xdeadbeef' as Hex,
+          data: '0xdeadbeef',
           target: CREATE_PROXY_TARGET,
         },
         REQUEST_MOCK,
@@ -212,7 +212,7 @@ describe('across-actions', () => {
       isExtractableOutputTokenTransferCall(
         {
           data: buildTransferData(),
-          target: '0x9999999999999999999999999999999999999999' as Hex,
+          target: '0x9999999999999999999999999999999999999999',
         },
         REQUEST_MOCK,
       ),
@@ -221,7 +221,7 @@ describe('across-actions', () => {
     expect(
       isExtractableOutputTokenTransferCall(
         {
-          data: '0xdeadbeef' as Hex,
+          data: '0xdeadbeef',
           target: TRANSFER_TARGET,
         },
         REQUEST_MOCK,

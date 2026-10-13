@@ -105,6 +105,8 @@ export const SUBSCRIPTION_STATUSES = {
   // Initial states
   incomplete: 'incomplete',
   incompleteExpired: 'incomplete_expired',
+  /** Crypto subscription created, waiting for the payer to fund the first invoice. */
+  awaitingFunds: 'awaiting_funds',
   // Active states
   provisional: 'provisional',
   trialing: 'trialing',
@@ -195,8 +197,8 @@ export type Product = {
 export type Subscription = {
   id: string;
   products: Product[];
-  currentPeriodStart?: string; // ISO 8601
-  currentPeriodEnd?: string; // ISO 8601
+  currentPeriodStart: string; // ISO 8601
+  currentPeriodEnd: string; // ISO 8601
   /** is subscription scheduled for cancellation */
   cancelAtPeriodEnd?: boolean;
   status: SubscriptionStatus;
@@ -210,11 +212,11 @@ export type Subscription = {
   /** The date the subscription was canceled. */
   canceledAt?: string; // ISO 8601
   /** The cancellation type indicating what cancellation options are available for this subscription. */
-  cancelType?: CancelType;
+  cancelType: CancelType;
   /** The date the subscription was marked as inactive (paused/past_due/canceled). */
   inactiveAt?: string; // ISO 8601
   /** Whether the user is eligible for support features (priority support and filing claims). True for active subscriptions and inactive subscriptions within grace period. */
-  isEligibleForSupport?: boolean;
+  isEligibleForSupport: boolean;
   billingCycles?: number;
   /** The most recent invoice associated with the subscription. */
   lastInvoice?: SubscriptionInvoice;
@@ -224,7 +226,7 @@ export type SubscriptionInvoice = {
   id: string;
   status: InvoicePaymentStatus;
   errorCode?: CryptoPaymentError;
-  updatedAt: string; // ISO 8601
+  updatedAt?: string; // ISO 8601
 };
 
 export type SubscriptionCardPaymentMethod = {
@@ -232,7 +234,7 @@ export type SubscriptionCardPaymentMethod = {
   card: {
     brand: string;
     /** display brand account for dual brand card */
-    displayBrand: string;
+    displayBrand?: string;
     last4: string;
   };
 };
@@ -318,6 +320,14 @@ export type StartSubscriptionRequest = {
   useTestClock?: boolean;
 
   /**
+   * Whether the user is eligible for a refund (e.g. EU/EEA withdrawal rights).
+   *
+   * When provided, this value is sent as-is and the geolocation check is
+   * skipped. When omitted, the controller resolves it from geolocation.
+   */
+  isEligibleForRefund?: boolean;
+
+  /**
    * Optional CAIP account ID of the rewards account to opt in alongside this
    * subscription. Required when the user wants to link rewards during
    * subscription creation.
@@ -344,8 +354,21 @@ type StartCryptoSubscriptionRequestBase = {
    * e.g. "USDC"
    */
   tokenSymbol: string;
+  /**
+   * Reject if authoritative trial eligibility changed since authorization.
+   */
+  assertTrialEligibility?: boolean;
   isSponsored?: boolean;
   useTestClock?: boolean;
+
+  /**
+   * Whether the user is eligible for a refund (e.g. EU/EEA withdrawal rights).
+   *
+   * When provided, this value is sent as-is and the geolocation check is
+   * skipped. When omitted, the controller resolves it from geolocation.
+   */
+  isEligibleForRefund?: boolean;
+
   /**
    * Optional CAIP account ID of the rewards account to opt in alongside this
    * subscription. Required when the user wants to link rewards during
@@ -394,10 +417,13 @@ export type StartCryptoSubscriptionRequest =
   | StartErc20CryptoSubscriptionRequest
   | StartDelegationCryptoSubscriptionRequest;
 
-export type StartCryptoSubscriptionResponse = {
-  subscriptionId: string;
-  status: SubscriptionStatus;
-};
+/**
+ * Response of `POST /subscriptions/crypto`.
+ *
+ * Unlike card checkout, a crypto start creates the subscription immediately,
+ * so the Subscription API returns the created {@link Subscription} itself.
+ */
+export type StartCryptoSubscriptionResponse = Subscription;
 
 /**
  * General response type for the subscription API requests

@@ -151,7 +151,7 @@ export const calcRelayerFee = (
   }
 
   if (relayerFeeInNative?.lte(0)) {
-    return undefined;
+    return;
   }
 
   return {
@@ -285,7 +285,7 @@ export const calcIncludedTxFees = (
   destTokenExchangeRate: ExchangeRate,
 ) => {
   if (!txFee || !(gasIncluded || gasIncluded7702)) {
-    return undefined;
+    return;
   }
   // Use exchange rate of the token that is being used to pay for the transaction
   const { exchangeRate, usdExchangeRate } = assetIdsMatch(
@@ -410,7 +410,7 @@ export const calcPriceImpact = (
   > | null,
 ) => {
   if (!quote?.sentAmount || !quote?.toTokenAmount) {
-    return undefined;
+    return;
   }
 
   const sourceFiat = quote.sentAmount.valueInCurrency;
@@ -431,7 +431,7 @@ export const calcPriceImpact = (
       : undefined;
 
   if (!valueInCurrency && !usd) {
-    return undefined;
+    return;
   }
 
   return {

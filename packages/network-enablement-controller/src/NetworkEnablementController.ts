@@ -3,6 +3,7 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import { selectEvmAutoEnabledNetworksChainIds } from '@metamask/config-registry-controller';
 import type { ConfigRegistryControllerGetStateAction } from '@metamask/config-registry-controller';
 import { BuiltInNetworkName, ChainId, toHex } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
@@ -383,7 +384,7 @@ export class NetworkEnablementController extends BaseController<
       });
 
       // Enable Solana mainnet if it exists in MultichainNetworkController configurations
-      const solanaKeys = deriveKeys(SolScope.Mainnet as CaipChainId);
+      const solanaKeys = deriveKeys(SolScope.Mainnet);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
           SolScope.Mainnet
@@ -397,7 +398,7 @@ export class NetworkEnablementController extends BaseController<
       }
 
       // Enable Bitcoin mainnet if it exists in MultichainNetworkController configurations
-      const bitcoinKeys = deriveKeys(BtcScope.Mainnet as CaipChainId);
+      const bitcoinKeys = deriveKeys(BtcScope.Mainnet);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
           BtcScope.Mainnet
@@ -411,7 +412,7 @@ export class NetworkEnablementController extends BaseController<
       }
 
       // Enable Tron mainnet if it exists in MultichainNetworkController configurations
-      const tronKeys = deriveKeys(TrxScope.Mainnet as CaipChainId);
+      const tronKeys = deriveKeys(TrxScope.Mainnet);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
           TrxScope.Mainnet
@@ -424,7 +425,7 @@ export class NetworkEnablementController extends BaseController<
       }
 
       // Enable Stellar mainnet if it exists in MultichainNetworkController configurations
-      const stellarKeys = deriveKeys(XlmScope.Pubnet as CaipChainId);
+      const stellarKeys = deriveKeys(XlmScope.Pubnet);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
           XlmScope.Pubnet
@@ -757,33 +758,41 @@ export class NetworkEnablementController extends BaseController<
     // EVM networks: use getEvmSlip44 (chainid.network data)
     const slip44CoinType = await Slip44Service.getEvmSlip44(numericChainId);
 
+    const isRegistryAutoAdded = selectEvmAutoEnabledNetworksChainIds(
+      this.messenger.call('ConfigRegistryController:getState'),
+    ).includes(caipChainId);
+
     this.update((state) => {
       // Ensure the namespace bucket exists
       this.#ensureNamespaceBucket(state, namespace);
 
-      // Check if popular networks mode is active (>2 popular networks enabled)
-      const inPopularNetworksMode = this.#isInPopularNetworksMode();
-
-      // Check if the network being added is a popular network
-      const isAddedNetworkPopular =
-        this.#getPopularEvmChainIds().includes(chainId);
-
-      // Keep current selection only if in popular networks mode AND adding a popular network
-      const shouldKeepCurrentSelection =
-        inPopularNetworksMode && isAddedNetworkPopular;
-
-      if (shouldKeepCurrentSelection) {
-        // Add the popular network but don't enable it (keep current selection)
-        state.enabledNetworkMap[namespace][storageKey] = true;
+      if (isRegistryAutoAdded) {
+        state.enabledNetworkMap[namespace][storageKey] ??= false;
       } else {
-        // Switch to the newly added network (disable all others, enable this one)
-        Object.keys(state.enabledNetworkMap).forEach((ns) => {
-          Object.keys(state.enabledNetworkMap[ns]).forEach((key) => {
-            state.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
+        // Check if popular networks mode is active (>2 popular networks enabled)
+        const inPopularNetworksMode = this.#isInPopularNetworksMode();
+
+        // Check if the network being added is a popular network
+        const isAddedNetworkPopular =
+          this.#getPopularEvmChainIds().includes(chainId);
+
+        // Keep current selection only if in popular networks mode AND adding a popular network
+        const shouldKeepCurrentSelection =
+          inPopularNetworksMode && isAddedNetworkPopular;
+
+        if (shouldKeepCurrentSelection) {
+          // Add the popular network but don't enable it (keep current selection)
+          state.enabledNetworkMap[namespace][storageKey] = true;
+        } else {
+          // Switch to the newly added network (disable all others, enable this one)
+          Object.keys(state.enabledNetworkMap).forEach((ns) => {
+            Object.keys(state.enabledNetworkMap[ns]).forEach((key) => {
+              state.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
+            });
           });
-        });
-        // Enable the newly added network
-        state.enabledNetworkMap[namespace][storageKey] = true;
+          // Enable the newly added network
+          state.enabledNetworkMap[namespace][storageKey] = true;
+        }
       }
 
       // Update nativeAssetIdentifiers with the CAIP-19-like identifier

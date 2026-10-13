@@ -87,8 +87,8 @@ describe('RelayStrategy', () => {
   it('delegates getQuotes', async () => {
     const quote = {
       request: {
-        sourceChainId: '0x1' as Hex,
-        sourceTokenAddress: '0xabc' as Hex,
+        sourceChainId: '0x1',
+        sourceTokenAddress: '0xabc',
       },
       strategy: TransactionPayStrategy.Relay,
     } as TransactionPayQuote<RelayQuote>;

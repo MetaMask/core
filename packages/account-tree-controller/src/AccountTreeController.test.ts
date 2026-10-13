@@ -26,6 +26,7 @@ import {
   TrxMethod,
   TrxScope,
 } from '@metamask/keyring-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -610,9 +611,7 @@ describe('AccountTreeController', () => {
       controller.init();
 
       await expect(
-        controller.removeAccountWallet(
-          'entropy:missing-wallet' as AccountWalletId,
-        ),
+        controller.removeAccountWallet('entropy:missing-wallet'),
       ).rejects.toThrow('Account wallet not found in tree');
     });
 
@@ -817,7 +816,7 @@ describe('AccountTreeController', () => {
       await expect(
         accountTreeControllerMessenger.call(
           'AccountTreeController:removeAccountWallet',
-          'entropy:missing-wallet' as AccountWalletId,
+          'entropy:missing-wallet',
         ),
       ).rejects.toThrow('Account wallet not found in tree');
     });
@@ -1862,7 +1861,7 @@ describe('AccountTreeController', () => {
           },
         },
         accountWalletsMetadata: {},
-      } as AccountTreeControllerState);
+      });
     });
 
     it('prunes an empty group if it holds no accounts', () => {
@@ -1953,7 +1952,7 @@ describe('AccountTreeController', () => {
           },
         },
         accountWalletsMetadata: {},
-      } as AccountTreeControllerState);
+      });
     });
 
     it('prunes an empty wallet if it holds no groups', () => {
@@ -1980,7 +1979,7 @@ describe('AccountTreeController', () => {
           wallets: {},
         },
         selectedAccountGroup: expect.any(String), // Will be set after init
-      } as AccountTreeControllerState);
+      });
     });
 
     it('prunes custom wallet metadata when wallet is removed', () => {
@@ -2188,7 +2187,50 @@ describe('AccountTreeController', () => {
         accountWalletsMetadata: {},
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
-      } as AccountTreeControllerState);
+      });
+    });
+
+    it('adds a watch-only account to a watch-only wallet', () => {
+      const mockWatchOnlyAccount: InternalAccount = {
+        id: 'mock-watch-only-id-1',
+        address: '0xABC',
+        options: {},
+        // Watch-only accounts expose no signing methods.
+        methods: [],
+        type: EthAccountType.Eoa,
+        scopes: [EthScope.Eoa],
+        metadata: {
+          name: '',
+          keyring: { type: KeyringType.WatchOnly },
+          importTime: 0,
+          lastSelected: 0,
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockWatchOnlyAccount],
+        keyrings: [],
+      });
+
+      controller.init();
+
+      const walletId = toAccountWalletId(
+        AccountWalletType.Keyring,
+        KeyringType.WatchOnly,
+      );
+      const groupId = toAccountGroupId(walletId, mockWatchOnlyAccount.address);
+
+      const wallet = controller.getAccountWalletObject(walletId);
+      expect(wallet).toBeDefined();
+      expect(wallet?.metadata).toStrictEqual({
+        name: 'Watch-only accounts',
+        keyring: { type: KeyringType.WatchOnly },
+      });
+      expect(Object.keys(wallet?.groups ?? {})).toStrictEqual([groupId]);
+
+      const group = controller.getAccountGroupObject(groupId);
+      expect(group?.accounts).toStrictEqual([mockWatchOnlyAccount.id]);
+      expect(group?.metadata.name).toBe('Watch-only Account 1');
     });
 
     it('adds a new wallet to the tree', () => {
@@ -2339,7 +2381,7 @@ describe('AccountTreeController', () => {
         accountWalletsMetadata: {},
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
-      } as AccountTreeControllerState);
+      });
     });
 
     it('does not add any account if init has not been called', () => {
@@ -3198,7 +3240,7 @@ describe('AccountTreeController', () => {
 
       expect(() => {
         controller.setSelectedAccountGroupByAccountId(
-          'non-existent-account-id' as AccountId,
+          'non-existent-account-id',
         );
       }).toThrow('Account not found in the account tree');
     });
@@ -4922,9 +4964,9 @@ describe('AccountTreeController', () => {
 
       messenger.call(
         'AccountTreeController:getAccountFromSelectedAccountGroup',
-        EthScope.Mainnet as CaipChainId,
+        EthScope.Mainnet,
       );
-      expect(spy).toHaveBeenCalledWith(EthScope.Mainnet as CaipChainId);
+      expect(spy).toHaveBeenCalledWith(EthScope.Mainnet);
     });
 
     it('gets account context with AccountTreeController:getAccountContext', () => {
@@ -6329,7 +6371,7 @@ describe('AccountTreeController', () => {
       // Try to set name for a non-existent group ID
       expect(() => {
         controller.setAccountGroupName(
-          'entropy:non-existent/group-id' as AccountGroupId,
+          'entropy:non-existent/group-id',
           'Test Name',
         );
       }).toThrow('Account group not found in tree');

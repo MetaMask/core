@@ -26,6 +26,9 @@
       "path": "../messenger"
     },
     {
+      "path": "../multichain-transactions-controller"
+    },
+    {
       "path": "../network-enablement-controller"
     },
     {

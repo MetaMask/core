@@ -13,7 +13,9 @@ const TIME_TO_WAIT_UNTIL_UNRESOLVED = 100;
  * this function.
  * @returns A promise that resolves to a symbol.
  */
-const treatUnresolvedAfter = (duration: number): Promise<typeof UNRESOLVED> => {
+const treatUnresolvedAfter = async (
+  duration: number,
+): Promise<typeof UNRESOLVED> => {
   return new Promise((resolve) => {
     originalSetTimeout(resolve, duration, UNRESOLVED);
   });
@@ -31,7 +33,7 @@ expect.extend({
    * @returns The result of the matcher.
    */
   // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   async toBeFulfilled(promise: Promise<any>) {
     if (this.isNot) {
       throw new Error(
@@ -40,7 +42,7 @@ expect.extend({
     }
 
     // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     let rejectionValue: any = UNRESOLVED;
     try {
       await promise;
@@ -74,7 +76,7 @@ expect.extend({
    * @returns The result of the matcher.
    */
   // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   async toNeverResolve(promise: Promise<any>) {
     if (this.isNot) {
       throw new Error(
@@ -85,10 +87,10 @@ expect.extend({
     }
 
     // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     let resolutionValue: any;
     // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     let rejectionValue: any;
     try {
       resolutionValue = await Promise.race([

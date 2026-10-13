@@ -311,9 +311,6 @@ const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
   agentSetAbstraction: jest.fn().mockResolvedValue({
     status: 'ok',
   }),
-  userSetAbstraction: jest.fn().mockResolvedValue({
-    status: 'ok',
-  }),
   ...overrides,
 });
 
@@ -427,8 +424,8 @@ describe('HyperLiquidProvider', () => {
       getUserAddressWithDefault: jest
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isKeyringUnlocked: jest.fn().mockReturnValue(true),
-      isSelectedHardwareWallet: jest.fn().mockReturnValue(false),
+      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
     } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
@@ -590,6 +587,9 @@ describe('HyperLiquidProvider', () => {
       ['Stop Market', 'market'],
       ['Take Profit Limit', 'limit'],
       ['Take Profit Market', 'market'],
+      ['Twap Slice', 'market'],
+      ['Vault Close', 'market'],
+      ['Spot Dust Conversion', 'market'],
       ['Unexpected Limit', 'market'],
     ])(
       'maps the exact historical order type %s to %s',
@@ -615,6 +615,49 @@ describe('HyperLiquidProvider', () => {
         const result = await provider.getOrders();
 
         expect(result[0].orderType).toBe(expected);
+      },
+    );
+
+    it.each([
+      ['open', 'open'],
+      ['filled', 'filled'],
+      ['triggered', 'triggered'],
+      ['canceled', 'canceled'],
+      ['marginCanceled', 'canceled'],
+      ['outcomeSettledCanceled', 'canceled'],
+      ['internalCancel', 'canceled'],
+      ['scheduledCancel', 'canceled'],
+      ['reduceOnlyRejected', 'canceled'],
+      ['rejected', 'rejected'],
+      ['minTradeNtlRejected', 'rejected'],
+      ['perpMarginRejected', 'rejected'],
+      ['iocCancelRejected', 'rejected'],
+      ['tooManyOpenOrdersRejected', 'rejected'],
+      ['unexpectedStatus', 'queued'],
+    ])(
+      'maps the historical order status %s to %s',
+      async (status, expected) => {
+        mockClientService.fetchHistoricalOrders = jest.fn().mockResolvedValue([
+          {
+            order: {
+              oid: 123,
+              coin: 'BTC',
+              side: 'B',
+              sz: '0.1',
+              origSz: '0.1',
+              limitPx: '50000',
+              orderType: 'Limit',
+              reduceOnly: false,
+              isTrigger: false,
+            },
+            status,
+            statusTimestamp: 1640995200000,
+          },
+        ]);
+
+        const result = await provider.getOrders();
+
+        expect(result[0].status).toBe(expected);
       },
     );
 
@@ -1136,6 +1179,39 @@ describe('HyperLiquidProvider', () => {
         liquidatedUser: '0x123',
         markPx: '44900',
         method: 'market',
+      });
+    });
+
+    it('keeps liquidation data when HyperLiquid omits the liquidated user', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userFills: jest.fn().mockResolvedValue([
+            {
+              oid: 123,
+              coin: 'BTC',
+              side: 'B',
+              sz: '0.1',
+              px: '45000',
+              fee: '4.5',
+              feeToken: 'USDC',
+              time: Date.now(),
+              closedPnl: '-500',
+              dir: 'Close Long',
+              liquidation: {
+                markPx: '44900',
+                method: 'backstop',
+              },
+            },
+          ]),
+        }),
+      );
+
+      const fills = await provider.getOrderFills();
+
+      expect(fills[0].liquidation).toStrictEqual({
+        liquidatedUser: undefined,
+        markPx: '44900',
+        method: 'backstop',
       });
     });
 

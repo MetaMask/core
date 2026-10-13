@@ -372,17 +372,15 @@ describe('SRP MFA methods', () => {
   });
 
   it('does not conflate email with entropySourceId', async () => {
-    const getLoginResponse = jest.fn(
-      async (): Promise<LoginResponse> => ({
-        token: { accessToken, expiresIn: 3600, obtainedAt: Date.now() },
-        profile: {
-          profileId: 'profile-id',
-          canonicalProfileId: 'profile-id',
-          metaMetricsId: 'metametrics-id',
-          identifierId: 'identifier-id',
-        },
-      }),
-    );
+    const getLoginResponse = jest.fn(async (): Promise<LoginResponse> => ({
+      token: { accessToken, expiresIn: 3600, obtainedAt: Date.now() },
+      profile: {
+        profileId: 'profile-id',
+        canonicalProfileId: 'profile-id',
+        metaMetricsId: 'metametrics-id',
+        identifierId: 'identifier-id',
+      },
+    }));
     const auth = new SRPJwtBearerAuth(config, {
       storage: {
         getLoginResponse,
@@ -425,19 +423,22 @@ describe('SRP MFA methods', () => {
 
     await auth.beginMfaEnrollment('email_otp', {
       email: 'user@example.com',
-      accessToken: 'elevated-token',
+      accessToken: 'verification-token',
     });
 
     expect(mockMfaEnroll).toHaveBeenLastCalledWith(
       Env.DEV,
-      'elevated-token',
+      'verification-token',
       expect.anything(),
     );
   });
 
   it('completes both enrollment proof types', async () => {
     const auth = createAuth();
-    mockMfaEnrollComplete.mockResolvedValue(undefined);
+    mockMfaEnrollComplete.mockResolvedValue({
+      token: 'assertion-jwt',
+      expiresIn: 900,
+    });
     const attestation = {
       id: 'id',
       rawId: 'raw-id',
@@ -548,7 +549,7 @@ describe('SRP MFA methods', () => {
     } as const;
     mockMfaVerifyComplete.mockResolvedValue({ token: 'assertion-jwt' });
     mockAuthorizeOIDC.mockResolvedValue({
-      accessToken: 'elevated-token',
+      accessToken: 'verification-token',
       expiresIn: 900,
       obtainedAt: 1000,
     });
@@ -558,7 +559,7 @@ describe('SRP MFA methods', () => {
       assertion,
     });
     expect(await auth.exchangeMfaAssertion('assertion-jwt')).toMatchObject({
-      accessToken: 'elevated-token',
+      accessToken: 'verification-token',
     });
     expect(mockMfaVerifyComplete).toHaveBeenCalledWith(Env.DEV, accessToken, {
       credential_type: 'passkey',

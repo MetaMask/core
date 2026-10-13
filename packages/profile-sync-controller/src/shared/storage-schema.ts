@@ -41,7 +41,7 @@ export const getFeatureAndKeyFromPath = (
 
   const [feature, key] = path.split('.');
 
-  return { feature, key } as UserStorageGenericFeatureAndKey;
+  return { feature, key };
 };
 
 /**

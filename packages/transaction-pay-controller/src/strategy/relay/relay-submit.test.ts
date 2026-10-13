@@ -20,7 +20,7 @@ import {
   getRelayPollingInterval,
   getRelayPollingTimeout,
 } from '../../utils/feature-flags.js';
-import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -28,21 +28,25 @@ import {
 import {
   collectTransactionIds,
   getTransaction,
-  getTransferredAmountFromTxHash,
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction.js';
 import { FALLBACK_HASH, RELAY_STATUS_URL } from './constants.js';
 import { submitViaRelayExecute } from './relay-submit-execute.js';
 import { getRelaySubmitCalls, submitRelayQuotes } from './relay-submit.js';
-import type { RelayQuote } from './types.js';
+import type { RelayQuote, RelayTransactionStep } from './types.js';
 
-jest.mock('../../utils/ma-vault-deposit');
+jest.mock('../../utils/second-leg', () => ({
+  ...jest.requireActual<typeof import('../../utils/second-leg.js')>(
+    '../../utils/second-leg',
+  ),
+  submitSecondLeg: jest.fn(),
+}));
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/feature-flags');
 jest.mock('./hyperliquid-withdraw');
-jest.mock('./polymarket/withdraw');
+jest.mock('../../utils/polymarket/withdraw');
 jest.mock('./relay-submit-execute');
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
@@ -85,12 +89,12 @@ const ORIGINAL_QUOTE_MOCK = {
         {
           data: {
             chainId: 1,
-            data: '0x1234' as Hex,
+            data: '0x1234',
             from: FROM_MOCK,
             gas: '21000',
             maxFeePerGas: '25000000000',
             maxPriorityFeePerGas: '1000000000',
-            to: '0xfedcb' as Hex,
+            to: '0xfedcb',
             value: '1234',
           },
           status: 'complete',
@@ -166,12 +170,7 @@ describe('Relay Submit Utils', () => {
   );
 
   const submitViaRelayExecuteMock = jest.mocked(submitViaRelayExecute);
-  const submitMoneyAccountVaultDepositMock = jest.mocked(
-    submitMoneyAccountVaultDeposit,
-  );
-  const getTransferredAmountFromTxHashMock = jest.mocked(
-    getTransferredAmountFromTxHash,
-  );
+  const submitSecondLegMock = jest.mocked(submitSecondLeg);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -222,7 +221,7 @@ describe('Relay Submit Utils', () => {
     successfulFetchMock.mockResolvedValue({
       ok: true,
       json: async () => STATUS_RESPONSE_MOCK,
-    } as Response);
+    });
 
     request = cloneDeep(REQUEST_MOCK);
     request.messenger = messenger;
@@ -352,7 +351,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.predictDeposit,
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -369,7 +368,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.perpsDeposit,
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -386,7 +385,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.simpleSend,
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -403,7 +402,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.musdConversion,
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -427,7 +426,7 @@ describe('Relay Submit Utils', () => {
           ...request.transaction,
           type: TransactionType.batch,
           nestedTransactions: [{ type: nestedType }],
-        } as TransactionMeta;
+        };
 
         await submitRelayQuotes(request);
 
@@ -446,7 +445,7 @@ describe('Relay Submit Utils', () => {
         ...request.transaction,
         type: TransactionType.batch,
         nestedTransactions: [{ type: TransactionType.tokenMethodApprove }],
-      } as TransactionMeta;
+      };
 
       await submitRelayQuotes(request);
 
@@ -468,6 +467,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
+          excludeNativeTokenForFee: true,
           gasFeeToken: TOKEN_ADDRESS_MOCK,
         }),
       );
@@ -630,7 +630,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         txParams: { from: moneyAccountFrom },
-      } as TransactionMeta;
+      };
 
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
       request.quotes[0].original.request = {
@@ -703,7 +703,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.predictDeposit,
-      } as TransactionMeta;
+      };
 
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
@@ -730,7 +730,7 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.perpsDeposit,
-      } as TransactionMeta;
+      };
 
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
@@ -765,6 +765,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
+          excludeNativeTokenForFee: true,
           gasFeeToken: TOKEN_ADDRESS_MOCK,
         }),
       );
@@ -820,7 +821,7 @@ describe('Relay Submit Utils', () => {
       successfulFetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ status: 'pending' }),
-      } as Response);
+      });
 
       await submitRelayQuotes(request);
 
@@ -856,7 +857,7 @@ describe('Relay Submit Utils', () => {
           ...STATUS_RESPONSE_MOCK,
           txHashes: [],
         }),
-      } as Response);
+      });
 
       const result = await submitRelayQuotes(request);
 
@@ -925,7 +926,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({ status }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           `Relay: Request failed with status: ${status}`,
@@ -937,7 +938,7 @@ describe('Relay Submit Utils', () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => ({ status: 'unknown_status' }),
-      } as Response);
+      });
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
         'Relay: Unrecognized status: unknown_status',
@@ -951,11 +952,11 @@ describe('Relay Submit Utils', () => {
           .mockResolvedValueOnce({
             ok: true,
             json: async () => ({ status: pendingStatus }),
-          } as Response)
+          })
           .mockResolvedValue({
             ok: true,
             json: async () => STATUS_RESPONSE_MOCK,
-          } as Response);
+          });
 
         await submitRelayQuotes(request);
 
@@ -975,7 +976,7 @@ describe('Relay Submit Utils', () => {
         .mockResolvedValue({
           ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
-        } as Response);
+        });
 
       const result = await submitRelayQuotes(request);
 
@@ -1008,7 +1009,7 @@ describe('Relay Submit Utils', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ status: 'pending' }),
-        } as Response)
+        })
         .mockImplementation(() => {
           jest.spyOn(Date, 'now').mockReturnValue(200);
           return Promise.resolve({
@@ -1028,11 +1029,11 @@ describe('Relay Submit Utils', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ status: 'pending' }),
-        } as Response)
+        })
         .mockResolvedValue({
           ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
-        } as Response);
+        });
 
       await submitRelayQuotes(request);
 
@@ -1046,11 +1047,11 @@ describe('Relay Submit Utils', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ status: 'pending' }),
-        } as Response)
+        })
         .mockResolvedValue({
           ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
-        } as Response);
+        });
 
       await submitRelayQuotes(request);
 
@@ -1095,7 +1096,7 @@ describe('Relay Submit Utils', () => {
           ...STATUS_RESPONSE_MOCK,
           txHashes: [],
         }),
-      } as Response);
+      });
 
       const result = await submitRelayQuotes(request);
       expect(result.transactionHash).toBe('0x0');
@@ -1119,9 +1120,9 @@ describe('Relay Submit Utils', () => {
       };
 
       const PAYMENT_OVERRIDE_TX_MOCK: BatchTransactionParams = {
-        to: '0xpaymentoverride' as Hex,
-        data: '0xpaymentoverride' as Hex,
-        value: '0x0' as Hex,
+        to: '0xpaymentoverride',
+        data: '0xpaymentoverride',
+        value: '0x0',
       };
 
       beforeEach(() => {
@@ -1190,9 +1191,9 @@ describe('Relay Submit Utils', () => {
           PaymentOverride.MoneyAccount;
         request.quotes[0].request.atomic = false;
         request.quotes[0].original.details.currencyOut.minimumAmount = '530000';
-        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+        submitSecondLegMock.mockResolvedValue({
           transactionHash:
-            '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex,
+            '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
         });
         successfulFetchMock.mockResolvedValueOnce({
           ok: true,
@@ -1201,7 +1202,7 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [FALLBACK_HASH],
           }),
-        } as Response);
+        });
 
         await submitRelayQuotes(request);
 
@@ -1241,8 +1242,8 @@ describe('Relay Submit Utils', () => {
           ...request.quotes[0].original.steps[0].items[0],
           data: {
             ...request.quotes[0].original.steps[0].items[0].data,
-            data: '0xapprove' as Hex,
-            to: '0xapproveTarget' as Hex,
+            data: '0xapprove',
+            to: '0xapproveTarget',
           },
         });
 
@@ -1270,14 +1271,14 @@ describe('Relay Submit Utils', () => {
         request.transaction = {
           ...request.transaction,
           type: TransactionType.simpleSend,
-        } as TransactionMeta;
+        };
 
         request.quotes[0].original.steps[0].items.push({
           ...request.quotes[0].original.steps[0].items[0],
           data: {
             ...request.quotes[0].original.steps[0].items[0].data,
-            data: '0xapprove' as Hex,
-            to: '0xapproveTarget' as Hex,
+            data: '0xapprove',
+            to: '0xapproveTarget',
           },
         });
 
@@ -1316,9 +1317,9 @@ describe('Relay Submit Utils', () => {
           id: ORIGINAL_TRANSACTION_ID_MOCK,
           txParams: {
             from: FROM_MOCK,
-            to: '0xrecipient' as Hex,
-            data: '0xorigdata' as Hex,
-            value: '0x100' as Hex,
+            to: '0xrecipient',
+            data: '0xorigdata',
+            value: '0x100',
           },
           type: TransactionType.simpleSend,
         } as TransactionMeta;
@@ -1371,8 +1372,8 @@ describe('Relay Submit Utils', () => {
           ...request.quotes[0].original.steps[0].items[0],
           data: {
             ...request.quotes[0].original.steps[0].items[0].data,
-            data: '0xapprove' as Hex,
-            to: '0xapproveTarget' as Hex,
+            data: '0xapprove',
+            to: '0xapproveTarget',
           },
         });
 
@@ -1405,7 +1406,7 @@ describe('Relay Submit Utils', () => {
         request.transaction = {
           ...request.transaction,
           type: TransactionType.predictDeposit,
-        } as TransactionMeta;
+        };
 
         await submitRelayQuotes(request);
 
@@ -1764,7 +1765,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
-        } as Response);
+        });
 
         const result = await submitRelayQuotes(request);
 
@@ -1796,7 +1797,7 @@ describe('Relay Submit Utils', () => {
         submitPolymarketWithdraw: jest.Mock;
         sweepPolymarketDepositWallet: jest.Mock;
       } {
-        const mod = jest.requireMock('./polymarket/withdraw');
+        const mod = jest.requireMock('../../utils/polymarket/withdraw');
         return {
           submitPolymarketWithdraw: mod.submitPolymarketWithdraw as jest.Mock,
           sweepPolymarketDepositWallet:
@@ -1813,6 +1814,7 @@ describe('Relay Submit Utils', () => {
         });
         sweepPolymarketDepositWallet.mockResolvedValue(undefined);
         request.quotes[0].request.isPolymarketDepositWallet = true;
+        request.quotes[0].original.steps[0].id = 'deposit';
         request.quotes[0].original.steps[0].kind = 'transaction';
       });
 
@@ -1821,28 +1823,32 @@ describe('Relay Submit Utils', () => {
 
         await submitRelayQuotes(request);
 
-        expect(submitPolymarketWithdraw).toHaveBeenCalledWith(
-          request.quotes[0],
-          FROM_MOCK,
+        expect(submitPolymarketWithdraw).toHaveBeenCalledWith({
+          depositData: (
+            request.quotes[0].original.steps[0] as RelayTransactionStep
+          ).items[0].data.data,
+          from: FROM_MOCK,
           messenger,
-        );
+          sourceAmountRaw: request.quotes[0].sourceAmount.raw,
+        });
         expect(addTransactionMock).not.toHaveBeenCalled();
         expect(addTransactionBatchMock).not.toHaveBeenCalled();
       });
 
-      it('runs the USDC.e sweep with the success status on success', async () => {
+      it('runs the USDC.e sweep without waiting for a refund on success', async () => {
         const { sweepPolymarketDepositWallet } = getPolymarketMocks();
 
         await submitRelayQuotes(request);
 
-        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
-          FROM_MOCK,
+        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          isRefund: false,
           messenger,
-          { relayStatus: 'success', preSubmitUsdceBalance: 0n },
-        );
+          preSubmitUsdceBalance: 0n,
+        });
       });
 
-      it('passes the refund status and pre-submit balance to the sweep on refund', async () => {
+      it('sweeps as a refund with the pre-submit balance on refund', async () => {
         const { submitPolymarketWithdraw, sweepPolymarketDepositWallet } =
           getPolymarketMocks();
         submitPolymarketWithdraw.mockResolvedValue({
@@ -1852,19 +1858,20 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({ status: 'refund' }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: refund',
         );
-        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
-          FROM_MOCK,
+        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          isRefund: true,
           messenger,
-          { relayStatus: 'refund', preSubmitUsdceBalance: 1000000n },
-        );
+          preSubmitUsdceBalance: 1000000n,
+        });
       });
 
-      it('passes the refunded status and pre-submit balance to the sweep on refunded', async () => {
+      it('sweeps as a refund with the pre-submit balance on refunded', async () => {
         const { submitPolymarketWithdraw, sweepPolymarketDepositWallet } =
           getPolymarketMocks();
         submitPolymarketWithdraw.mockResolvedValue({
@@ -1874,16 +1881,17 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({ status: 'refunded' }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: refunded',
         );
-        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
-          FROM_MOCK,
+        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          isRefund: true,
           messenger,
-          { relayStatus: 'refunded', preSubmitUsdceBalance: 2500000n },
-        );
+          preSubmitUsdceBalance: 2500000n,
+        });
       });
 
       it('returns timeout (tolerated) when Relay polling times out', async () => {
@@ -1892,16 +1900,17 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({ status: 'pending' }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: timeout',
         );
-        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
-          FROM_MOCK,
+        expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          isRefund: false,
           messenger,
-          { relayStatus: 'timeout', preSubmitUsdceBalance: 0n },
-        );
+          preSubmitUsdceBalance: 0n,
+        });
       });
     });
 
@@ -1923,10 +1932,8 @@ describe('Relay Submit Utils', () => {
       });
 
       it('uses fallback data and value when step item data/value are undefined', async () => {
-        request.quotes[0].original.steps[0].items[0].data.data =
-          undefined as unknown as Hex;
-        request.quotes[0].original.steps[0].items[0].data.value =
-          undefined as unknown as string;
+        request.quotes[0].original.steps[0].items[0].data.data = undefined;
+        request.quotes[0].original.steps[0].items[0].data.value = undefined;
 
         await submitRelayQuotes(request);
 
@@ -1979,7 +1986,6 @@ describe('Relay Submit Utils', () => {
       const RECIPIENT_MOCK = '0xrecip0000000000000000000000000000000001' as Hex;
       const TARGET_HASH_MOCK =
         '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as Hex;
-      const ON_CHAIN_AMOUNT_MOCK = '535000';
       const MINIMUM_AMOUNT_MOCK = '530000';
       const VAULT_HASH_MOCK =
         '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex;
@@ -2002,7 +2008,7 @@ describe('Relay Submit Utils', () => {
           minimumAmount: MINIMUM_AMOUNT_MOCK,
         };
 
-        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+        submitSecondLegMock.mockResolvedValue({
           transactionHash: VAULT_HASH_MOCK,
         });
 
@@ -2013,56 +2019,50 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [TARGET_HASH_MOCK],
           }),
-        } as Response);
+        });
       });
 
-      it('resolves settled amount from on-chain Transfer log and submits vault deposit', async () => {
-        getTransferredAmountFromTxHashMock.mockResolvedValue({
-          amountRaw: ON_CHAIN_AMOUNT_MOCK,
-          blockNumber: undefined,
-        });
-
+      it('submits the second leg with the polled target hash as settlementHash', async () => {
         const result = await submitRelayQuotes(request);
 
-        expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith({
-          messenger: expect.anything(),
-          txHash: TARGET_HASH_MOCK,
-          chainId: TARGET_CHAIN_ID_MOCK,
-          tokenAddress: TARGET_TOKEN_ADDRESS_MOCK,
-          walletAddress: RECIPIENT_MOCK,
-        });
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK,
-            moneyAccountAddress: RECIPIENT_MOCK,
-            vaultDisabled: false,
+            chainId: TARGET_CHAIN_ID_MOCK,
+            from: RECIPIENT_MOCK,
+            settlementHash: TARGET_HASH_MOCK,
+            tokenAddress: TARGET_TOKEN_ADDRESS_MOCK,
           }),
         );
         expect(result).toStrictEqual({ transactionHash: VAULT_HASH_MOCK });
       });
 
-      it('throws when the cross-chain on-chain amount is unavailable', async () => {
-        getTransferredAmountFromTxHashMock.mockResolvedValue({
-          amountRaw: undefined,
-          blockNumber: undefined,
-        });
+      it('marks the intent complete only after the second leg is submitted', async () => {
+        await submitRelayQuotes(request);
+
+        const completionIndex = updateTransactionMock.mock.calls.findIndex(
+          ([{ note }]) => note === 'Intent complete after Relay completion',
+        );
+
+        expect(completionIndex).not.toBe(-1);
+        expect(
+          updateTransactionMock.mock.invocationCallOrder[completionIndex],
+        ).toBeGreaterThan(submitSecondLegMock.mock.invocationCallOrder[0]);
+      });
+
+      it('does not mark the intent complete when the second leg fails', async () => {
+        submitSecondLegMock.mockRejectedValue(new Error('Second leg failed'));
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Cannot resolve settled amount from on-chain transaction',
-        );
-        expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
-      });
-
-      it('propagates the error when the cross-chain on-chain read throws', async () => {
-        getTransferredAmountFromTxHashMock.mockRejectedValue(
-          new Error('rpc error'),
+          'Second leg failed',
         );
 
-        await expect(submitRelayQuotes(request)).rejects.toThrow('rpc error');
-        expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
+        const completionUpdate = updateTransactionMock.mock.calls.find(
+          ([{ note }]) => note === 'Intent complete after Relay completion',
+        );
+        expect(completionUpdate).toBeUndefined();
       });
 
-      it('skips on-chain read and uses quote minimum when targetHash is FALLBACK_HASH', async () => {
+      it('passes settlementHash as undefined when targetHash is FALLBACK_HASH', async () => {
         successfulFetchMock.mockResolvedValue({
           ok: true,
           json: async () => ({
@@ -2070,17 +2070,30 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [FALLBACK_HASH],
           }),
-        } as Response);
+        });
 
         await submitRelayQuotes(request);
 
-        expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-          expect.objectContaining({ sourceAmountRaw: MINIMUM_AMOUNT_MOCK }),
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
+          expect.objectContaining({ settlementHash: undefined }),
         );
       });
 
-      it('uses quote minimum on same-chain flows when submit returns FALLBACK_HASH', async () => {
+      it('passes the submitted source hash as settlementHash on same-chain flows', async () => {
+        request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+        request.quotes[0].original.details.currencyIn.currency.chainId = 1;
+        request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+
+        await submitRelayQuotes(request);
+
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            settlementHash: TRANSACTION_HASH_MOCK,
+          }),
+        );
+      });
+
+      it('passes settlementHash as undefined on same-chain flows when submit returns FALLBACK_HASH', async () => {
         request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
         request.quotes[0].original.details.currencyIn.currency.chainId = 1;
         request.quotes[0].original.details.currencyOut.currency.chainId = 1;
@@ -2095,63 +2108,17 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [FALLBACK_HASH],
           }),
-        } as Response);
-
-        await submitRelayQuotes(request);
-
-        expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-          expect.objectContaining({ sourceAmountRaw: MINIMUM_AMOUNT_MOCK }),
-        );
-      });
-
-      it('reads settled amount from submitted source hash on same-chain flows', async () => {
-        request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
-        request.quotes[0].original.details.currencyIn.currency.chainId = 1;
-        request.quotes[0].original.details.currencyOut.currency.chainId = 1;
-
-        getTransferredAmountFromTxHashMock.mockResolvedValue({
-          amountRaw: ON_CHAIN_AMOUNT_MOCK,
-          blockNumber: undefined,
         });
 
         await submitRelayQuotes(request);
 
-        expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            txHash: TRANSACTION_HASH_MOCK,
-            chainId: CHAIN_ID_MOCK,
-            walletAddress: RECIPIENT_MOCK,
-          }),
-        );
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-          expect.objectContaining({ sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK }),
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
+          expect.objectContaining({ settlementHash: undefined }),
         );
       });
 
-      it('throws when the same-chain flow has no quote-minimum amount', async () => {
-        successfulFetchMock.mockResolvedValue({
-          ok: true,
-          json: async () => ({
-            status: 'success',
-            inTxHashes: [SOURCE_HASH_MOCK],
-            txHashes: [FALLBACK_HASH],
-          }),
-        } as Response);
-        request.quotes[0].original.details.currencyOut.minimumAmount = '';
-
-        await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Cannot resolve post-completion amount',
-        );
-        expect(getTransferredAmountFromTxHashMock).not.toHaveBeenCalled();
-      });
-
-      it('falls back to completion targetHash when submit returns no hash', async () => {
-        getTransferredAmountFromTxHashMock.mockResolvedValue({
-          amountRaw: ON_CHAIN_AMOUNT_MOCK,
-          blockNumber: undefined,
-        });
-        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+      it('falls back to completion targetHash when submitSecondLeg returns no hash', async () => {
+        submitSecondLegMock.mockResolvedValue({
           transactionHash: undefined,
         });
 
@@ -2160,36 +2127,38 @@ describe('Relay Submit Utils', () => {
         expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
       });
 
+      it('uses from as quote.request.recipient when set', async () => {
+        await submitRelayQuotes(request);
+
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
+          expect.objectContaining({ from: RECIPIENT_MOCK }),
+        );
+      });
+
       it('falls back to quote.request.from when no recipient is set', async () => {
         request.quotes[0].request.recipient = undefined;
-        getTransferredAmountFromTxHashMock.mockResolvedValue({
-          amountRaw: ON_CHAIN_AMOUNT_MOCK,
-          blockNumber: undefined,
-        });
 
         await submitRelayQuotes(request);
 
-        expect(getTransferredAmountFromTxHashMock).toHaveBeenCalledWith(
-          expect.objectContaining({ walletAddress: FROM_MOCK }),
-        );
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-          expect.objectContaining({ moneyAccountAddress: FROM_MOCK }),
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
+          expect.objectContaining({ from: FROM_MOCK }),
         );
       });
 
       describe('post-quote flow', () => {
         const DEPOSIT_CALLS_MOCK: BatchTransactionParams[] = [
           {
-            to: '0xapprove0000000000000000000000000000001' as Hex,
-            data: '0xapprove' as Hex,
-            value: '0x0' as Hex,
+            to: '0xapprove0000000000000000000000000000001',
+            data: '0xapprove',
+            value: '0x0',
           },
           {
-            to: '0xteller00000000000000000000000000000001' as Hex,
-            data: '0xdeposit' as Hex,
-            value: '0x0' as Hex,
+            to: '0xteller00000000000000000000000000000001',
+            data: '0xdeposit',
+            value: '0x0',
           },
         ];
+        const ON_CHAIN_AMOUNT_MOCK = '535000';
 
         beforeEach(() => {
           request.quotes[0].request.isPostQuote = true;
@@ -2197,85 +2166,41 @@ describe('Relay Submit Utils', () => {
             transactionData: {
               [ORIGINAL_TRANSACTION_ID_MOCK]: {},
             },
-          } as never);
+          });
           getPaymentOverrideDataMock.mockResolvedValue({
             calls: DEPOSIT_CALLS_MOCK,
           });
-          getTransferredAmountFromTxHashMock.mockResolvedValue({
-            amountRaw: ON_CHAIN_AMOUNT_MOCK,
-            blockNumber: undefined,
-          });
         });
 
-        it('calls getPaymentOverrideData with the settled amount (in human units) and forwards deposit calls', async () => {
+        it('builds the second leg calls via getPaymentOverrideData with the settled amount', async () => {
           await submitRelayQuotes(request);
 
+          const { getCalls } = submitSecondLegMock.mock.calls[0][0];
+          const calls = await getCalls?.(ON_CHAIN_AMOUNT_MOCK);
+
+          // 535000 raw with 6 decimals -> 0.535 human
           expect(getPaymentOverrideDataMock).toHaveBeenCalledWith({
-            // 535000 raw with 6 decimals → 0.535 human
             amount: '0.535',
             transaction: expect.objectContaining({
               id: ORIGINAL_TRANSACTION_ID_MOCK,
             }),
-            transactionData: expect.anything(),
+            transactionData: {},
           });
-          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-              depositCalls: DEPOSIT_CALLS_MOCK,
-              sourceAmountRaw: ON_CHAIN_AMOUNT_MOCK,
-            }),
-          );
-        });
-
-        it('prefers the recipient returned by getPaymentOverrideData', async () => {
-          const CALLBACK_RECIPIENT_MOCK =
-            '0xcallback00000000000000000000000000000001' as Hex;
-          getPaymentOverrideDataMock.mockResolvedValue({
-            calls: DEPOSIT_CALLS_MOCK,
-            recipient: CALLBACK_RECIPIENT_MOCK,
-          });
-
-          await submitRelayQuotes(request);
-
-          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-              moneyAccountAddress: CALLBACK_RECIPIENT_MOCK,
-            }),
-          );
-        });
-
-        it('falls back to the quote recipient when getPaymentOverrideData omits it', async () => {
-          await submitRelayQuotes(request);
-
-          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-            expect.objectContaining({ moneyAccountAddress: RECIPIENT_MOCK }),
-          );
-        });
-
-        it('throws when getPaymentOverrideData returns no calls', async () => {
-          getPaymentOverrideDataMock.mockResolvedValue({ calls: [] });
-
-          await expect(submitRelayQuotes(request)).rejects.toThrow(
-            'Missing post-quote deposit calls',
-          );
-          expect(submitMoneyAccountVaultDepositMock).not.toHaveBeenCalled();
+          expect(calls).toStrictEqual(DEPOSIT_CALLS_MOCK);
         });
       });
 
       describe('non-post-quote flow', () => {
         beforeEach(() => {
           request.quotes[0].request.isPostQuote = false;
-          getTransferredAmountFromTxHashMock.mockResolvedValue({
-            amountRaw: ON_CHAIN_AMOUNT_MOCK,
-            blockNumber: undefined,
-          });
         });
 
-        it('does not call getPaymentOverrideData and forwards no depositCalls', async () => {
+        it('does not pass getCalls to submitSecondLeg', async () => {
           await submitRelayQuotes(request);
 
           expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
-          expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
-            expect.objectContaining({ depositCalls: undefined }),
+          expect(submitSecondLegMock).toHaveBeenCalledWith(
+            expect.objectContaining({ getCalls: undefined }),
           );
         });
       });
@@ -2289,7 +2214,6 @@ describe('Relay Submit Utils', () => {
       const RECIPIENT_MOCK = '0xrecip0000000000000000000000000000000001' as Hex;
       const TARGET_HASH_MOCK =
         '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as Hex;
-      const NON_ATOMIC_ON_CHAIN_AMOUNT_MOCK = '535000';
       const NON_ATOMIC_MINIMUM_AMOUNT_MOCK = '530000';
       const VAULT_HASH_MOCK =
         '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex;
@@ -2355,7 +2279,7 @@ describe('Relay Submit Utils', () => {
 
         // Vault helper is NOT called separately - the vault calls are already
         // embedded in the promoted Relay quote's steps and submitted atomically.
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledTimes(0);
+        expect(submitSecondLegMock).toHaveBeenCalledTimes(0);
 
         // Relay execute is invoked exactly once with the promoted quote's
         // embedded calldata, not any stale parent calldata.
@@ -2373,14 +2297,10 @@ describe('Relay Submit Utils', () => {
         ]);
       });
 
-      it('non-atomic success: still invokes the vault helper exactly once with the settled amount', async () => {
+      it('non-atomic success: still invokes the vault helper exactly once with the settlement hash', async () => {
         configureNonAtomicMaxMaQuote();
-        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+        submitSecondLegMock.mockResolvedValue({
           transactionHash: VAULT_HASH_MOCK,
-        });
-        getTransferredAmountFromTxHashMock.mockResolvedValue({
-          amountRaw: NON_ATOMIC_ON_CHAIN_AMOUNT_MOCK,
-          blockNumber: undefined,
         });
         successfulFetchMock.mockResolvedValue({
           ok: true,
@@ -2389,22 +2309,22 @@ describe('Relay Submit Utils', () => {
             inTxHashes: [SOURCE_HASH_MOCK],
             txHashes: [TARGET_HASH_MOCK],
           }),
-        } as Response);
+        });
 
         await submitRelayQuotes(request);
 
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledTimes(1);
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledWith(
+        expect(submitSecondLegMock).toHaveBeenCalledTimes(1);
+        expect(submitSecondLegMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            sourceAmountRaw: NON_ATOMIC_ON_CHAIN_AMOUNT_MOCK,
-            moneyAccountAddress: RECIPIENT_MOCK,
+            settlementHash: TARGET_HASH_MOCK,
+            from: RECIPIENT_MOCK,
           }),
         );
       });
 
       it('non-atomic failure: does not invoke the vault helper when Relay reports a failed status', async () => {
         configureNonAtomicMaxMaQuote();
-        submitMoneyAccountVaultDepositMock.mockResolvedValue({
+        submitSecondLegMock.mockResolvedValue({
           transactionHash: VAULT_HASH_MOCK,
         });
         successfulFetchMock.mockResolvedValue({
@@ -2413,13 +2333,13 @@ describe('Relay Submit Utils', () => {
             status: 'failure',
             inTxHashes: [SOURCE_HASH_MOCK],
           }),
-        } as Response);
+        });
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
           'Relay: Request failed with status: failure',
         );
 
-        expect(submitMoneyAccountVaultDepositMock).toHaveBeenCalledTimes(0);
+        expect(submitSecondLegMock).toHaveBeenCalledTimes(0);
       });
     });
   });

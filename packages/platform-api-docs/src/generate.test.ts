@@ -1,5 +1,6 @@
+import { jest } from '@jest/globals';
 import { createSandbox } from '@metamask/utils/node';
-import execa from 'execa';
+import { execa } from 'execa';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
