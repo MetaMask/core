@@ -554,13 +554,10 @@ export class BackendWebSocketService {
       if (this.#connectionPromise === inFlight) {
         this.#connectionPromise = null;
       }
-      if (
-        this.#state === WebSocketState.CONNECTED ||
-        !this.#isConnectionAllowed() ||
-        this.#reconnectTimer
-      ) {
+      if (!this.#isConnectionAllowed() || this.#reconnectTimer) {
         return;
       }
+      // connect() returns immediately when the awaited attempt reached CONNECTED.
       await this.connect();
       return;
     }
