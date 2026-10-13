@@ -335,6 +335,13 @@ export class BackendWebSocketService {
    */
   #pendingWebSocket: WebSocket | undefined;
 
+  /**
+   * True after `disconnect()` asks the socket to close. A handshake still in
+   * CONNECTING cannot carry the manual close code: browsers report 1006 and an
+   * empty reason instead.
+   */
+  #manualClose = false;
+
   #state: WebSocketState = WebSocketState.DISCONNECTED;
 
   #reconnectAttempts = 0;
@@ -621,8 +628,9 @@ export class BackendWebSocketService {
       return;
     }
 
-    // Close WebSocket with manual disconnect code and reason.
-    // `#pendingWebSocket` covers CONNECTING, before `onopen` assigns `#ws`.
+    // Remember the local abort before close(). An open socket reports code 4999.
+    // A CONNECTING socket reports 1006, so onclose uses this flag instead.
+    this.#manualClose = true;
     socket.close(MANUAL_DISCONNECT_CODE, MANUAL_DISCONNECT_REASON);
 
     log('WebSocket manually disconnected');
@@ -1152,15 +1160,21 @@ export class BackendWebSocketService {
               wasClean: event.wasClean,
             });
 
+            // A CONNECTING close() arrives as 1006. The flag records that
+            // disconnect() requested it, including when this event is a duplicate.
+            const closedByDisconnect = this.#manualClose;
+            this.#manualClose = false;
+
             // Guard against duplicate close events
             if (this.#state === WebSocketState.DISCONNECTED) {
               return;
             }
 
-            // Detect if this is a manual disconnect or service cleanup based on close code
+            // An open socket keeps code 4999. A handshake abort does not.
             const isManualDisconnect =
-              event.code === MANUAL_DISCONNECT_CODE &&
-              event.reason === MANUAL_DISCONNECT_REASON;
+              closedByDisconnect ||
+              (event.code === MANUAL_DISCONNECT_CODE &&
+                event.reason === MANUAL_DISCONNECT_REASON);
 
             // If connection hasn't been established yet, handle the connection promise
             if (this.#state === WebSocketState.CONNECTING) {

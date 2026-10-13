@@ -111,7 +111,11 @@ class MockWebSocket extends EventTarget {
     const simulateCloseFn = this.simulateClose.bind(this);
     // eslint-disable-next-line jest/prefer-spy-on
     this.close = jest.fn().mockImplementation((code = 1000, reason = '') => {
-      // When close() is called, trigger the close event to simulate real WebSocket behavior
+      // close() during CONNECTING fails the handshake with 1006 and no reason.
+      if (this.readyState === MockWebSocket.CONNECTING) {
+        simulateCloseFn(1006, '');
+        return;
+      }
       simulateCloseFn(code, reason);
     });
     // eslint-disable-next-line jest/prefer-spy-on
@@ -973,6 +977,32 @@ describe('BackendWebSocketService', () => {
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
           );
+        },
+      );
+    });
+
+    it('does not reconnect when disconnect aborts a CONNECTING handshake with code 1006', async () => {
+      await withService(
+        { mockWebSocketOptions: { autoConnect: false } },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          const connectPromise = service.connect();
+          await completeAsyncOperations(0);
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTING,
+          );
+
+          service.disconnect();
+          await connectPromise;
+          await completeAsyncOperations(5000);
+
+          expect(getMockWebSocket().close).toHaveBeenCalledWith(
+            4999,
+            'Internal: Manual disconnect',
+          );
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
         },
       );
     });
@@ -2436,7 +2466,7 @@ describe('BackendWebSocketService', () => {
 
           isBasic = true;
           onChange?.();
-          firstSocket.simulateClose(4999, 'Internal: Manual disconnect');
+          firstSocket.simulateClose(1006, '');
           await connectPromise;
           await completeAsyncOperations();
 
