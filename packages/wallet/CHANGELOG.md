@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Delegate `SubscriptionController:isUserEligibleForTrial` to `SubscriptionDelegationService` so Money Account Plus checkout uses the controller trial rule ([#10795](https://github.com/MetaMask/core/pull/10795))
 - Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+- Bump `@metamask/subscription-controller` from `^13.0.0` to `^14.0.0` ([#10810](https://github.com/MetaMask/core/pull/10810))
 
 ## [17.0.0]
 
