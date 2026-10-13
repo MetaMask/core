@@ -196,6 +196,10 @@ describe('BridgeStatusController', () => {
 
   describe('submitBatchSell', () => {
     let mockMessengerCall: jest.Mock;
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockMessengerCall = jest.fn();
+    });
 
     describe.each([true, false])('when gasTransferRequired=%s,', (transfer) => {
       const transferTx = transfer ? mockTransferTx : undefined;
@@ -855,5 +859,407 @@ describe('BridgeStatusController', () => {
         },
       );
     });
+
+    it('rethrows addTransactionBatchFn error if there is no matching txMeta for the batch', async () => {
+      const gasIncluded7702 = true;
+      const gasIncluded = false;
+      const isDelegatedAccount = true;
+      const stxEnabled = false;
+
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1718217600000);
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
+      // Append the transfer tx if it is provided
+      const mockBatchSellTrades = {
+        ...mockBatchSellTradesErc20Erc20,
+        gasIncluded7702,
+        gasIncluded,
+        transactions: [
+          mockTransferTx,
+          ...mockBatchSellTradesErc20Erc20.transactions,
+        ].filter((tx) => tx !== undefined),
+      };
+
+      // Mock messenger calls
+      addTransactionBatchFn.mockRejectedValueOnce(
+        new Error('Failed to add batch'),
+      );
+      mockMessengerCall.mockReturnValueOnce({
+        batchSellTrades: mockBatchSellTrades,
+      });
+      // stopPollingForQuotes
+      mockMessengerCall.mockImplementationOnce(jest.fn());
+      // track event
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockImplementationOnce(jest.fn());
+      // isAtomicBatchSupported
+      mockMessengerCall.mockReturnValueOnce(
+        isDelegatedAccount
+          ? [
+              {
+                isSupported: true,
+                delegationAddress: '0x0',
+              },
+            ]
+          : [],
+      );
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('networkClientId');
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [],
+      });
+
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await expect(
+            rootMessenger.call('BridgeStatusController:submitBatchSell', {
+              accountAddress: (mockQuotes[0].trade as TxData).from,
+              quoteResponses: mockQuotes,
+              isStxEnabled: stxEnabled,
+            }),
+          ).rejects.toThrow('Failed to add batch');
+          controller.stopAllPolling();
+
+          // First txMeta should be returned
+          expect(result).toBeUndefined();
+
+          // Verify the messenger calls
+          expect(mockMessengerCall.mock.calls).toStrictEqual([
+            ['BridgeController:getState'],
+            [
+              'BridgeController:stopPollingForQuotes',
+              'Transaction submitted',
+              undefined,
+            ],
+            [
+              'AccountsController:getAccountByAddress',
+              '0x141d32a89a1e0a5ef360034a2f60a4b917c18838',
+            ],
+            [
+              'BridgeController:trackUnifiedSwapBridgeEvent',
+              'Unified SwapBridge Submitted',
+              {
+                account_hardware_type: null,
+                action_type: 'swapbridge-v1',
+                batch_id: 'batchId1',
+                chain_id_destination: 'eip155:10',
+                chain_id_source: 'eip155:10',
+                custom_slippage: false,
+                destination_hash_present: false,
+                feature_id: FeatureId.BATCH_SELL,
+                gas_included: gasIncluded,
+                gas_included_7702: gasIncluded7702,
+                is_hardware_wallet: false,
+                location: 'Unknown',
+                price_impact: 0,
+                provider: 'socket_across',
+                quoted_time_minutes: 1,
+                slippage_limit: 0,
+                source_hash_present: false,
+                stx_enabled: stxEnabled,
+                swap_type: 'single_chain',
+                token_address_destination:
+                  'eip155:10/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+                token_address_source:
+                  'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+                token_security_type_destination: null,
+                token_symbol_destination: 'USDC',
+                token_symbol_source: 'USDC',
+                usd_amount_source: 100,
+                usd_quoted_gas: 0,
+                usd_quoted_return: 0,
+              },
+            ],
+            [
+              'TransactionController:isAtomicBatchSupported',
+              {
+                address: '0xaccount1',
+                chainIds: ['0xa'],
+              },
+            ],
+            ['AccountsController:getAccountByAddress', '0xaccount1'],
+            ['NetworkController:findNetworkClientIdByChainId', '0xa'],
+            [
+              'BridgeController:trackUnifiedSwapBridgeEvent',
+              'Unified SwapBridge Failed',
+              {
+                account_hardware_type: null,
+                action_type: 'swapbridge-v1',
+                batch_id: 'batchId1',
+                chain_id_destination: 'eip155:10',
+                chain_id_source: 'eip155:10',
+                custom_slippage: false,
+                destination_hash_present: false,
+                error_code: 'unknown',
+                error_message: 'Failed to add batch',
+                failure_phase: 'broadcast',
+                feature_id: FeatureId.BATCH_SELL,
+                gas_included: false,
+                gas_included_7702: true,
+                is_hardware_wallet: false,
+                location: 'Unknown',
+                price_impact: 0,
+                provider: 'socket_across',
+                quoted_time_minutes: 1,
+                slippage_limit: 0,
+                source_hash_present: false,
+                stx_enabled: false,
+                swap_type: 'single_chain',
+                token_address_destination:
+                  'eip155:10/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+                token_address_source:
+                  'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+                token_security_type_destination: null,
+                token_symbol_destination: 'USDC',
+                token_symbol_source: 'USDC',
+                usd_amount_source: 100,
+                usd_quoted_gas: 0,
+                usd_quoted_return: 0,
+              },
+            ],
+          ]);
+
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+
+          // Verify that history item was added
+          // eslint-disable-next-line jest/no-restricted-matchers
+          expect(controller.state.txHistory.batchId1).toMatchSnapshot();
+          expect(Object.keys(controller.state.txHistory)).toHaveLength(0);
+        },
+      );
+    });
+
+    // it('silences addTransactionBatchFn error if there is a matching txMeta for the batch', async () => {
+    //   const gasIncluded7702 = true;
+    //   const gasIncluded = false;
+    //   const isDelegatedAccount = true;
+    //   const stxEnabled = false;
+
+    //   jest.spyOn(Date, 'now').mockReturnValueOnce(1718217600000);
+    //   mockGenerateBatchId.mockReturnValueOnce('batchId1');
+    //   // Append the transfer tx if it is provided
+    //   const mockBatchSellTrades = {
+    //     ...mockBatchSellTradesErc20Erc20,
+    //     gasIncluded7702,
+    //     gasIncluded,
+    //     transactions: [
+    //       mockTransferTx,
+    //       ...mockBatchSellTradesErc20Erc20.transactions,
+    //     ].filter((tx) => tx !== undefined),
+    //   };
+    //   mockMessengerCall.mockReturnValueOnce({
+    //     batchSellTrades: mockBatchSellTrades,
+    //   });
+
+    //   // Mock messenger calls
+    //   // stopPollingForQuotes
+    //   mockMessengerCall.mockImplementationOnce(jest.fn());
+    //   // track event
+    //   mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+    //   mockMessengerCall.mockImplementationOnce(jest.fn());
+    //   // isAtomicBatchSupported
+    //   mockMessengerCall.mockReturnValueOnce(
+    //     isDelegatedAccount
+    //       ? [
+    //           {
+    //             isSupported: true,
+    //             delegationAddress: '0x0',
+    //           },
+    //         ]
+    //       : [],
+    //   );
+    //   mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+    //   mockMessengerCall.mockReturnValueOnce('networkClientId');
+    //   addTransactionBatchFn.mockRejectedValueOnce(
+    //     new Error('Failed to add batch'),
+    //   );
+    //   mockMessengerCall.mockReturnValueOnce({
+    //     transactions: [
+    //       {
+    //         batchId: 'batchId1',
+    //         txParams: {
+    //           data: mockBatchSellTrades.transactions[0].data,
+    //         },
+    //         type: TransactionType.swap,
+    //         id: '0',
+    //       },
+    //       {
+    //         batchId: 'batchId1',
+    //         txParams: {
+    //           data: mockBatchSellTrades.transactions[1].data,
+    //         },
+    //         type: TransactionType.swap,
+    //         id: '1',
+    //       },
+    //       ...mockBatchSellTrades.transactions.map((tx, index) => ({
+    //         batchId: 'batchId1',
+    //         txParams: {
+    //           data: tx.data,
+    //         },
+    //         type: TransactionType.swap,
+    //         id: String(index),
+    //       })),
+    //     ],
+    //   });
+    //   mockMessengerCall.mockReturnValueOnce({
+    //     transactions: [
+    //       {
+    //         batchId: 'batchId1',
+    //         txParams: {
+    //           data: mockBatchSellTrades.transactions[0].data,
+    //         },
+    //         type: TransactionType.swap,
+    //         id: '0',
+    //       },
+    //       {
+    //         batchId: 'batchId1',
+    //         txParams: {
+    //           data: mockBatchSellTrades.transactions[1].data,
+    //         },
+    //         type: TransactionType.swap,
+    //         id: '1',
+    //       },
+    //       ...mockBatchSellTrades.transactions.map((tx, index) => ({
+    //         batchId: 'batchId1',
+    //         txParams: {
+    //           data: tx.data,
+    //         },
+    //         type: TransactionType.swap,
+    //         id: String(index),
+    //       })),
+    //     ],
+    //   });
+    //   mockMessengerCall.mockReturnValueOnce({
+    //     transactions: [
+    //       {
+    //         batchId: 'batchId1',
+    //         txParams: {
+    //           data: mockBatchSellTrades.transactions[0].data,
+    //         },
+    //         type: TransactionType.swap,
+    //         id: '0',
+    //       },
+    //       {
+    //         batchId: 'batchId1',
+    //         txParams: {
+    //           data: mockBatchSellTrades.transactions[1].data,
+    //         },
+    //         type: TransactionType.swap,
+    //         id: '1',
+    //       },
+    //       ...mockBatchSellTrades.transactions.map((tx, index) => ({
+    //         batchId: 'batchId1',
+    //         txParams: {
+    //           data: tx.data,
+    //         },
+    //         type: TransactionType.swap,
+    //         id: String(index),
+    //       })),
+    //     ],
+    //   });
+
+    //   await withController(
+    //     { mockMessengerCall },
+    //     async ({
+    //       controller,
+    //       rootMessenger,
+    //       startPollingForBridgeTxStatusSpy,
+    //     }) => {
+    //       const result = await rootMessenger.call(
+    //         'BridgeStatusController:submitBatchSell',
+    //         {
+    //           accountAddress: (mockQuotes[0].trade as TxData).from,
+    //           quoteResponses: mockQuotes,
+    //           isStxEnabled: stxEnabled,
+    //         },
+    //       );
+
+    //       controller.stopAllPolling();
+
+    //       // First txMeta should be returned
+    //       expect(result).toMatchInlineSnapshot(`
+    //         {
+    //           "batchId": "batchId1",
+    //           "id": "1",
+    //           "txParams": {
+    //             "data": "0x3ce33bff00000000000000000000000000000000000000000000000000000000000000800000000000000000000000000b2c639c533813f4aa9d7837caf62653d097ff850000000000000000000000000000000000000000000000000000000000d59f8000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000f736f636b6574416461707465725632000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005e00000000000000000000000003a23f943181408eac424116af7b7790c94cb97a50000000000000000000000003a23f943181408eac424116af7b7790c94cb97a500000000000000000000000000000000000000000000000000000000000000890000000000000000000000000b2c639c533813f4aa9d7837caf62653d097ff850000000000000000000000003c499c542cef5e3811e1192ce70d8cc03d5c33590000000000000000000000000000000000000000000000000000000000d59f8000000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000716a8b9dd056055c84b7a2ba0a016099465a518700000000000000000000000000000000000000000000000000000000000004a0c3540448000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000019d0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000084ad69fa4f00000000000000000000000000000000000000000000000000038d7ea4c68000000000000000000000000000141d32a89a1e0a5ef360034a2f60a4b917c1883800000000000000000000000000000000000000000000000000000000000000890000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000284792ebcb90000000000000000000000000000000000000000000000000000000000d59f80000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000001e0000000000000000000000000000000000000000000000000000000000000454000000000000000000000000000000000000000000000000000000000000000c40000000000000000000000000000000000000000000000000000000000000002000000000000000000000000141d32a89a1e0a5ef360034a2f60a4b917c18838000000000000000000000000141d32a89a1e0a5ef360034a2f60a4b917c1883800000000000000000000000000000000000000000000000000000000000000020000000000000000000000000b2c639c533813f4aa9d7837caf62653d097ff850000000000000000000000003c499c542cef5e3811e1192ce70d8cc03d5c335900000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000d55a40000000000000000000000000000000000000000000000000000000000000008900000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000067041c47000000000000000000000000000000000000000000000000000000006704704d00000000000000000000000000000000000000000000000000000000d00dfeeddeadbeef765753be7f7a64d5509974b0d678e1e3149b02f42c7402906f9888136205038026f20b3f6df2899044cab41d632bc7a6c35debd40516df85de6f194aeb05b72cb9ea4d5ce0f7c56c91a79536331112f1a846dc641c",
+    //           },
+    //           "type": "swap",
+    //         }
+    //       `);
+
+    //       // Verify the messenger calls
+    //       expect(mockMessengerCall.mock.calls).toStrictEqual([
+    //         ['BridgeController:getState'],
+    //         [
+    //           'BridgeController:stopPollingForQuotes',
+    //           'Transaction submitted',
+    //           undefined,
+    //         ],
+    //         [
+    //           'AccountsController:getAccountByAddress',
+    //           '0x141d32a89a1e0a5ef360034a2f60a4b917c18838',
+    //         ],
+    //         [
+    //           'BridgeController:trackUnifiedSwapBridgeEvent',
+    //           'Unified SwapBridge Submitted',
+    //           {
+    //             account_hardware_type: null,
+    //             action_type: 'swapbridge-v1',
+    //             batch_id: 'batchId1',
+    //             chain_id_destination: 'eip155:10',
+    //             chain_id_source: 'eip155:10',
+    //             custom_slippage: false,
+    //             destination_hash_present: false,
+    //             feature_id: FeatureId.BATCH_SELL,
+    //             gas_included: gasIncluded,
+    //             gas_included_7702: gasIncluded7702,
+    //             is_hardware_wallet: false,
+    //             location: 'Unknown',
+    //             price_impact: 0,
+    //             provider: 'socket_across',
+    //             quoted_time_minutes: 1,
+    //             slippage_limit: 0,
+    //             source_hash_present: false,
+    //             stx_enabled: stxEnabled,
+    //             swap_type: 'single_chain',
+    //             token_address_destination:
+    //               'eip155:10/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+    //             token_address_source:
+    //               'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+    //             token_security_type_destination: null,
+    //             token_symbol_destination: 'USDC',
+    //             token_symbol_source: 'USDC',
+    //             usd_amount_source: 100,
+    //             usd_quoted_gas: 0,
+    //             usd_quoted_return: 0,
+    //           },
+    //         ],
+    //         [
+    //           'TransactionController:isAtomicBatchSupported',
+    //           {
+    //             address: '0xaccount1',
+    //             chainIds: ['0xa'],
+    //           },
+    //         ],
+    //         ['AccountsController:getAccountByAddress', '0xaccount1'],
+    //         ['NetworkController:findNetworkClientIdByChainId', '0xa'],
+    //         ['TransactionController:getState'],
+    //         ['TransactionController:getState'],
+    //       ]);
+
+    //       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+
+    //       // Verify that history item was added
+    //       // eslint-disable-next-line jest/no-restricted-matchers
+    //       expect(controller.state.txHistory['1']).toMatchSnapshot();
+    //       expect(Object.keys(controller.state.txHistory)).toHaveLength(2);
+    //     },
+    //   );
+    // });
   });
 });
