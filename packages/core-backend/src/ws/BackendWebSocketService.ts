@@ -309,13 +309,13 @@ export class BackendWebSocketService {
   readonly #messenger: BackendWebSocketServiceMessenger;
 
   readonly #options: Required<
-    Omit<
+    Pick<
       BackendWebSocketServiceOptions,
-      | 'messenger'
-      | 'isEnabled'
-      | 'isBasicFunctionality'
-      | 'subscribeToBasicFunctionalityChange'
-      | 'traceFn'
+      | 'url'
+      | 'timeout'
+      | 'reconnectDelay'
+      | 'maxReconnectDelay'
+      | 'requestTimeout'
     >
   >;
 
