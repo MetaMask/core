@@ -2406,6 +2406,52 @@ describe('BackendWebSocketService', () => {
       );
     });
 
+    it('reconnects when basic functionality turns back on during an aborted handshake', async () => {
+      let isBasic = true;
+      let onChange: (() => void) | undefined;
+      await withService(
+        {
+          options: {
+            isBasicFunctionality: () => isBasic,
+            subscribeToBasicFunctionalityChange: (callback) => {
+              onChange = callback;
+              return (): void => undefined;
+            },
+          },
+          mockWebSocketOptions: { autoConnect: false },
+        },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          const connectPromise = service.connect();
+          await completeAsyncOperations();
+          const firstSocket = getMockWebSocket();
+          // WebSocket.close() delivers onclose asynchronously. Hold it so the
+          // setting can turn back on before the aborted handshake settles.
+          firstSocket.close.mockImplementation(() => undefined);
+
+          isBasic = false;
+          onChange?.();
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTING,
+          );
+
+          isBasic = true;
+          onChange?.();
+          firstSocket.simulateClose(4999, 'Internal: Manual disconnect');
+          await connectPromise;
+          await completeAsyncOperations();
+
+          const secondSocket = getMockWebSocket();
+          expect(secondSocket).not.toBe(firstSocket);
+          secondSocket.triggerOpen();
+          await completeAsyncOperations();
+
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTED,
+          );
+        },
+      );
+    });
+
     it('closes the socket when basic functionality turns off during the handshake', async () => {
       let isBasic = true;
       await withService(

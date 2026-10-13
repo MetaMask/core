@@ -545,9 +545,23 @@ export class BackendWebSocketService {
       return;
     }
 
-    // If already connecting, wait for the existing connection attempt to complete
+    // If already connecting, wait for the existing attempt. A Basic Functionality
+    // abort resolves that attempt without connecting, so start a new handshake
+    // when the setting is back on.
     if (this.#connectionPromise) {
-      await this.#connectionPromise;
+      const inFlight = this.#connectionPromise;
+      await inFlight;
+      if (this.#connectionPromise === inFlight) {
+        this.#connectionPromise = null;
+      }
+      if (
+        this.#state === WebSocketState.CONNECTED ||
+        !this.#isConnectionAllowed() ||
+        this.#reconnectTimer
+      ) {
+        return;
+      }
+      await this.connect();
       return;
     }
 
@@ -559,7 +573,7 @@ export class BackendWebSocketService {
 
     // Create and store the connection promise IMMEDIATELY (before any async operations)
     // This ensures subsequent connect() calls will wait for this promise instead of creating new connections
-    this.#connectionPromise = (async (): Promise<void> => {
+    const connectionPromise = (async (): Promise<void> => {
       // Priority 2: Check authentication requirements (signed in)
       let bearerToken: string;
       try {
@@ -584,16 +598,20 @@ export class BackendWebSocketService {
       // Establish the actual WebSocket connection
       await this.#establishConnection(bearerToken);
     })();
+    this.#connectionPromise = connectionPromise;
 
     try {
-      await this.#connectionPromise;
+      await connectionPromise;
     } catch {
       // Always schedule reconnect on any failure
       // Exponential backoff will prevent aggressive retries
       this.#scheduleReconnect();
     } finally {
-      // Clear the connection promise when done (success or failure)
-      this.#connectionPromise = null;
+      // Only clear the attempt this call owns. onclose nulls the field before
+      // this runs, and a newer connect() may already have stored its promise.
+      if (this.#connectionPromise === connectionPromise) {
+        this.#connectionPromise = null;
+      }
     }
   }
 
