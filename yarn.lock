@@ -7570,7 +7570,7 @@ __metadata:
     "@metamask/delegation-deployments": "npm:^1.4.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/money-account-utils": "npm:^2.1.0"
-    "@metamask/transaction-controller": "npm:^72.1.0"
+    "@metamask/transaction-controller": "npm:^72.2.0"
     "@metamask/utils": "npm:^12.0.0"
     "@noble/hashes": "npm:^1.8.0"
     "@types/jest": "npm:^30.0.0"

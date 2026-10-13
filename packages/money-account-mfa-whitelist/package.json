@@ -61,7 +61,7 @@
     "@metamask/delegation-deployments": "^1.4.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/money-account-utils": "^2.1.0",
-    "@metamask/transaction-controller": "^72.1.0",
+    "@metamask/transaction-controller": "^72.2.0",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.3.1",
