@@ -9,12 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `SubscriptionDelegationServiceMessenger` now requires `SubscriptionController:isUserEligibleForTrial` ([#10795](https://github.com/MetaMask/core/pull/10795))
+  - Clients that construct this messenger must delegate `SubscriptionController:isUserEligibleForTrial`.
 - Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
 - Require `Subscription.currentPeriodStart`, `currentPeriodEnd`, `cancelType`, and `isEligibleForSupport` in the subscription response and runtime validation. ([#10765](https://github.com/MetaMask/core/pull/10765))
 - Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
 
 ### Fixed
 
+- Fixed Money Account Plus checkout requesting a trial for a user `isUserEligibleForTrial` rejects ([#10795](https://github.com/MetaMask/core/pull/10795))
 - `SubscriptionController:unCancelSubscription` refreshes subscriptions after a successful uncancel. ([#10802](https://github.com/MetaMask/core/pull/10802))
   - The stored subscription is replaced with the uncancel response instead of merged with it, so optional fields the response omits (such as `cancelAtPeriodEnd` and `canceledAt`) no longer keep stale values, including when the subscription refresh fails.
 
