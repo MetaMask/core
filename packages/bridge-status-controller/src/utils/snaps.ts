@@ -13,6 +13,7 @@ import {
   isCrossChain,
   isSolanaChainId,
   isStellarChainId,
+  isTronChainId,
   isTronTrade,
 } from '@metamask/bridge-controller';
 import { SnapController } from '@metamask/snaps-controllers';
@@ -92,11 +93,15 @@ export const getClientRequest = (
   const transaction = extractTradeData(trade);
 
   let options: Record<string, unknown> | undefined;
+  const isTron = isTronChainId(srcChainId);
 
+  // Stellar, Solana, and Bitcoin trades expect the swap/bridge asset IDs in the
+  // request options; Tron also adds its own fields in the branch below.
   if (
     isStellarChainId(srcChainId) ||
     isSolanaChainId(srcChainId) ||
-    isBitcoinChainId(srcChainId)
+    isBitcoinChainId(srcChainId) ||
+    isTron
   ) {
     if (sourceAssetId !== undefined || destAssetId !== undefined) {
       options = {
@@ -108,19 +113,14 @@ export const getClientRequest = (
         }),
       };
     }
-  }
 
-  if (isTronTrade(trade)) {
-    options = {
-      visible: trade.visible,
-      type: trade.raw_data?.contract?.[0]?.type,
-      ...(sourceAssetId !== undefined && {
-        sourceAssetId,
-      }),
-      ...(destAssetId !== undefined && {
-        destAssetId,
-      }),
-    };
+    if (isTron && isTronTrade(trade)) {
+      options = {
+        ...(options ?? {}),
+        visible: trade.visible,
+        type: trade.raw_data?.contract?.[0]?.type,
+      };
+    }
   }
 
   return createClientTransactionRequest(
