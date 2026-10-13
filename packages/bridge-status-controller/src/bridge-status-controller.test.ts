@@ -3060,6 +3060,22 @@ describe('BridgeStatusController', () => {
             assetId:
               'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as CaipAssetType,
           },
+          steps: [
+            {
+              ...mockQuoteResponse.quote.steps[0],
+              action: ActionTypes.BRIDGE,
+              destChainId: ChainId.ETH,
+              destAsset: {
+                chainId: ChainId.ETH,
+                address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                symbol: 'USDC',
+                name: 'USD Coin',
+                decimals: 6,
+                assetId:
+                  'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as CaipAssetType,
+              },
+            },
+          ],
         },
       };
 
