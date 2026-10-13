@@ -7,6 +7,7 @@ import type {
 import {
   BatchSellTransactionType,
   FeatureId,
+  StatusTypes,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -1261,5 +1262,98 @@ describe('BridgeStatusController', () => {
     //     },
     //   );
     // });
+    //       // Verify that history item was added
+    //       // eslint-disable-next-line jest/no-restricted-matchers
+    //       expect(controller.state.txHistory['1']).toMatchSnapshot();
+    //       expect(Object.keys(controller.state.txHistory)).toHaveLength(2);
+    //     },
+    //   );
+    // });
+
+    // Each swap is its own tx, so transaction statuses are independent
+    it('keeps the first STX trade pending when a sibling fails during addTransactionBatch', async () => {
+      const gasIncluded7702 = false;
+      const gasIncluded = false;
+      const isDelegatedAccount = false;
+      const stxEnabled = true;
+
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1718217600000);
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
+      const mockBatchSellTrades = {
+        ...mockBatchSellTradesErc20Erc20,
+        gasIncluded7702,
+        gasIncluded,
+        transactions: [...mockBatchSellTradesErc20Erc20.transactions].filter(
+          (tx) => tx !== undefined,
+        ),
+      };
+      const batchTxs = mockBatchSellTrades.transactions.map((tx, index) => ({
+        batchId: 'batchId1',
+        txParams: {
+          data: tx.data,
+        },
+        type: TransactionType.swap,
+        id: String(index),
+        chainId: '0xa' as const,
+        time: Date.now(),
+        networkClientId: 'networkClientId',
+        status:
+          index === 1 ? TransactionStatus.submitted : TransactionStatus.failed,
+      }));
+
+      mockMessengerCall.mockImplementation((action: string) => {
+        if (action === 'BridgeController:getState') {
+          return { batchSellTrades: mockBatchSellTrades };
+        }
+        if (action === 'AccountsController:getAccountByAddress') {
+          return mockSelectedAccount;
+        }
+        if (action === 'TransactionController:isAtomicBatchSupported') {
+          return false;
+        }
+        if (action === 'NetworkController:findNetworkClientIdByChainId') {
+          return 'networkClientId';
+        }
+        if (action === 'TransactionController:getState') {
+          return { transactions: batchTxs };
+        }
+        return undefined;
+      });
+
+      await withController(
+        { mockMessengerCall },
+        async ({ controller, rootMessenger }) => {
+          const expectedHistory = controller.state.txHistory;
+          addTransactionBatchFn.mockImplementationOnce(async () => {
+            rootMessenger.publish(
+              'TransactionController:transactionStatusUpdated',
+              {
+                transactionMeta: {
+                  ...batchTxs[2],
+                  txParams: {
+                    data: batchTxs[2].txParams.data,
+                  },
+                  status: TransactionStatus.failed,
+                  type: TransactionType.swap,
+                },
+              },
+            );
+            throw new Error('sibling failed');
+          });
+
+          await expect(
+            rootMessenger.call('BridgeStatusController:submitBatchSell', {
+              accountAddress: (mockQuotes[0].trade as TxData).from,
+              quoteResponses: mockQuotes,
+              isStxEnabled: stxEnabled,
+            }),
+          ).rejects.toMatchInlineSnapshot(`[Error: sibling failed]`);
+
+          controller.stopAllPolling();
+
+          expect(controller.state.txHistory).toStrictEqual(expectedHistory);
+        },
+      );
+    });
   });
 });
