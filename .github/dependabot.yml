@@ -31,6 +31,24 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
+    ignore:
+      # snaps-utils 12.5.0 moved to `@metamask/snaps-sdk@^12` while our
+      # workspaces declare `^11`, which leaves two copies of `snaps-sdk` in the
+      # tree and breaks the `SnapId` and `Snap` types. Remove once
+      # `@metamask/eth-snap-keyring` and `@metamask/keyring-snap-sdk` support
+      # `snaps-sdk@^12`; both still pin `^11.2.0`.
+      - dependency-name: '@metamask/snaps-utils'
+        versions: ['>=12.5.0']
+      # These three moved to `@metamask/keyring-sdk@^4` in patch releases, which
+      # makes `SimpleKeyring` and the `Keyring` type from
+      # `@metamask/keyring-utils` stop overlapping. Remove once the keyring
+      # packages agree again, which needs a migration rather than a bump.
+      - dependency-name: '@metamask/eth-simple-keyring'
+        versions: ['>=13.0.1']
+      - dependency-name: '@metamask/eth-hd-keyring'
+        versions: ['>=15.0.1']
+      - dependency-name: '@metamask/eth-money-keyring'
+        versions: ['>=4.0.1']
     open-pull-requests-limit: 10
     versioning-strategy: 'increase'
 
