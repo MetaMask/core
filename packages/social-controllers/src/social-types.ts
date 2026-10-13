@@ -248,6 +248,8 @@ export type Position = {
   pnlValueUsd?: number | null;
   /** PnL as a percentage of cost basis. */
   pnlPercent?: number | null;
+  /** Number of detected copy trades for this position. */
+  copyCount?: number;
   /** Perp side of the position. `null`/absent for spot positions. */
   perpPositionType?: 'long' | 'short' | null;
   /** Leverage multiplier for perp positions. `null`/absent for spot. */
@@ -340,6 +342,8 @@ export type FeedItem = Position & {
   commentCount?: number;
   /** Replies across those comments. Absent on older social-api builds. */
   replyCount?: number;
+  /** Detected copies of this position. Absent on older social-api builds. */
+  copyCount?: number;
   /**
    * Unix seconds of the position's first fill. Count from this to render a
    * live hold on a position that is still open, where {@link holdTimeMs} is

@@ -48,6 +48,7 @@ const mockPosition = {
   soldUsd: 0,
   realizedPnl: 0,
   costBasis: 3000,
+  copyCount: 2,
   trades: [mockTrade],
   lastTradeAt: 1700000000,
   tokenImageUrl: 'https://assets.daylight.xyz/images/token-eth.png',
@@ -1438,6 +1439,7 @@ describe('SocialService', () => {
       expect(result.items[0]?.actor.followerCount).toBe(12);
       expect(result.items[0]?.commentCount).toBe(1);
       expect(result.items[0]?.replyCount).toBe(3);
+      expect(result.items[0]?.copyCount).toBe(2);
       expect(result.items[0]?.firstTradeAt).toBe(1_699_999_000);
       expect(result.items[0]?.holdTimeMs).toBe(28_800_000);
       expect(result.items[0]?.entryPriceUsd).toBe(2500);
