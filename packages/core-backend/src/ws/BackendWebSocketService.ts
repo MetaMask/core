@@ -472,10 +472,14 @@ export class BackendWebSocketService {
 
   /**
    * Apply a Basic Functionality change. The getter is the source of truth.
+   *
+   * Turning the setting off uses the same `disconnect()` path as lock and
+   * sign-out. `connect()` already refuses to open a socket while the setting
+   * is off.
    */
   #handleBasicFunctionalityChange(): void {
     if (!this.#isBasicFunctionality()) {
-      this.#blockConnection(true);
+      this.disconnect();
       return;
     }
 
@@ -618,9 +622,19 @@ export class BackendWebSocketService {
   }
 
   /**
-   * Closes WebSocket connection
+   * Closes the WebSocket connection and cancels a queued reconnect.
+   *
+   * The timer is cleared before the early return. Lock, sign-out, and Basic
+   * Functionality off all call this, including when the socket is already gone
+   * and `onclose` will not run. `clearTimeout` has to run first: assigning
+   * `#reconnectTimer` to null leaves the callback scheduled.
    */
   disconnect(): void {
+    if (this.#reconnectTimer) {
+      clearTimeout(this.#reconnectTimer);
+      this.#reconnectTimer = null;
+    }
+
     const socket = this.#ws ?? this.#pendingWebSocket;
     if (!socket || this.#state === WebSocketState.DISCONNECTED) {
       return;

@@ -2378,11 +2378,15 @@ describe('BackendWebSocketService', () => {
           isBasic = false;
           onChange?.();
 
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+          // The socket is already gone, so disconnect() only cancels the timer.
+          // The failed attempt stays counted, and the delay must not open another
+          // socket or schedule a further retry.
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
           await completeAsyncOperations(200);
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
           );
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
         },
       );
     });
