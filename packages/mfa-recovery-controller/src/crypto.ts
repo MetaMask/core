@@ -159,7 +159,7 @@ export function verifySignature(
   }
   try {
     return p256.verify(
-      hexToBytes(signature as Hex),
+      hexToBytes(signature),
       sha256Sync(stringToBytes(message)),
       concatBytes([
         new Uint8Array([0x04]),
@@ -208,7 +208,7 @@ export function hashMutationReceipt(receipt: {
  */
 export function decodeHex(hexString: string): Uint8Array {
   return hexToBytes(
-    (hexString.startsWith('0x') ? hexString : `0x${hexString}`) as Hex,
+    (hexString.startsWith('0x') ? hexString : `0x${hexString}`),
   );
 }
 
