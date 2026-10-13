@@ -62,6 +62,7 @@ import {
 import { Source } from './constants.js';
 import { getNftOwnershipForMultipleNfts } from './multicall.js';
 import type { NftOwnershipResult } from './multicall.js';
+import type { NftControllerMethodActions } from './NftController-method-action-types.js';
 import type {
   ApiNftContract,
   ReservoirResponse,
@@ -295,7 +296,9 @@ export type NftControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   NftControllerState
 >;
-export type NftControllerActions = NftControllerGetStateAction;
+export type NftControllerActions =
+  | NftControllerGetStateAction
+  | NftControllerMethodActions;
 
 /**
  * The external actions available to the {@link NftController}.
@@ -337,6 +340,8 @@ export const getDefaultNftControllerState = (): NftControllerState => ({
   allNfts: {},
   ignoredNfts: [],
 });
+
+const MESSENGER_EXPOSED_METHODS = ['removeNft'] as const;
 
 const NFT_UPDATE_THRESHOLD = 500;
 
@@ -422,6 +427,11 @@ export class NftController extends BaseController<
     this.#useIpfsSubdomains = useIpfsSubdomains;
     this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
     this.#onNftAdded = onNftAdded;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     this.messenger.subscribe(
       'PreferencesController:stateChange',

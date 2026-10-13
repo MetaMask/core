@@ -12,10 +12,12 @@ import {
   NFT_API_VERSION,
   convertHexToDecimal,
   handleFetch,
+  toHex,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClient,
+  NetworkClientId,
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -30,6 +32,7 @@ import { createDeferredPromise } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { Source } from './constants.js';
+import type { NftControllerRemoveNftAction } from './NftController-method-action-types.js';
 import type {
   NftController,
   NftControllerState,
@@ -47,6 +50,7 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | PreferencesControllerGetStateAction
   | AccountsControllerGetSelectedAccountAction
+  | NftControllerRemoveNftAction
   | NetworkControllerFindNetworkClientIdByChainIdAction;
 
 export type AllowedEvents =
@@ -552,6 +556,56 @@ export class NftDetectionController extends BaseController<
     return nftApiResponse;
   }
 
+  #removeSpamNfts(tokens: TokensResponse[], userAddress: string): void {
+    const networkClientIdCache = new Map<Hex, NetworkClientId>();
+    const spamTokens = tokens.filter(({ token }) => token.isSpam === true);
+    if (spamTokens.length === 0) {
+      return;
+    }
+
+    const { allNfts } = this.#getNftState();
+
+    for (const { token } of spamTokens) {
+      const { contract, tokenId, chainId } = token;
+      const hexChainId = toHex(chainId);
+      const checksumAddress = toChecksumHexAddress(contract);
+      const nftsForChain = allNfts[userAddress]?.[hexChainId] ?? [];
+      const existsInState = nftsForChain.some(
+        (nft) =>
+          nft.address.toLowerCase() === checksumAddress.toLowerCase() &&
+          nft.tokenId === tokenId,
+      );
+
+      if (!existsInState) {
+        continue;
+      }
+
+      let networkClientId = networkClientIdCache.get(hexChainId);
+
+      if (networkClientId === undefined) {
+        try {
+          networkClientId = this.messenger.call(
+            'NetworkController:findNetworkClientIdByChainId',
+            hexChainId,
+          );
+          networkClientIdCache.set(hexChainId, networkClientId);
+        } catch {
+          continue;
+        }
+      }
+
+      this.messenger.call(
+        'NftController:removeNft',
+        contract,
+        tokenId,
+        networkClientId,
+        {
+          userAddress,
+        },
+      );
+    }
+  }
+
   /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected NFTs are
    * added.
@@ -614,6 +668,8 @@ export class NftDetectionController extends BaseController<
               ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
               : true),
         );
+
+        this.#removeSpamNfts(resultNftApi.tokens, userAddress);
 
         // Proceed to add NFTs
         const nftsToAdd = apiNfts

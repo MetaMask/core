@@ -34,6 +34,7 @@ import {
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers.js';
 import { Source } from './constants.js';
+import type { NftController } from './NftController.js';
 import { getDefaultNftControllerState } from './NftController.js';
 import {
   NftDetectionController,
@@ -1135,6 +1136,274 @@ describe('NftDetectionController', () => {
     );
   });
 
+  it('should remove NFTs from state when the API now marks them as spam', async () => {
+    const mockAddNfts = jest.fn();
+    const selectedAddress = '0xSpamDetect';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+
+    const spamContract = '0xSpamContract';
+    const spamTokenId = '42';
+
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: spamContract,
+              tokenId: spamTokenId,
+              isSpam: true,
+            },
+          },
+        ],
+      });
+
+    const mockGetNftState = jest.fn().mockReturnValue({
+      ...getDefaultNftControllerState(),
+      allNfts: {
+        [selectedAddress]: {
+          '0x1': [
+            {
+              address: spamContract,
+              tokenId: spamTokenId,
+              name: 'Spam NFT',
+              favorite: false,
+              isCurrentlyOwned: true,
+            },
+          ],
+        },
+      },
+    });
+
+    await withController(
+      {
+        options: {
+          addNfts: mockAddNfts,
+          getNftState: mockGetNftState,
+        },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents, mockRemoveNft }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await jestAdvanceTime({ duration: 1 });
+        mockAddNfts.mockReset();
+        mockRemoveNft.mockReset();
+
+        await controller.detectNfts(['0x1']);
+
+        expect(mockRemoveNft).toHaveBeenCalledWith(
+          spamContract,
+          spamTokenId,
+          'mainnet',
+          { userAddress: selectedAddress },
+        );
+        expect(mockAddNfts).toHaveBeenCalledWith(
+          [],
+          selectedAddress,
+          Source.Detected,
+        );
+      },
+    );
+  });
+
+  it('should not remove NFTs from state when the spam NFT is not stored', async () => {
+    const selectedAddress = '0xSpamDetectNoState';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: '0xSpamContract',
+              kind: 'erc721',
+              name: 'Spam NFT',
+              tokenId: '42',
+              isSpam: true,
+            },
+          },
+        ],
+      });
+
+    await withController(
+      {
+        options: {
+          getNftState: getDefaultNftControllerState,
+        },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents, mockRemoveNft }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await jestAdvanceTime({ duration: 1 });
+        mockRemoveNft.mockReset();
+
+        await controller.detectNfts(['0x1']);
+
+        expect(mockRemoveNft).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it('should not remove a spam NFT when its network client cannot be resolved', async () => {
+    const selectedAddress = '0xSpamUnknownChain';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+
+    const spamContract = '0xSpamContractUnknownChain';
+    const spamTokenId = '99';
+
+    // Chain 0xdead is not registered in the default network mock, so the
+    // network client cannot be resolved and the removal is skipped.
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=57005&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 57005,
+              contract: spamContract,
+              kind: 'erc721',
+              name: 'Spam NFT on Unknown Chain',
+              tokenId: spamTokenId,
+              isSpam: true,
+            },
+          },
+        ],
+      });
+
+    const mockGetNftState = jest.fn().mockReturnValue({
+      ...getDefaultNftControllerState(),
+      allNfts: {
+        [selectedAddress]: {
+          '0xdead': [
+            {
+              address: spamContract,
+              tokenId: spamTokenId,
+              name: 'Spam NFT on Unknown Chain',
+              favorite: false,
+              isCurrentlyOwned: true,
+            },
+          ],
+        },
+      },
+    });
+
+    await withController(
+      {
+        options: {
+          getNftState: mockGetNftState,
+        },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents, mockRemoveNft }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await jestAdvanceTime({ duration: 1 });
+        mockRemoveNft.mockReset();
+
+        await controller.detectNfts(['0xdead']);
+
+        expect(mockRemoveNft).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it('should resolve the network client ID once per chain for multiple spam NFTs', async () => {
+    const selectedAddress = '0xSpamSameChain';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+    const mockFindNetworkClientId = jest.fn().mockReturnValue('mainnet');
+
+    const spamTokens = [
+      { contract: '0xSpamA', tokenId: '1' },
+      { contract: '0xSpamB', tokenId: '2' },
+      { contract: '0xSpamC', tokenId: '3' },
+    ];
+
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: spamTokens.map(({ contract, tokenId }) => ({
+          token: { chainId: 1, contract, tokenId, isSpam: true },
+        })),
+      });
+
+    const mockGetNftState = jest.fn().mockReturnValue({
+      ...getDefaultNftControllerState(),
+      allNfts: {
+        [selectedAddress]: {
+          '0x1': spamTokens.map(({ contract, tokenId }) => ({
+            address: contract,
+            tokenId,
+            name: 'Spam NFT',
+            favorite: false,
+            isCurrentlyOwned: true,
+          })),
+        },
+      },
+    });
+
+    await withController(
+      {
+        options: { getNftState: mockGetNftState },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+        mockFindNetworkClientIdByChainId: mockFindNetworkClientId,
+      },
+      async ({ controller, controllerEvents, mockRemoveNft }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await jestAdvanceTime({ duration: 1 });
+        mockFindNetworkClientId.mockClear();
+        mockRemoveNft.mockClear();
+
+        await controller.detectNfts(['0x1']);
+
+        expect(mockFindNetworkClientId).toHaveBeenCalledTimes(1);
+        expect(mockFindNetworkClientId).toHaveBeenCalledWith('0x1');
+        expect(mockRemoveNft).toHaveBeenCalledTimes(3);
+      },
+    );
+  });
+
   it('should stop pagination when signal is aborted', async () => {
     const mockAddNfts = jest.fn();
     const selectedAddress = '0xAbortSignal';
@@ -1264,9 +1533,11 @@ type ControllerEvents = {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  mockRemoveNft,
 }: {
   controller: NftDetectionController;
   controllerEvents: ControllerEvents;
+  mockRemoveNft: jest.Mock<void, Parameters<NftController['removeNft']>>;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -1278,9 +1549,8 @@ type WithControllerOptions = {
   mockNetworkState?: Partial<NetworkState>;
   mockPreferencesState?: Partial<PreferencesState>;
   mockGetSelectedAccount?: jest.Mock<AccountsController['getSelectedAccount']>;
-  mockFindNetworkClientIdByChainId?: jest.Mock<
-    NetworkController['findNetworkClientIdByChainId']
-  >;
+  mockFindNetworkClientIdByChainId?: NetworkController['findNetworkClientIdByChainId'];
+  mockRemoveNft?: jest.Mock<void, Parameters<NftController['removeNft']>>;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -1303,9 +1573,10 @@ async function withController<ReturnValue>(
     {
       options = {},
       mockNetworkClientConfigurationsByNetworkClientId = {},
-      mockFindNetworkClientIdByChainId = {},
+      mockFindNetworkClientIdByChainId,
       mockNetworkState = {},
       mockPreferencesState = {},
+      mockRemoveNft = jest.fn(),
       mockGetSelectedAccount = jest
         .fn()
         .mockReturnValue(defaultSelectedAccount),
@@ -1333,9 +1604,15 @@ async function withController<ReturnValue>(
   const getNetworkClientById = buildMockGetNetworkClientById(
     mockNetworkClientConfigurationsByNetworkClientId,
   );
-  const findNetworkClientIdByChainId = buildMockFindNetworkClientIdByChainId(
-    mockFindNetworkClientIdByChainId,
-  );
+  const fallbackFindNetworkClientIdByChainId =
+    buildMockFindNetworkClientIdByChainId(
+      mockNetworkClientConfigurationsByNetworkClientId,
+    );
+  const findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'] =
+    (chainId) =>
+      (
+        mockFindNetworkClientIdByChainId ?? fallbackFindNetworkClientIdByChainId
+      )(chainId);
 
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
@@ -1346,6 +1623,8 @@ async function withController<ReturnValue>(
     'NetworkController:findNetworkClientIdByChainId',
     findNetworkClientIdByChainId,
   );
+
+  messenger.registerActionHandler('NftController:removeNft', mockRemoveNft);
 
   messenger.registerActionHandler(
     'PreferencesController:getState',
@@ -1372,6 +1651,7 @@ async function withController<ReturnValue>(
       'PreferencesController:getState',
       'AccountsController:getSelectedAccount',
       'NetworkController:findNetworkClientIdByChainId',
+      'NftController:removeNft',
     ],
     events: [
       'NetworkController:stateChange',
@@ -1399,5 +1679,6 @@ async function withController<ReturnValue>(
   return await testFunction({
     controller,
     controllerEvents,
+    mockRemoveNft,
   });
 }

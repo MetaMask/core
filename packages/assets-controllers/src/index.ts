@@ -63,6 +63,7 @@ export {
   getDefaultNftControllerState,
   NftController,
 } from './NftController.js';
+export type { NftControllerRemoveNftAction } from './NftController-method-action-types.js';
 export type {
   NftDetectionControllerMessenger,
   ApiNft,
