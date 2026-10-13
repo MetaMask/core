@@ -8,8 +8,9 @@ import { base64UrlToBytes } from './encoding.js';
  * Live tokens put email under `ext`.
  *
  * @param token - Compact JWT returned by AuthenticationController.
- * @returns The email claim.
- * @throws If the token is malformed or has no email claim.
+ * @returns The verified email claim.
+ * @throws If the token is malformed, has no email claim, or
+ * `ext.email_verified` is not `true`.
  */
 export function getEmailFromPartnerIdentityToken(token: string): string {
   const [, payloadSegment] = token.split('.');
@@ -30,10 +31,14 @@ export function getEmailFromPartnerIdentityToken(token: string): string {
 
   const ext = isObject(payload) ? payload.ext : undefined;
   const email = isObject(ext) ? ext.email : undefined;
-  // TODO check: email_verified: true too!
   if (typeof email !== 'string' || email.length === 0) {
     throw new Error(
       'KycController: partner identity token does not contain an email claim',
+    );
+  }
+  if (!isObject(ext) || ext.email_verified !== true) {
+    throw new Error(
+      'KycController: partner identity token email is not verified',
     );
   }
   return email;

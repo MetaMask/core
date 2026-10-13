@@ -405,7 +405,9 @@ describe('KycController', () => {
         { options: { state: { email: 'a@b.co' } } },
         async ({ controller, handlers }) => {
           handlers.getPartnerIdentityToken.mockResolvedValue(
-            unsignedJwt({ ext: { email: 'other@b.co' } }),
+            unsignedJwt({
+              ext: { email: 'other@b.co', email_verified: true },
+            }),
           );
 
           await expect(
@@ -485,7 +487,9 @@ describe('KycController', () => {
     it('requests a moonpay-audience partner identity token', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getPartnerIdentityToken.mockResolvedValue(
-          unsignedJwt({ ext: { email: 'moonpay@example.com' } }),
+          unsignedJwt({
+            ext: { email: 'moonpay@example.com', email_verified: true },
+          }),
         );
         handlers.getSessionStatusForVendor.mockResolvedValue(null);
 
@@ -1731,7 +1735,9 @@ function withController<ReturnValue>(
     getGeoCountry: jest.fn().mockResolvedValue('USA'),
     getPartnerIdentityToken: jest
       .fn()
-      .mockResolvedValue(unsignedJwt({ ext: { email: 'a@b.co' } })),
+      .mockResolvedValue(
+        unsignedJwt({ ext: { email: 'a@b.co', email_verified: true } }),
+      ),
     putIdentitySharingConsent: jest.fn().mockResolvedValue(undefined),
     fetchVendorDisclaimers: jest.fn().mockResolvedValue([]),
     createMoonpaySession: jest.fn().mockResolvedValue({ sessionToken: 'sess' }),

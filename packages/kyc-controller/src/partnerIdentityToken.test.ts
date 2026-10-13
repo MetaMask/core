@@ -17,10 +17,12 @@ function unsignedJwt(payload: unknown): string {
 }
 
 describe('getEmailFromPartnerIdentityToken', () => {
-  it('returns the email from JWT ext', () => {
+  it('returns the email from JWT ext when email_verified is true', () => {
     expect(
       getEmailFromPartnerIdentityToken(
-        unsignedJwt({ ext: { email: 'user@example.com' } }),
+        unsignedJwt({
+          ext: { email: 'user@example.com', email_verified: true },
+        }),
       ),
     ).toBe('user@example.com');
   });
@@ -40,8 +42,25 @@ describe('getEmailFromPartnerIdentityToken', () => {
 
   it('throws when the token payload has no email claim', () => {
     expect(() =>
-      getEmailFromPartnerIdentityToken(unsignedJwt({ ext: {} })),
+      getEmailFromPartnerIdentityToken(
+        unsignedJwt({ ext: { email_verified: true } }),
+      ),
     ).toThrow(/does not contain an email claim/u);
+  });
+
+  it('throws when email_verified is not true', () => {
+    expect(() =>
+      getEmailFromPartnerIdentityToken(
+        unsignedJwt({
+          ext: { email: 'user@example.com', email_verified: false },
+        }),
+      ),
+    ).toThrow(/email is not verified/u);
+    expect(() =>
+      getEmailFromPartnerIdentityToken(
+        unsignedJwt({ ext: { email: 'user@example.com' } }),
+      ),
+    ).toThrow(/email is not verified/u);
   });
 });
 
