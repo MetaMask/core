@@ -1,5 +1,5 @@
 // TODO: Determine how to deal with hashing.
-import {
+import initWasm, {
   get_public_key as wasmGetPublicKey,
   sign_prehash as wasmSign,
   verify_prehash as wasmVerify,
@@ -11,6 +11,10 @@ import { toUint8Array } from './utils.js';
 const SECP256K1_PRIVATE_KEY_LENGTH = 32;
 const SECP256K1_PUBLIC_KEY_LENGTH = 33;
 const SECP256K1_SIGNATURE_LENGTH = 64;
+
+async function initializeModule() {
+  await initWasm();
+}
 
 /**
  * Generate a new random secp256k1 key pair.
@@ -30,7 +34,7 @@ export async function generateKeyPair(): Promise<KeyPair> {
  * Derive the secp256k1 public key corresponding to the given private key.
  *
  * @param privateKey - The 32-byte secp256k1 private key.
- * @returns The 32-byte secp256k1 public key.
+ * @returns The 33-byte secp256k1 public key.
  */
 export async function getPublicKey(
   privateKey: BufferSource,
@@ -41,6 +45,7 @@ export async function getPublicKey(
     );
   }
 
+  await initializeModule();
   return wasmGetPublicKey(toUint8Array(privateKey));
 }
 
@@ -61,13 +66,14 @@ export async function sign(
     );
   }
 
+  await initializeModule();
   return wasmSign(toUint8Array(privateKey), toUint8Array(data));
 }
 
 /**
  * Verify an secp256k1 signature.
  *
- * @param publicKey - The 32-byte secp256k1 public key.
+ * @param publicKey - The 33-byte secp256k1 public key.
  * @param signature - The 64-byte signature to verify.
  * @param data - The signed data.
  * @returns `true` if the signature is valid, `false` otherwise.
@@ -89,6 +95,7 @@ export async function verify(
     );
   }
 
+  await initializeModule();
   return wasmVerify(
     toUint8Array(publicKey),
     toUint8Array(signature),

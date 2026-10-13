@@ -65,6 +65,7 @@
     "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "typedoc",
     "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
+    "build:wasm": "yarn wasm-pack build --target web ./rust",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/cryptography",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/cryptography",
     "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
