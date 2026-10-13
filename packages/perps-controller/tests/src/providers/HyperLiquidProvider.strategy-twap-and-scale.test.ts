@@ -1694,6 +1694,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
       } satisfies OrderParams);
+      if (!placed.orderId) {
+        throw new Error('Expected a Scale group handle');
+      }
       const result = await provider.cancelOrder({
         orderId: placed.orderId,
         symbol: 'ETH',
