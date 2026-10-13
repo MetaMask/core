@@ -591,8 +591,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * Starts a card-paid subscription checkout session for the requested products
    * (e.g. Shield or Money Account Plus).
    *
-   * `isTrialRequested` on the request is ignored and overwritten from pricing
-   * (`trialPeriodDays > 0`) and `trialedProducts`.
+   * `isTrialRequested` on the request is ignored and overwritten from
+   * `isUserEligibleForTrial` and `trialPeriodDays > 0`. Shield is eligible
+   * when it has not been trialed. Money Account Plus is eligible when it has
+   * not been trialed and the user is authenticated with social login.
    *
    * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
    * from geolocation (EU/EEA), or `false` if the lookup fails.
@@ -606,15 +608,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // get the latest subscriptions state before computing trial eligibility
     await this.getSubscriptions();
     this.#assertIsUserNotSubscribed({ products: request.products });
+    const isTrialRequested = await this.#getIsTrialRequested(
+      request.products,
+      request.recurringInterval,
+    );
 
     const response = await this.messenger.call(
       'SubscriptionService:startSubscriptionWithCard',
       {
         ...request,
-        isTrialRequested: this.#getIsTrialRequested(
-          request.products,
-          request.recurringInterval,
-        ),
+        isTrialRequested,
         isEligibleForRefund: await this.#getIsEligibleForRefund(
           request.isEligibleForRefund,
         ),
@@ -631,8 +634,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * creates the subscription immediately, so local state is refreshed
    * afterwards.
    *
-   * `isTrialRequested` on the request is ignored and overwritten from pricing
-   * (`trialPeriodDays > 0`) and `trialedProducts`.
+   * `isTrialRequested` on the request is ignored and overwritten from
+   * `isUserEligibleForTrial` and `trialPeriodDays > 0`. Shield is eligible
+   * when it has not been trialed. Money Account Plus is eligible when it has
+   * not been trialed and the user is authenticated with social login.
    *
    * `isEligibleForRefund` is sent as provided. When omitted, it is resolved
    * from geolocation (EU/EEA), or `false` if the lookup fails.
@@ -653,7 +658,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // get the latest subscriptions state before computing trial eligibility
     await this.#getSubscriptions({ refreshBenefits: false });
     this.#assertIsUserNotSubscribed({ products: request.products });
-    const isTrialRequested = this.#getIsTrialRequested(
+    const isTrialRequested = await this.#getIsTrialRequested(
       request.products,
       request.recurringInterval,
     );
@@ -744,7 +749,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
     // get the latest subscriptions state before computing trial eligibility
     await this.#getSubscriptions({ refreshBenefits: false });
-    const isTrialRequested = this.#getIsTrialRequested(
+    const isTrialRequested = await this.#getIsTrialRequested(
       [productType],
       lastSelectedPaymentMethodForProduct.plan,
     );
@@ -1319,27 +1324,32 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
   /**
    * Whether a trial should be requested for the given products and plan.
-   * True only when every product has `trialPeriodDays > 0` and has not
-   * already been trialed.
+   * True only when every product is eligible via `isUserEligibleForTrial`
+   * and its price has `trialPeriodDays > 0`.
    *
    * @param products - The products to check.
    * @param plan - The recurring interval to look up pricing for.
    * @returns Whether a trial should be requested.
    */
-  #getIsTrialRequested(
+  async #getIsTrialRequested(
     products: ProductType[],
     plan: RecurringInterval,
-  ): boolean {
-    return products.every((productType) => {
-      if (this.state.trialedProducts.includes(productType)) {
-        return false;
-      }
-      const productPrice = this.#getProductPriceByProductAndPlan(
-        productType,
-        plan,
-      );
-      return productPrice.trialPeriodDays > 0;
-    });
+  ): Promise<boolean> {
+    const results = await Promise.all(
+      products.map(async (productType) => {
+        if (!(await this.isUserEligibleForTrial(productType))) {
+          return false;
+        }
+
+        const productPrice = this.#getProductPriceByProductAndPlan(
+          productType,
+          plan,
+        );
+        return productPrice.trialPeriodDays > 0;
+      }),
+    );
+
+    return results.every(Boolean);
   }
 
   /**

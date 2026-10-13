@@ -175,6 +175,14 @@ const MOCK_MONEY_ACCOUNT_PRODUCT_PRICE: ProductPricing = {
   ],
 };
 
+const MOCK_MONEY_ACCOUNT_PRODUCT_PRICE_WITH_TRIAL: ProductPricing = {
+  ...MOCK_MONEY_ACCOUNT_PRODUCT_PRICE,
+  prices: MOCK_MONEY_ACCOUNT_PRODUCT_PRICE.prices.map((price) => ({
+    ...price,
+    trialPeriodDays: 14,
+  })),
+};
+
 const MOCK_PRICING_PAYMENT_METHOD: PricingCryptoPaymentMethod = {
   type: PAYMENT_TYPES.byCrypto,
   chains: [
@@ -2587,6 +2595,46 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('does not request a Money Account Plus trial when the user is not authenticated with social login', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: {
+              products: [MOCK_MONEY_ACCOUNT_PRODUCT_PRICE_WITH_TRIAL],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService, mockGetIsUserAuthenticated }) => {
+          mockGetIsUserAuthenticated.mockResolvedValue(false);
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+          mockService.startSubscriptionWithCard.mockResolvedValue(
+            MOCK_START_SUBSCRIPTION_RESPONSE,
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCard',
+            {
+              products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+            },
+          );
+
+          expect(mockService.startSubscriptionWithCard).toHaveBeenCalledWith({
+            products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+            isTrialRequested: false,
+            recurringInterval: RECURRING_INTERVALS.month,
+            isEligibleForRefund: false,
+          });
+        },
+      );
+    });
+
     it('does not request a trial when the product has already been trialed', async () => {
       await withController(
         {
@@ -3254,6 +3302,187 @@ describe('SubscriptionController', () => {
             },
           );
 
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              isTrialRequested: true,
+            }),
+          );
+        },
+      );
+    });
+
+    it('does not request a Money Account Plus trial when the user is not authenticated with social login', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: {
+              products: [MOCK_MONEY_ACCOUNT_PRODUCT_PRICE_WITH_TRIAL],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService, mockGetIsUserAuthenticated }) => {
+          mockGetIsUserAuthenticated.mockResolvedValue(false);
+          mockService.startSubscriptionWithCrypto.mockResolvedValue(
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          );
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 12,
+              chainId: '0x8f',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'pvmUSD',
+              cryptoAuthMethod: 'delegation',
+              delegationHash: '0xabc',
+            },
+          );
+
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              isTrialRequested: false,
+            }),
+          );
+        },
+      );
+    });
+
+    it('requests a Money Account Plus trial when the user is authenticated with social login', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: {
+              products: [MOCK_MONEY_ACCOUNT_PRODUCT_PRICE_WITH_TRIAL],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService, mockGetIsUserAuthenticated }) => {
+          mockGetIsUserAuthenticated.mockResolvedValue(true);
+          mockService.startSubscriptionWithCrypto.mockResolvedValue(
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          );
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+              isTrialRequested: false,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 12,
+              chainId: '0x8f',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'pvmUSD',
+              cryptoAuthMethod: 'delegation',
+              delegationHash: '0xabc',
+            },
+          );
+
+          expect(mockGetIsUserAuthenticated).toHaveBeenCalledTimes(1);
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              isTrialRequested: true,
+            }),
+          );
+        },
+      );
+    });
+
+    it('does not request a Money Account Plus trial when the product was already trialed, without checking social login', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+            pricing: {
+              products: [MOCK_MONEY_ACCOUNT_PRODUCT_PRICE_WITH_TRIAL],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ rootMessenger, mockService, mockGetIsUserAuthenticated }) => {
+          mockGetIsUserAuthenticated.mockResolvedValue(true);
+          mockService.startSubscriptionWithCrypto.mockResolvedValue(
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+          });
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+              isTrialRequested: true,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 12,
+              chainId: '0x8f',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'pvmUSD',
+              cryptoAuthMethod: 'delegation',
+              delegationHash: '0xabc',
+            },
+          );
+
+          expect(mockGetIsUserAuthenticated).not.toHaveBeenCalled();
+          expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+            expect.objectContaining({
+              isTrialRequested: false,
+            }),
+          );
+        },
+      );
+    });
+
+    it('still requests a Shield trial when the user is not authenticated with social login', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            trialedProducts: [],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ rootMessenger, mockService, mockGetIsUserAuthenticated }) => {
+          mockGetIsUserAuthenticated.mockResolvedValue(false);
+          mockService.startSubscriptionWithCrypto.mockResolvedValue(
+            MOCK_CRYPTO_SUBSCRIPTION,
+          );
+          mockService.getSubscriptions
+            .mockResolvedValueOnce(MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE)
+            .mockResolvedValue(MOCK_GET_SUBSCRIPTIONS_RESPONSE);
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.SHIELD],
+              isTrialRequested: false,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 3,
+              chainId: '0x1',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'USDC',
+              rawTransaction: '0xdeadbeef',
+            },
+          );
+
+          expect(mockGetIsUserAuthenticated).not.toHaveBeenCalled();
           expect(mockService.startSubscriptionWithCrypto).toHaveBeenCalledWith(
             expect.objectContaining({
               isTrialRequested: true,

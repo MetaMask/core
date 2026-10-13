@@ -9,9 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `SubscriptionDelegationServiceMessenger` now requires `SubscriptionController:isUserEligibleForTrial`
+  - Clients that construct this messenger must delegate `SubscriptionController:isUserEligibleForTrial`.
 - Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
 - Require `Subscription.currentPeriodStart`, `currentPeriodEnd`, `cancelType`, and `isEligibleForSupport` in the subscription response and runtime validation. ([#10765](https://github.com/MetaMask/core/pull/10765))
 - Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+
+### Fixed
+
+- Fixed Money Account Plus checkout requesting a trial for a user `isUserEligibleForTrial` rejects
 
 ## [13.0.0]
 
