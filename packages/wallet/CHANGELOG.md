@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.1.0]
+
 ### Changed
 
 - Delegate `SubscriptionController:isUserEligibleForTrial` to `SubscriptionDelegationService` so Money Account Plus checkout uses the controller trial rule ([#10795](https://github.com/MetaMask/core/pull/10795))
 - Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+- Bump `@metamask/subscription-controller` from `^13.0.0` to `^14.0.0` ([#10810](https://github.com/MetaMask/core/pull/10810))
 
 ## [17.0.0]
 
@@ -345,7 +348,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.1.0...HEAD
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.0.0...@metamask/wallet@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.1...@metamask/wallet@17.0.0
 [16.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.0...@metamask/wallet@16.0.1
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@15.1.0...@metamask/wallet@16.0.0
