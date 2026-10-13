@@ -9,10 +9,8 @@ import {
   extractTradeData,
   formatChainIdToCaip,
   formatChainIdToHex,
-  isBitcoinChainId,
   isCrossChain,
-  isSolanaChainId,
-  isStellarChainId,
+  isNonEvmChainId,
   isTronChainId,
   isTronTrade,
 } from '@metamask/bridge-controller';
@@ -97,12 +95,7 @@ export const getClientRequest = (
 
   // Stellar, Solana, and Bitcoin trades expect the swap/bridge asset IDs in the
   // request options; Tron also adds its own fields in the branch below.
-  if (
-    isStellarChainId(srcChainId) ||
-    isSolanaChainId(srcChainId) ||
-    isBitcoinChainId(srcChainId) ||
-    isTron
-  ) {
+  if (isNonEvmChainId(srcChainId)) {
     if (sourceAssetId !== undefined || destAssetId !== undefined) {
       options = {
         ...(sourceAssetId !== undefined && {
