@@ -1013,6 +1013,34 @@ describe('SocialService', () => {
         SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
       );
     });
+
+    it('always fetches fresh data on repeated calls (staleTime: 0)', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowersResponse),
+      });
+
+      const service = createService();
+      await service.fetchFollowers({ addressOrId: '0x1234' });
+      await service.fetchFollowers({ addressOrId: '0x1234' });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('always fetches fresh data on repeated mutuals calls (staleTime: 0)', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowersResponse),
+      });
+
+      const service = createService();
+      await service.fetchFollowers({ addressOrId: '0x1234', mutuals: true });
+      await service.fetchFollowers({ addressOrId: '0x1234', mutuals: true });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('fetchTraderFollowing', () => {
@@ -1066,6 +1094,20 @@ describe('SocialService', () => {
       ).rejects.toThrow(
         SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_INVALID_RESPONSE,
       );
+    });
+
+    it('always fetches fresh data on repeated calls (staleTime: 0)', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowingResponse),
+      });
+
+      const service = createService();
+      await service.fetchTraderFollowing({ addressOrId: '0x1234' });
+      await service.fetchTraderFollowing({ addressOrId: '0x1234' });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
   });
 
