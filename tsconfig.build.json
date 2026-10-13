@@ -333,6 +333,9 @@
     },
     {
       "path": "./packages/wallet/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/watch-only-account-service/tsconfig.build.json"
     }
   ],
   "files": [],
