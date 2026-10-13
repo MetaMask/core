@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `isBasicFunctionality` and `subscribeToBasicFunctionalityChange` options to `BackendWebSocketService`. When basic functionality is off, the service does not connect or reconnect, and an open socket is closed ([#10797](https://github.com/MetaMask/core/pull/10797))
+
 ## [12.1.0]
 
 ### Added
 
-- Add optional `isBasicFunctionality` and `subscribeToBasicFunctionalityChange` options to `BackendWebSocketService`. When basic functionality is off, the service does not connect or reconnect, and an open socket is closed ([#10797](https://github.com/MetaMask/core/pull/10797))
 - Add `occurrenceFloor`, `includeNativeAssets`, and `includeRwaData` query options to `TokenApiClient.fetchTokenList` (`GET /tokens/{chainId}`) ([#10672](https://github.com/MetaMask/core/pull/10672))
 - Add `TokenApiClient.fetchV2SupportedNetworks` for Token API `GET /v2/supportedNetworks` ([#10672](https://github.com/MetaMask/core/pull/10672))
 

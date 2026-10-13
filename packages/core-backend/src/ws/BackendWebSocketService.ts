@@ -378,7 +378,8 @@ export class BackendWebSocketService {
   constructor(options: BackendWebSocketServiceOptions) {
     this.#messenger = options.messenger;
     this.#isEnabled = options.isEnabled;
-    this.#isBasicFunctionality = options.isBasicFunctionality ?? (() => true);
+    this.#isBasicFunctionality =
+      options.isBasicFunctionality ?? ((): boolean => true);
     // Default to no-op trace function to keep core platform-agnostic
     this.#trace =
       options.traceFn ??
