@@ -1,7 +1,7 @@
 import { toBase64Url } from './encoding.js';
 import {
   getEmailFromPartnerIdentityToken,
-  isUnprocessableEntity,
+  isEmailRequiredError,
 } from './partnerIdentityToken.js';
 
 /**
@@ -45,24 +45,24 @@ describe('getEmailFromPartnerIdentityToken', () => {
   });
 });
 
-describe('isUnprocessableEntity', () => {
+describe('isEmailRequiredError', () => {
   it('returns true for an error with status 422', () => {
     expect(
-      isUnprocessableEntity(
+      isEmailRequiredError(
         Object.assign(new Error('email_required'), { status: 422 }),
       ),
     ).toBe(true);
   });
 
   it('returns false for an error without status 422', () => {
-    expect(isUnprocessableEntity(new Error('token mint failed'))).toBe(false);
+    expect(isEmailRequiredError(new Error('token mint failed'))).toBe(false);
   });
 
   it('returns false for a non-object thrown value', () => {
-    expect(isUnprocessableEntity('email_required')).toBe(false);
+    expect(isEmailRequiredError('email_required')).toBe(false);
   });
 
   it('returns false for null', () => {
-    expect(isUnprocessableEntity(null)).toBe(false);
+    expect(isEmailRequiredError(null)).toBe(false);
   });
 });

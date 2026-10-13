@@ -46,6 +46,6 @@ export function getEmailFromPartnerIdentityToken(token: string): string {
  * @param error - The caught error.
  * @returns True when `error.status` is 422.
  */
-export function isUnprocessableEntity(error: unknown): boolean {
+export function isEmailRequiredError(error: unknown): boolean {
   return isObject(error) && error.status === 422;
 }

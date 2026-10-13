@@ -26,7 +26,7 @@ import type {
 } from './KycService.js';
 import {
   getEmailFromPartnerIdentityToken,
-  isUnprocessableEntity,
+  isEmailRequiredError,
 } from './partnerIdentityToken.js';
 import {
   isSumSubFlowCompleted,
@@ -397,7 +397,7 @@ export class KycController extends BaseController<
         audience,
       );
     } catch (error) {
-      if (isUnprocessableEntity(error)) {
+      if (isEmailRequiredError(error)) {
         return null;
       }
       throw error;
