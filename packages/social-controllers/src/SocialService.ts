@@ -612,6 +612,7 @@ export class SocialService extends BaseDataService<
 
     const followersResponse = await this.fetchQuery({
       queryKey: [`${this.name}:fetchFollowers`, addressOrId, mutualsOnly],
+      staleTime: 0,
       queryFn: async () => {
         const url = new URL(
           `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/followers`,
@@ -656,6 +657,7 @@ export class SocialService extends BaseDataService<
 
     const followingResponse = await this.fetchQuery({
       queryKey: [`${this.name}:fetchTraderFollowing`, addressOrId],
+      staleTime: 0,
       queryFn: async () => {
         const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/following`;
         const authHeaders = await this.#getAuthHeaders();
