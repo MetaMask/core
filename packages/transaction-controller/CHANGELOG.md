@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Count confirmed transactions when choosing the next nonce, so a mined transaction is not reused when `eth_getTransactionCount` is still behind that transaction
+- Count confirmed transactions when choosing the next nonce, so a mined transaction is not reused when `eth_getTransactionCount` is still behind that transaction ([#10803](https://github.com/MetaMask/core/pull/10803))
 
 ## [72.2.0]
 
