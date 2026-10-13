@@ -15,10 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Remove the `email` parameter from `KycController.startSession` and the `KycController:startSession` messenger action ([#10452](https://github.com/MetaMask/core/pull/10452))
+  - Stop passing `email` to `startSession`
+  - Email is resolved from a partner identity token after recording identity-sharing consent via `AuthenticatedUserStorageService:putIdentitySharingConsent`
+  - If that request returns HTTP 422 (`EmailRequiredError`) and the controller has no stored email, `startSession` throws
 - Refresh and resubmit the UKYC capability authorization when `capabilityAuthorizationStatus` is `new` or `expired` while resuming a session in `startSession` (skipped when `finalStatus` is `approved` or `rejected`) ([#10692](https://github.com/MetaMask/core/pull/10692))
 - Space `KycController` session-status polls with a linear backoff. The first poll is immediate, the next waits 10 seconds, and each later wait grows by 10 seconds. Starting polling again resets the delay ([#10764](https://github.com/MetaMask/core/pull/10764))
-- `KycController.startSession` now resolves email from a partner identity token after recording identity-sharing consent via `AuthenticatedUserStorageService:putIdentitySharingConsent` ([#10452](https://github.com/MetaMask/core/pull/10452))
-- `KycController.startSession` now treats the `email` param as a fallback if unable to resolve an email from the partner identity token (`EmailRequiredError` / HTTP 422) ([#10452](https://github.com/MetaMask/core/pull/10452))
 
 ## [0.8.0]
 

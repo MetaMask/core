@@ -1,4 +1,4 @@
-import { bytesToString } from '@metamask/utils';
+import { bytesToString, isObject } from '@metamask/utils';
 
 import { base64UrlToBytes } from './encoding.js';
 
@@ -28,8 +28,8 @@ export function getEmailFromPartnerIdentityToken(token: string): string {
     );
   }
 
-  const ext = asRecord(payload)?.ext;
-  const email = asRecord(ext)?.email;
+  const ext = isObject(payload) ? payload.ext : undefined;
+  const email = isObject(ext) ? ext.email : undefined;
   // TODO check: email_verified: true too!
   if (typeof email !== 'string' || email.length === 0) {
     throw new Error(
@@ -47,18 +47,5 @@ export function getEmailFromPartnerIdentityToken(token: string): string {
  * @returns True when `error.status` is 422.
  */
 export function isUnprocessableEntity(error: unknown): boolean {
-  return asRecord(error)?.status === 422;
-}
-
-/**
- * Narrows `value` to a record when it is a non-null object.
- *
- * @param value - The value to inspect.
- * @returns The value as a string-keyed record, or `undefined`.
- */
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  if (typeof value !== 'object' || value === null) {
-    return undefined;
-  }
-  return value as Record<string, unknown>;
+  return isObject(error) && error.status === 422;
 }

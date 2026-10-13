@@ -406,12 +406,14 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Starts a KYC session for the given vendor and email. Reuses a latest
-   * vendor session when one exists; otherwise creates a UKYC session.
+   * Starts a KYC session for the given vendor. Reuses a latest vendor session
+   * when one exists; otherwise creates a UKYC session.
+   *
+   * Email comes from the partner identity token. When that request returns
+   * HTTP 422, the email already stored on controller state is used instead.
    *
    * @param params - The session parameters.
    * @param params.vendor - Identity vendor for the session.
-   * @param params.email - Fallback account email associated with the session if unable to resolve from partner identity token
    * @param params.aal2Token - AAL2 authentication token. Required only when a
    * UKYC session must be created, where it is sent as the Authorization bearer
    * value. Omit it when reusing an existing session.
@@ -419,12 +421,10 @@ export class KycController extends BaseController<
    */
   async startSession(params: {
     vendor: KycVendor;
-    email?: string; // TODO: This will be removed once OTP is implemented
     aal2Token?: string;
   }): Promise<KycSessionStatus> {
     const email =
       (await this.#getVerifiedEmailToUseForVendor(params.vendor)) ??
-      params.email ??
       this.state.email;
     if (!email) {
       throw new Error('KycController missing verified email for vendor');

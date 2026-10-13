@@ -101,7 +101,6 @@ describe('KycController', () => {
 
         const result = await controller.startSession({
           vendor: 'iron',
-          email: 'a@b.co',
           aal2Token: AAL2_TOKEN,
         });
 
@@ -148,10 +147,7 @@ describe('KycController', () => {
           sessionStatus('pending'),
         );
 
-        const result = await controller.startSession({
-          vendor: 'iron',
-          email: 'a@b.co',
-        });
+        const result = await controller.startSession({ vendor: 'iron' });
 
         expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
@@ -180,10 +176,7 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
           expect(
-            await controller.startSession({
-              vendor: 'iron',
-              email: 'a@b.co',
-            }),
+            await controller.startSession({ vendor: 'iron' }),
           ).toStrictEqual(sessionStatus('pending'));
           expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
@@ -221,7 +214,7 @@ describe('KycController', () => {
           handlers.setAuthorizations.mockResolvedValue(refreshed);
 
           expect(
-            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            await controller.startSession({ vendor: 'iron' }),
           ).toStrictEqual(refreshed);
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
@@ -259,7 +252,7 @@ describe('KycController', () => {
           handlers.setAuthorizations.mockResolvedValue(stored);
 
           expect(
-            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            await controller.startSession({ vendor: 'iron' }),
           ).toStrictEqual(stored);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
@@ -291,7 +284,7 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(pendingAuth);
 
           expect(
-            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            await controller.startSession({ vendor: 'iron' }),
           ).toStrictEqual(pendingAuth);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
@@ -322,7 +315,7 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(approvedExpired);
 
           expect(
-            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            await controller.startSession({ vendor: 'iron' }),
           ).toStrictEqual(approvedExpired);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
@@ -345,9 +338,9 @@ describe('KycController', () => {
         handlers.getSessionStatusForVendor.mockResolvedValue(expired);
         handlers.setAuthorizations.mockResolvedValue(refreshed);
 
-        expect(
-          await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
-        ).toStrictEqual(refreshed);
+        expect(await controller.startSession({ vendor: 'iron' })).toStrictEqual(
+          refreshed,
+        );
         expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.getSessionStatus).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
@@ -373,7 +366,7 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(null);
 
           await expect(
-            controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            controller.startSession({ vendor: 'iron' }),
           ).rejects.toThrow('No session was found');
         },
       );
@@ -400,7 +393,7 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(missingId);
 
           await expect(
-            controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            controller.startSession({ vendor: 'iron' }),
           ).rejects.toThrow('No session was found');
           expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
         },
@@ -429,10 +422,7 @@ describe('KycController', () => {
         { options: { state: { vendor: 'moonpay' } } },
         async ({ controller }) => {
           await expect(
-            controller.startSession({
-              vendor: 'iron',
-              email: 'a@b.co',
-            }),
+            controller.startSession({ vendor: 'iron' }),
           ).rejects.toThrow(
             'KycController already initialized with a different vendor',
           );
@@ -447,10 +437,7 @@ describe('KycController', () => {
           handlers.getGeoCountry.mockResolvedValue('DEU');
 
           await expect(
-            controller.startSession({
-              vendor: 'iron',
-              email: 'a@b.co',
-            }),
+            controller.startSession({ vendor: 'iron' }),
           ).rejects.toThrow(
             'KycController already initialized with a different geoCountry',
           );
@@ -471,26 +458,28 @@ describe('KycController', () => {
       });
     });
 
-    it('uses the fallback email when the partner identity token has no verified email', async () => {
-      await withController(async ({ controller, handlers }) => {
-        handlers.getPartnerIdentityToken.mockRejectedValue(
-          Object.assign(new Error('email_required'), { status: 422 }),
-        );
-        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+    it('uses the stored email when the partner identity token has no verified email', async () => {
+      await withController(
+        { options: { state: { email: 'stored@b.co' } } },
+        async ({ controller, handlers }) => {
+          handlers.getPartnerIdentityToken.mockRejectedValue(
+            Object.assign(new Error('email_required'), { status: 422 }),
+          );
+          handlers.getSessionStatusForVendor.mockResolvedValue(null);
 
-        const result = await controller.startSession({
-          vendor: 'iron',
-          email: 'fallback@b.co',
-          aal2Token: AAL2_TOKEN,
-        });
+          const result = await controller.startSession({
+            vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
+          });
 
-        expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
-          vendor: 'iron',
-          email: 'fallback@b.co',
-        });
-        expect(controller.state.email).toBe('fallback@b.co');
-        expect(result).toStrictEqual(sessionStatus('approved'));
-      });
+          expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
+            vendor: 'iron',
+            email: 'stored@b.co',
+          });
+          expect(controller.state.email).toBe('stored@b.co');
+          expect(result).toStrictEqual(sessionStatus('approved'));
+        },
+      );
     });
 
     it('requests a moonpay-audience partner identity token', async () => {
@@ -551,10 +540,7 @@ describe('KycController', () => {
         handlers.getSessionStatusForVendor.mockResolvedValue(null);
 
         await expect(
-          controller.startSession({
-            vendor: 'iron',
-            email: 'a@b.co',
-          }),
+          controller.startSession({ vendor: 'iron' }),
         ).rejects.toThrow(/aal2Token is required to create a KYC session/u);
         expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
@@ -572,7 +558,6 @@ describe('KycController', () => {
         await expect(
           controller.startSession({
             vendor: 'iron',
-            email: 'a@b.co',
             aal2Token: AAL2_TOKEN,
           }),
         ).rejects.toThrow('customer failed');
