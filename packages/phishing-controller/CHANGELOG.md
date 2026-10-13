@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix Node.js 24 compatibility by accessing `toASCII` through the CommonJS `punycode` module default export.
+- Fix Node.js 24 compatibility by accessing `toASCII` through the CommonJS `punycode` module default export. ([#10812](https://github.com/MetaMask/core/pull/10812))
 
 ## [18.2.0]
 
