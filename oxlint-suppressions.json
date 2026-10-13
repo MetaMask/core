@@ -6688,7 +6688,7 @@
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 34
+      "count": 39
     },
     "typescript/no-unsafe-call": {
       "count": 17
@@ -6806,10 +6806,10 @@
   },
   "packages/transaction-pay-controller/src/utils/polymarket/withdraw.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 16
+      "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 4
+      "count": 6
     },
     "typescript/no-unsafe-call": {
       "count": 8
