@@ -1,4 +1,19 @@
-import { isValidSignature } from './signature.js';
+import { verifyMessage } from '@ethersproject/wallet';
+
+import {
+  MAX_CACHE_SIZE,
+  clearSignatureCache,
+  isValidSignature,
+} from './signature.js';
+
+jest.mock('@ethersproject/wallet', () => ({
+  ...jest.requireActual('@ethersproject/wallet'),
+  verifyMessage: jest.fn(),
+}));
+
+const { verifyMessage: actualVerifyMessage } = jest.requireActual<
+  typeof import('@ethersproject/wallet')
+>('@ethersproject/wallet');
 
 const VALUE_1_MOCK = '0x12345678';
 const VALUE_2_MOCK = '0xabcabcabcabcabcabcabcabc';
@@ -13,6 +28,14 @@ const SIGNATURE_MULTIPLE_MOCK =
   '0x777b4f4461009b937de6a5ea7b0640c783433ad2cb50b0d0822a9ce9cadea12c5614b47927ddffc2e855b6932adb6a6e0a558667fd188eaf120a153c6b693dcb1b';
 
 describe('Signature Utils', () => {
+  const verifyMessageMock = jest.mocked(verifyMessage);
+
+  beforeEach(() => {
+    // `resetMocks` clears the implementation between tests.
+    verifyMessageMock.mockImplementation(actualVerifyMessage);
+    clearSignatureCache();
+  });
+
   describe('isValidSignature', () => {
     it('returns true if signature correct and single data', async () => {
       expect(
@@ -48,6 +71,100 @@ describe('Signature Utils', () => {
           PUBLIC_KEY_MOCK,
         ),
       ).toBe(false);
+    });
+
+    it('verifies once only if called repeatedly with identical arguments', () => {
+      const results = [1, 2, 3].map(() =>
+        isValidSignature(
+          [VALUE_1_MOCK],
+          SIGNATURE_SINGLE_MOCK,
+          PUBLIC_KEY_MOCK,
+        ),
+      );
+
+      expect(results).toStrictEqual([true, true, true]);
+      expect(verifyMessageMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('caches negative results', () => {
+      const results = [1, 2, 3].map(() =>
+        isValidSignature(['0x123'], SIGNATURE_SINGLE_MOCK, PUBLIC_KEY_MOCK),
+      );
+
+      expect(results).toStrictEqual([false, false, false]);
+      expect(verifyMessageMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('verifies again if data differs', () => {
+      isValidSignature([VALUE_1_MOCK], SIGNATURE_SINGLE_MOCK, PUBLIC_KEY_MOCK);
+      isValidSignature([VALUE_2_MOCK], SIGNATURE_SINGLE_MOCK, PUBLIC_KEY_MOCK);
+
+      expect(verifyMessageMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('verifies again if signature differs', () => {
+      isValidSignature([VALUE_1_MOCK], SIGNATURE_SINGLE_MOCK, PUBLIC_KEY_MOCK);
+      isValidSignature(
+        [VALUE_1_MOCK],
+        SIGNATURE_MULTIPLE_MOCK,
+        PUBLIC_KEY_MOCK,
+      );
+
+      expect(verifyMessageMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not return a cached result if public key differs', () => {
+      const first = isValidSignature(
+        [VALUE_1_MOCK],
+        SIGNATURE_SINGLE_MOCK,
+        PUBLIC_KEY_MOCK,
+      );
+
+      const second = isValidSignature(
+        [VALUE_1_MOCK],
+        SIGNATURE_SINGLE_MOCK,
+        '0x1234567890123456789012345678901234567890',
+      );
+
+      expect(first).toBe(true);
+      expect(second).toBe(false);
+      expect(verifyMessageMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('clears the cache once it reaches the maximum size', () => {
+      verifyMessageMock.mockReturnValue(PUBLIC_KEY_MOCK);
+
+      isValidSignature([VALUE_1_MOCK], SIGNATURE_SINGLE_MOCK, PUBLIC_KEY_MOCK);
+
+      for (let index = 0; index < MAX_CACHE_SIZE; index++) {
+        isValidSignature(
+          [`0x${index}`],
+          SIGNATURE_SINGLE_MOCK,
+          PUBLIC_KEY_MOCK,
+        );
+      }
+
+      verifyMessageMock.mockClear();
+
+      isValidSignature([VALUE_1_MOCK], SIGNATURE_SINGLE_MOCK, PUBLIC_KEY_MOCK);
+
+      expect(verifyMessageMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('distinguishes data entries that concatenate identically', () => {
+      isValidSignature(
+        [VALUE_1_MOCK, VALUE_2_MOCK],
+        SIGNATURE_MULTIPLE_MOCK,
+        PUBLIC_KEY_MOCK,
+      );
+
+      isValidSignature(
+        [`${VALUE_1_MOCK}${VALUE_2_MOCK.slice(2)}` as never],
+        SIGNATURE_MULTIPLE_MOCK,
+        PUBLIC_KEY_MOCK,
+      );
+
+      expect(verifyMessageMock).toHaveBeenCalledTimes(2);
     });
   });
 });

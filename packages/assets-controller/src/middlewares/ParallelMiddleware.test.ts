@@ -1,6 +1,9 @@
-import type { AssetsDataSource } from '../types.js';
+import type { AssetsDataSource, ChainId } from '../types.js';
 import type { Context, DataResponse } from '../types.js';
-import { createParallelMiddleware } from './ParallelMiddleware.js';
+import {
+  createParallelBalanceMiddleware,
+  createParallelMiddleware,
+} from './ParallelMiddleware.js';
 
 const MOCK_ASSET = 'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
 
@@ -12,11 +15,6 @@ function createMockContext(overrides?: Partial<Context>): Context {
       dataTypes: ['balance', 'metadata', 'price'],
     },
     response: {},
-    getAssetsState: jest.fn().mockReturnValue({
-      assetsInfo: {},
-      assetsBalance: {},
-      customAssets: {},
-    }),
     ...overrides,
   };
 }
@@ -36,6 +34,70 @@ function createMockSource(
   };
 }
 
+/**
+ * Creates a tracker that records how many source calls are in flight at once.
+ *
+ * @returns Helpers to wrap a source call and read the observed peak.
+ */
+function createConcurrencyTracker(): {
+  track: () => Promise<void>;
+  getMaxInFlight: () => number;
+  getCallCount: () => number;
+} {
+  let inFlight = 0;
+  let maxInFlight = 0;
+  let callCount = 0;
+
+  return {
+    track: async (): Promise<void> => {
+      callCount += 1;
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+    },
+    getMaxInFlight: (): number => maxInFlight,
+    getCallCount: (): number => callCount,
+  };
+}
+
+describe('createParallelBalanceMiddleware', () => {
+  it('runs at most 3 balance sources at the same time', async () => {
+    const tracker = createConcurrencyTracker();
+    const chainIds: ChainId[] = [
+      'eip155:1',
+      'eip155:10',
+      'eip155:56',
+      'eip155:137',
+      'eip155:8453',
+    ];
+    const sources = chainIds.map((chainId) => ({
+      getName: (): string => `Source-${chainId}`,
+      getActiveChainsSync: (): ChainId[] => [chainId],
+      assetsMiddleware: async (
+        ctx: Context,
+        next: (ctx: Context) => Promise<Context>,
+      ): Promise<Context> => {
+        await tracker.track();
+        return next(ctx);
+      },
+    }));
+    const middleware = createParallelBalanceMiddleware(sources);
+    const context = createMockContext({
+      request: {
+        chainIds,
+        accountsWithSupportedChains: [],
+        dataTypes: ['balance'],
+      },
+    });
+
+    await middleware.assetsMiddleware(context, async (ctx) => ctx);
+
+    expect(tracker.getCallCount()).toBe(5);
+    expect(tracker.getMaxInFlight()).toBe(3);
+  });
+});
+
 describe('createParallelMiddleware', () => {
   describe('getName', () => {
     it('returns ParallelMiddleware', () => {
@@ -54,6 +116,29 @@ describe('createParallelMiddleware', () => {
 
       expect(next).toHaveBeenCalledTimes(1);
       expect(next).toHaveBeenCalledWith(context);
+    });
+
+    it('runs at most 2 sources at the same time', async () => {
+      const tracker = createConcurrencyTracker();
+      const sources = [1, 2, 3, 4, 5].map((index) => ({
+        getName: (): string => `Source${index}`,
+        assetsMiddleware: async (
+          ctx: Context,
+          next: (ctx: Context) => Promise<Context>,
+        ): Promise<Context> => {
+          await tracker.track();
+          return next(ctx);
+        },
+      }));
+      const middleware = createParallelMiddleware(sources);
+
+      await middleware.assetsMiddleware(
+        createMockContext(),
+        async (ctx) => ctx,
+      );
+
+      expect(tracker.getCallCount()).toBe(5);
+      expect(tracker.getMaxInFlight()).toBe(2);
     });
 
     it('runs multiple sources in parallel and merges responses', async () => {

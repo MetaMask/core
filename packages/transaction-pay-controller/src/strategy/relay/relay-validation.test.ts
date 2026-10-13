@@ -58,17 +58,17 @@ const PREDICT_WITHDRAW_TRANSACTION_WITH_NESTED_MOCK = {
   id: 'tx-id',
   txParams: {
     from: FROM_MOCK,
-    to: '0xtoplevel' as Hex,
-    data: '0xtopleveldata' as Hex,
-    value: '0x0' as Hex,
+    to: '0xtoplevel',
+    data: '0xtopleveldata',
+    value: '0x0',
   },
   type: TransactionType.predictWithdraw,
   nestedTransactions: [
-    { to: '0xsafeapprove' as Hex, data: '0xsafeapprovedata' as Hex },
+    { to: '0xsafeapprove', data: '0xsafeapprovedata' },
     {
-      to: '0xsafewithdraw' as Hex,
-      data: '0xsafewithdrawdata' as Hex,
-      value: '0x0' as Hex,
+      to: '0xsafewithdraw',
+      data: '0xsafewithdrawdata',
+      value: '0x0',
     },
   ],
 } as TransactionMeta;
@@ -102,8 +102,8 @@ function buildQuote(
       sourceBalanceRaw: '1000',
       sourceTokenAmount: '100',
       targetAmountMinimum: '100',
-      targetChainId: '0x2' as Hex,
-      targetTokenAddress: '0xtarget' as Hex,
+      targetChainId: '0x2',
+      targetTokenAddress: '0xtarget',
       ...overrides,
     },
     fees: {
@@ -120,7 +120,7 @@ function buildQuote(
     dust: { usd: '0', fiat: '0' },
     estimatedDuration: 30,
     strategy: 'relay' as never,
-  } as TransactionPayQuote<RelayQuote>;
+  };
 }
 
 const TRANSACTION_MOCK = {
@@ -158,10 +158,10 @@ describe('validateRelayQuotes', () => {
     getRelayExecuteRequestMock.mockResolvedValue(undefined as never);
     validateQuoteExecutionMock.mockResolvedValue(undefined);
     generateEIP7702BatchTransactionMock.mockReturnValue({
-      data: '0xbatchdata' as Hex,
-      to: '0xbatchto' as Hex,
-      value: '0x0' as Hex,
-    } as never);
+      data: '0xbatchdata',
+      to: '0xbatchto',
+      value: '0x0',
+    });
   });
 
   it('skips validation for Hyperliquid source quotes', async () => {
@@ -234,9 +234,12 @@ describe('validateRelayQuotes', () => {
   });
 
   it('skips validation for a swap-only Safe-based Predict withdraw (no deposit step)', async () => {
-    const quote = buildQuote({ isPostQuote: true, refundTo: REFUND_TO_MOCK }, {
-      metamask: { gasLimits: [], is7702: false, isExecute: false },
-    } as Partial<RelayQuote>);
+    const quote = buildQuote(
+      { isPostQuote: true, refundTo: REFUND_TO_MOCK },
+      {
+        metamask: { gasLimits: [], is7702: false, isExecute: false },
+      },
+    );
 
     await validateRelayQuotes({
       messenger,
@@ -437,17 +440,20 @@ describe('validateRelayQuotes', () => {
         getRelaySubmitCallsMock.mockResolvedValue({
           calls: [
             {
-              data: '0xdata' as Hex,
+              data: '0xdata',
               from: FROM_MOCK,
-              gas: '0x0' as Hex,
-              to: '0xto' as Hex,
-              value: '0x0' as Hex,
+              gas: '0x0',
+              to: '0xto',
+              value: '0x0',
             },
           ],
         });
-        const quote = buildQuote({}, {
-          metamask: { gasLimits: [], is7702: false, isExecute: false },
-        } as Partial<RelayQuote>);
+        const quote = buildQuote(
+          {},
+          {
+            metamask: { gasLimits: [], is7702: false, isExecute: false },
+          },
+        );
         await validateRelayQuotes({
           messenger,
           quotes: [quote],
@@ -552,11 +558,11 @@ describe('validateRelayQuotes', () => {
           request: {
             authorizationList: [
               {
-                address: '0xabc' as Hex,
+                address: '0xabc',
                 chainId: 1,
                 nonce: 1,
-                r: '0xr' as Hex,
-                s: '0xs' as Hex,
+                r: '0xr',
+                s: '0xs',
                 yParity: 0,
               },
             ],
@@ -691,11 +697,11 @@ describe('validateRelayQuotes', () => {
           request: {
             authorizationList: [
               {
-                address: '0xabc' as Hex,
+                address: '0xabc',
                 chainId: 1,
                 nonce: 1,
-                r: '0xr' as Hex,
-                s: '0xs' as Hex,
+                r: '0xr',
+                s: '0xs',
                 yParity: 0,
               },
             ],
@@ -721,17 +727,20 @@ describe('validateRelayQuotes', () => {
         getRelaySubmitCallsMock.mockResolvedValue({
           calls: [
             {
-              data: '0xcall1' as Hex,
+              data: '0xcall1',
               from: FROM_MOCK,
-              gas: '0x5208' as Hex,
-              to: '0xdest1' as Hex,
-              value: '0x0' as Hex,
+              gas: '0x5208',
+              to: '0xdest1',
+              value: '0x0',
             },
           ],
         });
-        const quote = buildQuote({}, {
-          metamask: { gasLimits: [0], is7702: true, isExecute: false },
-        } as Partial<RelayQuote>);
+        const quote = buildQuote(
+          {},
+          {
+            metamask: { gasLimits: [0], is7702: true, isExecute: false },
+          },
+        );
         await validateRelayQuotes({
           messenger,
           quotes: [quote],
@@ -796,9 +805,12 @@ describe('validateRelayQuotes', () => {
         getRelaySubmitCallsMock.mockResolvedValue({ calls: [] });
         getRelayExecuteRequestMock.mockResolvedValue(EXECUTE_REQUEST_MOCK);
 
-        const quote = buildQuote({}, {
-          metamask: { gasLimits: [], is7702: false, isExecute: true },
-        } as Partial<RelayQuote>);
+        const quote = buildQuote(
+          {},
+          {
+            metamask: { gasLimits: [], is7702: false, isExecute: true },
+          },
+        );
 
         await validateRelayQuotes({
           messenger,
@@ -850,9 +862,12 @@ describe('validateRelayQuotes', () => {
         getRelaySubmitCallsMock.mockResolvedValue({ calls: [] });
         getRelayExecuteRequestMock.mockResolvedValue(executeRequestWithAuth);
 
-        const quote = buildQuote({}, {
-          metamask: { gasLimits: [], is7702: false, isExecute: true },
-        } as Partial<RelayQuote>);
+        const quote = buildQuote(
+          {},
+          {
+            metamask: { gasLimits: [], is7702: false, isExecute: true },
+          },
+        );
 
         await validateRelayQuotes({
           messenger,
@@ -894,9 +909,12 @@ describe('validateRelayQuotes', () => {
         getRelaySubmitCallsMock.mockResolvedValue({ calls: [] });
         getRelayExecuteRequestMock.mockResolvedValue(executeRequestWithAuth);
 
-        const quote = buildQuote({}, {
-          metamask: { gasLimits: [], is7702: false, isExecute: true },
-        } as Partial<RelayQuote>);
+        const quote = buildQuote(
+          {},
+          {
+            metamask: { gasLimits: [], is7702: false, isExecute: true },
+          },
+        );
 
         await validateRelayQuotes({
           messenger,

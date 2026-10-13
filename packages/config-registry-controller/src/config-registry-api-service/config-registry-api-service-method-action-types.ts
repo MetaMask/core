@@ -10,8 +10,14 @@ export type ConfigRegistryApiServiceFetchConfigAction = {
   handler: ConfigRegistryApiService['fetchConfig'];
 };
 
+export type ConfigRegistryApiServiceFetchEventsConfigAction = {
+  type: `ConfigRegistryApiService:fetchEventsConfig`;
+  handler: ConfigRegistryApiService['fetchEventsConfig'];
+};
+
 /**
  * Union of all ConfigRegistryApiService action types.
  */
 export type ConfigRegistryApiServiceMethodActions =
-  ConfigRegistryApiServiceFetchConfigAction;
+  | ConfigRegistryApiServiceFetchConfigAction
+  | ConfigRegistryApiServiceFetchEventsConfigAction;

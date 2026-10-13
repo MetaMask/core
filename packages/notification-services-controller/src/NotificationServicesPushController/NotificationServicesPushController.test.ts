@@ -97,6 +97,20 @@ describe('NotificationServicesPushController', () => {
       expect(controller.state.isUpdatingFCMToken).toBe(false);
     });
 
+    it('creates and retains an FCM token when no addresses are linked', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger();
+      mockAuthBearerTokenCall(messenger);
+
+      await controller.enablePushNotifications([]);
+
+      expect(mocks.activatePushNotificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ addresses: [] }),
+      );
+      expect(controller.state.fcmToken).toBe(MOCK_FCM_TOKEN);
+      expect(controller.state.isPushEnabled).toBe(true);
+    });
+
     it('should call activatePushNotifications with correct parameters including oldToken', async () => {
       const mocks = arrangeServicesMocks();
       const { controller, messenger } = arrangeMockMessenger({

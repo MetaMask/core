@@ -6,7 +6,13 @@
   },
   "references": [
     {
+      "path": "../analytics-controller/tsconfig.build.json"
+    },
+    {
       "path": "../base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../cryptography/tsconfig.build.json"
     },
     {
       "path": "../keyring-controller/tsconfig.build.json"

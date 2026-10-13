@@ -20,6 +20,7 @@ export type RootPasskeyControllerMessenger = Messenger<
 
 const PASSKEY_CONTROLLER_ALLOWED_KEYRING_ACTIONS = [
   'KeyringController:verifyPassword',
+  'KeyringController:isUnlocked',
   'KeyringController:exportEncryptionKey',
   'KeyringController:submitEncryptionKey',
   'KeyringController:changePassword',
@@ -29,6 +30,7 @@ const PASSKEY_CONTROLLER_ALLOWED_KEYRING_ACTIONS = [
 
 export type PasskeyControllerKeyringActionMocks = {
   verifyPassword?: jest.Mock;
+  isUnlocked?: jest.Mock;
   exportEncryptionKey?: jest.Mock;
   submitEncryptionKey?: jest.Mock;
   changePassword?: jest.Mock;
@@ -52,6 +54,7 @@ export function createMockPasskeyControllerMessenger(
 } {
   const resolvedMocks: Required<PasskeyControllerKeyringActionMocks> = {
     verifyPassword: mocks.verifyPassword ?? jest.fn(),
+    isUnlocked: mocks.isUnlocked ?? jest.fn().mockReturnValue(true),
     exportEncryptionKey:
       mocks.exportEncryptionKey ?? jest.fn().mockResolvedValue('vault-key'),
     submitEncryptionKey: mocks.submitEncryptionKey ?? jest.fn(),
@@ -72,6 +75,10 @@ export function createMockPasskeyControllerMessenger(
   rootMessenger.registerActionHandler(
     'KeyringController:verifyPassword',
     resolvedMocks.verifyPassword,
+  );
+  rootMessenger.registerActionHandler(
+    'KeyringController:isUnlocked',
+    resolvedMocks.isUnlocked,
   );
   rootMessenger.registerActionHandler(
     'KeyringController:exportEncryptionKey',

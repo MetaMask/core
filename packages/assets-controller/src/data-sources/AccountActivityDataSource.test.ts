@@ -61,7 +61,7 @@ function createMockAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 /**
@@ -91,13 +91,12 @@ function createBalanceUpdate(overrides?: {
       ...overrides?.postBalance,
     },
     transfers: overrides?.transfers ?? [],
-  } as BalanceUpdate;
+  };
 }
 
 type SetupOptions = {
   groupAccounts?: InternalAccount[];
   selectedAccount?: InternalAccount | null;
-  getAssetType?: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
   onAssetsUpdate?: jest.Mock;
   onActiveChainsUpdated?: jest.Mock;
   state?: { activeChains?: ChainId[] };
@@ -108,7 +107,6 @@ type SetupResult = {
   rootMessenger: RootMessenger;
   onAssetsUpdate: jest.Mock;
   onActiveChainsUpdated: jest.Mock;
-  getAssetType: jest.Mock;
   triggerBalanceUpdated: (payload: {
     address: string;
     chain: string;
@@ -167,14 +165,9 @@ function setup(options: SetupOptions = {}): SetupResult {
     () => selectedAccount as InternalAccount,
   );
 
-  const getAssetType = jest
-    .fn()
-    .mockImplementation(options.getAssetType ?? ((): 'native' => 'native'));
-
   const dataSource = new AccountActivityDataSource({
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
-    getAssetType,
     onAssetsUpdate,
     state,
   });
@@ -205,7 +198,6 @@ function setup(options: SetupOptions = {}): SetupResult {
     rootMessenger,
     onAssetsUpdate,
     onActiveChainsUpdated,
-    getAssetType,
     triggerBalanceUpdated,
     triggerStatusChanged,
     cleanup,
@@ -297,21 +289,13 @@ describe('AccountActivityDataSource', () => {
             [ETH_ASSET]: { amount: '1' },
           },
         },
-        assetsInfo: {
-          [ETH_ASSET]: {
-            type: 'native',
-            symbol: 'ETH',
-            name: 'ETH',
-            decimals: 18,
-          },
-        },
       });
       expect(request).toStrictEqual({
         accountsWithSupportedChains: [
           { account, supportedChains: [CHAIN_MAINNET] },
         ],
         chainIds: [CHAIN_MAINNET],
-        dataTypes: ['balance', 'metadata'],
+        dataTypes: ['balance', 'metadata', 'price'],
       });
 
       cleanup();
@@ -387,24 +371,7 @@ describe('AccountActivityDataSource', () => {
         amount: '0.0201421',
         metadata: trustlineMetadata,
       });
-
-      cleanup();
-    });
-
-    it('resolves the asset type via the injected getAssetType', async () => {
-      const { getAssetType, triggerBalanceUpdated, cleanup } = setup({
-        getAssetType: () => 'erc20',
-      });
-
-      triggerBalanceUpdated({
-        address: EVM_ADDRESS,
-        chain: CHAIN_MAINNET,
-        updates: [createBalanceUpdate()],
-      });
-
-      await waitFor(() => {
-        expect(getAssetType).toHaveBeenCalledWith(ETH_ASSET);
-      });
+      expect(response.assetsInfo).toBeUndefined();
 
       cleanup();
     });
@@ -436,7 +403,7 @@ describe('AccountActivityDataSource', () => {
       expect(response.assetsBalance[account.id]).not.toHaveProperty(
         USDC_ASSET_LOWERCASE,
       );
-      expect(response.assetsInfo).toHaveProperty(USDC_ASSET_CHECKSUMMED);
+      expect(response.assetsInfo).toBeUndefined();
 
       cleanup();
     });
@@ -653,28 +620,6 @@ describe('AccountActivityDataSource', () => {
 
       cleanup();
     });
-
-    it('swallows synchronous errors thrown while handling the event', async () => {
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
-        getAssetType: () => {
-          throw new Error('boom');
-        },
-      });
-
-      expect(() =>
-        triggerBalanceUpdated({
-          address: EVM_ADDRESS,
-          chain: CHAIN_MAINNET,
-          updates: [createBalanceUpdate()],
-        }),
-      ).not.toThrow();
-
-      await waitFor(() => {
-        expect(onAssetsUpdate).not.toHaveBeenCalled();
-      });
-
-      cleanup();
-    });
   });
 
   describe('statusChanged event', () => {
@@ -881,7 +826,6 @@ describe('AccountActivityDataSource', () => {
       const dataSource = createAccountActivityDataSource({
         messenger: assetsControllerMessenger,
         onActiveChainsUpdated: jest.fn(),
-        getAssetType: () => 'native',
         onAssetsUpdate: jest.fn(),
       });
 

@@ -72,10 +72,10 @@ function buildFiatQuote(): TransactionPayQuote<FiatQuote> {
     ...RELAY_QUOTE_MOCK,
     original: {
       rampsQuote: {} as never,
-      relayQuote: RELAY_QUOTE_MOCK.original as unknown as RelayQuote,
+      relayQuote: RELAY_QUOTE_MOCK.original,
     },
     strategy: TransactionPayStrategy.Fiat,
-  } as unknown as TransactionPayQuote<FiatQuote>;
+  };
 }
 
 function buildRequest(

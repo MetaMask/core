@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
-import { BrokenCircuitError } from '@metamask/controller-utils';
+import { BrokenCircuitError, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticationController,
@@ -13,6 +13,7 @@ import type {
 } from '@metamask/profile-sync-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Json } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import type { Draft } from 'immer';
 
 import type {
@@ -22,6 +23,7 @@ import type {
 } from './autorampAccount.js';
 import {
   applyAutorampRemoteStatus,
+  AutorampStatus,
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
@@ -33,6 +35,7 @@ import {
 import type {
   NeoBankServiceCreateAutorampAction,
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampsAction,
   NeoBankServiceGetCustomerByExternalIdAction,
   NeoBankServiceGetWalletRegistrationStatusAction,
   NeoBankServiceRegisterSelfHostedWalletAction,
@@ -76,6 +79,7 @@ import type {
 } from './RampsService-method-action-types.js';
 import type {
   BuyWidget,
+  BuyWidgetFallback,
   Country,
   TokensResponse,
   Provider,
@@ -217,6 +221,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
   'NeoBankService:getAutoramp',
+  'NeoBankService:getAutoramps',
   'NeoBankService:createAutoramp',
   'NeoBankService:getCustomerByExternalId',
   'NeoBankService:getWalletRegistrationStatus',
@@ -240,6 +245,12 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:getSessionProfile',
   'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
+  'KycController:getProviderFlowStatus',
+  'KycController:readSessionStatus',
+  'KycController:fetchSessionStatusOnce',
+  'KycController:hasCompletedVendorDisclaimers',
+  'KycController:hasCompletedSessionDisclaimers',
+  'KycController:clearState',
   'RemoteFeatureFlagController:getState',
   'UserStorageController:getState',
   'UserStorageController:performGetStorageAllFeatureEntries',
@@ -257,12 +268,83 @@ export type KeyringControllerSignPersonalMessageAction = {
 };
 
 /**
+ * Minimal structural subset of the KYC controller's session status — only the
+ * status fields the VBA read path uses.
+ */
+type KycControllerSessionStatus = {
+  id: string;
+  finalStatus: string;
+  kycStatus: string;
+  vendorStatus: string;
+  /** Canonical id of the profile that owns the session (set at creation). */
+  externalUserId: string;
+};
+
+/**
+ * `finalStatus` values that end a KYC session. Mirrors
+ * `TERMINAL_SESSION_STATUSES` in `@metamask/kyc-controller`.
+ */
+const TERMINAL_VBA_KYC_FINAL_STATUSES: ReadonlySet<string> = new Set([
+  'approved',
+  'rejected',
+  'retry',
+]);
+
+/**
+ * Structural types for the KYC controller's VBA onboarding messenger actions.
+ * Declared locally so the ramps package does not depend on
+ * `@metamask/kyc-controller`.
+ */
+export type KycControllerReadSessionStatusAction = {
+  type: 'KycController:readSessionStatus';
+  handler: () => KycControllerSessionStatus | null;
+};
+
+export type KycControllerFetchSessionStatusOnceAction = {
+  type: 'KycController:fetchSessionStatusOnce';
+  handler: (sessionId: string) => Promise<KycControllerSessionStatus>;
+};
+
+export type KycControllerGetProviderFlowStatusAction = {
+  type: 'KycController:getProviderFlowStatus';
+  handler: () => VbaProviderFlowStatus;
+};
+
+export type KycControllerHasCompletedVendorDisclaimersAction = {
+  type: 'KycController:hasCompletedVendorDisclaimers';
+  handler: () => Promise<boolean>;
+};
+
+export type KycControllerHasCompletedSessionDisclaimersAction = {
+  type: 'KycController:hasCompletedSessionDisclaimers';
+  handler: () => Promise<boolean>;
+};
+
+export type KycControllerClearStateAction = {
+  type: 'KycController:clearState';
+  handler: () => void;
+};
+
+/**
  * Outcome of {@link RampsController.registerMoneyAccountWallet}.
  *
  * `lookupUnavailable` means the address list could not be fetched or parsed.
  * It is not the same as unregistered — callers must not treat it as a cue to
  * submit a new ownership proof.
  */
+/**
+ * Persisted Money Account wallet registration.
+ *
+ * Written only after {@link RampsController.registerMoneyAccountWallet}
+ * observes `alreadyRegistered`, `registered`, or `registeredDisabled`.
+ * The EIP-191 signature and ownership message are not stored.
+ */
+export type MoneyAccountWalletRegistration = {
+  walletAddress: string;
+  status: 'active' | 'disabled';
+  updatedAt: number;
+};
+
 export type MoneyAccountWalletRegistrationResult =
   | {
       type: 'registered' | 'alreadyRegistered';
@@ -281,6 +363,228 @@ type LookupUnavailableResult = Extract<
   MoneyAccountWalletRegistrationResult,
   { type: 'lookupUnavailable' }
 >;
+
+/**
+ * KYC vocabulary used on the VBA onboarding snapshot. `'none'` means no
+ * session exists yet (or the vendor returned an unrecognized status).
+ */
+export const VBA_KYC_STATUSES = [
+  'none',
+  'new',
+  'retry',
+  'pending',
+  'approved',
+  'rejected',
+] as const;
+
+export type VbaKycStatus = (typeof VBA_KYC_STATUSES)[number];
+
+export const VBA_PROVIDER_FLOW_STATUSES = [
+  'not_started',
+  'submitted',
+  'abandoned',
+  'failed',
+] as const;
+
+export type VbaProviderFlowStatus = (typeof VBA_PROVIDER_FLOW_STATUSES)[number];
+
+/**
+ * Autoramp setup progress after KYC has been approved.
+ *
+ * `'needs_wallet_registration'` means KYC is approved, this wallet has no
+ * persisted registration row, and there is no usable autoramp.
+ * `'needs_source_currency'` means KYC is approved, the registration row is
+ * `active` or `disabled`, and there is no usable autoramp.
+ * `'in_progress'` is reserved for hosts that observe an in-flight hydrate.
+ * {@link RampsController.hydrateVbaOnboarding} returns `'ready'`,
+ * `'needs_wallet_registration'`, `'needs_source_currency'`, or
+ * `'retryable_failure'` once an approved read settles.
+ */
+export const VBA_AUTORAMP_STATUSES = [
+  'not_ready',
+  'in_progress',
+  'needs_wallet_registration',
+  'needs_source_currency',
+  'ready',
+  'retryable_failure',
+] as const;
+
+export type VbaAutorampStatus = (typeof VBA_AUTORAMP_STATUSES)[number];
+
+/**
+ * Backend facts for VBA onboarding. Hosts own funnel order and map this
+ * snapshot onto screens; this controller does not name routes.
+ */
+export type VbaOnboardingSnapshot = {
+  sessionExists: boolean;
+  vendorDisclaimersComplete: boolean;
+  sessionDisclaimersComplete: boolean;
+  providerFlowStatus: VbaProviderFlowStatus;
+  /** Overall KYC session outcome used to decide whether autoramp setup can run. */
+  kycStatus: VbaKycStatus;
+  autorampStatus: VbaAutorampStatus;
+};
+
+const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
+  sessionExists: false,
+  vendorDisclaimersComplete: false,
+  sessionDisclaimersComplete: false,
+  providerFlowStatus: 'not_started',
+  kycStatus: 'none',
+  autorampStatus: 'not_ready',
+};
+
+const VBA_KYC_STATUS_SET = new Set<string>(VBA_KYC_STATUSES);
+
+type MoonpayCustomerRecord = {
+  id: string;
+  status: string | null;
+};
+
+/**
+ * Reads the MoonPay customer id and lifecycle status from a customer payload.
+ *
+ * @param customer - `GET /neobank/customers/{external_id}/external` body.
+ * @returns The id and status, or `null` when the id is missing.
+ */
+function readMoonpayCustomerRecord(
+  customer: unknown,
+): MoonpayCustomerRecord | null {
+  if (!customer || typeof customer !== 'object') {
+    return null;
+  }
+  const { id, status } = customer as { id?: unknown; status?: unknown };
+  if (typeof id !== 'string' || id.length === 0) {
+    return null;
+  }
+  return {
+    id,
+    status: typeof status === 'string' && status.length > 0 ? status : null,
+  };
+}
+
+/**
+ * Maps a vendor status string onto the snapshot vocabulary.
+ *
+ * @param value - Raw KYC status from the session.
+ * @returns A known {@link VbaKycStatus}, or `'none'` when missing/unknown.
+ */
+function toVbaKycStatus(value: string | undefined): VbaKycStatus {
+  if (value && VBA_KYC_STATUS_SET.has(value)) {
+    return value as VbaKycStatus;
+  }
+  return 'none';
+}
+
+/**
+ * Maps a KYC session onto the snapshot vocabulary.
+ *
+ * Relay approval (`kycStatus: 'approved'`) counts even when `finalStatus` is
+ * still `pending`. A non-approved session whose provider flow was submitted,
+ * or whose status is pending, is `pending`.
+ *
+ * @param session - Persisted or freshly fetched KYC session.
+ * @param providerFlowStatus - Durable provider-flow outcome.
+ * @returns The snapshot KYC status.
+ */
+function resolveVbaKycStatus(
+  session: KycControllerSessionStatus,
+  providerFlowStatus: VbaProviderFlowStatus,
+): VbaKycStatus {
+  if (session.finalStatus === 'approved' || session.kycStatus === 'approved') {
+    return 'approved';
+  }
+  const mapped = toVbaKycStatus(session.finalStatus);
+  if (mapped === 'rejected' || mapped === 'retry') {
+    return mapped;
+  }
+  if (
+    session.finalStatus === 'pending' ||
+    session.kycStatus === 'pending' ||
+    providerFlowStatus === 'submitted'
+  ) {
+    return 'pending';
+  }
+  return mapped;
+}
+
+/**
+ * Idempotency key for a standing fiat to mUSD autoramp on Monad.
+ *
+ * The source fiat, customer, and wallet keep retries of one create on the
+ * same key (`brl-musd-monad` versus `usd-musd-monad`). Rejected or cancelled
+ * route ids are appended, sorted, so a replacement create is a new key and
+ * MoonPay does not replay the terminal route.
+ *
+ * @param sourceCurrencyCode - Fiat code from the create body. Trimmed and lowercased here.
+ * @param customerId - MoonPay customer id.
+ * @param walletAddress - Money Account address that receives mUSD.
+ * @param terminalAutorampIds - Ids of rejected or cancelled routes for this wallet.
+ * @returns Idempotency-Key value.
+ */
+function buildMusdAutorampIdempotencyKey(
+  sourceCurrencyCode: string,
+  customerId: string,
+  walletAddress: string,
+  terminalAutorampIds: readonly string[],
+): string {
+  const fiatPrefix = sourceCurrencyCode.trim().toLowerCase();
+  const base = `${fiatPrefix}-musd-monad:${customerId}:${walletAddress.trim().toLowerCase()}`;
+  if (terminalAutorampIds.length === 0) {
+    return base;
+  }
+  return `${base}:${[...terminalAutorampIds].sort().join(':')}`;
+}
+
+/**
+ * Reads the first fiat `source_currencies` code from an autoramp create body.
+ *
+ * @param request - Caller-supplied create payload.
+ * @returns Lowercased fiat code, or `null` when the body has none.
+ */
+function readCreateAutorampFiatCode(
+  request: CreateAutorampRequest,
+): string | null {
+  const sourceCurrencies = request.source_currencies;
+  if (!Array.isArray(sourceCurrencies)) {
+    return null;
+  }
+  for (const currency of sourceCurrencies) {
+    if (!currency || typeof currency !== 'object') {
+      continue;
+    }
+    const record = currency as { type?: unknown; code?: unknown };
+    if (record.type !== 'Fiat' || typeof record.code !== 'string') {
+      continue;
+    }
+    const code = record.code.trim().toLowerCase();
+    if (code.length > 0) {
+      return code;
+    }
+  }
+  return null;
+}
+
+/**
+ * Reads the destination wallet from an autoramp create body.
+ *
+ * @param request - Caller-supplied create payload.
+ * @returns Trimmed recipient address, or `null` when it is missing.
+ */
+function readCreateAutorampWalletAddress(
+  request: CreateAutorampRequest,
+): string | null {
+  const recipient = request.recipient_account;
+  if (!recipient || typeof recipient !== 'object') {
+    return null;
+  }
+  const { address } = recipient as { address?: unknown };
+  if (typeof address !== 'string') {
+    return null;
+  }
+  const trimmed = address.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 /**
  * Distinguishes an already-materialized {@link AutorampAccount} from the
@@ -544,6 +848,18 @@ export type RampsControllerState = {
    */
   autoramps: AutorampAccount[];
   /**
+   * Money Account self-hosted wallet registrations observed by
+   * {@link RampsController.registerMoneyAccountWallet}.
+   * Each row is the address plus `active` or `disabled`. It does not store
+   * the EIP-191 signature or the ownership message.
+   */
+  moneyAccountWalletRegistrations: MoneyAccountWalletRegistration[];
+  /**
+   * Epoch ms of the last successful VBA autoramp list `GET`.
+   * The usable-autoramp short-circuit does not update it.
+   */
+  vbaAutorampListFetchedAt: number | null;
+  /**
    * Whether the currently selected provider was auto-selected by the system
    * (no order history, no Transak) rather than chosen by the user or derived
    * from order history. When true, the UI should silently switch providers on
@@ -608,6 +924,18 @@ const rampsControllerMetadata = {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
+    usedInUi: true,
+  },
+  moneyAccountWalletRegistrations: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  vbaAutorampListFetchedAt: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
     usedInUi: true,
   },
   providerAutoSelected: {
@@ -677,6 +1005,8 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     },
     orders: [],
     autoramps: [],
+    moneyAccountWalletRegistrations: [],
+    vbaAutorampListFetchedAt: null,
     providerAutoSelected: false,
   };
 }
@@ -803,12 +1133,19 @@ type AllowedActions =
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
   | NeoBankServiceGetAutorampAction
+  | NeoBankServiceGetAutorampsAction
   | NeoBankServiceCreateAutorampAction
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | KeyringControllerSignPersonalMessageAction
+  | KycControllerReadSessionStatusAction
+  | KycControllerFetchSessionStatusOnceAction
+  | KycControllerGetProviderFlowStatusAction
+  | KycControllerHasCompletedVendorDisclaimersAction
+  | KycControllerHasCompletedSessionDisclaimersAction
+  | KycControllerClearStateAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
@@ -1017,10 +1354,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPaymentMethodsForContext',
   'setSelectedPaymentMethod',
   'getQuotes',
+  'getQuoteWithFees',
   'addOrder',
   'removeOrder',
   'addAutoramp',
   'createAutoramp',
+  'hydrateVbaOnboarding',
   'removeAutoramp',
   'registerMoneyAccountWallet',
   'markAutorampAsNotified',
@@ -1030,6 +1369,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'startOrderPolling',
   'stopOrderPolling',
   'getBuyWidgetData',
+  'getFallbackBuyWidgetData',
   'addPrecreatedOrder',
   'getOrder',
   'getOrderFromCallback',
@@ -1105,6 +1445,36 @@ function contextStillMatches(
   );
 }
 
+/**
+ * Provider codes that identify Transak's native (non-aggregator) integration,
+ * in the bare form produced by {@link normalizeHeadlessProviderId}.
+ */
+const NATIVE_TRANSAK_PROVIDER_CODES = [
+  'transak-native',
+  'transak-native-staging',
+];
+
+/**
+ * Coerces a quote fee value to a non-negative BigNumber, treating a missing or
+ * invalid value as zero.
+ *
+ * @param value - Raw fee value from a quote.
+ * @returns The fee as a non-negative BigNumber.
+ */
+function getSafeRampsFee(value: number | string | undefined): BigNumber {
+  const fee = new BigNumber(value ?? 0);
+  return fee.isFinite() && fee.isGreaterThanOrEqualTo(0)
+    ? fee
+    : new BigNumber(0);
+}
+
+/** EVM ERC-20 CAIP-19. Hex case is not part of the address. */
+const EIP155_ERC20_ASSET_ID = /^eip155:\d+\/erc20:0x[0-9a-fA-F]{40}$/u;
+
+function isEip155Erc20AssetId(assetId: string | undefined): assetId is string {
+  return typeof assetId === 'string' && EIP155_ERC20_ASSET_ID.test(assetId);
+}
+
 export class RampsController extends BaseController<
   typeof controllerName,
   RampsControllerState,
@@ -1152,6 +1522,8 @@ export class RampsController extends BaseController<
   #isPolling = false;
 
   #initPromise: Promise<void> | null = null;
+
+  #vbaOnboardingHydrationPromise: Promise<VbaOnboardingSnapshot> | null = null;
 
   /**
    * Semaphore that prevents sync feedback loops while applying remote order changes.
@@ -1767,7 +2139,7 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Switches to the first provider in state that serves the given asset,
+   * Switches to the preferred provider in state that serves the given asset,
    * when the currently selected provider does not.
    *
    * This is the controller-level equivalent of UB2's BuildQuote tier-1
@@ -1779,6 +2151,12 @@ export class RampsController extends BaseController<
    * The compatibility check prefers the current provider's entry in
    * `providers.data` over the `providers.selected` copy, which can be stale
    * once a fresh providers list arrives.
+   *
+   * Among the providers that serve the asset, the new selection is:
+   * 1. The first provider the user has completed an order with before (most
+   *    recent first). This keeps an existing KYC relationship instead of
+   *    moving the user to a new provider.
+   * 2. Otherwise the first provider in `providers.data` (API ranking order).
    *
    * No-op when:
    * - `providers.data` is empty (providers not yet loaded)
@@ -1808,15 +2186,27 @@ export class RampsController extends BaseController<
       return false;
     }
 
-    const compatible = providers.find(
+    const compatible = providers.filter(
       (provider) =>
         provider.id !== selectedId && providerServesAsset(provider, assetId),
     );
-    if (!compatible) {
+    if (compatible.length === 0) {
       return false;
     }
 
-    this.setSelectedProvider(compatible, {
+    const preferredIds = this.#getPreferredProviderIdsFromOrders().map(
+      normalizeHeadlessProviderId,
+    );
+    const preferred = preferredIds
+      .map((preferredId) =>
+        compatible.find(
+          (provider) =>
+            normalizeHeadlessProviderId(provider.id) === preferredId,
+        ),
+      )
+      .find((provider) => provider !== undefined);
+
+    this.setSelectedProvider(preferred ?? compatible[0], {
       autoSelected: true,
       ...options,
     });
@@ -2002,6 +2392,33 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Exact CAIP-19 match, then a case-insensitive match for `eip155` ERC-20
+   * only. Solana, Tron, and Bitcoin references stay exact: their case is
+   * part of the id. The returned token keeps the catalog's own `assetId`.
+   *
+   * @param tokens - Region catalog from the top-tokens response.
+   * @param assetId - Caller CAIP-19 id.
+   * @returns The catalog token, or `undefined` when nothing matches.
+   */
+  #findTokenForAssetId(
+    tokens: TokensResponse,
+    assetId: string,
+  ): RampsToken | undefined {
+    const exact =
+      tokens.allTokens.find((tok) => tok.assetId === assetId) ??
+      tokens.topTokens.find((tok) => tok.assetId === assetId);
+    if (exact || !isEip155Erc20AssetId(assetId)) {
+      return exact;
+    }
+    const target = assetId.toLowerCase();
+    const matchesEvm = (tok: RampsToken): boolean =>
+      isEip155Erc20AssetId(tok.assetId) && tok.assetId.toLowerCase() === target;
+    return (
+      tokens.allTokens.find(matchesEvm) ?? tokens.topTokens.find(matchesEvm)
+    );
+  }
+
+  /**
    * Sets the user's selected token by asset ID.
    * Looks up the token from the current tokens in state and automatically
    * fetches payment methods for that token.
@@ -2025,9 +2442,7 @@ export class RampsController extends BaseController<
       );
     }
 
-    const token =
-      tokens.allTokens.find((tok) => tok.assetId === assetId) ??
-      tokens.topTokens.find((tok) => tok.assetId === assetId);
+    const token = this.#findTokenForAssetId(tokens, assetId);
 
     if (!token) {
       throw new Error(
@@ -2630,6 +3045,172 @@ export class RampsController extends BaseController<
         ...response.success.filter((quote) => quote !== selectedQuote),
       ],
     };
+  }
+
+  /**
+   * Fetches the best on-ramp quote for a request and, when the resolved
+   * provider is Transak Native, reconciles its fees to match what Transak
+   * Native actually charges.
+   *
+   * The aggregator `/quotes` estimate of Transak's fee does not match the
+   * native integration. When the resolved provider is Transak Native this
+   * fetches the native buy quote (an unauthenticated, API-key-only lookup, so
+   * it is safe at estimate time) and rewrites the returned quote's fee fields
+   * to its `totalFee`, keeping the aggregator's `networkFee` on the network
+   * line and placing the remainder in the provider fee so the breakdown
+   * survives and `providerFee + networkFee` still equals the native total. A
+   * non-native provider, a failed lookup, or an unusable native fee returns the
+   * aggregator quote unchanged.
+   *
+   * Consumers (e.g. `TransactionPayController`) call this instead of owning the
+   * provider check, asset-id parsing, and second native quote themselves.
+   *
+   * @param options - Quote options; see {@link getQuotes}, plus the fee mode.
+   * @param options.amount - Fiat amount for the quote.
+   * @param options.assetId - CAIP-19 asset id being bought.
+   * @param options.fiat - Optional fiat currency; defaults like {@link getQuotes}.
+   * @param options.paymentMethods - Optional payment method ids.
+   * @param options.walletAddress - Wallet address receiving the on-ramped asset.
+   * @param options.isFeeExcludedFromFiat - Whether Transak adds its fee on top
+   * of the fiat amount (`true`, fee-on-top) or carves it out (`false`). Must
+   * mirror the eventual checkout mode so the estimate equals the charge.
+   * Defaults to `true`.
+   * @param options.providers - See {@link getQuotes}.
+   * @param options.autoSelectProvider - See {@link getQuotes}.
+   * @param options.restrictToKnownOrNativeProviders - See {@link getQuotes}.
+   * @param options.preferredProviderIds - See {@link getQuotes}.
+   * @param options.region - See {@link getQuotes}.
+   * @param options.redirectUrl - See {@link getQuotes}.
+   * @param options.action - See {@link getQuotes}.
+   * @param options.forceRefresh - See {@link getQuotes}.
+   * @param options.ttl - See {@link getQuotes}.
+   * @returns The best quote with native-reconciled fees, or `undefined` when
+   * no quote is available.
+   */
+  async getQuoteWithFees(options: {
+    amount: number;
+    assetId: string;
+    fiat?: string;
+    paymentMethods?: string[];
+    walletAddress: string;
+    isFeeExcludedFromFiat?: boolean;
+    providers?: string[];
+    autoSelectProvider?: boolean;
+    restrictToKnownOrNativeProviders?: boolean;
+    preferredProviderIds?: string[];
+    region?: string;
+    redirectUrl?: string;
+    action?: RampAction;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): Promise<Quote | undefined> {
+    const { isFeeExcludedFromFiat = true, ...quoteOptions } = options;
+
+    const response = await this.getQuotes(quoteOptions);
+    const quote = response.success?.[0];
+
+    if (!quote) {
+      return undefined;
+    }
+
+    return this.#reconcileNativeTransakFee(quote, {
+      amount: options.amount,
+      assetId: options.assetId,
+      fiat: options.fiat,
+      // Use the resolved quote's own payment method, not the request list: the
+      // aggregator may price a method other than `paymentMethods[0]` (or the
+      // caller may omit the list), and the native lookup must match the quote
+      // being reconciled.
+      paymentMethod: quote.quote.paymentMethod,
+      isFeeExcludedFromFiat,
+    });
+  }
+
+  /**
+   * Rewrites a quote's fees to Transak Native's own total when the resolved
+   * provider is Transak Native, so an estimate matches the native charge.
+   * Returns the quote unchanged for a non-native provider, a failed native
+   * lookup, or an unusable native fee.
+   *
+   * @param quote - The resolved aggregator quote.
+   * @param context - Native lookup inputs.
+   * @param context.amount - Fiat amount for the native quote.
+   * @param context.assetId - CAIP-19 asset id being bought.
+   * @param context.fiat - Fiat currency for the native quote.
+   * @param context.paymentMethod - Payment method id for the native quote.
+   * @param context.isFeeExcludedFromFiat - Fee mode for the native quote.
+   * @returns The quote with reconciled fees, or the original quote.
+   */
+  async #reconcileNativeTransakFee(
+    quote: Quote,
+    {
+      amount,
+      assetId,
+      fiat,
+      paymentMethod,
+      isFeeExcludedFromFiat,
+    }: {
+      amount: number;
+      assetId: string;
+      fiat?: string;
+      paymentMethod?: string;
+      isFeeExcludedFromFiat: boolean;
+    },
+  ): Promise<Quote> {
+    // `normalizeHeadlessProviderId` strips the `/providers/` prefix and
+    // lowercases, so `/providers/transak-native` and `transak-native` both match
+    // the native codes below (and the aggregator `transak` does not).
+    const providerCode = normalizeHeadlessProviderId(quote.provider);
+
+    if (!NATIVE_TRANSAK_PROVIDER_CODES.includes(providerCode)) {
+      return quote;
+    }
+
+    const fiatCurrency = fiat ?? this.state.userRegion?.country?.currency;
+
+    if (!fiatCurrency || !paymentMethod) {
+      return quote;
+    }
+
+    try {
+      const network = assetId.split('/')[0];
+
+      const nativeQuote = await this.messenger.call(
+        'TransakService:getBuyQuote',
+        fiatCurrency,
+        assetId,
+        network,
+        paymentMethod,
+        String(amount),
+        isFeeExcludedFromFiat,
+      );
+
+      const nativeTotalFee = new BigNumber(nativeQuote.totalFee ?? NaN);
+
+      if (!nativeTotalFee.isFinite() || nativeTotalFee.isLessThan(0)) {
+        return quote;
+      }
+
+      // Transak Native returns a single total fee, so keep the aggregator's
+      // network fee on the network line (clamped to the native total) and put
+      // the remainder in the provider fee. The breakdown survives and
+      // `providerFee + networkFee` still equals the native total.
+      const aggregatorNetworkFee = getSafeRampsFee(quote.quote.networkFee);
+      const networkFee = BigNumber.min(aggregatorNetworkFee, nativeTotalFee);
+      const providerFee = nativeTotalFee.minus(networkFee);
+
+      return {
+        ...quote,
+        quote: {
+          ...quote.quote,
+          providerFee: providerFee.toString(10),
+          networkFee: networkFee.toString(10),
+          totalFees: nativeTotalFee.toString(10),
+        },
+      };
+    } catch {
+      return quote;
+    }
   }
 
   /**
@@ -3262,12 +3843,12 @@ export class RampsController extends BaseController<
         (existing) => existing.id === account.id,
       );
       if (idx === -1) {
-        state.autoramps.push(account as Draft<AutorampAccount>);
+        state.autoramps.push(account);
       } else {
         state.autoramps[idx] = {
           ...state.autoramps[idx],
           ...account,
-        } as Draft<AutorampAccount>;
+        };
       }
     });
 
@@ -3283,10 +3864,16 @@ export class RampsController extends BaseController<
    *
    * The vendor `customer_id` is resolved via
    * {@link RampsController.resolveAutorampCustomerId} and injected into the
-   * request (any caller-supplied `customer_id` is overwritten).
+   * request (any caller-supplied `customer_id` is overwritten). The caller
+   * supplies the fiat body. When that body names a source fiat and a
+   * recipient wallet, the idempotency key is derived from that fiat
+   * (`brl-musd-monad` or `usd-musd-monad`), the customer, the wallet, and
+   * rejected or cancelled autoramp ids. A caller-supplied key is used only
+   * when the body has no source fiat or recipient address.
    *
-   * @param request - CreateAutoramp payload.
-   * @param options - Optional idempotency key forwarded to the proxy.
+   * @param request - CreateAutoramp payload, including the source fiat.
+   * @param options - Optional idempotency key forwarded when the body does
+   * not identify a fiat route.
    * @param options.idempotencyKey - Value sent as `Idempotency-Key`.
    * @returns The created/updated local {@link AutorampAccount}.
    */
@@ -3295,12 +3882,26 @@ export class RampsController extends BaseController<
     options: { idempotencyKey?: string } = {},
   ): Promise<AutorampAccount> {
     const customerId = await this.resolveAutorampCustomerId();
+    const fiatCode = readCreateAutorampFiatCode(request);
+    const walletAddress = readCreateAutorampWalletAddress(request);
+    const requestOptions =
+      fiatCode && walletAddress
+        ? {
+            ...options,
+            idempotencyKey: buildMusdAutorampIdempotencyKey(
+              fiatCode,
+              customerId,
+              walletAddress,
+              this.#terminalAutorampIdsForWallet(walletAddress),
+            ),
+          }
+        : options;
 
     const body = { ...request, customer_id: customerId };
     const remote = await this.messenger.call(
       'NeoBankService:createAutoramp',
       body,
-      options,
+      requestOptions,
     );
     return this.#applyAutorampRemoteSnapshot(remote);
   }
@@ -3314,6 +3915,16 @@ export class RampsController extends BaseController<
    * @returns The vendor customer id.
    */
   async resolveAutorampCustomerId(): Promise<string> {
+    return (await this.#resolveMoonpayCustomer()).id;
+  }
+
+  /**
+   * Loads the MoonPay customer for the signed-in profile, including lifecycle
+   * `status`. Wallet registration is allowed only when that status is `Active`.
+   *
+   * @returns The customer id and status.
+   */
+  async #resolveMoonpayCustomer(): Promise<MoonpayCustomerRecord> {
     const profile = await this.messenger.call(
       'AuthenticationController:getSessionProfile',
     );
@@ -3328,22 +3939,18 @@ export class RampsController extends BaseController<
       );
     }
 
-    const customer = await this.messenger.call(
-      'NeoBankService:getCustomerByExternalId',
-      externalId,
+    const customer = readMoonpayCustomerRecord(
+      await this.messenger.call(
+        'NeoBankService:getCustomerByExternalId',
+        externalId,
+      ),
     );
-    const customerId =
-      customer &&
-      typeof customer === 'object' &&
-      typeof (customer as { id?: unknown }).id === 'string'
-        ? (customer as { id: string }).id
-        : null;
-    if (!customerId) {
+    if (!customer) {
       throw new Error(
         `Cannot resolve MoonPay customer id: no MoonPay customer is mapped to external id "${externalId}".`,
       );
     }
-    return customerId;
+    return customer;
   }
 
   /**
@@ -3379,7 +3986,8 @@ export class RampsController extends BaseController<
       return undefined;
     };
 
-    const customerId = await this.resolveAutorampCustomerId();
+    const customer = await this.#resolveMoonpayCustomer();
+    const { id: customerId } = customer;
 
     const toLookupUnavailableResult = (
       error: unknown,
@@ -3440,7 +4048,17 @@ export class RampsController extends BaseController<
 
     const existingResult = await resolveLookup();
     if (existingResult) {
-      return existingResult;
+      return this.#finishMoneyAccountWalletRegistration(
+        address,
+        existingResult,
+      );
+    }
+
+    if (customer.status !== 'Active') {
+      throw new WalletRegistrationError('forbidden', {
+        message:
+          'MoonPay customer must be Active before a self-hosted wallet can be registered',
+      });
     }
 
     let idempotencyKey = createIdempotencyKey();
@@ -3484,7 +4102,7 @@ export class RampsController extends BaseController<
           },
         );
         machine = transitionWalletRegistration(machine, { type: 'SUBMIT_OK' });
-        return result;
+        return this.#finishMoneyAccountWalletRegistration(address, result);
       } catch (error) {
         if (!(error instanceof WalletRegistrationError)) {
           machine = transitionWalletRegistration(machine, {
@@ -3527,7 +4145,10 @@ export class RampsController extends BaseController<
         ) {
           const reconciledResult = await resolveLookup();
           if (reconciledResult) {
-            return reconciledResult;
+            return this.#finishMoneyAccountWalletRegistration(
+              address,
+              reconciledResult,
+            );
           }
         }
 
@@ -3536,6 +4157,296 @@ export class RampsController extends BaseController<
         }
       }
     }
+  }
+
+  /**
+   * Reads VBA onboarding facts. Hosts map the returned
+   * {@link VbaOnboardingSnapshot} onto their own funnel; this method does not
+   * name screens.
+   *
+   * The read uses the persisted KYC session. `refreshKyc` performs one
+   * session-status GET when a session id is already stored and `finalStatus`
+   * is not terminal. `refreshAutoramps` lists autoramps when KYC is approved,
+   * unless this wallet already has a usable route. An approved session with no
+   * usable autoramp returns `needs_wallet_registration` or
+   * `needs_source_currency` only when
+   * `GET /neobank/customers/{external_id}/external` reports
+   * `status: 'Active'`. Any other customer status returns `not_ready`.
+   * It does not sign, post a self-hosted address, create an autoramp, or start
+   * KYC polling.
+   *
+   * Overlapping calls share one run.
+   *
+   * @param params - VBA onboarding parameters.
+   * @param params.walletAddress - Monad Money Account wallet address.
+   * @param params.refreshKyc - When true, fetch session status once for a
+   * non-terminal persisted session. A failed GET keeps that session. Defaults
+   * to false.
+   * @param params.refreshAutoramps - When true, replace the autoramp cursor
+   * from `GET /neobank/autoramps` unless a usable route is already stored.
+   * Defaults to false.
+   * @returns Independent KYC and autoramp facts for the current customer.
+   */
+  async hydrateVbaOnboarding({
+    walletAddress,
+    refreshKyc = false,
+    refreshAutoramps = false,
+  }: {
+    walletAddress: string;
+    refreshKyc?: boolean;
+    refreshAutoramps?: boolean;
+  }): Promise<VbaOnboardingSnapshot> {
+    if (this.#vbaOnboardingHydrationPromise) {
+      return await this.#vbaOnboardingHydrationPromise;
+    }
+
+    const hydrationPromise = this.#hydrateVbaOnboarding({
+      walletAddress,
+      refreshKyc,
+      refreshAutoramps,
+    });
+    this.#vbaOnboardingHydrationPromise = hydrationPromise;
+
+    try {
+      return await hydrationPromise;
+    } finally {
+      if (this.#vbaOnboardingHydrationPromise === hydrationPromise) {
+        this.#vbaOnboardingHydrationPromise = null;
+      }
+    }
+  }
+
+  async #hydrateVbaOnboarding({
+    walletAddress,
+    refreshKyc,
+    refreshAutoramps,
+  }: {
+    walletAddress: string;
+    refreshKyc: boolean;
+    refreshAutoramps: boolean;
+  }): Promise<VbaOnboardingSnapshot> {
+    let session = this.messenger.call('KycController:readSessionStatus');
+
+    // A persisted session can outlive the identity that created it. Reusing it
+    // makes session-scoped calls fail closed. Discard it before any fetch, with
+    // the registration rows and autoramp cursor it left behind, since neither
+    // is keyed by profile.
+    if (session && !(await this.#isVbaSessionOwnedByCurrentProfile(session))) {
+      this.messenger.call('KycController:clearState');
+      this.update((state) => {
+        state.moneyAccountWalletRegistrations = [];
+        state.autoramps = [];
+        state.vbaAutorampListFetchedAt = null;
+      });
+      return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
+    }
+
+    if (
+      refreshKyc &&
+      session?.id &&
+      !TERMINAL_VBA_KYC_FINAL_STATUSES.has(session.finalStatus)
+    ) {
+      try {
+        session = await this.messenger.call(
+          'KycController:fetchSessionStatusOnce',
+          session.id,
+        );
+      } catch (error) {
+        if (error instanceof HttpError && error.httpStatus === 404) {
+          this.messenger.call('KycController:clearState');
+          return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
+        }
+        // The persisted session is already in hand. A transient status GET
+        // must not reject the read.
+      }
+    }
+
+    if (!session) {
+      return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
+    }
+
+    const vendorDisclaimersComplete = await this.messenger.call(
+      'KycController:hasCompletedVendorDisclaimers',
+    );
+    const sessionDisclaimersComplete = await this.messenger.call(
+      'KycController:hasCompletedSessionDisclaimers',
+    );
+    const providerFlowStatus = this.messenger.call(
+      'KycController:getProviderFlowStatus',
+    );
+
+    const snapshot: VbaOnboardingSnapshot = {
+      sessionExists: true,
+      vendorDisclaimersComplete,
+      sessionDisclaimersComplete,
+      providerFlowStatus,
+      kycStatus: resolveVbaKycStatus(session, providerFlowStatus),
+      autorampStatus: 'not_ready',
+    };
+
+    if (snapshot.kycStatus !== 'approved') {
+      return snapshot;
+    }
+    if (!walletAddress.trim()) {
+      throw new Error('walletAddress is required after KYC acceptance.');
+    }
+
+    if (this.#hasUsableAutorampForWallet(walletAddress)) {
+      return { ...snapshot, autorampStatus: 'ready' };
+    }
+
+    if (refreshAutoramps) {
+      try {
+        await this.#replaceAutorampCursorFromList();
+      } catch {
+        return { ...snapshot, autorampStatus: 'retryable_failure' };
+      }
+      if (this.#hasUsableAutorampForWallet(walletAddress)) {
+        return { ...snapshot, autorampStatus: 'ready' };
+      }
+    }
+
+    let customer: MoonpayCustomerRecord;
+    try {
+      customer = await this.#resolveMoonpayCustomer();
+    } catch {
+      return { ...snapshot, autorampStatus: 'retryable_failure' };
+    }
+    if (customer.status !== 'Active') {
+      return { ...snapshot, autorampStatus: 'not_ready' };
+    }
+
+    const registration = this.state.moneyAccountWalletRegistrations.find(
+      (row) =>
+        row.walletAddress.trim().toLowerCase() ===
+        walletAddress.trim().toLowerCase(),
+    );
+    if (!registration) {
+      return { ...snapshot, autorampStatus: 'needs_wallet_registration' };
+    }
+    return { ...snapshot, autorampStatus: 'needs_source_currency' };
+  }
+
+  /**
+   * Writes the registration row after a successful register outcome.
+   * `lookupUnavailable` writes nothing.
+   *
+   * @param address - Money Account wallet address.
+   * @param result - Registration outcome.
+   * @returns The same outcome.
+   */
+  #finishMoneyAccountWalletRegistration(
+    address: string,
+    result: MoneyAccountWalletRegistrationResult,
+  ): MoneyAccountWalletRegistrationResult {
+    if (result.type === 'lookupUnavailable') {
+      return result;
+    }
+    const normalized = address.trim().toLowerCase();
+    const status = result.type === 'registeredDisabled' ? 'disabled' : 'active';
+    const row: MoneyAccountWalletRegistration = {
+      walletAddress: normalized,
+      status,
+      updatedAt: Date.now(),
+    };
+    this.update((state) => {
+      const index = state.moneyAccountWalletRegistrations.findIndex(
+        (existing) =>
+          existing.walletAddress.trim().toLowerCase() === normalized,
+      );
+      if (index === -1) {
+        state.moneyAccountWalletRegistrations.push(row);
+      } else {
+        state.moneyAccountWalletRegistrations[index] = row;
+      }
+    });
+    return result;
+  }
+
+  /**
+   * Ids of rejected or cancelled autoramps for a wallet, used in create keys.
+   *
+   * @param walletAddress - Destination wallet address.
+   * @returns Terminal autoramp ids for that wallet.
+   */
+  #terminalAutorampIdsForWallet(walletAddress: string): string[] {
+    const normalized = walletAddress.trim().toLowerCase();
+    return this.state.autoramps
+      .filter(
+        (autoramp) =>
+          autoramp.walletAddress.toLowerCase() === normalized &&
+          (autoramp.status === AutorampStatus.Rejected ||
+            autoramp.status === AutorampStatus.Cancelled),
+      )
+      .map((autoramp) => autoramp.id);
+  }
+
+  /**
+   * Whether this wallet has an autoramp that is not Rejected or Cancelled.
+   *
+   * @param walletAddress - Destination wallet address.
+   * @returns Whether a usable route is already on the cursor.
+   */
+  #hasUsableAutorampForWallet(walletAddress: string): boolean {
+    const normalized = walletAddress.trim().toLowerCase();
+    return this.state.autoramps.some(
+      (autoramp) =>
+        autoramp.walletAddress.toLowerCase() === normalized &&
+        autoramp.status !== AutorampStatus.Rejected &&
+        autoramp.status !== AutorampStatus.Cancelled,
+    );
+  }
+
+  /**
+   * Replaces the autoramp cursor from `GET /neobank/autoramps` and records
+   * `vbaAutorampListFetchedAt` only after that GET succeeds.
+   */
+  async #replaceAutorampCursorFromList(): Promise<void> {
+    const customerId = await this.resolveAutorampCustomerId();
+    const remoteAutoramps = await this.messenger.call(
+      'NeoBankService:getAutoramps',
+      { customerId },
+    );
+    const remoteAutorampIds = new Set(
+      remoteAutoramps.map((autoramp) => autoramp.id),
+    );
+    for (const autoramp of remoteAutoramps) {
+      this.#applyAutorampRemoteSnapshot(autoramp);
+    }
+    this.update((state) => {
+      state.autoramps = state.autoramps.filter((autoramp) =>
+        remoteAutorampIds.has(autoramp.id),
+      );
+      state.vbaAutorampListFetchedAt = Date.now();
+    });
+  }
+
+  /**
+   * Whether a persisted KYC session belongs to the currently signed-in profile.
+   * A session's `externalUserId` is the canonical profile id captured when the
+   * session was created, so it must match the current profile for the session
+   * to be reused. When the current identity cannot be resolved, err on the side
+   * of keeping the session (return `true`) so a transient profile-read failure
+   * never discards a valid session.
+   *
+   * @param session - The persisted KYC session status to check.
+   * @returns Whether the session is owned by the current profile.
+   */
+  async #isVbaSessionOwnedByCurrentProfile(
+    session: KycControllerSessionStatus,
+  ): Promise<boolean> {
+    const profile = await this.messenger.call(
+      'AuthenticationController:getSessionProfile',
+    );
+    const canonicalId =
+      typeof profile?.canonicalProfileId === 'string' &&
+      profile.canonicalProfileId.length > 0
+        ? profile.canonicalProfileId
+        : profile?.profileId;
+    if (typeof canonicalId !== 'string' || canonicalId.length === 0) {
+      return true;
+    }
+    return session.externalUserId === canonicalId;
   }
 
   /**
@@ -3569,7 +4480,7 @@ export class RampsController extends BaseController<
         (autoramp) => autoramp.id === autorampId,
       );
       if (idx !== -1) {
-        state.autoramps[idx] = notified as Draft<AutorampAccount>;
+        state.autoramps[idx] = notified;
       }
     });
   }
@@ -3654,9 +4565,9 @@ export class RampsController extends BaseController<
         (autoramp) => autoramp.id === result.account.id,
       );
       if (idx === -1) {
-        state.autoramps.push(result.account as Draft<AutorampAccount>);
+        state.autoramps.push(result.account);
       } else {
-        state.autoramps[idx] = result.account as Draft<AutorampAccount>;
+        state.autoramps[idx] = result.account;
       }
     });
 
@@ -3827,6 +4738,44 @@ export class RampsController extends BaseController<
       return null;
     }
 
+    return this.#fetchBuyWidget(buyUrl);
+  }
+
+  /**
+   * Fetches the widget data for a quote's hosted-flow fallback (see
+   * `getBuyWidgetFallback`), used when an embedded checkout turns the user away.
+   *
+   * @param fallback - The buy-widget fallback attached to the quote.
+   * @param options - Optional request options.
+   * @param options.redirectUrl - Where the hosted flow returns to; set as the
+   * `redirectUrl` query parameter, replacing any existing value.
+   * @returns Promise resolving to the hosted BuyWidget, or null if the fallback has no URL or the response has an empty url.
+   * @throws TypeError if the fallback URL is not a valid URL.
+   * @throws Rethrows errors from the RampsService (e.g. HttpError, network failures) so clients can react to fetch failures.
+   */
+  async getFallbackBuyWidgetData(
+    fallback: BuyWidgetFallback,
+    options?: { redirectUrl?: string },
+  ): Promise<BuyWidget | null> {
+    if (!fallback?.url) {
+      return null;
+    }
+
+    const buyUrl = new URL(fallback.url);
+    if (options?.redirectUrl) {
+      buyUrl.searchParams.set('redirectUrl', options.redirectUrl);
+    }
+
+    return this.#fetchBuyWidget(buyUrl.toString());
+  }
+
+  /**
+   * Resolves a buy-widget request URL into the provider widget via the RampsService.
+   *
+   * @param buyUrl - The buy-widget request URL.
+   * @returns Promise resolving to the BuyWidget, or null if the response has an empty url.
+   */
+  async #fetchBuyWidget(buyUrl: string): Promise<BuyWidget | null> {
     const buyWidget = await this.messenger.call(
       'RampsService:getBuyWidgetUrl',
       buyUrl,

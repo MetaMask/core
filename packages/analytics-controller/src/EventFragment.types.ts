@@ -1,3 +1,4 @@
+import type { AnalyticsPurpose } from './AnalyticsController.js';
 import type {
   AnalyticsContext,
   AnalyticsEventProperties,
@@ -50,6 +51,16 @@ export type AnalyticsEventFragment = {
   failureEvent?: string;
 
   /**
+   * Capture-time purpose classification keyed by declared event name.
+   */
+  eventPurposes?: Record<string, AnalyticsPurpose[]>;
+
+  /**
+   * Events config version used for the capture-time classification.
+   */
+  eventsConfigVersion?: string;
+
+  /**
    * Platform-specific context forwarded with every event this fragment emits.
    */
   context?: AnalyticsContext;
@@ -90,6 +101,8 @@ export type ReadonlyAnalyticsEventFragment = Readonly<{
   initialEvent?: string;
   successEvent?: string;
   failureEvent?: string;
+  eventPurposes?: Readonly<Record<string, readonly AnalyticsPurpose[]>>;
+  eventsConfigVersion?: string;
   context?: Readonly<AnalyticsContext>;
   persist?: boolean;
   createdAt: number;

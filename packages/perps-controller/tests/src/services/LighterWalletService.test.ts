@@ -1,41 +1,20 @@
 import type { PerpsControllerMessenger } from '../../../src/PerpsController.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';
+import { MAIN_SIGNATURE } from '../../helpers/agentFixtures.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
 
-// A fixed 65-byte signature (deterministic vector).
-const FIXED_SIGNATURE = `0x${'ab'.repeat(65)}`;
-const HEADLESS_ADDRESS = '0x8D7f03FdE1A626223364E592740a233b72395235';
+const SELECTED_ADDRESS = '0x8D7f03FdE1A626223364E592740a233b72395235';
 
 describe('LighterWalletService', () => {
-  describe('headless (injected signer)', () => {
-    const buildService = (
-      signer = jest.fn().mockResolvedValue(FIXED_SIGNATURE),
-    ): { service: LighterWalletService; signer: jest.Mock } => {
+  describe('network', () => {
+    it('exposes and toggles testnet mode', () => {
       const service = new LighterWalletService(createMockInfrastructure(), {
         isTestnet: true,
-        personalSigner: signer,
-        l1Address: HEADLESS_ADDRESS,
       });
-      return { service, signer };
-    };
-
-    it('returns the injected L1 address', () => {
-      const { service } = buildService();
-      expect(service.getUserAddress()).toBe(HEADLESS_ADDRESS);
-    });
-
-    it('routes personal_sign through the injected signer', async () => {
-      const { service, signer } = buildService();
-      const signature = await service.signPersonalMessage('hello');
-      expect(signature).toBe(FIXED_SIGNATURE);
-      expect(signer).toHaveBeenCalledWith('hello');
-    });
-
-    it('exposes and toggles testnet mode', () => {
-      const { service } = buildService();
       expect(service.isTestnetMode()).toBe(true);
       service.setTestnetMode(false);
       expect(service.isTestnetMode()).toBe(false);
@@ -45,7 +24,7 @@ describe('LighterWalletService', () => {
 
   describe('messenger-backed', () => {
     const selectedAccount = {
-      address: HEADLESS_ADDRESS,
+      address: SELECTED_ADDRESS,
       type: 'eip155:eoa',
       metadata: {},
     };
@@ -70,7 +49,7 @@ describe('LighterWalletService', () => {
           return [selectedAccount];
         }
         if (action === 'KeyringController:signPersonalMessage') {
-          return Promise.resolve(FIXED_SIGNATURE);
+          return Promise.resolve(MAIN_SIGNATURE);
         }
         throw new Error(`Unexpected action: ${action}`);
       });
@@ -81,35 +60,38 @@ describe('LighterWalletService', () => {
       return { service, messenger };
     };
 
-    it('signs through KeyringController:signPersonalMessage', async () => {
+    it('signs the hex-encoded UTF-8 message through KeyringController:signPersonalMessage', async () => {
       const { service, messenger } = buildMessengerService();
-      const signature = await service.signPersonalMessage('register me');
-      expect(signature).toBe(FIXED_SIGNATURE);
-      expect(messenger.call).toHaveBeenCalledWith(
-        'KeyringController:signPersonalMessage',
-        expect.objectContaining({
-          from: HEADLESS_ADDRESS,
-          data: expect.stringMatching(/^0x/u),
-        }),
-      );
+      const signature = await service.signPersonalMessage('register me ✓');
+      expect(signature).toBe(MAIN_SIGNATURE);
+      expect(
+        messenger.call.mock.calls.filter(
+          ([action]) => action === 'KeyringController:signPersonalMessage',
+        ),
+      ).toStrictEqual([
+        [
+          'KeyringController:signPersonalMessage',
+          // 'register me ✓' as UTF-8 bytes.
+          { from: SELECTED_ADDRESS, data: '0x7265676973746572206d6520e29c93' },
+        ],
+      ]);
     });
 
     it('rejects when the keyring is locked', async () => {
       const { service } = buildMessengerService(false);
       await expect(service.signPersonalMessage('nope')).rejects.toThrow(
-        'KEYRING_LOCKED',
+        PERPS_ERROR_CODES.KEYRING_LOCKED,
       );
     });
   });
 
   describe('unconfigured', () => {
-    it('rejects signing without messenger or injected signer', async () => {
+    it('rejects signing without messenger or account signer', async () => {
       const service = new LighterWalletService(createMockInfrastructure(), {
         isTestnet: true,
-        l1Address: HEADLESS_ADDRESS,
       });
       await expect(service.signPersonalMessage('x')).rejects.toThrow(
-        'NO_ACCOUNT_SELECTED',
+        PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
       );
     });
 
@@ -117,7 +99,9 @@ describe('LighterWalletService', () => {
       const service = new LighterWalletService(createMockInfrastructure(), {
         isTestnet: true,
       });
-      expect(() => service.getUserAddress()).toThrow('NO_ACCOUNT_SELECTED');
+      expect(() => service.getUserAddress()).toThrow(
+        PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+      );
     });
   });
 });

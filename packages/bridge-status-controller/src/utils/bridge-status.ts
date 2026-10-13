@@ -92,7 +92,7 @@ export const fetchBridgeTxStatus = async (
         const aggregatorId =
           (rawTxStatus as StatusResponse)?.bridge ??
           (statusRequest.bridge || statusRequest.bridgeId) ??
-          ('unknown' as string);
+          'unknown';
         const pathString = path?.join('.') || 'unknown';
         validationFailures.push([aggregatorId, pathString].join('|'));
       });

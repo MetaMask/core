@@ -14,6 +14,16 @@ import {
   MOCK_PAIR_SOCIAL_IDENTIFIER_URL,
   MOCK_CUSTOMER_SERVICE_TOKEN_URL,
   MOCK_PARTNER_IDENTITY_TOKEN_URL,
+  MOCK_MFA_CREDENTIALS_RESPONSE as SDK_MOCK_MFA_CREDENTIALS_RESPONSE,
+  MOCK_MFA_CREDENTIALS_URL,
+  MOCK_MFA_ENROLL_COMPLETE_RESPONSE as SDK_MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
+  MOCK_MFA_ENROLL_COMPLETE_URL,
+  MOCK_MFA_ENROLL_PASSKEY_RESPONSE as SDK_MOCK_MFA_ENROLL_PASSKEY_RESPONSE,
+  MOCK_MFA_ENROLL_URL,
+  MOCK_MFA_VERIFY_COMPLETE_RESPONSE as SDK_MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+  MOCK_MFA_VERIFY_COMPLETE_URL,
+  MOCK_MFA_VERIFY_PASSKEY_RESPONSE as SDK_MOCK_MFA_VERIFY_PASSKEY_RESPONSE,
+  MOCK_MFA_VERIFY_URL,
 } from '../../../sdk/mocks/auth.js';
 
 type MockResponse = {
@@ -185,3 +195,33 @@ export const getMockPartnerIdentityTokenResponse = (): MockResponse => {
     response: MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE,
   } satisfies MockResponse;
 };
+
+export const getMockMfaEnrollResponse = (): MockResponse => ({
+  url: MOCK_MFA_ENROLL_URL,
+  requestMethod: 'POST',
+  response: SDK_MOCK_MFA_ENROLL_PASSKEY_RESPONSE,
+});
+
+export const getMockMfaEnrollCompleteResponse = (): MockResponse => ({
+  url: MOCK_MFA_ENROLL_COMPLETE_URL,
+  requestMethod: 'POST',
+  response: SDK_MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
+});
+
+export const getMockMfaVerifyResponse = (): MockResponse => ({
+  url: MOCK_MFA_VERIFY_URL,
+  requestMethod: 'POST',
+  response: SDK_MOCK_MFA_VERIFY_PASSKEY_RESPONSE,
+});
+
+export const getMockMfaVerifyCompleteResponse = (): MockResponse => ({
+  url: MOCK_MFA_VERIFY_COMPLETE_URL,
+  requestMethod: 'POST',
+  response: SDK_MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+});
+
+export const getMockMfaCredentialsResponse = (): MockResponse => ({
+  url: MOCK_MFA_CREDENTIALS_URL,
+  requestMethod: 'GET',
+  response: SDK_MOCK_MFA_CREDENTIALS_RESPONSE,
+});

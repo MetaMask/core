@@ -30,6 +30,9 @@
       "path": "../messenger/tsconfig.build.json"
     },
     {
+      "path": "../multichain-transactions-controller/tsconfig.build.json"
+    },
+    {
       "path": "../network-enablement-controller/tsconfig.build.json"
     },
     {
@@ -58,6 +61,9 @@
     },
     {
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../eth-json-rpc-provider/tsconfig.build.json"
     },
     {
       "path": "../utils/tsconfig.build.json"

@@ -19,6 +19,53 @@ export type NeoBankServiceGetAutorampAction = {
 };
 
 /**
+ * Fetches autoramp accounts, following MoonPay `cursor` pages until the
+ * list is complete.
+ *
+ * Pass `customerId` to scope the list to one MoonPay customer. Omitting it
+ * asks the proxy for the partner-wide list. Each request uses MoonPay's
+ * maximum `page_size`.
+ *
+ * @param params - Optional filters.
+ * @param params.customerId - MoonPay customer id.
+ * @returns Remote snapshots for every page.
+ */
+export type NeoBankServiceGetAutorampsAction = {
+  type: `NeoBankService:getAutoramps`;
+  handler: NeoBankService['getAutoramps'];
+};
+
+/**
+ * Loads PIX deposit instructions for an autoramp.
+ *
+ * Calls `GET /neobank/autoramps/{id}` and reads the `type: Pix` rail
+ * (`br_code`, `instruction`, optional `pix_key`). Returns null until MoonPay
+ * has attached deposit rails (typically once the autoramp is Approved).
+ *
+ * @param autorampId - MoonPay autoramp id.
+ * @returns PIX instructions, or null when the rail is not ready.
+ */
+export type NeoBankServiceGetPixDepositInstructionsAction = {
+  type: `NeoBankService:getPixDepositInstructions`;
+  handler: NeoBankService['getPixDepositInstructions'];
+};
+
+/**
+ * Lists the newest page of transactions for one autoramp via
+ * `GET /neobank/autoramp-transactions?autoramp_id=&sort_order=desc`.
+ *
+ * This is the first page only, not the full history. Poll `status`
+ * (`Completed`, `Failed`, …). The deprecated `state` field is ignored.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ * @returns Transaction summaries from the newest page.
+ */
+export type NeoBankServiceListAutorampTransactionsAction = {
+  type: `NeoBankService:listAutorampTransactions`;
+  handler: NeoBankService['listAutorampTransactions'];
+};
+
+/**
  * Registers a Pix address via neobank-proxy `POST /neobank/addresses/pix`.
  * Body is forwarded as opaque JSON (MoonPay address schema).
  *
@@ -136,6 +183,9 @@ export type NeoBankServiceRegisterSelfHostedWalletAction = {
  */
 export type NeoBankServiceMethodActions =
   | NeoBankServiceGetAutorampAction
+  | NeoBankServiceGetAutorampsAction
+  | NeoBankServiceGetPixDepositInstructionsAction
+  | NeoBankServiceListAutorampTransactionsAction
   | NeoBankServiceRegisterPixAddressAction
   | NeoBankServiceGetAutorampQuoteAction
   | NeoBankServiceCreateAutorampAction

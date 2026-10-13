@@ -29,7 +29,6 @@ import { getDirectMusdFiatQuote } from './fiat-direct-musd.js';
 import type { FiatQuote } from './types.js';
 import {
   deriveFiatAssetForFiatPayment,
-  getNativeTransakRampsFee,
   getRampsQuote,
   isMoneyAccountDepositTransaction,
 } from './utils.js';
@@ -189,18 +188,6 @@ async function executeFiatQuotePipeline(
       walletAddress: rampsWalletAddress,
     });
 
-    // When Transak Native is the resolved provider, prefer its own quote's fee
-    // so the estimate matches what Transak Native will charge. The relay path
-    // stays fee-on-top, so request the native quote in the same mode.
-    const nativeRampsFee = await getNativeTransakRampsFee({
-      adjustedAmount,
-      fiatAsset,
-      fiatPaymentMethod,
-      fiatQuote,
-      isFeeExcludedFromFiat: true,
-      messenger,
-    });
-
     messenger.call('TransactionPayController:updateFiatPayment', {
       callback: (fiatPayment: TransactionFiatPayment) => {
         fiatPayment.rampsQuote = fiatQuote;
@@ -217,7 +204,6 @@ async function executeFiatQuotePipeline(
         adjustedAmountFiat: adjustedAmountFiat.toString(10),
         amountFiat,
         fiatQuote,
-        nativeRampsFee,
         relayQuote,
       }),
     ];
@@ -303,8 +289,8 @@ function buildRelayRequestFromAmountFiat({
  * @param params - Combined quote inputs.
  * @param params.adjustedAmountFiat - Fiat amount sent to ramps after adding relay fee estimate.
  * @param params.amountFiat - User-entered fiat amount.
- * @param params.fiatQuote - Selected ramps quote.
- * @param params.nativeRampsFee - Native Transak fee to use in place of the aggregator ramps fee, or null.
+ * @param params.fiatQuote - Selected ramps quote, with fees already reconciled
+ * to the resolved provider by `RampsController:getQuoteWithFees`.
  * @param params.relayQuote - Estimated relay quote.
  * @returns A single fiat strategy quote with split fee buckets.
  * @remarks
@@ -323,16 +309,14 @@ function combineQuotes({
   adjustedAmountFiat,
   amountFiat,
   fiatQuote,
-  nativeRampsFee,
   relayQuote,
 }: {
   adjustedAmountFiat: string;
   amountFiat: string;
   fiatQuote: RampsQuote;
-  nativeRampsFee: BigNumber | null;
   relayQuote: TransactionPayQuote<RelayQuote>;
 }): TransactionPayQuote<FiatQuote> {
-  const rampsProviderFee = nativeRampsFee ?? getRampsProviderFee(fiatQuote);
+  const rampsProviderFee = getRampsProviderFee(fiatQuote);
   const totalProviderFee = new BigNumber(relayQuote.fees.provider.usd)
     .plus(rampsProviderFee)
     .toString(10);

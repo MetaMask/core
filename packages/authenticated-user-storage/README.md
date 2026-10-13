@@ -110,6 +110,26 @@ const updated: NotificationPreferences = {
 await service.putNotificationPreferences(updated, 'extension');
 ```
 
+### Identity-sharing consent
+
+Identity-sharing consent is a boolean per partner audience (`kyc`, `iron`). A grant for one audience does not unlock another. `putIdentitySharingConsent` updates a single audience; `getIdentitySharingConsent` returns the granted map, or `null` if none has been recorded.
+
+```typescript
+import type {
+  IdentitySharingConsent,
+  IdentitySharingConsentWrite,
+} from '@metamask/authenticated-user-storage';
+
+const consent: IdentitySharingConsent | null =
+  await service.getIdentitySharingConsent();
+
+const write: IdentitySharingConsentWrite = {
+  audience: 'kyc',
+  granted: true,
+};
+await service.putIdentitySharingConsent(write, 'extension');
+```
+
 ### Assets watchlist
 
 The assets-watchlist is a mutable per-user singleton blob. The first call to `setAssetsWatchlist` creates the record; subsequent calls overwrite it. Each entry in `assets` is a [CAIP-19](https://chainagnostic.org/CAIPs/caip-19) asset identifier (e.g. `eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`). The blob carries an explicit `version: 1` literal so the shape can evolve without breaking existing consumers.

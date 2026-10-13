@@ -4,7 +4,6 @@ import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
-import { NATIVE_TOKEN_ADDRESS } from '../../constants.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import {
   ETH_MAINNET_FIAT_ASSET,
@@ -24,11 +23,6 @@ const ERC20_ADDRESS_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
 const NETWORK_CLIENT_ID_MOCK = 'net-client-1';
 const PROVIDER_MOCK = { request: jest.fn() };
-
-const NATIVE_FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
-  address: NATIVE_TOKEN_ADDRESS,
-  chainId: CHAIN_ID_MOCK,
-};
 
 const ERC20_FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
   address: ERC20_ADDRESS_MOCK,
@@ -254,9 +248,6 @@ describe('Fiat Utils', () => {
       findNetworkClientIdByChainIdMock,
       getNetworkClientByIdMock,
       getNetworkConfigurationByChainIdMock,
-      getTokensControllerStateMock,
-      getRemoteFeatureFlagControllerStateMock:
-        resolveRemoteFeatureFlagControllerStateMock,
     } = getMessengerMock();
 
     beforeEach(() => {
@@ -265,36 +256,12 @@ describe('Fiat Utils', () => {
       findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
       getNetworkConfigurationByChainIdMock.mockReturnValue(undefined);
       getNetworkClientByIdMock.mockReturnValue({
+        configuration: { chainId: CHAIN_ID_MOCK },
         provider: PROVIDER_MOCK,
-      } as never);
-
-      resolveRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
       });
-
-      getTokensControllerStateMock.mockReturnValue({
-        allTokens: {
-          [CHAIN_ID_MOCK]: {
-            '0x0': [
-              {
-                address: ERC20_ADDRESS_MOCK,
-                decimals: 6,
-                symbol: 'USDC',
-                aggregators: [],
-                image: '',
-                name: 'USDC',
-                isERC721: false,
-              },
-            ],
-          },
-        },
-        allTokensStale: {},
-        allIgnoredTokens: {},
-        allDetectedTokens: {},
-      } as never);
     });
 
-    it('returns on-chain ERC-20 amount and block number from receipt', async () => {
+    it('returns the raw amount read from the on-chain ERC-20 transfer', async () => {
       PROVIDER_MOCK.request.mockResolvedValue({
         blockNumber: '0x1a2b3c',
         logs: [
@@ -311,115 +278,51 @@ describe('Fiat Utils', () => {
       });
 
       const result = await resolveSourceAmountRaw({
+        fiatAsset: ERC20_FIAT_ASSET_MOCK,
         messenger: resolveMessenger,
         order: getOrderMock(),
-        fiatAsset: ERC20_FIAT_ASSET_MOCK,
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result.amountRaw).toBe('7000000');
-      expect(result.fromBlock).toBe('0x1a2b3c');
+      expect(result).toBe('7000000');
     });
 
-    it('falls back to cryptoAmount when txHash is missing', async () => {
-      const result = await resolveSourceAmountRaw({
-        messenger: resolveMessenger,
-        order: getOrderMock({ txHash: '' }),
-        fiatAsset: ERC20_FIAT_ASSET_MOCK,
-        walletAddress: WALLET_ADDRESS_MOCK,
-      });
-
-      expect(result.amountRaw).toBe('1500000');
-      expect(result.fromBlock).toBeUndefined();
-      expect(PROVIDER_MOCK.request).not.toHaveBeenCalled();
+    it('throws when the order has no transaction hash', async () => {
+      await expect(
+        resolveSourceAmountRaw({
+          fiatAsset: ERC20_FIAT_ASSET_MOCK,
+          messenger: resolveMessenger,
+          order: getOrderMock({ txHash: '' }),
+          walletAddress: WALLET_ADDRESS_MOCK,
+        }),
+      ).rejects.toThrow('Missing fiat order transaction hash');
     });
 
-    it('falls back to cryptoAmount when receipt is null', async () => {
-      PROVIDER_MOCK.request.mockResolvedValue(null);
-
-      const result = await resolveSourceAmountRaw({
-        messenger: resolveMessenger,
-        order: getOrderMock(),
-        fiatAsset: ERC20_FIAT_ASSET_MOCK,
-        walletAddress: WALLET_ADDRESS_MOCK,
-      });
-
-      expect(result.amountRaw).toBe('1500000');
-      expect(result.fromBlock).toBeUndefined();
-    });
-
-    it('falls back to cryptoAmount when on-chain read throws', async () => {
+    it('propagates errors from getTransferredAmountFromTxHash', async () => {
       PROVIDER_MOCK.request.mockRejectedValue(new Error('Network error'));
-
-      const result = await resolveSourceAmountRaw({
-        messenger: resolveMessenger,
-        order: getOrderMock(),
-        fiatAsset: ERC20_FIAT_ASSET_MOCK,
-        walletAddress: WALLET_ADDRESS_MOCK,
-      });
-
-      expect(result.amountRaw).toBe('1500000');
-      expect(result.fromBlock).toBeUndefined();
-    });
-
-    it('returns native amount from debug_traceTransaction', async () => {
-      PROVIDER_MOCK.request.mockResolvedValue({
-        to: WALLET_ADDRESS_MOCK.toLowerCase(),
-        value: '0x1bc16d674ec80000',
-        calls: [],
-      });
-
-      const result = await resolveSourceAmountRaw({
-        messenger: resolveMessenger,
-        order: getOrderMock(),
-        fiatAsset: NATIVE_FIAT_ASSET_MOCK,
-        walletAddress: WALLET_ADDRESS_MOCK,
-      });
-
-      expect(result.amountRaw).toBe('2000000000000000000');
-      expect(result.fromBlock).toBeUndefined();
-    });
-
-    it('falls back to tx.value for native when trace is unsupported', async () => {
-      PROVIDER_MOCK.request.mockImplementation(
-        ({ method }: { method: string }) => {
-          if (method === 'debug_traceTransaction') {
-            return Promise.reject(new Error('Method not found'));
-          }
-          return Promise.resolve({
-            to: WALLET_ADDRESS_MOCK.toLowerCase(),
-            value: '0x1bc16d674ec80000',
-          });
-        },
-      );
-
-      const result = await resolveSourceAmountRaw({
-        messenger: resolveMessenger,
-        order: getOrderMock(),
-        fiatAsset: NATIVE_FIAT_ASSET_MOCK,
-        walletAddress: WALLET_ADDRESS_MOCK,
-      });
-
-      expect(result.amountRaw).toBe('2000000000000000000');
-    });
-
-    it('throws when token info cannot be resolved for fallback', async () => {
-      getTokensControllerStateMock.mockReturnValue({
-        allTokens: {},
-        allTokensStale: {},
-        allIgnoredTokens: {},
-        allDetectedTokens: {},
-      } as never);
 
       await expect(
         resolveSourceAmountRaw({
-          messenger: resolveMessenger,
-          order: getOrderMock({ txHash: '' }),
           fiatAsset: ERC20_FIAT_ASSET_MOCK,
+          messenger: resolveMessenger,
+          order: getOrderMock(),
+          walletAddress: WALLET_ADDRESS_MOCK,
+        }),
+      ).rejects.toThrow('Network error');
+    });
+
+    it('throws when no matching transfer is found in the transaction', async () => {
+      PROVIDER_MOCK.request.mockResolvedValue(null);
+
+      await expect(
+        resolveSourceAmountRaw({
+          fiatAsset: ERC20_FIAT_ASSET_MOCK,
+          messenger: resolveMessenger,
+          order: getOrderMock(),
           walletAddress: WALLET_ADDRESS_MOCK,
         }),
       ).rejects.toThrow(
-        `Unable to resolve token info for fiat asset ${ERC20_ADDRESS_MOCK} on chain ${CHAIN_ID_MOCK}`,
+        `Could not determine transferred amount from transaction ${TX_HASH_MOCK}`,
       );
     });
   });

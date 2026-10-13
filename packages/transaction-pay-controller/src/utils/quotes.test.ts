@@ -44,7 +44,7 @@ const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_DATA_MOCK: TransactionData = {
   isLoading: false,
   paymentToken: {
-    address: '0x123' as Hex,
+    address: '0x123',
     balanceFiat: '123.45',
     balanceHuman: '1.23',
     balanceRaw: '2000000000000000000',
@@ -52,7 +52,7 @@ const TRANSACTION_DATA_MOCK: TransactionData = {
     chainId: '0x123',
     decimals: 6,
     symbol: 'ETH',
-  } as TransactionPaymentToken,
+  },
   sourceAmounts: [
     {
       sourceAmountRaw: '1000000000000000000',
@@ -64,7 +64,7 @@ const TRANSACTION_DATA_MOCK: TransactionData = {
 const TRANSACTION_META_MOCK = {
   id: TRANSACTION_ID_MOCK,
   status: TransactionStatus.unapproved,
-  txParams: { from: '0xabc' as Hex },
+  txParams: { from: '0xabc' },
 } as TransactionMeta;
 
 const QUOTE_MOCK = {
@@ -198,6 +198,8 @@ describe('Quotes Utils', () => {
       usdRate: '1.0',
       fiatRate: '0.85',
     });
+
+    getControllerStateMock.mockReturnValue({ transactionData: {} });
   });
 
   describe('updateQuotes', () => {
@@ -467,11 +469,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return firstStrategy as never;
+          return firstStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return secondStrategy as never;
+          return secondStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -481,6 +483,174 @@ describe('Quotes Utils', () => {
 
       expect(firstStrategy.getQuotes).toHaveBeenCalled();
       expect(secondStrategy.getQuotes).toHaveBeenCalled();
+    });
+
+    it('tries the next strategy after a prefixed atomic promotion failure', async () => {
+      const terminalError = new QuoteError({
+        message: 'Atomic promotion failed: test probe',
+        reason: 'no-quotes',
+      });
+
+      const firstStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockRejectedValue(terminalError),
+        execute: jest.fn(),
+      };
+
+      const secondStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([
+        TransactionPayStrategy.Across,
+        TransactionPayStrategy.Relay,
+      ]);
+      getStrategyByNameMock.mockImplementation((name) => {
+        if (name === TransactionPayStrategy.Across) {
+          return firstStrategy;
+        }
+
+        if (name === TransactionPayStrategy.Relay) {
+          return secondStrategy;
+        }
+
+        throw new Error(`Unknown strategy: ${name}`);
+      });
+
+      await run();
+
+      expect(firstStrategy.getQuotes).toHaveBeenCalledTimes(1);
+      expect(secondStrategy.getQuotes).toHaveBeenCalledTimes(1);
+
+      const transactionDataMock = {} as Record<string, unknown>;
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [QUOTE_MOCK],
+        isLoading: false,
+      });
+    });
+
+    it('preserves fallback for ordinary no-quotes error before successful next strategy', async () => {
+      const firstStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockRejectedValue(
+          new QuoteError({
+            message: 'No quotes returned',
+            reason: 'no-quotes',
+          }),
+        ),
+        execute: jest.fn(),
+      };
+
+      const secondStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([
+        TransactionPayStrategy.Across,
+        TransactionPayStrategy.Relay,
+      ]);
+      getStrategyByNameMock.mockImplementation((name) => {
+        if (name === TransactionPayStrategy.Across) {
+          return firstStrategy;
+        }
+
+        if (name === TransactionPayStrategy.Relay) {
+          return secondStrategy;
+        }
+
+        throw new Error(`Unknown strategy: ${name}`);
+      });
+
+      await run();
+
+      expect(firstStrategy.getQuotes).toHaveBeenCalledTimes(1);
+      expect(secondStrategy.getQuotes).toHaveBeenCalledTimes(1);
+
+      const transactionDataMock = {} as Record<string, unknown>;
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [QUOTE_MOCK],
+      });
+    });
+
+    it('continues strategy fallback after ordinary and prefixed no-quotes errors', async () => {
+      const firstStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockRejectedValue(
+          new QuoteError({
+            message: 'No quotes returned',
+            reason: 'no-quotes',
+          }),
+        ),
+        execute: jest.fn(),
+      };
+
+      const secondStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockRejectedValue(
+          new QuoteError({
+            message: 'Atomic promotion failed: test probe',
+            reason: 'no-quotes',
+          }),
+        ),
+        execute: jest.fn(),
+      };
+
+      const thirdStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([
+        TransactionPayStrategy.Across,
+        TransactionPayStrategy.Relay,
+        TransactionPayStrategy.None,
+      ]);
+      getStrategyByNameMock.mockImplementation((name) => {
+        if (name === TransactionPayStrategy.Across) {
+          return firstStrategy;
+        }
+
+        if (name === TransactionPayStrategy.Relay) {
+          return secondStrategy;
+        }
+
+        if (name === TransactionPayStrategy.None) {
+          return thirdStrategy;
+        }
+
+        throw new Error(`Unknown strategy: ${name}`);
+      });
+
+      await run();
+
+      expect(firstStrategy.getQuotes).toHaveBeenCalledTimes(1);
+      expect(secondStrategy.getQuotes).toHaveBeenCalledTimes(1);
+      expect(thirdStrategy.getQuotes).toHaveBeenCalledTimes(1);
+
+      const transactionDataMock = {} as Record<string, unknown>;
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [QUOTE_MOCK],
+      });
     });
 
     it('falls back to next strategy when batch transactions fail', async () => {
@@ -506,11 +676,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return firstStrategy as never;
+          return firstStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return secondStrategy as never;
+          return secondStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -543,11 +713,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return unsupportedStrategy as never;
+          return unsupportedStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return supportedStrategy as never;
+          return supportedStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -579,11 +749,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return unsupportedStrategy as never;
+          return unsupportedStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return supportedStrategy as never;
+          return supportedStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -618,11 +788,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return unsupportedStrategy as never;
+          return unsupportedStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return supportedStrategy as never;
+          return supportedStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -663,11 +833,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return brokenStrategy as never;
+          return brokenStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return fallbackStrategy as never;
+          return fallbackStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -699,11 +869,11 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Across) {
-          return emptyStrategy as never;
+          return emptyStrategy;
         }
 
         if (name === TransactionPayStrategy.Relay) {
-          return fallbackStrategy as never;
+          return fallbackStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -729,7 +899,7 @@ describe('Quotes Utils', () => {
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
         if (name === TransactionPayStrategy.Relay) {
-          return fallbackStrategy as never;
+          return fallbackStrategy;
         }
 
         throw new Error(`Unknown strategy: ${name}`);
@@ -749,7 +919,7 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([TransactionPayStrategy.Across]);
-      getStrategyByNameMock.mockReturnValue(strategy as never);
+      getStrategyByNameMock.mockReturnValue(strategy);
 
       await run();
 
@@ -858,7 +1028,7 @@ describe('Quotes Utils', () => {
             {
               ...TRANSACTION_DATA_MOCK.tokens?.[0],
               allowUnderMinimum: true,
-            } as TransactionPayRequiredToken,
+            },
           ],
         },
       });
@@ -1082,6 +1252,27 @@ describe('Quotes Utils', () => {
         (transactionDataMock.paymentToken as TransactionPaymentToken)
           .balanceRaw,
       ).toBe('9000000');
+    });
+
+    it('requests quotes with the source amounts re-derived by the balance refresh', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            ...TRANSACTION_DATA_MOCK,
+            sourceAmounts: [
+              { sourceAmountRaw: '5855729' } as TransactionPaySourceAmount,
+            ],
+          },
+        },
+      });
+
+      await run();
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [expect.objectContaining({ sourceTokenAmount: '5855729' })],
+        }),
+      );
     });
 
     it('computes correct balanceHuman, balanceUsd, and balanceFiat from live balance', async () => {
@@ -1378,13 +1569,10 @@ describe('Quotes Utils', () => {
       it('keeps requests for different transactions independent', async () => {
         const OTHER_TRANSACTION_ID = '789-012';
 
-        getTransactionMock.mockImplementation(
-          (transactionId: string) =>
-            ({
-              ...TRANSACTION_META_MOCK,
-              id: transactionId,
-            }) as TransactionMeta,
-        );
+        getTransactionMock.mockImplementation((transactionId: string) => ({
+          ...TRANSACTION_META_MOCK,
+          id: transactionId,
+        }));
 
         const [resultA, resultB] = await Promise.all([
           run({ transactionId: TRANSACTION_ID_MOCK }),
@@ -1393,6 +1581,160 @@ describe('Quotes Utils', () => {
 
         expect(resultA).toBe(true);
         expect(resultB).toBe(true);
+      });
+
+      it('clears stale quotes and preserves the prefixed error when all strategies fail on refresh', async () => {
+        // Seed a prior executable quote in state so this call is a refresh, not
+        // an initial fetch — proving the block cannot leave the previous quote
+        // selected once all strategies fail.
+        const priorQuote = {
+          ...QUOTE_MOCK,
+          strategy: TransactionPayStrategy.Relay,
+        } as TransactionPayQuote<Json>;
+
+        const promotionStrategy = {
+          supports: jest.fn().mockReturnValue(true),
+          getQuotes: jest.fn().mockRejectedValue(
+            new QuoteError({
+              message: 'Atomic promotion failed: test probe',
+              reason: 'no-quotes',
+            }),
+          ),
+          getBatchTransactions: jest.fn(),
+          execute: jest.fn(),
+        };
+
+        const fallbackStrategy = {
+          supports: jest.fn().mockReturnValue(true),
+          getQuotes: jest.fn().mockRejectedValue(new Error('Fallback failed')),
+          getBatchTransactions: getBatchTransactionsMock,
+          execute: jest.fn(),
+        };
+
+        getStrategiesMock.mockReturnValue([
+          TransactionPayStrategy.Relay,
+          TransactionPayStrategy.Across,
+        ]);
+        getStrategyByNameMock.mockImplementation((name) => {
+          if (name === TransactionPayStrategy.Relay) {
+            return promotionStrategy;
+          }
+
+          if (name === TransactionPayStrategy.Across) {
+            return fallbackStrategy;
+          }
+
+          throw new Error(`Unknown strategy: ${name}`);
+        });
+
+        const result = await run({
+          transactionData: {
+            ...cloneDeep(TRANSACTION_DATA_MOCK),
+            quotes: [priorQuote],
+            quotesLastUpdated: Date.now() - 60_000,
+          },
+        });
+
+        expect(result).toBe(true);
+
+        expect(promotionStrategy.getQuotes).toHaveBeenCalledTimes(1);
+        expect(fallbackStrategy.getQuotes).toHaveBeenCalledTimes(1);
+        expect(promotionStrategy.getBatchTransactions).not.toHaveBeenCalled();
+        expect(fallbackStrategy.getBatchTransactions).not.toHaveBeenCalled();
+
+        // Fold every state update onto a single object to observe the final
+        // published state — same technique the T1 tests use for state assertions.
+        const transactionDataMock = {} as Record<string, unknown>;
+        updateTransactionDataMock.mock.calls.map((call) =>
+          call[1](transactionDataMock),
+        );
+
+        expect(transactionDataMock).toMatchObject({
+          quotes: [],
+          quoteError: {
+            message: 'Atomic promotion failed: test probe',
+            reason: 'no-quotes',
+          },
+          isLoading: false,
+        });
+
+        // The transaction metadata sync must reflect an empty batch: a stale
+        // batch from the prior executable quote cannot survive the block.
+        expect(updateTransactionMock).toHaveBeenCalledTimes(1);
+        const transactionMetaMock = {} as TransactionMeta;
+        updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+        expect(transactionMetaMock).toMatchObject({
+          batchTransactions: [],
+          batchTransactionsOptions: {},
+        });
+      });
+
+      it('does not let a superseded stale refresh overwrite the newer refresh state or write late transaction/config from its aborted signal', async () => {
+        // Refresh A starts first and its strategy fetch is held open via a
+        // deferred promise. Refresh B then starts, races to completion with a
+        // fresh non-subsidized non-atomic quote, and must own final state.
+        // When A's deferred fetch finally resolves, its signal is already
+        // aborted so nothing from A can be published.
+        const deferredA = deferred<TransactionPayQuote<Json>[]>();
+        let firstSignal: AbortSignal | undefined;
+        let secondSignal: AbortSignal | undefined;
+
+        const finalBQuote = {
+          ...QUOTE_MOCK,
+          strategy: TransactionPayStrategy.Across,
+        } as TransactionPayQuote<Json>;
+
+        // A: capture signal and hold the fetch open.
+        getQuotesMock.mockImplementationOnce(
+          (req: { signal?: AbortSignal }) => {
+            firstSignal = req.signal;
+            return deferredA;
+          },
+        );
+
+        // B: capture signal and resolve immediately with a fresh quote.
+        getQuotesMock.mockImplementationOnce(
+          (req: { signal?: AbortSignal }) => {
+            secondSignal = req.signal;
+            return Promise.resolve([finalBQuote]);
+          },
+        );
+
+        const firstPromise = run();
+        // Let A's controller register itself so B's start aborts it.
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const secondPromise = run();
+
+        // B finishes first and owns the state.
+        const secondResult = await secondPromise;
+        expect(secondResult).toBe(true);
+
+        // Now release A. Its signal is already aborted, so the pipeline must
+        // return false and publish nothing from A.
+        deferredA.resolve([QUOTE_MOCK]);
+        const firstResult = await firstPromise;
+
+        expect(firstResult).toBe(false);
+        expect(firstSignal?.aborted).toBe(true);
+        expect(secondSignal?.aborted).toBe(false);
+
+        // Only B's quotes should ever land in state — never A's stale QUOTE_MOCK.
+        const quoteWrites = updateTransactionDataMock.mock.calls
+          .map(([, fn]) => {
+            const data: Record<string, unknown> = {};
+            (fn as (d: Record<string, unknown>) => void)(data);
+            return data;
+          })
+          .filter((data) => Array.isArray(data.quotes));
+
+        expect(quoteWrites).toHaveLength(1);
+        expect(quoteWrites[0].quotes).toStrictEqual([finalBQuote]);
+
+        // A must not write to the transaction meta (batchTransactions /
+        // metamaskPay config): only B's sync call is allowed.
+        expect(updateTransactionMock).toHaveBeenCalledTimes(1);
       });
     });
   });
@@ -1531,7 +1873,7 @@ describe('Quotes Utils', () => {
 
   describe('post-quote (withdrawal) flow', () => {
     const DESTINATION_TOKEN_MOCK: TransactionPaymentToken = {
-      address: '0xdef' as Hex,
+      address: '0xdef',
       balanceFiat: '100.00',
       balanceHuman: '1.00',
       balanceRaw: '1000000000000000000',
@@ -1564,7 +1906,7 @@ describe('Quotes Utils', () => {
           sourceChainId: SOURCE_TOKEN_MOCK.chainId,
           sourceTokenAddress: SOURCE_TOKEN_MOCK.address,
           targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
-        } as TransactionPaySourceAmount,
+        },
       ],
       tokens: [SOURCE_TOKEN_MOCK],
     };
@@ -1726,7 +2068,7 @@ describe('Quotes Utils', () => {
             sourceAmountRaw: '10000000',
             // Missing sourceTokenAddress, sourceChainId, sourceBalanceRaw
             targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
-          } as TransactionPaySourceAmount,
+          },
         ],
       };
 

@@ -4,6 +4,7 @@ const { wordlist } = englishWordlist;
 
 /**
  * Transform a typed array containing mnemonic data to the seed phrase.
+ *
  * @param uint8Array - Typed array containing mnemonic data.
  * @returns The seed phrase.
  */
@@ -27,7 +28,9 @@ export function uint8ArrayToMnemonic(uint8Array: Uint8Array): string {
  * @param mnemonic - The BIP-39 mnemonic.
  * @returns The Unicode code points for the seed phrase formed from the words in the wordlist.
  */
-export function convertMnemonicToWordlistIndices(mnemonic: string): Uint8Array {
+export function convertMnemonicToWordlistIndices(
+  mnemonic: string,
+): Uint8Array<ArrayBuffer> {
   const indices = mnemonic.split(' ').map((word) => wordlist.indexOf(word));
   return new Uint8Array(new Uint16Array(indices).buffer);
 }

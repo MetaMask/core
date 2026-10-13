@@ -17,7 +17,7 @@ import {
   EthScope,
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
-import { KeyringType } from '@metamask/keyring-api/v2';
+import { AccountCreationType, KeyringType } from '@metamask/keyring-api/v2';
 import {
   KeyringControllerState,
   KeyringTypes,
@@ -32,7 +32,11 @@ import type {
 } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { CaipChainId } from '@metamask/utils';
-import type { V4Options } from 'uuid';
+import {
+  WatchOnlyKeyring,
+  WatchOnlyKeyringV1Adapter,
+} from '@metamask/watch-only-keyring';
+import type { Version4Options } from 'uuid';
 import { v4 as uuidV4 } from 'uuid';
 
 import {
@@ -67,7 +71,9 @@ type RootMessenger = Messenger<
 >;
 
 jest.mock('uuid');
-const mockUUID = jest.mocked(uuidV4);
+// `v4` is overloaded; naming the signature used here avoids resolving to the
+// last overload, which returns a `Uint8Array`.
+const mockUUID = jest.mocked<() => string>(uuidV4);
 const actualUUID = jest.requireActual('uuid').v4; // We also use uuid.v4 in our mocks
 
 const defaultState: AccountsControllerState = {
@@ -181,7 +187,7 @@ class MockNormalAccountUUID {
     }
   }
 
-  mock(options?: V4Options | undefined): string {
+  mock(options?: Version4Options | undefined): string {
     const accountId = actualUUID(options);
 
     // If not found, we returns the generated UUID
@@ -676,9 +682,20 @@ describe('AccountsController', () => {
             }),
           ),
         ]);
+
+        // The synced Snap account must not share nested objects with the
+        // account returned by the keyring, so that controller state updates
+        // (and Immer's auto-freeze) cannot mutate or freeze the keyring's
+        // objects.
+        const snapAccount = accounts.find(
+          (account) => account.id === mockAccount3.id,
+        );
+        expect(snapAccount?.options).not.toBe(mockAccount3.options);
+        expect(snapAccount?.methods).not.toBe(mockAccount3.methods);
+        expect(snapAccount?.scopes).not.toBe(mockAccount3.scopes);
       });
 
-      it('does not add Money keyring accounts', async () => {
+      it('does not add Money or MPC keyring accounts', async () => {
         mockUUIDWithNormalAccounts([mockAccount]);
 
         const messenger = buildMessenger();
@@ -709,6 +726,14 @@ describe('AccountsController', () => {
               metadata: {
                 id: 'mock-id-money',
                 name: 'mock-name-money',
+              },
+            },
+            {
+              type: KeyringTypes.mpc,
+              accounts: [mockAccount3.address],
+              metadata: {
+                id: 'mock-id-mpc',
+                name: 'mock-name-mpc',
               },
             },
           ],
@@ -949,6 +974,14 @@ describe('AccountsController', () => {
             importTime: expect.any(Number),
           },
         });
+
+        // The synced Snap account must not share nested objects with the
+        // account returned by the keyring, so that controller state updates
+        // (and Immer's auto-freeze) cannot mutate or freeze the keyring's
+        // objects.
+        expect(accounts[0].options).not.toBe(mockSnapV2KeyringAccount.options);
+        expect(accounts[0].methods).not.toBe(mockSnapV2KeyringAccount.methods);
+        expect(accounts[0].scopes).not.toBe(mockSnapV2KeyringAccount.scopes);
       });
 
       it('handles the event when a Snap v2 deleted the account before it was added', () => {
@@ -1024,6 +1057,179 @@ describe('AccountsController', () => {
               metadata: {
                 id: 'mock-keyring-v2-id',
                 name: 'mock-keyring-v2-name',
+              },
+            },
+          ],
+        };
+
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {},
+              selectedAccount: '',
+            },
+            accountIdByAddress: {},
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        expect(accountsController.listMultichainAccounts()).toStrictEqual([]);
+      });
+
+      it('add watch-only accounts', async () => {
+        const watchOnlyAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+
+        const watchOnlyKeyring = new WatchOnlyKeyring();
+        const [watchOnlyAccount] = await watchOnlyKeyring.createAccounts({
+          type: AccountCreationType.AddressImport,
+          address: watchOnlyAddress,
+        });
+
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            new WatchOnlyKeyringV1Adapter(watchOnlyKeyring),
+          ]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringType.WatchOnly,
+              accounts: [watchOnlyAddress],
+              metadata: {
+                id: 'mock-watch-only-keyring-id',
+                name: 'mock-watch-only-keyring-name',
+              },
+            },
+          ],
+        };
+
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {},
+              selectedAccount: '',
+            },
+            accountIdByAddress: {},
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listMultichainAccounts();
+
+        // The watch-only account is read from the keyring itself: it keeps
+        // the keyring's account ID and exposes no signing methods.
+        expect(accounts).toHaveLength(1);
+        expect(accounts[0]).toMatchObject({
+          id: watchOnlyAccount.id,
+          address: watchOnlyAddress,
+          methods: [],
+          type: EthAccountType.Eoa,
+          scopes: [EthScope.Eoa],
+          options: {},
+          metadata: {
+            name: '',
+            keyring: { type: KeyringType.WatchOnly },
+          },
+        });
+        expect(accounts[0].metadata.importTime).toStrictEqual(
+          expect.any(Number),
+        );
+        expect(accounts[0].metadata.lastSelected).toStrictEqual(
+          expect.any(Number),
+        );
+
+        // The synced account must not share nested objects with the keyring's
+        // own account, so that controller state updates (and Immer's
+        // auto-freeze) cannot mutate or freeze the keyring's objects.
+        expect(accounts[0].options).not.toBe(watchOnlyAccount.options);
+        expect(accounts[0].methods).not.toBe(watchOnlyAccount.methods);
+        expect(accounts[0].scopes).not.toBe(watchOnlyAccount.scopes);
+      });
+
+      it('handles the event when the watch-only keyring does not hold the address', async () => {
+        const watchOnlyAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+
+        const watchOnlyKeyring = new WatchOnlyKeyring();
+
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            new WatchOnlyKeyringV1Adapter(watchOnlyKeyring),
+          ]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringType.WatchOnly,
+              accounts: [watchOnlyAddress],
+              metadata: {
+                id: 'mock-watch-only-keyring-id',
+                name: 'mock-watch-only-keyring-name',
+              },
+            },
+          ],
+        };
+
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {},
+              selectedAccount: '',
+            },
+            accountIdByAddress: {},
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        expect(accountsController.listMultichainAccounts()).toStrictEqual([]);
+      });
+
+      it('handles when no WatchOnlyKeyring instance matches for a watch-only keyring type', () => {
+        const watchOnlyAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            // Plain object — does NOT pass instanceof KeyringV1Adapter
+            { lookupByAddress: jest.fn() },
+          ]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringType.WatchOnly,
+              accounts: [watchOnlyAddress],
+              metadata: {
+                id: 'mock-watch-only-keyring-id',
+                name: 'mock-watch-only-keyring-name',
               },
             },
           ],
@@ -3351,6 +3557,71 @@ describe('AccountsController', () => {
       });
     });
 
+    it('update accounts with watch-only accounts', async () => {
+      const watchOnlyAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+
+      const watchOnlyKeyring = new WatchOnlyKeyring();
+      const [watchOnlyAccount] = await watchOnlyKeyring.createAccounts({
+        type: AccountCreationType.AddressImport,
+        address: watchOnlyAddress,
+      });
+
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [
+            {
+              type: KeyringType.WatchOnly,
+              accounts: [watchOnlyAddress],
+              metadata: {
+                id: 'mock-watch-only-keyring-id',
+                name: 'mock-watch-only-keyring-name',
+              },
+            },
+          ],
+        }),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          new WatchOnlyKeyringV1Adapter(watchOnlyKeyring),
+        ]),
+      );
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+          accountIdByAddress: {},
+        },
+        messenger,
+      });
+
+      await accountsController.updateAccounts();
+
+      const accounts = accountsController.listMultichainAccounts();
+      expect(accounts).toHaveLength(1);
+      expect(accounts[0]).toMatchObject({
+        id: watchOnlyAccount.id,
+        address: watchOnlyAddress,
+        methods: [],
+        metadata: {
+          name: 'Watch-only Account 1',
+          keyring: { type: KeyringType.WatchOnly },
+        },
+      });
+
+      // The synced account must not share nested objects with the keyring's
+      // own account, so that controller state updates (and Immer's
+      // auto-freeze) cannot mutate or freeze the keyring's objects.
+      expect(accounts[0].options).not.toBe(watchOnlyAccount.options);
+      expect(accounts[0].methods).not.toBe(watchOnlyAccount.methods);
+      expect(accounts[0].scopes).not.toBe(watchOnlyAccount.scopes);
+    });
+
     it('skips Snap v2 account if no SnapKeyringV2 instance is found', async () => {
       const mockSnapV2Address = '0xabcdef1234567890abcdef1234567890abcdef12';
 
@@ -3418,6 +3689,90 @@ describe('AccountsController', () => {
 
       expect(accountsController.state).toStrictEqual(
         getDefaultAccountsControllerState(),
+      );
+    });
+
+    it('publishes accountRemoved for each removed account', () => {
+      const { accountsController, accountsControllerMessenger } =
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2.address]: mockAccount2.id,
+            },
+          },
+        });
+
+      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+
+      accountsController.clearState();
+
+      expect(messengerSpy).toHaveBeenCalledWith(
+        'AccountsController:accountRemoved',
+        mockAccount.id,
+      );
+      expect(messengerSpy).toHaveBeenCalledWith(
+        'AccountsController:accountRemoved',
+        mockAccount2.id,
+      );
+    });
+
+    it('publishes accountsRemoved with all account ids', () => {
+      const { accountsController, accountsControllerMessenger } =
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2.address]: mockAccount2.id,
+            },
+          },
+        });
+
+      const accountsRemovedListener = jest.fn();
+      accountsControllerMessenger.subscribe(
+        'AccountsController:accountsRemoved',
+        accountsRemovedListener,
+      );
+
+      accountsController.clearState();
+
+      expect(accountsRemovedListener).toHaveBeenCalledTimes(1);
+      expect(accountsRemovedListener).toHaveBeenCalledWith(
+        expect.arrayContaining([mockAccount.id, mockAccount2.id]),
+      );
+    });
+
+    it('does not publish removal events when state is already empty', () => {
+      const { accountsController, accountsControllerMessenger } =
+        setupAccountsController({
+          initialState: getDefaultAccountsControllerState(),
+        });
+
+      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+
+      accountsController.clearState();
+
+      expect(messengerSpy).not.toHaveBeenCalledWith(
+        'AccountsController:accountRemoved',
+        expect.anything(),
+      );
+      expect(messengerSpy).not.toHaveBeenCalledWith(
+        'AccountsController:accountsRemoved',
+        expect.anything(),
       );
     });
 

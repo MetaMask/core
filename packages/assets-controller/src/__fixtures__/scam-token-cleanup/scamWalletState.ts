@@ -1,6 +1,6 @@
 import type {
   AssetMetadata,
-  AssetsControllerStateInternal,
+  AssetsControllerState,
   Caip19AssetId,
 } from '../../types.js';
 
@@ -1620,8 +1620,8 @@ export const SCAM_WALLET_SURVIVING_ASSET_IDS = (
  * @returns Full internal controller state.
  */
 export function buildScamWalletState(
-  overrides: Partial<AssetsControllerStateInternal> = {},
-): AssetsControllerStateInternal {
+  overrides: Partial<AssetsControllerState> = {},
+): AssetsControllerState {
   const assetsInfo = SCAM_WALLET_ASSETS_INFO as Record<
     Caip19AssetId,
     AssetMetadata

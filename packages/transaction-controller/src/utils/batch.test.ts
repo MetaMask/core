@@ -269,7 +269,7 @@ function mockRequestApproval(
       return NETWORK_CLIENT_ID_MOCK;
     }
 
-    return undefined;
+    return;
   });
 
   if (options.state === 'approved') {
@@ -395,14 +395,11 @@ describe('Batch Utils', () => {
       mockMessengerNetworkCalls();
 
       addTransactionMock = jest.fn();
-      getTransactionMock = jest.fn().mockImplementation(
-        (id: string) =>
-          ({
-            id,
-            status: TransactionStatus.signed,
-            txParams: {},
-          }) as unknown as TransactionMeta,
-      );
+      getTransactionMock = jest.fn().mockImplementation((id: string) => ({
+        id,
+        status: TransactionStatus.signed,
+        txParams: {},
+      }));
       updateTransactionMock = jest.fn();
       publishTransactionMock = jest.fn();
       getPendingTransactionTrackerMock = jest.fn();
@@ -1880,7 +1877,7 @@ describe('Batch Utils', () => {
           const capturedIdx = idx;
           addTransactionMock.mockImplementationOnce((_params, options) => {
             const hookPromise = options.publishHook?.(
-              metas[capturedIdx] as TransactionMeta,
+              metas[capturedIdx],
               signatures[capturedIdx],
             );
             publishHookPromises[capturedIdx] = hookPromise;
@@ -1888,7 +1885,7 @@ describe('Batch Utils', () => {
               // Intentionally empty
             });
             return Promise.resolve({
-              transactionMeta: metas[capturedIdx] as TransactionMeta,
+              transactionMeta: metas[capturedIdx],
               result: Promise.resolve(''),
             });
           });
@@ -2291,7 +2288,7 @@ describe('Batch Utils', () => {
           const capturedIdx = idx;
           addTransactionMock.mockImplementationOnce((_params, options) => {
             const hookPromise = options.publishHook?.(
-              metas[capturedIdx] as TransactionMeta,
+              metas[capturedIdx],
               signatures[capturedIdx],
             );
             publishHookPromises[capturedIdx] = hookPromise;
@@ -2299,7 +2296,7 @@ describe('Batch Utils', () => {
               // Intentionally empty
             });
             return Promise.resolve({
-              transactionMeta: metas[capturedIdx] as TransactionMeta,
+              transactionMeta: metas[capturedIdx],
               result: Promise.resolve(''),
             });
           });

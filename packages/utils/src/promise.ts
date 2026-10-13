@@ -3,6 +3,7 @@
  *
  * A deferred Promise is one that can be resolved or rejected independently of
  * the Promise construction.
+ *
  * @template Result - The result type of the Promise.
  */
 export type DeferredPromise<Result = void> = {

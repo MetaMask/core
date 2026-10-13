@@ -923,7 +923,7 @@ describe('daemon-entry', () => {
         if (action === 'TransactionController:getTransactions') {
           return [{ id: 'tx-1', status: 'submitted' }];
         }
-        return undefined;
+        return;
       });
       mockCreateWallet.mockResolvedValue(result);
       mockStartRpcSocketServer.mockResolvedValue(createMockHandle());

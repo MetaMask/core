@@ -92,7 +92,7 @@ export default function createStreamMiddleware(options: Options = {}): {
     try {
       const isNotification = !hasProperty(res, 'id');
       if (isNotification) {
-        processNotification(res as unknown as JsonRpcNotification);
+        processNotification(res);
       } else {
         processResponse(res);
       }

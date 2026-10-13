@@ -14,6 +14,7 @@ const MOCK_IDOS_ENCLAVE_URL = 'https://idos-enclave.dev-api.cx.metamask.io';
 const MOCK_IDOS_RELAY_URL = 'https://idos-relay.dev-api.cx.metamask.io';
 const SESSION_CLIENT_PUBLIC_KEY = 'session-client-public-key';
 const RESIDENCE_COUNTRY = 'USA';
+const AAL2_TOKEN = 'aal2-token';
 
 describe('KycService', () => {
   afterEach(() => {
@@ -149,7 +150,7 @@ describe('KycService', () => {
     });
   });
 
-  describe('createSession', () => {
+  describe('createMoonpaySession', () => {
     it('creates a session and returns the token', async () => {
       nock(MOCK_API_URL)
         .post('/vendors/moonpay/sessions')
@@ -157,7 +158,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.createSession({
+        await service.createMoonpaySession({
           email: 'a@b.co',
           termsAcceptedAt: '2026-01-01T00:00:00.000Z',
           disclaimerIds: ['1'],
@@ -170,73 +171,12 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.createSession({
+        service.createMoonpaySession({
           email: 'a@b.co',
           termsAcceptedAt: '2026-01-01T00:00:00.000Z',
           disclaimerIds: ['1'],
         }),
       ).rejects.toThrow(/Malformed response received from sessions API/u);
-    });
-  });
-
-  describe('checkKycRequired', () => {
-    it('returns whether KYC is required (default capabilities)', async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/moonpay/kyc-required', {
-          accessToken: 'access-1',
-          country: 'USA',
-          capabilities: [{ product: 'ramps' }],
-        })
-        .reply(200, { required: true });
-      const { service } = getService();
-
-      expect(
-        await service.checkKycRequired({
-          accessToken: 'access-1',
-          country: 'USA',
-        }),
-      ).toStrictEqual({ kycRequired: true });
-    });
-
-    it('passes provided capabilities', async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/moonpay/kyc-required', {
-          accessToken: 'access-1',
-          country: 'USA',
-          capabilities: [{ product: 'card' }],
-        })
-        .reply(200, { required: false });
-      const { service } = getService();
-
-      expect(
-        await service.checkKycRequired({
-          accessToken: 'access-1',
-          country: 'USA',
-          capabilities: [{ product: 'card' }],
-        }),
-      ).toStrictEqual({ kycRequired: false });
-    });
-
-    it('throws on a malformed response', async () => {
-      nock(MOCK_API_URL).post('/vendors/moonpay/kyc-required').reply(200, {});
-      const { service } = getService();
-
-      await expect(
-        service.checkKycRequired({ accessToken: 'access-1', country: 'USA' }),
-      ).rejects.toThrow(/Malformed response received from kyc-required API/u);
-    });
-
-    it('surfaces the specific field mismatch and payload in the error', async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/moonpay/kyc-required')
-        .reply(200, { required: 'yes' });
-      const { service } = getService();
-
-      await expect(
-        service.checkKycRequired({ accessToken: 'access-1', country: 'USA' }),
-      ).rejects.toThrow(
-        /Malformed response received from kyc-required API:.*required.*received: \{"required":"yes"\}/su,
-      );
     });
   });
 
@@ -326,7 +266,7 @@ describe('KycService', () => {
         .post(
           '/sessions',
           (body: Record<string, unknown>) =>
-            body.jwtToken === 'jwt' &&
+            body.jwtToken === 'mock-jwt-token' &&
             body.vendorId === 'moonpay' &&
             body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
             body.residenceCountry === RESIDENCE_COUNTRY &&
@@ -338,12 +278,43 @@ describe('KycService', () => {
 
       expect(
         await service.createUkycSession({
-          jwtToken: 'jwt',
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { foo: 'bar' },
+          aal2Token: AAL2_TOKEN,
         }),
       ).toStrictEqual(response);
+    });
+
+    it('authenticates session creation with the aal2 token', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) => body.aal2Token === undefined,
+        )
+        .matchHeader('authorization', `Bearer ${AAL2_TOKEN}`)
+        .reply(200, response);
+      const { service } = getService({ bearerToken: 'wallet-bearer' });
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('throws when aal2Token is missing', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          aal2Token: '',
+        }),
+      ).rejects.toThrow(/aal2Token is required/u);
     });
 
     it('throws on a malformed response', async () => {
@@ -352,12 +323,73 @@ describe('KycService', () => {
 
       await expect(
         service.createUkycSession({
-          jwtToken: 'jwt',
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: {},
+          aal2Token: AAL2_TOKEN,
         }),
       ).rejects.toThrow(/Malformed response received from UKYC sessions API/u);
+    });
+  });
+
+  describe('resetWrappingKeys', () => {
+    const encryptionSchema: EncryptionSchema = {
+      serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
+      jwtChain: 'jwt.chain.sig',
+    };
+    const response = {
+      sessionId: 'sid',
+      encryptionDataKey: encryptionSchema,
+      ukycCapabilityToken: {
+        ...encryptionSchema,
+        jwtChain: 'capability.jwt.chain',
+      },
+    };
+
+    it('posts wrapping-keys and returns encryption schemas', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions/sid/wrapping-keys',
+          (body: Record<string, unknown>) =>
+            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY,
+        )
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.resetWrappingKeys({
+          sessionId: 'sid',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('url-encodes the session id', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/a%2Fb/wrapping-keys')
+        .reply(200, { ...response, sessionId: 'a/b' });
+      const { service } = getService();
+
+      expect(
+        await service.resetWrappingKeys({
+          sessionId: 'a/b',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+        }),
+      ).toStrictEqual({ ...response, sessionId: 'a/b' });
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid/wrapping-keys')
+        .reply(200, { unexpected: true });
+      const { service } = getService();
+
+      await expect(
+        service.resetWrappingKeys({
+          sessionId: 'sid',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+        }),
+      ).rejects.toThrow(/Malformed response received from wrapping keys API/u);
     });
   });
 
@@ -365,6 +397,7 @@ describe('KycService', () => {
     const wrappedEncryptionDataKey = { nonce: 'nonce-1', data: 'data-1' };
     const wrappedUkycCapabilityToken = { nonce: 'nonce-2', data: 'data-2' };
     const statusResponse = {
+      id: 'sid',
       finalStatus: 'approved',
       statusMessage: 'All good',
       externalUserId: 'ext-1',
@@ -461,12 +494,16 @@ describe('KycService', () => {
   describe('getSessionStatus', () => {
     it('returns the session status', async () => {
       const response = {
+        id: 'sid',
         finalStatus: 'approved',
         statusMessage: 'All good',
         externalUserId: 'ext-1',
         kycStatus: 'approved',
         vendor: 'sumsub',
         vendorStatus: 'GREEN',
+        consentStatus: 'given',
+        idOSStatus: 'active',
+        capabilityAuthorizationStatus: 'stored',
       };
       nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
       const { service } = getService();
@@ -478,6 +515,7 @@ describe('KycService', () => {
 
     it('url-encodes the session id', async () => {
       const response = {
+        id: 'a/b',
         finalStatus: 'pending',
         externalUserId: 'ext-1',
         kycStatus: 'pending',
@@ -563,6 +601,63 @@ describe('KycService', () => {
       await expect(
         service.getSessionStatus({ sessionId: 'sid' }),
       ).rejects.toThrow(/failed with status '409'$/u);
+    });
+  });
+
+  describe('getSessionStatusForVendor', () => {
+    const response = {
+      id: 'sid',
+      finalStatus: 'approved',
+      statusMessage: 'All good',
+      externalUserId: 'ext-1',
+      kycStatus: 'approved',
+      vendor: 'iron',
+      vendorStatus: 'GREEN',
+    };
+
+    it('returns the latest session status for the vendor', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/latest/status/iron')
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(await service.getSessionStatusForVendor('iron')).toStrictEqual(
+        response,
+      );
+    });
+
+    it('returns null when no latest session exists for the vendor', async () => {
+      nock(MOCK_API_URL).get('/sessions/latest/status/moonpay').reply(404);
+      const { service } = getService();
+
+      expect(await service.getSessionStatusForVendor('moonpay')).toBeNull();
+    });
+
+    it('returns null on a 204 response', async () => {
+      nock(MOCK_API_URL).get('/sessions/latest/status/iron').reply(204);
+      const { service } = getService();
+
+      expect(await service.getSessionStatusForVendor('iron')).toBeNull();
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/latest/status/iron')
+        .reply(200, { finalStatus: 'approved' });
+      const { service } = getService();
+
+      await expect(service.getSessionStatusForVendor('iron')).rejects.toThrow(
+        /Malformed response received from latest session status API/u,
+      );
+    });
+
+    it('throws an HttpError on a non-ok response other than 404', async () => {
+      nock(MOCK_API_URL).get('/sessions/latest/status/iron').reply(500);
+      const { service } = getService();
+
+      await expect(service.getSessionStatusForVendor('iron')).rejects.toThrow(
+        /failed with status '500'/u,
+      );
     });
   });
 
@@ -719,44 +814,6 @@ describe('KycService', () => {
       await expect(
         service.fetchVendorDisclaimers({ vendor: 'iron', country: 'USA' }),
       ).rejects.toThrow(/Malformed response received from disclaimers API/u);
-    });
-  });
-
-  describe('checkKycRequired for a non-MoonPay vendor', () => {
-    it('returns whether Iron KYC is required', async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/iron/kyc-required')
-        .reply(200, { required: true });
-      const { service } = getService();
-
-      expect(await service.checkKycRequired({ vendor: 'iron' })).toStrictEqual({
-        kycRequired: true,
-      });
-    });
-
-    it('throws when accessToken is missing for MoonPay vendor', async () => {
-      const { service } = getService();
-
-      await expect(
-        service.checkKycRequired({ vendor: 'moonpay', country: 'USA' }),
-      ).rejects.toThrow('accessToken is required for vendor "moonpay"');
-    });
-
-    it('throws when country is missing for MoonPay vendor', async () => {
-      const { service } = getService();
-
-      await expect(
-        service.checkKycRequired({ vendor: 'moonpay', accessToken: 'tok' }),
-      ).rejects.toThrow('country is required for vendor "moonpay"');
-    });
-
-    it('throws on a malformed response', async () => {
-      nock(MOCK_API_URL).post('/vendors/iron/kyc-required').reply(200, {});
-      const { service } = getService();
-
-      await expect(
-        service.checkKycRequired({ vendor: 'iron' }),
-      ).rejects.toThrow(/Malformed response received from kyc-required API/u);
     });
   });
 
@@ -1022,30 +1079,6 @@ describe('KycService', () => {
     });
   });
 
-  describe('fetchKycStatus', () => {
-    it('returns the simplified user-keyed status', async () => {
-      nock(MOCK_API_URL).get('/kyc/status').reply(200, {
-        status: 'pending',
-        sumsubSessionId: 'ss-1',
-      });
-      const { service } = getService();
-
-      expect(await service.fetchKycStatus()).toStrictEqual({
-        status: 'pending',
-        sumsubSessionId: 'ss-1',
-      });
-    });
-
-    it('throws on an unknown status value', async () => {
-      nock(MOCK_API_URL).get('/kyc/status').reply(200, { status: 'weird' });
-      const { service } = getService();
-
-      await expect(service.fetchKycStatus()).rejects.toThrow(
-        /Malformed response received from kyc status API/u,
-      );
-    });
-  });
-
   describe('createUkycSession vendorId', () => {
     const encryptionSchema: EncryptionSchema = {
       serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
@@ -1074,10 +1107,10 @@ describe('KycService', () => {
 
       expect(
         await service.createUkycSession({
-          jwtToken: 'jwt',
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { moonPayAccessToken: 'tok' },
+          aal2Token: AAL2_TOKEN,
         }),
       ).toStrictEqual(response);
     });
@@ -1102,10 +1135,10 @@ describe('KycService', () => {
 
       expect(
         await service.createUkycSession({
-          jwtToken: 'jwt',
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendor: 'iron',
+          aal2Token: AAL2_TOKEN,
         }),
       ).toStrictEqual(response);
     });

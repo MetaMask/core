@@ -410,11 +410,11 @@ export class AggregatedOrderBookConnection {
           } catch {
             // Ignore cleanup errors on an already-cancelled/stale subscription.
           }
-          return undefined;
+          return;
         }
         subscription = sub;
         reportStatus('connected');
-        return undefined;
+        return;
       })
       .catch(handleSubscriptionError);
 

@@ -306,7 +306,7 @@ describe('IntentManager', () => {
     const mockCall = jest.fn((...args: unknown[]) => {
       const [method] = args;
       if (method === 'TransactionController:updateTransaction') {
-        return undefined;
+        return;
       }
       return { transactions: [existingTxMeta] };
     });
@@ -384,7 +384,7 @@ describe('IntentManager', () => {
     const mockCall = jest.fn((...args: unknown[]) => {
       const [method] = args;
       if (method === 'TransactionController:updateTransaction') {
-        return undefined;
+        return;
       }
       return { transactions: [existingTxMeta] };
     });

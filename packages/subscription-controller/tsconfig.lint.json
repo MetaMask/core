@@ -28,6 +28,33 @@
     },
     {
       "path": "../utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../authenticated-user-storage/tsconfig.lint.json"
+    },
+    {
+      "path": "../chomp-api-service/tsconfig.lint.json"
+    },
+    {
+      "path": "../delegation-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../geolocation-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../money-account-balance-service/tsconfig.lint.json"
+    },
+    {
+      "path": "../money-account-upgrade-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../money-account-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../seedless-onboarding-controller/tsconfig.lint.json"
     }
   ]
 }

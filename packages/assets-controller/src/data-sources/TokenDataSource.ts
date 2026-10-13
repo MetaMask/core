@@ -14,8 +14,10 @@ import { forDataTypes } from '../types.js';
 import type {
   Caip19AssetId,
   AssetMetadata,
+  AssetsControllerState,
   Middleware,
   FungibleAssetMetadata,
+  DataResponse,
 } from '../types.js';
 import { fetchWithTimeout } from '../utils/index.js';
 import {
@@ -70,6 +72,8 @@ export type TokenDataSourceOptions = {
    * fires, the batch rejects so metadata enrichment proceeds without it.
    */
   fetchTimeoutMs?: number;
+  /** Current AssetsController state. Used to skip already-known metadata and custom assets. */
+  getAssetsState: () => AssetsControllerState;
 };
 
 /**
@@ -145,6 +149,44 @@ function getOccurrenceFloorForAsset(
   }
 }
 
+function cleanResponseSpam(
+  spamAssetIds: Set<string>,
+  response: DataResponse,
+): void {
+  const spamLowerIds = new Set([...spamAssetIds].map((id) => id.toLowerCase()));
+
+  // Correctly clean assetsBalance by its own Ids
+  if (response.assetsBalance) {
+    for (const accountBalances of Object.values(response.assetsBalance)) {
+      for (const assetId of Object.keys(accountBalances)) {
+        if (spamLowerIds.has(assetId.toLowerCase())) {
+          delete (accountBalances as Record<string, unknown>)[assetId];
+        }
+      }
+    }
+  }
+
+  // Correctly clean assetsInfo by its own Ids
+  if (response.assetsInfo) {
+    for (const assetId of Object.keys(response.assetsInfo)) {
+      if (spamLowerIds.has(assetId.toLowerCase())) {
+        delete response.assetsInfo[assetId as Caip19AssetId];
+      }
+    }
+  }
+
+  // Correctly clean detectedAssets by its own Ids
+  if (response.detectedAssets) {
+    for (const [accountId, assetIds] of Object.entries(
+      response.detectedAssets,
+    )) {
+      response.detectedAssets[accountId] = assetIds.filter(
+        (id) => !spamLowerIds.has(id.toLowerCase()),
+      );
+    }
+  }
+}
+
 // ============================================================================
 // TOKEN DATA SOURCE
 // ============================================================================
@@ -187,6 +229,8 @@ export class TokenDataSource {
 
   readonly #fetchTimeoutMs: number;
 
+  readonly #getAssetsState: () => AssetsControllerState;
+
   constructor(
     messenger: AssetsControllerMessenger,
     options: TokenDataSourceOptions,
@@ -196,6 +240,7 @@ export class TokenDataSource {
     this.#getNativeAssetIds = options.getNativeAssetIds;
     this.#getAssetType = options.getAssetType;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+    this.#getAssetsState = options.getAssetsState;
   }
 
   /**
@@ -367,7 +412,7 @@ export class TokenDataSource {
         assetsBalance: stateBalances,
         assetsInfo: stateMetadata,
         customAssets,
-      } = ctx.getAssetsState();
+      } = this.#getAssetsState();
 
       const customAssetIds = new Set(
         Object.values(customAssets ?? {})
@@ -464,23 +509,7 @@ export class TokenDataSource {
         }
 
         if (spamAssetIds.size > 0) {
-          for (const accountBalances of Object.values(
-            response.assetsBalance ?? {},
-          )) {
-            for (const assetId of spamAssetIds) {
-              delete (accountBalances as Record<string, unknown>)[assetId];
-            }
-          }
-          if (response.assetsInfo) {
-            const spamLowerIds = new Set(
-              [...spamAssetIds].map((id) => id.toLowerCase()),
-            );
-            for (const assetId of Object.keys(response.assetsInfo)) {
-              if (spamLowerIds.has(assetId.toLowerCase())) {
-                delete response.assetsInfo[assetId as Caip19AssetId];
-              }
-            }
-          }
+          cleanResponseSpam(spamAssetIds, response);
           log('Filtered low-occurrence websocket assets', {
             assetIds: [...spamAssetIds],
           });
@@ -515,7 +544,8 @@ export class TokenDataSource {
       // Extract response from context
       const { response } = ctx;
 
-      const { assetsInfo: stateMetadata, customAssets } = ctx.getAssetsState();
+      const { assetsInfo: stateMetadata, customAssets } =
+        this.#getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
       // Newly detected asset IDs (lowercase) — subject to spam filtering.
       const detectedAssetIds = new Set<string>();
@@ -734,39 +764,7 @@ export class TokenDataSource {
         }
 
         if (filteredOutAssets.size > 0) {
-          if (response.assetsBalance) {
-            for (const accountBalances of Object.values(
-              response.assetsBalance,
-            )) {
-              for (const assetId of filteredOutAssets) {
-                delete (accountBalances as Record<string, unknown>)[assetId];
-              }
-            }
-          }
-
-          if (response.detectedAssets) {
-            for (const [accountId, assetIds] of Object.entries(
-              response.detectedAssets,
-            )) {
-              response.detectedAssets[accountId] = assetIds.filter(
-                (id) => !filteredOutAssets.has(id),
-              );
-            }
-          }
-
-          // Drop stub metadata (e.g. websocket-seeded name/symbol) for
-          // filtered-out assets so it never persists to state — a persisted
-          // stub would make the asset look "known" on the next update and
-          // let its balance skip spam filtering as a heal. Case-insensitive
-          // because the API may return asset IDs in a different case.
-          const filteredOutLower = new Set(
-            [...filteredOutAssets].map((id) => id.toLowerCase()),
-          );
-          for (const assetId of Object.keys(response.assetsInfo)) {
-            if (filteredOutLower.has(assetId.toLowerCase())) {
-              delete response.assetsInfo[assetId as Caip19AssetId];
-            }
-          }
+          cleanResponseSpam(filteredOutAssets, response);
         }
       } catch (error) {
         log('Failed to fetch metadata', { error });

@@ -21,6 +21,7 @@ const SUBSCRIPTION_SERVICE_ACTIONS = [
   'SubscriptionService:linkRewards',
   'SubscriptionService:getPricing',
   'SubscriptionService:getBillingPortalUrl',
+  'SubscriptionService:getBenefits',
 ] as const;
 
 export const subscriptionController: InitializationConfiguration<
@@ -45,6 +46,8 @@ export const subscriptionController: InitializationConfiguration<
       actions: [
         ...SUBSCRIPTION_SERVICE_ACTIONS,
         'AuthenticationController:performSignOut',
+        'GeolocationController:getGeolocationData',
+        'SeedlessOnboardingController:getIsUserAuthenticated',
       ],
     });
 

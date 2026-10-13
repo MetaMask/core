@@ -1,7 +1,6 @@
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
-import { parseCaipAssetType } from '@metamask/utils';
 
-import type { Caip19AssetId, ChainId, FungibleAssetBalance } from '../types.js';
+import type { Caip19AssetId, ChainId } from '../types.js';
 import { normalizeAssetId } from './normalizeAssetId.js';
 
 const CHAINID_NETWORK_URL = 'https://chainid.network/chains.json';
@@ -14,10 +13,11 @@ type ChainIdNetworkEntry = {
 /**
  * Seed native CAIP-19 asset IDs, keyed by CAIP-2 chain ID.
  *
- * Covers Price API v3/spot-prices EVM natives plus the Solana, Stellar and
- * Tron natives this controller ingests. chainid.network only fills extra
- * `eip155` gaps, so without the non-EVM rows an account holding nothing on
- * those networks gets an empty list instead of SOL/XLM/TRX at 0.
+ * Covers Price API v3/spot-prices EVM natives plus the Bitcoin, Solana,
+ * Stellar and Tron natives this controller ingests. chainid.network only
+ * fills extra `eip155` gaps, so without the non-EVM rows an account holding
+ * nothing on those networks gets an empty list instead of BTC/SOL/XLM/TRX
+ * at 0.
  *
  * Price API v3/spot-prices chains only for EVM — verify support before adding:
  * https://github.com/consensys-vertical-apps/va-mmcx-price-api/blob/main/src/constants/slip44.ts
@@ -114,6 +114,8 @@ export const NATIVE_ASSETS: Readonly<Record<ChainId, Caip19AssetId>> = {
   'eip155:1313161554': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   'eip155:1666600000': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
   'eip155:16661': 'eip155:16661/slip44:1111116661', // 0G Chain - Native symbol: 0G
+  'bip122:000000000019d6689c085ae165831e93':
+    'bip122:000000000019d6689c085ae165831e93/slip44:0', // Bitcoin Mainnet - Native symbol: BTC
   'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp':
     'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501', // Solana Mainnet - Native symbol: SOL
   'solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z':
@@ -127,45 +129,25 @@ export const NATIVE_ASSETS: Readonly<Record<ChainId, Caip19AssetId>> = {
   'tron:2494104990': 'tron:2494104990/slip44:195', // Tron Shasta - Native symbol: TRX
 };
 
-/**
- * Balance-row metadata the Accounts API attaches to Stellar native XLM.
- * Seeded at zero so an unfunded account still has a well-formed native row
- * instead of a bare `{ amount: '0' }`.
- */
-export const STELLAR_NATIVE_ZERO_BALANCE_METADATA = {
-  minimumReserveBalance: '0',
-  spendableBalance: '0',
-} as const;
-
-const ZERO_NATIVE_BALANCE: FungibleAssetBalance = { amount: '0' };
+const NATIVE_ASSET_IDS = new Set(
+  Object.values(NATIVE_ASSETS).map((assetId) =>
+    normalizeAssetId(assetId).toLowerCase(),
+  ),
+);
 
 /**
- * Default native balance to insert when a data source (typically Accounts API)
- * returns no row for the chain's native asset.
+ * Whether `assetId` is the native asset for a chain in {@link NATIVE_ASSETS}.
+ * ERC-20 addresses are compared in checksummed form.
  *
- * Stellar natives include `spendableBalance` / `minimumReserveBalance` at 0 so
- * consumers that read those fields on XLM do not have to special-case a missing
- * metadata object. Other natives are a plain zero amount.
- *
- * @param nativeAssetId - The CAIP-19 native asset ID being seeded.
- * @returns A zero-balance entry for that native.
+ * @param assetId - CAIP-19 asset ID to check.
+ * @returns True when the ID matches a seeded native asset.
  */
-export function getDefaultNativeAssetBalance(
-  nativeAssetId: Caip19AssetId,
-): FungibleAssetBalance {
+export function isNativeAssetId(assetId: Caip19AssetId): boolean {
   try {
-    const { chain } = parseCaipAssetType(nativeAssetId);
-    if (chain.namespace === 'stellar') {
-      return {
-        amount: '0',
-        metadata: { ...STELLAR_NATIVE_ZERO_BALANCE_METADATA },
-      };
-    }
+    return NATIVE_ASSET_IDS.has(normalizeAssetId(assetId).toLowerCase());
   } catch {
-    // Malformed IDs fall through to a plain zero amount.
+    return false;
   }
-
-  return { ...ZERO_NATIVE_BALANCE };
 }
 
 /**
@@ -223,7 +205,7 @@ export async function buildNativeAssetsFromApi(): Promise<
         const caipChainId = `eip155:${chain.chainId}` as ChainId;
         if (!nativeAssetsMap[caipChainId]) {
           nativeAssetsMap[caipChainId] =
-            `eip155:${chain.chainId}/slip44:${chain.slip44}` as Caip19AssetId;
+            `eip155:${chain.chainId}/slip44:${chain.slip44}`;
         }
       }
     }

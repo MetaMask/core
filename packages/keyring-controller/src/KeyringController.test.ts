@@ -3405,7 +3405,7 @@ describe('KeyringController', () => {
       await withController(async ({ controller, initialState }) => {
         await controller.submitEncryptionKey(
           MOCK_ENCRYPTION_KEY,
-          initialState.encryptionSalt as string,
+          initialState.encryptionSalt,
         );
         expect(controller.state).toStrictEqual(initialState);
       });
@@ -3430,7 +3430,7 @@ describe('KeyringController', () => {
         async ({ controller, initialState }) => {
           await controller.submitEncryptionKey(
             MOCK_ENCRYPTION_KEY,
-            initialState.encryptionSalt as string,
+            initialState.encryptionSalt,
           );
 
           expect(controller.state.isUnlocked).toBe(true);
@@ -3463,7 +3463,7 @@ describe('KeyringController', () => {
 
           await controller.submitEncryptionKey(
             MOCK_ENCRYPTION_KEY,
-            initialState.encryptionSalt as string,
+            initialState.encryptionSalt,
           );
 
           expect(controller.state.isUnlocked).toBe(true);
@@ -3514,7 +3514,7 @@ describe('KeyringController', () => {
 
           await controller.submitEncryptionKey(
             MOCK_ENCRYPTION_KEY,
-            initialState.encryptionSalt as string,
+            initialState.encryptionSalt,
           );
 
           expect(controller.state.isUnlocked).toBe(true);
@@ -4186,7 +4186,7 @@ describe('KeyringController', () => {
 
         jest
           .spyOn(controller, 'getKeyringForAccount')
-          .mockResolvedValue(mockOrphanKeyring as EthKeyring);
+          .mockResolvedValue(mockOrphanKeyring);
 
         const selector = {
           address: '0x1234567890123456789012345678901234567890' as Hex,

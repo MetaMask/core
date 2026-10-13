@@ -288,7 +288,7 @@ describe('properties', () => {
     it('should use native asset when srcTokenAddress is not provided', () => {
       const result = getRequestParams(
         {
-          srcChainId: 'eip155:1' as CaipChainId,
+          srcChainId: 'eip155:1',
           destChainId: '2',
           srcTokenAddress: undefined,
           destTokenAddress: '0x456',
@@ -308,7 +308,7 @@ describe('properties', () => {
     it('should use native asset when formatAddressToAssetId returns null', () => {
       const result = getRequestParams(
         {
-          srcChainId: 'eip155:1' as CaipChainId,
+          srcChainId: 'eip155:1',
           destChainId: '2',
           srcTokenAddress: '123',
           destTokenAddress: '456',

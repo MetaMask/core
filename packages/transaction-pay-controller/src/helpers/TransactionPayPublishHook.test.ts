@@ -71,7 +71,7 @@ describe('TransactionPayPublishHook', () => {
     getStrategyByNameMock.mockReturnValue({
       execute: executeMock,
       getQuotes: jest.fn(),
-    } as never);
+    });
 
     isSmartTransactionMock.mockReturnValue(false);
 
@@ -81,7 +81,7 @@ describe('TransactionPayPublishHook', () => {
           quotes: [QUOTE_MOCK, QUOTE_MOCK],
         },
       },
-    } as TransactionPayControllerState);
+    });
 
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [TRANSACTION_META_MOCK],
@@ -124,7 +124,7 @@ describe('TransactionPayPublishHook', () => {
           tokens: [],
         },
       },
-    } as unknown as TransactionPayControllerState);
+    });
 
     const result = await runHook();
 
@@ -143,7 +143,7 @@ describe('TransactionPayPublishHook', () => {
           tokens: [],
         },
       },
-    } as unknown as TransactionPayControllerState);
+    });
 
     const result = await runHook();
 
@@ -163,7 +163,7 @@ describe('TransactionPayPublishHook', () => {
           tokens: [],
         },
       },
-    } as TransactionPayControllerState);
+    });
 
     await expect(runHook()).rejects.toThrow(
       'MetaMask Pay: Fiat: Missing quote',

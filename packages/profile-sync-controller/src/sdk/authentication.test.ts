@@ -15,7 +15,11 @@ import {
   UnsupportedAuthTypeError,
   ValidationError,
 } from './errors.js';
-import { MOCK_ACCESS_JWT, MOCK_SRP_LOGIN_RESPONSE } from './mocks/auth.js';
+import {
+  MOCK_ACCESS_JWT,
+  MOCK_MFA_ASSERTION_JWT,
+  MOCK_SRP_LOGIN_RESPONSE,
+} from './mocks/auth.js';
 import * as Eip6963MetamaskProvider from './utils/eip-6963-metamask-provider.js';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
@@ -730,6 +734,66 @@ describe('Authentication - rejects when calling unrelated methods', () => {
         signMessage: async () => 'MOCK_SIWE_SIGNATURE',
       }),
     ).toThrow(UnsupportedAuthTypeError);
+  });
+});
+
+describe('MFA authentication facade', () => {
+  it('forwards MFA operations to the SRP implementation', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const endpoints = arrangeAuthAPIs();
+    const registration = {
+      id: 'credential-id',
+      rawId: 'credential-id',
+      type: 'public-key',
+      response: {
+        attestationObject: 'attestation',
+        clientDataJSON: 'client-data',
+      },
+    } as const;
+    const assertion = {
+      id: 'credential-id',
+      rawId: 'credential-id',
+      type: 'public-key',
+      response: {
+        authenticatorData: 'authenticator-data',
+        clientDataJSON: 'client-data',
+        signature: 'signature',
+      },
+    } as const;
+
+    expect(await auth.beginMfaEnrollment('passkey')).toMatchObject({
+      type: 'passkey',
+      flowId: 'enroll-passkey-flow-id',
+    });
+    expect(
+      await auth.completeMfaEnrollment('flow-id', {
+        type: 'passkey',
+        attestation: registration,
+      }),
+    ).toStrictEqual({ token: MOCK_MFA_ASSERTION_JWT, expiresIn: 900 });
+    expect(await auth.beginMfaVerification('passkey')).toMatchObject({
+      type: 'passkey',
+      flowId: 'verify-passkey-flow-id',
+    });
+    expect(
+      await auth.completeMfaVerification('flow-id', {
+        type: 'passkey',
+        assertion,
+      }),
+    ).toMatchObject({
+      token: expect.any(String),
+      expiresIn: 900,
+    });
+    expect(await auth.getMfaCredentials()).toHaveLength(2);
+    expect(await auth.exchangeMfaAssertion('assertion-jwt')).toMatchObject({
+      accessToken: MOCK_ACCESS_JWT,
+    });
+
+    expect(endpoints.mockMfaEnrollUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaEnrollCompleteUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaVerifyUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaVerifyCompleteUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaCredentialsUrl.isDone()).toBe(true);
   });
 });
 

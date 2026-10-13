@@ -93,6 +93,7 @@ export type {
   DataRequest,
   DataResponse,
   AssetsUpdateMode,
+  AssetsLoadingStatus,
   // Middleware types
   Context,
   NextFunction,
@@ -172,6 +173,7 @@ export {
 } from './middlewares/index.js';
 export type {
   CustomAssetGraduationMiddlewareOptions,
+  DetectionMiddlewareOptions,
   RpcFallbackMiddlewareOptions,
 } from './middlewares/index.js';
 
@@ -198,6 +200,14 @@ export {
   getGroupIdForAccount,
   getInternalAccountsForGroup,
 } from './selectors/balance.js';
+
+export {
+  getAccountGroupLoadingStatus,
+  getAccountLoadingStatus,
+  getIsAssetsLoadingForSelectedAccountGroup,
+  isAccountGroupLoading,
+  isAccountLoading,
+} from './selectors/loading.js';
 
 export type {
   AccountGroupBalance,

@@ -76,6 +76,7 @@ export const PERPS_ERROR_CODES = {
   ORDER_STRATEGY_CANCEL_INCOMPLETE: 'ORDER_STRATEGY_CANCEL_INCOMPLETE', // Part of a strategy placement is still resting after a cancel; the handle stays valid for a retry
   ORDER_TWAP_DURATION_REQUIRED: 'ORDER_TWAP_DURATION_REQUIRED', // TWAP placed without twapDuration
   ORDER_TWAP_DURATION_INVALID: 'ORDER_TWAP_DURATION_INVALID', // twapDuration not a whole number of minutes within the venue's bounds
+  ORDER_SCALE_PREVIEW_STALE: 'ORDER_SCALE_PREVIEW_STALE', // Approved ladder or constraints changed; refresh the preview
   ORDER_SCALE_RANGE_REQUIRED: 'ORDER_SCALE_RANGE_REQUIRED', // Scale placed without both ladder bounds
   ORDER_SCALE_RANGE_INVALID: 'ORDER_SCALE_RANGE_INVALID', // Scale ladder bounds or skew are invalid
   ORDER_SCALE_COUNT_INVALID: 'ORDER_SCALE_COUNT_INVALID', // scaleNumOrders missing, non-integer, or outside the supported ladder size
@@ -94,6 +95,9 @@ export const PERPS_ERROR_CODES = {
   SUBSCRIPTION_CLIENT_NOT_AVAILABLE: 'SUBSCRIPTION_CLIENT_NOT_AVAILABLE',
   // Wallet/account errors
   NO_ACCOUNT_SELECTED: 'NO_ACCOUNT_SELECTED',
+  // The signer could not sign: a locked keyring or account signer, or, with
+  // HyperLiquid agent signing, an agent that is unavailable or that the venue
+  // rejected. Retryable.
   KEYRING_LOCKED: 'KEYRING_LOCKED',
   INVALID_ADDRESS_FORMAT: 'INVALID_ADDRESS_FORMAT',
   // Wallet has no account on the exchange yet (HyperLiquid creates accounts

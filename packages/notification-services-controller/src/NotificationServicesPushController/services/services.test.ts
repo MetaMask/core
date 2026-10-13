@@ -170,6 +170,17 @@ describe('NotificationServicesPushController Services', () => {
       expect(result).toBeNull();
     });
 
+    it('creates an FCM token without calling the links API when there are no addresses', async () => {
+      const { params, apis } = arrangeMocks();
+      params.addresses = [];
+
+      const result = await activatePushNotifications(params);
+
+      expect(params.createRegToken).toHaveBeenCalled();
+      expect(apis.mockPut.isDone()).toBe(false);
+      expect(result).toBe(MOCK_NEW_REG_TOKEN);
+    });
+
     it('should handle oldToken parameter when provided', async () => {
       const { params, apis } = arrangeMocks();
       const paramsWithOldToken = {

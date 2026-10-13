@@ -100,7 +100,7 @@ describe('create-package/cli', () => {
         tsConfigBuild: {},
         nodeVersions: '>=18.0.0',
         // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // oxlint-disable-next-line typescript/no-explicit-any
       } as any);
       jest.mocked(utils.finalizeAndWriteData).mockResolvedValue();
 
@@ -126,7 +126,7 @@ describe('create-package/cli', () => {
         tsConfigBuild: {},
         nodeVersions: '>=18.0.0',
         // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // oxlint-disable-next-line typescript/no-explicit-any
       } as any);
       jest.mocked(utils.finalizeAndWriteData).mockResolvedValue();
 

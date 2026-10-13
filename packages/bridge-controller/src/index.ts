@@ -25,13 +25,16 @@ export type {
   RequestMetadata,
   TxStatusData,
   QuoteFetchData,
-  QuoteWarning,
   InputPrimaryDenominationData,
   HashPresenceData,
   FailureTelemetryData,
   HashPresenceProperties,
   FailureTelemetryProperties,
 } from './utils/metrics/types.js';
+
+export type { QuoteWarning } from './utils/quote-warnings/types.js';
+export { hasSufficientGasForQuote } from './utils/quote-warnings/insufficient-gas-for-quote.js';
+export { hasNetworkFee } from './utils/quote-warnings/network-fee-unavailable.js';
 
 export {
   getAccountHardwareType,
@@ -137,7 +140,11 @@ export { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2.js';
 export { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1.js';
 export { toQuoteMetadataV2 } from './utils/quote-metadata/to-quote-metadata-v2.js';
 
-export { sumAmounts } from './utils/number-formatters.js';
+export {
+  sumAmounts,
+  calcAtomicTokenAmount,
+  calcNormalizedTokenAmount,
+} from './utils/number-formatters.js';
 export { assetIdsMatch } from './utils/assets.js';
 
 export {
@@ -145,7 +152,10 @@ export {
   QuoteStreamCompleteReason,
 } from './validators/quote-stream-complete.js';
 export { BatchSellTransactionType } from './validators/batch-sell.js';
-export { AmountsAndAssetSchema } from './validators/amount-and-asset.js';
+export {
+  AmountsAndAssetSchema,
+  type AmountsAndAsset,
+} from './validators/amount-and-asset.js';
 export { TokenFeatureType } from './validators/token-feature.js';
 export type {
   BridgeAsset,

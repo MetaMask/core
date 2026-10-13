@@ -105,7 +105,14 @@ function deduplicationScore(item: MessengerCapabilityPacket): number {
     item.sourceFile.toLowerCase().includes(namespacePrefix)
       ? 1
       : 0;
-  return jsDocScore + homeScore;
+  // A capability declared in a package's own source is usually also visible in
+  // the `dist` built from it, and a cross-package import resolves to that
+  // `dist` rather than to the sibling's source. Prefer the source, which is
+  // what an engineer can actually read and edit. Projects that only ever see
+  // published packages score every candidate the same way, so nothing changes
+  // for them.
+  const sourceScore = /[\\/]dist[\\/]/u.test(item.sourceFile) ? 0 : 1;
+  return jsDocScore + homeScore + sourceScore;
 }
 
 const execFileAsync = promisify(execFile);
@@ -355,6 +362,9 @@ async function scanSources(
   const project = createProject();
   const sourceFiles = [];
 
+  // NOTE: We are calling `addSourceFiles` for each kind of source instead of
+  // calling it at the very end so that at each step we can make sure to exclude
+  // `node_modules` and `dist`.
   for (const dir of sources.scanDirs) {
     const root = await toGlobPath(projectPath, dir);
     sourceFiles.push(

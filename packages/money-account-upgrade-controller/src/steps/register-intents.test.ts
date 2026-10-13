@@ -2,7 +2,10 @@ import type {
   DelegationResponse,
   DelegationMetadata,
 } from '@metamask/authenticated-user-storage';
-import type { IntentEntry } from '@metamask/chomp-api-service';
+import type {
+  ChompApiServiceCreateIntentsAction,
+  IntentEntry,
+} from '@metamask/chomp-api-service';
 import { createRedeemerTerms } from '@metamask/delegation-core';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -14,6 +17,7 @@ import type { Hex } from '@metamask/utils';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
 import { registerIntentsStep } from './register-intents.js';
+import type { StepContext } from './step.js';
 
 jest.mock('@metamask/delegation-core', () => ({
   createRedeemerTerms: jest.fn(),
@@ -145,7 +149,10 @@ type AllEvents = MessengerEvents<MoneyAccountUpgradeControllerMessenger>;
 type Mocks = {
   listDelegations: jest.Mock;
   getIntentsByAddress: jest.Mock;
-  createIntents: jest.Mock;
+  createIntents: jest.Mock<
+    ReturnType<ChompApiServiceCreateIntentsAction['handler']>,
+    Parameters<ChompApiServiceCreateIntentsAction['handler']>
+  >;
 };
 
 function setup(): {
@@ -157,7 +164,12 @@ function setup(): {
       .fn()
       .mockResolvedValue([depositDelegation(), withdrawalDelegation()]),
     getIntentsByAddress: jest.fn().mockResolvedValue([]),
-    createIntents: jest.fn().mockResolvedValue([]),
+    createIntents: jest
+      .fn<
+        ReturnType<ChompApiServiceCreateIntentsAction['handler']>,
+        Parameters<ChompApiServiceCreateIntentsAction['handler']>
+      >()
+      .mockResolvedValue([]),
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -195,6 +207,7 @@ function setup(): {
 
 async function run(
   messenger: MoneyAccountUpgradeControllerMessenger,
+  premiumVault?: StepContext['premiumVault'],
 ): ReturnType<typeof registerIntentsStep.run> {
   return registerIntentsStep.run({
     messenger,
@@ -202,9 +215,10 @@ async function run(
     chainId: MOCK_CHAIN_ID,
     boringVaultAddress: MOCK_BORING_VAULT,
     delegateAddress: MOCK_DELEGATE,
-    delegatorImplAddress: '0x2222222222222222222222222222222222222222' as Hex,
+    delegatorImplAddress: '0x2222222222222222222222222222222222222222',
     erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,
     musdTokenAddress: MOCK_MUSD,
+    premiumVault,
     redeemerEnforcer: MOCK_REDEEMER_ENFORCER,
     valueLteEnforcer: MOCK_VALUE_LTE_ENFORCER,
     vedaVaultAdapterAddress: MOCK_VAULT_ADAPTER,
@@ -504,7 +518,7 @@ describe('registerIntentsStep', () => {
       ]);
 
       await expect(run(messenger)).rejects.toThrow(
-        'Expected delegation type to be "cash-deposit" or "cash-withdrawal", got "lend"',
+        'Expected delegation type to be one of cash-deposit, cash-withdrawal, cash-deposit-premium, cash-withdrawal-premium, got "lend"',
       );
       expect(mocks.createIntents).not.toHaveBeenCalled();
     });
@@ -532,6 +546,96 @@ describe('registerIntentsStep', () => {
       mocks.createIntents.mockRejectedValue(new Error('submit failed'));
 
       await expect(run(messenger)).rejects.toThrow('submit failed');
+    });
+  });
+
+  describe('when a premium vault is configured', () => {
+    const MOCK_PREMIUM_VAULT =
+      '0x6666666666666666666666666666666666666666' as Hex;
+    const MOCK_PREMIUM_ADAPTER =
+      '0x5555555555555555555555555555555555555555' as Hex;
+    const MOCK_PREMIUM_REDEEMER_TERMS: Hex = '0xa7';
+    const MOCK_PREMIUM_MUSD_DELEGATION_HASH: Hex = `0x${'11'.repeat(32)}`;
+    const MOCK_PVMUSD_DELEGATION_HASH: Hex = `0x${'22'.repeat(32)}`;
+    const premiumVault = {
+      boringVaultAddress: MOCK_PREMIUM_VAULT,
+      vedaVaultAdapterAddress: MOCK_PREMIUM_ADAPTER,
+    };
+    const premiumCaveats = [
+      {
+        enforcer: MOCK_REDEEMER_ENFORCER,
+        terms: MOCK_PREMIUM_REDEEMER_TERMS,
+        args: '0x' as Hex,
+      },
+    ];
+
+    beforeEach(() => {
+      mockCreateRedeemerTerms.mockImplementation((({
+        redeemers,
+      }: {
+        redeemers: Hex[];
+      }) =>
+        redeemers[0] === MOCK_PREMIUM_ADAPTER
+          ? MOCK_PREMIUM_REDEEMER_TERMS
+          : MOCK_REDEEMER_TERMS) as never);
+    });
+
+    it('registers intents for the premium deposit and withdrawal delegations', async () => {
+      const { messenger, mocks } = setup();
+      mocks.listDelegations.mockResolvedValue([
+        depositDelegation(),
+        withdrawalDelegation(),
+        makeDelegationResponse({
+          tokenAddress: MOCK_MUSD,
+          delegationHash: MOCK_PREMIUM_MUSD_DELEGATION_HASH,
+          type: 'cash-deposit-premium',
+          caveats: premiumCaveats,
+        }),
+        makeDelegationResponse({
+          tokenAddress: MOCK_PREMIUM_VAULT,
+          tokenSymbol: 'pvmUSD',
+          delegationHash: MOCK_PVMUSD_DELEGATION_HASH,
+          type: 'cash-withdrawal-premium',
+          caveats: premiumCaveats,
+        }),
+      ]);
+      mocks.getIntentsByAddress.mockResolvedValue([
+        makeIntentEntry({ delegationHash: MOCK_MUSD_DELEGATION_HASH }),
+        makeIntentEntry({ delegationHash: MOCK_VMUSD_DELEGATION_HASH }),
+      ]);
+
+      const result = await run(messenger, premiumVault);
+
+      expect(result).toBe('completed');
+      const [submitted] = mocks.createIntents.mock.calls[0];
+      expect(
+        submitted.map(
+          (intent: { delegationHash: Hex; metadata: { type: string } }) => [
+            intent.delegationHash,
+            intent.metadata.type,
+          ],
+        ),
+      ).toStrictEqual([
+        [MOCK_PREMIUM_MUSD_DELEGATION_HASH, 'cash-deposit-premium'],
+        [MOCK_PVMUSD_DELEGATION_HASH, 'cash-withdrawal-premium'],
+      ]);
+    });
+
+    it('ignores premium delegations when no premium vault is configured', async () => {
+      const { messenger, mocks } = setup();
+      mocks.listDelegations.mockResolvedValue([
+        makeDelegationResponse({
+          tokenAddress: MOCK_PREMIUM_VAULT,
+          delegationHash: MOCK_PVMUSD_DELEGATION_HASH,
+          type: 'cash-withdrawal-premium',
+          caveats: premiumCaveats,
+        }),
+      ]);
+
+      const result = await run(messenger);
+
+      expect(result).toBe('already-done');
+      expect(mocks.createIntents).not.toHaveBeenCalled();
     });
   });
 });

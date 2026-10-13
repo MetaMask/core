@@ -310,6 +310,28 @@ describe('SubscriptionMultiplexer', () => {
   });
 
   describe('subscribeToOrders', () => {
+    it.each(['subscribeToOrders', 'subscribeToOrderFills'] as const)(
+      'forwards a provider authentication failure through %s',
+      (method) => {
+        const onError = jest.fn();
+        const failure = new Error('Lighter authentication failed');
+        const unsubscribe = mux[method]({
+          providers: [
+            ['lighter', mockLighterProvider as unknown as PerpsProvider],
+          ],
+          callback: jest.fn(),
+          onError,
+        });
+        const subscribe = mockLighterProvider[method];
+        if (!subscribe) {
+          throw new Error('Missing mocked subscription');
+        }
+        jest.mocked(subscribe).mock.calls[0][0].onError?.(failure);
+
+        expect(onError).toHaveBeenCalledWith(failure, 'lighter');
+        unsubscribe();
+      },
+    );
     const createMockOrder = (orderId: string, symbol: string): Order =>
       ({
         orderId,
@@ -344,6 +366,7 @@ describe('SubscriptionMultiplexer', () => {
             providerId: 'hyperliquid',
           }),
         ]),
+        'hyperliquid',
       );
     });
 
@@ -415,6 +438,7 @@ describe('SubscriptionMultiplexer', () => {
           }),
         ]),
         false,
+        'hyperliquid',
       );
     });
 
@@ -430,7 +454,11 @@ describe('SubscriptionMultiplexer', () => {
 
       mockHLProvider._emitFills([createMockFill('fill-1', 'BTC')], true);
 
-      expect(callback).toHaveBeenCalledWith(expect.any(Array), true);
+      expect(callback).toHaveBeenCalledWith(
+        expect.any(Array),
+        true,
+        'hyperliquid',
+      );
     });
   });
 

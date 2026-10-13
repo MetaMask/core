@@ -59,6 +59,53 @@ export type AuthenticatedUserStorageServicePutNotificationPreferencesAction = {
 };
 
 /**
+ * Returns the marketing consent for the authenticated user.
+ *
+ * @returns The marketing consent object, or `null` if none has been
+ * set (404).
+ */
+export type AuthenticatedUserStorageServiceGetMarketingConsentAction = {
+  type: `AuthenticatedUserStorageService:getMarketingConsent`;
+  handler: AuthenticatedUserStorageService['getMarketingConsent'];
+};
+
+/**
+ * Creates or updates the marketing consent for the authenticated user.
+ *
+ * @param consent - The full marketing consent object.
+ * @param clientType - Optional client type header.
+ */
+export type AuthenticatedUserStorageServicePutMarketingConsentAction = {
+  type: `AuthenticatedUserStorageService:putMarketingConsent`;
+  handler: AuthenticatedUserStorageService['putMarketingConsent'];
+};
+
+/**
+ * Returns the identity-sharing consent for the authenticated user.
+ *
+ * @returns The granted-audience map, or `null` if none has been set (404).
+ */
+export type AuthenticatedUserStorageServiceGetIdentitySharingConsentAction = {
+  type: `AuthenticatedUserStorageService:getIdentitySharingConsent`;
+  handler: AuthenticatedUserStorageService['getIdentitySharingConsent'];
+};
+
+/**
+ * Grants or revokes identity-sharing consent for a single audience.
+ * Other audiences on the profile are left unchanged.
+ *
+ * @param write - The audience and whether it is granted.
+ * @param clientType - Optional client type header.
+ * @throws A `StructError` from `@metamask/superstruct` if `write` is
+ * invalid; an `HttpError` from `@metamask/controller-utils` if the API
+ * responds with a non-2xx status.
+ */
+export type AuthenticatedUserStorageServicePutIdentitySharingConsentAction = {
+  type: `AuthenticatedUserStorageService:putIdentitySharingConsent`;
+  handler: AuthenticatedUserStorageService['putIdentitySharingConsent'];
+};
+
+/**
  * Returns the assets-watchlist for the authenticated user.
  *
  * @returns The assets-watchlist blob, or `null` if none has been set (404).
@@ -94,5 +141,9 @@ export type AuthenticatedUserStorageServiceMethodActions =
   | AuthenticatedUserStorageServiceRevokeDelegationAction
   | AuthenticatedUserStorageServiceGetNotificationPreferencesAction
   | AuthenticatedUserStorageServicePutNotificationPreferencesAction
+  | AuthenticatedUserStorageServiceGetMarketingConsentAction
+  | AuthenticatedUserStorageServicePutMarketingConsentAction
+  | AuthenticatedUserStorageServiceGetIdentitySharingConsentAction
+  | AuthenticatedUserStorageServicePutIdentitySharingConsentAction
   | AuthenticatedUserStorageServiceGetAssetsWatchlistAction
   | AuthenticatedUserStorageServiceSetAssetsWatchlistAction;

@@ -30,6 +30,7 @@ export const configRegistryController: InitializationConfiguration<
         'KeyringController:getState',
         'RemoteFeatureFlagController:getState',
         'ConfigRegistryApiService:fetchConfig',
+        'ConfigRegistryApiService:fetchEventsConfig',
       ],
       events: [
         'KeyringController:unlock',

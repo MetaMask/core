@@ -1,19 +1,8 @@
+import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import type {
-  AssetsControllerGetStateForTransactionPayAction,
+  AssetsControllerGetStateAction,
   AssetsControllerStateChangeEvent,
 } from '@metamask/assets-controller';
-import type {
-  CurrencyRateControllerGetStateAction,
-  CurrencyRateStateChange,
-  TokenBalancesControllerGetStateAction,
-} from '@metamask/assets-controllers';
-import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
-import type { TokenRatesControllerStateChangeEvent } from '@metamask/assets-controllers';
-import type {
-  TokensControllerGetStateAction,
-  TokensControllerStateChangeEvent,
-} from '@metamask/assets-controllers';
-import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
@@ -30,9 +19,7 @@ import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@m
 import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
   RampsControllerGetOrderAction,
-  RampsControllerGetQuotesAction,
-  RampsControllerTransakGetBuyQuoteAction,
-  TransakServiceGetBuyQuoteAction,
+  RampsControllerGetQuoteWithFeesAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
@@ -64,9 +51,8 @@ import type {
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types.js';
 
 export type AllowedActions =
-  | AccountTrackerControllerGetStateAction
-  | AssetsControllerGetStateForTransactionPayAction
-  | CurrencyRateControllerGetStateAction
+  | AccountsControllerGetStateAction
+  | AssetsControllerGetStateAction
   | GetGasFeeState
   | KeyringControllerGetStateAction
   | KeyringControllerSignTypedMessageAction
@@ -74,13 +60,8 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByChainIdAction
   | RampsControllerGetOrderAction
-  | RampsControllerGetQuotesAction
-  | RampsControllerTransakGetBuyQuoteAction
-  | TransakServiceGetBuyQuoteAction
+  | RampsControllerGetQuoteWithFeesAction
   | RemoteFeatureFlagControllerGetStateAction
-  | TokenBalancesControllerGetStateAction
-  | TokenRatesControllerGetStateAction
-  | TokensControllerGetStateAction
   | SentinelApiServiceActions
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
@@ -92,10 +73,7 @@ export type AllowedActions =
 
 export type AllowedEvents =
   | AssetsControllerStateChangeEvent
-  | CurrencyRateStateChange
   | KeyringControllerUnlockEvent
-  | TokenRatesControllerStateChangeEvent
-  | TokensControllerStateChangeEvent
   | TransactionControllerStateChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent;
 
@@ -122,6 +100,9 @@ export type TransactionConfig = {
    * completion. Used by flows whose second-leg amount is only known after
    * Relay settles (EXACT_INPUT max flows) or that require the second leg to
    * originate from a different signer than the Relay solver.
+   * For max deposits enabled by `payStrategies.relay.atomicMaxEnabled`, this
+   * is a subsidy hint: atomic quotes are retried non-atomically if not
+   * subsidized, and subsidized non-atomic quotes are upgraded to atomic.
    */
   atomic?: boolean;
 
@@ -688,6 +669,17 @@ export type TransactionPayQuote<OriginalQuote> = {
 
   /** Associated quote request. */
   request: QuoteRequest;
+
+  /**
+   * Whether the target calls could not be embedded in the quote and must be
+   * submitted separately, on the target chain, once the quote settles.
+   *
+   * Set by the strategy at quote time, since only it knows whether the provider
+   * accepted the calls. {@link TransactionConfig.atomic} is a hint rather than
+   * a guarantee: a quote requested atomically still falls back to a second leg
+   * when the provider cannot execute the calls itself.
+   */
+  requiresSecondLeg?: boolean;
 
   /** Amount of source token required. */
   sourceAmount: Amount;

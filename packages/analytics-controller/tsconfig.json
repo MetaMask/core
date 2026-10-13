@@ -12,6 +12,9 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../config-registry-controller"
     }
   ],
   "include": ["../../types", "./src"]

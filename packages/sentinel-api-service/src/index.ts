@@ -34,6 +34,7 @@ export {
   SentinelSmartTransactionStatus,
 } from './types.js';
 export type {
+  SentinelApiServiceGetNetworkAction,
   SentinelApiServiceGetNetworksAction,
   SentinelApiServiceSimulateTransactionsAction,
   SentinelApiServiceSubmitRelayTransactionAction,

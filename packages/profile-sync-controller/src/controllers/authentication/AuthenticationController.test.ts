@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -6,12 +7,18 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { cleanAll as cleanAllNock } from 'nock';
 
 import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth.js';
 import type { LoginResponse } from '../../sdk/index.js';
 import { EmailRequiredError, Platform } from '../../sdk/index.js';
 import {
   MOCK_ACCESS_JWT,
+  MOCK_MFA_CREDENTIALS_RESPONSE,
+  MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
+  MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
+  MOCK_MFA_ENROLL_EMAIL_RESPONSE,
+  MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
 } from '../../sdk/mocks/auth.js';
 import {
@@ -19,8 +26,17 @@ import {
   signMessageWithMessageSigningKey,
 } from '../../shared/utils/message-signing.js';
 import {
+  mockEndpointMfaCredentials,
+  mockEndpointMfaEnroll,
+  mockEndpointMfaEnrollComplete,
+  mockEndpointMfaVerify,
+  mockEndpointMfaVerifyComplete,
+  mockEndpointAccessToken,
+} from './__fixtures__/mockServices.js';
+import {
   AuthenticationController,
   defaultState,
+  ENROLLMENT_MAX_SESSION_AGE_MS,
 } from './AuthenticationController.js';
 import type {
   AuthenticationControllerMessenger,
@@ -30,6 +46,7 @@ import type {
 import {
   MOCK_LOGIN_RESPONSE,
   MOCK_OATH_TOKEN_RESPONSE,
+  MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE,
 } from './mocks/mockResponses.js';
 
 jest.mock('../../shared/utils/message-signing.js', () => ({
@@ -41,6 +58,27 @@ jest.mock('../../shared/utils/message-signing.js', () => ({
 }));
 
 const MOCK_HD_SEED = new Uint8Array(64).fill(1);
+
+/**
+ * Builds an unsigned verification access token.
+ *
+ * @param claims - Token claims.
+ * @param claims.amr - Method the verification used.
+ * @param claims.exp - Expiry, in seconds since the epoch.
+ * @returns The JWT.
+ */
+const buildVerificationJwt = ({
+  amr,
+  exp,
+}: {
+  amr: string;
+  exp: number;
+}): string =>
+  [
+    btoa(JSON.stringify({ alg: 'none', typ: 'JWT' })),
+    btoa(JSON.stringify({ sub: 'profile-id', aal: 2, amr, exp })),
+    'signature',
+  ].join('.');
 
 const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID',
@@ -115,6 +153,7 @@ const mockSignedInState = ({
 
   return {
     isSignedIn: true,
+    enrolledCredentials: [],
     needsProfilePairing,
     needsSocialPairing,
     srpSessionData,
@@ -578,6 +617,26 @@ describe('AuthenticationController', () => {
       expect(controller.state.needsProfilePairing).toBe(false);
     });
 
+    it('shares one in-flight performSignIn across overlapping callers', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      arrangeAuthAPIs({ mockPairProfilesDelayMs: 50 });
+      const { messenger } = createMockAuthenticationMessenger();
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      const first = controller.performSignIn();
+      const second = controller.performSignIn();
+      const [firstTokens, secondTokens] = await Promise.all([first, second]);
+
+      expect(secondTokens).toBe(firstTokens);
+
+      const thirdTokens = await controller.performSignIn();
+      expect(thirdTokens).not.toBe(firstTokens);
+    });
+
     it('does NOT throw out of performSignIn when pairProfiles fails, leaves needsProfilePairing=true', async () => {
       const metametrics = createMockAuthMetaMetrics();
       arrangeAuthAPIs({
@@ -807,6 +866,117 @@ describe('AuthenticationController', () => {
       }
     });
 
+    it('stores paired identifiers from the pair response on the primary SRP session only', async () => {
+      const pairedIdentifierIds = [
+        { id: 'h1', type: 'SRP' },
+        { id: 'id-1', type: 'SRP' },
+      ];
+      arrangeAuthAPIs({
+        mockPairProfiles: {
+          status: 200,
+          body: {
+            profile: {
+              identifier_id: 'id-1',
+              metametrics_id: 'mm-1',
+              profile_id: MOCK_LOGIN_RESPONSE.profile.profile_id,
+              paired_identifier_ids: pairedIdentifierIds,
+            },
+            profile_aliases: [],
+          },
+        },
+      });
+      const controller = new AuthenticationController({
+        messenger: createMockAuthenticationMessenger().messenger,
+        state: mockSignedInState({ needsProfilePairing: true }),
+        metametrics: createMockAuthMetaMetrics(),
+      });
+
+      await controller.performSignIn();
+
+      const [primaryId, secondaryId] = MOCK_ENTROPY_SOURCE_IDS;
+      expect(
+        controller.state.srpSessionData?.[primaryId]?.profile
+          .pairedIdentifierIds,
+      ).toStrictEqual(pairedIdentifierIds);
+      expect(
+        controller.state.srpSessionData?.[secondaryId]?.profile,
+      ).not.toHaveProperty('pairedIdentifierIds');
+    });
+
+    it.each([
+      ['a pair response', { needsProfilePairing: true }, MOCK_HD_KEYRINGS],
+      [
+        'a login response',
+        { expiresIn: 0 },
+        mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      ],
+    ])(
+      'keeps stored paired identifiers when %s omits them',
+      async (_, stateOptions, keyrings) => {
+        arrangeAuthAPIs();
+        const state = mockSignedInState(stateOptions);
+        const storedIds = [{ id: 'id-google', type: 'GOOGLE' }];
+        const primaryEntry = state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]];
+        if (primaryEntry) {
+          primaryEntry.profile.pairedIdentifierIds = storedIds;
+        }
+        const { messenger, mockKeyringControllerGetState } =
+          createMockAuthenticationMessenger();
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings,
+        });
+        const controller = new AuthenticationController({
+          messenger,
+          state,
+          metametrics: createMockAuthMetaMetrics(),
+        });
+
+        await controller.performSignIn();
+
+        expect(
+          controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]]?.profile
+            .pairedIdentifierIds,
+        ).toStrictEqual(storedIds);
+      },
+    );
+
+    it('stores paired identifiers returned by login on the SRP session', async () => {
+      const pairedIdentifierIds = [
+        { id: 'id-google', type: 'GOOGLE' },
+        { id: MOCK_LOGIN_RESPONSE.profile.identifier_id, type: 'SRP' },
+      ];
+      arrangeAuthAPIs({
+        mockSrpLoginUrl: {
+          status: 200,
+          body: {
+            ...MOCK_LOGIN_RESPONSE,
+            profile: {
+              ...MOCK_LOGIN_RESPONSE.profile,
+              paired_identifier_ids: pairedIdentifierIds,
+            },
+          },
+        },
+      });
+      const { messenger, mockKeyringControllerGetState } =
+        createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics: createMockAuthMetaMetrics(),
+      });
+
+      await controller.performSignIn();
+
+      expect(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]]?.profile
+          .pairedIdentifierIds,
+      ).toStrictEqual(pairedIdentifierIds);
+    });
+
     it('epoch check: a concurrent requestProfilePairing during multi-SRP performSignIn keeps the gate set', async () => {
       const metametrics = createMockAuthMetaMetrics();
       arrangeAuthAPIs();
@@ -997,6 +1167,54 @@ describe('AuthenticationController', () => {
       });
       expect(controller.state.needsSocialPairing).toBe(false);
       expect(accessTokens[0]).toBe(MOCK_OATH_TOKEN_RESPONSE.access_token);
+    });
+
+    it('stores paired identifiers from the pair/identifier response on the primary SRP session', async () => {
+      const pairedIdentifierIds = [
+        { id: 'id-google', type: 'GOOGLE' },
+        { id: MOCK_LOGIN_RESPONSE.profile.identifier_id, type: 'SRP' },
+      ];
+      arrangeAuthAPIs({
+        mockPairSocialIdentifier: {
+          status: 200,
+          body: {
+            ...MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE,
+            profile: {
+              ...MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE.profile,
+              paired_identifier_ids: pairedIdentifierIds,
+            },
+          },
+        },
+      });
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'google',
+        socialLoginEmail: MOCK_SOCIAL_EMAIL,
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      await controller.performSignIn();
+
+      expect(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]]?.profile
+          .pairedIdentifierIds,
+      ).toStrictEqual(pairedIdentifierIds);
     });
 
     it('treats undefined needsSocialPairing as still needed', async () => {
@@ -2306,6 +2524,1375 @@ describe('AuthenticationController', () => {
   });
 });
 
+describe('MFA credential enrollment', () => {
+  function createController(options?: {
+    state?: AuthenticationControllerState;
+    trace?: TraceCallback;
+  }): {
+    controller: AuthenticationController;
+    baseMessenger: RootMessenger;
+  } {
+    const { messenger, baseMessenger } = createMockAuthenticationMessenger();
+    return {
+      controller: new AuthenticationController({
+        messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        state: options?.state ?? mockSignedInState(),
+        trace: options?.trace,
+      }),
+      baseMessenger,
+    };
+  }
+
+  it('starts with an empty memory-only credential cache', () => {
+    const { controller } = createController({
+      state: { ...defaultState },
+    });
+    expect(controller.state.enrolledCredentials).toStrictEqual([]);
+  });
+
+  it('refreshes credentials and writes state only when data changes', async () => {
+    mockEndpointMfaCredentials();
+    const { controller, baseMessenger } = createController();
+    const listener = jest.fn();
+    baseMessenger.subscribe('AuthenticationController:stateChange', listener);
+
+    expect(await controller.refreshEnrolledCredentials()).toHaveLength(2);
+    expect(controller.state.enrolledCredentials).toHaveLength(2);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    await controller.refreshEnrolledCredentials();
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('invalidates the cached SRP session when authentication is rejected', async () => {
+    mockEndpointMfaCredentials({
+      status: 401,
+      body: { message: 'Access token expired' },
+    });
+    const { controller } = createController();
+
+    await expect(controller.refreshEnrolledCredentials()).rejects.toMatchObject(
+      { mfaCode: 'authentication_required' },
+    );
+    expect(
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+        .canonicalProfileId,
+    ).toBe('');
+  });
+
+  it('begins passkey enrollment with validated tracing tags', async () => {
+    mockEndpointMfaEnroll();
+    const setAttribute = jest.fn();
+    const trace = jest.fn(
+      (
+        _request: unknown,
+        fn?: (context?: unknown) => unknown,
+      ): Promise<unknown> => Promise.resolve(fn?.({ setAttribute })),
+    ) as unknown as TraceCallback;
+    const { controller } = createController({ trace });
+
+    expect(
+      await controller.beginCredentialEnrollment({
+        type: 'passkey',
+        reason: { operation: 'settings.addPasskey' },
+      }),
+    ).toMatchObject({
+      type: 'passkey',
+      flowId: 'enroll-passkey-flow-id',
+      publicKey: expect.objectContaining({ challenge: expect.any(String) }),
+    });
+    expect(trace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'MFA Enroll Begin',
+        tags: {
+          operation: 'settings.addPasskey',
+          credentialType: 'passkey',
+        },
+      }),
+      expect.any(Function),
+    );
+    expect(setAttribute).toHaveBeenCalledWith('outcome', 'success');
+  });
+
+  it('begins email enrollment and rejects invalid boundary input', async () => {
+    mockEndpointMfaEnroll({
+      status: 200,
+      body: MOCK_MFA_ENROLL_EMAIL_RESPONSE,
+    });
+    const { controller } = createController();
+
+    expect(
+      await controller.beginCredentialEnrollment({
+        type: 'email_otp',
+        email: 'user@example.com',
+        reason: { operation: 'settings.addEmail' },
+      }),
+    ).toStrictEqual({
+      type: 'email_otp',
+      flowId: 'enroll-email-flow-id',
+      expiresAt: Date.parse('2099-09-07T14:30:00Z'),
+    });
+    await expect(
+      controller.beginCredentialEnrollment({
+        type: 'email_otp',
+        reason: { operation: 'invalid operation' },
+      }),
+    ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+    await expect(
+      controller.beginCredentialEnrollment({
+        type: 'passkey',
+        email: 'user@example.com',
+        reason: { operation: 'settings.addPasskey' },
+      }),
+    ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+  });
+
+  it('completes passkey enrollment, refreshes the cache and traces the caller operation', async () => {
+    mockEndpointMfaEnrollComplete();
+    mockEndpointMfaCredentials();
+    const trace = jest.fn(
+      (_request: unknown, fn?: () => unknown): Promise<unknown> =>
+        Promise.resolve(fn?.()),
+    ) as unknown as TraceCallback;
+    const { controller } = createController({ trace });
+
+    const credentials = await controller.completeCredentialEnrollment({
+      flowId: 'flow-id',
+      proof: {
+        type: 'passkey',
+        attestation: {
+          id: 'credential-id',
+          rawId: 'credential-id',
+          type: 'public-key',
+          response: {
+            attestationObject: 'attestation',
+            clientDataJSON: 'client-data',
+          },
+        },
+      },
+      reason: { operation: 'settings.addPasskey' },
+    });
+
+    expect(credentials).toHaveLength(
+      MOCK_MFA_CREDENTIALS_RESPONSE.credentials.length,
+    );
+    expect(controller.state.enrolledCredentials).toStrictEqual(credentials);
+    expect(trace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'MFA Enroll Complete',
+        tags: {
+          operation: 'settings.addPasskey',
+          credentialType: 'passkey',
+        },
+      }),
+      expect.any(Function),
+    );
+    // The primary SRP session is untouched: passkeys add no token claims.
+    expect(
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+        .canonicalProfileId,
+    ).not.toBe('');
+  });
+
+  it('invalidates the primary SRP session after email enrollment', async () => {
+    mockEndpointMfaEnrollComplete();
+    const credentialsScope = mockEndpointMfaCredentials();
+    const { controller } = createController();
+
+    await controller.completeCredentialEnrollment({
+      flowId: 'flow-id',
+      proof: { type: 'email_otp', code: '123456' },
+      reason: { operation: 'settings.addEmail' },
+    });
+
+    expect(credentialsScope.isDone()).toBe(true);
+    expect(
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+        .canonicalProfileId,
+    ).toBe('');
+  });
+
+  it('does not restore credentials if the wallet locks during refresh', async () => {
+    let release!: (value: Awaited<ReturnType<typeof fetch>>) => void;
+    let requestStartedResolve: (() => void) | undefined;
+    const requestStarted = new Promise<void>((resolve) => {
+      requestStartedResolve = resolve;
+    });
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementationOnce(
+      async (): ReturnType<typeof fetch> =>
+        await new Promise((resolve) => {
+          release = resolve;
+          requestStartedResolve?.();
+        }),
+    );
+    const { controller, baseMessenger } = createController({
+      state: {
+        ...mockSignedInState(),
+        enrolledCredentials: [],
+      },
+    });
+    try {
+      const refresh = controller.refreshEnrolledCredentials();
+      await requestStarted;
+      baseMessenger.publish('KeyringController:lock');
+      release(
+        new globalThis.Response(JSON.stringify(MOCK_MFA_CREDENTIALS_RESPONSE), {
+          status: 200,
+        }),
+      );
+
+      await expect(refresh).rejects.toThrow('the authenticated session ended');
+      expect(controller.state.enrolledCredentials).toStrictEqual([]);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it.each([
+    [
+      'sign-out',
+      (controller: AuthenticationController): void =>
+        controller.performSignOut(),
+    ],
+    [
+      'wallet reset',
+      (controller: AuthenticationController): void => controller.clearState(),
+    ],
+  ])(
+    'does not restore the previous profile credentials if %s happens during refresh',
+    async (_name, endSession) => {
+      let release!: (value: Awaited<ReturnType<typeof fetch>>) => void;
+      let requestStartedResolve: (() => void) | undefined;
+      const requestStarted = new Promise<void>((resolve) => {
+        requestStartedResolve = resolve;
+      });
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementationOnce(
+        async (): ReturnType<typeof fetch> =>
+          await new Promise((resolve) => {
+            release = resolve;
+            requestStartedResolve?.();
+          }),
+      );
+      const { controller } = createController();
+      try {
+        const refresh = controller.refreshEnrolledCredentials();
+        await requestStarted;
+        endSession(controller);
+        release(
+          new globalThis.Response(
+            JSON.stringify(MOCK_MFA_CREDENTIALS_RESPONSE),
+            { status: 200 },
+          ),
+        );
+
+        await expect(refresh).rejects.toThrow(
+          'the authenticated session ended',
+        );
+        expect(controller.state.enrolledCredentials).toStrictEqual([]);
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    },
+  );
+
+  it('still invalidates the SRP session when the wallet locks while email enrollment completes', async () => {
+    let release!: (value: Awaited<ReturnType<typeof fetch>>) => void;
+    let requestStartedResolve: (() => void) | undefined;
+    const requestStarted = new Promise<void>((resolve) => {
+      requestStartedResolve = resolve;
+    });
+    const fetchSpy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(
+        async (): ReturnType<typeof fetch> =>
+          await new Promise((resolve) => {
+            release = resolve;
+            requestStartedResolve?.();
+          }),
+      )
+      .mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify(MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE),
+          { status: 200 },
+        ),
+      );
+    const { controller, baseMessenger } = createController();
+    try {
+      const completion = controller.completeCredentialEnrollment({
+        flowId: 'flow-id',
+        proof: { type: 'email_otp', code: '123456' },
+        reason: { operation: 'settings.addEmail' },
+      });
+      await requestStarted;
+      baseMessenger.publish('KeyringController:lock');
+      release(
+        new globalThis.Response(
+          JSON.stringify(MOCK_MFA_ENROLL_COMPLETE_RESPONSE),
+          {
+            status: 200,
+          },
+        ),
+      );
+
+      await expect(completion).rejects.toThrow(
+        'the authenticated session ended',
+      );
+      // Enrollment and token exchange only: no credentials refresh after the
+      // session ended.
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(() => controller.getVerificationToken()).toThrow(
+        'wallet is locked',
+      );
+      expect(controller.state.enrolledCredentials).toStrictEqual([]);
+      // The enrollment succeeded server-side, so the token cached across the
+      // lock must not be reused without the new email claim.
+      expect(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+          .canonicalProfileId,
+      ).toBe('');
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('keeps the existing cache when post-enrollment refresh fails', async () => {
+    mockEndpointMfaEnrollComplete();
+    mockEndpointMfaCredentials({
+      status: 502,
+      body: { code: 'kratos_unavailable', message: 'Unavailable' },
+    });
+    const existing = [
+      {
+        type: 'passkey',
+        status: 'active',
+        displayName: 'Existing passkey',
+      },
+    ] as const;
+    const { controller } = createController({
+      state: {
+        ...mockSignedInState(),
+        enrolledCredentials: [...existing],
+      },
+    });
+
+    expect(
+      await controller.completeCredentialEnrollment({
+        flowId: 'flow-id',
+        proof: { type: 'email_otp', code: '123456' },
+        reason: { operation: 'settings.addEmail' },
+      }),
+    ).toStrictEqual(existing);
+    // The SRP session is still invalidated so the next token carries the claim.
+    expect(
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+        .canonicalProfileId,
+    ).toBe('');
+  });
+
+  it.each([
+    [
+      'sign-out',
+      (controller: AuthenticationController): void =>
+        controller.performSignOut(),
+    ],
+    [
+      'wallet reset',
+      (controller: AuthenticationController): void => controller.clearState(),
+    ],
+  ])('clears cached credentials on %s', (_name, act) => {
+    const { controller } = createController({
+      state: {
+        ...mockSignedInState(),
+        enrolledCredentials: [
+          {
+            type: 'email_otp',
+            status: 'active',
+            email: 'user@example.com',
+            verified: true,
+          },
+        ],
+      },
+    });
+
+    act(controller);
+
+    expect(controller.state.enrolledCredentials).toStrictEqual([]);
+  });
+
+  it('does not update state if the wallet locks during enrollment completion', async () => {
+    let resolveCompletion:
+      | ((response: Awaited<ReturnType<typeof fetch>>) => void)
+      | undefined;
+    let requestStartedResolve: (() => void) | undefined;
+    const requestStarted = new Promise<void>((resolve) => {
+      requestStartedResolve = resolve;
+    });
+    const fetchSpy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(
+        async (): ReturnType<typeof fetch> =>
+          await new Promise((resolve) => {
+            resolveCompletion = resolve;
+            requestStartedResolve?.();
+          }),
+      )
+      .mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify(MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE),
+          { status: 200 },
+        ),
+      );
+    const { controller, baseMessenger } = createController();
+    try {
+      const completion = controller.completeCredentialEnrollment({
+        flowId: 'flow-id',
+        proof: { type: 'email_otp', code: '123456' },
+        reason: { operation: 'settings.addEmail' },
+      });
+      await requestStarted;
+      baseMessenger.publish('KeyringController:lock');
+      resolveCompletion?.(
+        new globalThis.Response(
+          JSON.stringify(MOCK_MFA_ENROLL_COMPLETE_RESPONSE),
+          {
+            status: 200,
+          },
+        ),
+      );
+
+      await expect(completion).rejects.toThrow(
+        'the authenticated session ended',
+      );
+      // Enrollment and token exchange only: no credentials refresh.
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(controller.state.enrolledCredentials).toStrictEqual([]);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('rejects MFA calls while the wallet is locked', async () => {
+    const { controller, baseMessenger } = createController();
+    baseMessenger.publish('KeyringController:lock');
+
+    await expect(controller.refreshEnrolledCredentials()).rejects.toThrow(
+      'wallet is locked',
+    );
+    await expect(
+      controller.beginCredentialEnrollment({
+        type: 'passkey',
+        reason: { operation: 'settings.addPasskey' },
+      }),
+    ).rejects.toThrow('wallet is locked');
+  });
+
+  it('discards a stale refresh that lands after a newer, faster refresh from enrollment', async () => {
+    const deferred = <Value>(): {
+      promise: Promise<Value>;
+      resolve: (value: Value) => void;
+    } => {
+      let resolveDeferred!: (value: Value) => void;
+      const promise = new Promise<Value>((resolve) => {
+        resolveDeferred = resolve;
+      });
+      return { promise, resolve: resolveDeferred };
+    };
+
+    const slow = deferred<Awaited<ReturnType<typeof fetch>>>();
+    const enrollComplete = deferred<Awaited<ReturnType<typeof fetch>>>();
+    const enrollmentCredentials = deferred<Awaited<ReturnType<typeof fetch>>>();
+
+    const slowStarted = deferred<void>();
+    const enrollCompleteStarted = deferred<void>();
+    const enrollmentCredentialsStarted = deferred<void>();
+
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
+    fetchSpy
+      .mockImplementationOnce(async (): ReturnType<typeof fetch> => {
+        slowStarted.resolve();
+        return slow.promise;
+      })
+      .mockImplementationOnce(async (): ReturnType<typeof fetch> => {
+        enrollCompleteStarted.resolve();
+        return enrollComplete.promise;
+      })
+      .mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify(MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE),
+          { status: 200 },
+        ),
+      )
+      .mockImplementationOnce(async (): ReturnType<typeof fetch> => {
+        enrollmentCredentialsStarted.resolve();
+        return enrollmentCredentials.promise;
+      });
+
+    const { controller } = createController();
+
+    try {
+      // 1. Slow refresh starts first but doesn't resolve yet.
+      const slowRefresh = controller.refreshEnrolledCredentials();
+      await slowStarted.promise;
+
+      // 2. Enrollment completes while the slow refresh is in flight.
+      const enrollmentCompletion = controller.completeCredentialEnrollment({
+        flowId: 'flow-id',
+        proof: { type: 'email_otp', code: '123456' },
+        reason: { operation: 'settings.addEmail' },
+      });
+
+      // 3. Let the enroll-complete POST resolve, then its internal refresh GET.
+      await enrollCompleteStarted.promise;
+      enrollComplete.resolve(
+        new globalThis.Response(
+          JSON.stringify(MOCK_MFA_ENROLL_COMPLETE_RESPONSE),
+          {
+            status: 200,
+          },
+        ),
+      );
+
+      await enrollmentCredentialsStarted.promise;
+      enrollmentCredentials.resolve(
+        new globalThis.Response(JSON.stringify(MOCK_MFA_CREDENTIALS_RESPONSE), {
+          status: 200,
+        }),
+      );
+      await enrollmentCompletion;
+
+      const freshCredentials = controller.state.enrolledCredentials;
+      expect(freshCredentials).toHaveLength(
+        MOCK_MFA_CREDENTIALS_RESPONSE.credentials.length,
+      );
+
+      // 4. The stale response lands late, with different data.
+      slow.resolve(
+        new globalThis.Response(JSON.stringify({ credentials: [] }), {
+          status: 200,
+        }),
+      );
+      await slowRefresh;
+
+      // 5. Must NOT be overwritten by the stale response.
+      expect(controller.state.enrolledCredentials).toStrictEqual(
+        freshCredentials,
+      );
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+});
+
+describe('MFA credential verification', () => {
+  const passkeyProof = {
+    type: 'passkey',
+    assertion: {
+      id: 'credential-id',
+      rawId: 'credential-id',
+      type: 'public-key',
+      response: {
+        authenticatorData: 'authenticator-data',
+        clientDataJSON: 'client-data',
+        signature: 'signature',
+      },
+    },
+  } as const;
+
+  function createController(options?: { trace?: TraceCallback }): {
+    controller: AuthenticationController;
+    baseMessenger: RootMessenger;
+  } {
+    const { messenger, baseMessenger } = createMockAuthenticationMessenger();
+    return {
+      controller: new AuthenticationController({
+        messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        state: mockSignedInState(),
+        trace: options?.trace,
+      }),
+      baseMessenger,
+    };
+  }
+
+  function mockSuccessfulCompletion(): void {
+    mockEndpointMfaVerifyComplete();
+    mockEndpointAccessToken({
+      status: 200,
+      body: MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
+    });
+  }
+
+  async function completeCredentialVerification(
+    controller: AuthenticationController,
+  ): Promise<void> {
+    await controller.completeCredentialVerification({
+      flowId: 'flow-id',
+      proof: passkeyProof,
+      reason: { operation: 'money.signTransaction' },
+    });
+  }
+
+  it('begins passkey and email verification without consulting the cache', async () => {
+    mockEndpointMfaVerify();
+    const { controller } = createController();
+
+    expect(
+      await controller.beginCredentialVerification({
+        type: 'passkey',
+        reason: { operation: 'money.signTransaction' },
+      }),
+    ).toMatchObject({
+      type: 'passkey',
+      flowId: 'verify-passkey-flow-id',
+      publicKey: expect.objectContaining({ challenge: expect.any(String) }),
+    });
+
+    cleanAllNock();
+    mockEndpointMfaVerify({
+      status: 200,
+      body: {
+        flow_id: 'verify-email-flow-id',
+        expires_at: '2099-09-07T14:30:00Z',
+      },
+    });
+    expect(
+      await controller.beginCredentialVerification({
+        type: 'email_otp',
+        reason: { operation: 'kalshi.deposit' },
+      }),
+    ).toStrictEqual({
+      type: 'email_otp',
+      flowId: 'verify-email-flow-id',
+      expiresAt: Date.parse('2099-09-07T14:30:00Z'),
+    });
+  });
+
+  it('maps a missing server credential to a stable error code', async () => {
+    mockEndpointMfaVerify({
+      status: 409,
+      body: {
+        code: 'credential_not_enrolled',
+        message: 'Credential is not enrolled',
+      },
+    });
+    const { controller } = createController();
+
+    await expect(
+      controller.beginCredentialVerification({
+        type: 'passkey',
+        reason: { operation: 'money.signTransaction' },
+      }),
+    ).rejects.toMatchObject({ mfaCode: 'credential_not_enrolled' });
+  });
+
+  it('opens a verification session after the token exchange without writing state', async () => {
+    mockSuccessfulCompletion();
+    const { controller, baseMessenger } = createController();
+    const listener = jest.fn();
+    baseMessenger.subscribe('AuthenticationController:stateChange', listener);
+
+    const token = await controller.completeCredentialVerification({
+      flowId: 'flow-id',
+      proof: passkeyProof,
+      reason: { operation: 'money.signTransaction' },
+    });
+
+    expect(token.accessToken).toBe(
+      MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE.access_token,
+    );
+    expect(token.claims).toStrictEqual({
+      sub: 'f88227bd-b615-41a3-b0be-467dd781a4ad',
+      amr: ['passkey'],
+      exp: 4102444800,
+    });
+    expect(controller.getVerificationToken()).toBe(token);
+    expect(listener).not.toHaveBeenCalled();
+    expect(JSON.stringify(controller.state)).not.toContain(token.accessToken);
+  });
+
+  it('clears the session idempotently', async () => {
+    mockSuccessfulCompletion();
+    const { controller } = createController();
+    await completeCredentialVerification(controller);
+
+    controller.clearVerificationSession();
+    controller.clearVerificationSession();
+
+    expect(controller.getVerificationToken()).toBeNull();
+  });
+
+  it('does not write state when clearing a session that does not exist', () => {
+    const { controller, baseMessenger } = createController();
+    const listener = jest.fn();
+    baseMessenger.subscribe('AuthenticationController:stateChange', listener);
+
+    controller.clearVerificationSession();
+    baseMessenger.publish('KeyringController:lock');
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('traces every verification network step with final outcomes', async () => {
+    mockEndpointMfaVerify();
+    mockSuccessfulCompletion();
+    const requests: { name?: string }[] = [];
+    const setAttribute = jest.fn();
+    const trace = jest.fn(
+      (
+        request: { name?: string },
+        fn?: (context?: unknown) => unknown,
+      ): Promise<unknown> => {
+        requests.push(request);
+        return Promise.resolve(fn?.({ setAttribute }));
+      },
+    ) as unknown as TraceCallback;
+    const { controller } = createController({ trace });
+
+    await controller.beginCredentialVerification({
+      type: 'passkey',
+      reason: { operation: 'money.signTransaction' },
+    });
+    await completeCredentialVerification(controller);
+
+    expect(requests.map(({ name }) => name)).toStrictEqual([
+      'MFA Verification Begin',
+      'MFA Verification Complete',
+      'MFA Token Exchange',
+    ]);
+    expect(requests).toStrictEqual(
+      requests.map(() =>
+        expect.objectContaining({
+          tags: {
+            operation: 'money.signTransaction',
+            credentialType: 'passkey',
+          },
+        }),
+      ),
+    );
+    expect(setAttribute).toHaveBeenCalledTimes(3);
+    expect(setAttribute).toHaveBeenNthCalledWith(1, 'outcome', 'success');
+    expect(setAttribute).toHaveBeenNthCalledWith(2, 'outcome', 'success');
+    expect(setAttribute).toHaveBeenNthCalledWith(3, 'outcome', 'success');
+  });
+
+  it('honors caller freshness requirements without clearing the session', async () => {
+    mockSuccessfulCompletion();
+    const { controller } = createController();
+    await completeCredentialVerification(controller);
+
+    expect(controller.getVerificationToken({ maxSessionAgeMs: 0 })).toBeNull();
+    expect(controller.getVerificationToken()).not.toBeNull();
+    expect(
+      controller.getVerificationToken({ maxSessionAgeMs: 600_000 }),
+    ).not.toBeNull();
+    expect(() =>
+      controller.getVerificationToken({ maxSessionAgeMs: -1 }),
+    ).toThrow(/MFA\[invalid_request\]/u);
+    // An invalid request is rejected before the session is touched.
+    expect(controller.getVerificationToken()).not.toBeNull();
+  });
+
+  /**
+   * Mocks a verification that exchanges to a token expiring `lifetimeSeconds`
+   * after `now`.
+   *
+   * @param now - Current time.
+   * @param lifetimeSeconds - Token lifetime.
+   * @param serverClockOffsetSeconds - How far the server clock, which sets
+   * `exp`, is ahead of the device clock.
+   * @returns The fetch spy.
+   */
+  function mockVerificationWithLifetime(
+    now: Date,
+    lifetimeSeconds: number,
+    serverClockOffsetSeconds = 0,
+  ): jest.SpyInstance {
+    return jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify(MOCK_MFA_VERIFY_COMPLETE_RESPONSE),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify({
+            access_token: buildVerificationJwt({
+              amr: 'passkey',
+              exp:
+                Math.floor(now.getTime() / 1000) +
+                serverClockOffsetSeconds +
+                lifetimeSeconds,
+            }),
+            expires_in: lifetimeSeconds,
+          }),
+          { status: 200 },
+        ),
+      );
+  }
+
+  it.each([
+    ['ahead of', -2 * 60 * 60],
+    ['behind', 2 * 60 * 60],
+  ])(
+    'keeps the session for the token lifetime when the device clock is %s the server',
+    async (_name, serverClockOffsetSeconds) => {
+      const now = new Date('2026-09-16T10:00:00Z');
+      const fetchSpy = mockVerificationWithLifetime(
+        now,
+        60 * 60,
+        serverClockOffsetSeconds,
+      );
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      jest.setSystemTime(now);
+      try {
+        const { controller } = createController();
+        await completeCredentialVerification(controller);
+
+        jest.advanceTimersByTime(60 * 60 * 1000 - 1);
+        expect(controller.getVerificationToken()).not.toBeNull();
+        jest.advanceTimersByTime(1);
+        expect(controller.getVerificationToken()).toBeNull();
+      } finally {
+        jest.useRealTimers();
+        fetchSpy.mockRestore();
+      }
+    },
+  );
+
+  it.each([0, -1, undefined])(
+    'rejects an exchanged token whose lifetime is %s',
+    async (expiresIn) => {
+      mockEndpointMfaVerifyComplete();
+      mockEndpointAccessToken({
+        status: 200,
+        body: {
+          access_token: MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE.access_token,
+          expires_in: expiresIn,
+        },
+      });
+      const { controller } = createController();
+
+      await expect(
+        completeCredentialVerification(controller),
+      ).rejects.toMatchObject({ mfaCode: 'verification_token_invalid' });
+      expect(controller.getVerificationToken()).toBeNull();
+    },
+  );
+
+  it.each([1, 60 * 60, 24 * 60 * 60])(
+    'keeps the session for exactly the token lifetime the server set (%ss)',
+    async (lifetimeSeconds) => {
+      const now = new Date('2026-09-16T10:00:00Z');
+      const fetchSpy = mockVerificationWithLifetime(now, lifetimeSeconds);
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      jest.setSystemTime(now);
+      try {
+        const { controller } = createController();
+        await completeCredentialVerification(controller);
+
+        jest.advanceTimersByTime(lifetimeSeconds * 1000 - 1);
+        expect(controller.getVerificationToken()).not.toBeNull();
+        jest.advanceTimersByTime(1);
+        expect(controller.getVerificationToken()).toBeNull();
+      } finally {
+        jest.useRealTimers();
+        fetchSpy.mockRestore();
+      }
+    },
+  );
+
+  it('drops the session when the clock passes expiration before the timer runs', async () => {
+    const now = new Date('2026-09-16T10:00:00Z');
+    const fetchSpy = mockVerificationWithLifetime(now, 60);
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    jest.setSystemTime(now);
+    try {
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+
+      jest.setSystemTime(now.getTime() + 61_000);
+      expect(controller.getVerificationToken()).toBeNull();
+    } finally {
+      jest.useRealTimers();
+      fetchSpy.mockRestore();
+    }
+  });
+
+  /**
+   * Starts `completeCredentialVerification`, ends the authenticated session
+   * while the verification request is still in flight, then lets the request
+   * succeed.
+   *
+   * @param endSession - Ends the session mid-flight.
+   * @returns The controller, once the completion has been rejected.
+   */
+  async function arrangeSessionEndDuringCompletion(
+    endSession: (
+      controller: AuthenticationController,
+      baseMessenger: RootMessenger,
+    ) => void,
+  ): Promise<AuthenticationController> {
+    let resolveVerification:
+      | ((response: Awaited<ReturnType<typeof fetch>>) => void)
+      | undefined;
+    let requestStartedResolve: (() => void) | undefined;
+    const requestStarted = new Promise<void>((resolve) => {
+      requestStartedResolve = resolve;
+    });
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementationOnce(
+      async (): ReturnType<typeof fetch> =>
+        await new Promise((resolve) => {
+          resolveVerification = resolve;
+          requestStartedResolve?.();
+        }),
+    );
+    const { controller, baseMessenger } = createController();
+    try {
+      const completion = controller.completeCredentialVerification({
+        flowId: 'flow-id',
+        proof: passkeyProof,
+        reason: { operation: 'money.signTransaction' },
+      });
+      await requestStarted;
+      endSession(controller, baseMessenger);
+      resolveVerification?.(
+        new globalThis.Response(
+          JSON.stringify(MOCK_MFA_VERIFY_COMPLETE_RESPONSE),
+          { status: 200 },
+        ),
+      );
+
+      await expect(completion).rejects.toThrow(
+        'the authenticated session ended',
+      );
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      return controller;
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  }
+
+  it('cannot reopen a verification session if the wallet locks during completion', async () => {
+    const controller = await arrangeSessionEndDuringCompletion(
+      (_controller, baseMessenger) =>
+        baseMessenger.publish('KeyringController:lock'),
+    );
+
+    expect(() => controller.getVerificationToken()).toThrow('wallet is locked');
+  });
+
+  it.each([
+    [
+      'sign-out',
+      (controller: AuthenticationController): void =>
+        controller.performSignOut(),
+    ],
+    [
+      'wallet reset',
+      (controller: AuthenticationController): void => controller.clearState(),
+    ],
+  ])(
+    'leaves no verification token retrievable when %s happens during completion',
+    async (_name, endSession) => {
+      const controller = await arrangeSessionEndDuringCompletion(endSession);
+
+      expect(controller.getVerificationToken()).toBeNull();
+    },
+  );
+
+  it.each([MOCK_ACCESS_JWT, 'not-a-jwt'])(
+    'rejects an exchanged token without valid verification claims',
+    async (accessToken) => {
+      mockEndpointMfaVerifyComplete();
+      mockEndpointAccessToken({
+        status: 200,
+        body: {
+          access_token: accessToken,
+          expires_in: 900,
+        },
+      });
+      const { controller } = createController();
+
+      await expect(
+        controller.completeCredentialVerification({
+          flowId: 'flow-id',
+          proof: passkeyProof,
+          reason: { operation: 'money.signTransaction' },
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'verification_token_invalid' });
+      expect(controller.getVerificationToken()).toBeNull();
+    },
+  );
+
+  it('clears the verification session on lock, sign-out, and wallet reset', async () => {
+    mockSuccessfulCompletion();
+    const first = createController();
+    await completeCredentialVerification(first.controller);
+    first.baseMessenger.publish('KeyringController:lock');
+    first.baseMessenger.publish('KeyringController:unlock');
+    expect(first.controller.getVerificationToken()).toBeNull();
+
+    cleanAllNock();
+    mockSuccessfulCompletion();
+    const second = createController();
+    await completeCredentialVerification(second.controller);
+    second.controller.performSignOut();
+    expect(second.controller.getVerificationToken()).toBeNull();
+
+    cleanAllNock();
+    mockSuccessfulCompletion();
+    const third = createController();
+    await completeCredentialVerification(third.controller);
+    third.controller.clearState();
+    expect(third.controller.getVerificationToken()).toBeNull();
+  });
+
+  it('clears the verification session when authentication is rejected', async () => {
+    mockSuccessfulCompletion();
+    const { controller } = createController();
+    await completeCredentialVerification(controller);
+    expect(controller.getVerificationToken()).not.toBeNull();
+
+    mockEndpointMfaCredentials({
+      status: 401,
+      body: { message: 'Access token expired' },
+    });
+    await expect(controller.refreshEnrolledCredentials()).rejects.toMatchObject(
+      { mfaCode: 'authentication_required' },
+    );
+
+    expect(controller.getVerificationToken()).toBeNull();
+  });
+
+  it('sends the verification token when beginning enrollment while a session is live', async () => {
+    mockSuccessfulCompletion();
+    const { controller } = createController();
+    await completeCredentialVerification(controller);
+    const verificationToken = controller.getVerificationToken()?.accessToken;
+    expect(verificationToken).toBeDefined();
+
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new globalThis.Response(JSON.stringify(MOCK_MFA_ENROLL_EMAIL_RESPONSE), {
+        status: 200,
+      }),
+    );
+    try {
+      await controller.beginCredentialEnrollment({
+        type: 'email_otp',
+        email: 'user@example.com',
+        reason: { operation: 'settings.addEmail' },
+      });
+
+      expect(
+        new globalThis.Headers(fetchSpy.mock.calls[0][1]?.headers).get(
+          'Authorization',
+        ),
+      ).toBe(`Bearer ${verificationToken}`);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('sends the base token on enrollment calls without a live session', async () => {
+    const { controller } = createController();
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new globalThis.Response(JSON.stringify(MOCK_MFA_ENROLL_EMAIL_RESPONSE), {
+        status: 200,
+      }),
+    );
+    try {
+      await controller.beginCredentialEnrollment({
+        type: 'email_otp',
+        email: 'user@example.com',
+        reason: { operation: 'settings.addEmail' },
+      });
+
+      const base =
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
+          .accessToken;
+      expect(
+        new globalThis.Headers(fetchSpy.mock.calls[0][1]?.headers).get(
+          'Authorization',
+        ),
+      ).toBe(`Bearer ${base}`);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('surfaces aal2_required from enrollment', async () => {
+    mockEndpointMfaEnroll({
+      status: 403,
+      body: { code: 'aal2_required', message: 'Elevated session required' },
+    });
+    const { controller } = createController();
+
+    await expect(
+      controller.beginCredentialEnrollment({
+        type: 'passkey',
+        reason: { operation: 'settings.addPasskey' },
+      }),
+    ).rejects.toMatchObject({ mfaCode: 'aal2_required', status: 403 });
+  });
+
+  /**
+   * Begins an email enrollment and returns the bearer token it was sent with.
+   *
+   * @param controller - Controller under test.
+   * @param maxSessionAgeMs - Optional enrollment session age limit.
+   * @returns The token from the `Authorization` header.
+   */
+  async function getEnrollmentBearer(
+    controller: AuthenticationController,
+    maxSessionAgeMs?: number,
+  ): Promise<string | undefined> {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new globalThis.Response(JSON.stringify(MOCK_MFA_ENROLL_EMAIL_RESPONSE), {
+        status: 200,
+      }),
+    );
+    try {
+      await controller.beginCredentialEnrollment({
+        type: 'email_otp',
+        email: 'user@example.com',
+        reason: { operation: 'settings.addEmail' },
+        ...(maxSessionAgeMs === undefined ? {} : { maxSessionAgeMs }),
+      });
+      return new globalThis.Headers(fetchSpy.mock.calls[0][1]?.headers)
+        .get('Authorization')
+        ?.replace('Bearer ', '');
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  }
+
+  describe('enrollment session age', () => {
+    const sessionAgeMs = ENROLLMENT_MAX_SESSION_AGE_MS + 60_000;
+
+    async function arrangeAgedSession(): Promise<{
+      controller: AuthenticationController;
+      verificationToken: string;
+      base: string;
+    }> {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const token = controller.getVerificationToken();
+      const base =
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
+          .accessToken;
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValue((token?.obtainedAt ?? 0) + sessionAgeMs);
+      return {
+        controller,
+        verificationToken: token?.accessToken as string,
+        base: base as string,
+      };
+    }
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('does not let a session older than the default limit authorize enrollment', async () => {
+      const { controller, base } = await arrangeAgedSession();
+
+      expect(await getEnrollmentBearer(controller)).toBe(base);
+      // Still available to consumers that accept its age.
+      expect(controller.getVerificationToken()).not.toBeNull();
+    });
+
+    it('lets a caller-supplied age limit authorize enrollment with an older session', async () => {
+      const { controller, verificationToken } = await arrangeAgedSession();
+
+      expect(await getEnrollmentBearer(controller, sessionAgeMs + 1)).toBe(
+        verificationToken,
+      );
+    });
+
+    it('never uses the session when the age limit is zero', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const base =
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
+          .accessToken;
+
+      expect(await getEnrollmentBearer(controller, 0)).toBe(base);
+    });
+
+    it('rejects an invalid age limit before any request', async () => {
+      const { controller } = createController();
+
+      await expect(
+        controller.beginCredentialEnrollment({
+          type: 'passkey',
+          reason: { operation: 'settings.addPasskey' },
+          maxSessionAgeMs: -1,
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+    });
+  });
+
+  describe('session from the enrollment assertion', () => {
+    const enrolledEmailToken = buildVerificationJwt({
+      amr: 'email_otp',
+      exp: 4102444800,
+    });
+
+    const completeEmailEnrollment = async (
+      controller: AuthenticationController,
+    ): Promise<unknown> =>
+      await controller.completeCredentialEnrollment({
+        flowId: 'enrollment-flow',
+        proof: { type: 'email_otp', code: '123456' },
+        reason: { operation: 'vba.startKyc' },
+      });
+
+    it('opens a verification session for the enrolled credential and traces the exchange', async () => {
+      mockEndpointMfaEnrollComplete();
+      mockEndpointAccessToken({
+        status: 200,
+        body: { access_token: enrolledEmailToken, expires_in: 3600 },
+      });
+      mockEndpointMfaCredentials();
+      const requests: { name?: string }[] = [];
+      const trace = jest.fn(
+        (
+          request: { name?: string },
+          fn?: (context?: unknown) => unknown,
+        ): Promise<unknown> => {
+          requests.push(request);
+          return Promise.resolve(fn?.());
+        },
+      ) as unknown as TraceCallback;
+      const { controller } = createController({ trace });
+
+      await completeEmailEnrollment(controller);
+
+      expect(controller.getVerificationToken()).toMatchObject({
+        accessToken: enrolledEmailToken,
+        claims: { amr: ['email_otp'] },
+      });
+      expect(requests.map(({ name }) => name)).toStrictEqual([
+        'MFA Enroll Complete',
+        'MFA Token Exchange',
+        'MFA Credentials Refresh',
+      ]);
+      expect(await getEnrollmentBearer(controller)).toBe(enrolledEmailToken);
+    });
+
+    it('replaces an earlier verification session', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      cleanAllNock();
+      mockEndpointMfaEnrollComplete();
+      mockEndpointAccessToken({
+        status: 200,
+        body: { access_token: enrolledEmailToken, expires_in: 3600 },
+      });
+      mockEndpointMfaCredentials();
+
+      await completeEmailEnrollment(controller);
+
+      expect(controller.getVerificationToken()?.accessToken).toBe(
+        enrolledEmailToken,
+      );
+    });
+
+    it.each([
+      [
+        'the exchange fails',
+        { status: 500, body: { message: 'Internal error' } },
+      ],
+      [
+        'the exchanged token has no verification claims',
+        {
+          status: 200,
+          body: { access_token: MOCK_ACCESS_JWT, expires_in: 900 },
+        },
+      ],
+    ])(
+      'still completes the enrollment and keeps the earlier session when %s',
+      async (_name, exchangeReply) => {
+        mockSuccessfulCompletion();
+        const { controller } = createController();
+        await completeCredentialVerification(controller);
+        const earlier = controller.getVerificationToken()?.accessToken;
+        cleanAllNock();
+        mockEndpointMfaEnrollComplete();
+        mockEndpointAccessToken(exchangeReply);
+        mockEndpointMfaCredentials();
+
+        expect(await completeEmailEnrollment(controller)).toHaveLength(
+          MOCK_MFA_CREDENTIALS_RESPONSE.credentials.length,
+        );
+        expect(controller.getVerificationToken()?.accessToken).toBe(earlier);
+        expect(
+          controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+            .canonicalProfileId,
+        ).toBe('');
+      },
+    );
+
+    it('opens no session and still invalidates the SRP session if the wallet locks during the exchange', async () => {
+      let releaseExchange!: (value: Awaited<ReturnType<typeof fetch>>) => void;
+      let exchangeStartedResolve: (() => void) | undefined;
+      const exchangeStarted = new Promise<void>((resolve) => {
+        exchangeStartedResolve = resolve;
+      });
+      const fetchSpy = jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          new globalThis.Response(
+            JSON.stringify(MOCK_MFA_VERIFY_COMPLETE_RESPONSE),
+            { status: 200 },
+          ),
+        )
+        .mockImplementationOnce(
+          async (): ReturnType<typeof fetch> =>
+            await new Promise((resolve) => {
+              releaseExchange = resolve;
+              exchangeStartedResolve?.();
+            }),
+        );
+      const { controller, baseMessenger } = createController();
+      try {
+        const completion = completeEmailEnrollment(controller);
+        await exchangeStarted;
+        baseMessenger.publish('KeyringController:lock');
+        releaseExchange(
+          new globalThis.Response(
+            JSON.stringify({
+              access_token: enrolledEmailToken,
+              expires_in: 3600,
+            }),
+            { status: 200 },
+          ),
+        );
+
+        await expect(completion).rejects.toThrow(
+          'the authenticated session ended',
+        );
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        baseMessenger.publish('KeyringController:unlock');
+        expect(controller.getVerificationToken()).toBeNull();
+        expect(
+          controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+            .canonicalProfileId,
+        ).toBe('');
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+  });
+});
+
 describe('metadata', () => {
   it('includes expected state in debug snapshots', () => {
     const controller = new AuthenticationController({
@@ -2331,6 +3918,70 @@ describe('metadata', () => {
   });
 
   describe('includeInStateLogs', () => {
+    it('keeps only non-PII credential fields', () => {
+      const controller = new AuthenticationController({
+        messenger: createMockAuthenticationMessenger().messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        state: {
+          ...mockSignedInState(),
+          enrolledCredentials: [
+            {
+              type: 'passkey',
+              status: 'active',
+              enrolledAt: 1_000,
+              displayName: 'My iPhone',
+            },
+            {
+              type: 'email_otp',
+              status: 'pending',
+              enrolledAt: 2_000,
+              email: 'jane@example.com',
+              verified: false,
+            },
+          ],
+        },
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ).enrolledCredentials,
+      ).toStrictEqual([
+        { type: 'passkey', status: 'active', enrolledAt: 1_000 },
+        { type: 'email_otp', status: 'pending', enrolledAt: 2_000 },
+      ]);
+    });
+
+    it('strips paired identifiers out of state logs', () => {
+      const state = mockSignedInState();
+      const primaryEntry = state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]];
+      if (primaryEntry) {
+        primaryEntry.profile.pairedIdentifierIds = [
+          { id: 'hashed-google-sub', type: 'GOOGLE' },
+        ];
+      }
+      const controller = new AuthenticationController({
+        messenger: createMockAuthenticationMessenger().messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        state,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).not.toHaveProperty([
+        'srpSessionData',
+        MOCK_ENTROPY_SOURCE_IDS[0],
+        'profile',
+        'pairedIdentifierIds',
+      ]);
+    });
+
     it('includes expected state in state logs, with access token stripped out', () => {
       const controller = new AuthenticationController({
         messenger: createMockAuthenticationMessenger().messenger,
@@ -2347,6 +3998,7 @@ describe('metadata', () => {
 
       expect(derivedState).toMatchInlineSnapshot(`
         {
+          "enrolledCredentials": [],
           "isSignedIn": true,
           "needsProfilePairing": false,
           "needsSocialPairing": false,
@@ -2394,6 +4046,7 @@ describe('metadata', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "enrolledCredentials": [],
           "isSignedIn": false,
           "needsProfilePairing": true,
           "needsSocialPairing": true,
@@ -2465,6 +4118,7 @@ describe('metadata', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
+        "enrolledCredentials": [],
         "isSignedIn": true,
         "needsProfilePairing": false,
         "needsSocialPairing": false,

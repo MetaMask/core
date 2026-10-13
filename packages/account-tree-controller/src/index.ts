@@ -48,6 +48,10 @@ export type {
 } from './AccountTreeController-method-action-types.js';
 
 export type { AccountContext } from './AccountTreeController.js';
+export type {
+  RemoveAccountWalletFailure,
+  RemoveAccountWalletFailureContext,
+} from './errors.js';
 
 export {
   AccountTreeController,

@@ -47,7 +47,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         lastUpdatedAt: 2000,
       },
       isLegacyAccountSyncingDisabled: true,
-    } as unknown as UserStorageSyncedWallet;
+    };
   });
 
   afterEach(() => {

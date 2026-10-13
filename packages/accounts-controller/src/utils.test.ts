@@ -8,9 +8,12 @@ import {
   constructAccountIdByAddress,
   getEvmGroupIndexFromAddressIndex,
   isMoneyKeyringType,
+  isMpcKeyringType,
   isNormalKeyringType,
   isSimpleKeyringType,
+  isSkippedKeyringType,
   isSnapKeyringV2Type,
+  isWatchOnlyKeyringType,
   keyringTypeToName,
 } from './utils.js';
 
@@ -26,7 +29,9 @@ describe('utils', () => {
       [KeyringTypes.qr, 'QR'],
       [KeyringTypes.snap, 'Snap Account'],
       [KeyringType.Snap, 'Snap Account'],
+      [KeyringType.WatchOnly, 'Watch-only Account'],
       [KeyringTypes.money, 'Money'],
+      [KeyringTypes.mpc, 'MPC'],
     ])('returns "%s" for %s keyring type', (keyringType, expectedName) => {
       expect(keyringTypeToName(keyringType)).toBe(expectedName);
     });
@@ -42,6 +47,7 @@ describe('utils', () => {
     const {
       snap: snapKeyringType,
       money: moneyKeyringType,
+      mpc: mpcKeyringType,
       ...keyringTypes
     } = KeyringTypes;
 
@@ -62,6 +68,18 @@ describe('utils', () => {
     it('returns false for money keyring type', () => {
       expect(isNormalKeyringType(moneyKeyringType)).toBe(false);
     });
+
+    it('returns false for MPC keyring type', () => {
+      expect(isNormalKeyringType(mpcKeyringType)).toBe(false);
+    });
+
+    it('returns false for any skipped keyring type', () => {
+      const skippedKeyringTypes =
+        Object.values(KeyringTypes).filter(isSkippedKeyringType);
+      for (const keyringType of skippedKeyringTypes) {
+        expect(isNormalKeyringType(keyringType)).toBe(false);
+      }
+    });
   });
 
   describe('isMoneyKeyringType', () => {
@@ -73,6 +91,33 @@ describe('utils', () => {
       expect(isMoneyKeyringType(KeyringTypes.hd)).toBe(false);
       expect(isMoneyKeyringType(KeyringTypes.snap)).toBe(false);
       expect(isMoneyKeyringType(KeyringTypes.simple)).toBe(false);
+      expect(isMoneyKeyringType(KeyringTypes.mpc)).toBe(false);
+    });
+  });
+
+  describe('isMpcKeyringType', () => {
+    it('returns true for money keyring type', () => {
+      expect(isMpcKeyringType(KeyringTypes.mpc)).toBe(true);
+    });
+
+    it('returns false for non-money keyring types', () => {
+      expect(isMpcKeyringType(KeyringTypes.hd)).toBe(false);
+      expect(isMpcKeyringType(KeyringTypes.snap)).toBe(false);
+      expect(isMpcKeyringType(KeyringTypes.simple)).toBe(false);
+      expect(isMpcKeyringType(KeyringTypes.money)).toBe(false);
+    });
+  });
+
+  describe('isSkippedKeyringType', () => {
+    it('returns true for skipped keyring type', () => {
+      expect(isSkippedKeyringType(KeyringTypes.money)).toBe(true);
+      expect(isSkippedKeyringType(KeyringTypes.mpc)).toBe(true);
+    });
+
+    it('returns false for non-skipped keyring types', () => {
+      expect(isSkippedKeyringType(KeyringTypes.hd)).toBe(false);
+      expect(isSkippedKeyringType(KeyringTypes.snap)).toBe(false);
+      expect(isSkippedKeyringType(KeyringTypes.simple)).toBe(false);
     });
   });
 
@@ -104,6 +149,20 @@ describe('utils', () => {
       expect(isSnapKeyringV2Type(KeyringTypes.hd)).toBe(false);
       expect(isSnapKeyringV2Type(KeyringTypes.simple)).toBe(false);
       expect(isSnapKeyringV2Type(KeyringTypes.trezor)).toBe(false);
+    });
+  });
+
+  describe('isWatchOnlyKeyringType', () => {
+    it('returns true for KeyringType.WatchOnly', () => {
+      expect(isWatchOnlyKeyringType(KeyringType.WatchOnly)).toBe(true);
+    });
+
+    it('returns false for non-watch-only keyring types', () => {
+      expect(isWatchOnlyKeyringType(KeyringTypes.hd)).toBe(false);
+      expect(isWatchOnlyKeyringType(KeyringTypes.simple)).toBe(false);
+      expect(isWatchOnlyKeyringType(KeyringTypes.snap)).toBe(false);
+      expect(isWatchOnlyKeyringType(KeyringType.Snap)).toBe(false);
+      expect(isWatchOnlyKeyringType(KeyringTypes.money)).toBe(false);
     });
   });
 

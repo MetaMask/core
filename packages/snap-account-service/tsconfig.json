@@ -2,6 +2,9 @@
   "extends": "../../tsconfig.packages.json",
   "references": [
     {
+      "path": "../accounts-controller"
+    },
+    {
       "path": "../keyring-controller"
     },
     {

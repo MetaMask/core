@@ -99,7 +99,7 @@ describe('Decoding api', () => {
       {
         ...PERMIT_REQUEST_MOCK,
         method: 'eth_signTypedData_v3',
-      } as OriginalRequest,
+      },
       '0x1',
       'https://testdecodingurl.com',
     );

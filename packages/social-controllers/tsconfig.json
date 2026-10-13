@@ -11,6 +11,9 @@
       "path": "../controller-utils"
     },
     {
+      "path": "../core-backend"
+    },
+    {
       "path": "../messenger"
     },
     {

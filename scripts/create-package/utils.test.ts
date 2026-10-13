@@ -3,8 +3,8 @@ import * as commentJson from 'comment-json';
 import type { Stats } from 'fs';
 import path from 'path';
 
-import { MonorepoFiles } from './constants.js';
-import type { PackageData } from './utils.js';
+import { MonorepoFiles } from './constants.ts';
+import type { PackageData } from './utils.ts';
 
 // `jest.mock` does not apply to ES modules, so the module registry is stubbed
 // with `jest.unstable_mockModule` and the modules under test are imported
@@ -22,7 +22,7 @@ const fsMock = {
 
 jest.unstable_mockModule('fs', () => ({ ...fsMock, default: fsMock }));
 
-jest.unstable_mockModule('execa', () => ({ default: jest.fn() }));
+jest.unstable_mockModule('execa', () => ({ execa: jest.fn() }));
 
 jest.unstable_mockModule('prettier', () => ({
   format: jest.fn(),
@@ -34,7 +34,7 @@ jest.unstable_mockModule('./fs-utils.js', () => ({
 }));
 
 const { default: fs } = await import('fs');
-const { default: execa } = await import('execa');
+const { execa } = await import('execa');
 const { format } = await import('prettier');
 const fsUtils = await import('./fs-utils.js');
 const { finalizeAndWriteData, readMonorepoFiles } = await import('./utils.js');

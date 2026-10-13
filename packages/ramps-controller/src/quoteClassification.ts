@@ -1,4 +1,4 @@
-import type { Quote } from './RampsService.js';
+import type { BuyWidgetFallback, Quote } from './RampsService.js';
 
 /**
  * Whether a quote's checkout runs in an external / system browser rather than
@@ -38,4 +38,18 @@ export function isCustomActionQuote(quote: Quote): boolean {
  */
 export function isInAppOnlyQuote(quote: Quote): boolean {
   return !isCustomActionQuote(quote) && !isExternalBrowserQuote(quote);
+}
+
+/**
+ * Returns the hosted-flow fallback the quotes API attached to a quote, if any.
+ * A fallback without a URL is treated as absent.
+ *
+ * @param quote - The quote to read the fallback from.
+ * @returns The buy-widget fallback, or undefined when the quote has none.
+ */
+export function getBuyWidgetFallback(
+  quote: Quote,
+): BuyWidgetFallback | undefined {
+  const fallback = quote.quote?.buyWidget?.fallback;
+  return fallback?.url ? fallback : undefined;
 }

@@ -349,7 +349,7 @@ export class MoneyAccountController extends BaseController<
       KeyringTypes.money,
       {
         entropySource,
-      } as MoneyKeyringSerializedState,
+      },
     );
   }
 

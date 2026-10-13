@@ -82,6 +82,7 @@ import type {
   SeedlessOnboardingControllerOptions,
 } from './SeedlessOnboardingController.js';
 import type { SeedlessOnboardingControllerState } from './types.js';
+import { SeedlessPrimarySrpMismatchEventName } from './utils/analytics.js';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';
@@ -183,10 +184,7 @@ function getDefaultSeedlessOnboardingVaultEncryptor(): Encryptor<
     encryptWithDetail,
     decrypt,
     decryptWithDetail,
-    decryptWithKey: decryptWithKeyBrowserPassworder as (
-      key: unknown,
-      payload: unknown,
-    ) => Promise<unknown>,
+    decryptWithKey: decryptWithKeyBrowserPassworder,
     importKey: importKeyBrowserPassworder,
     exportKey: exportKeyBrowserPassworder,
     generateSalt: generateSaltBrowserPassworder,
@@ -1402,6 +1400,105 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should retry the remote backup after vault creation fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient, encryptor, baseMessenger }) => {
+          const { createLocalKeySpy } = mockcreateLocalKey(
+            toprfClient,
+            MOCK_PASSWORD,
+          );
+          const retryToprfEncryptor = createMockToprfEncryptor();
+          createLocalKeySpy.mockResolvedValueOnce({
+            encKey: retryToprfEncryptor.deriveEncKey('retry-password'),
+            pwEncKey: retryToprfEncryptor.derivePwEncKey('retry-password'),
+            authKeyPair:
+              retryToprfEncryptor.deriveAuthKeyPair('retry-password'),
+            oprfKey: BigInt(1),
+            seed: stringToBytes('retry-password'),
+          });
+
+          const persistLocalKeySpy = jest
+            .spyOn(toprfClient, 'persistLocalKey')
+            .mockResolvedValue();
+
+          // The first attempt writes the remote metadata, then fails while
+          // creating the vault. The retry must therefore write the metadata
+          // again using the newly generated TOPRF key.
+          const firstMockSecretDataAdd = handleMockSecretDataAdd();
+          const retryMockSecretDataAdd = handleMockSecretDataAdd();
+          jest
+            .spyOn(encryptor, 'encryptWithDetail')
+            .mockRejectedValueOnce(new Error('Failed to create vault'));
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase',
+              MOCK_PASSWORD,
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            ),
+          ).rejects.toThrow('Failed to create vault');
+
+          expect(firstMockSecretDataAdd.isDone()).toBe(true);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([]);
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase',
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          expect(retryMockSecretDataAdd.isDone()).toBe(true);
+          expect(createLocalKeySpy).toHaveBeenCalledTimes(2);
+          expect(persistLocalKeySpy).toHaveBeenCalledTimes(2);
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([
+            {
+              type: SecretType.Mnemonic,
+              keyringId: MOCK_KEYRING_ID,
+              hash: keccak256AndHexify(MOCK_SEED_PHRASE),
+            },
+          ]);
+        },
+      );
+    });
+
+    it('should throw if a vault already exists', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase',
+              MOCK_PASSWORD,
+              MOCK_SEED_PHRASE,
+              MOCK_KEYRING_ID,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultAlreadyExists,
+          );
+        },
+      );
+    });
+
     it('should store accessToken in the vault during backup creation', async () => {
       await withController(
         {
@@ -1470,6 +1567,7 @@ describe('SeedlessOnboardingController', () => {
             .mockResolvedValueOnce();
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
+          const retryMockSecretDataAdd = handleMockSecretDataAdd();
 
           const authenticateSpy = jest
             .spyOn(toprfClient, 'authenticate')
@@ -1486,6 +1584,7 @@ describe('SeedlessOnboardingController', () => {
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
+          expect(retryMockSecretDataAdd.isDone()).toBe(true);
 
           // should call persistLocalKey twice and authenticate once
           expect(persistLocalKeySpy).toHaveBeenCalledTimes(2); // should call persistLocalKey twice for the first fail attempt due to invalid auth token error and the second attempt succeeds
@@ -1981,6 +2080,16 @@ describe('SeedlessOnboardingController', () => {
               hash: keccak256AndHexify(NEW_KEY_RING_1.seedPhrase),
             },
           ]);
+
+          // do not add a duplicate backup
+          await baseMessenger.call(
+            'SeedlessOnboardingController:addNewSecretData',
+            NEW_KEY_RING_1.seedPhrase,
+            EncAccountDataType.ImportedSrp,
+            {
+              keyringId: NEW_KEY_RING_1.id,
+            },
+          );
 
           // add another seed phrase backup
           const mockSecretDataAdd2 = handleMockSecretDataAdd();
@@ -3025,7 +3134,18 @@ describe('SeedlessOnboardingController', () => {
             vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
           }),
         },
-        async ({ baseMessenger }) => {
+        async ({ baseMessenger, toprfClient }) => {
+          jest
+            .spyOn(toprfClient, 'fetchAllSecretDataItems')
+            .mockImplementationOnce(() => {
+              // Mock the recover enc key for second time
+              mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+              // First call fails with token expired error
+              throw new TOPRFError(
+                TOPRFErrorCode.AuthTokenExpired,
+                'Auth token expired',
+              );
+            });
           await baseMessenger.call(
             'SeedlessOnboardingController:submitPassword',
             MOCK_PASSWORD,
@@ -3563,6 +3683,72 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should identify a primary SRP mismatch after unlocking', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const mockEncryptionKey = mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const mockPasswordEncryptionKey =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const mockAuthKeyPair =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+      const { encryptedMockVault: mockVault } = await createMockVault(
+        mockEncryptionKey,
+        mockPasswordEncryptionKey,
+        mockAuthKeyPair,
+        MOCK_PASSWORD,
+      );
+
+      await withController(
+        {
+          state: {
+            vault: mockVault,
+          },
+        },
+        async ({ baseMessenger, toprfClient }) => {
+          const exportSeedPhrase = jest
+            .fn()
+            .mockResolvedValue(MOCK_SEED_PHRASE);
+          const trackEvent = jest.fn();
+
+          baseMessenger.registerActionHandler(
+            'KeyringController:exportSeedPhrase',
+            exportSeedPhrase,
+          );
+          baseMessenger.registerActionHandler(
+            'AnalyticsController:trackEvent',
+            trackEvent,
+          );
+          const fetchAllSecretDataSpy = jest
+            .spyOn(toprfClient, 'fetchAllSecretDataItems')
+            .mockResolvedValue([
+              {
+                data: new SecretMetadata(stringToBytes('remote primary srp'), {
+                  timestamp: 1,
+                  type: SecretType.Mnemonic,
+                }).toBytes(),
+                itemId: 'remote-primary-srp',
+                version: 'v1',
+              },
+            ]);
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            MOCK_PASSWORD,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 10));
+
+          expect(fetchAllSecretDataSpy).toHaveBeenCalledTimes(1);
+          expect(exportSeedPhrase).toHaveBeenCalledWith({
+            password: MOCK_PASSWORD,
+          });
+          expect(trackEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+              name: SeedlessPrimarySrpMismatchEventName,
+            }),
+          );
+        },
+      );
+    });
+
     it('should throw error if the vault is missing', async () => {
       await withController(async ({ baseMessenger }) => {
         await expect(
@@ -3939,7 +4125,6 @@ describe('SeedlessOnboardingController', () => {
   describe('changePassword', () => {
     const MOCK_PASSWORD = 'mock-password';
     const NEW_MOCK_PASSWORD = 'new-mock-password';
-    const MOCK_VAULT = JSON.stringify({ foo: 'bar' });
 
     it('should be able to update new password', async () => {
       await withController(
@@ -4116,7 +4301,6 @@ describe('SeedlessOnboardingController', () => {
       await withController(
         {
           state: getMockInitialControllerState({
-            vault: MOCK_VAULT,
             authPubKey: MOCK_AUTH_PUB_KEY_OUTDATED,
             withMockAuthenticatedUser: true,
           }),
@@ -5033,25 +5217,120 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should identify a primary SRP mismatch when explicitly requested', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            RECOVERED_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:storeKeyringEncryptionKey',
+            MOCK_KEYRING_ENCRYPTION_KEY,
+          );
+
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          const encKey = mockToprfEncryptor.deriveEncKey(GLOBAL_PASSWORD);
+          const pwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
+          const authKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValueOnce({
+            encKey,
+            authKeyPair,
+            pwEncKey,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+
+          const recoveredPwEncKey =
+            mockToprfEncryptor.derivePwEncKey(RECOVERED_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+            pwEncKey: recoveredPwEncKey,
+          });
+
+          const exportSeedPhrase = jest
+            .fn()
+            .mockResolvedValue(MOCK_SEED_PHRASE);
+          const trackEvent = jest.fn();
+          baseMessenger.registerActionHandler(
+            'KeyringController:exportSeedPhrase',
+            exportSeedPhrase,
+          );
+          baseMessenger.registerActionHandler(
+            'AnalyticsController:trackEvent',
+            trackEvent,
+          );
+          jest
+            .spyOn(toprfClient, 'fetchAllSecretDataItems')
+            .mockResolvedValueOnce([
+              {
+                data: new SecretMetadata(stringToBytes('remote primary srp'), {
+                  timestamp: 1,
+                  type: SecretType.Mnemonic,
+                }).toBytes(),
+                itemId: 'remote-primary-srp',
+                version: 'v1',
+              },
+            ]);
+
+          await baseMessenger.call('SeedlessOnboardingController:setLocked');
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitGlobalPassword',
+            {
+              globalPassword: GLOBAL_PASSWORD,
+            },
+          );
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:identifyIncompleteMetadataBackup',
+            GLOBAL_PASSWORD,
+          );
+
+          expect(exportSeedPhrase).toHaveBeenCalledWith({
+            password: GLOBAL_PASSWORD,
+          });
+          expect(trackEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+              name: SeedlessPrimarySrpMismatchEventName,
+            }),
+          );
+        },
+      );
+    });
+
+    it('should throw if identifyIncompleteMetadataBackup is called while locked', async () => {
+      await withController(async ({ baseMessenger }) => {
+        await expect(
+          baseMessenger.call(
+            'SeedlessOnboardingController:identifyIncompleteMetadataBackup',
+            GLOBAL_PASSWORD,
+          ),
+        ).rejects.toThrow(
+          SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+        );
+      });
+    });
+
     it('should throw if key not set', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withMockAuthPubKey: true,
-            vault: 'mock-vault',
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:storeKeyringEncryptionKey',
-              '',
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
-          );
-
           // Setup and store keyring encryption key.
           await mockCreateToprfKeyAndBackupSeedPhrase(
             toprfClient,
@@ -6712,11 +6991,6 @@ describe('SeedlessOnboardingController', () => {
               isNewUser: false,
             });
 
-            await baseMessenger.call(
-              'SeedlessOnboardingController:submitPassword',
-              MOCK_PASSWORD,
-            );
-
             await expect(
               baseMessenger.call(
                 'SeedlessOnboardingController:fetchAllSecretData',
@@ -6831,7 +7105,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
             expect(mockRefreshJWTToken).toHaveBeenCalled();
-            expect(addSecretDataItemSpy).toHaveBeenCalledTimes(1);
+            expect(addSecretDataItemSpy).toHaveBeenCalledTimes(2);
             expect(authenticateSpy).toHaveBeenCalled();
             // should call persistLocalKey twice, once for the first call and another from the refresh token
             expect(persistLocalKeySpy).toHaveBeenCalledTimes(2);

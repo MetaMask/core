@@ -8,24 +8,24 @@ const QUOTE_MOCK: AcrossSwapApprovalResponse = {
   approvalTxns: [
     {
       chainId: undefined,
-      data: '0xaaaa' as Hex,
-      to: '0xapprove' as Hex,
+      data: '0xaaaa',
+      to: '0xapprove',
     },
   ],
   inputToken: {
-    address: '0xabc' as Hex,
+    address: '0xabc',
     chainId: 1,
     decimals: 18,
   },
   outputToken: {
-    address: '0xdef' as Hex,
+    address: '0xdef',
     chainId: 2,
     decimals: 6,
   },
   swapTx: {
     chainId: 10,
-    data: '0xdeadbeef' as Hex,
-    to: '0xswap' as Hex,
+    data: '0xdeadbeef',
+    to: '0xswap',
   },
 };
 

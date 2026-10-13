@@ -3,8 +3,8 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 
 import {
-  createMockAssetControllerMessenger,
   createMockInternalAccount,
+  createMockMessengers,
   registerAssetsControllerActions,
 } from './__fixtures__/MockAssetControllerMessenger.js';
 import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
@@ -89,8 +89,6 @@ async function withController<ReturnValue>(
   }: WithControllerOptions,
   fn: WithControllerCallback<ReturnValue>,
 ): Promise<ReturnValue> {
-  const { rootMessenger, assetsControllerMessenger } =
-    createMockAssetControllerMessenger({ delegateGetState: false });
   const accounts = [
     createMockInternalAccount({
       id: ACCOUNT_ONE_ID,
@@ -104,11 +102,14 @@ async function withController<ReturnValue>(
     }),
   ];
 
-  registerAssetsControllerActions(rootMessenger, {
-    accounts,
-    enabledNetworkMap: { eip155: { '1': true, '10': true } },
-    nativeAssetIdentifiers: { 'eip155:1': MAINNET_NATIVE },
-    remoteFeatureFlags,
+  const { rootMessenger, assetsControllerMessenger } = createMockMessengers({
+    registerCustomRootActions: (messenger) =>
+      registerAssetsControllerActions(messenger, {
+        accounts,
+        enabledNetworkMap: { eip155: { '1': true, '10': true } },
+        nativeAssetIdentifiers: { 'eip155:1': MAINNET_NATIVE },
+        remoteFeatureFlags,
+      }),
   });
 
   const controller = new AssetsController({

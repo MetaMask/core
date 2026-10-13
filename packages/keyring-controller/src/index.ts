@@ -39,3 +39,7 @@ export type {
 export type * from './types.js';
 export * from './errors.js';
 export { KeyringControllerErrorMessage } from './constants.js';
+export {
+  selectHdKeyringEntropySourceIds,
+  selectPrimaryHdKeyringEntropySourceId,
+} from './selectors.js';

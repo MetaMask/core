@@ -9,6 +9,9 @@
       "path": "../messenger/tsconfig.lint.json"
     },
     {
+      "path": "../multichain-transactions-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../account-tree-controller/tsconfig.lint.json"
     },
     {
@@ -61,6 +64,9 @@
     },
     {
       "path": "../utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../eth-json-rpc-provider/tsconfig.lint.json"
     }
   ]
 }

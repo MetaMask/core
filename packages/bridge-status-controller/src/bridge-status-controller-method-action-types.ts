@@ -30,6 +30,11 @@ export type BridgeStatusControllerSubmitIntentAction = {
   handler: BridgeStatusController['submitIntent'];
 };
 
+export type BridgeStatusControllerSubmitBatchSellAction = {
+  type: `BridgeStatusController:submitBatchSell`;
+  handler: BridgeStatusController['submitBatchSell'];
+};
+
 export type BridgeStatusControllerRestartPollingForFailedAttemptsAction = {
   type: `BridgeStatusController:restartPollingForFailedAttempts`;
   handler: BridgeStatusController['restartPollingForFailedAttempts'];
@@ -38,11 +43,6 @@ export type BridgeStatusControllerRestartPollingForFailedAttemptsAction = {
 export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction = {
   type: `BridgeStatusController:getBridgeHistoryItemByTxMetaId`;
   handler: BridgeStatusController['getBridgeHistoryItemByTxMetaId'];
-};
-
-export type BridgeStatusControllerSubmitBatchSellAction = {
-  type: `BridgeStatusController:submitBatchSell`;
-  handler: BridgeStatusController['submitBatchSell'];
 };
 
 /**
@@ -54,6 +54,6 @@ export type BridgeStatusControllerMethodActions =
   | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerSubmitTxAction
   | BridgeStatusControllerSubmitIntentAction
+  | BridgeStatusControllerSubmitBatchSellAction
   | BridgeStatusControllerRestartPollingForFailedAttemptsAction
-  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction
-  | BridgeStatusControllerSubmitBatchSellAction;
+  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;

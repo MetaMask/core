@@ -20,6 +20,7 @@ import type {
   OidcTokenClaims,
   PairSocialIdentifierParams,
   ProfileAlias,
+  ProfileIdentifier,
   UserProfile,
   UserProfileLineage,
 } from './types.js';
@@ -317,6 +318,7 @@ export async function pairProfiles(
         metaMetricsId: pairResponse.profile.metametrics_id ?? '',
         profileId: pairResponse.profile.profile_id,
         canonicalProfileId: pairResponse.profile.profile_id,
+        pairedIdentifierIds: pairResponse.profile.paired_identifier_ids,
       },
       profileAliases: parseProfileAliases(pairResponse.profile_aliases ?? []),
     };
@@ -330,19 +332,18 @@ export async function pairProfiles(
  * owns `authAccessToken` (`POST /api/v2/profile/pair/identifier`).
  *
  * `email` is omitted from the body when undefined. 409 Conflict throws
- * {@link PairConflictError} so callers can treat it as terminal. The
- * response body (new token + profile) is not consumed: a 2xx status is the
- * only success signal.
+ * {@link PairConflictError} so callers can treat it as terminal.
  *
  * @param params - Social identifier type, social JWT, and optional email
  * @param authAccessToken - Bearer token of the canonical (primary SRP) profile
  * @param env - server environment
+ * @returns The profile's paired identifiers, if returned by the API
  */
 export async function pairSocialIdentifier(
   params: PairSocialIdentifierParams,
   authAccessToken: string,
   env: Env,
-): Promise<void> {
+): Promise<ProfileIdentifier[] | undefined> {
   const pairUrl = new URL(PAIR_SOCIAL_IDENTIFIER_URL(env));
   const errorPrefix = 'Failed to pair social identifier';
 
@@ -366,8 +367,11 @@ export async function pairSocialIdentifier(
       }
       await throwServiceError(response, errorPrefix, PairError);
     }
+
+    const pairResponse = await response.json();
+    return pairResponse.profile.paired_identifier_ids;
   } catch (error) {
-    await throwServiceError(error, errorPrefix, PairError);
+    return await throwServiceError(error, errorPrefix, PairError);
   }
 }
 
@@ -531,6 +535,7 @@ export async function authenticate(
         metaMetricsId: loginResponse.profile.metametrics_id,
         profileId: loginResponse.profile.profile_id,
         canonicalProfileId: loginResponse.profile.profile_id,
+        pairedIdentifierIds: loginResponse.profile.paired_identifier_ids,
       },
       profileAliases: parseProfileAliases(loginResponse.profile_aliases ?? []),
     };

@@ -1,10 +1,12 @@
+import { jest } from '@jest/globals';
 import { createSandbox } from '@metamask/utils/node';
-import execa from 'execa';
+import { execa } from 'execa';
+import type { Result } from 'execa';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const ROOT_DIR = path.resolve(__dirname, '..', '..', '..');
-const TSX_PATH = path.join(ROOT_DIR, 'node_modules', '.bin', 'tsx');
+const ROOT_DIR = path.resolve(import.meta.dirname, '..', '..', '..');
+const RESOLVER_PATH = path.join(ROOT_DIR, 'scripts', 'resolver', 'register.ts');
 const CLI_PATH = path.join(
   ROOT_DIR,
   'packages',
@@ -19,12 +21,22 @@ const CLI_PATH = path.join(
  * @param args - The CLI arguments.
  * @returns The execa result.
  */
-async function runCLI(args: string[]): Promise<execa.ExecaReturnValue> {
-  return await execa(TSX_PATH, [CLI_PATH, ...args], {
-    cwd: ROOT_DIR,
-    reject: false,
-    all: true,
-  });
+async function runCLI(args: string[]): Promise<Result> {
+  return await execa(
+    'node',
+    [
+      '--import',
+      RESOLVER_PATH,
+      '--experimental-transform-types',
+      CLI_PATH,
+      ...args,
+    ],
+    {
+      cwd: ROOT_DIR,
+      reject: false,
+      all: true,
+    },
+  );
 }
 
 const { withinSandbox } = createSandbox('platform-api-docs/cli');

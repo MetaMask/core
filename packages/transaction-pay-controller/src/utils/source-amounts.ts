@@ -66,7 +66,8 @@ export function updateSourceAmounts(
   // For post-quote flows, source amounts are calculated differently
   // The source is the transaction's required token, not the selected token
   if (isPostQuote) {
-    const { isHyperliquidSource, isPolymarketDepositWallet } = transactionData;
+    const { isHyperliquidSource, isPolymarketDepositWallet, paymentOverride } =
+      transactionData;
     const sourceAmounts = calculatePostQuoteSourceAmounts(
       tokens,
       paymentToken,
@@ -74,6 +75,7 @@ export function updateSourceAmounts(
       isHyperliquidSource,
       isPolymarketDepositWallet,
       balanceOverride,
+      Boolean(paymentOverride),
     );
     log('Updated post-quote source amounts', { transactionId, sourceAmounts });
     transactionData.sourceAmounts = sourceAmounts;
@@ -112,6 +114,7 @@ export function updateSourceAmounts(
  * @param isHyperliquidSource - Whether the source is HyperLiquid (perps withdrawal).
  * @param isPolymarketDepositWallet - Whether the source is a Polymarket deposit wallet.
  * @param balanceOverride - Optional balance override from the `getBalance` callback.
+ * @param hasPaymentOverride - Whether the source calls are rebuilt from the quote amount.
  * @returns Array of source amounts.
  */
 function calculatePostQuoteSourceAmounts(
@@ -121,6 +124,7 @@ function calculatePostQuoteSourceAmounts(
   isHyperliquidSource?: boolean,
   isPolymarketDepositWallet?: boolean,
   balanceOverride?: GetBalanceResponse,
+  hasPaymentOverride?: boolean,
 ): TransactionPaySourceAmount[] {
   return tokens
     .filter((token) => {
@@ -148,16 +152,41 @@ function calculatePostQuoteSourceAmounts(
 
       return true;
     })
-    .map((token) => ({
-      sourceAmountHuman: isMaxAmount ? token.balanceHuman : token.amountHuman,
-      sourceAmountRaw: isMaxAmount
-        ? (balanceOverride?.balanceRaw ?? token.balanceRaw)
-        : token.amountRaw,
-      sourceBalanceRaw: balanceOverride?.balanceRaw ?? token.balanceRaw,
-      sourceChainId: token.chainId,
-      sourceTokenAddress: token.address,
-      targetTokenAddress: paymentToken.address,
-    }));
+    .map((token) => {
+      const sourceBalanceRaw = balanceOverride?.balanceRaw ?? token.balanceRaw;
+
+      // On max, the batch funds the source account with the amount encoded in
+      // the original transaction, which is prepended ahead of the Relay
+      // deposit. A balance refreshed after that amount was encoded can exceed
+      // it, and the deposit then reverts for the difference. Synthetic sources
+      // (HyperLiquid, Polymarket deposit wallet) and payment overrides build
+      // their funding from the quote amount itself, so they are not bounded by
+      // the original transaction.
+      const isCapped =
+        isMaxAmount &&
+        !isHyperliquidSource &&
+        !isPolymarketDepositWallet &&
+        !hasPaymentOverride &&
+        token.amountRaw !== '0' &&
+        new BigNumber(sourceBalanceRaw).gt(token.amountRaw);
+
+      let sourceAmountHuman = token.amountHuman;
+      let sourceAmountRaw = token.amountRaw;
+
+      if (isMaxAmount && !isCapped) {
+        sourceAmountHuman = token.balanceHuman;
+        sourceAmountRaw = sourceBalanceRaw;
+      }
+
+      return {
+        sourceAmountHuman,
+        sourceAmountRaw,
+        sourceBalanceRaw,
+        sourceChainId: token.chainId,
+        sourceTokenAddress: token.address,
+        targetTokenAddress: paymentToken.address,
+      };
+    });
 }
 
 /**

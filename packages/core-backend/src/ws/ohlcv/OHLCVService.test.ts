@@ -335,7 +335,7 @@ describe('OHLCVService', () => {
             close: 74.099,
             volume: 5806.43,
           },
-        } as ServerNotificationMessage);
+        });
 
         expect(barListener).toHaveBeenCalledWith({
           channel: EXPECTED_CHANNEL,
@@ -1107,7 +1107,7 @@ describe('OHLCVService', () => {
           channel: 'system-notifications.v1.market-data.v1',
           data: { chainIds: ['eip155:8453'], status: 'up' },
           timestamp: Date.now(),
-        } as ServerNotificationMessage);
+        });
 
         statusListener.mockClear();
 
@@ -1188,7 +1188,7 @@ describe('OHLCVService', () => {
           channel: 'system-notifications.v1.market-data.v1',
           data: { chainIds: ['eip155:8453'], status: 'down' },
           timestamp: 1776364071003,
-        } as ServerNotificationMessage);
+        });
 
         expect(statusListener).toHaveBeenCalledWith({
           chainIds: ['eip155:8453'],
@@ -1209,7 +1209,7 @@ describe('OHLCVService', () => {
           channel: 'system-notifications.v1.market-data.v1',
           data: { chainIds: ['eip155:1', 'eip155:137'], status: 'up' },
           timestamp: 1776364071003,
-        } as ServerNotificationMessage);
+        });
 
         expect(statusListener).toHaveBeenCalledWith({
           chainIds: ['eip155:1', 'eip155:137'],
@@ -1229,7 +1229,7 @@ describe('OHLCVService', () => {
             channel: 'system-notifications.v1.market-data.v1',
             data: { invalid: true },
             timestamp: Date.now(),
-          } as unknown as ServerNotificationMessage),
+          }),
         ).toThrow('Invalid system notification data');
       });
     });

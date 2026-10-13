@@ -8,6 +8,9 @@ export const DETAILED_ORDER_TYPES = {
   STOP_MARKET: 'Stop Market',
   TAKE_PROFIT_LIMIT: 'Take Profit Limit',
   TAKE_PROFIT_MARKET: 'Take Profit Market',
+  TWAP_SLICE: 'Twap Slice',
+  VAULT_CLOSE: 'Vault Close',
+  SPOT_DUST_CONVERSION: 'Spot Dust Conversion',
 } as const;
 
 /**

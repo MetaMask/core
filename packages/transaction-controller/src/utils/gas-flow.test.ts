@@ -169,7 +169,7 @@ describe('gas-flow', () => {
         gasFeeControllerEstimates: GAS_FEE_CONTROLLER_FEE_MARKET_ESTIMATES_MOCK,
         transactionGasFeeEstimates:
           TRANSACTION_GAS_FEE_ESTIMATES_GAS_PRICE_MOCK,
-      } as never);
+      });
 
       expect(result).toStrictEqual({
         gasPrice: '0.000000009',
@@ -180,7 +180,7 @@ describe('gas-flow', () => {
       const result = mergeGasFeeEstimates({
         gasFeeControllerEstimates: GAS_FEE_CONTROLLER_FEE_MARKET_ESTIMATES_MOCK,
         transactionGasFeeEstimates: { type: 'unknown' } as never,
-      } as never);
+      });
 
       expect(result).toStrictEqual(
         GAS_FEE_CONTROLLER_FEE_MARKET_ESTIMATES_MOCK,

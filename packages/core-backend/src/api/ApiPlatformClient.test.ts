@@ -289,7 +289,7 @@ describe('ApiPlatformClient', () => {
       const queryKey = ['prices', 'v1SupportedNetworks'];
       client.setCachedData(queryKey, {
         fullSupport: [],
-        partialSupport: [],
+        partialSupport: { spotPricesV2: [] },
       });
 
       await client.prices.invalidatePrices();

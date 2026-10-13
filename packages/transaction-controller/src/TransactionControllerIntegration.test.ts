@@ -93,7 +93,9 @@ type AllEvents =
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
-const uuidV4Mock = jest.mocked(uuidV4);
+// `v4` is overloaded; naming the signature used here avoids resolving to the
+// last overload, which returns a `Uint8Array`.
+const uuidV4Mock = jest.mocked<() => string>(uuidV4);
 
 const createMockInternalAccount = ({
   id = uuidV4(),
@@ -498,8 +500,10 @@ describe('TransactionController Integration', () => {
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
           ],
@@ -513,6 +517,9 @@ describe('TransactionController Integration', () => {
           { networkClientId: 'sepolia' },
         );
         expect(transactionController.state.transactions).toHaveLength(1);
+        expect(transactionController.state.transactions[0].txParams.gas).toBe(
+          '0x5208',
+        );
         expect(transactionController.state.transactions[0].status).toBe(
           'unapproved',
         );
@@ -1066,6 +1073,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_3_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_3_MOCK),
             buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),

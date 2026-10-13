@@ -1,5 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
+import type { TradeType } from '../../utils/trade-type.js';
+
 export type RelayQuoteRequest = {
   amount: string;
   authorizationList?: {
@@ -19,7 +21,7 @@ export type RelayQuoteRequest = {
   recipient: Hex;
   refundTo?: Hex;
   slippageTolerance?: string;
-  tradeType: 'EXACT_INPUT' | 'EXACT_OUTPUT' | 'EXPECTED_OUTPUT';
+  tradeType: TradeType;
   txs?: {
     to: Hex;
     data: Hex;

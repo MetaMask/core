@@ -56,9 +56,23 @@ export type AnalyticsTrackingEvent = {
 };
 
 /**
- * Optional analytics context payload (for example Segment-style context).
+ * Optional analytics context payload.
  */
-export type AnalyticsContext = Record<string, Json>;
+export type AnalyticsContext = Record<string, Json> & {
+  /**
+   * Segment consent context. The controller writes optional `product` and
+   * `marketing` entries under `categoryPreferences` from the intersection of
+   * eligible purposes and current consent, and preserves other caller consent
+   * fields.
+   */
+  consent?: Record<string, Json> & {
+    categoryPreferences?: Record<string, Json> & {
+      product?: boolean;
+      marketing?: boolean;
+    };
+  };
+  eventsConfigVersion?: string;
+};
 
 /**
  * Names of the geolocation fields attached to an analytics event.

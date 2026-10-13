@@ -244,6 +244,27 @@ export type BuyWidget = {
    * Order ID if already created.
    */
   orderId?: string | null;
+  /**
+   * Hosted-flow entry to fall back to when the provider turns the user away
+   * inside an embedded checkout (e.g. Coinbase guest limits).
+   */
+  fallback?: BuyWidgetFallback;
+};
+
+/**
+ * Alternate buy-widget entry for the same provider and quote, attached by the
+ * quotes API when the primary flow is an embedded checkout that may reject the
+ * user. Resolve it with `RampsController:getFallbackBuyWidgetData`.
+ */
+export type BuyWidgetFallback = {
+  /**
+   * Buy-widget request URL (same shape as `buyURL`) that yields the hosted flow.
+   */
+  url: string;
+  /**
+   * The browser type to use for opening the hosted flow.
+   */
+  browser: ProviderBrowserType;
 };
 
 /**
@@ -1331,7 +1352,9 @@ export class RampsService {
    *
    * @param options - Query parameters for filtering payment methods.
    * @param options.region - User's region code (e.g., "us-al").
-   * @param options.assetId - CAIP-19 cryptocurrency identifier.
+   * @param options.assetId - CAIP-19 cryptocurrency identifier. Kept on the
+   * caller contract for local cache/staleness; not sent — `/payments` is scoped
+   * to provider + region (the API ignores `crypto`).
    * @param options.provider - Provider ID path.
    * @returns The payment methods response containing payments array.
    */
@@ -1348,7 +1371,6 @@ export class RampsService {
     this.#addCommonParams(url);
 
     url.searchParams.set('region', options.region.toLowerCase().trim());
-    url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
 
     const response = await this.#policy.execute(async () => {

@@ -244,7 +244,8 @@ describe('ensureDaemon', () => {
     const spawnArgs = mockSpawn.mock.calls[0][1] as string[];
     expect(spawnArgs).toStrictEqual([
       '--import',
-      'tsx',
+      '../../scripts/resolver/register.ts',
+      '--experimental-transform-types',
       '/pkg/src/daemon/daemon-entry.ts',
     ]);
   });

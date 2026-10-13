@@ -206,7 +206,6 @@ export class MoonPayFrameHandler {
     url.searchParams.set('sessionToken', state.moonpaySessionToken);
     url.searchParams.set('publicKey', this.#frameKeypair.publicKeyHex);
     url.searchParams.set('channelId', CHANNEL_CHECK);
-    url.searchParams.set('skipKyc', 'true');
     return url.toString();
   }
 

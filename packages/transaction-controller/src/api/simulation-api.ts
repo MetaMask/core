@@ -88,6 +88,12 @@ export type SimulationRequest = {
     /* Whether to include the gas fee of the token transfer. */
     withFeeTransfer?: boolean;
 
+    /*
+     * Whether to include a RedeemerEnforcer caveat, restricting redemption to
+     * the relay signers, in the delegation used for the EIP-7702 estimate.
+     */
+    withRedeemerEnforcer?: boolean;
+
     /* Whether to include the native transfer if available. */
     withTransfer?: boolean;
   };

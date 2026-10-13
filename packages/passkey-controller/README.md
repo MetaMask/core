@@ -87,6 +87,91 @@ await controller.protectVaultKeyWithPasskey({
 });
 ```
 
+### Migrating a `userHandle` passkey to PRF
+
+Use the dedicated replacement flow for an enrolled passkey whose
+`passkeyRecord.keyDerivation.method` is `userHandle`. The existing record
+remains active until the replacement is fully verified and the vault key has
+been wrapped with the new PRF-derived key.
+
+```mermaid
+flowchart LR
+    n1["PasskeyCtrl:migrateToPRF"] --> n2["PasskeyCtrl:register"]
+    n2 --> n3["PRF Supported"]
+    n3 --> n6["YES"] & n7["NO"]
+    n7 --> n4["Do Nothing"]
+    n6 --> n5["PasskeyCtrl:verify"]
+    n5 --> n8["Success"]
+    n8 --> n9["YES"] & n10["NO"]
+    n10 --> n4
+    n9 --> n11["PasskeyCtrl:replaceUserHandleRecord"]
+    n4 --> n12["Continue with current userHandle passkey"]
+
+    n1@{ shape: rounded}
+    n2@{ shape: rounded}
+    n3@{ shape: diam}
+    n6@{ shape: rect}
+    n7@{ shape: rect}
+    n4@{ shape: rect}
+    n5@{ shape: rounded}
+    n8@{ shape: diam}
+    n9@{ shape: rect}
+    n10@{ shape: rect}
+    n11@{ shape: rounded}
+    n12@{ shape: rect}
+```
+
+In the client side,
+
+```typescript
+// 1. Stage a PRF-only replacement registration.
+const replacementOptions =
+  controller.generatePasskeyReplacementRegistrationOptions();
+
+let replacementRegistrationResponse;
+let replacementAuthenticationResponse;
+try {
+  // 2. Register the new authenticator. The old credential is excluded.
+  replacementRegistrationResponse = await navigator.credentials.create({
+    publicKey: replacementOptions,
+  });
+
+  // 3. Request the post-registration PRF assertion.
+  const replacementAuthenticationOptions =
+    controller.generatePostRegistrationAuthenticationOptions({
+      registrationResponse: replacementRegistrationResponse,
+    });
+  replacementAuthenticationResponse = await navigator.credentials.get({
+    publicKey: replacementAuthenticationOptions,
+  });
+} catch (error) {
+  // Call this when the browser ceremony is canceled or abandoned before
+  // completion. TTL pruning remains the fallback if this is not called.
+  controller.cancelPasskeyReplacement(replacementOptions.challenge);
+  throw error;
+}
+
+// 4. Verify both responses and atomically replace the persisted record.
+await controller.completePasskeyReplacement({
+  registrationResponse: replacementRegistrationResponse,
+  authenticationResponse: replacementAuthenticationResponse,
+  password: settingsEnroll ? walletPassword : undefined,
+});
+```
+
+The replacement authentication response must contain non-empty PRF output;
+there is no `userHandle` fallback. After onboarding, the `password` argument
+is required for the same step-up authorization used by normal enrollment.
+A missing or wrong password, or a failed vault-key export, leaves the
+replacement ceremony in place so the same `create()`/`get()` responses can be
+retried. `cancelPasskeyReplacement` removes only the targeted replacement
+ceremony and its linked post-registration authentication ceremony; it does
+not remove the enrolled passkey.
+
+The atomicity guarantee applies to the controller state update. If the wallet's
+generic persistence subscriber cannot write the new state, it logs the failure
+and the previous record may remain on disk for the next restart.
+
 ### Passkey unlock (authentication)
 
 Prefer `unlockWithPasskey`, which verifies the assertion and submits the vault key to KeyringController.
@@ -102,14 +187,17 @@ await controller.unlockWithPasskey(response);
 
 These methods combine passkey verification with KeyringController calls. Use them from UI layers that already performed `navigator.credentials.get()`.
 
-| Method                                  | Purpose                                                   |
-| --------------------------------------- | --------------------------------------------------------- |
-| `unlockWithPasskey`                     | Unlock keyring after passkey assertion                    |
-| `removePasskeyWithPasskeyVerification`  | Remove passkey after assertion step-up                    |
-| `removePasskeyWithPasswordVerification` | Remove passkey after password step-up                     |
-| `changePasswordWithPasskeyVerification` | Change password; re-wrap vault key by default             |
-| `exportSeedPhraseWithPasskey`           | Export SRP bytes after assertion step-up                  |
-| `exportAccountsWithPasskey`             | Export private keys for addresses after assertion step-up |
+| Method                                          | Purpose                                                      |
+| ----------------------------------------------- | ------------------------------------------------------------ |
+| `unlockWithPasskey`                             | Unlock keyring after passkey assertion                       |
+| `generatePasskeyReplacementRegistrationOptions` | Generate PRF-only replacement registration options           |
+| `completePasskeyReplacement`                    | Verify and atomically complete `userHandle` → PRF migration  |
+| `cancelPasskeyReplacement`                      | Cancel one replacement ceremony and its linked auth ceremony |
+| `removePasskeyWithPasskeyVerification`          | Remove passkey after assertion step-up                       |
+| `removePasskeyWithPasswordVerification`         | Remove passkey after password step-up                        |
+| `changePasswordWithPasskeyVerification`         | Change password; re-wrap vault key by default                |
+| `exportSeedPhraseWithPasskey`                   | Export SRP bytes after assertion step-up                     |
+| `exportAccountsWithPasskey`                     | Export private keys for addresses after assertion step-up    |
 
 ```typescript
 // Change password (re-wraps passkey protection by default)
@@ -164,7 +252,8 @@ passkeyControllerSelectors.selectIsPasskeyEnrolled(state); // boolean
 cases use a stable `code` from `PasskeyControllerErrorCode` (for example:
 `not_enrolled`, `already_enrolled`, `no_registration_ceremony`,
 `authentication_verification_failed`, `missing_key_material`, `vault_key_decryption_failed`,
-`vault_key_mismatch`, `vault_key_renewal_failed`, `enrollment_password_required`). Human-readable strings
+`vault_key_mismatch`, `vault_key_renewal_failed`, `enrollment_password_required`,
+`migration_not_required`, `prf_required`, `replacement_source_changed`). Human-readable strings
 live on `PasskeyControllerErrorMessage`. Use `instanceof PasskeyControllerError`
 and a defined `error.code` to tell these apart from malformed WebAuthn payloads
 and other `Error` values. Thrown errors from the internal WebAuthn verify helpers
@@ -188,6 +277,9 @@ those controller errors (with `code`) and rethrows everything else.
 | `PasskeyController:getState`                                      | Persisted `passkeyRecord`                  |
 | `PasskeyController:isPasskeyEnrolled`                             | Enrollment boolean                         |
 | `PasskeyController:generateRegistrationOptions`                   | WebAuthn `create()` options                |
+| `PasskeyController:generatePasskeyReplacementRegistrationOptions` | PRF replacement `create()` options         |
+| `PasskeyController:completePasskeyReplacement`                    | Complete PRF replacement                   |
+| `PasskeyController:cancelPasskeyReplacement`                      | Cancel one replacement ceremony            |
 | `PasskeyController:generatePostRegistrationAuthenticationOptions` | WebAuthn `get()` after `create()`          |
 | `PasskeyController:generateAuthenticationOptions`                 | WebAuthn `get()` for unlock / step-up      |
 | `PasskeyController:protectVaultKeyWithPasskey`                    | Enroll: verify ceremonies + wrap vault key |

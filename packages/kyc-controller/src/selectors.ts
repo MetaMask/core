@@ -1,42 +1,21 @@
-import { createSelector } from 'reselect';
-
 import type { KycControllerState } from './KycController.js';
-import type { KycProduct } from './types.js';
-
-const selectKycRequiredByProduct = (
-  state: KycControllerState,
-): KycControllerState['kycRequiredByProduct'] => state.kycRequiredByProduct;
+import type { KycVendor } from './types.js';
 
 /**
- * Selects the current flow phase.
+ * Selects the identity vendor on the current KYC session.
  *
  * @param state - The KycController state.
- * @returns The current phase.
+ * @returns The current vendor, or `null`.
  */
-export const selectKycPhase = (
-  state: KycControllerState,
-): KycControllerState['phase'] => state.phase;
+export const selectKycVendor = (state: KycControllerState): KycVendor | null =>
+  state.vendor;
 
 /**
- * Selects the SumSub sub-flow state.
+ * Selects the latest UKYC session status.
  *
  * @param state - The KycController state.
- * @returns The SumSub state.
+ * @returns The current session status, or `null`.
  */
-export const selectKycSumSub = (
+export const selectKycSessionStatus = (
   state: KycControllerState,
-): KycControllerState['sumsub'] => state.sumsub;
-
-/**
- * Creates a selector that returns whether KYC is required for a product.
- *
- * @param product - The consuming feature.
- * @returns A selector returning the cached requirement, or `undefined`.
- */
-export const selectIsKycRequiredForProduct = (
-  product: KycProduct,
-): ((state: KycControllerState) => boolean | undefined) =>
-  createSelector(
-    [selectKycRequiredByProduct],
-    (map): boolean | undefined => map[product],
-  );
+): KycControllerState['sessionStatus'] => state.sessionStatus;

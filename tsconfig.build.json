@@ -17,6 +17,9 @@
       "path": "./packages/address-book-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/advanced-chart-core/tsconfig.build.json"
+    },
+    {
       "path": "./packages/ai-controllers/tsconfig.build.json"
     },
     {
@@ -212,6 +215,9 @@
       "path": "./packages/notification-services-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/package-template/tsconfig.build.json"
+    },
+    {
       "path": "./packages/passkey-controller/tsconfig.build.json"
     },
     {
@@ -234,6 +240,9 @@
     },
     {
       "path": "./packages/preferences-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/profile-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/profile-metrics-controller/tsconfig.build.json"
@@ -312,9 +321,6 @@
     },
     {
       "path": "./packages/wallet/tsconfig.build.json"
-    },
-    {
-      "path": "./packages/package-template/tsconfig.build.json"
     }
   ],
   "files": [],

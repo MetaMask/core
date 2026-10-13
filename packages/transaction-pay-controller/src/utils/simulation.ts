@@ -53,7 +53,7 @@ export async function simulateQuoteTransactions(
       {
         transactions: request.transactions,
         withLogs: true,
-      } as SentinelSimulationRequest,
+      },
     );
 
     responseTransactions = response.transactions;

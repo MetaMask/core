@@ -7,9 +7,132 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.1]
+
 ### Changed
 
+- Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
+
+### Fixed
+
+- `hydrateVbaOnboarding` returns `needs_wallet_registration` or `needs_source_currency` only when the MoonPay customer `status` is `Active`. `SigningsRequired`, `IdentificationRequired`, and any other status return `not_ready`. A failed customer lookup returns `retryable_failure` ([#10766](https://github.com/MetaMask/core/pull/10766))
+- `registerMoneyAccountWallet` refuses to sign or post a self-hosted wallet unless that customer `status` is `Active` ([#10766](https://github.com/MetaMask/core/pull/10766))
+
+## [27.0.0]
+
+### Added
+
+- Add `needs_source_currency` to `VBA_AUTORAMP_STATUSES` for an approved, registered wallet that has no usable autoramp and was not given a source currency ([#10743](https://github.com/MetaMask/core/pull/10743))
+- Add `buildMusdAutorampRequest`, which builds the standing mUSD-on-Monad autoramp body for an explicit fiat code. `buildBrazilMusdAutorampRequest` remains the BRL wrapper ([#10743](https://github.com/MetaMask/core/pull/10743))
+- Add persisted `moneyAccountWalletRegistrations` (`walletAddress`, `status` of `active` or `disabled`, `updatedAt`) and `vbaAutorampListFetchedAt` on `RampsController` state ([#10749](https://github.com/MetaMask/core/pull/10749))
+- Add `needs_wallet_registration` to `VbaOnboardingSnapshot.autorampStatus` for an approved session with no persisted registration row and no usable autoramp ([#10749](https://github.com/MetaMask/core/pull/10749))
+
+### Changed
+
+- **BREAKING:** `hydrateVbaOnboarding` is a read. It returns KYC and autoramp facts from persisted state, and no longer signs a wallet, posts a self-hosted address, creates an autoramp, or starts the 15-second KYC poll. Optional `refreshKyc` performs one `GET /sessions/{id}/status` when a non-terminal session is already stored. Optional `refreshAutoramps` replaces the autoramp cursor from `GET /neobank/autoramps` unless that wallet already has a usable (not Rejected or Cancelled) route. An approved session with no registration row returns `needs_wallet_registration`. `needs_source_currency` now means an approved session whose persisted registration is `active` or `disabled` and which has no usable autoramp. `vbaAutorampListFetchedAt` is set only when the autoramp list GET succeeds. A persisted KYC session owned by a different profile is discarded together with `moneyAccountWalletRegistrations`, the `autoramps` cursor, and `vbaAutorampListFetchedAt` ([#10749](https://github.com/MetaMask/core/pull/10749))
+  - The `sourceCurrencyCode` argument is removed. To create an autoramp, call `createAutoramp(buildMusdAutorampRequest(walletAddress, code))` instead of passing a code to `hydrateVbaOnboarding`
+  - A failed one-shot KYC status GET keeps the persisted session instead of rejecting the read. A 404 clears that session and returns an empty snapshot
+- **BREAKING:** `RampsControllerMessenger` now requires `KycController:readSessionStatus` and `KycController:fetchSessionStatusOnce` instead of `KycController:refreshSessionStatus` and `KycController:getSessionStatusForVendor` ([#10749](https://github.com/MetaMask/core/pull/10749))
+- `registerMoneyAccountWallet` writes a `moneyAccountWalletRegistrations` row after `alreadyRegistered`, `registered`, or `registeredDisabled`. The stored address is trimmed and lowercased. A lookup failure or a thrown signature writes nothing ([#10749](https://github.com/MetaMask/core/pull/10749))
+- `createAutoramp` derives its idempotency key from the caller-supplied source fiat (`brl-musd-monad` versus `usd-musd-monad`), the customer, the wallet, and rejected or cancelled autoramp ids. A caller-supplied key is used only when the body has no source fiat or recipient address ([#10749](https://github.com/MetaMask/core/pull/10749))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.2` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756))
+
+## [26.3.0]
+
+### Added
+
+- Add `getPixDepositInstructions` and `listAutorampTransactions` so a client can show a PIX BR Code and poll autoramp transaction status ([#10586](https://github.com/MetaMask/core/pull/10586))
+- Add `buildBrazilMusdAutorampRequest` for a standing BRL to mUSD autoramp on Monad ([#10586](https://github.com/MetaMask/core/pull/10586))
+- Include `createdAt` on autoramp transaction summaries when MoonPay returns `created_at` ([#10586](https://github.com/MetaMask/core/pull/10586))
+
+### Fixed
+
+- `hydrateVbaOnboarding` creates that BRL to mUSD autoramp instead of posting an empty body ([#10586](https://github.com/MetaMask/core/pull/10586))
+- `hydrateVbaOnboarding` sends a stable idempotency key when creating the BRL to mUSD autoramp so a retry does not open a second route, and uses a different key when replacing a rejected or cancelled route ([#10586](https://github.com/MetaMask/core/pull/10586))
+- `getAutoramps` accepts MoonPay's paged `{ items }` list, follows `cursor` until the list is complete, and can be scoped with `customerId` ([#10586](https://github.com/MetaMask/core/pull/10586))
+- Fall back to MoonPay `recipient.address` when mapping an autoramp wallet address ([#10586](https://github.com/MetaMask/core/pull/10586))
+
+## [26.2.0]
+
+### Changed
+
+- `RampsController.setSelectedToken` matches `eip155` ERC-20 asset ids case-insensitively and keeps the catalog token's own `assetId`. Non-EVM asset ids still require an exact match ([#10545](https://github.com/MetaMask/core/pull/10545))
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [26.1.0]
+
+### Changed
+
+- Prefer a provider the user has previously completed an order with (most recent first) over API ranking order when `setSelectedProviderForAsset` switches providers ([#10536](https://github.com/MetaMask/core/pull/10536))
+
+## [26.0.1]
+
+### Fixed
+
+- Treat a relay-approved KYC session as approved in `hydrateVbaOnboarding` even when the vendor-side `finalStatus` is still `pending`, so relay-approved users are no longer stranded on the pending screen ([#10497](https://github.com/MetaMask/core/pull/10497))
+
+## [26.0.0]
+
+### Changed
+
+- **BREAKING:** Add `providerFlowStatus` to `VbaOnboardingSnapshot` and require the `KycController:getProviderFlowStatus` messenger action ([#10457](https://github.com/MetaMask/core/pull/10457))
+- Bump `deepmerge` from `^4.2.2` to `^4.3.1` ([#10437](https://github.com/MetaMask/core/pull/10437))
+
+## [25.1.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.2.0` to `^33.0.0` ([#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418), [#10459](https://github.com/MetaMask/core/pull/10459))
+
+## [25.1.0]
+
+### Added
+
+- Add `fallback` to `BuyWidget` and the `BuyWidgetFallback` type for the hosted-flow entry the quotes API attaches when an embedded checkout may turn the user away ([#10391](https://github.com/MetaMask/core/pull/10391))
+- Add `getBuyWidgetFallback` to read a quote's buy-widget fallback ([#10391](https://github.com/MetaMask/core/pull/10391))
+- Add `RampsController:getFallbackBuyWidgetData` to resolve a buy-widget fallback into the hosted widget, optionally setting its `redirectUrl` ([#10391](https://github.com/MetaMask/core/pull/10391))
+
+## [25.0.0]
+
+### Changed
+
+- **BREAKING:** `RampsController:hydrateVbaOnboarding` now returns a `VbaOnboardingSnapshot` of KYC and autoramp facts instead of a linear `VbaOnboardingStage`. The persisted `vbaOnboardingStage` state field and `VbaOnboardingStage` enum are removed — hosts own funnel order and map the snapshot onto screens. ([#10354](https://github.com/MetaMask/core/pull/10354))
+  - `sessionExists`, disclaimer completion flags, `kycStatus`, and `autorampStatus` (`not_ready` / `in_progress` / `ready` / `retryable_failure`) are independent facts. `kycStatus` is the overall KYC session outcome; relay and vendor-specific statuses remain internal to `KycController`.
+  - After KYC approval, wallet registration and autoramp creation still run (coalesced). Setup failure sets `autorampStatus: 'retryable_failure'` rather than a fatal error.
+  - A persisted KYC session owned by a previous identity is discarded via `KycController:clearState` and returned as an empty snapshot (`sessionExists: false`).
+- **BREAKING:** `RampsControllerMessenger` now also requires the `KycController:clearState` action, used to discard a foreign VBA onboarding session during hydration. ([#10354](https://github.com/MetaMask/core/pull/10354))
+  - The action type is declared structurally in the ramps package, so no dependency on `@metamask/kyc-controller` is added.
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.2.0` ([#10348](https://github.com/MetaMask/core/pull/10348))
+
+## [24.0.0]
+
+### Added
+
+- Add `NeoBankService:getAutoramps` to load all autoramp accounts for the authenticated customer from `GET /neobank/autoramps` ([#10278](https://github.com/MetaMask/core/pull/10278))
+- Add `RampsController:hydrateVbaOnboarding`, the persisted `vbaOnboardingStage` state, and the `VbaOnboardingStage` enum for Mobile routing ([#10278](https://github.com/MetaMask/core/pull/10278))
+  - Resolve the current onboarding stage (email OTP, vendor terms, provider terms, SumSub, pending KYC, rejected KYC, or completed) from the customer's KYC session status.
+  - After KYC acceptance, register the Money Account wallet, load the customer's authoritative autoramps, and create one only when needed; keep the user on the pending stage if account activation is momentarily unavailable.
+  - Coalesce overlapping hydration calls to prevent duplicate wallet signatures or autoramp creation during polling.
+
+### Changed
+
+- **BREAKING:** `RampsControllerMessenger` now requires the `KycController:getSessionStatusForVendor`, `KycController:refreshSessionStatus`, `KycController:hasCompletedVendorDisclaimers`, and `KycController:hasCompletedSessionDisclaimers` actions to hydrate VBA onboarding ([#10278](https://github.com/MetaMask/core/pull/10278))
+  - The action types are declared structurally in the ramps package, so no dependency on `@metamask/kyc-controller` is added.
+- Stop sending `crypto` on `RampsService.getPaymentMethods`. Payment methods are provider + region; the param was ignored by `/v2/regions/:region/payments` and split the CDN cache per token. `assetId` remains on the method for caller cache keys. ([#10307](https://github.com/MetaMask/core/pull/10307))
+
+## [23.0.0]
+
+### Added
+
+- Add `RampsController:getQuoteWithFees`, which returns the best on-ramp quote with its fees reconciled to the resolved provider ([#10238](https://github.com/MetaMask/core/pull/10238))
+  - When the resolved provider is Transak Native, the returned quote's `providerFee`/`networkFee`/`totalFees` reflect the native buy quote's total fee: the aggregator `networkFee` stays on the network line and the remainder goes to the provider fee, so the breakdown survives and the total is unchanged. A non-native provider, a failed native lookup, or an unusable native fee returns the aggregator quote unchanged.
+  - The native lookup uses the stateless `TransakService:getBuyQuote`, so it does not write the shared native buy-quote state used by Unified Buy.
+
+### Changed
+
+- **BREAKING:** The publicly exported `TransakBuyQuote` type now requires `requestedAssetId` and `requestedChainId` ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Add an optional fee-exclusion argument to native Transak buy quotes while preserving fee exclusion as the default. ([#9317](https://github.com/MetaMask/core/pull/9317))
+- Add `bignumber.js` as a dependency, used by `getQuoteWithFees` for fee reconciliation ([#10238](https://github.com/MetaMask/core/pull/10238))
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
 
 ## [22.0.0]
@@ -29,7 +152,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing ([#9474](https://github.com/MetaMask/core/pull/9474)):
+- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing: ([#9474](https://github.com/MetaMask/core/pull/9474))
   - `UserStorageController:getState`
   - `UserStorageController:performGetStorageAllFeatureEntries`
   - `UserStorageController:performBatchSetStorage`
@@ -602,7 +725,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.1...HEAD
+[27.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.0...@metamask/ramps-controller@27.0.1
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.3.0...@metamask/ramps-controller@27.0.0
+[26.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.2.0...@metamask/ramps-controller@26.3.0
+[26.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.1.0...@metamask/ramps-controller@26.2.0
+[26.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.1...@metamask/ramps-controller@26.1.0
+[26.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.0.0...@metamask/ramps-controller@26.0.1
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.1...@metamask/ramps-controller@26.0.0
+[25.1.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.1.0...@metamask/ramps-controller@25.1.1
+[25.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@25.0.0...@metamask/ramps-controller@25.1.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@24.0.0...@metamask/ramps-controller@25.0.0
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@23.0.0...@metamask/ramps-controller@24.0.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@22.0.0...@metamask/ramps-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@21.0.0...@metamask/ramps-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.3.0...@metamask/ramps-controller@21.0.0
 [20.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.2.0...@metamask/ramps-controller@20.3.0

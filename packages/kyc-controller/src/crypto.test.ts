@@ -23,11 +23,7 @@ import { decryptCredentials, generateKeyPair } from './crypto.js';
 function makeEnvelope(
   ourPublicKey: Uint8Array,
   credentials: Record<string, unknown>,
-  {
-    encoding = 'hex' as 'hex' | 'base64',
-    ivLength = 12,
-    useNonceField = false,
-  } = {},
+  { encoding = 'hex', ivLength = 12, useNonceField = false } = {},
 ): EncryptedCredentialsEnvelope {
   const ephemeralPrivate = x25519.utils.randomSecretKey();
   const ephemeralPublic = x25519.getPublicKey(ephemeralPrivate);

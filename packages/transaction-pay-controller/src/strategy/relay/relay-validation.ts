@@ -70,10 +70,7 @@ export async function validateRelayQuotes(
         // Backwards compatibility: keep the entire quote batch (including
         // quotes that may have passed or not yet been validated) so that
         // clients can still show quote details alongside the balance error.
-        throw new QuoteError(
-          quoteError.info,
-          request.quotes as TransactionPayQuote<unknown>[],
-        );
+        throw new QuoteError(quoteError.info, request.quotes);
       }
       throw quoteError;
     }
@@ -237,7 +234,7 @@ function buildRelay7702BatchSimulation(
         data: batchTx.data,
         from,
         ...(gas === undefined || gas === 0 ? {} : { gas: toHex(gas) }),
-        to: batchTx.to as Hex,
+        to: batchTx.to,
         value: '0x0',
       },
     ],

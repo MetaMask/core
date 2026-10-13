@@ -4,11 +4,11 @@ import {
   UKYC_LOCAL_USER_SECRET_PATH,
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
 } from './constants.js';
-import type { UkycLocalUserSecretStore } from './localUserSecret.js';
 import {
   getOrCreateLocalUserSecret,
   hasLocalUserSecret,
   loadLocalUserSecret,
+  UkycLocalUserSecretStore,
 } from './localUserSecret.js';
 
 const SECRET_BYTES = new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(7);
@@ -34,6 +34,35 @@ function makeStore(initial: string | null = null): {
 }
 
 describe('UKYC localUserSecret', () => {
+  describe('UkycLocalUserSecretStore', () => {
+    it('delegates get and set to User Storage messenger actions', async () => {
+      const call = jest
+        .fn()
+        .mockResolvedValueOnce('stored')
+        .mockResolvedValueOnce(undefined);
+      const store = new UkycLocalUserSecretStore({ call });
+
+      expect(await store.get(UKYC_LOCAL_USER_SECRET_PATH, 'entropy-1')).toBe(
+        'stored',
+      );
+      await store.set(UKYC_LOCAL_USER_SECRET_PATH, SECRET_BASE64, 'entropy-1');
+
+      expect(call).toHaveBeenNthCalledWith(
+        1,
+        'UserStorageController:performGetStorage',
+        UKYC_LOCAL_USER_SECRET_PATH,
+        'entropy-1',
+      );
+      expect(call).toHaveBeenNthCalledWith(
+        2,
+        'UserStorageController:performSetStorage',
+        UKYC_LOCAL_USER_SECRET_PATH,
+        SECRET_BASE64,
+        'entropy-1',
+      );
+    });
+  });
+
   describe('loadLocalUserSecret', () => {
     it('returns null when no local_user_secret is stored', async () => {
       const { store, get } = makeStore(null);

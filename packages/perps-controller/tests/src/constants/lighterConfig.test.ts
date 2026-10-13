@@ -1,3 +1,4 @@
+import * as publicConstants from '../../../src/constants/index.js';
 import {
   computeLighterMinOrderSize,
   fromLighterInteger,
@@ -13,8 +14,24 @@ import {
   parseLighterStrictDecimal,
   toLighterInteger,
 } from '../../../src/constants/lighterConfig.js';
+import * as lighterPolicy from '../../../src/constants/lighterConfig.js';
 
 describe('lighterConfig', () => {
+  it.each([
+    ['LIGHTER_SCALE_SETTLEMENT_WINDOW_MS', 10000],
+    ['LIGHTER_SCALE_SETTLEMENT_POLL_MS', 250],
+    ['LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS', 10000],
+    ['LIGHTER_CHASE_CANCEL_SETTLEMENT_POLL_MS', 250],
+  ] as const)(
+    'exports the %s settlement policy through both constants entrypoints',
+    (name, value) => {
+      const policy: Record<string, unknown> = lighterPolicy;
+      const exported: Record<string, unknown> = publicConstants;
+      expect(policy[name]).toBe(value);
+      expect(exported[name]).toBe(value);
+    },
+  );
+
   describe('chain ids', () => {
     it('returns testnet chain id 300', () => {
       expect(getLighterChainId('testnet')).toBe(300);

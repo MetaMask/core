@@ -88,7 +88,7 @@ export type RampsControllerSetSelectedProviderAction = {
 };
 
 /**
- * Switches to the first provider in state that serves the given asset,
+ * Switches to the preferred provider in state that serves the given asset,
  * when the currently selected provider does not.
  *
  * This is the controller-level equivalent of UB2's BuildQuote tier-1
@@ -100,6 +100,12 @@ export type RampsControllerSetSelectedProviderAction = {
  * The compatibility check prefers the current provider's entry in
  * `providers.data` over the `providers.selected` copy, which can be stale
  * once a fresh providers list arrives.
+ *
+ * Among the providers that serve the asset, the new selection is:
+ * 1. The first provider the user has completed an order with before (most
+ * recent first). This keeps an existing KYC relationship instead of
+ * moving the user to a new provider.
+ * 2. Otherwise the first provider in `providers.data` (API ranking order).
  *
  * No-op when:
  * - `providers.data` is empty (providers not yet loaded)
@@ -302,6 +308,51 @@ export type RampsControllerGetQuotesAction = {
 };
 
 /**
+ * Fetches the best on-ramp quote for a request and, when the resolved
+ * provider is Transak Native, reconciles its fees to match what Transak
+ * Native actually charges.
+ *
+ * The aggregator `/quotes` estimate of Transak's fee does not match the
+ * native integration. When the resolved provider is Transak Native this
+ * fetches the native buy quote (an unauthenticated, API-key-only lookup, so
+ * it is safe at estimate time) and rewrites the returned quote's fee fields
+ * to its `totalFee`, keeping the aggregator's `networkFee` on the network
+ * line and placing the remainder in the provider fee so the breakdown
+ * survives and `providerFee + networkFee` still equals the native total. A
+ * non-native provider, a failed lookup, or an unusable native fee returns the
+ * aggregator quote unchanged.
+ *
+ * Consumers (e.g. `TransactionPayController`) call this instead of owning the
+ * provider check, asset-id parsing, and second native quote themselves.
+ *
+ * @param options - Quote options; see {@link getQuotes}, plus the fee mode.
+ * @param options.amount - Fiat amount for the quote.
+ * @param options.assetId - CAIP-19 asset id being bought.
+ * @param options.fiat - Optional fiat currency; defaults like {@link getQuotes}.
+ * @param options.paymentMethods - Optional payment method ids.
+ * @param options.walletAddress - Wallet address receiving the on-ramped asset.
+ * @param options.isFeeExcludedFromFiat - Whether Transak adds its fee on top
+ * of the fiat amount (`true`, fee-on-top) or carves it out (`false`). Must
+ * mirror the eventual checkout mode so the estimate equals the charge.
+ * Defaults to `true`.
+ * @param options.providers - See {@link getQuotes}.
+ * @param options.autoSelectProvider - See {@link getQuotes}.
+ * @param options.restrictToKnownOrNativeProviders - See {@link getQuotes}.
+ * @param options.preferredProviderIds - See {@link getQuotes}.
+ * @param options.region - See {@link getQuotes}.
+ * @param options.redirectUrl - See {@link getQuotes}.
+ * @param options.action - See {@link getQuotes}.
+ * @param options.forceRefresh - See {@link getQuotes}.
+ * @param options.ttl - See {@link getQuotes}.
+ * @returns The best quote with native-reconciled fees, or `undefined` when
+ * no quote is available.
+ */
+export type RampsControllerGetQuoteWithFeesAction = {
+  type: `RampsController:getQuoteWithFees`;
+  handler: RampsController['getQuoteWithFees'];
+};
+
+/**
  * Adds or updates a V2 order in controller state.
  * If an order with the same internal order code already exists, the incoming
  * fields are merged on top of the existing order so that fields not present
@@ -357,10 +408,16 @@ export type RampsControllerAddAutorampAction = {
  *
  * The vendor `customer_id` is resolved via
  * {@link RampsController.resolveAutorampCustomerId} and injected into the
- * request (any caller-supplied `customer_id` is overwritten).
+ * request (any caller-supplied `customer_id` is overwritten). The caller
+ * supplies the fiat body. When that body names a source fiat and a
+ * recipient wallet, the idempotency key is derived from that fiat
+ * (`brl-musd-monad` or `usd-musd-monad`), the customer, the wallet, and
+ * rejected or cancelled autoramp ids. A caller-supplied key is used only
+ * when the body has no source fiat or recipient address.
  *
- * @param request - CreateAutoramp payload.
- * @param options - Optional idempotency key forwarded to the proxy.
+ * @param request - CreateAutoramp payload, including the source fiat.
+ * @param options - Optional idempotency key forwarded when the body does
+ * not identify a fiat route.
  * @param options.idempotencyKey - Value sent as `Idempotency-Key`.
  * @returns The created/updated local {@link AutorampAccount}.
  */
@@ -380,6 +437,39 @@ export type RampsControllerCreateAutorampAction = {
 export type RampsControllerRegisterMoneyAccountWalletAction = {
   type: `RampsController:registerMoneyAccountWallet`;
   handler: RampsController['registerMoneyAccountWallet'];
+};
+
+/**
+ * Reads VBA onboarding facts. Hosts map the returned
+ * {@link VbaOnboardingSnapshot} onto their own funnel; this method does not
+ * name screens.
+ *
+ * The read uses the persisted KYC session. `refreshKyc` performs one
+ * session-status GET when a session id is already stored and `finalStatus`
+ * is not terminal. `refreshAutoramps` lists autoramps when KYC is approved,
+ * unless this wallet already has a usable route. An approved session with no
+ * usable autoramp returns `needs_wallet_registration` or
+ * `needs_source_currency` only when
+ * `GET /neobank/customers/{external_id}/external` reports
+ * `status: 'Active'`. Any other customer status returns `not_ready`.
+ * It does not sign, post a self-hosted address, create an autoramp, or start
+ * KYC polling.
+ *
+ * Overlapping calls share one run.
+ *
+ * @param params - VBA onboarding parameters.
+ * @param params.walletAddress - Monad Money Account wallet address.
+ * @param params.refreshKyc - When true, fetch session status once for a
+ * non-terminal persisted session. A failed GET keeps that session. Defaults
+ * to false.
+ * @param params.refreshAutoramps - When true, replace the autoramp cursor
+ * from `GET /neobank/autoramps` unless a usable route is already stored.
+ * Defaults to false.
+ * @returns Independent KYC and autoramp facts for the current customer.
+ */
+export type RampsControllerHydrateVbaOnboardingAction = {
+  type: `RampsController:hydrateVbaOnboarding`;
+  handler: RampsController['hydrateVbaOnboarding'];
 };
 
 /**
@@ -468,6 +558,23 @@ export type RampsControllerStopOrderPollingAction = {
 export type RampsControllerGetBuyWidgetDataAction = {
   type: `RampsController:getBuyWidgetData`;
   handler: RampsController['getBuyWidgetData'];
+};
+
+/**
+ * Fetches the widget data for a quote's hosted-flow fallback (see
+ * `getBuyWidgetFallback`), used when an embedded checkout turns the user away.
+ *
+ * @param fallback - The buy-widget fallback attached to the quote.
+ * @param options - Optional request options.
+ * @param options.redirectUrl - Where the hosted flow returns to; set as the
+ * `redirectUrl` query parameter, replacing any existing value.
+ * @returns Promise resolving to the hosted BuyWidget, or null if the fallback has no URL or the response has an empty url.
+ * @throws TypeError if the fallback URL is not a valid URL.
+ * @throws Rethrows errors from the RampsService (e.g. HttpError, network failures) so clients can react to fetch failures.
+ */
+export type RampsControllerGetFallbackBuyWidgetDataAction = {
+  type: `RampsController:getFallbackBuyWidgetData`;
+  handler: RampsController['getFallbackBuyWidgetData'];
 };
 
 /**
@@ -848,12 +955,14 @@ export type RampsControllerMethodActions =
   | RampsControllerGetPaymentMethodsForContextAction
   | RampsControllerSetSelectedPaymentMethodAction
   | RampsControllerGetQuotesAction
+  | RampsControllerGetQuoteWithFeesAction
   | RampsControllerAddOrderAction
   | RampsControllerRemoveOrderAction
   | RampsControllerSyncOrdersWithUserStorageAction
   | RampsControllerAddAutorampAction
   | RampsControllerCreateAutorampAction
   | RampsControllerRegisterMoneyAccountWalletAction
+  | RampsControllerHydrateVbaOnboardingAction
   | RampsControllerRemoveAutorampAction
   | RampsControllerMarkAutorampAsNotifiedAction
   | RampsControllerApplyAutorampStatusFromPushAction
@@ -862,6 +971,7 @@ export type RampsControllerMethodActions =
   | RampsControllerStartOrderPollingAction
   | RampsControllerStopOrderPollingAction
   | RampsControllerGetBuyWidgetDataAction
+  | RampsControllerGetFallbackBuyWidgetDataAction
   | RampsControllerAddPrecreatedOrderAction
   | RampsControllerGetOrderAction
   | RampsControllerGetOrderFromCallbackAction

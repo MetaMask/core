@@ -1174,4 +1174,88 @@ describe('mapApiTransaction', () => {
 
     expect(item.type).toBe('receive');
   });
+
+  it('omits amount for an Arbitrum USDT transfer missing decimal enrichment', () => {
+    const arbitrumUsdt = '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9';
+    const item = mapApiTransaction({
+      subjectAddress,
+      transaction: {
+        hash: '0xmissingdecimals',
+        chainId: 42161,
+        timestamp: '2026-08-12T16:42:48.000Z',
+        isError: false,
+        transactionCategory: 'TRANSFER',
+        from: subjectAddress,
+        to: arbitrumUsdt,
+        value: '0',
+        valueTransfers: [
+          {
+            from: subjectAddress,
+            to: baseRecipientAddress,
+            transferType: 'erc20',
+            amount: '167121100',
+            contractAddress: arbitrumUsdt,
+          },
+        ],
+        gasUsed: 21000,
+        effectiveGasPrice: '1',
+      },
+    });
+
+    expect(item).toMatchObject({
+      type: 'send',
+      data: {
+        token: {
+          direction: 'out',
+          assetType: 'erc20',
+          assetId: formatAddressToAssetId(arbitrumUsdt, 'eip155:42161'),
+        },
+      },
+    });
+    expect(
+      item.type === 'send' ? item.data.token?.amount : 'unset',
+    ).toBeUndefined();
+  });
+
+  it('keeps amount when getKnownTokenDecimals recovers missing decimals', () => {
+    const arbitrumUsdt = '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9';
+    const item = mapApiTransaction({
+      subjectAddress,
+      getKnownTokenDecimals: () => ({ decimals: 6, symbol: 'USDT' }),
+      transaction: {
+        hash: '0xhookdecimals',
+        chainId: 42161,
+        timestamp: '2026-08-12T16:42:48.000Z',
+        isError: false,
+        transactionCategory: 'TRANSFER',
+        from: subjectAddress,
+        to: arbitrumUsdt,
+        value: '0',
+        valueTransfers: [
+          {
+            from: subjectAddress,
+            to: baseRecipientAddress,
+            transferType: 'erc20',
+            amount: '167121100',
+            contractAddress: arbitrumUsdt,
+          },
+        ],
+        gasUsed: 21000,
+        effectiveGasPrice: '1',
+      },
+    });
+
+    expect(item).toMatchObject({
+      type: 'send',
+      data: {
+        token: {
+          direction: 'out',
+          amount: '167121100',
+          decimals: 6,
+          symbol: 'USDT',
+          assetType: 'erc20',
+        },
+      },
+    });
+  });
 });

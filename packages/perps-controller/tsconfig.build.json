@@ -38,6 +38,9 @@
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
     },
     {
+      "path": "../subscription-controller/tsconfig.build.json"
+    },
+    {
       "path": "../transaction-controller/tsconfig.build.json"
     },
     {

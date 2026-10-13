@@ -55,7 +55,7 @@ function createMockAccount(
     // so tests can express "no snap" / "snap-with-no-id" / etc. without
     // having to fight a merge.
     metadata: overrides.metadata ?? metadata,
-  } as InternalAccount;
+  };
 }
 
 describe('ProofOfOwnershipService', () => {
@@ -434,10 +434,10 @@ function getService({
   );
   rootMessenger.registerActionHandler(
     'SnapController:handleRequest',
-    (snapHandle ??
+    snapHandle ??
       (async (): Promise<{ signature: string }> => ({
         signature: '0xdefaultsnapsig',
-      }))) as never,
+      })),
   );
 
   const messenger = getMessenger(rootMessenger);
