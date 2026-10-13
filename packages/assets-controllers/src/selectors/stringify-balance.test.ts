@@ -21,6 +21,30 @@ describe('stringifyBalanceWithDecimals', () => {
     expect(result).toBe('0.1');
   });
 
+  it('truncates to 5 decimals by default', () => {
+    expect(stringifyBalanceWithDecimals(1189n, 8)).toBe('0.00001');
+  });
+
+  it.each([
+    ['ETH-like 18 decimals, whole', 1000000000000000000n, 18, '1'],
+    ['ETH-like 18 decimals, 0.1', 100000000000000000n, 18, '0.1'],
+    ['ETH-like 18 decimals, 1.5', 1500000000000000000n, 18, '1.5'],
+    ['ETH-like 18 decimals, 1 wei', 1n, 18, '0.000000000000000001'],
+    ['USDC 6 decimals, 1000', 1000000000n, 6, '1000'],
+    ['USDC 6 decimals, 1.234567', 1234567n, 6, '1.234567'],
+    ['BTC-like 8 decimals, 0.00001189', 1189n, 8, '0.00001189'],
+    ['BTC-like 8 decimals, 1.5', 150000000n, 8, '1.5'],
+    ['2 decimals, 123.45', 12345n, 2, '123.45'],
+    ['0 decimals', 42n, 0, '42'],
+  ])(
+    'returns the full precision when balanceDecimals equals decimals (%s)',
+    (_name, balance, decimals, expected) => {
+      expect(stringifyBalanceWithDecimals(balance, decimals, decimals)).toBe(
+        expected,
+      );
+    },
+  );
+
   it('skips decimals if balanceDecimals is 0', () => {
     const result = stringifyBalanceWithDecimals(100000000000000000n, 18, 0);
     expect(result).toBe('0');

@@ -1612,13 +1612,13 @@
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 27
+      "count": 28
     },
     "typescript/no-unsafe-call": {
-      "count": 12
+      "count": 13
     },
     "typescript/no-unsafe-member-access": {
-      "count": 32
+      "count": 34
     },
     "typescript/no-unsafe-return": {
       "count": 6
