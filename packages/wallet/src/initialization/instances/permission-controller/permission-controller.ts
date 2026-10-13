@@ -35,8 +35,9 @@ export const permissionController: InitializationConfiguration<
         'ApprovalController:acceptRequest',
         'ApprovalController:rejectRequest',
         'SubjectMetadataController:getSubjectMetadata',
-        // These are used by permission side-effects. The wallet does not
-        // construct `SnapController` yet, so clients must register them.
+        // These are used by permission side-effects. The Wallet does not
+        // construct `SnapController` yet, so clients must register them if they use
+        // Snap-related permissions.
         // @ts-expect-error Not part of the `PermissionControllerMessenger` type.
         'SnapController:getPermittedSnaps',
         // @ts-expect-error Not part of the `PermissionControllerMessenger` type.
