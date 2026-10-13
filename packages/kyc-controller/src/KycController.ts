@@ -860,7 +860,7 @@ export class KycController extends BaseController<
     // schema from session creation supplies the matching server public key.
     const keyPair = await generateKeyPair();
     const sessionClientPrivateKey = keyPair.privateKey;
-    const sessionClientPublicKey = toBase64Url(keyPair.privateKey);
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
     // Residence is the ISO 3166-1 alpha-3 country already resolved for
     // disclaimers / KYC-required; fetch it if this sub-flow started without
     // that earlier step.
