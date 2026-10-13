@@ -3400,6 +3400,8 @@ describe('BridgeStatusController', () => {
     it('should throw an error if account is not found', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(undefined);
+      mockMessengerCall.mockReturnValueOnce({});
+      mockMessengerCall.mockReturnValueOnce({});
 
       await withController(
         { mockMessengerCall },
@@ -4025,6 +4027,8 @@ describe('BridgeStatusController', () => {
         mockMessengerCall.mockRejectedValueOnce(
           new Error('Trade tx submission failed'),
         );
+        mockMessengerCall.mockReturnValueOnce({});
+        mockMessengerCall.mockReturnValueOnce({});
 
         await withController(
           { mockMessengerCall },
