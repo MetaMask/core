@@ -197,8 +197,8 @@ export type Product = {
 export type Subscription = {
   id: string;
   products: Product[];
-  currentPeriodStart?: string; // ISO 8601
-  currentPeriodEnd?: string; // ISO 8601
+  currentPeriodStart: string; // ISO 8601
+  currentPeriodEnd: string; // ISO 8601
   /** is subscription scheduled for cancellation */
   cancelAtPeriodEnd?: boolean;
   status: SubscriptionStatus;
@@ -212,11 +212,11 @@ export type Subscription = {
   /** The date the subscription was canceled. */
   canceledAt?: string; // ISO 8601
   /** The cancellation type indicating what cancellation options are available for this subscription. */
-  cancelType?: CancelType;
+  cancelType: CancelType;
   /** The date the subscription was marked as inactive (paused/past_due/canceled). */
   inactiveAt?: string; // ISO 8601
   /** Whether the user is eligible for support features (priority support and filing claims). True for active subscriptions and inactive subscriptions within grace period. */
-  isEligibleForSupport?: boolean;
+  isEligibleForSupport: boolean;
   billingCycles?: number;
   /** The most recent invoice associated with the subscription. */
   lastInvoice?: SubscriptionInvoice;

@@ -323,7 +323,9 @@ export const selectSelectedOrderType = (
  * @param state - PerpsController state
  * @returns The visible candle count
  */
-export const selectVisibleCandleCount = (state: PerpsControllerState): number =>
+export const selectVisibleCandleCount = (
+  state: PerpsControllerState,
+): number =>
   Number.isFinite(state?.visibleCandleCount)
     ? state.visibleCandleCount
     : VISIBLE_CANDLE_COUNT_CONFIG.Default;

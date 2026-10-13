@@ -10642,7 +10642,7 @@ describe('RampsController', () => {
           .mockResolvedValue({ canonicalProfileId: values.profileCanonicalId }),
         getCustomerByExternalId: jest
           .fn()
-          .mockResolvedValue({ id: 'customer-1' }),
+          .mockResolvedValue({ id: 'customer-1', status: 'Active' }),
         getAutoramps: jest.fn().mockResolvedValue([]),
         signPersonalMessage: jest.fn().mockResolvedValue('0xsig'),
         registerSelfHostedWallet: jest.fn(),
@@ -11104,6 +11104,57 @@ describe('RampsController', () => {
         expect(registerWallet).not.toHaveBeenCalled();
         expect(createAutoramp).not.toHaveBeenCalled();
         expect(controller.state.vbaAutorampListFetchedAt).toBeNull();
+        expect(handlers.getCustomerByExternalId).toHaveBeenCalledWith(
+          CANONICAL_PROFILE_ID,
+        );
+      });
+    });
+
+    it.each(['SigningsRequired', 'IdentificationRequired'] as const)(
+      'stays not ready when the MoonPay customer is %s',
+      async (status) => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handlers = registerKycHandlers(rootMessenger);
+          handlers.getCustomerByExternalId.mockResolvedValue({
+            id: 'customer-1',
+            status,
+          });
+
+          expect(
+            await controller.hydrateVbaOnboarding({
+              walletAddress: '0xabc',
+              refreshAutoramps: true,
+            }),
+          ).toStrictEqual(
+            factsSnapshot({
+              kycStatus: 'approved',
+              autorampStatus: 'not_ready',
+            }),
+          );
+
+          expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+          expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
+        });
+      },
+    );
+
+    it('returns a retryable failure when the MoonPay customer lookup fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger);
+        handlers.getCustomerByExternalId.mockRejectedValue(
+          new Error('customer lookup failed'),
+        );
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(
+          factsSnapshot({
+            kycStatus: 'approved',
+            autorampStatus: 'retryable_failure',
+          }),
+        );
+
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
       });
     });
 
@@ -11419,7 +11470,7 @@ describe('RampsController', () => {
         }),
         getCustomerByExternalId: jest
           .fn()
-          .mockResolvedValue({ id: 'iron-customer-1' }),
+          .mockResolvedValue({ id: 'iron-customer-1', status: 'Active' }),
         getWalletRegistrationStatus: jest
           .fn()
           .mockResolvedValue({ type: 'absent' }),
@@ -11512,6 +11563,32 @@ describe('RampsController', () => {
       });
     });
 
+    it.each(['SigningsRequired', 'IdentificationRequired'] as const)(
+      'does not sign when the MoonPay customer is %s',
+      async (status) => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handlers = registerWalletRegistrationHandlers(rootMessenger);
+          handlers.getCustomerByExternalId.mockResolvedValue({
+            id: 'iron-customer-1',
+            status,
+          });
+
+          await expect(
+            controller.registerMoneyAccountWallet({ address: '0xabc' }),
+          ).rejects.toMatchObject({
+            name: 'WalletRegistrationError',
+            kind: 'forbidden',
+          });
+
+          expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+          expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
+          expect(
+            controller.state.moneyAccountWalletRegistrations,
+          ).toStrictEqual([]);
+        });
+      },
+    );
+
     it('resolves the customer id via Profile Sync external-id lookup', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerWalletRegistrationHandlers(rootMessenger);
@@ -11523,6 +11600,7 @@ describe('RampsController', () => {
         });
         handlers.getCustomerByExternalId.mockResolvedValue({
           id: 'iron-customer-fallback',
+          status: 'Active',
         });
 
         await controller.registerMoneyAccountWallet({ address: '0xabc' });

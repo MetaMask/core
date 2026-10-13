@@ -1282,6 +1282,52 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
+    it('uses a confirmed transaction nonce when the network count is still behind', async () => {
+      const { networkController, transactionController } =
+        await setupController({
+          state: {
+            transactions: [
+              {
+                chainId: '0x1',
+                id: 'confirmed-tx',
+                networkClientId: 'mainnet',
+                status: TransactionStatus.confirmed,
+                time: 1,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  nonce: '0xa',
+                },
+              },
+            ],
+          },
+        });
+
+      const networkClients = networkController.getNetworkClientRegistry();
+      const networkClientId = 'mainnet';
+      const config = networkClients[networkClientId].configuration;
+
+      mockNetwork({
+        networkClientConfiguration: config,
+        mocks: [
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
+        ],
+      });
+
+      const nonceLockPromise = transactionController.getNonceLock(
+        ACCOUNT_MOCK,
+        networkClientId,
+      );
+      await jestAdvanceTime({ duration: 1 });
+
+      const nonceLock = await nonceLockPromise;
+
+      expect(nonceLock.nextNonce).toBe(11);
+
+      nonceLock.releaseLock();
+      transactionController.destroy();
+    });
+
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the networkClientId until the previous lock is released', async () => {
       const { networkController, transactionController } =
         await setupController();

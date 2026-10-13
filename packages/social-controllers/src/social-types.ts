@@ -456,7 +456,7 @@ export type FeedResponse = {
 
 /**
  * Response from `GET /v1/users/me/followers` and bearer-authenticated
- * `GET /v1/traders/:addressOrId/followers`.
+ * `GET /v1/traders/:addressOrId/followers` (optionally `?mutuals=true`).
  */
 export type FollowersResponse = {
   followers: ProfileSummary[];
@@ -521,6 +521,12 @@ export type FetchPositionsOptions = {
 export type FetchFollowersOptions = {
   /** Wallet address or Clicker profile ID. */
   addressOrId: string;
+  /**
+   * When true, requests `GET .../followers?mutuals=true` so `followers` are
+   * profiles that follow both this trader and the authenticated user; `count` is
+   * the mutual total. Omit or false returns the trader's full follower list.
+   */
+  mutuals?: boolean;
 };
 
 export type FetchTraderFollowingOptions = {

@@ -30,6 +30,7 @@ import {
 import type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
+  SubscriptionControllerIsUserEligibleForTrialAction,
   SubscriptionControllerStartSubscriptionWithCryptoAction,
 } from '../SubscriptionController-method-action-types.js';
 import type { SubscriptionControllerGetStateAction } from '../SubscriptionController.js';
@@ -135,6 +136,7 @@ type AllowedActions =
   | SubscriptionControllerGetStateAction
   | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetSubscriptionsAction
+  | SubscriptionControllerIsUserEligibleForTrialAction
   | SubscriptionControllerStartSubscriptionWithCryptoAction;
 
 /**
@@ -294,12 +296,12 @@ export class SubscriptionDelegationService {
       'SubscriptionController:getSubscriptions',
     );
     this.#assertUserNotSubscribed(subscriptions, request.product);
-    const { trialedProducts } = this.#messenger.call(
-      'SubscriptionController:getState',
+    const isEligibleForTrial = await this.#messenger.call(
+      'SubscriptionController:isUserEligibleForTrial',
+      request.product,
     );
     const isTrialRequested =
-      config.price.trialPeriodDays > 0 &&
-      !trialedProducts.includes(request.product);
+      config.price.trialPeriodDays > 0 && isEligibleForTrial;
 
     await this.#messenger.call(
       'MoneyAccountUpgradeController:forceUpgradeAccount',

@@ -436,6 +436,33 @@ const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
 
 const VBA_KYC_STATUS_SET = new Set<string>(VBA_KYC_STATUSES);
 
+type MoonpayCustomerRecord = {
+  id: string;
+  status: string | null;
+};
+
+/**
+ * Reads the MoonPay customer id and lifecycle status from a customer payload.
+ *
+ * @param customer - `GET /neobank/customers/{external_id}/external` body.
+ * @returns The id and status, or `null` when the id is missing.
+ */
+function readMoonpayCustomerRecord(
+  customer: unknown,
+): MoonpayCustomerRecord | null {
+  if (!customer || typeof customer !== 'object') {
+    return null;
+  }
+  const { id, status } = customer as { id?: unknown; status?: unknown };
+  if (typeof id !== 'string' || id.length === 0) {
+    return null;
+  }
+  return {
+    id,
+    status: typeof status === 'string' && status.length > 0 ? status : null,
+  };
+}
+
 /**
  * Maps a vendor status string onto the snapshot vocabulary.
  *
@@ -3888,6 +3915,16 @@ export class RampsController extends BaseController<
    * @returns The vendor customer id.
    */
   async resolveAutorampCustomerId(): Promise<string> {
+    return (await this.#resolveMoonpayCustomer()).id;
+  }
+
+  /**
+   * Loads the MoonPay customer for the signed-in profile, including lifecycle
+   * `status`. Wallet registration is allowed only when that status is `Active`.
+   *
+   * @returns The customer id and status.
+   */
+  async #resolveMoonpayCustomer(): Promise<MoonpayCustomerRecord> {
     const profile = await this.messenger.call(
       'AuthenticationController:getSessionProfile',
     );
@@ -3902,22 +3939,18 @@ export class RampsController extends BaseController<
       );
     }
 
-    const customer = await this.messenger.call(
-      'NeoBankService:getCustomerByExternalId',
-      externalId,
+    const customer = readMoonpayCustomerRecord(
+      await this.messenger.call(
+        'NeoBankService:getCustomerByExternalId',
+        externalId,
+      ),
     );
-    const customerId =
-      customer &&
-      typeof customer === 'object' &&
-      typeof (customer as { id?: unknown }).id === 'string'
-        ? (customer as { id: string }).id
-        : null;
-    if (!customerId) {
+    if (!customer) {
       throw new Error(
         `Cannot resolve MoonPay customer id: no MoonPay customer is mapped to external id "${externalId}".`,
       );
     }
-    return customerId;
+    return customer;
   }
 
   /**
@@ -3953,7 +3986,8 @@ export class RampsController extends BaseController<
       return undefined;
     };
 
-    const customerId = await this.resolveAutorampCustomerId();
+    const customer = await this.#resolveMoonpayCustomer();
+    const { id: customerId } = customer;
 
     const toLookupUnavailableResult = (
       error: unknown,
@@ -4018,6 +4052,13 @@ export class RampsController extends BaseController<
         address,
         existingResult,
       );
+    }
+
+    if (customer.status !== 'Active') {
+      throw new WalletRegistrationError('forbidden', {
+        message:
+          'MoonPay customer must be Active before a self-hosted wallet can be registered',
+      });
     }
 
     let idempotencyKey = createIdempotencyKey();
@@ -4126,8 +4167,13 @@ export class RampsController extends BaseController<
    * The read uses the persisted KYC session. `refreshKyc` performs one
    * session-status GET when a session id is already stored and `finalStatus`
    * is not terminal. `refreshAutoramps` lists autoramps when KYC is approved,
-   * unless this wallet already has a usable route. It does not sign, post a
-   * self-hosted address, create an autoramp, or start KYC polling.
+   * unless this wallet already has a usable route. An approved session with no
+   * usable autoramp returns `needs_wallet_registration` or
+   * `needs_source_currency` only when
+   * `GET /neobank/customers/{external_id}/external` reports
+   * `status: 'Active'`. Any other customer status returns `not_ready`.
+   * It does not sign, post a self-hosted address, create an autoramp, or start
+   * KYC polling.
    *
    * Overlapping calls share one run.
    *
@@ -4258,6 +4304,16 @@ export class RampsController extends BaseController<
       if (this.#hasUsableAutorampForWallet(walletAddress)) {
         return { ...snapshot, autorampStatus: 'ready' };
       }
+    }
+
+    let customer: MoonpayCustomerRecord;
+    try {
+      customer = await this.#resolveMoonpayCustomer();
+    } catch {
+      return { ...snapshot, autorampStatus: 'retryable_failure' };
+    }
+    if (customer.status !== 'Active') {
+      return { ...snapshot, autorampStatus: 'not_ready' };
     }
 
     const registration = this.state.moneyAccountWalletRegistrations.find(

@@ -19,12 +19,12 @@ npm install @metamask/client-controller
 ### Basic Setup
 
 ```typescript
-import { Messenger } from '@metamask/messenger';
 import {
   ClientController,
   ClientControllerActions,
   ClientControllerEvents,
 } from '@metamask/client-controller';
+import { Messenger } from '@metamask/messenger';
 
 const rootMessenger = new Messenger<
   'Root',
