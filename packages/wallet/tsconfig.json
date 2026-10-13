@@ -41,6 +41,9 @@
       "path": "../passkey-controller"
     },
     {
+      "path": "../permission-controller"
+    },
+    {
       "path": "../remote-feature-flag-controller"
     },
     {

@@ -15,6 +15,7 @@ export { seedlessOnboardingController } from './seedless-onboarding-controller/s
 export { shieldApiService } from './shield-api-service/shield-api-service.js';
 export { shieldController } from './shield-controller/shield-controller.js';
 export { storageService } from './storage-service/storage-service.js';
+export { subjectMetadataController } from './subject-metadata-controller/subject-metadata-controller.js';
 export { subscriptionController } from './subscription-controller/subscription-controller.js';
 export { subscriptionDelegationService } from './subscription-delegation-service/subscription-delegation-service.js';
 export { subscriptionService } from './subscription-service/subscription-service.js';
