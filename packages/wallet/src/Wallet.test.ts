@@ -44,6 +44,9 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
     networkController: {
       infuraProjectId: 'fake-infura-project-id',
     },
+    selectedNetworkController: {
+      domainProxyMap: new Map(),
+    },
     storageService: {
       storage: new InMemoryStorageAdapter(),
     },

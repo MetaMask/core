@@ -8603,7 +8603,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@npm:^27.0.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
@@ -9386,6 +9386,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/seedless-onboarding-controller": "npm:^12.0.0"
+    "@metamask/selected-network-controller": "npm:^27.0.0"
     "@metamask/shield-controller": "npm:^7.0.4"
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/subscription-controller": "npm:^14.0.0"

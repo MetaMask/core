@@ -54,6 +54,9 @@
       "path": "../seedless-onboarding-controller/tsconfig.build.json"
     },
     {
+      "path": "../selected-network-controller/tsconfig.build.json"
+    },
+    {
       "path": "../shield-controller/tsconfig.build.json"
     },
     {
