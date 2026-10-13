@@ -116,6 +116,15 @@ export const getTransactionMetaById = (
   );
 };
 
+export const getTransactionMetaByActionId = (
+  messenger: BridgeStatusControllerMessenger,
+  actionId?: string,
+) => {
+  return getTransactions(messenger).find(
+    (tx: TransactionMeta) => tx.actionId === actionId,
+  );
+};
+
 export const getTransactionMetaByHash = (
   messenger: BridgeStatusControllerMessenger,
   txHash?: string,

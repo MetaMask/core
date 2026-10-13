@@ -868,7 +868,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #rekeyHistoryItem = (
     oldKey: string,
     newKey: string,
-    txMeta: { id: string; hash?: string },
+    txMeta?: { id: string; hash?: string },
   ): void => {
     this.update((state) => {
       rekeyHistoryItemInState(state, oldKey, newKey, txMeta);
@@ -1368,7 +1368,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             // Report SUBMITTED as soon as the trade hash is known at submission
             // time, instead of waiting for the delayed transactionStatusUpdated
             // (submitted) event.
-            if (payload.tradeMeta.hash) {
+            if (payload.tradeMeta?.hash) {
               this.#reportSubmittedOnce(
                 payload.newHistoryKey,
                 payload.tradeMeta.hash,

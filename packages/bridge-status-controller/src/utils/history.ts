@@ -16,19 +16,31 @@ import { getMaxPendingHistoryItemAgeMs } from './feature-flags.js';
 
 const updateHistoryItem = (
   oldHistoryItem: BridgeHistoryItem,
-  txMeta: { id: string; hash?: string },
+  txMeta?: { id: string; hash?: string },
+  historyItemOverrides?: Partial<
+    Pick<BridgeHistoryItem, 'approvalTxId' | 'quoteIds' | 'quote'>
+  >,
 ): Partial<BridgeHistoryItem> => {
   return {
     ...oldHistoryItem,
-    txMetaId: txMeta.id,
-    originalTransactionId: oldHistoryItem.originalTransactionId ?? txMeta.id,
+    txMetaId: txMeta?.id ?? oldHistoryItem.txMetaId,
+    originalTransactionId:
+      oldHistoryItem.originalTransactionId ??
+      txMeta?.id ??
+      oldHistoryItem.txMetaId,
+    approvalTxId:
+      historyItemOverrides?.approvalTxId ?? oldHistoryItem.approvalTxId,
     status: {
       ...oldHistoryItem.status,
       srcChain: {
         ...oldHistoryItem.status.srcChain,
-        txHash: txMeta.hash ?? oldHistoryItem.status.srcChain?.txHash,
+        txHash: txMeta?.hash ?? oldHistoryItem.status.srcChain?.txHash,
       },
     },
+    ...(historyItemOverrides?.quote && { quote: historyItemOverrides.quote }),
+    ...(historyItemOverrides?.quoteIds && {
+      quoteIds: historyItemOverrides.quoteIds,
+    }),
   };
 };
 
@@ -36,7 +48,10 @@ export const rekeyHistoryItemInState = (
   state: BridgeStatusControllerState,
   oldKey: string,
   newKey: string,
-  txMeta: { id: string; hash?: string },
+  txMeta?: { id: string; hash?: string },
+  historyItemOverrides?: Partial<
+    Pick<BridgeHistoryItem, 'approvalTxId' | 'quoteIds' | 'quote'>
+  >,
 ): boolean => {
   const historyItem = state.txHistory[oldKey];
   if (!historyItem) {
@@ -45,7 +60,7 @@ export const rekeyHistoryItemInState = (
 
   state.txHistory[newKey] = {
     ...historyItem,
-    ...updateHistoryItem(historyItem, txMeta),
+    ...updateHistoryItem(historyItem, txMeta, historyItemOverrides),
   };
   delete state.txHistory[oldKey];
   return true;
@@ -80,6 +95,10 @@ export const getMatchingHistoryEntryForTxMeta = (
     return (
       key === txMeta.id ||
       key === txMeta.actionId ||
+      // Pre-submit BatchSell is keyed by batchId. Match that key so after-add
+      // STX/7702 fails mark the parent FAILED. Skip value.batchId below so
+      // later per-tx items (keyed by tx.id) are not all marked if one fails.
+      key === txMeta.batchId ||
       txMetaId === txMeta.id ||
       (actionId ? actionId === txMeta.actionId : false) ||
       // When the batch is not atomic (BatchSell), ignore batchId matching to prevent txs
