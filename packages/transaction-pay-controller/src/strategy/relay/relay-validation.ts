@@ -18,15 +18,15 @@ import {
   isRelayValidationEnabled,
 } from '../../utils/feature-flags.js';
 import {
+  buildPolymarketDepositWalletSimulation,
+  isPredictWithdraw,
+} from '../../utils/polymarket/withdraw.js';
+import {
   validateQuoteExecution,
   QuoteError,
   isQuoteError,
 } from '../../utils/validation.js';
 import type { QuoteSimulation } from '../../utils/validation.js';
-import {
-  buildPolymarketDepositWalletSimulation,
-  isPredictWithdraw,
-} from './polymarket/withdraw.js';
 import { getRelayExecuteRequest } from './relay-submit-execute.js';
 import { getRelaySubmitCalls } from './relay-submit.js';
 import type { RelayExecuteRequest, RelayQuote } from './types.js';

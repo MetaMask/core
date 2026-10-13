@@ -46,7 +46,7 @@ jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/feature-flags');
 jest.mock('./hyperliquid-withdraw');
-jest.mock('./polymarket/withdraw');
+jest.mock('../../utils/polymarket/withdraw');
 jest.mock('./relay-submit-execute');
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
@@ -1797,7 +1797,7 @@ describe('Relay Submit Utils', () => {
         submitPolymarketWithdraw: jest.Mock;
         sweepPolymarketDepositWallet: jest.Mock;
       } {
-        const mod = jest.requireMock('./polymarket/withdraw');
+        const mod = jest.requireMock('../../utils/polymarket/withdraw');
         return {
           submitPolymarketWithdraw: mod.submitPolymarketWithdraw as jest.Mock,
           sweepPolymarketDepositWallet:

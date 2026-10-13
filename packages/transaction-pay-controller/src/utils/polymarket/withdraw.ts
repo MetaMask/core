@@ -10,21 +10,21 @@ import {
   CHAIN_ID_POLYGON,
   POLYGON_PUSD_ADDRESS,
   POLYGON_USDCE_ADDRESS,
-} from '../../../constants.js';
-import { projectLogger } from '../../../logger.js';
-import type {
-  QuoteRequest,
-  TransactionPayControllerMessenger,
-  TransactionPayQuote,
-} from '../../../types.js';
-import { getLiveTokenBalance } from '../../../utils/token.js';
-import type { QuoteSimulation } from '../../../utils/validation.js';
+} from '../../constants.js';
+import { projectLogger } from '../../logger.js';
 import type {
   RelayQuote,
   RelayQuoteRequest,
   RelayStatus,
   RelayTransactionStep,
-} from '../types.js';
+} from '../../strategy/relay/types.js';
+import type {
+  QuoteRequest,
+  TransactionPayControllerMessenger,
+  TransactionPayQuote,
+} from '../../types.js';
+import { getLiveTokenBalance } from '../token.js';
+import type { QuoteSimulation } from '../validation.js';
 import {
   encodeApprove,
   encodeUnwrap,

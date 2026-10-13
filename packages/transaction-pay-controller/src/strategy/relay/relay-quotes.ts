@@ -48,6 +48,11 @@ import {
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
+import {
+  applyPolymarketDepositWalletOverrides,
+  getPredictWithdrawSafeAddress,
+  isPredictWithdraw,
+} from '../../utils/polymarket/withdraw.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import { resolveNonAtomicRecipient } from '../../utils/second-leg.js';
@@ -60,11 +65,6 @@ import {
 import { getQuotePricing } from '../../utils/trade-type.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
-import {
-  applyPolymarketDepositWalletOverrides,
-  getPredictWithdrawSafeAddress,
-  isPredictWithdraw,
-} from './polymarket/withdraw.js';
 import { fetchRelayQuote } from './relay-api.js';
 import {
   getRelayMaxQuote,

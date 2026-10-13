@@ -6,11 +6,14 @@ import type { Hex } from '@metamask/utils';
 import {
   POLYGON_PUSD_ADDRESS,
   POLYGON_USDCE_ADDRESS,
-} from '../../../constants.js';
-import { getMessengerMock } from '../../../tests/messenger-mock.js';
-import type { QuoteRequest, TransactionPayQuote } from '../../../types.js';
-import { getLiveTokenBalance } from '../../../utils/token.js';
-import type { RelayQuote, RelayQuoteRequest } from '../types.js';
+} from '../../constants.js';
+import type {
+  RelayQuote,
+  RelayQuoteRequest,
+} from '../../strategy/relay/types.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import type { QuoteRequest, TransactionPayQuote } from '../../types.js';
+import { getLiveTokenBalance } from '../token.js';
 import {
   POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
   POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
@@ -24,7 +27,7 @@ import {
   sweepPolymarketDepositWallet,
 } from './withdraw.js';
 
-jest.mock('../../../utils/token');
+jest.mock('../token');
 
 const EOA_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
 const DEPOSIT_WALLET_MOCK = '0x2222222222222222222222222222222222222222' as Hex;

@@ -30,6 +30,10 @@ import {
   logGasPaymentOutcome,
   resolveGasPayment,
 } from '../../utils/gas-payment.js';
+import {
+  sweepPolymarketDepositWallet,
+  submitPolymarketWithdraw,
+} from '../../utils/polymarket/withdraw.js';
 import { getNetworkClientId } from '../../utils/provider.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
@@ -50,10 +54,6 @@ import {
   RELAY_PENDING_STATUSES,
 } from './constants.js';
 import { submitHyperliquidWithdraw } from './hyperliquid-withdraw.js';
-import {
-  sweepPolymarketDepositWallet,
-  submitPolymarketWithdraw,
-} from './polymarket/withdraw.js';
 import { getRelayStatus } from './relay-api.js';
 import { submitViaRelayExecute } from './relay-submit-execute.js';
 import type {
