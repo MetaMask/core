@@ -574,15 +574,26 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       },
     );
 
+    // Replace rather than merge: optional fields the response omits (e.g.
+    // `cancelAtPeriodEnd`, `canceledAt`) must not survive from the
+    // pending-cancellation state.
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
         subscription.id === request.subscriptionId
-          ? { ...subscription, ...uncancelledSubscription }
+          ? uncancelledSubscription
           : subscription,
       );
     });
 
-    await this.#refreshBenefitsIfActive();
+    try {
+      await this.#getSubscriptions();
+    } catch (error) {
+      log('Failed to refresh subscriptions after uncancellation', error);
+
+      // Preserve the existing best-effort benefits refresh behavior if the
+      // canonical subscription refresh is unavailable.
+      await this.#refreshBenefitsIfActive();
+    }
 
     this.triggerAccessTokenRefresh();
   }
