@@ -33,8 +33,6 @@ import type { NetworkState, Provider } from '@metamask/network-controller';
 import {
   CHAIN_IDS,
   GasFeeEstimateType,
-} from '@metamask/transaction-controller';
-import {
   TransactionType,
   TransactionStatus,
 } from '@metamask/transaction-controller';
@@ -59,6 +57,7 @@ import {
   QUOTE_STATUS_BACKFILL_WINDOW_MS,
   QuoteStatusState,
 } from './quote-status-manager/constants.js';
+import { QuoteStatusManager } from './quote-status-manager/quotes-status-manager.js';
 import { BridgeClientId } from './types.js';
 import type {
   BridgeId,
@@ -97,6 +96,12 @@ const mockIsEthUsdt = jest.fn();
 jest.mock('@metamask/bridge-controller', () => ({
   ...jest.requireActual('@metamask/bridge-controller'),
   isEthUsdt: () => mockIsEthUsdt(),
+}));
+
+const mockGenerateBatchId = jest.fn().mockReturnValue('0x1234BatchId');
+jest.mock('@metamask/transaction-controller', () => ({
+  ...jest.requireActual('@metamask/transaction-controller'),
+  generateBatchId: () => mockGenerateBatchId(),
 }));
 
 const EMPTY_INIT_STATE: BridgeStatusControllerState = {
@@ -3162,6 +3167,7 @@ describe('BridgeStatusController', () => {
 
     const mockEvmTxMeta = {
       id: 'test-tx-id',
+      actionId: '1111111111.223',
       hash: '0xevmTxHash',
       time: 1234567890,
       status: 'unapproved',
@@ -3183,6 +3189,7 @@ describe('BridgeStatusController', () => {
 
     const mockApprovalTxMeta = {
       id: 'test-approval-tx-id',
+      actionId: '1111111111.222',
       hash: '0xapprovalTxHash',
       time: 1234567890,
       status: 'unapproved',
@@ -3222,9 +3229,11 @@ describe('BridgeStatusController', () => {
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567893);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567894);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.457);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.458);
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.459);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
 
@@ -3267,6 +3276,7 @@ describe('BridgeStatusController', () => {
     };
 
     const setupBridgeStxMocks = (mockCall: jest.Mock) => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
       mockCall.mockReturnValueOnce(mockSelectedAccount);
       mockCall.mockReturnValueOnce('arbitrum');
       mockCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
@@ -3400,6 +3410,7 @@ describe('BridgeStatusController', () => {
     it('should throw an error if account is not found', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(undefined);
+      mockMessengerCall.mockReturnValueOnce({});
       mockMessengerCall.mockReturnValueOnce({});
       mockMessengerCall.mockReturnValueOnce({});
 
@@ -3557,6 +3568,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle smart transactions with USDT reset', async () => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
@@ -3625,12 +3637,47 @@ describe('BridgeStatusController', () => {
       );
     });
 
-    it('should throw an error if approval tx fails', async () => {
+    it('should throw an error if approval tx fails (before adding tx)', async () => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockMessengerCall.mockRejectedValueOnce(new Error('Approval tx failed'));
+      mockMessengerCall.mockReturnValueOnce({});
+      mockMessengerCall.mockReturnValueOnce({});
+
+      await withController(
+        { mockMessengerCall },
+        async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (mockEvmQuoteResponse.trade as TxData).from,
+              mockEvmQuoteResponse,
+              false,
+            ),
+          ).rejects.toThrow('Approval tx failed');
+
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
+      );
+    });
+
+    it('should throw an error if approval tx fails (after adding tx)', async () => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockRejectedValueOnce(new Error('Approval tx failed'));
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
+      });
 
       await withController(
         { mockMessengerCall },
@@ -3954,10 +4001,9 @@ describe('BridgeStatusController', () => {
     describe('actionId tracking and rekeying', () => {
       it('should add pre-submission history keyed by actionId and rekey to txMeta.id after success', async () => {
         // Mock generateActionId to return a predictable value
-        const mockActionId = '1234567890.456';
         jest
           .spyOn(transactionUtils, 'generateActionId')
-          .mockReturnValue(mockActionId);
+          .mockReturnValueOnce('1234567890.456');
 
         setupEventTrackingMocks(mockMessengerCall);
         // No approval for this test - direct to bridge tx
@@ -3985,11 +4031,13 @@ describe('BridgeStatusController', () => {
               result.id,
             );
             expect(controller.state.txHistory[result.id].actionId).toBe(
-              mockActionId,
+              '1111111111.223',
             );
 
             // Verify the actionId key no longer exists (was rekeyed)
-            expect(controller.state.txHistory[mockActionId]).toBeUndefined();
+            expect(
+              controller.state.txHistory['1234567890.456'],
+            ).toBeUndefined();
 
             // Verify srcTxHash was updated during rekey
             expect(
@@ -4001,11 +4049,12 @@ describe('BridgeStatusController', () => {
         );
       });
 
-      it('should preserve pre-submission history for tracking when trade tx submission fails', async () => {
+      it('should preserve pre-submission history for tracking when trade tx submission fails (before adding tx to state)', async () => {
         const mockActionId = '9876543210.789';
         jest
           .spyOn(transactionUtils, 'generateActionId')
-          .mockReturnValue(mockActionId);
+          .mockReturnValueOnce('9876543210.789')
+          .mockReturnValueOnce('9876543210.790');
 
         setupEventTrackingMocks(mockMessengerCall);
         const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
@@ -4027,6 +4076,7 @@ describe('BridgeStatusController', () => {
         mockMessengerCall.mockRejectedValueOnce(
           new Error('Trade tx submission failed'),
         );
+        mockMessengerCall.mockReturnValueOnce({});
         mockMessengerCall.mockReturnValueOnce({});
         mockMessengerCall.mockReturnValueOnce({});
 
@@ -4060,15 +4110,188 @@ describe('BridgeStatusController', () => {
             ).toBeUndefined(); // Empty since tx w submitted
 
             expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+
+            expect(
+              mockMessengerCall.mock.calls.find(
+                ([action]) =>
+                  action === 'BridgeController:trackUnifiedSwapBridgeEvent',
+              ),
+            ).toMatchInlineSnapshot(`
+              [
+                "BridgeController:trackUnifiedSwapBridgeEvent",
+                "Unified SwapBridge Submitted",
+                {
+                  "account_hardware_type": null,
+                  "action_type": "swapbridge-v1",
+                  "chain_id_destination": "eip155:10",
+                  "chain_id_source": "eip155:42161",
+                  "custom_slippage": false,
+                  "destination_hash_present": false,
+                  "feature_id": "unified_swap_bridge",
+                  "gas_included": false,
+                  "gas_included_7702": false,
+                  "is_hardware_wallet": false,
+                  "location": "Unknown",
+                  "price_impact": 0,
+                  "provider": "lifi_across",
+                  "quoted_time_minutes": 0.25,
+                  "slippage_limit": 0,
+                  "source_hash_present": false,
+                  "stx_enabled": false,
+                  "swap_type": "crosschain",
+                  "token_address_destination": "eip155:10/slip44:60",
+                  "token_address_source": "eip155:42161/slip44:60",
+                  "token_security_type_destination": null,
+                  "token_symbol_destination": "ETH",
+                  "token_symbol_source": "ETH",
+                  "usd_amount_source": 1.01,
+                  "usd_quoted_gas": 2.5778,
+                  "usd_quoted_return": 0,
+                },
+              ]
+            `);
+          },
+        );
+      });
+
+      it('should silence error when trade tx submission fails (after adding to state)', async () => {
+        const mockActionId = '9876543210.789';
+        jest
+          .spyOn(transactionUtils, 'generateActionId')
+          .mockReturnValueOnce('9876543210.789')
+          .mockReturnValueOnce('9876543210.790');
+
+        setupEventTrackingMocks(mockMessengerCall);
+        const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+
+        // Setup for trade tx (no approval)
+        mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+        mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
+        mockMessengerCall.mockResolvedValueOnce({
+          estimates: {
+            type: GasFeeEstimateType.FeeMarket,
+            high: {
+              suggestedMaxFeePerGas: '0x1234',
+              suggestedMaxPriorityFeePerGas: '0x5678',
+            },
+          },
+        });
+
+        // Trade tx fails during submission
+        mockMessengerCall.mockRejectedValueOnce(
+          'Trade tx submission failed after adding to state',
+        );
+        mockMessengerCall.mockReturnValueOnce({
+          transactions: [{ ...mockEvmTxMeta, actionId: '9876543210.789' }],
+        });
+        mockMessengerCall.mockReturnValueOnce({
+          transactions: [{ ...mockEvmTxMeta, actionId: '9876543210.789' }],
+        });
+
+        mockMessengerCall.mockReturnValueOnce({
+          transactions: [{ ...mockEvmTxMeta, actionId: '9876543210.789' }],
+        });
+
+        await withController(
+          { mockMessengerCall },
+          async ({
+            controller,
+            rootMessenger,
+            startPollingForBridgeTxStatusSpy,
+          }) => {
+            const result = await rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (quoteWithoutApproval.trade as TxData).from,
+              quoteWithoutApproval,
+              false,
+            );
+            expect(result).toMatchInlineSnapshot(`
+              {
+                "actionId": "9876543210.789",
+                "chainId": "0xa4b1",
+                "hash": "0xevmTxHash",
+                "id": "test-tx-id",
+                "status": "unapproved",
+                "time": 1234567890,
+                "txParams": {
+                  "chainId": "0xa4b1",
+                  "data": "0xdata",
+                  "from": "0xaccount1",
+                  "gasLimit": "0x5208",
+                  "to": "0xbridgeContract",
+                  "value": "0x0",
+                },
+                "txReceipt": {
+                  "effectiveGasPrice": "0x1880a",
+                  "gasUsed": "0x2c92a",
+                },
+                "type": "bridge",
+              }
+            `);
+
+            // Verify: Pre-submission history should still exist keyed by actionId
+            // This allows failed event tracking to find the quote data
+            expect(controller.state.txHistory[mockActionId]).toBeUndefined();
+            expect(controller.state.txHistory['test-tx-id'].actionId).toBe(
+              '9876543210.789',
+            );
+            expect(controller.state.txHistory['test-tx-id'].txMetaId).toBe(
+              'test-tx-id',
+            );
+            expect(
+              controller.state.txHistory['test-tx-id'].status.srcChain.txHash,
+            ).toBe('0xevmTxHash');
+
+            expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+
+            expect(
+              mockMessengerCall.mock.calls.find(
+                ([action]) =>
+                  action === 'BridgeController:trackUnifiedSwapBridgeEvent',
+              ),
+            ).toMatchInlineSnapshot(`
+              [
+                "BridgeController:trackUnifiedSwapBridgeEvent",
+                "Unified SwapBridge Submitted",
+                {
+                  "account_hardware_type": null,
+                  "action_type": "swapbridge-v1",
+                  "chain_id_destination": "eip155:10",
+                  "chain_id_source": "eip155:42161",
+                  "custom_slippage": false,
+                  "destination_hash_present": false,
+                  "feature_id": "unified_swap_bridge",
+                  "gas_included": false,
+                  "gas_included_7702": false,
+                  "is_hardware_wallet": false,
+                  "location": "Unknown",
+                  "price_impact": 0,
+                  "provider": "lifi_across",
+                  "quoted_time_minutes": 0.25,
+                  "slippage_limit": 0,
+                  "source_hash_present": false,
+                  "stx_enabled": false,
+                  "swap_type": "crosschain",
+                  "token_address_destination": "eip155:10/slip44:60",
+                  "token_address_source": "eip155:42161/slip44:60",
+                  "token_security_type_destination": null,
+                  "token_symbol_destination": "ETH",
+                  "token_symbol_source": "ETH",
+                  "usd_amount_source": 1.01,
+                  "usd_quoted_gas": 2.5778,
+                  "usd_quoted_return": 0,
+                },
+              ]
+            `);
           },
         );
       });
 
       it('should use provided actionId from addTransactionFn result', async () => {
-        const mockActionId = '1111111111.222';
         jest
           .spyOn(transactionUtils, 'generateActionId')
-          .mockReturnValue(mockActionId);
+          .mockReturnValueOnce('1111111111.222')
+          .mockReturnValueOnce('1111111111.223');
 
         setupEventTrackingMocks(mockMessengerCall);
         setupApprovalMocks(mockMessengerCall);
@@ -4088,10 +4311,33 @@ describe('BridgeStatusController', () => {
               false, // STX disabled
             );
             controller.stopAllPolling();
+            expect(result).toMatchInlineSnapshot(`
+              {
+                "actionId": "1111111111.223",
+                "chainId": "0xa4b1",
+                "hash": "0xevmTxHash",
+                "id": "test-tx-id",
+                "status": "unapproved",
+                "time": 1234567890,
+                "txParams": {
+                  "chainId": "0xa4b1",
+                  "data": "0xdata",
+                  "from": "0xaccount1",
+                  "gasLimit": "0x5208",
+                  "to": "0xbridgeContract",
+                  "value": "0x0",
+                },
+                "txReceipt": {
+                  "effectiveGasPrice": "0x1880a",
+                  "gasUsed": "0x2c92a",
+                },
+                "type": "bridge",
+              }
+            `);
 
             // Verify actionId is stored in the history item
             expect(controller.state.txHistory[result.id].actionId).toBe(
-              mockActionId,
+              '1111111111.223',
             );
             expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
           },
@@ -4200,8 +4446,10 @@ describe('BridgeStatusController', () => {
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567893);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.457);
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.458);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
 
@@ -4310,6 +4558,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle a gasless swap transaction with approval', async () => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
@@ -4384,6 +4633,7 @@ describe('BridgeStatusController', () => {
       expect(params).toMatchInlineSnapshot(`
         {
           "atomic": true,
+          "batchId": "batchId1",
           "disable7702": true,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
@@ -4394,6 +4644,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle a gasless swap transaction with fees paid in ERC20', async () => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
@@ -4464,6 +4715,7 @@ describe('BridgeStatusController', () => {
       expect(params).toMatchInlineSnapshot(`
         {
           "atomic": true,
+          "batchId": "batchId1",
           "disable7702": true,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
@@ -4735,6 +4987,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should use batch path when account is delegated', async () => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
@@ -4797,6 +5050,7 @@ describe('BridgeStatusController', () => {
       expect(params).toMatchInlineSnapshot(`
         {
           "atomic": true,
+          "batchId": "batchId1",
           "disable7702": false,
           "isDelegatedAccount": true,
           "isGasFeeIncluded": false,
@@ -4807,6 +5061,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should use batch path when gasIncluded7702 is true regardless of STX setting', async () => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
@@ -4865,6 +5120,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should use batch path when gasIncluded7702 is true regardless of STX setting (with approval)', async () => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
@@ -4926,6 +5182,7 @@ describe('BridgeStatusController', () => {
       expect(params).toMatchInlineSnapshot(`
         {
           "atomic": true,
+          "batchId": "batchId1",
           "disable7702": false,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": true,
@@ -4936,6 +5193,7 @@ describe('BridgeStatusController', () => {
     });
 
     it('should handle smart transactions', async () => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
@@ -4943,6 +5201,12 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionBatchFn.mockResolvedValueOnce({
         batchId: 'batchId1',
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
       });
       mockMessengerCall.mockReturnValueOnce({
         transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
@@ -4981,6 +5245,205 @@ describe('BridgeStatusController', () => {
       expect(params).toMatchInlineSnapshot(`
         {
           "atomic": true,
+          "batchId": "batchId1",
+          "disable7702": true,
+          "isDelegatedAccount": false,
+          "isGasFeeIncluded": false,
+          "isGasFeeSponsored": false,
+          "requireApproval": false,
+        }
+      `);
+    });
+
+    it('should silence addTransactionBatchFn error if tx has been added to state', async () => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      addTransactionBatchFn.mockRejectedValueOnce(
+        'Error adding transaction batch',
+      );
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
+      });
+
+      const getAddTransactionBatchParamsSpy = jest.spyOn(
+        transactionUtils,
+        'getAddTransactionBatchParams',
+      );
+
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            mockEvmQuoteResponse,
+            true,
+          );
+          controller.stopAllPolling();
+
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          const { quote, ...txHistoryItem } =
+            controller.state.txHistory[result.id];
+          expect(txHistoryItem).toMatchSnapshot();
+          expect(addTransactionBatchFn.mock.calls).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
+      );
+
+      const { messenger, tradeData, ...params } =
+        getAddTransactionBatchParamsSpy.mock.calls[0][0];
+      expect(params).toMatchInlineSnapshot(`
+        {
+          "atomic": true,
+          "batchId": "batchId1",
+          "disable7702": true,
+          "isDelegatedAccount": false,
+          "isGasFeeIncluded": false,
+          "isGasFeeSponsored": false,
+          "requireApproval": false,
+        }
+      `);
+    });
+
+    it('should silence updateTransaction error if tx has been added to state', async () => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      addTransactionBatchFn.mockResolvedValueOnce({
+        batchId: 'batchId1',
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [
+          { ...mockEvmTxMeta, batchId: 'batchId1', type: 'batch' },
+        ],
+      });
+      mockMessengerCall.mockImplementationOnce(() => {
+        throw new Error('Update transaction failed');
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
+      });
+
+      const getAddTransactionBatchParamsSpy = jest.spyOn(
+        transactionUtils,
+        'getAddTransactionBatchParams',
+      );
+
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            mockEvmQuoteResponse,
+            true,
+          );
+          controller.stopAllPolling();
+
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          const { quote, ...txHistoryItem } =
+            controller.state.txHistory[result.id];
+          expect(txHistoryItem).toMatchSnapshot();
+          expect(addTransactionBatchFn.mock.calls).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
+      );
+
+      const { messenger, tradeData, ...params } =
+        getAddTransactionBatchParamsSpy.mock.calls[0][0];
+      expect(params).toMatchInlineSnapshot(`
+        {
+          "atomic": true,
+          "batchId": "batchId1",
+          "disable7702": true,
+          "isDelegatedAccount": false,
+          "isGasFeeIncluded": false,
+          "isGasFeeSponsored": false,
+          "requireApproval": false,
+        }
+      `);
+    });
+
+    it('should rethrow addTransactionBatchFn error if tx has not been added to state', async () => {
+      mockGenerateBatchId.mockReturnValueOnce('batchId1');
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      addTransactionBatchFn.mockRejectedValueOnce(
+        'Error adding transaction batch',
+      );
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [],
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [],
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [],
+      });
+
+      const getAddTransactionBatchParamsSpy = jest.spyOn(
+        transactionUtils,
+        'getAddTransactionBatchParams',
+      );
+
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (mockEvmQuoteResponse.trade as TxData).from,
+              mockEvmQuoteResponse,
+              true,
+            ),
+          ).rejects.toBe('Error adding transaction batch');
+          controller.stopAllPolling();
+
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          const { quote, ...txHistoryItem } =
+            controller.state.txHistory['batchId1'];
+          expect(txHistoryItem).toMatchSnapshot();
+          expect(addTransactionBatchFn.mock.calls).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
+      );
+
+      const { messenger, tradeData, ...params } =
+        getAddTransactionBatchParamsSpy.mock.calls[0][0];
+      expect(params).toMatchInlineSnapshot(`
+        {
+          "atomic": true,
+          "batchId": "batchId1",
           "disable7702": true,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
@@ -5078,6 +5541,25 @@ describe('BridgeStatusController', () => {
         },
       );
     });
+
+    // TODO add test that history item is updated when EVM tx fails
+    // TODO add subscription test that Failed event is not published when history item is already failed
+
+    /**
+     * submitTx
+     * addTransactionBatchFn throws error
+     */
+
+    /**
+     * submitTx
+     * addTransactionBatchFn throws error
+     * TransactionController:statusUpdated publishes event
+     */
+
+    /**
+     * submitTx
+     * addTransactionBatchFn throws error
+     */
 
     it('should throw error if batched tx is not found', async () => {
       setupEventTrackingMocks(mockMessengerCall);
@@ -5655,6 +6137,17 @@ describe('BridgeStatusController', () => {
               actionId: 'action-id-for-rejection',
               txMetaId: undefined,
             },
+            '0xbatchsellparent': {
+              ...baseHistoryItem,
+              txMetaId: undefined,
+              batchId: '0xbatchsellparent',
+              batchSellData: { transactions: [] },
+            },
+            '0xatomicbatchparent': {
+              ...baseHistoryItem,
+              txMetaId: undefined,
+              batchId: '0xatomicbatchparent',
+            },
           },
         },
       });
@@ -5667,6 +6160,270 @@ describe('BridgeStatusController', () => {
     });
 
     describe('TransactionController:transactionStatusUpdated (failed)', () => {
+      // STX batch-sell is many swaps. A sibling failure must not fail the parent.
+      // 7702 with an active delegation is one atomic tx and is covered below.
+      it('does not mark a pre-submit STX batch-sell parent failed when a sibling tx fails', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        const expectedHistoryKeys = Object.keys(
+          bridgeStatusController.state.txHistory,
+        );
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'sibling failed' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              // Delegated STX swaps get delegationAddress. They are not the 7702 batch tx.
+              delegationAddress: '0xdelegationAddress',
+              txParams: {
+                from: '0xaccount1',
+                to: '0xbridgeContract',
+                data: '0xdata',
+                value: '0x0',
+              },
+              type: TransactionType.swap,
+              status: TransactionStatus.failed,
+              id: 'sibling-tx',
+              batchId: '0xbatchsellparent',
+            },
+          },
+        );
+
+        expect(
+          bridgeStatusController.state.txHistory['0xbatchsellparent'].status
+            .status,
+        ).toBe(StatusTypes.PENDING);
+        expect(
+          Object.keys(bridgeStatusController.state.txHistory),
+        ).toStrictEqual(expectedHistoryKeys);
+        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "BridgeController:trackUnifiedSwapBridgeEvent",
+              "Unified SwapBridge Failed",
+              {
+                "account_hardware_type": null,
+                "action_type": "swapbridge-v1",
+                "actual_time_minutes": 0,
+                "batch_id": "0xbatchsellparent",
+                "chain_id_destination": "eip155:42161",
+                "chain_id_source": "eip155:42161",
+                "custom_slippage": false,
+                "destination_hash_present": false,
+                "error_code": "unknown",
+                "error_message": "Transaction failed. sibling failed",
+                "failure_phase": "broadcast",
+                "feature_id": "unified_swap_bridge",
+                "gas_included": false,
+                "gas_included_7702": false,
+                "is_hardware_wallet": false,
+                "location": "Unknown",
+                "price_impact": 0,
+                "provider": "",
+                "quote_vs_execution_ratio": 0,
+                "quoted_time_minutes": 0,
+                "quoted_vs_used_gas_ratio": 0,
+                "security_warnings": [],
+                "slippage_limit": 0,
+                "source_hash_present": false,
+                "source_transaction": "FAILED",
+                "stx_enabled": false,
+                "swap_type": "single_chain",
+                "token_address_destination": "eip155:42161/slip44:60",
+                "token_address_source": "eip155:42161/slip44:60",
+                "token_security_type_destination": null,
+                "token_symbol_destination": "",
+                "token_symbol_source": "",
+                "usd_actual_gas": 0,
+                "usd_actual_return": 0,
+                "usd_amount_source": 0,
+                "usd_quoted_gas": 0,
+                "usd_quoted_return": 0,
+              },
+            ],
+          ]
+        `);
+      });
+
+      it('marks a batch-sell parent failed when the atomic 7702 tx fails', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: '7702 batch failed' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {
+                authorizationList: [
+                  {
+                    address: '0xdelegation',
+                    chainId: '0xa',
+                    nonce: '0x1',
+                    r: '0xr',
+                    s: '0xs',
+                    yParity: '0x1',
+                  },
+                ],
+              } as unknown as TransactionParams,
+              type: TransactionType.batch,
+              delegationAddress: '0xdelegation',
+              nestedTransactions: [{ type: TransactionType.swap }],
+              status: TransactionStatus.failed,
+              id: '7702-batch-tx',
+              batchId: '0xbatchsellparent',
+            },
+          },
+        );
+
+        expect(
+          bridgeStatusController.state.txHistory['0xbatchsellparent'].status
+            .status,
+        ).toBe(StatusTypes.FAILED);
+        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "AccountsController:getAccountByAddress",
+              "0xaccount1",
+            ],
+            [
+              "TransactionController:getState",
+            ],
+            [
+              "BridgeController:trackUnifiedSwapBridgeEvent",
+              "Unified SwapBridge Failed",
+              {
+                "account_hardware_type": null,
+                "action_type": "swapbridge-v1",
+                "actual_time_minutes": 833734.9086333333,
+                "allowance_reset_transaction": undefined,
+                "approval_transaction": undefined,
+                "batch_id": "0xbatchsellparent",
+                "chain_id_destination": "eip155:10",
+                "chain_id_source": "eip155:42161",
+                "custom_slippage": true,
+                "destination_hash_present": false,
+                "destination_transaction": "FAILED",
+                "error_code": "unknown",
+                "error_message": "Transaction failed. 7702 batch failed",
+                "failure_phase": "source_execution",
+                "feature_id": "unified_swap_bridge",
+                "gas_included": false,
+                "gas_included_7702": false,
+                "is_hardware_wallet": false,
+                "location": "Main View",
+                "price_impact": 0,
+                "provider": "lifi_across",
+                "quote_vs_execution_ratio": 0,
+                "quoted_time_minutes": 0.25,
+                "quoted_vs_used_gas_ratio": 0,
+                "security_warnings": [],
+                "slippage_limit": 0,
+                "source_hash_present": true,
+                "source_transaction": "COMPLETE",
+                "stx_enabled": false,
+                "swap_type": "crosschain",
+                "token_address_destination": "eip155:10/slip44:60",
+                "token_address_source": "eip155:42161/slip44:60",
+                "token_security_type_destination": null,
+                "token_symbol_destination": "ETH",
+                "token_symbol_source": "ETH",
+                "usd_actual_gas": 0,
+                "usd_actual_return": 0,
+                "usd_amount_source": 0,
+                "usd_quoted_gas": 2.5778,
+                "usd_quoted_return": 0,
+              },
+            ],
+          ]
+        `);
+      });
+
+      it('marks an atomic batch failed when its batch tx fails', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'batch failed' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.swap,
+              status: TransactionStatus.failed,
+              id: 'atomic-trade',
+              batchId: '0xatomicbatchparent',
+            },
+          },
+        );
+
+        expect(
+          bridgeStatusController.state.txHistory['0xatomicbatchparent'].status
+            .status,
+        ).toBe(StatusTypes.FAILED);
+        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "AccountsController:getAccountByAddress",
+              "0xaccount1",
+            ],
+            [
+              "TransactionController:getState",
+            ],
+            [
+              "BridgeController:trackUnifiedSwapBridgeEvent",
+              "Unified SwapBridge Failed",
+              {
+                "account_hardware_type": null,
+                "action_type": "swapbridge-v1",
+                "actual_time_minutes": 833734.9086333333,
+                "allowance_reset_transaction": undefined,
+                "approval_transaction": undefined,
+                "batch_id": "0xatomicbatchparent",
+                "chain_id_destination": "eip155:10",
+                "chain_id_source": "eip155:42161",
+                "custom_slippage": false,
+                "destination_hash_present": false,
+                "destination_transaction": "FAILED",
+                "error_code": "unknown",
+                "error_message": "Transaction failed. batch failed",
+                "failure_phase": "source_execution",
+                "feature_id": "unified_swap_bridge",
+                "gas_included": false,
+                "gas_included_7702": false,
+                "is_hardware_wallet": false,
+                "location": "Main View",
+                "price_impact": 0,
+                "provider": "lifi_across",
+                "quote_vs_execution_ratio": 0,
+                "quoted_time_minutes": 0.25,
+                "quoted_vs_used_gas_ratio": 0,
+                "security_warnings": [],
+                "slippage_limit": 0,
+                "source_hash_present": true,
+                "source_transaction": "COMPLETE",
+                "stx_enabled": false,
+                "swap_type": "crosschain",
+                "token_address_destination": "eip155:10/slip44:60",
+                "token_address_source": "eip155:42161/slip44:60",
+                "token_security_type_destination": null,
+                "token_symbol_destination": "ETH",
+                "token_symbol_source": "ETH",
+                "usd_actual_gas": 0,
+                "usd_actual_return": 0,
+                "usd_amount_source": 0,
+                "usd_quoted_gas": 2.5778,
+                "usd_quoted_return": 0,
+              },
+            ],
+          ]
+        `);
+      });
+
       it('should track failed event for bridge transaction', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
         mockMessenger.publish(
@@ -6243,6 +7000,50 @@ describe('BridgeStatusController', () => {
         );
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+      });
+
+      it('does not store the approval hash or finalise the quote when pre-submit history shares the approval actionId', () => {
+        const actionId = 'pre-submission-action-id';
+        const reportFinalisedSpy = jest.spyOn(
+          QuoteStatusManager.prototype,
+          'reportFinalised',
+        );
+
+        try {
+          mockMessenger.publish(
+            'TransactionController:transactionStatusUpdated',
+            {
+              transactionMeta: {
+                error: { name: 'Error', message: 'approval-tx-error' },
+                chainId: CHAIN_IDS.ARBITRUM,
+                networkClientId: 'eth-id',
+                time: Date.now(),
+                txParams: {} as unknown as TransactionParams,
+                type: TransactionType.swapApproval,
+                status: TransactionStatus.failed,
+                id: 'approval-tx-id',
+                hash: '0xapprovalHash',
+                actionId,
+              },
+            },
+          );
+
+          expect(
+            bridgeStatusController.state.txHistory[actionId].status.status,
+          ).toBe(StatusTypes.FAILED);
+          expect(
+            bridgeStatusController.state.txHistory[actionId].status.srcChain
+              .txHash,
+          ).toBe('0xsrcTxHash1');
+          expect(reportFinalisedSpy).not.toHaveBeenCalledWith(
+            'approval-tx-id',
+            false,
+            CHAIN_IDS.ARBITRUM,
+            '0xapprovalHash',
+          );
+        } finally {
+          reportFinalisedSpy.mockRestore();
+        }
       });
 
       it('should find history by actionId when txMeta.id not in history (pre-submission failure)', () => {

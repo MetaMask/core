@@ -119,6 +119,7 @@ import {
   getTransactionMetaById,
   getTransactions,
   checkIsDelegatedAccount,
+  isApprovalTx,
   isCrossChainTx,
   updateTransactionsInBatch,
   hasNestedSwapTransactions,
@@ -332,8 +333,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           historyKey: entryToUse?.[0],
           historyItem: entryToUse?.[1],
           txMeta: transactionMeta,
+          // Means that the triggering event was for an approval tx
           isApprovalTxMeta:
-            entryToUse?.[1]?.approvalTxId === transactionMeta.id,
+            entryToUse?.[1]?.approvalTxId === transactionMeta.id ||
+            Boolean(transactionMeta.type && isApprovalTx(transactionMeta.type)),
         };
       },
     );
@@ -454,6 +457,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       () => undefined,
     );
 
+    // Ignore approval failures, subsequent trade failures will be reported.
+    if (isApprovalTxMeta) {
+      return;
+    }
     // Report finalized failure for swap/bridge transactions.
     // Note: TransactionStatus.rejected means the user cancelled signing, so the tx was never broadcast.
     // `hasNestedSwapTransactions` also covers batch/7702 swaps whose type may
@@ -1378,14 +1385,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     error?: Error;
     txHistoryKey?: string;
   }> => {
-    let tradeTxMeta!: TransactionMeta;
+    let tradeTxMeta: TransactionMeta | undefined;
     let latestHistoryItemKey: string | undefined;
 
     const steps = executeSubmitStrategy(params);
 
     // Each submission strategy determines when to execute step, which means these actions can happen in any order
-    for await (const { type, payload } of steps) {
-      try {
+    try {
+      for await (const { type, payload } of steps) {
         switch (type) {
           case SubmitStep.RekeyHistoryItem:
             this.#rekeyHistoryItem(
@@ -1398,7 +1405,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             // Report SUBMITTED as soon as the trade hash is known at submission
             // time, instead of waiting for the delayed transactionStatusUpdated
             // (submitted) event.
-            if (payload.tradeMeta?.hash) {
+            if (payload.tradeMeta?.hash && payload.tradeMeta.id) {
               this.#reportSubmittedOnce(
                 payload.newHistoryKey,
                 payload.tradeMeta.hash,
@@ -1467,17 +1474,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             throw new Error(`Unknown submit step type: ${String(type)}`);
           /* c8 ignore end */
         }
-      } catch (error) {
-        console.error(
-          'Failed to persist transaction to history and start polling.',
-          error,
-        );
-        return {
-          txMeta: tradeTxMeta,
-          error: error as Error,
-          txHistoryKey: latestHistoryItemKey,
-        };
       }
+    } catch (error) {
+      console.error(
+        'Failed to persist transaction to history and start polling.',
+        error,
+      );
+      return {
+        txMeta: tradeTxMeta,
+        error: error as Error,
+        txHistoryKey: latestHistoryItemKey,
+      };
     }
 
     return { txMeta: tradeTxMeta, txHistoryKey: latestHistoryItemKey };
@@ -1583,7 +1590,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       quotesReceivedContext,
     );
 
-    let tradeMeta: TransactionMeta | undefined;
     let historyKey: string | undefined;
 
     try {
@@ -1631,10 +1637,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         batchId,
       };
 
-      const { txMeta, error, txHistoryKey } = await this.#trace(
+      return await this.#trace(
         getTraceParams(quoteResponse, isStxEnabled),
-        async () =>
-          await this.#executeSubmitStrategy(strategyParams, {
+        async () => {
+          const res = await this.#executeSubmitStrategy(strategyParams, {
             startTime,
             location,
             abTests,
@@ -1643,17 +1649,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             inputPrimaryDenomination,
             customSlippage: quotesReceivedContext?.custom_slippage,
             slippagePercentage: quotesReceivedContext?.slippage_limit,
-          }),
+          });
+          historyKey = res.txHistoryKey;
+          if (res.txMeta) {
+            return res.txMeta;
+          }
+          if (res.error) {
+            throw res.error;
+          }
+          throw new Error('Failed to submit transaction');
+        },
       );
-      tradeMeta = txMeta;
-      historyKey = txHistoryKey;
-      if (tradeMeta) {
-        return tradeMeta;
-      }
-      if (error) {
-        throw error;
-      }
-      throw new Error('Failed to submit transaction');
     } catch (error) {
       this.#onTransactionFailed({
         isApprovalTxMeta: false,

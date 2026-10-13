@@ -5,6 +5,7 @@ import {
   isTronChainId,
 } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 
 import type {
   BridgeHistoryItem,
@@ -13,10 +14,21 @@ import type {
   StartPollingForBridgeTxStatusArgsSerialized,
 } from '../types.js';
 import { getMaxPendingHistoryItemAgeMs } from './feature-flags.js';
+import { isApprovalTx, isAtomic7702BatchTx } from './transaction.js';
+
+const TRANSACTION_STATUS_TO_STATUS_TYPES: Partial<
+  Record<TransactionStatus, StatusTypes>
+> = {
+  [TransactionStatus.failed]: StatusTypes.FAILED,
+  [TransactionStatus.submitted]: StatusTypes.PENDING,
+  [TransactionStatus.confirmed]: StatusTypes.COMPLETE,
+};
 
 const updateHistoryItem = (
   oldHistoryItem: BridgeHistoryItem,
-  txMeta?: { id: string; hash?: string },
+  txMeta?: Partial<
+    Pick<TransactionMeta, 'id' | 'actionId' | 'status' | 'hash'>
+  >,
   historyItemOverrides?: Partial<
     Pick<BridgeHistoryItem, 'approvalTxId' | 'quoteIds' | 'quote'>
   >,
@@ -24,10 +36,8 @@ const updateHistoryItem = (
   return {
     ...oldHistoryItem,
     txMetaId: txMeta?.id ?? oldHistoryItem.txMetaId,
-    originalTransactionId:
-      oldHistoryItem.originalTransactionId ??
-      txMeta?.id ??
-      oldHistoryItem.txMetaId,
+    originalTransactionId: oldHistoryItem.originalTransactionId ?? txMeta?.id,
+    actionId: txMeta?.actionId ?? oldHistoryItem.actionId,
     approvalTxId:
       historyItemOverrides?.approvalTxId ?? oldHistoryItem.approvalTxId,
     status: {
@@ -36,6 +46,10 @@ const updateHistoryItem = (
         ...oldHistoryItem.status.srcChain,
         txHash: txMeta?.hash ?? oldHistoryItem.status.srcChain?.txHash,
       },
+      status:
+        (txMeta?.status && TRANSACTION_STATUS_TO_STATUS_TYPES[txMeta.status]
+          ? TRANSACTION_STATUS_TO_STATUS_TYPES[txMeta.status]
+          : oldHistoryItem.status?.status) ?? StatusTypes.PENDING,
     },
     ...(historyItemOverrides?.quote && { quote: historyItemOverrides.quote }),
     ...(historyItemOverrides?.quoteIds && {
@@ -83,7 +97,7 @@ export const getMatchingHistoryEntryForTxMeta = (
 ): [string, BridgeHistoryItem] | undefined => {
   const historyEntries = Object.entries(txHistory);
 
-  return historyEntries.find(([key, value]) => {
+  return historyEntries.find(([key, historyItem]) => {
     const {
       txMetaId,
       actionId,
@@ -91,24 +105,41 @@ export const getMatchingHistoryEntryForTxMeta = (
       status: {
         srcChain: { txHash },
       },
-    } = value;
-    return (
-      key === txMeta.id ||
-      key === txMeta.actionId ||
-      // Pre-submit BatchSell is keyed by batchId. Match that key so after-add
-      // STX/7702 fails mark the parent FAILED. Skip value.batchId below so
-      // later per-tx items (keyed by tx.id) are not all marked if one fails.
-      key === txMeta.batchId ||
-      txMetaId === txMeta.id ||
-      (actionId ? actionId === txMeta.actionId : false) ||
-      // When the batch is not atomic (BatchSell), ignore batchId matching to prevent txs
-      // in the batch from getting marked complete/failed too early if one fails
-      // Multiple BatchSell STX trades may have the same batchId
-      (Boolean(batchId) &&
-        !isBatchSellHistoryItem(value) &&
-        batchId === txMeta.batchId) ||
-      (txHash ? txHash.toLowerCase() === txMeta.hash?.toLowerCase() : false)
-    );
+    } = historyItem;
+
+    const isInitialBatchTx =
+      (Boolean(batchId) && batchId === txMeta.batchId) ||
+      key === txMeta.batchId;
+
+    const isTxMetaIdMatch = txMetaId === txMeta.id || key === txMeta.id;
+
+    if (isBatchSellHistoryItem(historyItem)) {
+      if (isAtomic7702BatchTx(txMeta)) {
+        return isInitialBatchTx || isTxMetaIdMatch;
+      }
+      // STX batch-sell
+      const isInitialBatchSellStxTrade =
+        isInitialBatchTx && !txMetaId && !actionId;
+      return !isInitialBatchSellStxTrade && isTxMetaIdMatch;
+    }
+
+    // Exclude approval transactions when matching by actionId to prevent
+    // premature quote event publishing
+    const isInitialRegularTx =
+      Boolean(actionId) &&
+      key === txMeta.actionId &&
+      !(txMeta.type && isApprovalTx(txMeta.type));
+
+    const isTxHashMatch = txHash
+      ? txHash.toLowerCase() === txMeta.hash?.toLowerCase()
+      : false;
+
+    return [
+      isInitialBatchTx,
+      isInitialRegularTx,
+      isTxMetaIdMatch,
+      isTxHashMatch,
+    ].some(Boolean);
   });
 };
 
@@ -125,9 +156,20 @@ export const getMatchingHistoryEntryForApprovalTxMeta = (
 ): [string, BridgeHistoryItem] | undefined => {
   const historyEntries = Object.entries(txHistory);
 
-  return historyEntries.find(([_, value]) =>
-    value.approvalTxId ? value.approvalTxId === txMeta.id : false,
-  );
+  return historyEntries.find(([key, value]) => {
+    if (value.approvalTxId && value.approvalTxId === txMeta.id) {
+      return true;
+    }
+
+    // approvalTxId is written only after the approval hash resolves
+    // until then the pre-submit actionId maps to the approval
+    return (
+      Boolean(txMeta.actionId) &&
+      Boolean(value.actionId) &&
+      key === txMeta.actionId &&
+      Boolean(txMeta.type && isApprovalTx(txMeta.type))
+    );
+  });
 };
 
 /**
@@ -228,7 +270,6 @@ export const getInitialHistoryItem = (
     tokenSecurityTypeDestination,
     inputPrimaryDenomination,
     batchSellData,
-    quoteIds,
   } = args;
 
   // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
@@ -258,7 +299,10 @@ export const getInitialHistoryItem = (
     status: {
       // We always have a PENDING status when we start polling for a tx, don't need the Bridge API for that
       // Also we know the bare minimum fields for status at this point in time
-      status: StatusTypes.PENDING,
+      status:
+        (bridgeTxMeta?.status &&
+          TRANSACTION_STATUS_TO_STATUS_TYPES[bridgeTxMeta.status]) ??
+        StatusTypes.PENDING,
       srcChain: {
         chainId: quoteResponse.quote.srcChainId,
         // We don't set the initial tx hash for STX transactions because they return a hash on submission
@@ -286,9 +330,6 @@ export const getInitialHistoryItem = (
 
   if (batchSellData) {
     txHistoryItem.batchSellData = batchSellData;
-  }
-  if (quoteIds) {
-    txHistoryItem.quoteIds = quoteIds;
   }
 
   return txHistoryItem;
