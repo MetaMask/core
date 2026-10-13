@@ -374,24 +374,25 @@ export class KycController extends BaseController<
 
   /**
    * Records identity-sharing consent for the vendor's audience, then mints a
-   * partner identity token and returns the email claim from JWT `ext`.
+   * partner identity token and reads the verified email claim from JWT `ext`.
    *
    * @param vendor - Identity vendor whose partner audience to request.
-   * @returns The verified-email claim from the minted token, or `null` when
-   * the profile has no verified email (HTTP 422 / `EmailRequiredError`).
+   * @returns The minted token and its verified email, or `null` when the
+   * profile has no verified email (HTTP 422 / `EmailRequiredError`).
    */
-  async #getVerifiedEmailToUseForVendor(
-    vendor: KycVendor,
-  ): Promise<string | null> {
+  async #getPartnerIdentityForVendor(vendor: KycVendor): Promise<{
+    partnerIdentityToken: string;
+    email: string;
+  } | null> {
     // TODO: Fix this typing. Safe for now as only Iron is used
     const audience = vendor as IdentitySharingAudience;
     await this.messenger.call(
       'AuthenticatedUserStorageService:putIdentitySharingConsent',
       { audience, granted: true },
     );
-    let token: string;
+    let partnerIdentityToken: string;
     try {
-      token = await this.messenger.call(
+      partnerIdentityToken = await this.messenger.call(
         'AuthenticationController:getPartnerIdentityToken',
         ['email'],
         audience,
@@ -402,15 +403,20 @@ export class KycController extends BaseController<
       }
       throw error;
     }
-    return getEmailFromPartnerIdentityToken(token);
+    return {
+      partnerIdentityToken,
+      email: getEmailFromPartnerIdentityToken(partnerIdentityToken),
+    };
   }
 
   /**
    * Starts a KYC session for the given vendor. Reuses a latest vendor session
    * when one exists; otherwise creates a UKYC session.
    *
-   * Email comes from the partner identity token. When that request returns
-   * HTTP 422, the email already stored on controller state is used instead.
+   * The verified email stored on controller state comes from the partner
+   * identity token. When that request returns HTTP 422, a stored email is
+   * kept for an existing session. Creating a vendor customer requires the
+   * token and sends it as `partnerIdentityToken`.
    *
    * @param params - The session parameters.
    * @param params.vendor - Identity vendor for the session.
@@ -423,9 +429,10 @@ export class KycController extends BaseController<
     vendor: KycVendor;
     aal2Token?: string;
   }): Promise<KycSessionStatus> {
-    const email =
-      (await this.#getVerifiedEmailToUseForVendor(params.vendor)) ??
-      this.state.email;
+    const partnerIdentity = await this.#getPartnerIdentityForVendor(
+      params.vendor,
+    );
+    const email = partnerIdentity?.email ?? this.state.email;
     if (!email) {
       throw new Error('KycController missing verified email for vendor');
     }
@@ -479,9 +486,15 @@ export class KycController extends BaseController<
         );
       }
 
+      if (!partnerIdentity) {
+        throw new Error(
+          'KycController missing partner identity token for vendor',
+        );
+      }
+
       await this.messenger.call('KycService:createVendorCustomer', {
         vendor: params.vendor,
-        email,
+        partnerIdentityToken: partnerIdentity.partnerIdentityToken,
       });
 
       return this.#createUkycSession({

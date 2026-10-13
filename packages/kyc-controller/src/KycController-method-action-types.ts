@@ -9,8 +9,10 @@ import type { KycController } from './KycController.js';
  * Starts a KYC session for the given vendor. Reuses a latest vendor session
  * when one exists; otherwise creates a UKYC session.
  *
- * Email comes from the partner identity token. When that request returns
- * HTTP 422, the email already stored on controller state is used instead.
+ * The verified email stored on controller state comes from the partner
+ * identity token. When that request returns HTTP 422, a stored email is
+ * kept for an existing session. Creating a vendor customer requires the
+ * token and sends it as `partnerIdentityToken`.
  *
  * @param params - The session parameters.
  * @param params.vendor - Identity vendor for the session.

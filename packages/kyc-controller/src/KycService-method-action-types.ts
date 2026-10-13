@@ -50,7 +50,8 @@ export type KycServiceCreateMoonpaySessionAction = {
  *
  * @param params - The parameters.
  * @param params.vendor - Identity vendor (e.g. `iron` for Money/VBA).
- * @param params.email - Email associated with the customer.
+ * @param params.partnerIdentityToken - Partner identity token minted by
+ * `AuthenticationController:getPartnerIdentityToken`.
  * @returns The vendor customer record (subset validated for controller use).
  */
 export type KycServiceCreateVendorCustomerAction = {

@@ -119,7 +119,9 @@ describe('KycController', () => {
         );
         expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
           vendor: 'iron',
-          email: 'a@b.co',
+          partnerIdentityToken: unsignedJwt({
+            ext: { email: 'a@b.co', email_verified: true },
+          }),
         });
         expect(handlers.createUkycSession).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -460,7 +462,35 @@ describe('KycController', () => {
       });
     });
 
-    it('uses the stored email when the partner identity token has no verified email', async () => {
+    it('resumes a stored session when the partner identity token is missing', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'stored@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getPartnerIdentityToken.mockRejectedValue(
+            Object.assign(new Error('email_required'), { status: 422 }),
+          );
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+          expect(
+            await controller.startSession({ vendor: 'iron' }),
+          ).toStrictEqual(sessionStatus('pending'));
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(controller.state.email).toBe('stored@b.co');
+        },
+      );
+    });
+
+    it('does not create a customer from stored email when the partner identity token is missing', async () => {
       await withController(
         { options: { state: { email: 'stored@b.co' } } },
         async ({ controller, handlers }) => {
@@ -469,17 +499,15 @@ describe('KycController', () => {
           );
           handlers.getSessionStatusForVendor.mockResolvedValue(null);
 
-          const result = await controller.startSession({
-            vendor: 'iron',
-            aal2Token: AAL2_TOKEN,
-          });
-
-          expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
-            vendor: 'iron',
-            email: 'stored@b.co',
-          });
-          expect(controller.state.email).toBe('stored@b.co');
-          expect(result).toStrictEqual(sessionStatus('approved'));
+          await expect(
+            controller.startSession({
+              vendor: 'iron',
+              aal2Token: AAL2_TOKEN,
+            }),
+          ).rejects.toThrow(
+            'KycController missing partner identity token for vendor',
+          );
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         },
       );
     });
@@ -508,7 +536,9 @@ describe('KycController', () => {
         );
         expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
           vendor: 'moonpay',
-          email: 'moonpay@example.com',
+          partnerIdentityToken: unsignedJwt({
+            ext: { email: 'moonpay@example.com', email_verified: true },
+          }),
         });
       });
     });
