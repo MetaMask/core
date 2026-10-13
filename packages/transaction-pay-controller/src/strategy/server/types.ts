@@ -75,13 +75,9 @@ export type ServerQuoteRequest = {
 
   /**
    * Whether the quote is funded with a plain token transfer to a provider
-   * deposit address, rather than by calling the provider contracts.
-   *
-   * The quote must fund the deposit with a single ERC-20
-   * `transfer(recipient, amount)` step that sends no native value and has no
-   * additional calldata, such as an appended request ID, so it can be replaced
-   * by an equivalent transfer to the same address. Quotes without such a step
-   * are ignored.
+   * deposit address, rather than by calling the provider contracts. The
+   * transfer must not include any additional calldata, such as an appended
+   * request ID.
    */
   useDepositAddress?: boolean;
 };
