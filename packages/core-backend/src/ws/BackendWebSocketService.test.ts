@@ -2238,13 +2238,14 @@ describe('BackendWebSocketService', () => {
 
     it('disconnects an open socket when basic functionality turns off', async () => {
       let isBasic = true;
-      let onChange: ((isBasic: boolean) => void) | undefined;
+      let onChange: (() => void) | undefined;
       await withService(
         {
           options: {
             isBasicFunctionality: () => isBasic,
             subscribeToBasicFunctionalityChange: (callback) => {
               onChange = callback;
+              return (): void => undefined;
             },
           },
         },
@@ -2255,7 +2256,7 @@ describe('BackendWebSocketService', () => {
           );
 
           isBasic = false;
-          onChange?.(false);
+          onChange?.();
 
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
@@ -2268,13 +2269,14 @@ describe('BackendWebSocketService', () => {
 
     it('connects when basic functionality turns back on', async () => {
       let isBasic = false;
-      let onChange: ((isBasic: boolean) => void) | undefined;
+      let onChange: (() => void) | undefined;
       await withService(
         {
           options: {
             isBasicFunctionality: () => isBasic,
             subscribeToBasicFunctionalityChange: (callback) => {
               onChange = callback;
+              return (): void => undefined;
             },
           },
         },
@@ -2285,11 +2287,144 @@ describe('BackendWebSocketService', () => {
           );
 
           isBasic = true;
-          onChange?.(true);
+          onChange?.();
           await completeAsyncOperations();
 
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.CONNECTED,
+          );
+        },
+      );
+    });
+
+    it('cancels a pending reconnect when basic functionality turns off', async () => {
+      let isBasic = true;
+      let onChange: (() => void) | undefined;
+      await withService(
+        {
+          options: {
+            isBasicFunctionality: () => isBasic,
+            subscribeToBasicFunctionalityChange: (callback) => {
+              onChange = callback;
+              return (): void => undefined;
+            },
+            reconnectDelay: 50,
+          },
+        },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+          await service.connect();
+          getMockWebSocket().simulateClose(1006, 'Connection lost');
+          await completeAsyncOperations(0);
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
+
+          isBasic = false;
+          onChange?.();
+
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+          await completeAsyncOperations(200);
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+        },
+      );
+    });
+
+    it('keeps an open socket when only the feature flag turns off', async () => {
+      let isEnabled = true;
+      await withService(
+        { options: { isEnabled: () => isEnabled } },
+        async ({ service }) => {
+          await service.connect();
+          isEnabled = false;
+          await service.connect();
+
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTED,
+          );
+        },
+      );
+    });
+
+    it('does not open a socket when basic functionality turns off while awaiting the bearer token', async () => {
+      let isBasic = true;
+      await withService(
+        { options: { isBasicFunctionality: () => isBasic } },
+        async ({ service, mocks, completeAsyncOperations }) => {
+          mocks.getBearerToken.mockImplementation(async () => {
+            isBasic = false;
+            return 'token';
+          });
+
+          await service.connect();
+          await completeAsyncOperations();
+
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+        },
+      );
+    });
+
+    it('closes an in-flight handshake when basic functionality turns off', async () => {
+      let isBasic = true;
+      let onChange: (() => void) | undefined;
+      await withService(
+        {
+          options: {
+            isBasicFunctionality: () => isBasic,
+            subscribeToBasicFunctionalityChange: (callback) => {
+              onChange = callback;
+              return (): void => undefined;
+            },
+          },
+          mockWebSocketOptions: { autoConnect: false },
+        },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          const connectPromise = service.connect();
+          await completeAsyncOperations();
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTING,
+          );
+
+          isBasic = false;
+          onChange?.();
+
+          expect(getMockWebSocket().close).toHaveBeenCalled();
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+
+          getMockWebSocket().triggerOpen();
+          await connectPromise;
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+        },
+      );
+    });
+
+    it('closes the socket when basic functionality turns off during the handshake', async () => {
+      let isBasic = true;
+      await withService(
+        {
+          options: { isBasicFunctionality: () => isBasic },
+          mockWebSocketOptions: { autoConnect: false },
+        },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          const connectPromise = service.connect();
+          await completeAsyncOperations();
+
+          isBasic = false;
+          getMockWebSocket().triggerOpen();
+          await connectPromise;
+          await completeAsyncOperations();
+
+          expect(getMockWebSocket().close).toHaveBeenCalled();
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
           );
         },
       );

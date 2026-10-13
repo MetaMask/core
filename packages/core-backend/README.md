@@ -624,7 +624,7 @@ interface BackendWebSocketServiceOptions {
   isEnabled?: () => boolean;
   isBasicFunctionality?: () => boolean;
   subscribeToBasicFunctionalityChange?: (
-    onChange: (isBasic: boolean) => void,
+    onChange: () => void,
   ) => void | (() => void);
 }
 ```

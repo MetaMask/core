@@ -150,11 +150,11 @@ export type BackendWebSocketServiceOptions = {
   /**
    * Called by the service with an onChange callback. The consumer subscribes to
    * its basic-functionality source and invokes onChange when the value changes.
-   * The service then connects or disconnects. May return an unsubscribe
-   * function called on destroy. Optional.
+   * The service re-reads `isBasicFunctionality()` and connects or disconnects.
+   * May return an unsubscribe function, which is called on destroy. Optional.
    */
   subscribeToBasicFunctionalityChange?: (
-    onChange: (isBasic: boolean) => void,
+    onChange: () => void,
   ) => void | (() => void);
 
   /** Optional callback to trace performance of WebSocket operations (default: no-op) */
@@ -329,6 +329,12 @@ export class BackendWebSocketService {
 
   #ws: WebSocket | undefined;
 
+  /**
+   * Socket created for the current handshake, before `onopen` assigns `#ws`.
+   * `disconnect()` closes this so Basic Functionality can abort CONNECTING.
+   */
+  #pendingWebSocket: WebSocket | undefined;
+
   #state: WebSocketState = WebSocketState.DISCONNECTED;
 
   #reconnectAttempts = 0;
@@ -407,11 +413,9 @@ export class BackendWebSocketService {
     );
 
     if (options.subscribeToBasicFunctionalityChange) {
-      const unsubscribe = options.subscribeToBasicFunctionalityChange(
-        (_isBasic) => {
-          this.#handleBasicFunctionalityChange();
-        },
-      );
+      const unsubscribe = options.subscribeToBasicFunctionalityChange(() => {
+        this.#handleBasicFunctionalityChange();
+      });
       if (typeof unsubscribe === 'function') {
         this.#unsubscribeBasicFunctionality = unsubscribe;
       }
@@ -434,21 +438,37 @@ export class BackendWebSocketService {
   }
 
   /**
-   * Stop connection attempts and close an open socket.
+   * Stop connection attempts, optionally closing the socket.
+   *
+   * The handshake timeout stays in place unless the socket is closed, so a
+   * hung CONNECTING socket can still abort.
+   *
+   * @param closeSocket - Whether to close an open or in-flight socket.
    */
-  #blockConnection(): void {
-    this.#clearTimers();
+  #blockConnection(closeSocket: boolean): void {
+    if (this.#reconnectTimer) {
+      clearTimeout(this.#reconnectTimer);
+      this.#reconnectTimer = null;
+    }
+    // Drop the handshake timeout only when the socket itself is closed.
+    // Otherwise a hung CONNECTING socket would have no abort.
+    if (closeSocket && this.#connectionTimeout) {
+      clearTimeout(this.#connectionTimeout);
+      this.#connectionTimeout = null;
+    }
     this.#reconnectAttempts = 0;
     this.#newBackoff();
-    this.disconnect();
+    if (closeSocket) {
+      this.disconnect();
+    }
   }
 
   /**
    * Apply a Basic Functionality change. The getter is the source of truth.
    */
   #handleBasicFunctionalityChange(): void {
-    if (!this.#isConnectionAllowed()) {
-      this.#blockConnection();
+    if (!this.#isBasicFunctionality()) {
+      this.#blockConnection(true);
       return;
     }
 
@@ -513,9 +533,10 @@ export class BackendWebSocketService {
    */
   async connect(): Promise<void> {
     // Priority 1: Feature flag and Basic Functionality must both allow the socket.
-    // If either gate is closed, stop attempts and drop an open connection.
+    // If either gate is closed, stop attempts. Only Basic Functionality also
+    // drops an open connection; a disabled feature flag keeps it as before.
     if (!this.#isConnectionAllowed()) {
-      this.#blockConnection();
+      this.#blockConnection(!this.#isBasicFunctionality());
       return;
     }
 
@@ -554,6 +575,12 @@ export class BackendWebSocketService {
         throw error;
       }
 
+      // Basic Functionality may have turned off while awaiting the token
+      if (!this.#isConnectionAllowed()) {
+        this.#blockConnection(!this.#isBasicFunctionality());
+        return;
+      }
+
       // Establish the actual WebSocket connection
       await this.#establishConnection(bearerToken);
     })();
@@ -574,12 +601,14 @@ export class BackendWebSocketService {
    * Closes WebSocket connection
    */
   disconnect(): void {
-    if (this.#state === WebSocketState.DISCONNECTED || !this.#ws) {
+    const socket = this.#ws ?? this.#pendingWebSocket;
+    if (!socket || this.#state === WebSocketState.DISCONNECTED) {
       return;
     }
 
-    // Close WebSocket with manual disconnect code and reason
-    this.#ws.close(MANUAL_DISCONNECT_CODE, MANUAL_DISCONNECT_REASON);
+    // Close WebSocket with manual disconnect code and reason.
+    // `#pendingWebSocket` covers CONNECTING, before `onopen` assigns `#ws`.
+    socket.close(MANUAL_DISCONNECT_CODE, MANUAL_DISCONNECT_REASON);
 
     log('WebSocket manually disconnected');
   }
@@ -1059,6 +1088,7 @@ export class BackendWebSocketService {
         return new Promise<void>((resolve, reject) => {
           // eslint-disable-next-line no-restricted-globals
           const ws = new WebSocket(wsUrl);
+          this.#pendingWebSocket = ws;
           this.#connectionTimeout = setTimeout(() => {
             log('WebSocket connection timeout - forcing close', {
               timeout: this.#options.timeout,
@@ -1073,9 +1103,19 @@ export class BackendWebSocketService {
               this.#connectionTimeout = null;
             }
 
+            if (this.#pendingWebSocket === ws) {
+              this.#pendingWebSocket = undefined;
+            }
             this.#ws = ws;
             this.#setState(WebSocketState.CONNECTED);
             this.#connectedAt = Date.now();
+
+            // Basic Functionality may have turned off during the handshake
+            if (!this.#isBasicFunctionality()) {
+              this.disconnect();
+              resolve();
+              return;
+            }
 
             // Only reset after connection stays stable for a period (10 seconds)
             // This prevents rapid reconnect loops when server accepts then immediately closes
@@ -1130,6 +1170,9 @@ export class BackendWebSocketService {
             this.#clearTimers();
 
             // Clear WebSocket reference to allow garbage collection
+            if (this.#pendingWebSocket === ws) {
+              this.#pendingWebSocket = undefined;
+            }
             this.#ws = undefined;
 
             // Clear connection tracking
@@ -1414,7 +1457,7 @@ export class BackendWebSocketService {
 
       // Check if connection is still allowed before reconnecting
       if (!this.#isConnectionAllowed()) {
-        this.#blockConnection();
+        this.#blockConnection(!this.#isBasicFunctionality());
         return;
       }
 
