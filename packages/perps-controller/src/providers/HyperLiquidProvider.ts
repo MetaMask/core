@@ -2982,6 +2982,30 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Correct support from errors returned as resolved per-entry statuses.
+   *
+   * @param statuses - Venue status entries.
+   * @param answer - Full venue answer that owns the statuses.
+   * @param accountContext - Account and network that authorized the write.
+   * @returns Whether any status requires Hyperliquid multi-signature.
+   */
+  #recordUnsupportedAccountFromStatuses(
+    statuses: unknown[],
+    answer: unknown,
+    accountContext: AccountSupportContext,
+  ): boolean {
+    return statuses.some(
+      (status) =>
+        isStatusObject(status) &&
+        typeof status.error === 'string' &&
+        this.#recordUnsupportedAccountFromError(
+          createStatusError(status.error, answer),
+          accountContext,
+        ),
+    );
+  }
+
+  /**
    * Read support for an account context without initializing the provider.
    * Successful results are stable for the provider session and coalesced by
    * account and network. Failed probes fail open and remain retryable.
@@ -3131,10 +3155,17 @@ export class HyperLiquidProvider implements PerpsProvider {
    * action that is allowed to authorize the migration.
    * @private
    */
-  async #ensureUnifiedAccountEnabled(options?: {
-    allowUserSigning?: boolean;
-    accountContext?: AccountSupportContext;
-  }): Promise<void> {
+  async #ensureUnifiedAccountEnabled(
+    options?:
+      | {
+          allowUserSigning: true;
+          accountContext: AccountSupportContext;
+        }
+      | {
+          allowUserSigning?: false;
+          accountContext?: never;
+        },
+  ): Promise<void> {
     // Without an agent, the migration is signed by the main wallet, which can
     // prompt (hardware wallets). Init calls with allowUserSigning=false so
     // viewing the Perps section never surfaces a signing dialog. Trading and
@@ -3383,7 +3414,15 @@ export class HyperLiquidProvider implements PerpsProvider {
           'Unified account migration',
         );
       }
-      const exchangeClient = this.#clientService.getExchangeClient();
+      const exchangeClient = this.#clientService.getExchangeClient(
+        accountContext
+          ? async (): Promise<void> =>
+              await this.#assertNoKnownUnsupportedAccount(
+                accountContext,
+                'Unified account migration dispatch',
+              )
+          : undefined,
+      );
       await exchangeClient.agentSetAbstraction({
         abstraction: HL_ABSTRACTION_WIRE.unifiedAccount,
       });
@@ -3606,11 +3645,27 @@ export class HyperLiquidProvider implements PerpsProvider {
       // over. The memoized promise is dropped while the cooldown is active
       // (see below), so a later entry retries. Action-time callers are not
       // gated.
-      if (Date.now() >= this.#unifiedAccountTransportRetryAt) {
-        await this.#ensureUnifiedAccountEnabled({
-          allowUserSigning:
-            !this.#walletService.requiresSignatureConfirmation(),
-        });
+      if (
+        !this.#isDisconnected &&
+        Date.now() >= this.#unifiedAccountTransportRetryAt
+      ) {
+        if (this.#walletService.requiresSignatureConfirmation()) {
+          await this.#ensureUnifiedAccountEnabled({
+            allowUserSigning: false,
+          });
+        } else {
+          const accountContext = {
+            lifecycleGeneration: this.#lifecycleGeneration,
+            network: this.#clientService.isTestnetMode()
+              ? 'testnet'
+              : 'mainnet',
+            userAddress: await this.#walletService.getUserAddressWithDefault(),
+          } satisfies AccountSupportContext;
+          await this.#ensureUnifiedAccountEnabled({
+            allowUserSigning: true,
+            accountContext,
+          });
+        }
       }
     })();
 
@@ -6867,6 +6922,26 @@ export class HyperLiquidProvider implements PerpsProvider {
     retryCount = 0,
     reportFailure = true,
   ): Promise<OrderResult> {
+    return await this.#placeOrder(input, retryCount, reportFailure);
+  }
+
+  /**
+   * Place an order while preserving one account context across parent actions
+   * and minimum-value retries.
+   *
+   * @param input - Order parameters.
+   * @param retryCount - Internal retry counter.
+   * @param reportFailure - Whether this call owns provider-level reporting.
+   * @param expectedAccountContext - Context captured by a parent action or the
+   * first minimum-value attempt.
+   * @returns The order result.
+   */
+  async #placeOrder(
+    input: OrderParams,
+    retryCount: number,
+    reportFailure: boolean,
+    expectedAccountContext?: AccountSupportContext,
+  ): Promise<OrderResult> {
     const deferProviderErrorReport = input.deferProviderErrorReport === true;
     const params = { ...input };
     delete params.deferProviderErrorReport;
@@ -6880,6 +6955,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Hoisted so the retry path in the catch block can use the fetched price
     // even when the caller (e.g. flipPosition) omits currentPrice from params.
     let effectivePrice: number | undefined;
+    let actionAccountContext = expectedAccountContext;
     try {
       this.#deps.debugLogger.log('Placing order via HyperLiquid SDK:', params);
 
@@ -6909,7 +6985,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       // array, the HIP-3 transfer, and the atomic single-order submit, none of
       // which describe what a TWAP, a ladder, or a chase does.
       if (isStrategyOrderType(params.orderType)) {
-        return await this.#placeStrategyOrder(params, params.orderType);
+        return await this.#placeStrategyOrder(
+          params,
+          params.orderType,
+          expectedAccountContext,
+        );
       }
 
       // Extract DEX name for API calls (main DEX = null)
@@ -6969,7 +7049,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       const { accountContext, builderFeeSetupContext } =
         await this.#ensureReadyForTrading({
           requiresBuilderFee: chargesMetamaskBuilderFee,
+          accountContext: actionAccountContext,
         });
+      actionAccountContext = accountContext;
 
       // Debug: Log asset map state before order placement
       const allMapKeys = Array.from(this.#symbolToAssetId.keys());
@@ -7157,7 +7239,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
         );
 
-        return this.placeOrder(
+        return this.#placeOrder(
           {
             ...params,
             usdAmount: adjustedUsdAmount,
@@ -7172,6 +7254,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
           1, // Retry count = 1, prevents further retries
           shouldReportFailure,
+          actionAccountContext,
         );
       }
 
@@ -7190,11 +7273,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param params - Order parameters, already validated.
    * @param orderType - The strategy type, narrowed by the caller.
+   * @param expectedAccountContext - Context captured by a parent action.
    * @returns A promise that resolves to the result.
    */
   async #placeStrategyOrder(
     params: OrderParams,
     orderType: StrategyOrderType,
+    expectedAccountContext?: AccountSupportContext,
   ): Promise<OrderResult> {
     // Captured before the shared preamble, not after it: that preamble awaits
     // asset info, validation, trading readiness and a leverage update, and a
@@ -7202,7 +7287,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     const generation = this.#strategyGeneration;
 
     if (orderType !== 'chase') {
-      const context = await this.#prepareStrategyPlacement(params);
+      const context = await this.#prepareStrategyPlacement(
+        params,
+        expectedAccountContext,
+      );
       return await this.#submitPreparedStrategy(params, context, async () => {
         if (generation !== this.#strategyGeneration) {
           throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
@@ -7242,7 +7330,10 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     try {
       await this.#chaseTickQueue;
-      const context = await this.#prepareStrategyPlacement(params);
+      const context = await this.#prepareStrategyPlacement(
+        params,
+        expectedAccountContext,
+      );
       return await this.#submitPreparedStrategy(
         params,
         context,
@@ -7383,10 +7474,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    * so a strategy order is held to the same rules as an ordinary one.
    *
    * @param params - Order parameters.
+   * @param expectedAccountContext - Context captured by a parent action.
    * @returns The asset and sizing context the strategy handlers submit with.
    */
   async #prepareStrategyPlacement(
     params: OrderParams,
+    expectedAccountContext?: AccountSupportContext,
   ): Promise<StrategyPlacementContext> {
     const { dex: dexName } = parseAssetName(params.symbol);
 
@@ -7467,8 +7560,14 @@ export class HyperLiquidProvider implements PerpsProvider {
     // signature prompts in trading setup — same ordering as `placeOrder`.
     const { chargesMetamaskBuilderFee } = this.#resolveOrderFeePolicy(params);
     const tradingActionContext = chargesMetamaskBuilderFee
-      ? await this.#ensureReadyForTrading({ requiresBuilderFee: true })
-      : await this.#ensureReadyForTrading({ requiresBuilderFee: false });
+      ? await this.#ensureReadyForTrading({
+          requiresBuilderFee: true,
+          accountContext: expectedAccountContext,
+        })
+      : await this.#ensureReadyForTrading({
+          requiresBuilderFee: false,
+          accountContext: expectedAccountContext,
+        });
     const { accountContext, builderFeeSetupContext } = tradingActionContext;
 
     const assetId = await this.#getAssetIdWithRepair({
@@ -7814,6 +7913,11 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const rawStatuses = result.response?.data?.statuses;
     const statuses = Array.isArray(rawStatuses) ? rawStatuses : [];
+    const isMultiSigRequired = this.#recordUnsupportedAccountFromStatuses(
+      statuses,
+      result,
+      accountContext,
+    );
     const outcomes = Array.from({ length: count }, (_unused, index) =>
       parseScaleBulkOrderStatus(statuses[index]),
     );
@@ -8022,7 +8126,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
       }
 
-      throw new Error(PERPS_ERROR_CODES.ORDER_REJECTED);
+      throw new Error(
+        isMultiSigRequired
+          ? PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED
+          : PERPS_ERROR_CODES.ORDER_REJECTED,
+      );
     }
 
     this.#scaleOrderGroups.set(groupId, {
@@ -8383,6 +8491,21 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#chaseTickQueue = this.#chaseTickQueue
         .then(() => this.#runChaseTick(sessionId))
         .catch(async (error: unknown) => {
+          const failedSession = this.#chaseSessions.get(sessionId);
+          const accountUnsupported = failedSession
+            ? this.#recordUnsupportedAccountFromError(
+                error,
+                failedSession.accountContext,
+              )
+            : false;
+          if (accountUnsupported) {
+            this.#stopChaseSession(sessionId);
+            this.#deps.debugLogger.log(
+              'Chase stopped after account support correction',
+              { sessionId },
+            );
+            return;
+          }
           // A rejected agent is dropped so the next tick asks for another.
           await this.#evictRejectedAgent(error);
           // Resolve the shared queue after every failure. Otherwise one
@@ -9027,6 +9150,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         cancels: [{ a: session.assetId, o: parseInt(session.orderId, 10) }],
       });
     } catch (error) {
+      this.#recordUnsupportedAccountFromError(error, session.accountContext);
       const message = ensureError(
         error,
         'HyperLiquidProvider.cancelChaseChild',
@@ -9040,6 +9164,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     const status: unknown = result.response?.data?.statuses?.[0];
+    if (isStatusObject(status) && typeof status.error === 'string') {
+      this.#recordUnsupportedAccountFromError(
+        createStatusError(status.error, result),
+        session.accountContext,
+      );
+    }
     const signerFailure = await this.#classifyStatusSignerFailure(
       [status],
       result,
@@ -9704,8 +9834,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       'Scale cancellation',
     );
     const [orderCancellation, cloidCancellation] = await Promise.all([
-      this.#cancelOrderRequestBatch(exchangeClient, cancelRequests),
-      this.#cancelOrderCloidRequestBatch(exchangeClient, cancelByCloidRequests),
+      this.#cancelOrderRequestBatch(exchangeClient, cancelRequests, (error) => {
+        this.#recordUnsupportedAccountFromError(error, accountContext);
+      }),
+      this.#cancelOrderCloidRequestBatch(
+        exchangeClient,
+        cancelByCloidRequests,
+        (error) => {
+          this.#recordUnsupportedAccountFromError(error, accountContext);
+        },
+      ),
     ]);
     const remaining = orderCancellation.remainingOrderIds.map(String);
     const { remainingClientOrderIds } = cloidCancellation;
@@ -9896,14 +10034,21 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param exchangeClient - Client that owns the orders.
    * @param requests - Venue cancel-by-CLOID requests.
+   * @param onError - Optional operation-specific failure classifier.
    * @returns Client order IDs that may still be resting.
    */
   async #cancelOrderCloidRequests(
     exchangeClient: ExchangeClient,
     requests: ExchangeCancelByCloidRequest[],
+    onError?: (error: unknown) => void | Promise<void>,
   ): Promise<Hex[]> {
-    return (await this.#cancelOrderCloidRequestBatch(exchangeClient, requests))
-      .remainingClientOrderIds;
+    return (
+      await this.#cancelOrderCloidRequestBatch(
+        exchangeClient,
+        requests,
+        onError,
+      )
+    ).remainingClientOrderIds;
   }
 
   /**
@@ -9912,12 +10057,14 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param exchangeClient - Client that owns the orders.
    * @param requests - Venue cancel-by-CLOID requests.
+   * @param onError - Optional operation-specific failure classifier.
    * @returns Client order IDs that may still be resting, and the signer
    * failure when the signer could not sign the request.
    */
   async #cancelOrderCloidRequestBatch(
     exchangeClient: ExchangeClient,
     requests: ExchangeCancelByCloidRequest[],
+    onError?: (error: unknown) => void | Promise<void>,
   ): Promise<{ remainingClientOrderIds: Hex[]; signerFailure?: Error }> {
     if (requests.length === 0) {
       return { remainingClientOrderIds: [] };
@@ -9927,6 +10074,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       statuses: unknown[],
       answer: unknown,
     ): Promise<{ remainingClientOrderIds: Hex[]; signerFailure?: Error }> => {
+      for (const status of statuses) {
+        if (isStatusObject(status) && typeof status.error === 'string') {
+          await onError?.(createStatusError(status.error, answer));
+        }
+      }
       // A signer failure is classified (and reported) once for the request;
       // entries the venue cancelled are not resting either way.
       const signerFailure = await this.#classifyStatusSignerFailure(
@@ -9956,6 +10108,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return await classifyStatuses(statuses, result);
     } catch (error) {
+      await onError?.(error);
       // The SDK throws when any entry failed, with every entry's status.
       const statuses = getCancelStatusesFromError(error, requests.length);
       if (statuses) {
@@ -10008,6 +10161,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       statuses: unknown[],
       answer: unknown,
     ): Promise<CancelOrderBatchOutcome> => {
+      for (const status of statuses) {
+        if (isStatusObject(status) && typeof status.error === 'string') {
+          await onError?.(createStatusError(status.error, answer));
+        }
+      }
       // A signer failure is classified (and reported) once for the request;
       // entries the venue cancelled still count as cancelled.
       const signerFailure = await this.#classifyStatusSignerFailure(
@@ -11007,6 +11165,10 @@ export class HyperLiquidProvider implements PerpsProvider {
                 : undefined;
             let error: string = PERPS_ERROR_CODES.BATCH_CANCEL_FAILED;
             if (statusError) {
+              this.#recordUnsupportedAccountFromError(
+                statusError,
+                accountContext,
+              );
               error =
                 signerFailure && (await this.#isSignerFailure(statusError))
                   ? signerFailure.message
@@ -12102,6 +12264,11 @@ export class HyperLiquidProvider implements PerpsProvider {
                 builderOrderContext && { builder: builderOrderContext }),
             });
             statuses = result.response?.data?.statuses ?? [];
+            this.#recordUnsupportedAccountFromStatuses(
+              statuses,
+              result,
+              accountContext,
+            );
           } catch (error) {
             const failure = await this.#classifyProtectionWriteError(
               error,
@@ -12322,6 +12489,11 @@ export class HyperLiquidProvider implements PerpsProvider {
             builderOrderContext && { builder: builderOrderContext }),
         });
         placementStatuses = result.response?.data?.statuses ?? [];
+        this.#recordUnsupportedAccountFromStatuses(
+          placementStatuses,
+          result,
+          accountContext,
+        );
         responseAccepted = result.status === 'ok';
       } catch (error) {
         // Drop and report a rejected agent before restoration signs.
@@ -12690,7 +12862,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         accountContext,
         'Position close',
       );
-      const result = await this.placeOrder(
+      const result = await this.#placeOrder(
         {
           symbol: params.symbol,
           isBuy,
@@ -12714,6 +12886,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         },
         0,
         false,
+        accountContext,
       );
 
       // Return freed margin using native abstraction or programmatic transfer
@@ -14113,7 +14286,14 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async getAccountSupport(): Promise<PerpsAccountSupport> {
     await this.#ensureReady();
-    return this.#getAccountSupportForContext();
+    const context = {
+      lifecycleGeneration: this.#lifecycleGeneration,
+      network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
+      userAddress: await this.#walletService.getUserAddressWithDefault(),
+    } satisfies AccountSupportContext;
+    const support = await this.#getAccountSupportForContext(context);
+    await this.#assertAccountContextCurrent(context, 'Account support read');
+    return support;
   }
 
   /**
@@ -15683,6 +15863,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         assetId: params.assetId,
       });
 
+      const lifecycleGeneration = this.#lifecycleGeneration;
+      const network = this.#clientService.isTestnetMode()
+        ? 'testnet'
+        : 'mainnet';
+      const userAddress = await this.#walletService.getUserAddressWithDefault();
+      accountContext = {
+        lifecycleGeneration,
+        network,
+        userAddress,
+      };
+
       // Step 3: Determine destination address
       this.#deps.debugLogger.log(
         'HyperLiquidProvider: DETERMINING DESTINATION ADDRESS',
@@ -15697,7 +15888,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
         );
       } else {
-        destination = await this.#walletService.getUserAddressWithDefault();
+        destination = userAddress;
         this.#deps.debugLogger.log(
           'HyperLiquidProvider: USING USER WALLET ADDRESS',
           {
@@ -15709,7 +15900,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Step 4: Ensure client is ready
       this.#deps.debugLogger.log('HyperLiquidProvider: ENSURING CLIENT READY');
       await this.#ensureReady();
-      accountContext = await this.#assertAccountSupported();
+      accountContext = await this.#assertAccountSupported(accountContext);
       await this.#ensureUnifiedAccountEnabled({
         allowUserSigning: true,
         accountContext,
