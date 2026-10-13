@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `PermissionController` to the default initialization configurations ([#10807](https://github.com/MetaMask/core/pull/10807))
+  - Accepts optional `instanceOptions.permissionController.caveatSpecifications`, `permissionSpecifications` and `unrestrictedMethods`, each defaulting to empty.
+- **BREAKING:** Add `SubjectMetadataController` to the default initialization configurations ([#10807](https://github.com/MetaMask/core/pull/10807))
+
 ### Changed
 
+- Add `@metamask/permission-controller` as a dependency ([#10807](https://github.com/MetaMask/core/pull/10807))
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 
 ## [17.1.0]
