@@ -6,10 +6,10 @@
   },
   "references": [
     {
-      "path": "../messenger/tsconfig.lint.json"
+      "path": "../keyring-controller/tsconfig.build.json"
     },
     {
-      "path": "../keyring-controller/tsconfig.lint.json"
+      "path": "../messenger/tsconfig.build.json"
     }
   ]
 }
