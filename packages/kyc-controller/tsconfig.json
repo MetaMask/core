@@ -11,6 +11,9 @@
       "path": "../base-data-service"
     },
     {
+      "path": "../cryptography"
+    },
+    {
       "path": "../controller-utils"
     },
     {
