@@ -31,6 +31,7 @@ import {
   resolveGasPayment,
 } from '../../utils/gas-payment.js';
 import { getNetworkClientId } from '../../utils/provider.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -54,6 +55,13 @@ import type {
 import { ServerStatus } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-strategy');
+
+/**
+ * Placeholder returned when an intent confirms without reporting a
+ * target-chain transaction hash, so there is no settlement to read amounts
+ * from.
+ */
+const MISSING_TARGET_HASH = '0x' as Hex;
 
 const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
   name: { name: 'name', type: 'string' },
@@ -151,6 +159,14 @@ async function executeSingleServerQuote(
 
   log('Server request completed', targetHash);
 
+  // Phase 4: submit the calls the quote could not execute itself, now that the
+  // funds have settled on the target chain.
+  const secondLegHash = quote.requiresSecondLeg
+    ? await submitServerSecondLeg(quote, messenger, transaction, targetHash)
+    : undefined;
+
+  // Only complete once every leg has landed, so a failed second leg does not
+  // leave the parent transaction flagged as achieved.
   updateTransaction(
     {
       transactionId: transaction.id,
@@ -162,7 +178,37 @@ async function executeSingleServerQuote(
     },
   );
 
-  return { transactionHash: targetHash };
+  return { transactionHash: secondLegHash ?? targetHash };
+}
+
+/**
+ * Submit the calls a server quote could not execute itself, from the account
+ * the funds settled on.
+ *
+ * @param quote - Server quote.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ * @param targetHash - Hash of the settlement on the target chain.
+ * @returns Hash of the second-leg transaction, if available.
+ */
+async function submitServerSecondLeg(
+  quote: TransactionPayQuote<ServerQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+  targetHash: Hex | undefined,
+): Promise<Hex | undefined> {
+  const { from, recipient, targetChainId, targetTokenAddress } = quote.request;
+
+  const { transactionHash } = await submitSecondLeg({
+    chainId: targetChainId,
+    from: recipient ?? from,
+    messenger,
+    settlementHash: targetHash === MISSING_TARGET_HASH ? undefined : targetHash,
+    tokenAddress: targetTokenAddress,
+    transaction,
+  });
+
+  return transactionHash;
 }
 
 /**
@@ -992,7 +1038,7 @@ async function waitForServerCompletion(
       }
 
       if (statusResponse.status === ServerStatus.Confirmed) {
-        return statusResponse.targetHash ?? '0x';
+        return statusResponse.targetHash ?? MISSING_TARGET_HASH;
       }
 
       if (

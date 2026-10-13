@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add watch-only account naming ([#10677](https://github.com/MetaMask/core/pull/10677))
+  - Watch-only wallet name is now "Watch-only accounts".
+  - Watch-only group name is now "Watch-only Account N".
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.2.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792))
 
 ## [11.0.1]
 

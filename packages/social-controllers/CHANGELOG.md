@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/core-backend` from `^12.0.1` to `^12.1.0` ([#10788](https://github.com/MetaMask/core/pull/10788))
+
+## [3.7.0]
+
 ### Added
 
 - Add optional `mutuals` flag to `fetchFollowers` (`FetchFollowersOptions`). When `true`, calls bearer-authenticated `GET /traders/:addressOrId/followers?mutuals=true` (social-api [#386](https://github.com/consensys-vertical-apps/va-mmcx-social-api/pull/386)); `count` is the mutual total. Omitted or `false` keeps the full follower list ([#10770](https://github.com/MetaMask/core/pull/10770))
@@ -264,7 +270,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.7.0...HEAD
+[3.7.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.6.0...@metamask/social-controllers@3.7.0
 [3.6.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.5.0...@metamask/social-controllers@3.6.0
 [3.5.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.4.0...@metamask/social-controllers@3.5.0
 [3.4.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.3.0...@metamask/social-controllers@3.4.0

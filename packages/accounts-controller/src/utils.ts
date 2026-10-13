@@ -46,6 +46,9 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.snap: {
       return 'Snap Account';
     }
+    case KeyringType.WatchOnly: {
+      return 'Watch-only Account';
+    }
     // NOTE: We don't use those keyrings/accounts within this controller. However, since this
     // function only use the keyring type to return a name, we still support it here in case
     // clients need it.
@@ -124,6 +127,18 @@ export function isSnapKeyringV2Type(
   keyringType: KeyringTypes | KeyringType | string,
 ): boolean {
   return keyringType === (KeyringType.Snap as string);
+}
+
+/**
+ * Check if a keyring type is a watch-only keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is considered a watch-only keyring, false otherwise.
+ */
+export function isWatchOnlyKeyringType(
+  keyringType: KeyringTypes | KeyringType | string,
+): boolean {
+  return keyringType === (KeyringType.WatchOnly as string);
 }
 
 /**

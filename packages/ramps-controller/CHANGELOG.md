@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.1]
+
 ### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
+
+### Fixed
 
 - `hydrateVbaOnboarding` returns `needs_wallet_registration` or `needs_source_currency` only when the MoonPay customer `status` is `Active`. `SigningsRequired`, `IdentificationRequired`, and any other status return `not_ready`. A failed customer lookup returns `retryable_failure` ([#10766](https://github.com/MetaMask/core/pull/10766))
 - `registerMoneyAccountWallet` refuses to sign or post a self-hosted wallet unless that customer `status` is `Active` ([#10766](https://github.com/MetaMask/core/pull/10766))
-- Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
 
 ## [27.0.0]
 
@@ -720,7 +725,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.1...HEAD
+[27.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.0...@metamask/ramps-controller@27.0.1
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.3.0...@metamask/ramps-controller@27.0.0
 [26.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.2.0...@metamask/ramps-controller@26.3.0
 [26.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.1.0...@metamask/ramps-controller@26.2.0
