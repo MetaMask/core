@@ -490,81 +490,51 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
         },
       );
 
-      it.each([
-        [
-          'thrown',
-          (): Promise<never> =>
-            Promise.reject(unknownWalletError(AGENT_ADDRESS)),
-        ],
-        [
-          'in its status entry',
-          async (): Promise<Record<string, unknown>> => ({
+      it('does not ask an agent to retract a TWAP after its context becomes stale', async () => {
+        const {
+          provider,
+          twapOrder,
+          twapCancel,
+          getAgentSigner,
+          onAgentRejected,
+          signL1Action,
+        } = createStrategyProvider('rejected');
+        let disconnected: Promise<unknown> | undefined;
+        // The provider is torn down while the TWAP is placed, so it
+        // retracts it.
+        twapOrder.mockImplementation(async () => {
+          await signL1Action();
+          disconnected = provider.disconnect();
+          return {
             status: 'ok',
             response: {
-              type: 'twapCancel',
-              data: {
-                status: { error: unknownWalletError(AGENT_ADDRESS).message },
-              },
+              type: 'twapOrder',
+              data: { status: { running: { twapId: 987 } } },
             },
-          }),
-        ],
-      ])(
-        'drops an agent the venue rejects while retracting a stale TWAP (%s)',
-        async (_how, answerCancel) => {
-          const {
-            provider,
-            twapOrder,
-            twapCancel,
-            getAgentSigner,
-            onAgentRejected,
-            signL1Action,
-          } = createStrategyProvider('rejected');
-          let disconnected: Promise<unknown> | undefined;
-          // The provider is torn down while the TWAP is placed, so it
-          // retracts it.
-          twapOrder.mockImplementation(async () => {
-            await signL1Action();
-            disconnected = provider.disconnect();
-            return {
-              status: 'ok',
-              response: {
-                type: 'twapOrder',
-                data: { status: { running: { twapId: 987 } } },
-              },
-            };
-          });
-          twapCancel.mockImplementation(async () => {
-            await signL1Action();
-            return await answerCancel();
-          });
+          };
+        });
 
-          const placed = await provider.placeOrder({
-            ...ETH_ORDER,
-            orderType: 'twap',
-            twapDuration: 30,
-          });
-          await disconnected;
-          await signL1Action();
+        const placed = await provider.placeOrder({
+          ...ETH_ORDER,
+          orderType: 'twap',
+          twapDuration: 30,
+        });
+        await disconnected;
+        await signL1Action();
 
-          // The retraction was refused, so the TWAP is reported as live.
-          expect(placed).toStrictEqual({
-            success: false,
-            error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
-            submittedSize: '1',
-            orderId: '987',
-          });
-          expect(twapCancel.mock.calls).toStrictEqual([[{ a: 1, t: 987 }]]);
-          expect(onAgentRejected.mock.calls).toStrictEqual([
-            [MAINNET_ACCOUNT, AGENT_ADDRESS],
-          ]);
-          // Dropped, so the next L1 action asks again.
-          expect(getAgentSigner.mock.calls).toStrictEqual([
-            [MAINNET_ACCOUNT],
-            [MAINNET_ACCOUNT],
-          ]);
-          expect(loggerError).not.toHaveBeenCalled();
-        },
-      );
+        // The stale context blocks the retraction before another signature,
+        // so the TWAP is reported as live and the agent remains cached.
+        expect(placed).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          submittedSize: '1',
+          orderId: '987',
+        });
+        expect(twapCancel).not.toHaveBeenCalled();
+        expect(onAgentRejected).not.toHaveBeenCalled();
+        expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
+        expect(loggerError).not.toHaveBeenCalled();
+      });
 
       it.each([
         [
