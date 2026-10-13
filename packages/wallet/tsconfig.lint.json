@@ -48,6 +48,9 @@
       "path": "../passkey-controller/tsconfig.lint.json"
     },
     {
+      "path": "../permission-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../remote-feature-flag-controller/tsconfig.lint.json"
     },
     {
