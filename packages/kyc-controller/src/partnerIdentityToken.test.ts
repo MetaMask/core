@@ -33,6 +33,18 @@ describe('getEmailFromPartnerIdentityToken', () => {
     );
   });
 
+  it('throws when the payload is not an object', () => {
+    expect(() =>
+      getEmailFromPartnerIdentityToken(unsignedJwt('not-an-object')),
+    ).toThrow(/payload is not an object/u);
+  });
+
+  it('throws when ext is not an object', () => {
+    expect(() =>
+      getEmailFromPartnerIdentityToken(unsignedJwt({ ext: null })),
+    ).toThrow(/has no ext object/u);
+  });
+
   it('throws when the payload is not JSON', () => {
     const payload = toBase64Url(new TextEncoder().encode('not-json'));
     expect(() =>

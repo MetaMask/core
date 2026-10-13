@@ -9,8 +9,8 @@ import { base64UrlToBytes } from './encoding.js';
  *
  * @param token - Compact JWT returned by AuthenticationController.
  * @returns The verified email claim.
- * @throws If the token is malformed, has no email claim, or
- * `ext.email_verified` is not `true`.
+ * @throws If the token is malformed, the payload or `ext` is not an object,
+ * the email claim is missing, or `ext.email_verified` is not `true`.
  */
 export function getEmailFromPartnerIdentityToken(token: string): string {
   const [, payloadSegment] = token.split('.');
@@ -29,14 +29,24 @@ export function getEmailFromPartnerIdentityToken(token: string): string {
     );
   }
 
-  const ext = isObject(payload) ? payload.ext : undefined;
-  const email = isObject(ext) ? ext.email : undefined;
+  if (!isObject(payload)) {
+    throw new Error(
+      'KycController: partner identity token payload is not an object',
+    );
+  }
+  const { ext } = payload;
+  if (!isObject(ext)) {
+    throw new Error(
+      'KycController: partner identity token payload has no ext object',
+    );
+  }
+  const { email, email_verified: emailVerified } = ext;
   if (typeof email !== 'string' || email.length === 0) {
     throw new Error(
       'KycController: partner identity token does not contain an email claim',
     );
   }
-  if (!isObject(ext) || ext.email_verified !== true) {
+  if (emailVerified !== true) {
     throw new Error(
       'KycController: partner identity token email is not verified',
     );
