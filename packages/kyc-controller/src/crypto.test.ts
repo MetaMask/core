@@ -50,8 +50,8 @@ function makeEnvelope(
 
 describe('crypto', () => {
   describe('generateKeyPair', () => {
-    it('produces a 32-byte keypair with a hex public key', () => {
-      const keypair = generateKeyPair();
+    it('produces a 32-byte keypair with a hex public key', async () => {
+      const keypair = await generateKeyPair();
       expect(keypair.privateKey).toHaveLength(32);
       expect(keypair.publicKey).toHaveLength(32);
       expect(keypair.publicKeyHex).toMatch(/^[0-9a-f]{64}$/u);
@@ -59,13 +59,13 @@ describe('crypto', () => {
   });
 
   describe('decryptCredentials', () => {
-    it('decrypts a hex-encoded envelope object', () => {
-      const keypair = generateKeyPair();
+    it('decrypts a hex-encoded envelope object', async () => {
+      const keypair = await generateKeyPair();
       const envelope = makeEnvelope(keypair.publicKey, {
         accessToken: 'access-1',
       });
 
-      const { credentials, method } = decryptCredentials(
+      const { credentials, method } = await decryptCredentials(
         envelope,
         keypair.privateKey,
       );
@@ -74,21 +74,24 @@ describe('crypto', () => {
       expect(method).toBe('aes-256-gcm/hkdf-sha256');
     });
 
-    it('decrypts a base64-encoded envelope', () => {
-      const keypair = generateKeyPair();
+    it('decrypts a base64-encoded envelope', async () => {
+      const keypair = await generateKeyPair();
       const envelope = makeEnvelope(
         keypair.publicKey,
         { clientToken: 'client-1' },
         { encoding: 'base64' },
       );
 
-      const { credentials } = decryptCredentials(envelope, keypair.privateKey);
+      const { credentials } = await decryptCredentials(
+        envelope,
+        keypair.privateKey,
+      );
 
       expect(credentials.clientToken).toBe('client-1');
     });
 
-    it('honors an explicit base64 encoding hint', () => {
-      const keypair = generateKeyPair();
+    it('honors an explicit base64 encoding hint', async () => {
+      const keypair = await generateKeyPair();
       const envelope = makeEnvelope(
         keypair.publicKey,
         { accessToken: 'access-2' },
@@ -96,31 +99,37 @@ describe('crypto', () => {
       );
       envelope.encoding = 'base64';
 
-      const { credentials } = decryptCredentials(envelope, keypair.privateKey);
+      const { credentials } = await decryptCredentials(
+        envelope,
+        keypair.privateKey,
+      );
 
       expect(credentials.accessToken).toBe('access-2');
     });
 
-    it('accepts a `nonce` field as an alias for `iv`', () => {
-      const keypair = generateKeyPair();
+    it('accepts a `nonce` field as an alias for `iv`', async () => {
+      const keypair = await generateKeyPair();
       const envelope = makeEnvelope(
         keypair.publicKey,
         { accessToken: 'access-3' },
         { useNonceField: true },
       );
 
-      const { credentials } = decryptCredentials(envelope, keypair.privateKey);
+      const { credentials } = await decryptCredentials(
+        envelope,
+        keypair.privateKey,
+      );
 
       expect(credentials.accessToken).toBe('access-3');
     });
 
-    it('decrypts an envelope delivered as a JSON string', () => {
-      const keypair = generateKeyPair();
+    it('decrypts an envelope delivered as a JSON string', async () => {
+      const keypair = await generateKeyPair();
       const envelope = makeEnvelope(keypair.publicKey, {
         accessToken: 'access-4',
       });
 
-      const { credentials } = decryptCredentials(
+      const { credentials } = await decryptCredentials(
         JSON.stringify(envelope),
         keypair.privateKey,
       );
@@ -128,14 +137,14 @@ describe('crypto', () => {
       expect(credentials.accessToken).toBe('access-4');
     });
 
-    it('decrypts an envelope delivered as base64(JSON)', () => {
-      const keypair = generateKeyPair();
+    it('decrypts an envelope delivered as base64(JSON)', async () => {
+      const keypair = await generateKeyPair();
       const envelope = makeEnvelope(keypair.publicKey, {
         accessToken: 'access-5',
       });
       const base64Json = base64.encode(utf8ToBytes(JSON.stringify(envelope)));
 
-      const { credentials } = decryptCredentials(
+      const { credentials } = await decryptCredentials(
         base64Json,
         keypair.privateKey,
       );
@@ -143,64 +152,64 @@ describe('crypto', () => {
       expect(credentials.accessToken).toBe('access-5');
     });
 
-    it('throws for a JSON string that fails to parse', () => {
-      const keypair = generateKeyPair();
-      expect(() =>
+    it('throws for a JSON string that fails to parse', async () => {
+      const keypair = await generateKeyPair();
+      expect(
         decryptCredentials('{ not valid json', keypair.privateKey),
-      ).toThrow(/looked like JSON but failed to parse/u);
+      ).rejects.toThrow(/looked like JSON but failed to parse/u);
     });
 
-    it('throws for base64 that decodes to non-JSON starting with a brace', () => {
-      const keypair = generateKeyPair();
+    it('throws for base64 that decodes to non-JSON starting with a brace', async () => {
+      const keypair = await generateKeyPair();
       const bad = base64.encode(utf8ToBytes('{ still not json'));
-      expect(() => decryptCredentials(bad, keypair.privateKey)).toThrow(
+      expect(decryptCredentials(bad, keypair.privateKey)).rejects.toThrow(
         /base64-decoded to non-JSON/u,
       );
     });
 
-    it('throws for an opaque string that is neither JSON nor base64(JSON)', () => {
-      const keypair = generateKeyPair();
+    it('throws for an opaque string that is neither JSON nor base64(JSON)', async () => {
+      const keypair = await generateKeyPair();
       const bad = base64.encode(utf8ToBytes('hello world'));
-      expect(() => decryptCredentials(bad, keypair.privateKey)).toThrow(
+      expect(decryptCredentials(bad, keypair.privateKey)).rejects.toThrow(
         /opaque string/u,
       );
     });
 
-    it('throws when a non-JSON string fails base64 decoding', () => {
-      const keypair = generateKeyPair();
-      expect(() =>
+    it('throws when a non-JSON string fails base64 decoding', async () => {
+      const keypair = await generateKeyPair();
+      await expect(
         decryptCredentials('not-decryptable', keypair.privateKey),
-      ).toThrow(/opaque string/u);
+      ).rejects.toThrow(/opaque string/u);
     });
 
-    it('throws for an object missing required fields', () => {
-      const keypair = generateKeyPair();
-      expect(() =>
+    it('throws for an object missing required fields', async () => {
+      const keypair = await generateKeyPair();
+      expect(
         decryptCredentials(
           { ephemeralPublicKey: 'aa' } as EncryptedCredentialsEnvelope,
           keypair.privateKey,
         ),
-      ).toThrow(/missing required fields/u);
+      ).rejects.toThrow(/missing required fields/u);
     });
 
-    it('reports the value type for a non-object input', () => {
-      const keypair = generateKeyPair();
-      expect(() =>
+    it('reports the value type for a non-object input', async () => {
+      const keypair = await generateKeyPair();
+      expect(
         decryptCredentials(
           123 as unknown as EncryptedCredentialsEnvelope,
           keypair.privateKey,
         ),
-      ).toThrow(/Got: number/u);
+      ).rejects.toThrow(/Got: number/u);
     });
 
-    it('throws when the IV length is not 12 bytes', () => {
-      const keypair = generateKeyPair();
+    it('throws when the IV length is not 12 bytes', async () => {
+      const keypair = await generateKeyPair();
       const envelope = makeEnvelope(
         keypair.publicKey,
         { accessToken: 'x' },
         { ivLength: 16 },
       );
-      expect(() => decryptCredentials(envelope, keypair.privateKey)).toThrow(
+      expect(decryptCredentials(envelope, keypair.privateKey)).rejects.toThrow(
         /Unexpected IV length 16/u,
       );
     });
