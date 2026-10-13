@@ -8,7 +8,8 @@
 
 import * as core from '@actions/core';
 import { context, getOctokit } from '@actions/github';
-import { Duration, getErrorMessage, inMilliseconds } from '@metamask/utils';
+
+import { getErrorMessage } from './lib/utils.ts';
 
 /**
  * The label users can use to prevent stale release PRs from being auto-closed.
@@ -23,7 +24,7 @@ const STALE_DURATION_HOURS = 3;
 /**
  * How long inactive release PRs stay open before auto-close (milliseconds).
  */
-const STALE_DURATION_MS = inMilliseconds(STALE_DURATION_HOURS, Duration.Hour);
+const STALE_DURATION_MS = STALE_DURATION_HOURS * 3_600_000;
 
 const PULL_REQUEST_SNAPSHOT_QUERY = `
   query ($owner: String!, $repo: String!, $number: Int!) {
@@ -194,7 +195,7 @@ function evaluateStaleEligibility({
   const updatedAtMs = Date.parse(pullRequest.updatedAt);
   if (updatedAtMs >= staleBefore) {
     core.info(
-      `Skipping #${pullRequest.number} (${ref}): has not reached stale age of ${STALE_DURATION_HOURS}h yet (updated ${Math.round((Date.now() - updatedAtMs) / Duration.Minute)}m ago)`,
+      `Skipping #${pullRequest.number} (${ref}): has not reached stale age of ${STALE_DURATION_HOURS}h yet (updated ${Math.round((Date.now() - updatedAtMs) / 60_000)}m ago)`,
     );
     return { eligible: false };
   }
@@ -412,7 +413,7 @@ async function processReleasePr({
     return;
   }
 
-  const inactiveHours = (eligibility.ageMs / Duration.Hour).toFixed(1);
+  const inactiveHours = (eligibility.ageMs / 3_600_000).toFixed(1);
 
   // Close before commenting so a failed close does not bump updatedAt.
   const closed = await closePullRequest(

@@ -267,7 +267,7 @@ async function submitRelayAfterFiatCompletion({
 
   const baseRequest = fiatQuote.request;
 
-  const { amountRaw: sourceAmountRaw } = await resolveSourceAmountRaw({
+  const sourceAmountRaw = await resolveSourceAmountRaw({
     messenger,
     order,
     fiatAsset,

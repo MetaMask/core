@@ -43,6 +43,7 @@ export const ProfileServiceErrorMessage = {
   GET_X_AUTH_URL_FAILED: 'ProfileService: failed to get X authentication URL',
   CONNECT_X_FAILED: 'ProfileService: failed to connect X account',
   GET_X_ACCOUNT_FAILED: 'ProfileService: failed to get X account',
+  DISCONNECT_X_FAILED: 'ProfileService: failed to disconnect X account',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -57,7 +58,7 @@ const ProfileApiResponseStruct = structType({
   display_name: string(),
   bio: nullable(string()),
   linked_addresses: array(CaipAccountIdStruct),
-  avatar_url: nullable(string()),
+  avatar_url: string(),
   trading_privacy: TradingPrivacyStruct,
   connected_to_x: boolean(),
   created_at: string(),
@@ -82,7 +83,7 @@ const XAuthUrlResponseStruct = structType({
   state: sensitive(string()),
 });
 
-const XConnectResponseStruct = structType({
+const ConnectXResponseStruct = structType({
   x_user_id: string(),
   x_profile_url: string(),
   username: string(),
@@ -94,7 +95,7 @@ const XConnectResponseStruct = structType({
 
 const CreateProfileResponseStruct = intersection([
   ProfileApiResponseStruct,
-  structType({ x_profile: optional(XConnectResponseStruct) }),
+  structType({ x_profile: optional(ConnectXResponseStruct) }),
 ]);
 
 const ConnectXParamsStruct = structType({
@@ -144,6 +145,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getXAuthUrl',
   'connectX',
   'getXAccount',
+  'disconnectX',
 ] as const;
 
 /** The shape of a profile returned by the MetaMask Profile API. */
@@ -158,13 +160,13 @@ export type UsernameAvailabilityResponse = Infer<
 >;
 
 /** The response shape returned when connecting or fetching an X account. */
-export type XConnectResponse = Infer<typeof XConnectResponseStruct>;
+export type ConnectXResponse = Infer<typeof ConnectXResponseStruct>;
 
 /** The response shape returned when requesting the X OAuth authentication URL. */
 export type XAuthUrlResponse = Infer<typeof XAuthUrlResponseStruct>;
 
-/** Alias for {@link XConnectResponse} returned when fetching the linked X account. */
-export type XAccountResponse = XConnectResponse;
+/** Alias for {@link ConnectXResponse} returned when fetching the linked X account. */
+export type XAccountResponse = ConnectXResponse;
 
 /** Parameters for creating a new MetaMask profile. */
 export type CreateProfileParams = Infer<typeof CreateProfileParamsStruct>;
@@ -478,6 +480,7 @@ export class ProfileService extends BaseDataService<
 
   /**
    * Fetches the X OAuth PKCE authorization URL and its associated state parameter.
+   * The profile is resolved server-side from the verified bearer token.
    *
    * @returns An object containing the authorization URL and the state token.
    * @throws {HttpError} If the API returns a non-2xx response.
@@ -496,27 +499,33 @@ export class ProfileService extends BaseDataService<
 
   /**
    * Completes the X OAuth PKCE flow and links the X account to the profile.
+   * The profile is resolved server-side from the verified bearer token.
    *
    * @param params - The OAuth callback code and state from the X redirect.
    * @returns The linked X account data.
    * @throws {HttpError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
-  async connectX(params: ConnectXParams): Promise<XConnectResponse> {
-    return this.executeMutation({
+  async connectX(params: ConnectXParams): Promise<ConnectXResponse> {
+    const response = await this.executeMutation({
       mutationKey: [`${this.name}:connectX`],
-      responseStruct: XConnectResponseStruct,
+      responseStruct: ConnectXResponseStruct,
       mutationFn: async () =>
-        this.#fetch<XConnectResponse>('profiles/x/connect', {
+        this.#fetch<ConnectXResponse>('profiles/x/connect', {
           method: 'POST',
           error: ProfileServiceErrorMessage.CONNECT_X_FAILED,
           json: params,
         }),
     });
+    // The response does not identify the profile, so drop every cached
+    // profile: `connected_to_x` is now out of date.
+    await this.invalidateQueries({ queryKey: [`${this.name}:getProfile`] });
+    return response;
   }
 
   /**
    * Fetches the X account currently linked to the authenticated profile.
+   * The profile is resolved server-side from the verified bearer token.
    *
    * @returns The linked X account data.
    * @throws {HttpError} If the API returns a non-2xx response.
@@ -526,11 +535,46 @@ export class ProfileService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getXAccount`],
       staleTime: 0,
-      responseStruct: XConnectResponseStruct,
+      responseStruct: ConnectXResponseStruct,
       queryFn: async () =>
-        this.#fetch<XConnectResponse>('profiles/x/account', {
+        this.#fetch<ConnectXResponse>('profiles/x/account', {
           error: ProfileServiceErrorMessage.GET_X_ACCOUNT_FAILED,
         }),
+    });
+  }
+
+  /**
+   * Disconnects the X account linked to the given profile.
+   * A `404` response is treated as success (the X account is already
+   * disconnected, or the profile is unknown), making the operation idempotent.
+   *
+   * @param profileId - The ID of the profile to disconnect the linked X account from.
+   * @returns The result of the mutation.
+   * @throws {HttpError} If the API returns a non-2xx response other than `404`.
+   */
+  async disconnectX(profileId: string): Promise<void> {
+    await this.executeMutation({
+      mutationKey: [`${this.name}:disconnectX`, profileId],
+      mutationFn: async () => {
+        try {
+          return await this.#fetch(
+            `profiles/${encodeURIComponent(profileId)}/x`,
+            {
+              method: 'DELETE',
+              error: ProfileServiceErrorMessage.DISCONNECT_X_FAILED,
+            },
+          );
+        } catch (error) {
+          if (error instanceof HttpError && error.httpStatus === 404) {
+            return null;
+          }
+          throw error;
+        }
+      },
+    });
+    // The cached profile no longer reflects `connected_to_x`.
+    await this.invalidateQueries({
+      queryKey: [`${this.name}:getProfile`, profileId],
     });
   }
 }

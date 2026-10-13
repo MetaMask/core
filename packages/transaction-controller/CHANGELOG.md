@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/rpc-errors` from `^7.0.2` to `^7.0.3` ([#10718](https://github.com/MetaMask/core/pull/10718))
+- Bump `@metamask/core-backend` from `^12.0.1` to `^12.1.0` ([#10788](https://github.com/MetaMask/core/pull/10788))
 
 ## [72.2.0]
 
