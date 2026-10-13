@@ -106,6 +106,9 @@ sequenceDiagram
   M->>M: persist receipts
   alt all receipts valid
     M->>M: clear pending → idle
+  else every escrow rejects and none has a receipt
+    M->>M: clear pending → idle
+    M-->>C: MutationRejectedError (start a new mutation)
   else some replicas missing
     M-->>C: IncompleteMutationError (call resume)
   end

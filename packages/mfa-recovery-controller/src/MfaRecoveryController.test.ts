@@ -20,7 +20,10 @@ import {
   hash,
   unixNow,
 } from './crypto.js';
-import { IncompleteMutationError } from './errors.js';
+import {
+  IncompleteMutationError,
+  MutationRejectedError,
+} from './errors.js';
 import type {
   MfaRecoveryControllerMessenger,
   MfaRecoveryControllerOptions,
@@ -227,8 +230,14 @@ describe('MfaRecoveryController', () => {
         await controller.register(SECRET, IDENTIFIERS);
         await expect(
           controller.register(SECRET, IDENTIFIERS),
-        ).rejects.toBeInstanceOf(IncompleteMutationError);
-        expect(await controller.getPhase()).toBe('writing');
+        ).rejects.toBeInstanceOf(MutationRejectedError);
+        expect(await controller.getPhase()).toBe('idle');
+        await controller.updateRecoverySecret(
+          PASSKEY,
+          SECRET_2,
+          REGISTERED_EPOCH,
+        );
+        expect(await controller.getPhase()).toBe('idle');
       });
     });
 
@@ -600,14 +609,36 @@ describe('MfaRecoveryController', () => {
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
         expect(await controller.getPhase()).toBe('writing');
+        await expect(controller.abort()).rejects.toThrow(
+          'Cannot abort a mutation that may have been applied',
+        );
       });
     });
 
-    it('cannot abort a writing mutation', async () => {
+    it('drops an update every escrow rejects for a stale epoch', async () => {
       await withController(async ({ controller }) => {
         await controller.register(SECRET, IDENTIFIERS);
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, 0),
+        ).rejects.toBeInstanceOf(MutationRejectedError);
+        expect(await controller.getPhase()).toBe('idle');
+        await controller.updateRecoverySecret(
+          PASSKEY,
+          SECRET_2,
+          REGISTERED_EPOCH,
+        );
+        expect(
+          bytesToHex((await recover(controller, PASSKEY)).recoverySecret),
+        ).toBe(bytesToHex(SECRET_2));
+      });
+    });
+
+    it('cannot abort a writing mutation that may have been applied', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
         expect(await controller.getPhase()).toBe('writing');
         await expect(controller.abort()).rejects.toThrow(
@@ -693,6 +724,46 @@ describe('MfaRecoveryController', () => {
         expect(await controller.getPhase()).toBe('idle');
         const recovered = await recover(controller, PASSKEY);
         expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET_2));
+      });
+    });
+
+    it('clears a persisted writing mutation that every escrow rejects', async () => {
+      await withController(async ({ controller, escrowA, escrowB, options }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        const pending = await getValidWritingPending([escrowA, escrowB], 0);
+        const resumed = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          state: {
+            pendingOperation: await passthroughEncryptor.encrypt(pending),
+          },
+        });
+
+        await expect(resumed.resume()).rejects.toBeInstanceOf(
+          MutationRejectedError,
+        );
+        expect(await resumed.getPhase()).toBe('idle');
+        await resumed.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH);
+        expect(await resumed.getPhase()).toBe('idle');
+      });
+    });
+
+    it('keeps a writing mutation that one escrow already acknowledged', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+        escrowA.patchRecord('profile-1', { version: 9 });
+
+        await expect(controller.resume()).rejects.toBeInstanceOf(
+          IncompleteMutationError,
+        );
+        expect(await controller.getPhase()).toBe('writing');
+        await expect(controller.abort()).rejects.toThrow(
+          'Cannot abort a mutation that may have been applied',
+        );
       });
     });
 
@@ -1546,6 +1617,7 @@ async function recover(
 
 async function getValidWritingPending(
   escrows: RecoveryEscrowProvider[],
+  expectedVersion = 1,
 ): Promise<WritingPendingOperation> {
   const payload = {
     recoverySecret: bytesToHex(SECRET_2),
@@ -1555,8 +1627,8 @@ async function getValidWritingPending(
     id: '0xvalid-pending',
     profileId: 'profile-1',
     operation: 'updateRecoverySecret' as const,
-    expectedVersion: 1,
-    newVersion: 2,
+    expectedVersion,
+    newVersion: expectedVersion + 1,
     payloadHash,
     audiences: escrows.map((escrow) => escrow.id),
   };

@@ -10,7 +10,7 @@ import {
   verifySignature,
   wrapKeyId,
 } from '../crypto.js';
-import { MfaRecoveryError } from '../errors.js';
+import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
 import { isMutationReceipt } from '../escrow-utils.js';
 import type {
   AuthControllerToken,
@@ -149,6 +149,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
         payload,
       },
       parseReceipt,
+      true, // a policy Deny did not apply the mutation
     );
   }
 
@@ -192,6 +193,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     cmd: string,
     body: Record<string, unknown>,
     parse: (value: unknown) => Result,
+    denyIsRejection = false,
   ): Promise<Result> {
     let invocation: InvokePolicyResponse;
     try {
@@ -208,6 +210,9 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     }
     const policy = invocation.response;
     if (policy.response !== 'Allow') {
+      if (denyIsRejection && policy.response === 'Deny') {
+        throw new MutationRejectedError(policy.reason);
+      }
       throw new MfaRecoveryError(
         policy.response === 'Deny' ? policy.reason : policy.error,
         'escrow_request_failed',

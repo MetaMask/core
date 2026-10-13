@@ -119,8 +119,10 @@ sequenceDiagram
 | `updateRecoverySecret` | the identifier argument | 2FA              | secret               |
 | `updateIdentifiers`    | the identifier argument | 2FA, identifiers | identifiers          |
 
-If `applyMutation` fails, the controller keeps the pending mutation and throws
-`incomplete_mutation`; call `resume()` to finish it.
+If an escrow refuses the mutation (`MutationRejectedError`) and every replica
+does the same, the controller clears the pending mutation. A transport failure
+or a partial receipt keeps it and throws `incomplete_mutation`; call `resume()`
+to finish that write.
 
 ## Proof of possession
 
