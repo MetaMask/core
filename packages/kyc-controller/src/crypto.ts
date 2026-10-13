@@ -19,11 +19,13 @@
  * unchanged on mobile, extension, and web.
  */
 
-import { gcm } from '@noble/ciphers/aes';
-import { x25519 } from '@noble/curves/ed25519';
-import { hkdf } from '@noble/hashes/hkdf';
-import { sha256 } from '@noble/hashes/sha2';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { decrypt } from '@metamask/cryptography/aes-gcm';
+import { hkdfSha256 } from '@metamask/cryptography/hkdf';
+import {
+  getSharedSecret,
+  generateKeyPair as nativeGenerateKeyPair,
+} from '@metamask/cryptography/x25519';
+import { bytesToHex, hexToBytes } from '@metamask/utils';
 
 import { base64UrlToBytes } from './encoding.js';
 
@@ -32,9 +34,9 @@ import { base64UrlToBytes } from './encoding.js';
  */
 export type X25519KeyPair = {
   /** Raw 32-byte X25519 private (scalar) key. Never leaves the device. */
-  privateKey: Uint8Array;
+  privateKey: Uint8Array<ArrayBuffer>;
   /** Raw 32-byte X25519 public key. */
-  publicKey: Uint8Array;
+  publicKey: Uint8Array<ArrayBuffer>;
   /** Hex-encoded public key, ready to drop into a Check/Auth frame URL. */
   publicKeyHex: string;
 };
@@ -83,9 +85,8 @@ export type DecryptResult = {
  *
  * @returns The generated keypair.
  */
-export function generateKeyPair(): X25519KeyPair {
-  const privateKey = x25519.utils.randomSecretKey();
-  const publicKey = x25519.getPublicKey(privateKey);
+export async function generateKeyPair(): Promise<X25519KeyPair> {
+  const { privateKey, publicKey } = await nativeGenerateKeyPair();
   return {
     privateKey,
     publicKey,
@@ -100,7 +101,10 @@ export function generateKeyPair(): X25519KeyPair {
  * @param encoding - Optional explicit encoding; auto-detected when omitted.
  * @returns The decoded bytes.
  */
-function decodeBinary(value: string, encoding?: 'hex' | 'base64'): Uint8Array {
+function decodeBinary(
+  value: string,
+  encoding?: 'hex' | 'base64',
+): Uint8Array<ArrayBuffer> {
   const isHex =
     encoding === 'hex' ||
     (encoding === undefined && /^[0-9a-fA-F]+$/u.test(value));
@@ -189,15 +193,15 @@ function normalizeEnvelope(
  * @param ourPrivateKey - Our X25519 private key.
  * @returns The decrypted credentials and method.
  */
-function aesGcmDecrypt(
-  theirPublicKey: Uint8Array,
-  iv: Uint8Array,
-  ciphertext: Uint8Array,
-  ourPrivateKey: Uint8Array,
-): DecryptResult {
-  const shared = x25519.getSharedSecret(ourPrivateKey, theirPublicKey);
-  const key = hkdf(sha256, shared, undefined, undefined, 32);
-  const plaintext = gcm(key, iv).decrypt(ciphertext);
+async function aesGcmDecrypt(
+  theirPublicKey: Uint8Array<ArrayBuffer>,
+  iv: Uint8Array<ArrayBuffer>,
+  ciphertext: Uint8Array<ArrayBuffer>,
+  ourPrivateKey: Uint8Array<ArrayBuffer>,
+): Promise<DecryptResult> {
+  const shared = await getSharedSecret(ourPrivateKey, theirPublicKey);
+  const key = await hkdfSha256(shared, new Uint8Array(), new Uint8Array(), 32);
+  const plaintext = await decrypt(key, iv, ciphertext);
   const text = new TextDecoder().decode(plaintext);
   return {
     credentials: JSON.parse(text) as DecryptedCredentials,
@@ -214,10 +218,10 @@ function aesGcmDecrypt(
  * @returns The parsed credentials and the method that authenticated.
  * @throws If the envelope is malformed or the IV length is not 12 bytes.
  */
-export function decryptCredentials(
+export async function decryptCredentials(
   rawEnvelope: EncryptedCredentialsEnvelope | string,
-  ourPrivateKey: Uint8Array,
-): DecryptResult {
+  ourPrivateKey: Uint8Array<ArrayBuffer>,
+): Promise<DecryptResult> {
   const envelope = normalizeEnvelope(rawEnvelope);
   const theirPublicKey = decodeBinary(
     envelope.ephemeralPublicKey,
