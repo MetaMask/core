@@ -1513,6 +1513,42 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_REJECTED);
     });
 
+    it('corrects account support when every rung is rejected for multi-signature', async () => {
+      useStrategyClients({
+        exchange: {
+          order: vi.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  { error: 'Multi-sig required' },
+                  { error: 'Multi-sig required' },
+                  { error: 'Multi-sig required' },
+                ],
+              },
+            },
+          }),
+        },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      expect(await provider.getAccountSupport()).toStrictEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+    });
+
     it.each([
       ['missing', undefined],
       ['non-array', { resting: { oid: 11 } }],
@@ -1546,7 +1582,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         .mockResolvedValueOnce({
           status: 'ok',
           response: {
-            data: { statuses: [{ error: 'multi-sig required' }] },
+            data: { statuses: [{ error: 'cancel refused' }] },
           },
         })
         .mockResolvedValueOnce({
@@ -1642,6 +1678,48 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ],
       });
       expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+    });
+
+    it('corrects account support when Scale cancellation requires multi-signature', async () => {
+      useStrategyClients({
+        exchange: {
+          order: vi.fn().mockResolvedValue(scaleStatuses),
+          cancel: vi.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  { error: 'Multi-sig required' },
+                  { error: 'Multi-sig required' },
+                  { error: 'Multi-sig required' },
+                ],
+              },
+            },
+          }),
+        },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+      const result = await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'ETH',
+        orderType: 'scale',
+      });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
+      });
+      expect(await provider.getAccountSupport()).toStrictEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
     });
 
     it('does not restore a canceled group from a stale open-order cache', async () => {
@@ -1874,7 +1952,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ok',
           response: {
             data: {
-              statuses: ['success', { error: 'multi-sig required' }, 'success'],
+              statuses: ['success', { error: 'cancel refused' }, 'success'],
             },
           },
         })

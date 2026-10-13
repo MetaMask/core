@@ -2172,7 +2172,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
           cancel: vi.fn().mockResolvedValue({
             status: 'ok',
-            response: { data: { statuses: [{ error: 'multi-sig required' }] } },
+            response: { data: { statuses: [{ error: 'cancel refused' }] } },
           }),
         },
       });
@@ -2213,7 +2213,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
-          response: { data: { statuses: [{ error: 'multi-sig required' }] } },
+          response: { data: { statuses: [{ error: 'cancel refused' }] } },
         })
         .mockResolvedValue({
           status: 'ok',

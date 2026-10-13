@@ -794,7 +794,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
-          response: { data: { statuses: [{ error: 'multi-sig required' }] } },
+          response: { data: { statuses: [{ error: 'cancel refused' }] } },
         })
         .mockResolvedValue({
           status: 'ok',
@@ -838,7 +838,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       vi.useFakeTimers();
       const cancel = vi.fn().mockResolvedValue({
         status: 'ok',
-        response: { data: { statuses: [{ error: 'multi-sig required' }] } },
+        response: { data: { statuses: [{ error: 'cancel refused' }] } },
       });
       useStrategyClients({
         exchange: { order: vi.fn().mockResolvedValue(chaseRested), cancel },
