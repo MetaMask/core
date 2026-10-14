@@ -9,21 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [20.1.0]
 
-### Uncategorized
-
-- Release 1331.0.0 ([#10817](https://github.com/MetaMask/core/pull/10817))
-- Release 1328.0.0 ([#10810](https://github.com/MetaMask/core/pull/10810))
-- chore(dev-deps): bump `oxfmt` from `^0.44.0` to `^0.72.0` ([#10785](https://github.com/MetaMask/core/pull/10785))
-- chore: bump accounts deps ([#10792](https://github.com/MetaMask/core/pull/10792))
-- Release 1323.0.0 ([#10772](https://github.com/MetaMask/core/pull/10772))
-- chore(deps): update dependency typedoc-plugin-missing-exports to v4 ([#10762](https://github.com/MetaMask/core/pull/10762))
-- chore(deps): update dependency typedoc-plugin-missing-exports to ^2.3.0 ([#10710](https://github.com/MetaMask/core/pull/10710))
-- fix(deps): update dependency @metamask/keyring-internal-api to ^12.1.0 ([#10733](https://github.com/MetaMask/core/pull/10733))
-- Release/1321.0.0 ([#10761](https://github.com/MetaMask/core/pull/10761))
-- Release/1319.0.0 ([#10756](https://github.com/MetaMask/core/pull/10756))
-- Release/1318.0.0 ([#10752](https://github.com/MetaMask/core/pull/10752))
-- chore(deps): update dependency typedoc to ^0.28.20 ([#10731](https://github.com/MetaMask/core/pull/10731))
-
 ### Added
 
 - Add `PERPS_EVENT_VALUE.SECTION_NAME.EXPLORE` (`explore`) and `RECENTLY_ADDED` (`recently_added`) so home impressions for the Explore table and the Recently added rail use controller constants ([#10824](https://github.com/MetaMask/core/pull/10824))
