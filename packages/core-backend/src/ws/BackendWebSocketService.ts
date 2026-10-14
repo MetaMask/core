@@ -445,29 +445,36 @@ export class BackendWebSocketService {
   }
 
   /**
-   * Stop connection attempts, optionally closing the socket.
-   *
-   * The handshake timeout stays in place unless the socket is closed, so a
-   * hung CONNECTING socket can still abort.
-   *
-   * @param closeSocket - Whether to close an open or in-flight socket.
+   * Drop a queued reconnect and start the backoff over.
+   * Does not close an open or in-flight socket.
    */
-  #blockConnection(closeSocket: boolean): void {
+  #clearReconnectSchedule(): void {
     if (this.#reconnectTimer) {
       clearTimeout(this.#reconnectTimer);
       this.#reconnectTimer = null;
     }
-    // Drop the handshake timeout only when the socket itself is closed.
-    // Otherwise a hung CONNECTING socket would have no abort.
-    if (closeSocket && this.#connectionTimeout) {
-      clearTimeout(this.#connectionTimeout);
-      this.#connectionTimeout = null;
-    }
     this.#reconnectAttempts = 0;
     this.#newBackoff();
-    if (closeSocket) {
-      this.disconnect();
+  }
+
+  /**
+   * Stop a connection that the gates no longer allow.
+   *
+   * Basic Functionality closes the socket. A disabled feature flag only
+   * cancels a queued reconnect and leaves an open socket in place.
+   *
+   * @returns True when the caller should not open a socket.
+   */
+  #stopDisallowedConnection(): boolean {
+    if (this.#isConnectionAllowed()) {
+      return false;
     }
+    if (!this.#isBasicFunctionality()) {
+      this.disconnect();
+      return true;
+    }
+    this.#clearReconnectSchedule();
+    return true;
   }
 
   /**
@@ -546,8 +553,7 @@ export class BackendWebSocketService {
     // Priority 1: Feature flag and Basic Functionality must both allow the socket.
     // If either gate is closed, stop attempts. Only Basic Functionality also
     // drops an open connection; a disabled feature flag keeps it as before.
-    if (!this.#isConnectionAllowed()) {
-      this.#blockConnection(!this.#isBasicFunctionality());
+    if (this.#stopDisallowedConnection()) {
       return;
     }
 
@@ -596,8 +602,7 @@ export class BackendWebSocketService {
       }
 
       // Basic Functionality may have turned off while awaiting the token
-      if (!this.#isConnectionAllowed()) {
-        this.#blockConnection(!this.#isBasicFunctionality());
+      if (this.#stopDisallowedConnection()) {
         return;
       }
 
@@ -622,12 +627,13 @@ export class BackendWebSocketService {
   }
 
   /**
-   * Closes the WebSocket connection and cancels a queued reconnect.
+   * Closes the WebSocket and cancels a queued reconnect.
    *
    * The timer is cleared before the early return. Lock, sign-out, and Basic
    * Functionality off all call this, including when the socket is already gone
    * and `onclose` will not run. `clearTimeout` has to run first: assigning
-   * `#reconnectTimer` to null leaves the callback scheduled.
+   * `#reconnectTimer` to null leaves the callback scheduled. A socket still in
+   * CONNECTING is `#pendingWebSocket`, so this closes that too.
    */
   disconnect(): void {
     if (this.#reconnectTimer) {
@@ -638,6 +644,13 @@ export class BackendWebSocketService {
     const socket = this.#ws ?? this.#pendingWebSocket;
     if (!socket || this.#state === WebSocketState.DISCONNECTED) {
       return;
+    }
+
+    // This close replaces the handshake timeout. A timeout close would not
+    // set the manual-close flag.
+    if (this.#connectionTimeout) {
+      clearTimeout(this.#connectionTimeout);
+      this.#connectionTimeout = null;
     }
 
     // Remember the local abort before close(). An open socket reports code 4999.
@@ -1497,8 +1510,7 @@ export class BackendWebSocketService {
       this.#reconnectTimer = null;
 
       // Check if connection is still allowed before reconnecting
-      if (!this.#isConnectionAllowed()) {
-        this.#blockConnection(!this.#isBasicFunctionality());
+      if (this.#stopDisallowedConnection()) {
         return;
       }
 
