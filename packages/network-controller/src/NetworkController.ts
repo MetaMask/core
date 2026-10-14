@@ -143,10 +143,15 @@ const CustomNetworkClientIdStruct = string();
  */
 export type CustomNetworkClientId = Infer<typeof CustomNetworkClientIdStruct>;
 
+const NetworkClientIdStruct = union([
+  BuiltInNetworkClientIdStruct,
+  CustomNetworkClientIdStruct,
+]);
+
 /**
  * The string that uniquely identifies a network client.
  */
-export type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
+export type NetworkClientId = Infer<typeof NetworkClientIdStruct>;
 
 const InfuraRpcEndpointUrlStruct =
   define<`https://${InfuraNetworkType}.infura.io/v3/{infuraProjectId}`>(
@@ -323,7 +328,10 @@ const NetworkMetadataStruct = superstructObject({
  */
 export type NetworkMetadata = Infer<typeof NetworkMetadataStruct>;
 
-const NetworksMetadataStruct = record(string(), NetworkMetadataStruct);
+const NetworksMetadataStruct = record(
+  NetworkClientIdStruct,
+  NetworkMetadataStruct,
+);
 
 /**
  * Extra information about each network, such as whether it is accessible or
@@ -419,7 +427,7 @@ const NetworkStateStruct = superstructObject({
    * The ID of the network client that the proxies returned by
    * `getSelectedNetworkClient` currently point to.
    */
-  selectedNetworkClientId: string(),
+  selectedNetworkClientId: NetworkClientIdStruct,
   /**
    * The registry of networks and corresponding RPC endpoints that the
    * controller can use to make requests for various chains.
