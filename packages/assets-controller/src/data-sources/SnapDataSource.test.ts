@@ -792,7 +792,7 @@ describe('SnapDataSource', () => {
       }),
     });
     mockHandleRequest.mockImplementation(
-      (params: { request?: { method: string } }) => {
+      (params: SnapHandleRequestArgument) => {
         if (params.request?.method === 'keyring_listAccountAssets') {
           return Promise.resolve([MOCK_SOL_ASSET]);
         }
@@ -1405,7 +1405,9 @@ describe('SnapDataSource', () => {
     });
     await new Promise(process.nextTick);
 
-    const next = jest.fn((_middlewareContext: Context) => Promise.resolve());
+    const next = jest.fn((middlewareContext: Context) =>
+      Promise.resolve(middlewareContext),
+    );
     const context = createMiddlewareContext({
       request: createDataRequest({
         chainIds: [SOLANA_MAINNET, CHAIN_MAINNET],
