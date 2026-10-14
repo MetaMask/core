@@ -25,7 +25,13 @@ export type BackendWebSocketServiceConnectAction = {
 };
 
 /**
- * Closes WebSocket connection
+ * Closes the WebSocket and cancels a queued reconnect.
+ *
+ * The timer is cleared before the early return. Lock, sign-out, and Basic
+ * Functionality off all call this, including when the socket is already gone
+ * and `onclose` will not run. `clearTimeout` has to run first: assigning
+ * `#reconnectTimer` to null leaves the callback scheduled. A socket still in
+ * CONNECTING is `#pendingWebSocket`, so this closes that too.
  */
 export type BackendWebSocketServiceDisconnectAction = {
   type: `BackendWebSocketService:disconnect`;
