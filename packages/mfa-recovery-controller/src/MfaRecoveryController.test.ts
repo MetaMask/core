@@ -487,11 +487,11 @@ describe('MfaRecoveryController', () => {
 
           expect(await escrowA.getRecoveryMetadata('profile-1')).toStrictEqual({
             version: 1,
-            lastMutationId: expect.any(String),
+            lastMutationId: expect.any(String) as string,
           });
           expect(await escrowB.getRecoveryMetadata('profile-1')).toStrictEqual({
             version: 1,
-            lastMutationId: expect.any(String),
+            lastMutationId: expect.any(String) as string,
           });
         },
       );
@@ -1222,7 +1222,7 @@ describe('MfaRecoveryController', () => {
         ]);
         expect(await escrowB.getRecoveryMetadata('profile-1')).toStrictEqual({
           version: 1,
-          lastMutationId: expect.any(String),
+          lastMutationId: expect.any(String) as string,
         });
       });
     });
