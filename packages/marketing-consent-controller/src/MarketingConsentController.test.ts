@@ -1,0 +1,1421 @@
+import type { AnalyticsControllerState } from '@metamask/analytics-controller';
+import type {
+  ClientType,
+  MarketingConsent,
+  NotificationPreferences,
+} from '@metamask/authenticated-user-storage';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type { KeyringControllerState } from '@metamask/keyring-controller';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
+
+import {
+  getDefaultMarketingConsentControllerState,
+  MarketingConsentController,
+} from './MarketingConsentController.js';
+import type {
+  MarketingConsentControllerMessenger,
+  MarketingConsentControllerState,
+} from './MarketingConsentController.js';
+
+const NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  walletActivity: {
+    pushNotificationsEnabled: true,
+    inAppNotificationsEnabled: true,
+    accounts: [],
+  },
+  marketing: {
+    pushNotificationsEnabled: true,
+    inAppNotificationsEnabled: true,
+  },
+  perps: { pushNotificationsEnabled: true, inAppNotificationsEnabled: true },
+  socialAI: {
+    pushNotificationsEnabled: true,
+    inAppNotificationsEnabled: true,
+    mutedTraderProfileIds: [],
+  },
+  agenticCli: {
+    pushNotificationsEnabled: true,
+    inAppNotificationsEnabled: true,
+  },
+  priceAlerts: {
+    pushNotificationsEnabled: true,
+    inAppNotificationsEnabled: true,
+  },
+};
+
+const OPTED_IN = {
+  optedInToMarketing: true,
+  marketingConsentDecisionMade: true,
+};
+
+const OPTED_OUT = {
+  optedInToMarketing: false,
+  marketingConsentDecisionMade: true,
+};
+
+const UNDECIDED = {
+  optedInToMarketing: false,
+  marketingConsentDecisionMade: false,
+};
+
+type RemoteConsent = MarketingConsent | null;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<MarketingConsentControllerMessenger>,
+  MessengerEvents<MarketingConsentControllerMessenger>
+>;
+
+type SetupOptions = {
+  analyticsState?: Partial<AnalyticsControllerState>;
+  isSignedIn?: boolean;
+  isUnlocked?: boolean;
+  remoteConsent?: RemoteConsent;
+  getConsent?: () => Promise<RemoteConsent>;
+  putConsent?: () => Promise<void>;
+  getPreferences?: () => Promise<NotificationPreferences | null>;
+  putPreferences?: () => Promise<void>;
+  state?: Partial<MarketingConsentControllerState>;
+  clientType?: ClientType;
+};
+
+const flushPromises = async (): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, 0));
+
+/**
+ * Creates a deferred promise that can be settled from the test.
+ *
+ * @returns The promise and its resolve/reject functions.
+ */
+function createDeferred<Value>(): {
+  promise: Promise<Value>;
+  resolve: (value: Value) => void;
+  reject: (error: Error) => void;
+} {
+  let resolve!: (value: Value) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<Value>((resolveFn, rejectFn) => {
+    resolve = resolveFn;
+    reject = rejectFn;
+  });
+  return { promise, resolve, reject };
+}
+
+/**
+ * Constructs the controller under test with a root messenger whose external
+ * actions are backed by jest mocks.
+ *
+ * @param options - Setup options.
+ * @param options.analyticsState - Initial AnalyticsController state.
+ * @param options.isSignedIn - Initial AuthenticationController sign-in state.
+ * @param options.isUnlocked - Initial KeyringController lock state.
+ * @param options.remoteConsent - Consent returned by the default AUS read.
+ * @param options.getConsent - Overrides the AUS consent read.
+ * @param options.putConsent - Overrides the AUS consent write.
+ * @param options.getPreferences - Overrides the AUS preferences read.
+ * @param options.putPreferences - Overrides the AUS preferences write.
+ * @param options.state - Initial controller state.
+ * @param options.clientType - The client type passed to the controller.
+ * @returns The controller, messengers, mocks and event helpers.
+ */
+function setup({
+  analyticsState = UNDECIDED,
+  isSignedIn = false,
+  isUnlocked = true,
+  remoteConsent = null,
+  getConsent = async (): Promise<RemoteConsent> => remoteConsent,
+  putConsent = async (): Promise<void> => undefined,
+  getPreferences = async (): Promise<NotificationPreferences | null> => null,
+  putPreferences = async (): Promise<void> => undefined,
+  state,
+  clientType = 'extension',
+}: SetupOptions = {}): {
+  controller: MarketingConsentController;
+  rootMessenger: RootMessenger;
+  mocks: {
+    invalidateQueries: jest.Mock<Promise<void>, []>;
+    getMarketingConsent: jest.Mock<Promise<RemoteConsent>, []>;
+    putMarketingConsent: jest.Mock<
+      Promise<void>,
+      [MarketingConsent, ClientType?]
+    >;
+    getNotificationPreferences: jest.Mock<
+      Promise<NotificationPreferences | null>,
+      []
+    >;
+    putNotificationPreferences: jest.Mock<
+      Promise<void>,
+      [NotificationPreferences, ClientType?]
+    >;
+    optInToMarketing: jest.Mock<Promise<void>, []>;
+    optOutOfMarketing: jest.Mock<void, []>;
+  };
+  setAnalyticsState: (newState: Partial<AnalyticsControllerState>) => void;
+  setSignedIn: (signedIn: boolean) => void;
+} {
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+
+  let currentAnalyticsState = {
+    optedIn: false,
+    ...analyticsState,
+  } as AnalyticsControllerState;
+  let currentAuthenticationState = {
+    isSignedIn,
+  } as AuthenticationController.AuthenticationControllerState;
+  const keyringState = { isUnlocked } as KeyringControllerState;
+
+  const setAnalyticsState = (
+    newState: Partial<AnalyticsControllerState>,
+  ): void => {
+    currentAnalyticsState = { ...currentAnalyticsState, ...newState };
+    rootMessenger.publish(
+      'AnalyticsController:stateChanged',
+      currentAnalyticsState,
+      [],
+    );
+  };
+
+  const setSignedIn = (signedIn: boolean): void => {
+    currentAuthenticationState = {
+      ...currentAuthenticationState,
+      isSignedIn: signedIn,
+    };
+    rootMessenger.publish(
+      'AuthenticationController:stateChanged',
+      currentAuthenticationState,
+      [],
+    );
+  };
+
+  const mocks = {
+    invalidateQueries: jest.fn(async () => undefined),
+    getMarketingConsent: jest.fn(getConsent),
+    putMarketingConsent: jest.fn(
+      async (_body: MarketingConsent, _clientType?: ClientType) => putConsent(),
+    ),
+    getNotificationPreferences: jest.fn(getPreferences),
+    putNotificationPreferences: jest.fn(
+      async (_preferences: NotificationPreferences, _clientType?: ClientType) =>
+        putPreferences(),
+    ),
+    optInToMarketing: jest.fn(async () => {
+      setAnalyticsState(OPTED_IN);
+    }),
+    optOutOfMarketing: jest.fn(() => {
+      setAnalyticsState(OPTED_OUT);
+    }),
+  };
+
+  rootMessenger.registerActionHandler(
+    'AnalyticsController:getState',
+    () => currentAnalyticsState,
+  );
+  rootMessenger.registerActionHandler(
+    'AnalyticsController:optInToMarketing',
+    mocks.optInToMarketing,
+  );
+  rootMessenger.registerActionHandler(
+    'AnalyticsController:optOutOfMarketing',
+    mocks.optOutOfMarketing,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getState',
+    () => currentAuthenticationState,
+  );
+  rootMessenger.registerActionHandler(
+    'KeyringController:getState',
+    () => keyringState,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:invalidateQueries',
+    mocks.invalidateQueries,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:getMarketingConsent',
+    mocks.getMarketingConsent,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:putMarketingConsent',
+    mocks.putMarketingConsent,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:getNotificationPreferences',
+    mocks.getNotificationPreferences,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:putNotificationPreferences',
+    mocks.putNotificationPreferences,
+  );
+
+  const messenger: MarketingConsentControllerMessenger = new Messenger({
+    namespace: 'MarketingConsentController',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
+      'AuthenticatedUserStorageService:invalidateQueries',
+      'AuthenticatedUserStorageService:getMarketingConsent',
+      'AuthenticatedUserStorageService:putMarketingConsent',
+      'AuthenticatedUserStorageService:getNotificationPreferences',
+      'AuthenticatedUserStorageService:putNotificationPreferences',
+      'AnalyticsController:getState',
+      'AnalyticsController:optInToMarketing',
+      'AnalyticsController:optOutOfMarketing',
+      'AuthenticationController:getState',
+      'KeyringController:getState',
+    ],
+    events: [
+      'AnalyticsController:stateChanged',
+      'AuthenticationController:stateChanged',
+      'KeyringController:lock',
+      'KeyringController:unlock',
+    ],
+  });
+
+  const controller = new MarketingConsentController({
+    messenger,
+    state,
+    clientType,
+  });
+
+  return { controller, rootMessenger, mocks, setAnalyticsState, setSignedIn };
+}
+
+/**
+ * Lists the consent values written to AUS, in order.
+ *
+ * @param putMarketingConsent - The putMarketingConsent mock.
+ * @returns The written consent values.
+ */
+function writtenConsents(
+  putMarketingConsent: jest.Mock<
+    Promise<void>,
+    [MarketingConsent, ClientType?]
+  >,
+): boolean[] {
+  return putMarketingConsent.mock.calls.map(
+    ([body]) => body.marketingConsentEnabled,
+  );
+}
+
+describe('MarketingConsentController', () => {
+  let consoleError: jest.SpyInstance;
+
+  beforeEach(() => {
+    consoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    consoleError.mockRestore();
+  });
+
+  describe('constructor', () => {
+    it('starts with no pending consent by default', () => {
+      const { controller } = setup();
+
+      expect(controller.state).toStrictEqual(
+        getDefaultMarketingConsentControllerState(),
+      );
+    });
+
+    it('writes a persisted local change instead of applying stale AUS consent', async () => {
+      const { controller, mocks } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: true },
+        state: { pendingMarketingConsent: false },
+      });
+      await flushPromises();
+
+      expect(mocks.optInToMarketing).not.toHaveBeenCalled();
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'extension',
+      );
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
+    it('passes the client type to AUS writes', async () => {
+      const { mocks } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: null,
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+        clientType: 'mobile',
+      });
+      await flushPromises();
+
+      expect(mocks.putNotificationPreferences).toHaveBeenCalledWith(
+        expect.any(Object),
+        'mobile',
+      );
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'mobile',
+      );
+    });
+  });
+
+  describe('sign-in', () => {
+    it('uploads the first local decision after sign-in', async () => {
+      const { mocks, setAnalyticsState, setSignedIn } = setup();
+
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+
+      setSignedIn(true);
+      await flushPromises();
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'extension',
+      );
+    });
+
+    it.each([true, false])(
+      'applies AUS consent %s to AnalyticsController',
+      async (marketingConsentEnabled) => {
+        const { mocks } = setup({
+          analyticsState: {
+            optedInToMarketing: !marketingConsentEnabled,
+            marketingConsentDecisionMade: true,
+          },
+          isSignedIn: true,
+          remoteConsent: { marketingConsentEnabled },
+        });
+        await flushPromises();
+
+        expect(
+          marketingConsentEnabled
+            ? mocks.optInToMarketing
+            : mocks.optOutOfMarketing,
+        ).toHaveBeenCalled();
+        expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+      },
+    );
+
+    it('writes the local value when AUS has no record', async () => {
+      const { controller, mocks } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        remoteConsent: null,
+      });
+      await flushPromises();
+
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: true },
+        'extension',
+      );
+      expect(mocks.optInToMarketing).not.toHaveBeenCalled();
+      expect(await controller.waitForSync(true)).toBeUndefined();
+    });
+
+    it('does not reconcile an undecided local value', async () => {
+      const { mocks } = setup({
+        analyticsState: { optedInToMarketing: true },
+        isSignedIn: true,
+        remoteConsent: null,
+      });
+      await flushPromises();
+
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+    });
+
+    it.each([true, false])(
+      'uploads the first local decision %s instead of applying the AUS value',
+      async (localConsent) => {
+        const { controller, mocks, setAnalyticsState } = setup({
+          analyticsState: UNDECIDED,
+          isSignedIn: true,
+          remoteConsent: { marketingConsentEnabled: !localConsent },
+        });
+
+        setAnalyticsState({
+          optedInToMarketing: localConsent,
+          marketingConsentDecisionMade: true,
+        });
+        await flushPromises();
+
+        expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+        expect(
+          localConsent ? mocks.optOutOfMarketing : mocks.optInToMarketing,
+        ).not.toHaveBeenCalled();
+        expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+          { marketingConsentEnabled: localConsent },
+          'extension',
+        );
+        expect(await controller.waitForSync(localConsent)).toBeUndefined();
+      },
+    );
+
+    it('applies AUS consent after signing in again', async () => {
+      let remoteConsent = { marketingConsentEnabled: false };
+      const { mocks, setSignedIn } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        getConsent: async () => remoteConsent,
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+
+      remoteConsent = { marketingConsentEnabled: true };
+      setSignedIn(false);
+      setSignedIn(false);
+      setSignedIn(true);
+      await flushPromises();
+
+      expect(mocks.getMarketingConsent).toHaveBeenCalled();
+      expect(mocks.optInToMarketing).toHaveBeenCalled();
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+    });
+
+    it('invalidates cached AUS consent when signing in again', async () => {
+      const { mocks, setSignedIn } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: true },
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+
+      setSignedIn(false);
+      setSignedIn(true);
+      await flushPromises();
+
+      expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+        queryKey: ['AuthenticatedUserStorageService:getMarketingConsent'],
+      });
+      expect(mocks.getMarketingConsent).toHaveBeenCalled();
+    });
+
+    it('does not apply AUS consent from a read started before a sign-out', async () => {
+      const firstRead = createDeferred<RemoteConsent>();
+      let reads = 0;
+      const { mocks, setSignedIn } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        getConsent: async () => {
+          reads += 1;
+          return reads === 1
+            ? firstRead.promise
+            : { marketingConsentEnabled: true };
+        },
+      });
+      await flushPromises();
+      expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(1);
+
+      setSignedIn(false);
+      setSignedIn(true);
+      firstRead.resolve({ marketingConsentEnabled: false });
+      await flushPromises();
+      await flushPromises();
+
+      expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
+      expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(2);
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+    });
+
+    it('leaves local state unchanged when the AUS read fails', async () => {
+      const { mocks } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        getConsent: async () => {
+          throw new Error('AUS unavailable');
+        },
+      });
+      await flushPromises();
+
+      expect(mocks.optInToMarketing).not.toHaveBeenCalled();
+      expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
+      expect(consoleError).toHaveBeenCalledWith(
+        'Failed to synchronize marketing consent with AUS:',
+        expect.any(Error),
+      );
+    });
+  });
+
+  describe('local consent changes', () => {
+    it('keeps a local change pending until AUS confirms it', async () => {
+      const put = createDeferred<void>();
+      const { controller, mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: true },
+      });
+      await flushPromises();
+      mocks.putMarketingConsent.mockImplementation(async () => put.promise);
+
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+
+      expect(controller.state.pendingMarketingConsent).toBe(false);
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'extension',
+      );
+
+      put.resolve();
+      await flushPromises();
+
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
+    it('keeps the pending change when the AUS write fails', async () => {
+      const { controller, setAnalyticsState } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: true },
+        putConsent: async () => {
+          throw new Error('AUS unavailable');
+        },
+      });
+      await flushPromises();
+
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+
+      expect(controller.state.pendingMarketingConsent).toBe(false);
+    });
+
+    it('writes subsequent local consent changes to AUS', async () => {
+      const { mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+
+      setAnalyticsState(OPTED_IN);
+      await flushPromises();
+
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: true },
+        'extension',
+      );
+    });
+
+    it('ignores analytics changes that do not affect marketing consent', async () => {
+      const { controller, mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+
+      setAnalyticsState({ optedIn: true });
+      await flushPromises();
+
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+    });
+
+    it('coalesces consent changes while an AUS write is pending', async () => {
+      const firstWrite = createDeferred<void>();
+      const { controller, mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      mocks.putMarketingConsent
+        .mockImplementationOnce(async () => firstWrite.promise)
+        .mockImplementation(async () => undefined);
+
+      setAnalyticsState(OPTED_IN);
+      await flushPromises();
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+      firstWrite.resolve();
+      await flushPromises();
+
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([
+        true,
+        false,
+      ]);
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
+    it('does not restore an older failed write over a newer opt-out', async () => {
+      const firstWrite = createDeferred<void>();
+      const { controller, mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      mocks.putMarketingConsent
+        .mockImplementationOnce(async () => firstWrite.promise)
+        .mockImplementation(async () => undefined);
+
+      setAnalyticsState(OPTED_IN);
+      setAnalyticsState(OPTED_OUT);
+      firstWrite.reject(new Error('failed true write'));
+      await flushPromises();
+
+      expect(mocks.putMarketingConsent).toHaveBeenCalledTimes(1);
+      expect(controller.state.pendingMarketingConsent).toBe(false);
+    });
+
+    it('stops flushing a newer change when the wallet locks during a write', async () => {
+      const firstWrite = createDeferred<void>();
+      const { controller, mocks, rootMessenger, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      mocks.putMarketingConsent
+        .mockImplementationOnce(async () => firstWrite.promise)
+        .mockImplementation(async () => undefined);
+
+      setAnalyticsState(OPTED_IN);
+      setAnalyticsState(OPTED_OUT);
+      rootMessenger.publish('KeyringController:lock');
+      firstWrite.resolve();
+      await flushPromises();
+
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([true]);
+      expect(controller.state.pendingMarketingConsent).toBe(false);
+
+      rootMessenger.publish('KeyringController:unlock');
+      await flushPromises();
+
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([
+        true,
+        false,
+      ]);
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
+    it('does not start a local AUS write until an in-flight initial read completes', async () => {
+      const read = createDeferred<RemoteConsent>();
+      const { mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        getConsent: async () => read.promise,
+      });
+
+      setAnalyticsState(OPTED_IN);
+      await flushPromises();
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+
+      read.resolve({ marketingConsentEnabled: false });
+      await flushPromises();
+
+      expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: true },
+        'extension',
+      );
+    });
+
+    it('uploads the latest choice after a same-profile sign-out while a write fails', async () => {
+      const oldWrite = createDeferred<void>();
+      const { mocks, setAnalyticsState, setSignedIn } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      mocks.putMarketingConsent
+        .mockImplementationOnce(async () => oldWrite.promise)
+        .mockImplementation(async () => undefined);
+
+      setAnalyticsState(OPTED_IN);
+      await flushPromises();
+      setSignedIn(false);
+      setAnalyticsState(OPTED_OUT);
+      oldWrite.reject(new Error('old profile unavailable'));
+      await flushPromises();
+      setSignedIn(true);
+      await flushPromises();
+
+      expect(mocks.putMarketingConsent.mock.calls).toStrictEqual([
+        [{ marketingConsentEnabled: true }, 'extension'],
+        [{ marketingConsentEnabled: false }, 'extension'],
+      ]);
+    });
+
+    it('uploads a local choice made while signed out to the same profile', async () => {
+      let remoteConsent = { marketingConsentEnabled: true };
+      const { mocks, setAnalyticsState, setSignedIn } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        getConsent: async () => remoteConsent,
+        putConsent: async () => {
+          remoteConsent = { marketingConsentEnabled: false };
+        },
+      });
+      await flushPromises();
+
+      setSignedIn(false);
+      setAnalyticsState(OPTED_OUT);
+      setSignedIn(true);
+      await flushPromises();
+
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'extension',
+      );
+      expect(mocks.optInToMarketing).not.toHaveBeenCalled();
+    });
+
+    it('uploads a choice toggled off and back on while signed out', async () => {
+      let remoteConsent = { marketingConsentEnabled: true };
+      const { mocks, setAnalyticsState, setSignedIn } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        getConsent: async () => remoteConsent,
+        putConsent: async () => {
+          remoteConsent = { marketingConsentEnabled: true };
+        },
+      });
+      await flushPromises();
+
+      setSignedIn(false);
+      setAnalyticsState(OPTED_OUT);
+      setAnalyticsState(OPTED_IN);
+      remoteConsent = { marketingConsentEnabled: false };
+      setSignedIn(true);
+      await flushPromises();
+
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: true },
+        'extension',
+      );
+      expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
+    });
+
+    it('uploads the latest first-decision preference made before sign-in', async () => {
+      let remoteConsent = { marketingConsentEnabled: true };
+      const { mocks, rootMessenger, setAnalyticsState, setSignedIn } = setup({
+        analyticsState: UNDECIDED,
+        isSignedIn: false,
+        getConsent: async () => remoteConsent,
+        putConsent: async () => {
+          remoteConsent = { marketingConsentEnabled: false };
+        },
+      });
+      await flushPromises();
+
+      setAnalyticsState(OPTED_IN);
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+
+      setSignedIn(true);
+      await flushPromises();
+
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'extension',
+      );
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+
+      rootMessenger.publish('KeyringController:lock');
+      rootMessenger.publish('KeyringController:unlock');
+      await flushPromises();
+
+      expect(mocks.optInToMarketing).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('lock and unlock', () => {
+    it('does not read AUS while the vault is locked and syncs after unlock', async () => {
+      // Sign-in and the consent decision persist across restarts, but the
+      // vault is still locked at startup and AUS reads need a bearer token.
+      const { mocks, rootMessenger } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        isUnlocked: false,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
+
+      rootMessenger.publish('KeyringController:unlock');
+      await flushPromises();
+
+      expect(mocks.getMarketingConsent).toHaveBeenCalled();
+      expect(mocks.optOutOfMarketing).toHaveBeenCalled();
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+    });
+
+    it('re-reads AUS on every unlock', async () => {
+      let remoteConsent = { marketingConsentEnabled: true };
+      const { mocks, rootMessenger } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        getConsent: async () => remoteConsent,
+      });
+      await flushPromises();
+
+      rootMessenger.publish('KeyringController:lock');
+      remoteConsent = { marketingConsentEnabled: false };
+      jest.clearAllMocks();
+      rootMessenger.publish('KeyringController:unlock');
+      await flushPromises();
+
+      expect(mocks.getMarketingConsent).toHaveBeenCalled();
+      expect(mocks.optOutOfMarketing).toHaveBeenCalled();
+    });
+
+    it('does not apply AUS consent read before the wallet locked', async () => {
+      const read = createDeferred<RemoteConsent>();
+      const { mocks, rootMessenger } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        getConsent: async () => read.promise,
+      });
+      await flushPromises();
+
+      rootMessenger.publish('KeyringController:lock');
+      read.resolve({ marketingConsentEnabled: false });
+      await flushPromises();
+
+      expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('refresh', () => {
+    it('re-reads AUS after an earlier sync in the same session', async () => {
+      let remoteConsent = { marketingConsentEnabled: true };
+      const { controller, mocks } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        getConsent: async () => remoteConsent,
+      });
+      await flushPromises();
+      expect(mocks.getMarketingConsent).toHaveBeenCalled();
+      expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
+
+      // Another device opted out while this client stayed alive.
+      remoteConsent = { marketingConsentEnabled: false };
+      jest.clearAllMocks();
+      controller.refresh();
+      await flushPromises();
+
+      expect(mocks.getMarketingConsent).toHaveBeenCalled();
+      expect(mocks.optOutOfMarketing).toHaveBeenCalled();
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+    });
+
+    it('is exposed as a messenger action', async () => {
+      const { mocks, rootMessenger } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: true },
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+
+      rootMessenger.call('MarketingConsentController:refresh');
+      await flushPromises();
+
+      expect(mocks.getMarketingConsent).toHaveBeenCalled();
+    });
+
+    it('defers a refresh until an in-flight AUS write lands', async () => {
+      const put = createDeferred<void>();
+      const { controller, mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+        putConsent: async () => put.promise,
+      });
+      await flushPromises();
+
+      setAnalyticsState(OPTED_IN);
+      await flushPromises();
+      jest.clearAllMocks();
+
+      controller.refresh();
+      await flushPromises();
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+
+      put.resolve();
+      await flushPromises();
+      expect(mocks.getMarketingConsent).toHaveBeenCalled();
+    });
+  });
+
+  describe('waitForSync', () => {
+    it('is exposed as a messenger action', async () => {
+      const { rootMessenger } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: true },
+      });
+
+      expect(
+        await rootMessenger.call(
+          'MarketingConsentController:waitForSync',
+          true,
+        ),
+      ).toBeUndefined();
+    });
+
+    it('rejects when the wallet is not signed in', async () => {
+      const { controller } = setup({ analyticsState: OPTED_IN });
+
+      await expect(controller.waitForSync(true)).rejects.toThrow(
+        'Marketing consent requires an unlocked, signed-in wallet',
+      );
+    });
+
+    it('rejects when AUS holds a different consent', async () => {
+      const { controller } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+
+      await expect(controller.waitForSync(true)).rejects.toThrow(
+        'Marketing consent was not saved to AUS',
+      );
+    });
+
+    it('rejects when the session ends during the wait', async () => {
+      const put = createDeferred<void>();
+      const { controller, setAnalyticsState, setSignedIn } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+        putConsent: async () => put.promise,
+      });
+      await flushPromises();
+
+      setAnalyticsState(OPTED_IN);
+      const waiting = controller.waitForSync(true);
+      setSignedIn(false);
+      put.resolve();
+
+      await expect(waiting).rejects.toThrow(
+        'Marketing consent was not saved to AUS',
+      );
+    });
+
+    it('waits for the consent write before resolving', async () => {
+      const put = createDeferred<void>();
+      const { controller, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+        putConsent: async () => put.promise,
+      });
+      await flushPromises();
+
+      setAnalyticsState(OPTED_IN);
+      const onSynced = jest.fn();
+      const waiting = controller.waitForSync(true).then(onSynced);
+      await flushPromises();
+      expect(onSynced).not.toHaveBeenCalled();
+
+      put.resolve();
+      await waiting;
+      expect(onSynced).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects when the write fails and retries the latest decision', async () => {
+      const { controller, mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      mocks.putMarketingConsent
+        .mockImplementationOnce(async () => {
+          throw new Error('AUS unavailable');
+        })
+        .mockImplementation(async () => undefined);
+
+      setAnalyticsState(OPTED_IN);
+      await expect(controller.waitForSync(true)).rejects.toThrow(
+        'AUS unavailable',
+      );
+      await controller.waitForSync(true);
+
+      expect(mocks.putMarketingConsent).toHaveBeenCalledTimes(2);
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
+    it('keeps waiting when an older session run hands off to a new run', async () => {
+      const firstRead = createDeferred<RemoteConsent>();
+      let reads = 0;
+      const { controller, setSignedIn } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        getConsent: async () => {
+          reads += 1;
+          return reads === 1 ? firstRead.promise : null;
+        },
+      });
+      await flushPromises();
+
+      setSignedIn(false);
+      setSignedIn(true);
+      const waiting = controller.waitForSync(true);
+      firstRead.resolve(null);
+
+      expect(await waiting).toBeUndefined();
+    });
+  });
+
+  describe('Updates and rewards notifications', () => {
+    const signedInOptedIn = {
+      analyticsState: OPTED_IN,
+      isSignedIn: true,
+      remoteConsent: { marketingConsentEnabled: true },
+    };
+
+    it('turns off both marketing channels before saving a local opt-out', async () => {
+      const order: string[] = [];
+      const { mocks, setAnalyticsState } = setup({
+        ...signedInOptedIn,
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+      mocks.invalidateQueries.mockImplementation(async () => {
+        order.push('invalidate');
+      });
+      mocks.getNotificationPreferences.mockImplementation(async () => {
+        order.push('getPreferences');
+        return NOTIFICATION_PREFERENCES;
+      });
+      mocks.putNotificationPreferences.mockImplementation(async () => {
+        order.push('putPreferences');
+      });
+      mocks.putMarketingConsent.mockImplementation(async () => {
+        order.push('putConsent');
+      });
+
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+
+      expect(order).toStrictEqual([
+        'invalidate',
+        'getPreferences',
+        'putPreferences',
+        'putConsent',
+      ]);
+      expect(mocks.invalidateQueries).toHaveBeenCalledWith({
+        queryKey: [
+          'AuthenticatedUserStorageService:getNotificationPreferences',
+        ],
+      });
+      expect(mocks.putNotificationPreferences).toHaveBeenCalledWith(
+        {
+          ...NOTIFICATION_PREFERENCES,
+          marketing: {
+            pushNotificationsEnabled: false,
+            inAppNotificationsEnabled: false,
+          },
+        },
+        'extension',
+      );
+    });
+
+    it('turns off channels when only one marketing channel is on', async () => {
+      const { mocks, setAnalyticsState } = setup({
+        ...signedInOptedIn,
+        getPreferences: async () => ({
+          ...NOTIFICATION_PREFERENCES,
+          marketing: {
+            pushNotificationsEnabled: false,
+            inAppNotificationsEnabled: true,
+          },
+        }),
+      });
+      await flushPromises();
+
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+
+      expect(mocks.putNotificationPreferences).toHaveBeenCalledWith(
+        expect.objectContaining({
+          marketing: {
+            pushNotificationsEnabled: false,
+            inAppNotificationsEnabled: false,
+          },
+        }),
+        'extension',
+      );
+    });
+
+    it('does not write preferences when both marketing channels are already off', async () => {
+      const { mocks, setAnalyticsState } = setup({
+        ...signedInOptedIn,
+        getPreferences: async () => ({
+          ...NOTIFICATION_PREFERENCES,
+          marketing: {
+            pushNotificationsEnabled: false,
+            inAppNotificationsEnabled: false,
+          },
+        }),
+      });
+      await flushPromises();
+
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+
+      expect(mocks.putNotificationPreferences).not.toHaveBeenCalled();
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'extension',
+      );
+    });
+
+    it('does not write preferences when the profile has none', async () => {
+      const { mocks, setAnalyticsState } = setup(signedInOptedIn);
+      await flushPromises();
+
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+
+      expect(mocks.getNotificationPreferences).toHaveBeenCalled();
+      expect(mocks.putNotificationPreferences).not.toHaveBeenCalled();
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'extension',
+      );
+    });
+
+    it('does not write preferences when the profile has no marketing preferences', async () => {
+      const { mocks, setAnalyticsState } = setup({
+        ...signedInOptedIn,
+        getPreferences: async () =>
+          ({
+            ...NOTIFICATION_PREFERENCES,
+            marketing: undefined,
+          }) as unknown as NotificationPreferences,
+      });
+      await flushPromises();
+
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+
+      expect(mocks.putNotificationPreferences).not.toHaveBeenCalled();
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'extension',
+      );
+    });
+
+    it('does not read preferences when saving an opt-in', async () => {
+      const { mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+      });
+      await flushPromises();
+
+      setAnalyticsState(OPTED_IN);
+      await flushPromises();
+
+      expect(mocks.getNotificationPreferences).not.toHaveBeenCalled();
+    });
+
+    it('does not touch channels when applying an opt-out from AUS', async () => {
+      const { mocks } = setup({
+        ...signedInOptedIn,
+        remoteConsent: { marketingConsentEnabled: false },
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+      });
+      await flushPromises();
+
+      expect(mocks.optOutOfMarketing).toHaveBeenCalled();
+      expect(mocks.getNotificationPreferences).not.toHaveBeenCalled();
+    });
+
+    it('turns off channels at the next sign-in for an opt-out made while signed out', async () => {
+      const { mocks, setAnalyticsState, setSignedIn } = setup({
+        ...signedInOptedIn,
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+      });
+      await flushPromises();
+
+      setSignedIn(false);
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+      expect(mocks.getNotificationPreferences).not.toHaveBeenCalled();
+
+      setSignedIn(true);
+      await flushPromises();
+
+      expect(mocks.putNotificationPreferences).toHaveBeenCalledWith(
+        expect.objectContaining({
+          marketing: {
+            pushNotificationsEnabled: false,
+            inAppNotificationsEnabled: false,
+          },
+        }),
+        'extension',
+      );
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'extension',
+      );
+    });
+
+    it('turns off channels before seeding an opted-out profile', async () => {
+      const order: string[] = [];
+      setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: null,
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+        putPreferences: async () => {
+          order.push('putPreferences');
+        },
+        putConsent: async () => {
+          order.push('putConsent');
+        },
+      });
+      await flushPromises();
+
+      expect(order).toStrictEqual(['putPreferences', 'putConsent']);
+    });
+
+    it('keeps the opt-out pending and skips the consent write when the preferences read fails', async () => {
+      const { controller, mocks, setAnalyticsState } = setup({
+        ...signedInOptedIn,
+        getPreferences: async () => {
+          throw new Error('AUS unavailable');
+        },
+      });
+      await flushPromises();
+
+      setAnalyticsState(OPTED_OUT);
+
+      await expect(controller.waitForSync(false)).rejects.toThrow(
+        'AUS unavailable',
+      );
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+      expect(controller.state.pendingMarketingConsent).toBe(false);
+    });
+
+    it('keeps the opt-out pending and skips the consent write when the channel write fails', async () => {
+      const { controller, mocks, setAnalyticsState } = setup({
+        ...signedInOptedIn,
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+      });
+      await flushPromises();
+      mocks.putNotificationPreferences
+        .mockImplementationOnce(async () => {
+          throw new Error('AUS unavailable');
+        })
+        .mockImplementation(async () => undefined);
+
+      setAnalyticsState(OPTED_OUT);
+      await expect(controller.waitForSync(false)).rejects.toThrow(
+        'AUS unavailable',
+      );
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+      expect(controller.state.pendingMarketingConsent).toBe(false);
+
+      await controller.waitForSync(false);
+
+      expect(mocks.putNotificationPreferences).toHaveBeenCalledTimes(2);
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'extension',
+      );
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = setup({
+        state: { pendingMarketingConsent: true },
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "pendingMarketingConsent": true,
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = setup({
+        state: { pendingMarketingConsent: true },
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "pendingMarketingConsent": true,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = setup({
+        state: { pendingMarketingConsent: true },
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "pendingMarketingConsent": true,
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = setup({
+        state: { pendingMarketingConsent: true },
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+  });
+});
