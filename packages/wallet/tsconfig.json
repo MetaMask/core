@@ -50,6 +50,9 @@
       "path": "../seedless-onboarding-controller"
     },
     {
+      "path": "../selected-network-controller"
+    },
+    {
       "path": "../shield-controller"
     },
     {
