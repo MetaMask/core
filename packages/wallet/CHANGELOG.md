@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Requires `instanceOptions.selectedNetworkController.domainProxyMap`.
 - **BREAKING:** Add `ClientController` to the default initialization configurations ([#10826](https://github.com/MetaMask/core/pull/10826))
 - **BREAKING:** Add `LoggingController` to the default initialization configurations ([#10828](https://github.com/MetaMask/core/pull/10828))
-- Expose `instanceOptions.networkController.getBlockTrackerOptions` to customize block trackers during wallet initialization ([#PR](https://github.com/MetaMask/core/pull/PR))
+- Expose `instanceOptions.networkController.getBlockTrackerOptions` to customize block trackers during wallet initialization ([#10831](https://github.com/MetaMask/core/pull/10831))
 
 ### Changed
 

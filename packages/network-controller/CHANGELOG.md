@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Pass the network client configuration as the second argument to `getBlockTrackerOptions` ([#PR](https://github.com/MetaMask/core/pull/PR))
+- Pass the network client configuration as the second argument to `getBlockTrackerOptions` ([#10831](https://github.com/MetaMask/core/pull/10831))
   - Existing callbacks that only accept the RPC endpoint URL remain supported.
 
 ### Changed
 
-- **BREAKING:** Stop reading `IN_TEST` to change custom-network timing ([#PR](https://github.com/MetaMask/core/pull/PR))
+- **BREAKING:** Stop reading `IN_TEST` to change custom-network timing ([#10831](https://github.com/MetaMask/core/pull/10831))
   - Block trackers now poll every 20 seconds by default in all environments. Consumers can opt into faster polling through `getBlockTrackerOptions`.
   - Gas estimation no longer includes an artificial two-second delay. Tests that need pending estimates must delay responses in their RPC mocks.
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
