@@ -22,7 +22,7 @@ import {
 } from '../../utils/feature-flags.js';
 import { resolveGasStationCost } from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
-import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
+import { estimateSourceGas } from '../../utils/quote-gas.js';
 import {
   getNativeToken,
   getTokenBalance,
@@ -216,8 +216,9 @@ describe('server-quotes', () => {
       maxFeePerGas: '1000000000',
       maxPriorityFeePerGas: '500000000',
     });
-    jest.mocked(estimateQuoteGasLimits).mockResolvedValue({
-      gasLimits: [{ estimate: 21000, max: 25000 }],
+    jest.mocked(estimateSourceGas).mockResolvedValue({
+      gasLimits: [25000],
+      is7702: false,
       totalGasEstimate: '0x5208',
       totalGasLimit: '0x7530',
     } as never);
@@ -737,7 +738,7 @@ describe('server-quotes', () => {
           transaction: SPONSORED_TRANSACTION_MOCK,
         });
 
-        expect(jest.mocked(estimateQuoteGasLimits)).not.toHaveBeenCalled();
+        expect(jest.mocked(estimateSourceGas)).not.toHaveBeenCalled();
         expect(jest.mocked(resolveGasStationCost)).not.toHaveBeenCalled();
       });
 
@@ -908,12 +909,11 @@ describe('server-quotes', () => {
 
     it('uses the combined gas limit when the batch is EIP-7702', async () => {
       jest.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
-      jest.mocked(estimateQuoteGasLimits).mockResolvedValue({
-        gasLimits: [{ estimate: 42000, max: 50000 }],
+      jest.mocked(estimateSourceGas).mockResolvedValue({
+        gasLimits: [50000],
         is7702: true,
         totalGasEstimate: 42000,
         totalGasLimit: 50000,
-        usedBatch: true,
       });
 
       const result = await getServerQuotes({
@@ -1716,7 +1716,7 @@ describe('server-quotes', () => {
         estimate: zeroAmount,
         max: zeroAmount,
       });
-      expect(estimateQuoteGasLimits).not.toHaveBeenCalled();
+      expect(estimateSourceGas).not.toHaveBeenCalled();
       expect(resolveGasStationCost).not.toHaveBeenCalled();
     });
 
@@ -1832,19 +1832,15 @@ describe('server-quotes', () => {
       fetchServerQuoteMock.mockResolvedValue({
         results: [NON_GASLESS_DEPOSIT_RESULT_MOCK],
       });
-      jest.mocked(estimateQuoteGasLimits).mockResolvedValue({
-        gasLimits: [
-          { estimate: 90000, max: 100000 },
-          { estimate: 40000, max: 50000 },
-        ],
+      jest.mocked(estimateSourceGas).mockResolvedValue({
+        gasLimits: [100000, 50000],
         is7702: false,
         totalGasEstimate: 130000,
         totalGasLimit: 150000,
-        usedBatch: false,
       });
     });
 
-    it('estimates the original transaction ahead of the quote steps', async () => {
+    it('estimates gas for the original transaction and the quote steps', async () => {
       const result = await getServerQuotes({
         accountSupports7702: true,
         from: FROM_MOCK,
@@ -1853,17 +1849,14 @@ describe('server-quotes', () => {
         transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
       });
 
-      expect(estimateQuoteGasLimits).toHaveBeenCalledWith(
-        expect.objectContaining({
-          transactions: [
-            expect.objectContaining({
-              data: PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams.data,
-              to: PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams.to,
-            }),
-            expect.objectContaining({ to: DEPOSIT_STEP_MOCK.to }),
-          ],
-        }),
-      );
+      const [{ request, transaction, transactions }] =
+        jest.mocked(estimateSourceGas).mock.calls[0];
+
+      expect(request.isPostQuote).toBe(true);
+      expect(transaction).toBe(PREDICT_WITHDRAW_TRANSACTION_MOCK);
+      expect(transactions.map((tx) => tx.to)).toStrictEqual([
+        DEPOSIT_STEP_MOCK.to,
+      ]);
       expect(result[0].original.client.gasLimits).toStrictEqual([
         100000, 50000,
       ]);
@@ -1878,13 +1871,8 @@ describe('server-quotes', () => {
         transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
       });
 
-      expect(estimateQuoteGasLimits).toHaveBeenCalledWith(
-        expect.objectContaining({
-          transactions: [
-            expect.objectContaining({ from: SAFE_MOCK }),
-            expect.objectContaining({ from: SAFE_MOCK }),
-          ],
-        }),
+      expect(estimateSourceGas).toHaveBeenCalledWith(
+        expect.objectContaining({ fromOverride: SAFE_MOCK }),
       );
     });
 
@@ -1909,14 +1897,11 @@ describe('server-quotes', () => {
         transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
       });
 
-      expect(estimateQuoteGasLimits).toHaveBeenCalledWith(
-        expect.objectContaining({
-          transactions: [
-            expect.objectContaining({ from: FROM_MOCK }),
-            expect.objectContaining({ from: FROM_MOCK }),
-          ],
-        }),
-      );
+      const [{ fromOverride, transactions }] =
+        jest.mocked(estimateSourceGas).mock.calls[0];
+
+      expect(fromOverride).toBeUndefined();
+      expect(transactions.map((tx) => tx.from)).toStrictEqual([FROM_MOCK]);
     });
 
     it('looks up gas fee tokens on the Safe', async () => {
