@@ -469,11 +469,10 @@ export class BackendWebSocketService {
     if (this.#isConnectionAllowed()) {
       return false;
     }
+    this.#clearReconnectSchedule();
     if (!this.#isBasicFunctionality()) {
       this.disconnect();
-      return true;
     }
-    this.#clearReconnectSchedule();
     return true;
   }
 
@@ -1506,13 +1505,13 @@ export class BackendWebSocketService {
     });
 
     this.#reconnectTimer = setTimeout(() => {
-      // Clear timer reference first
-      this.#reconnectTimer = null;
-
-      // Check if connection is still allowed before reconnecting
+      // A closed gate drops this timer and resets the attempt count.
+      // Leave the timer set until then so that clear still runs.
       if (this.#stopDisallowedConnection()) {
         return;
       }
+
+      this.#reconnectTimer = null;
 
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.connect();
