@@ -35,7 +35,6 @@ import {
   doesAccountSupportEIP7702,
   generateEIP7702BatchTransaction,
   getAuthorizationAuthority,
-  getDelegationAddress,
   isAuthorizationSigned,
 } from './eip7702.js';
 import {
@@ -68,15 +67,17 @@ export const DUMMY_AUTHORIZATION_SIGNATURE =
   '0x1111111111111111111111111111111111111111111111111111111111111111';
 
 /**
- * EIP-2780 state gas charged at runtime when a valid authorization sets a
- * delegation indicator for an authority that had none at the start of the
- * transaction, at most once per authority.
- *
- * When the authority is the sender, this is the only runtime authorization
- * charge: `ACCOUNT_WRITE` is covered by the transaction base cost, and the
- * sender always exists in state as its nonce is incremented first.
+ * EIP-2780 runtime gas charged for an authorization that the node skips when
+ * estimating with a dummy signature: `ACCOUNT_WRITE` (9,000) plus the state
+ * gas for a new delegation indicator (35,190).
  */
-export const EIP2780_DELEGATION_GAS = 35190;
+export const EIP2780_AUTHORIZATION_GAS = 44190;
+
+/**
+ * EIP-2780 state gas charged when the authority of an authorization does not
+ * yet exist in state.
+ */
+export const EIP2780_NEW_ACCOUNT_GAS = 183600;
 
 /**
  * Error for a simulated transaction that failed, as opposed to the simulation
@@ -620,9 +621,8 @@ async function getLatestBlock(
  * authorization charges.
  * - If the Simulation API is disabled, unsupported or unavailable, the selected
  * node estimates the transaction with dummy signatures and the delegation of the
- * sender overridden, and the EIP-2780 delegation charge is added if the sender
- * is not yet delegated. A simulated transaction error is not retried using the
- * node.
+ * sender overridden, and the worst-case EIP-2780 runtime authorization charges
+ * are added. A simulated transaction error is not retried using the node.
  *
  * @param options - The options object.
  * @param options.authorizationList - The original authorization list of the transaction.
@@ -705,15 +705,16 @@ async function estimateGasType4({
  * Unsigned authorizations are sent with dummy signatures, so the node charges
  * their intrinsic gas but skips them at runtime. Their authority is the sender,
  * so the delegation of the sender is set with a state override, and the
- * EIP-2780 charge for a new delegation indicator is added once if the sender
- * is not yet delegated. Signed authorizations are charged by the node.
+ * worst-case EIP-2780 runtime charges are added for each unsigned
+ * authorization, plus the charge for a new account if the sender does not yet
+ * exist in state. Signed authorizations are charged by the node.
  *
  * @param options - The options object.
  * @param options.authorizationList - The original authorization list of the transaction.
  * @param options.messenger - The messenger instance for communication.
  * @param options.networkClientId - The network client ID.
  * @param options.txParams - The normalized transaction parameters.
- * @returns The estimated gas including the delegation charge.
+ * @returns The estimated gas including the authorization charges.
  */
 async function estimateGasType4Node({
   authorizationList,
@@ -735,20 +736,48 @@ async function estimateGasType4Node({
   const delegationAddress =
     unsignedAuthorizations[unsignedAuthorizations.length - 1].address;
 
-  const [nodeGas, currentDelegationAddress] = await Promise.all([
+  const [nodeGas, senderExists] = await Promise.all([
     estimateGasNode(messenger, networkClientId, txParams, delegationAddress),
-    getDelegationAddress(txParams.from as Hex, messenger, networkClientId),
+    isAccountInState(messenger, networkClientId, txParams.from as Hex),
   ]);
 
-  const delegationGas = currentDelegationAddress ? 0 : EIP2780_DELEGATION_GAS;
+  const authorizationGas =
+    unsignedAuthorizations.length * EIP2780_AUTHORIZATION_GAS +
+    (senderExists ? 0 : EIP2780_NEW_ACCOUNT_GAS);
 
-  log('Type 4 gas using node', {
-    currentDelegationAddress,
-    delegationGas,
-    nodeGas,
-  });
+  log('Type 4 gas using node', { nodeGas, authorizationGas, senderExists });
 
-  return BNToHex(hexToBN(nodeGas).addn(delegationGas));
+  return BNToHex(hexToBN(nodeGas).addn(authorizationGas));
+}
+
+/**
+ * Determine whether an account exists in state, as defined by EIP-161, meaning
+ * it has a non-zero nonce, a non-zero balance, or code.
+ *
+ * @param messenger - The messenger instance for communication.
+ * @param networkClientId - The network client ID.
+ * @param address - The address of the account.
+ * @returns Whether the account exists.
+ */
+async function isAccountInState(
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
+  address: Hex,
+): Promise<boolean> {
+  const [nonce, balance, code] = (await Promise.all(
+    ['eth_getTransactionCount', 'eth_getBalance', 'eth_getCode'].map((method) =>
+      rpcRequest({
+        messenger,
+        networkClientId,
+        method,
+        params: [address, 'latest'],
+      }),
+    ),
+  )) as Hex[];
+
+  return (
+    !hexToBN(nonce).isZero() || !hexToBN(balance).isZero() || code !== '0x'
+  );
 }
 
 /**
