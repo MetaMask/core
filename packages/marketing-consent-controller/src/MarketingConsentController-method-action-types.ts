@@ -16,6 +16,9 @@ import type { MarketingConsentController } from './MarketingConsentController.js
  * without waiting for that.
  *
  * @param enabled - Whether the user consents to marketing.
+ * A call overtaken by a newer one resolves without waiting; the newer call
+ * reports the outcome.
+ *
  * @throws If AUS did not save the change. AUS is the source of truth, so
  * the change is then dropped and local consent is re-read from AUS.
  */

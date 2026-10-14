@@ -178,6 +178,8 @@ export class MarketingConsentController extends BaseController<
 
   #inFlight: Promise<void> | undefined;
 
+  #latestConsentRequest = 0;
+
   /**
    * Creates a new MarketingConsentController.
    *
@@ -229,10 +231,16 @@ export class MarketingConsentController extends BaseController<
    * without waiting for that.
    *
    * @param enabled - Whether the user consents to marketing.
+   * A call overtaken by a newer one resolves without waiting; the newer call
+   * reports the outcome.
+   *
    * @throws If AUS did not save the change. AUS is the source of truth, so
    * the change is then dropped and local consent is re-read from AUS.
    */
   async setMarketingConsent(enabled: boolean): Promise<void> {
+    this.#latestConsentRequest += 1;
+    const request = this.#latestConsentRequest;
+
     await this.#applyLocalConsent(enabled);
 
     // Checked after applying: the change applies locally either way, and a
@@ -245,6 +253,9 @@ export class MarketingConsentController extends BaseController<
     try {
       await this.#waitForSync(enabled);
     } catch (error) {
+      if (request !== this.#latestConsentRequest) {
+        return;
+      }
       await this.#revertToAus(enabled);
       throw error;
     }

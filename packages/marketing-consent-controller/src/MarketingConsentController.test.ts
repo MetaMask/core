@@ -994,6 +994,25 @@ describe('MarketingConsentController', () => {
   });
 
   describe('setMarketingConsent', () => {
+    it('resolves a call overtaken by a newer one, without reverting', async () => {
+      const { controller, mocks } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+
+      const first = controller.setMarketingConsent(true);
+      const second = controller.setMarketingConsent(false);
+
+      expect(await first).toBeUndefined();
+      expect(await second).toBeUndefined();
+      expect(writtenConsents(mocks.putMarketingConsent).at(-1)).toBe(false);
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
     it('saves an opt-in to AUS', async () => {
       const { controller, mocks } = setup({
         analyticsState: OPTED_OUT,
