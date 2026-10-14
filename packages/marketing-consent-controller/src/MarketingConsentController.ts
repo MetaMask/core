@@ -531,18 +531,33 @@ export class MarketingConsentController extends BaseController<
 
     const startedFor = this.#session;
 
-    this.#inFlight = this.#run(startedFor).finally(() => {
+    const afterRun = (succeeded: boolean): void => {
       this.#inFlight = undefined;
       // Re-run for a new session, or for a refresh requested mid-run; a
       // refresh must not read AUS before an in-flight write has landed.
+      // After a successful run, a pending change was made after its flush;
+      // after a failed one, it is the change that failed and waits for the
+      // next trigger instead of retrying in a loop.
       const sessionChanged = this.#session !== startedFor;
+      const changedAfterFlush =
+        succeeded && this.state.pendingMarketingConsent !== null;
       if (
         this.#isReady() &&
-        (sessionChanged || this.#session.remoteStale === true)
+        (sessionChanged ||
+          this.#session.remoteStale === true ||
+          changedAfterFlush)
       ) {
         this.#startSync();
       }
-    });
+    };
+
+    this.#inFlight = this.#run(startedFor).then(
+      () => afterRun(true),
+      (error: unknown) => {
+        afterRun(false);
+        throw error;
+      },
+    );
 
     return this.#inFlight;
   }

@@ -552,6 +552,37 @@ describe('MarketingConsentController', () => {
   });
 
   describe('local consent changes', () => {
+    it('writes a change made after a run has flushed its last change', async () => {
+      const { controller, rootMessenger, mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+      // Opt out again the moment the opt-in is confirmed, after the run has
+      // checked for newer changes and before it finishes.
+      let optedOutAgain = false;
+      rootMessenger.subscribe(
+        'MarketingConsentController:stateChanged',
+        (state) => {
+          if (!optedOutAgain && state.pendingMarketingConsent === null) {
+            optedOutAgain = true;
+            setAnalyticsState(OPTED_OUT);
+          }
+        },
+      );
+
+      setAnalyticsState(OPTED_IN);
+      await flushPromises();
+
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([
+        true,
+        false,
+      ]);
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
     it('keeps a local change pending until AUS confirms it', async () => {
       const put = createDeferred<void>();
       const { controller, mocks, setAnalyticsState } = setup({
