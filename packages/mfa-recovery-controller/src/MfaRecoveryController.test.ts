@@ -20,10 +20,7 @@ import {
   hash,
   unixNow,
 } from './crypto.js';
-import {
-  IncompleteMutationError,
-  MutationRejectedError,
-} from './errors.js';
+import { IncompleteMutationError, MutationRejectedError } from './errors.js';
 import type {
   MfaRecoveryControllerMessenger,
   MfaRecoveryControllerOptions,
@@ -728,24 +725,30 @@ describe('MfaRecoveryController', () => {
     });
 
     it('clears a persisted writing mutation that every escrow rejects', async () => {
-      await withController(async ({ controller, escrowA, escrowB, options }) => {
-        await controller.register(SECRET, IDENTIFIERS);
-        const pending = await getValidWritingPending([escrowA, escrowB], 0);
-        const resumed = new MfaRecoveryController({
-          ...options,
-          messenger: getMessenger(getRootMessenger()),
-          state: {
-            pendingOperation: await passthroughEncryptor.encrypt(pending),
-          },
-        });
+      await withController(
+        async ({ controller, escrowA, escrowB, options }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          const pending = await getValidWritingPending([escrowA, escrowB], 0);
+          const resumed = new MfaRecoveryController({
+            ...options,
+            messenger: getMessenger(getRootMessenger()),
+            state: {
+              pendingOperation: await passthroughEncryptor.encrypt(pending),
+            },
+          });
 
-        await expect(resumed.resume()).rejects.toBeInstanceOf(
-          MutationRejectedError,
-        );
-        expect(await resumed.getPhase()).toBe('idle');
-        await resumed.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH);
-        expect(await resumed.getPhase()).toBe('idle');
-      });
+          await expect(resumed.resume()).rejects.toBeInstanceOf(
+            MutationRejectedError,
+          );
+          expect(await resumed.getPhase()).toBe('idle');
+          await resumed.updateRecoverySecret(
+            PASSKEY,
+            SECRET_2,
+            REGISTERED_EPOCH,
+          );
+          expect(await resumed.getPhase()).toBe('idle');
+        },
+      );
     });
 
     it('keeps a writing mutation that one escrow already acknowledged', async () => {
@@ -781,9 +784,7 @@ describe('MfaRecoveryController', () => {
 
         expect(await controller.getPhase()).toBe('idle');
         expect(
-          bytesToHex(
-            (await recover(controller, PASSKEY)).recoverySecret,
-          ),
+          bytesToHex((await recover(controller, PASSKEY)).recoverySecret),
         ).toBe(bytesToHex(SECRET_2));
       });
     });
@@ -898,9 +899,7 @@ describe('MfaRecoveryController', () => {
         await controller.resume();
         expect(await controller.getPhase()).toBe('idle');
         expect(
-          bytesToHex(
-            (await recover(controller, PASSKEY)).recoverySecret,
-          ),
+          bytesToHex((await recover(controller, PASSKEY)).recoverySecret),
         ).toBe(bytesToHex(SECRET));
       });
     });

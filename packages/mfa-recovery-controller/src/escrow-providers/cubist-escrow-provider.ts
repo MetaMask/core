@@ -5,11 +5,7 @@ import type {
 } from '@cubist-labs/cubesigner-sdk';
 import { bytesToString, hexToBytes } from '@metamask/utils';
 
-import {
-  hashMutationReceipt,
-  verifySignature,
-  wrapKeyId,
-} from '../crypto.js';
+import { hashMutationReceipt, verifySignature, wrapKeyId } from '../crypto.js';
 import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
 import { isMutationReceipt } from '../escrow-utils.js';
 import type {
