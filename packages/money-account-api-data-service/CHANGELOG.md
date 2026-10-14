@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MoneyAccountApiHttpError`, a subclass of `HttpError` that carries a sanitized `responseBody` (hex addresses redacted, truncated to 1000 characters) and allowlisted diagnostic `responseHeaders` ([#10822](https://github.com/MetaMask/core/pull/10822))
+
+### Changed
+
+- Non-2xx responses from every endpoint now throw `MoneyAccountApiHttpError` instead of a plain `HttpError` ([#10822](https://github.com/MetaMask/core/pull/10822))
+
 ## [2.1.0]
 
 ### Added
