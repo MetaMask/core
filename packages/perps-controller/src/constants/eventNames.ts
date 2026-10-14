@@ -434,10 +434,12 @@ export const PERPS_EVENT_VALUE = {
     WHATS_HAPPENING: 'whats_happening',
     PRODUCTS: 'products',
     TOP_MOVERS: 'top_movers',
+    EXPLORE: 'explore',
     EXPLORE_CRYPTO: 'explore_crypto',
     EXPLORE_COMMODITIES: 'explore_commodities',
     EXPLORE_STOCKS: 'explore_stocks',
     EXPLORE_FOREX: 'explore_forex',
+    RECENTLY_ADDED: 'recently_added',
     RECENT_ACTIVITY: 'recent_activity',
   },
   INTERACTION_TYPE: {

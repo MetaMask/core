@@ -38,4 +38,7 @@ export type {
   VaultRateOptions,
 } from './types.js';
 export { Env } from './constants.js';
-export { MoneyAccountApiResponseValidationError } from './errors.js';
+export {
+  MoneyAccountApiHttpError,
+  MoneyAccountApiResponseValidationError,
+} from './errors.js';
