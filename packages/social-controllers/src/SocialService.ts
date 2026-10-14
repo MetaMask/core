@@ -14,12 +14,14 @@ import {
   boolean,
   enums,
   is,
+  literal,
   nullable,
   number,
   optional,
   record,
   string,
   type as structType,
+  union,
 } from '@metamask/superstruct';
 
 import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
@@ -28,6 +30,8 @@ import type {
   BlockedProfilesResponse,
   BlockOptions,
   CommentEngagement,
+  CopyTradeIntentResponse,
+  CreateCopyTradeIntentOptions,
   CreateSwapCommentOptions,
   FeedItem,
   FeedResponse,
@@ -107,6 +111,7 @@ const PositionStruct = structType({
   currentValueUSD: optional(nullable(number())),
   pnlValueUsd: optional(nullable(number())),
   pnlPercent: optional(nullable(number())),
+  copyCount: optional(number()),
   perpPositionType: optional(nullable(enums(['long', 'short']))),
   perpLeverage: optional(nullable(number())),
   positionAmountWithLeverage: optional(nullable(number())),
@@ -246,6 +251,30 @@ const SwapCommentResponseStruct = structType({
   metrics: CommentEngagementStruct,
 });
 
+const CopyTradeAccountStruct = structType({
+  profileId: string(),
+  caip10: string(),
+});
+
+const CopyTradeIntentResponseStruct = structType({
+  id: string(),
+  origin: structType({
+    kind: literal('comment'),
+    id: string(),
+  }),
+  copierAccount: CopyTradeAccountStruct,
+  sourceAccount: nullable(CopyTradeAccountStruct),
+  execution: union([
+    structType({ product: literal('swaps'), quoteId: string() }),
+    structType({ product: literal('perps'), oid: string() }),
+  ]),
+  payoutEligibility: structType({
+    status: enums(['payable', 'non_payable']),
+    reason: string(),
+  }),
+  createdAt: string(),
+});
+
 const FeedItemStruct = assign(
   PositionStruct,
   structType({
@@ -254,6 +283,7 @@ const FeedItemStruct = assign(
     authorComment: optional(nullable(AuthorCommentStruct)),
     commentCount: optional(number()),
     replyCount: optional(number()),
+    copyCount: optional(number()),
     firstTradeAt: optional(nullable(number())),
     holdTimeMs: optional(nullable(number())),
     entryPriceUsd: optional(nullable(number())),
@@ -373,6 +403,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'reactToComment',
   'removeCommentReaction',
   'createSwapComment',
+  'createCopyTradeIntent',
   'follow',
   'unfollow',
   'optOutOfLeaderboard',
@@ -1052,6 +1083,56 @@ export class SocialService extends BaseDataService<
           );
         }
         return comment;
+      },
+    });
+  }
+
+  /**
+   * Records that the current user is copying a trade from a social post, so
+   * the copy can be detected and attributed to the post's author.
+   *
+   * Calls `POST ${baseUrl}/copy-trade-intents`. Send swaps before submission
+   * with the Bridge quote id, and perps right after submission with the
+   * returned order id. The endpoint is idempotent per profile, origin, and
+   * execution id: it answers 201 for a new intent and 200 with the existing
+   * one on a retry.
+   *
+   * @param options - Options bag.
+   * @param options.origin - Comment the trade was copied from.
+   * @param options.copierAccount - CAIP-10 account placing the trade.
+   * @param options.execution - Swap quote id or perps order id.
+   * @returns The created or existing copy-trade intent.
+   */
+  async createCopyTradeIntent(
+    options: CreateCopyTradeIntentOptions,
+  ): Promise<CopyTradeIntentResponse> {
+    const { origin, copierAccount, execution } = options;
+
+    return await this.fetchQuery({
+      queryKey: [
+        `${this.name}:createCopyTradeIntent`,
+        { origin, copierAccount, execution },
+      ],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/copy-trade-intents`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ origin, copierAccount, execution }),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.CREATE_COPY_TRADE_INTENT_FAILED,
+        );
+        const intent = (await response.json()) as unknown;
+        if (!is(intent, CopyTradeIntentResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.CREATE_COPY_TRADE_INTENT_INVALID_RESPONSE,
+          );
+        }
+        return intent;
       },
     });
   }
