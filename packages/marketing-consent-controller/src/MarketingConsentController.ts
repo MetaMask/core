@@ -274,15 +274,17 @@ export class MarketingConsentController extends BaseController<
    * @param enabled - Whether the user consents to marketing.
    */
   async #applyLocalConsent(enabled: boolean): Promise<void> {
-    if (enabled) {
-      await this.messenger.call('AnalyticsController:optInToMarketing');
-    } else {
-      this.messenger.call('AnalyticsController:optOutOfMarketing');
-    }
+    // AnalyticsController updates consent before its first await. Queue the
+    // change before awaiting its follow-up work, so an older call resuming
+    // later cannot override a newer one.
+    const applied = enabled
+      ? this.messenger.call('AnalyticsController:optInToMarketing')
+      : this.messenger.call('AnalyticsController:optOutOfMarketing');
     // An explicit choice is written to AUS even when it matches local consent,
     // so it wins over a different value AUS may hold.
     this.#setPendingConsent(enabled);
     this.#startSync();
+    await applied;
   }
 
   /**
