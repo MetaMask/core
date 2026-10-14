@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getAccountSupport` to the controller, messenger, and optional provider contract. Hyperliquid detects native multi-signature accounts, caches successful checks per account/network session, and blocks exchange mutations for unsupported accounts. Transient detection failures remain retryable, authoritative exchange rejections correct cached support, and actions reject stale account, network, or provider contexts before signing. ([#10693](https://github.com/MetaMask/core/pull/10693))
 - Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets ([#11030](https://github.com/MetaMask/core/pull/11030))
   - Snapshots without these fields, or with `null` values, still validate. An unrecognized `marginMode` rejects the snapshot, so snapshot-backed reads fall back to the provider.
 - Add optional `AccountState.crossMarginSummary` (`accountValue`, `maintenanceMargin`, `marginUsed`, `notional`) and the `CrossMarginSummary` type, so clients can show account ratio, maintenance margin, account leverage and cross margin usage for Hyperliquid and Lighter ([#11148](https://github.com/MetaMask/core/pull/11148))
@@ -98,7 +99,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `createErrorResult` copies `errorCode` and `errorDetails` when the failure is a structured controller error. HyperLiquid mapped rejections, including an immediate-match rejection (`IOC_CANCEL`) and `EXCHANGE_ACCOUNT_NOT_FOUND`, now set `errorCode`; `OrderResult.error` stays the same message
   - A USD-derived order whose price moved past `maxSlippageBps` (or the default market slippage) reports `PRICE_MOVED`. The message still starts with `Price moved too much:`; the expected and current prices in it use HyperLiquid price formatting
 - Add `PERPS_EVENT_PROPERTY.PRICE_DELTA_BPS` (`price_delta_bps`) and export `PerpsMaxSlippageSource`. Trade and close analytics now include `failure_reason` from `errorCode` when one is present, `price_delta_bps` for a `PRICE_MOVED` rejection, and `max_slippage_pct`, `max_slippage_source`, and `estimated_slippage_pct` from the caller's tracking data. Raw `error_message` is still sent. Failed close events also include `close_type`, derived from the requested size, including when the provider throws. That property previously appeared only on executed closes ([#10385](https://github.com/MetaMask/core/pull/10385))
-- Add `getAccountSupport` to the controller, messenger, and optional provider contract. Hyperliquid detects native multi-signature accounts, caches successful checks per account/network session, and blocks exchange mutations for unsupported accounts. Transient detection failures remain retryable, authoritative exchange rejections correct cached support, and actions reject stale account, network, or provider contexts before signing. ([#10693](https://github.com/MetaMask/core/pull/10693))
 
 ### Changed
 
