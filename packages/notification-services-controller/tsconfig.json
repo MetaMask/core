@@ -2,6 +2,9 @@
   "extends": "../../tsconfig.packages.json",
   "references": [
     {
+      "path": "../analytics-controller"
+    },
+    {
       "path": "../authenticated-user-storage"
     },
     {

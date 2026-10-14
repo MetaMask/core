@@ -1,3 +1,4 @@
+import type { AnalyticsControllerGetStateAction } from '@metamask/analytics-controller';
 import type {
   AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
@@ -53,6 +54,7 @@ import {
   DEFAULT_PERPS_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
   DEFAULT_SOCIAL_AI_PREFERENCES,
+  MarketingConsentRequiredError,
   NotificationServicesController,
   ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS,
   defaultState,
@@ -2509,6 +2511,80 @@ describe('NotificationServicesController', () => {
     });
   });
 
+  describe('updateNotificationPreferences', () => {
+    const arrangeController = (
+      optedInToMarketing: boolean,
+    ): ReturnType<typeof mockNotificationMessenger> & {
+      controller: NotificationServicesController;
+    } => {
+      const mocks = mockNotificationMessenger();
+      mocks.mockAnalyticsControllerGetState.mockReturnValue({
+        optedInToMarketing,
+      });
+      const controller = new NotificationServicesController({
+        messenger: mocks.messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+      return { ...mocks, controller };
+    };
+
+    it('saves preferences with the client platform', async () => {
+      const { controller, mockPutNotificationPreferences } =
+        arrangeController(false);
+      const preferences = mockPreferences();
+
+      await controller.updateNotificationPreferences(preferences);
+
+      expect(mockPutNotificationPreferences).toHaveBeenCalledWith(
+        preferences,
+        'extension',
+      );
+    });
+
+    it('saves marketing channels that are on when the user has consented', async () => {
+      const { controller, mockPutNotificationPreferences } =
+        arrangeController(true);
+      const preferences = mockPreferencesWithMarketingInApp(true);
+
+      await controller.updateNotificationPreferences(preferences);
+
+      expect(mockPutNotificationPreferences).toHaveBeenCalledWith(
+        preferences,
+        'extension',
+      );
+    });
+
+    it.each([
+      { pushNotificationsEnabled: true, inAppNotificationsEnabled: false },
+      { pushNotificationsEnabled: false, inAppNotificationsEnabled: true },
+    ])(
+      'rejects marketing channels that are on without consent (%o)',
+      async (marketing) => {
+        const { controller, mockPutNotificationPreferences } =
+          arrangeController(false);
+
+        await expect(
+          controller.updateNotificationPreferences(
+            mockPreferences({ marketing }),
+          ),
+        ).rejects.toThrow(MarketingConsentRequiredError);
+        expect(mockPutNotificationPreferences).not.toHaveBeenCalled();
+      },
+    );
+
+    it('is callable through the messenger', async () => {
+      const { globalMessenger, mockPutNotificationPreferences } =
+        arrangeController(false);
+
+      await globalMessenger.call(
+        'NotificationServicesController:updateNotificationPreferences',
+        mockPreferences(),
+      );
+
+      expect(mockPutNotificationPreferences).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
       const { messenger } = mockNotificationMessenger();
@@ -2665,6 +2741,7 @@ function mockNotificationMessenger(): {
   mockKeyringControllerGetState: jest.Mock;
   mockGetNotificationPreferences: jest.Mock;
   mockPutNotificationPreferences: jest.Mock;
+  mockAnalyticsControllerGetState: jest.Mock;
 } {
   const globalMessenger = getRootMessenger();
 
@@ -2692,6 +2769,7 @@ function mockNotificationMessenger(): {
       'NotificationServicesPushController:subscribeToPushNotifications',
       'AuthenticatedUserStorageService:getNotificationPreferences',
       'AuthenticatedUserStorageService:putNotificationPreferences',
+      'AnalyticsController:getState',
     ],
     events: [
       'KeyringController:stateChange',
@@ -2756,6 +2834,11 @@ function mockNotificationMessenger(): {
     typedMockAction<AuthenticatedUserStorageServicePutNotificationPreferencesAction>().mockResolvedValue(
       undefined,
     );
+
+  const mockAnalyticsControllerGetState =
+    typedMockAction<AnalyticsControllerGetStateAction>().mockReturnValue({
+      optedInToMarketing: false,
+    } as ReturnType<AnalyticsControllerGetStateAction['handler']>);
 
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
     const [actionType] = args;
@@ -2830,6 +2913,10 @@ function mockNotificationMessenger(): {
       return mockPutNotificationPreferences(params[0], params[1]);
     }
 
+    if (actionType === 'AnalyticsController:getState') {
+      return mockAnalyticsControllerGetState();
+    }
+
     throw new Error(
       `MOCK_FAIL - unsupported messenger call: ${actionType as string}`,
     );
@@ -2849,6 +2936,7 @@ function mockNotificationMessenger(): {
     mockKeyringControllerGetState,
     mockGetNotificationPreferences,
     mockPutNotificationPreferences,
+    mockAnalyticsControllerGetState,
   };
 }
 

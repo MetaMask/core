@@ -1,3 +1,4 @@
+import type { AnalyticsControllerGetStateAction } from '@metamask/analytics-controller';
 import type {
   AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
@@ -337,6 +338,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'markMetamaskNotificationsAsRead',
   'updateMetamaskNotificationsList',
   'sendPerpPlaceOrderNotification',
+  'updateNotificationPreferences',
 ] as const;
 
 export type NotificationServicesControllerGetStateAction =
@@ -361,6 +363,8 @@ type AllowedActions =
   // Authenticated User Storage Requests
   | AuthenticatedUserStorageServiceGetNotificationPreferencesAction
   | AuthenticatedUserStorageServicePutNotificationPreferencesAction
+  // Analytics Controller Requests
+  | AnalyticsControllerGetStateAction
   // Push Notifications Controller Requests
   | NotificationServicesPushControllerMethodActions;
 
@@ -403,6 +407,17 @@ export type NotificationServicesControllerMessenger = Messenger<
   Actions | AllowedActions,
   Events | AllowedEvents
 >;
+
+/**
+ * Thrown when marketing notifications are turned on without marketing
+ * consent. Ask the user for consent first, then retry.
+ */
+export class MarketingConsentRequiredError extends Error {
+  constructor() {
+    super('Marketing notifications require marketing consent');
+    this.name = 'MarketingConsentRequiredError';
+  }
+}
 
 type FeatureAnnouncementEnv = {
   spaceId: string;
@@ -1590,5 +1605,39 @@ export class NotificationServicesController extends BaseController<
     } catch {
       // Do Nothing
     }
+  }
+
+  /**
+   * Saves the user's notification preferences to Authenticated User Storage.
+   *
+   * Marketing notifications require marketing consent, so a write that has a
+   * marketing channel on while the user has not consented is rejected. Turning
+   * consent off turns marketing channels off on its own (see
+   * `MarketingConsentController`).
+   *
+   * @param preferences - The full notification preferences to save.
+   * @throws {MarketingConsentRequiredError} If a marketing channel is on
+   * without marketing consent.
+   */
+  public async updateNotificationPreferences(
+    preferences: NotificationPreferences,
+  ): Promise<void> {
+    const { marketing } = preferences;
+    const { optedInToMarketing } = this.messenger.call(
+      'AnalyticsController:getState',
+    );
+    if (
+      (marketing.pushNotificationsEnabled ||
+        marketing.inAppNotificationsEnabled) &&
+      optedInToMarketing !== true
+    ) {
+      throw new MarketingConsentRequiredError();
+    }
+
+    await this.messenger.call(
+      'AuthenticatedUserStorageService:putNotificationPreferences',
+      preferences,
+      this.#featureAnnouncementEnv.platform,
+    );
   }
 }

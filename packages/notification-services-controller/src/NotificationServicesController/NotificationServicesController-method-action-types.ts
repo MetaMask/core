@@ -218,6 +218,24 @@ export type NotificationServicesControllerSendPerpPlaceOrderNotificationAction =
   };
 
 /**
+ * Saves the user's notification preferences to Authenticated User Storage.
+ *
+ * Marketing notifications require marketing consent, so a write that has a
+ * marketing channel on while the user has not consented is rejected. Turning
+ * consent off turns marketing channels off on its own (see
+ * `MarketingConsentController`).
+ *
+ * @param preferences - The full notification preferences to save.
+ * @throws {MarketingConsentRequiredError} If a marketing channel is on
+ * without marketing consent.
+ */
+export type NotificationServicesControllerUpdateNotificationPreferencesAction =
+  {
+    type: `NotificationServicesController:updateNotificationPreferences`;
+    handler: NotificationServicesController['updateNotificationPreferences'];
+  };
+
+/**
  * Union of all NotificationServicesController action types.
  */
 export type NotificationServicesControllerMethodActions =
@@ -237,4 +255,5 @@ export type NotificationServicesControllerMethodActions =
   | NotificationServicesControllerDeleteNotificationsByIdAction
   | NotificationServicesControllerMarkMetamaskNotificationsAsReadAction
   | NotificationServicesControllerUpdateMetamaskNotificationsListAction
-  | NotificationServicesControllerSendPerpPlaceOrderNotificationAction;
+  | NotificationServicesControllerSendPerpPlaceOrderNotificationAction
+  | NotificationServicesControllerUpdateNotificationPreferencesAction;
