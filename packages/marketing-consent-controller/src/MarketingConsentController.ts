@@ -416,6 +416,15 @@ export class MarketingConsentController extends BaseController<
       },
       this.#clientType,
     );
+
+    // The write only invalidates the cached preferences; re-reading them
+    // publishes the new value to UIs bound to the AUS cache. A failed re-read
+    // must not block the consent write, the UI catches up on its next read.
+    await this.messenger
+      .call('AuthenticatedUserStorageService:getNotificationPreferences')
+      .catch((error: unknown) => {
+        console.error('Failed to refresh notification preferences:', error);
+      });
   }
 
   // Channels go off before consent so AUS never has consent off with a
