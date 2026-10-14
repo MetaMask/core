@@ -481,6 +481,12 @@ export class MarketingConsentController extends BaseController<
       }
     }
 
+    // Another client may have revoked consent without turning the marketing
+    // channels off; a no-op when they already are.
+    if (!remote.marketingConsentEnabled) {
+      await this.#turnOffMarketingNotifications();
+    }
+
     session.lastSynced = remote.marketingConsentEnabled;
   }
 
