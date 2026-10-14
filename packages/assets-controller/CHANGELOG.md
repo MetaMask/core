@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Temporarily extend `SnapDataSource` v6 balance fetches, in a deletable block, to also request every token already stored in balance state for the requested chains, so a rollback to Snaps still refreshes tokens that Accounts API and the websocket already support. Remove that block once balance reads fully move to Accounts API ([#10819](https://github.com/MetaMask/core/pull/10819))
 - Bump `@metamask/keyring-api` from `^24.1.0` to `^24.3.0` ([#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/keyring-internal-api` from `^12.1.0` to `^12.1.2` ([#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/keyring-snap-client` from `^10.0.0` to `^10.0.1` ([#10792](https://github.com/MetaMask/core/pull/10792))

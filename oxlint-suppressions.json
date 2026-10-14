@@ -821,15 +821,6 @@
   "packages/assets-controller/src/data-sources/SnapDataSource.test.ts": {
     "no-useless-return": {
       "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 6
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/assets-controller/src/data-sources/SnapDataSource.ts": {
