@@ -35,7 +35,8 @@ import {
   DEFAULT_GAS_MULTIPLIER,
   MAX_GAS_BLOCK_PERCENT,
   DUMMY_AUTHORIZATION_SIGNATURE,
-  EIP2780_DELEGATION_GAS,
+  EIP2780_AUTHORIZATION_GAS,
+  EIP2780_NEW_ACCOUNT_GAS,
   simulateGasBatch,
 } from './gas.js';
 import { rpcRequest } from './provider.js';
@@ -1112,15 +1113,24 @@ describe('gas', () => {
      *
      * @param options - The options.
      * @param options.estimateGasError - Error for eth_estimateGas.
-     * @param options.senderCode - Code of the sender.
+     * @param options.senderExists - Whether the sender exists in state.
+     * @param options.senderState - Nonce, balance and code of the sender.
      */
     function mockNode({
       estimateGasError,
-      senderCode = '0x',
+      senderExists = true,
+      senderState,
     }: {
       estimateGasError?: Error;
-      senderCode?: Hex;
+      senderExists?: boolean;
+      senderState?: { nonce: Hex; balance: Hex; code: Hex };
     } = {}): void {
+      const state = senderState ?? {
+        nonce: senderExists ? '0x5' : '0x0',
+        balance: '0x0',
+        code: '0x',
+      };
+
       rpcRequestMock.mockImplementation(({ method }) => {
         switch (method) {
           case 'eth_getBlockByNumber':
@@ -1132,8 +1142,12 @@ describe('gas', () => {
             return estimateGasError
               ? Promise.reject(estimateGasError)
               : Promise.resolve(toHex(GAS_2_MOCK));
+          case 'eth_getTransactionCount':
+            return Promise.resolve(state.nonce);
+          case 'eth_getBalance':
+            return Promise.resolve(state.balance);
           case 'eth_getCode':
-            return Promise.resolve(senderCode);
+            return Promise.resolve(state.code);
           default:
             return Promise.resolve(undefined);
         }
@@ -1423,14 +1437,14 @@ describe('gas', () => {
           (): void => mockSimulationResponse({ gasLimit: '0x0' }),
         ],
       ])(
-        'uses node estimate with delegation gas if simulation %s',
+        'uses node estimate with authorization gas if simulation %s',
         async (_title, mockSimulation) => {
           mockSimulation();
 
           const result = await estimateType4Gas();
 
           expect(result.estimatedGas).toBe(
-            toHex(GAS_2_MOCK + EIP2780_DELEGATION_GAS),
+            toHex(GAS_2_MOCK + EIP2780_AUTHORIZATION_GAS),
           );
           expect(result.simulationFails).toBeUndefined();
           expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
@@ -1442,11 +1456,11 @@ describe('gas', () => {
     });
 
     describe('with unsigned authorizations and no simulation', () => {
-      it('uses node estimate with delegation override and delegation gas', async () => {
+      it('uses node estimate with delegation override and authorization gas', async () => {
         const result = await estimateType4Gas({}, false);
 
         expect(result).toStrictEqual({
-          estimatedGas: toHex(GAS_2_MOCK + EIP2780_DELEGATION_GAS),
+          estimatedGas: toHex(GAS_2_MOCK + EIP2780_AUTHORIZATION_GAS),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
           gasRevert: undefined,
@@ -1458,25 +1472,49 @@ describe('gas', () => {
           getExpectedNodeOverrideParams(),
         ]);
 
-        expect(rpcRequestMock).toHaveBeenCalledWith({
-          messenger: MESSENGER_MOCK,
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-          method: 'eth_getCode',
-          params: [TRANSACTION_META_MOCK.txParams.from, 'latest'],
-        });
+        for (const method of [
+          'eth_getTransactionCount',
+          'eth_getBalance',
+          'eth_getCode',
+        ]) {
+          expect(rpcRequestMock).toHaveBeenCalledWith({
+            messenger: MESSENGER_MOCK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            method,
+            params: [TRANSACTION_META_MOCK.txParams.from, 'latest'],
+          });
+        }
       });
 
-      it('does not add delegation gas if sender already delegated', async () => {
-        mockNode({
-          senderCode: `${DELEGATION_PREFIX}${'1'.repeat(40)}`,
-        });
+      it('adds new account gas if sender does not exist in state', async () => {
+        mockNode({ senderExists: false });
 
         const result = await estimateType4Gas({}, false);
 
-        expect(result.estimatedGas).toBe(toHex(GAS_2_MOCK));
+        expect(result.estimatedGas).toBe(
+          toHex(
+            GAS_2_MOCK + EIP2780_AUTHORIZATION_GAS + EIP2780_NEW_ACCOUNT_GAS,
+          ),
+        );
       });
 
-      it('adds delegation gas once for multiple unsigned authorizations', async () => {
+      it.each<[string, { nonce: Hex; balance: Hex; code: Hex }]>([
+        ['balance', { nonce: '0x0', balance: '0x1', code: '0x' }],
+        ['code', { nonce: '0x0', balance: '0x0', code: '0x1234' }],
+      ])(
+        'does not add new account gas if sender has %s',
+        async (_title, senderState) => {
+          mockNode({ senderState });
+
+          const result = await estimateType4Gas({}, false);
+
+          expect(result.estimatedGas).toBe(
+            toHex(GAS_2_MOCK + EIP2780_AUTHORIZATION_GAS),
+          );
+        },
+      );
+
+      it('adds authorization gas for each unsigned authorization only', async () => {
         const secondAddress = '0x456' as Hex;
 
         const result = await estimateType4Gas(
@@ -1491,7 +1529,7 @@ describe('gas', () => {
         );
 
         expect(result.estimatedGas).toBe(
-          toHex(GAS_2_MOCK + EIP2780_DELEGATION_GAS),
+          toHex(GAS_2_MOCK + 2 * EIP2780_AUTHORIZATION_GAS),
         );
 
         expect(getEstimateGasParams()).toStrictEqual([
