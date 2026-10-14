@@ -60,8 +60,9 @@ export type InitializationConfiguration<Instance, InstanceMessenger> = {
   ): InstanceMessenger;
 } & (InstanceState<Instance> extends StateConstraint
   ? {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      reference: (new (...args: any[]) => Instance) &
+      // `never[]` accepts a class with any constructor signature, because
+      // parameters are contravariant and every type accepts `never`.
+      reference: (new (...args: never[]) => Instance) &
         Partial<ValidatableController<Instance, InstanceState<Instance>>>;
     }
   : { reference?: undefined });
