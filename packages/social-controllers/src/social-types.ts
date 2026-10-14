@@ -225,10 +225,19 @@ export type Position = {
    * responses from a social-api that predates the field.
    */
   isOpen?: boolean;
-  boughtUsd: number;
-  soldUsd: number;
-  realizedPnl: number;
-  costBasis: number;
+  /**
+   * Total USD spent buying into the position. `null` when Clicker stats are
+   * incomplete (the social-api used to JSON-serialize `NaN` as `null`).
+   */
+  boughtUsd: number | null;
+  /** Total USD received from sells. `null` when stats are incomplete. */
+  soldUsd: number | null;
+  /** Realized profit or loss in USD. `null` when stats are incomplete. */
+  realizedPnl: number | null;
+  /**
+   * USD cost basis of the remaining holdings. `null` when stats are incomplete.
+   */
+  costBasis: number | null;
   trades: Trade[];
   lastTradeAt: number;
   /** Daylight-hosted token image URL. */
@@ -239,6 +248,8 @@ export type Position = {
   pnlValueUsd?: number | null;
   /** PnL as a percentage of cost basis. */
   pnlPercent?: number | null;
+  /** Number of detected copy trades for this position. */
+  copyCount?: number;
   /** Perp side of the position. `null`/absent for spot positions. */
   perpPositionType?: 'long' | 'short' | null;
   /** Leverage multiplier for perp positions. `null`/absent for spot. */
@@ -331,6 +342,8 @@ export type FeedItem = Position & {
   commentCount?: number;
   /** Replies across those comments. Absent on older social-api builds. */
   replyCount?: number;
+  /** Detected copies of this position. Absent on older social-api builds. */
+  copyCount?: number;
   /**
    * Unix seconds of the position's first fill. Count from this to render a
    * live hold on a position that is still open, where {@link holdTimeMs} is
@@ -423,6 +436,75 @@ export type SwapCommentResponse = {
   metrics: CommentEngagement;
 };
 
+// ---------------------------------------------------------------------------
+// Copy-trade intents
+// ---------------------------------------------------------------------------
+
+/**
+ * Social resource a copy trade was started from. Only comments are supported.
+ */
+export type CopyTradeOrigin = {
+  kind: 'comment';
+  /** Comment UUID. */
+  id: string;
+};
+
+/**
+ * Trade being copied. Swaps are identified by their Bridge quote id, perps by
+ * the Hyperliquid order id returned on submission.
+ */
+export type CopyTradeExecution =
+  | { product: 'swaps'; quoteId: string }
+  | { product: 'perps'; oid: string };
+
+/**
+ * Options for `POST /v1/copy-trade-intents`.
+ */
+export type CreateCopyTradeIntentOptions = {
+  origin: CopyTradeOrigin;
+  copierAccount: {
+    /**
+     * CAIP-10 id of the account placing the trade. The social-api verifies it
+     * belongs to the authenticated profile.
+     */
+    caip10: string;
+  };
+  execution: CopyTradeExecution;
+};
+
+/**
+ * Account on a copy-trade intent response.
+ */
+export type CopyTradeAccount = {
+  profileId: string;
+  caip10: string;
+};
+
+/**
+ * Payout eligibility snapshotted when the intent is created. `reason` is one
+ * of `comment_source`, `source_account_unavailable`, or `unknown_reason`;
+ * newer social-api builds may add more.
+ */
+export type CopyTradePayoutEligibility = {
+  status: 'payable' | 'non_payable';
+  reason: string;
+};
+
+/**
+ * Response from `POST /v1/copy-trade-intents`. The endpoint is idempotent, so
+ * a retry returns the existing intent.
+ */
+export type CopyTradeIntentResponse = {
+  id: string;
+  origin: CopyTradeOrigin;
+  copierAccount: CopyTradeAccount;
+  sourceAccount: CopyTradeAccount | null;
+  execution: CopyTradeExecution;
+  payoutEligibility: CopyTradePayoutEligibility;
+  /** ISO 8601 timestamp. */
+  createdAt: string;
+};
+
 /**
  * Cursor pagination for the feed. Pass `olderCursor` back as `olderThan` to
  * load older items (infinite scroll), and `newerCursor` as `newerThan` to
@@ -447,7 +529,7 @@ export type FeedResponse = {
 
 /**
  * Response from `GET /v1/users/me/followers` and bearer-authenticated
- * `GET /v1/traders/:addressOrId/followers`.
+ * `GET /v1/traders/:addressOrId/followers` (optionally `?mutuals=true`).
  */
 export type FollowersResponse = {
   followers: ProfileSummary[];
@@ -512,6 +594,12 @@ export type FetchPositionsOptions = {
 export type FetchFollowersOptions = {
   /** Wallet address or Clicker profile ID. */
   addressOrId: string;
+  /**
+   * When true, requests `GET .../followers?mutuals=true` so `followers` are
+   * profiles that follow both this trader and the authenticated user; `count` is
+   * the mutual total. Omit or false returns the trader's full follower list.
+   */
+  mutuals?: boolean;
 };
 
 export type FetchTraderFollowingOptions = {

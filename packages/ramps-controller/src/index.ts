@@ -13,6 +13,7 @@ export type {
   ResourceState,
   TransakState,
   NativeProvidersState,
+  MoneyAccountWalletRegistration,
   MoneyAccountWalletRegistrationResult,
   KeyringControllerSignPersonalMessageAction,
   VbaAutorampStatus,

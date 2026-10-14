@@ -99,8 +99,8 @@ const SubscriptionPaymentMethodStruct = union([
 export const SubscriptionStruct = type({
   id: string(),
   products: array(ProductStruct),
-  currentPeriodStart: optional(string()),
-  currentPeriodEnd: optional(string()),
+  currentPeriodStart: string(),
+  currentPeriodEnd: string(),
   cancelAtPeriodEnd: optional(boolean()),
   status: SubscriptionStatusStruct,
   interval: RecurringIntervalStruct,
@@ -110,9 +110,9 @@ export const SubscriptionStruct = type({
   trialEnd: optional(string()),
   endDate: optional(string()),
   canceledAt: optional(string()),
-  cancelType: optional(CancelTypeStruct),
+  cancelType: CancelTypeStruct,
   inactiveAt: optional(string()),
-  isEligibleForSupport: optional(boolean()),
+  isEligibleForSupport: boolean(),
   billingCycles: optional(number()),
   lastInvoice: optional(
     type({

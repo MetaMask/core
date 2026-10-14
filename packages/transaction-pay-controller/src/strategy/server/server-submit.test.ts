@@ -17,6 +17,7 @@ import {
   getServerPollingInterval,
   getServerPollingTimeout,
 } from '../../utils/feature-flags.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import { getLiveTokenBalance } from '../../utils/token.js';
 import {
   collectTransactionIds,
@@ -25,7 +26,7 @@ import {
 } from '../../utils/transaction.js';
 import { getServerStatus, submitServerIntent } from './server-api.js';
 import { submitServerQuotes } from './server-submit.js';
-import { ServerProviderName, ServerStatus } from './types.js';
+import { ServerStatus } from './types.js';
 import type { ServerQuote, ServerSignatureStep } from './types.js';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -33,6 +34,7 @@ jest.mock('@metamask/controller-utils', () => ({
   successfulFetch: jest.fn(),
 }));
 jest.mock('../../utils/feature-flags');
+jest.mock('../../utils/second-leg');
 jest.mock('../../utils/token', () => ({
   ...jest.requireActual('../../utils/token'),
   getLiveTokenBalance: jest.fn(),
@@ -92,7 +94,7 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
     raw: '1000000',
     token: '0x6666666666666666666666666666666666666666',
   },
-  provider: ServerProviderName.Relay,
+  provider: 'relay',
   steps: [
     {
       type: 'transaction' as const,
@@ -229,7 +231,7 @@ describe('submitServerQuotes', () => {
       chainId: 137,
       data: DELEGATION_MOCK.data,
       id: ORIGINAL_QUOTE_MOCK.id,
-      provider: ServerProviderName.Relay,
+      provider: 'relay',
       to: DELEGATION_MOCK.to,
       value: '16',
     });
@@ -299,6 +301,112 @@ describe('submitServerQuotes', () => {
 
     expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
     expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe('second leg', () => {
+    const SECOND_LEG_HASH_MOCK = '0xsecondleg' as Hex;
+    const RECIPIENT_MOCK = '0x9999999999999999999999999999999999999999' as Hex;
+
+    const submitSecondLegMock = jest.mocked(submitSecondLeg);
+
+    beforeEach(() => {
+      submitSecondLegMock.mockResolvedValue({
+        transactionHash: SECOND_LEG_HASH_MOCK,
+      });
+
+      getServerStatusMock.mockResolvedValue({
+        status: ServerStatus.Confirmed,
+        targetHash: TARGET_HASH_MOCK,
+      });
+
+      request.quotes = [{ ...cloneDeep(QUOTE_MOCK), requiresSecondLeg: true }];
+    });
+
+    it('submits the second leg with the settlement hash and target token address', async () => {
+      const result = await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith({
+        chainId: '0x1',
+        from: QUOTE_FROM_MOCK,
+        messenger,
+        settlementHash: TARGET_HASH_MOCK,
+        tokenAddress: '0x6666666666666666666666666666666666666666',
+        transaction: expect.objectContaining({
+          id: ORIGINAL_TRANSACTION_ID_MOCK,
+        }),
+      });
+      expect(result).toStrictEqual({ transactionHash: SECOND_LEG_HASH_MOCK });
+    });
+
+    it('submits from the quote recipient when set', async () => {
+      request.quotes = [
+        {
+          ...cloneDeep(QUOTE_MOCK),
+          request: { ...QUOTE_MOCK.request, recipient: RECIPIENT_MOCK },
+          requiresSecondLeg: true,
+        },
+      ];
+
+      await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({ from: RECIPIENT_MOCK }),
+      );
+    });
+
+    it('falls back to the settlement hash when the second leg returns none', async () => {
+      submitSecondLegMock.mockResolvedValue({ transactionHash: undefined });
+
+      const result = await submitServerQuotes(request);
+
+      expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
+    });
+
+    it('passes no settlement hash when the intent confirmed without one', async () => {
+      getServerStatusMock.mockResolvedValue({
+        status: ServerStatus.Confirmed,
+        targetHash: undefined,
+      });
+
+      await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({ settlementHash: undefined }),
+      );
+    });
+
+    it('is skipped when the quote embedded the calls', async () => {
+      request.quotes = [cloneDeep(QUOTE_MOCK)];
+
+      const result = await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
+    });
+
+    it('marks the intent complete only after the second leg is submitted', async () => {
+      let isIntentCompleteDuringSecondLeg: boolean | undefined;
+
+      submitSecondLegMock.mockImplementation(async () => {
+        isIntentCompleteDuringSecondLeg = currentTransaction.isIntentComplete;
+        return { transactionHash: SECOND_LEG_HASH_MOCK };
+      });
+
+      await submitServerQuotes(request);
+
+      expect(isIntentCompleteDuringSecondLeg).toBeUndefined();
+      expect(currentTransaction.isIntentComplete).toBe(true);
+    });
+
+    it('does not mark the intent complete when the second leg fails', async () => {
+      submitSecondLegMock.mockRejectedValue(new Error('Second leg failed'));
+
+      await expect(submitServerQuotes(request)).rejects.toThrow(
+        'Second leg failed',
+      );
+
+      expect(currentTransaction.isIntentComplete).toBeUndefined();
+    });
   });
 
   it('marks the parent transaction isIntentComplete after confirmation', async () => {

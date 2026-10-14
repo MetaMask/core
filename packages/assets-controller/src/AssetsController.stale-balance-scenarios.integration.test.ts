@@ -2,6 +2,7 @@ import type { BalanceUpdate } from '@metamask/core-backend';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { cleanAll } from 'nock';
 
+import { stateBalancesSurface } from './__fixtures__/assetSurfaces.js';
 import { createMockMessengers } from './__fixtures__/MockAssetControllerMessenger.js';
 import type {
   MockRootMessenger,
@@ -53,11 +54,7 @@ import {
   USDT_ASSET_ID_CHECKSUM,
   USDT_CONTRACT,
 } from './__fixtures__/stale-balance/wallet.js';
-import {
-  getIgnoringCase,
-  waitFor,
-  waitUntilStable,
-} from './__fixtures__/test-utils.js';
+import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import { AssetsController } from './AssetsController.js';
 import type { AssetsControllerState } from './AssetsController.js';
 import { normalizeAmountString } from './utils/normalizeAmountString.js';
@@ -79,16 +76,6 @@ const BSC_DOUBLED = buildDoubledBscBalances();
 
 /** The lower-cased form of the USDT asset ID, as the captures key it. */
 const USDT_ASSET_ID_LOWER = USDT_ASSET_ID_CHECKSUM.toLowerCase();
-
-type StateSurface = {
-  surface: string;
-  lookUp: (state: AssetsControllerState, assetId: string) => unknown;
-  getAssetIds: (state: AssetsControllerState) => Set<string>;
-  lookupAmount: (
-    state: AssetsControllerState,
-    assetId: string,
-  ) => string | undefined;
-};
 
 type StaleBalanceHarnessOptions = {
   state?: Partial<AssetsControllerState>;
@@ -216,24 +203,7 @@ async function fetchSolanaSnapWallet({
 }
 
 describe('AssetsController stale-balance scenarios: Solana keyring snap', () => {
-  const BALANCES: StateSurface = {
-    surface: 'balances',
-    lookUp: (state, assetId) =>
-      getIgnoringCase(state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}, assetId),
-    getAssetIds: (state) =>
-      new Set(
-        Object.keys(state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    lookupAmount: (state, assetId) =>
-      (
-        getIgnoringCase(
-          state.assetsBalance[SOLANA_ACCOUNT_ID] ?? {},
-          assetId,
-        ) as { amount?: string } | undefined
-      )?.amount,
-  };
+  const BALANCES = stateBalancesSurface(SOLANA_ACCOUNT_ID);
 
   afterEach(() => {
     cleanAll();
@@ -403,23 +373,7 @@ async function fetchBscWallet({
 }
 
 describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () => {
-  const BALANCES: StateSurface = {
-    surface: 'balances',
-    lookUp: (state, assetId) =>
-      getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId),
-    getAssetIds: (state) =>
-      new Set(
-        Object.keys(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    lookupAmount: (state, assetId) =>
-      (
-        getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId) as
-          | { amount?: string }
-          | undefined
-      )?.amount,
-  };
+  const BALANCES = stateBalancesSurface(BSC_ACCOUNT_ID);
 
   afterEach(() => {
     cleanAll();
@@ -618,23 +572,7 @@ const publishBalanceUpdated = (
 };
 
 describe('AssetsController stale-balance scenarios: Account Activity live events', () => {
-  const BALANCES: StateSurface = {
-    surface: 'balances',
-    lookUp: (state, assetId) =>
-      getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId),
-    getAssetIds: (state) =>
-      new Set(
-        Object.keys(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    lookupAmount: (state, assetId) =>
-      (
-        getIgnoringCase(state.assetsBalance[BSC_ACCOUNT_ID] ?? {}, assetId) as
-          | { amount?: string }
-          | undefined
-      )?.amount,
-  };
+  const BALANCES = stateBalancesSurface(BSC_ACCOUNT_ID);
 
   afterEach(() => {
     cleanAll();
@@ -798,24 +736,7 @@ const STAKED_AMOUNTS = {
 const MAINNET_ETH_CAPTURED_AMOUNT = '0.053234767359623827';
 
 describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Hoodi', () => {
-  const BALANCES: StateSurface = {
-    surface: 'balances',
-    lookUp: (state, assetId) =>
-      getIgnoringCase(state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {}, assetId),
-    getAssetIds: (state) =>
-      new Set(
-        Object.keys(state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {}).map((key) =>
-          key.toLowerCase(),
-        ),
-      ),
-    lookupAmount: (state, assetId) =>
-      (
-        getIgnoringCase(
-          state.assetsBalance[MAINNET_ACCOUNT_ID] ?? {},
-          assetId,
-        ) as { amount?: string } | undefined
-      )?.amount,
-  };
+  const BALANCES = stateBalancesSurface(MAINNET_ACCOUNT_ID);
 
   afterEach(() => {
     cleanAll();

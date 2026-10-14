@@ -24,6 +24,7 @@ import {
 } from '../constants.js';
 import type { SubscriptionController } from '../SubscriptionController.js';
 import {
+  CANCEL_TYPES,
   CRYPTO_AUTH_METHODS,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
@@ -145,6 +146,8 @@ function buildSubscription(
         unitDecimals: PRICE.unitDecimals,
       },
     ],
+    currentPeriodStart: '2024-01-01T00:00:00Z',
+    currentPeriodEnd: '2024-02-01T00:00:00Z',
     status,
     interval: RECURRING_INTERVALS.month,
     paymentMethod: {
@@ -155,6 +158,8 @@ function buildSubscription(
         tokenSymbol: 'pvmUSD',
       },
     },
+    cancelType: CANCEL_TYPES.ALLOWED_IMMEDIATE,
+    isEligibleForSupport: false,
   };
 }
 
@@ -221,6 +226,7 @@ type Mocks = {
   getPricing: jest.Mock;
   getSubscriptions: jest.Mock;
   getSubscriptionState: jest.Mock;
+  isUserEligibleForTrial: jest.Mock<Promise<boolean>, [ProductType]>;
   forceUpgradeAccount: jest.Mock;
   startSubscriptionWithCrypto: jest.Mock<
     StartSubscriptionWithCryptoResult,
@@ -278,6 +284,14 @@ function setup(
         PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
       ],
     }),
+    isUserEligibleForTrial: jest
+      .fn<Promise<boolean>, [ProductType]>()
+      .mockImplementation(async (product) => {
+        const trialedProducts = options.trialedProducts ?? [
+          PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        ];
+        return !trialedProducts.includes(product);
+      }),
     forceUpgradeAccount: jest.fn().mockResolvedValue(undefined),
     startSubscriptionWithCrypto: jest
       .fn<StartSubscriptionWithCryptoResult, StartSubscriptionWithCryptoArgs>()
@@ -336,6 +350,10 @@ function setup(
     | {
         type: 'SubscriptionController:getState';
         handler: Mocks['getSubscriptionState'];
+      }
+    | {
+        type: 'SubscriptionController:isUserEligibleForTrial';
+        handler: Mocks['isUserEligibleForTrial'];
       }
     | {
         type: 'MoneyAccountUpgradeController:forceUpgradeAccount';
@@ -409,6 +427,10 @@ function setup(
     mocks.getSubscriptionState,
   );
   rootMessenger.registerActionHandler(
+    'SubscriptionController:isUserEligibleForTrial',
+    mocks.isUserEligibleForTrial,
+  );
+  rootMessenger.registerActionHandler(
     'MoneyAccountUpgradeController:forceUpgradeAccount',
     mocks.forceUpgradeAccount,
   );
@@ -436,6 +458,7 @@ function setup(
       'SubscriptionController:getPricing',
       'SubscriptionController:getSubscriptions',
       'SubscriptionController:getState',
+      'SubscriptionController:isUserEligibleForTrial',
       'MoneyAccountUpgradeController:forceUpgradeAccount',
       'SubscriptionController:startSubscriptionWithCrypto',
     ],
@@ -1441,6 +1464,77 @@ describe('SubscriptionDelegationService', () => {
         SubscriptionDelegationServiceErrorMessage.ChompIntentNotActive,
       );
       expect(mocks.startSubscriptionWithCrypto).not.toHaveBeenCalled();
+    });
+
+    it('starts a paid subscription when Money Account Plus is not eligible for a trial', async () => {
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      const { service, mocks } = setup({ trialedProducts: [] });
+      mocks.isUserEligibleForTrial.mockResolvedValue(false);
+
+      const result =
+        await service.startSubscriptionWithDelegation(START_REQUEST);
+      nowSpy.mockRestore();
+
+      expect(result).toStrictEqual(STARTED_SUBSCRIPTION);
+
+      expect(mocks.isUserEligibleForTrial).toHaveBeenCalledWith(
+        PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+      );
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isTrialRequested: false,
+          assertTrialEligibility: true,
+        }),
+      );
+      expect(getSignedPeriodStartDate(mocks)).toBe(1_700_000_000);
+    });
+
+    it('requests a trial and defers the delegation start when the user is eligible', async () => {
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      const { service, mocks } = setup({ trialedProducts: [] });
+      mocks.isUserEligibleForTrial.mockResolvedValue(true);
+
+      await service.startSubscriptionWithDelegation(START_REQUEST);
+      nowSpy.mockRestore();
+
+      expect(mocks.isUserEligibleForTrial).toHaveBeenCalledWith(
+        PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+      );
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isTrialRequested: true,
+        }),
+      );
+      expect(getSignedPeriodStartDate(mocks)).toBe(
+        1_700_000_000 + PRICE.trialPeriodDays * 86_400,
+      );
+    });
+
+    it('does not request a trial when the price has no trial period even if the user is eligible', async () => {
+      const { service, mocks } = setup({
+        trialedProducts: [],
+        pricing: {
+          ...PRICING,
+          products: [
+            {
+              name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+              prices: [{ ...PRICE, trialPeriodDays: 0 }],
+            },
+          ],
+        },
+      });
+      mocks.isUserEligibleForTrial.mockResolvedValue(true);
+
+      await service.startSubscriptionWithDelegation(START_REQUEST);
+
+      expect(mocks.isUserEligibleForTrial).toHaveBeenCalledWith(
+        PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+      );
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isTrialRequested: false,
+        }),
+      );
     });
 
     it('defers the payment permission when a trial is requested', async () => {

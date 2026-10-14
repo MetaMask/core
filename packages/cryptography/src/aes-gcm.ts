@@ -78,8 +78,11 @@ export async function encrypt(
     {
       name: 'AES-GCM',
       iv,
-      additionalData:
-        options?.additionalData && toUint8Array(options.additionalData),
+      // Browsers such as Chrome reject `additionalData: undefined`, so only set
+      // the key when there is associated data.
+      ...(options?.additionalData && {
+        additionalData: toUint8Array(options.additionalData),
+      }),
     },
     subtleKey,
     toUint8Array(plaintext),
@@ -134,8 +137,11 @@ export async function decrypt(
     {
       name: 'AES-GCM',
       iv: toUint8Array(iv),
-      additionalData:
-        options?.additionalData && toUint8Array(options.additionalData),
+      // Browsers such as Chrome reject `additionalData: undefined`, so only set
+      // the key when there is associated data.
+      ...(options?.additionalData && {
+        additionalData: toUint8Array(options.additionalData),
+      }),
     },
     subtleKey,
     toUint8Array(ciphertext),

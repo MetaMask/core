@@ -14,12 +14,14 @@ import {
   boolean,
   enums,
   is,
+  literal,
   nullable,
   number,
   optional,
   record,
   string,
   type as structType,
+  union,
 } from '@metamask/superstruct';
 
 import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
@@ -28,7 +30,10 @@ import type {
   BlockedProfilesResponse,
   BlockOptions,
   CommentEngagement,
+  CopyTradeIntentResponse,
+  CreateCopyTradeIntentOptions,
   CreateSwapCommentOptions,
+  FeedItem,
   FeedResponse,
   FetchBlockedListOptions,
   FetchFeedOptions,
@@ -93,16 +98,20 @@ const PositionStruct = structType({
   chain: string(),
   positionAmount: number(),
   isOpen: optional(boolean()),
-  boughtUsd: number(),
-  soldUsd: number(),
-  realizedPnl: number(),
-  costBasis: number(),
+  // Incomplete Clicker metrics serialize these as `null` (`undefined + n`
+  // becomes `NaN`, then JSON `null`). Rejecting the field used to fail the
+  // entire feed page, so they are nullable here.
+  boughtUsd: nullable(number()),
+  soldUsd: nullable(number()),
+  realizedPnl: nullable(number()),
+  costBasis: nullable(number()),
   trades: array(TradeStruct),
   lastTradeAt: number(),
   tokenImageUrl: optional(nullable(string())),
   currentValueUSD: optional(nullable(number())),
   pnlValueUsd: optional(nullable(number())),
   pnlPercent: optional(nullable(number())),
+  copyCount: optional(number()),
   perpPositionType: optional(nullable(enums(['long', 'short']))),
   perpLeverage: optional(nullable(number())),
   positionAmountWithLeverage: optional(nullable(number())),
@@ -242,6 +251,30 @@ const SwapCommentResponseStruct = structType({
   metrics: CommentEngagementStruct,
 });
 
+const CopyTradeAccountStruct = structType({
+  profileId: string(),
+  caip10: string(),
+});
+
+const CopyTradeIntentResponseStruct = structType({
+  id: string(),
+  origin: structType({
+    kind: literal('comment'),
+    id: string(),
+  }),
+  copierAccount: CopyTradeAccountStruct,
+  sourceAccount: nullable(CopyTradeAccountStruct),
+  execution: union([
+    structType({ product: literal('swaps'), quoteId: string() }),
+    structType({ product: literal('perps'), oid: string() }),
+  ]),
+  payoutEligibility: structType({
+    status: enums(['payable', 'non_payable']),
+    reason: string(),
+  }),
+  createdAt: string(),
+});
+
 const FeedItemStruct = assign(
   PositionStruct,
   structType({
@@ -250,6 +283,7 @@ const FeedItemStruct = assign(
     authorComment: optional(nullable(AuthorCommentStruct)),
     commentCount: optional(number()),
     replyCount: optional(number()),
+    copyCount: optional(number()),
     firstTradeAt: optional(nullable(number())),
     holdTimeMs: optional(nullable(number())),
     entryPriceUsd: optional(nullable(number())),
@@ -265,6 +299,44 @@ const FeedResponseStruct = structType({
   items: array(FeedItemStruct),
   pagination: FeedPaginationStruct,
 });
+
+/**
+ * One malformed feed item must not blank the page. When the envelope is
+ * well-shaped, keep items that match {@link FeedItemStruct} and drop the rest.
+ * Still throw when `items` or `pagination` themselves are unusable.
+ *
+ * @param feedData - Parsed JSON body from a feed endpoint.
+ * @param invalidMessage - Error message to throw when the envelope is unusable.
+ * @returns The validated feed response, possibly with invalid items dropped.
+ */
+const parseFeedResponse = (
+  feedData: unknown,
+  invalidMessage: string,
+): FeedResponse => {
+  if (is(feedData, FeedResponseStruct)) {
+    return feedData;
+  }
+
+  if (
+    typeof feedData !== 'object' ||
+    feedData === null ||
+    !('items' in feedData) ||
+    !('pagination' in feedData)
+  ) {
+    throw new Error(invalidMessage);
+  }
+
+  const { items, pagination } = feedData;
+
+  if (!Array.isArray(items) || !is(pagination, FeedPaginationStruct)) {
+    throw new Error(invalidMessage);
+  }
+
+  return {
+    items: items.filter((item): item is FeedItem => is(item, FeedItemStruct)),
+    pagination,
+  };
+};
 
 const FollowersResponseStruct = structType({
   followers: array(ProfileSummaryStruct),
@@ -331,6 +403,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'reactToComment',
   'removeCommentReaction',
   'createSwapComment',
+  'createCopyTradeIntent',
   'follow',
   'unfollow',
   'optOutOfLeaderboard',
@@ -551,25 +624,35 @@ export class SocialService extends BaseDataService<
   /**
    * Fetches a trader's MetaMask followers.
    *
-   * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`. Requires a bearer
-   * token; the trader is identified by `addressOrId`, not the JWT subject (see
-   * {@link fetchMyFollowers} for the current user's inbound list).
+   * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`. Pass
+   * `mutuals: true` to append `?mutuals=true` (profiles that follow both this
+   * trader and the authenticated user; `count` is the mutual total). Requires a
+   * bearer token; the trader is identified by `addressOrId`, not the JWT
+   * subject (see {@link fetchMyFollowers} for the current user's inbound list).
    *
    * @param options - Options bag.
    * @param options.addressOrId - Wallet address or Clicker profile ID.
+   * @param options.mutuals - When true, request mutual followers only.
    * @returns The followers response.
    */
   async fetchFollowers(
     options: FetchFollowersOptions,
   ): Promise<FollowersResponse> {
-    const { addressOrId } = options;
+    const { addressOrId, mutuals } = options;
+    const mutualsOnly = mutuals === true;
 
     const followersResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchFollowers`, addressOrId],
+      queryKey: [`${this.name}:fetchFollowers`, addressOrId, mutualsOnly],
+      staleTime: 0,
       queryFn: async () => {
-        const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/followers`;
+        const url = new URL(
+          `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/followers`,
+        );
+        if (mutualsOnly) {
+          url.searchParams.append('mutuals', 'true');
+        }
         const authHeaders = await this.#getAuthHeaders();
-        const response = await fetch(url, { headers: authHeaders });
+        const response = await fetch(url.toString(), { headers: authHeaders });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED,
@@ -605,6 +688,7 @@ export class SocialService extends BaseDataService<
 
     const followingResponse = await this.fetchQuery({
       queryKey: [`${this.name}:fetchTraderFollowing`, addressOrId],
+      staleTime: 0,
       queryFn: async () => {
         const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/following`;
         const authHeaders = await this.#getAuthHeaders();
@@ -716,12 +800,10 @@ export class SocialService extends BaseDataService<
           SocialServiceErrorMessage.FETCH_FEED_FAILED,
         );
         const feedData = (await response.json()) as unknown;
-        if (!is(feedData, FeedResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
-          );
-        }
-        return feedData;
+        return parseFeedResponse(
+          feedData,
+          SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+        );
       },
     });
 
@@ -786,12 +868,10 @@ export class SocialService extends BaseDataService<
           SocialServiceErrorMessage.FETCH_TRADER_FEED_FAILED,
         );
         const feedData = (await response.json()) as unknown;
-        if (!is(feedData, FeedResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
-          );
-        }
-        return feedData;
+        return parseFeedResponse(
+          feedData,
+          SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
+        );
       },
     });
 
@@ -855,12 +935,10 @@ export class SocialService extends BaseDataService<
           SocialServiceErrorMessage.FETCH_TOKEN_FEED_FAILED,
         );
         const feedData = (await response.json()) as unknown;
-        if (!is(feedData, FeedResponseStruct)) {
-          throw new Error(
-            SocialServiceErrorMessage.FETCH_TOKEN_FEED_INVALID_RESPONSE,
-          );
-        }
-        return feedData;
+        return parseFeedResponse(
+          feedData,
+          SocialServiceErrorMessage.FETCH_TOKEN_FEED_INVALID_RESPONSE,
+        );
       },
     });
 
@@ -1005,6 +1083,56 @@ export class SocialService extends BaseDataService<
           );
         }
         return comment;
+      },
+    });
+  }
+
+  /**
+   * Records that the current user is copying a trade from a social post, so
+   * the copy can be detected and attributed to the post's author.
+   *
+   * Calls `POST ${baseUrl}/copy-trade-intents`. Send swaps before submission
+   * with the Bridge quote id, and perps right after submission with the
+   * returned order id. The endpoint is idempotent per profile, origin, and
+   * execution id: it answers 201 for a new intent and 200 with the existing
+   * one on a retry.
+   *
+   * @param options - Options bag.
+   * @param options.origin - Comment the trade was copied from.
+   * @param options.copierAccount - CAIP-10 account placing the trade.
+   * @param options.execution - Swap quote id or perps order id.
+   * @returns The created or existing copy-trade intent.
+   */
+  async createCopyTradeIntent(
+    options: CreateCopyTradeIntentOptions,
+  ): Promise<CopyTradeIntentResponse> {
+    const { origin, copierAccount, execution } = options;
+
+    return await this.fetchQuery({
+      queryKey: [
+        `${this.name}:createCopyTradeIntent`,
+        { origin, copierAccount, execution },
+      ],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/copy-trade-intents`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ origin, copierAccount, execution }),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.CREATE_COPY_TRADE_INTENT_FAILED,
+        );
+        const intent = (await response.json()) as unknown;
+        if (!is(intent, CopyTradeIntentResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.CREATE_COPY_TRADE_INTENT_INVALID_RESPONSE,
+          );
+        }
+        return intent;
       },
     });
   }

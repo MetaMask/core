@@ -737,6 +737,7 @@ const EarnApiServiceMock = jest.mocked(EarnApiService);
 type MockedEarnApiService = {
   pooledStaking?: Partial<jest.Mocked<PooledStakingApiService>>;
   lending?: Partial<jest.Mocked<LendingApiService>>;
+  tronStaking?: Partial<jest.Mocked<EarnApiService['tronStaking']>>;
 };
 
 let mockedEarnApiService: MockedEarnApiService;

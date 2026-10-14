@@ -26,13 +26,13 @@ or
 - **`env`** -- selects the backend environment (`DEV`, `UAT`, or `PRD`).
 
 ```typescript
-import { Messenger } from '@metamask/messenger';
 import { AuthenticatedUserStorageService } from '@metamask/authenticated-user-storage';
 import type {
   AuthenticatedUserStorageMessenger,
   AuthenticatedUserStorageActions,
   AuthenticatedUserStorageEvents,
 } from '@metamask/authenticated-user-storage';
+import { Messenger } from '@metamask/messenger';
 
 // Create the messenger
 const messenger = new Messenger<

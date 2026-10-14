@@ -372,17 +372,15 @@ describe('SRP MFA methods', () => {
   });
 
   it('does not conflate email with entropySourceId', async () => {
-    const getLoginResponse = jest.fn(
-      async (): Promise<LoginResponse> => ({
-        token: { accessToken, expiresIn: 3600, obtainedAt: Date.now() },
-        profile: {
-          profileId: 'profile-id',
-          canonicalProfileId: 'profile-id',
-          metaMetricsId: 'metametrics-id',
-          identifierId: 'identifier-id',
-        },
-      }),
-    );
+    const getLoginResponse = jest.fn(async (): Promise<LoginResponse> => ({
+      token: { accessToken, expiresIn: 3600, obtainedAt: Date.now() },
+      profile: {
+        profileId: 'profile-id',
+        canonicalProfileId: 'profile-id',
+        metaMetricsId: 'metametrics-id',
+        identifierId: 'identifier-id',
+      },
+    }));
     const auth = new SRPJwtBearerAuth(config, {
       storage: {
         getLoginResponse,
