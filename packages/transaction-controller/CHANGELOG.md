@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `mode` to the `estimateGasBatch` result, `eip7702-outer` for a single gas limit of the outer EIP-7702 transaction or `per-transaction` for one gas limit per transaction, and export the `EstimateGasBatchMode` and `EstimateGasBatchResult` types ([#10790](https://github.com/MetaMask/core/pull/10790))
+
 ### Changed
+
+- When the outer EIP-7702 estimate in `estimateGasBatch` fails and the sender requires an upgrade, add 43,006 gas to the sum of the provided gas values for the upgrade authorization, which the provided values do not include ([#10790](https://github.com/MetaMask/core/pull/10790))
 
 - Estimate type-4 transactions with an authorization list as one outer transaction, instead of combining separate upgrade and execution estimates and subtracting 21,000 intrinsic gas, so the estimate includes the EIP-2780 runtime authorization charges ([#10783](https://github.com/MetaMask/core/pull/10783))
   - If all authorizations are signed, use `eth_estimateGas` on the selected network for the exact transaction.

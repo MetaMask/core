@@ -130,6 +130,10 @@ export {
   UserFeeLevel,
   WalletDevice,
 } from './types.js';
+export type {
+  EstimateGasBatchMode,
+  EstimateGasBatchResult,
+} from './utils/gas.js';
 export { mergeGasFeeEstimates } from './utils/gas-flow.js';
 export {
   decodeAuthorizationSignature,
