@@ -57,6 +57,9 @@
       "path": "../seedless-onboarding-controller/tsconfig.lint.json"
     },
     {
+      "path": "../selected-network-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../shield-controller/tsconfig.lint.json"
     },
     {
