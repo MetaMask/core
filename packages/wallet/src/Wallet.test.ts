@@ -1,5 +1,9 @@
 import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
 import { getDefaultClaimsControllerState } from '@metamask/claims-controller';
+import {
+  ClientController,
+  getDefaultClientControllerState,
+} from '@metamask/client-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
 import {
@@ -519,6 +523,30 @@ describe('Wallet', () => {
           'https://example.com',
         ),
       ).toBe(selectedNetworkClientId);
+    });
+  });
+
+  describe('ClientController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('ClientController')).toBeInstanceOf(
+        ClientController,
+      );
+      expect(wallet.messenger.call('ClientController:getState')).toStrictEqual(
+        getDefaultClientControllerState(),
+      );
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      messenger.call('ClientController:setUiOpen', true);
+
+      expect(messenger.call('ClientController:getState')).toStrictEqual({
+        isUiOpen: true,
+      });
     });
   });
 

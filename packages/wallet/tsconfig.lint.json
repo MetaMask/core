@@ -27,6 +27,9 @@
       "path": "../claims-controller/tsconfig.lint.json"
     },
     {
+      "path": "../client-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../config-registry-controller/tsconfig.lint.json"
     },
     {
