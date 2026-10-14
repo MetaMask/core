@@ -7,14 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- Add `eip2780Type4GasEstimation` to the `confirmations_transactions` remote feature flag, resolved per chain with `perChainConfig[chainId] ?? default ?? false` ([#10783](https://github.com/MetaMask/core/pull/10783))
-  - When enabled for a chain, type-4 transactions with unsigned authorizations are estimated with a single Simulation API request for the outer transaction, including an `authorizationList` with the authority of each entry, instead of combining separate upgrade and execution estimates.
-  - The authority of a pre-signed authorization is recovered from its signature, and estimation fails if it cannot be recovered.
-  - Type-4 transactions with only signed authorizations are estimated using `eth_estimateGas` on the selected network.
-  - A simulation error, or a missing or zero `gasLimit`, is recorded as `simulationFails` instead of falling back to the legacy estimate.
-  - When disabled, existing type-4 estimation is unchanged.
+- Estimate type-4 transactions with an authorization list as one outer transaction, instead of combining separate upgrade and execution estimates and subtracting 21,000 intrinsic gas, so the estimate includes the EIP-2780 runtime authorization charges ([#10783](https://github.com/MetaMask/core/pull/10783))
+  - If all authorizations are signed, use `eth_estimateGas` on the selected network for the exact transaction.
+  - Otherwise, send one Simulation API request with an `authorizationList` containing the authority of each entry: the sender for unsigned entries, and the recovered signer for pre-signed entries. Estimation fails if a signer cannot be recovered.
+  - If simulation is disabled, the chain is not supported by the Simulation API, or the simulation request fails or returns no gas limit, use `eth_estimateGas` on the selected network with dummy signatures and the delegation of the sender set with a state override. Add 44,190 gas for each unsigned authorization, and a further 183,600 if the sender does not exist in state, to cover the worst-case EIP-2780 runtime authorization charges.
+  - A simulated transaction error is recorded as `simulationFails` without falling back to the selected network.
 
 ## [72.2.1]
 
