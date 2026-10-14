@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `ulid` from `^2.3.0` to `^2.4.0` ([#10533](https://github.com/MetaMask/core/pull/10533))
 - Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.1` ([#10733](https://github.com/MetaMask/core/pull/10733), [#10792](https://github.com/MetaMask/core/pull/10792))
 - Bump `@metamask/keyring-api` from `^24.0.0` to `^24.2.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792))
+- Bump `@metamask/eth-hd-keyring` from `^15.0.0` to `^15.0.1` ([#10796](https://github.com/MetaMask/core/pull/10796))
+- Bump `@metamask/eth-simple-keyring` from `^13.0.0` to `^13.0.1` ([#10796](https://github.com/MetaMask/core/pull/10796))
 
 ## [28.1.0]
 
