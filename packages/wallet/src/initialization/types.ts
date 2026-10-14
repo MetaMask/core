@@ -65,3 +65,16 @@ export type InitializationConfiguration<Instance, InstanceMessenger> = {
         Partial<ValidatableController<Instance, InstanceState<Instance>>>;
     }
   : { reference?: undefined });
+
+/**
+ * An initialization configuration for an instance of any kind.
+ *
+ * `InitializationConfiguration` requires a `reference` for instances that
+ * have state and forbids one for instances that do not, so no single
+ * instantiation of it describes both kinds. This union covers both, so that
+ * lists mixing them, such as the configurations given to the wallet, can be
+ * typed without resorting to `any`.
+ */
+export type AnyInitializationConfiguration =
+  | InitializationConfiguration<unknown, unknown>
+  | InitializationConfiguration<{ state: StateConstraint }, unknown>;
