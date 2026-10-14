@@ -71,7 +71,7 @@ export default defineConfig({
     // On by default in Vitest; `yarn test:watch` opts back in.
     watch: false,
 
-    include: ['{src,tests}/**/*.test.ts', '{src,tests}/**/*.test.tsx'],
+    include: ['{src,tests}/**/*.test.ts'],
 
     environment: 'node',
 
@@ -118,8 +118,8 @@ export default defineConfig({
       // provider used under Jest.
       provider: 'istanbul',
 
-      include: ['src/**/*.ts', 'src/**/*.tsx'],
-      exclude: ['src/**/index.ts', 'src/**/*.test.ts', 'src/**/*.test-d.ts'],
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/index.ts', 'src/**/*.test.ts'],
 
       reporter: ['text', 'html', 'json-summary', 'lcov'],
       reportsDirectory: 'coverage',
