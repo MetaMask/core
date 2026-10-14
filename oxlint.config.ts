@@ -106,7 +106,6 @@ export default createConfig({
         'tests/matchers.ts',
         'tests/scripts-setup.ts',
         'tests/setupAfterEnv/**',
-        'tests/shared-helpers.ts',
         'tests/vitest/**',
       ],
       extends: [nodejs],

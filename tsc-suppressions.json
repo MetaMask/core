@@ -94,6 +94,11 @@
       "count": 6
     }
   },
+  "packages/approval-controller/src/ApprovalController.test.ts": {
+    "TS6307": {
+      "count": 1
+    }
+  },
   "packages/assets-controller/src/AssetsController.test.ts": {
     "TS2322": {
       "count": 12
@@ -311,6 +316,9 @@
     },
     "TS2769": {
       "count": 1
+    },
+    "TS6305": {
+      "count": 1
     }
   },
   "packages/bridge-controller/src/bridge-controller.sse.test.ts": {
@@ -319,6 +327,9 @@
     },
     "TS2345": {
       "count": 3
+    },
+    "TS6305": {
+      "count": 1
     }
   },
   "packages/bridge-controller/src/bridge-controller.test.ts": {
@@ -326,6 +337,9 @@
       "count": 1
     },
     "TS2345": {
+      "count": 1
+    },
+    "TS6305": {
       "count": 1
     }
   },
@@ -352,6 +366,11 @@
       "count": 1
     }
   },
+  "packages/bridge-controller/tests/mock-sse.ts": {
+    "TS6305": {
+      "count": 1
+    }
+  },
   "packages/bridge-status-controller/src/bridge-status-controller.batch-sell.test.ts": {
     "TS2345": {
       "count": 1
@@ -371,6 +390,11 @@
     },
     "TS2741": {
       "count": 2
+    }
+  },
+  "packages/bridge-status-controller/src/bridge-status-controller.test.ts": {
+    "TS6305": {
+      "count": 1
     }
   },
   "packages/bridge-status-controller/src/utils/metrics.test.ts": {
@@ -619,6 +643,11 @@
     },
     "TS2554": {
       "count": 4
+    }
+  },
+  "packages/network-enablement-controller/src/NetworkEnablementController.test.ts": {
+    "TS6305": {
+      "count": 1
     }
   },
   "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
@@ -986,6 +1015,9 @@
     },
     "TS2741": {
       "count": 1
+    },
+    "TS6305": {
+      "count": 1
     }
   },
   "packages/subscription-controller/src/SubscriptionService.test.ts": {
@@ -1062,6 +1094,11 @@
   },
   "packages/transaction-controller/src/utils/validation.test.ts": {
     "TS2352": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/helpers/QuoteRefresher.test.ts": {
+    "TS6305": {
       "count": 1
     }
   },
