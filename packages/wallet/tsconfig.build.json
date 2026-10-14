@@ -45,6 +45,9 @@
       "path": "../passkey-controller/tsconfig.build.json"
     },
     {
+      "path": "../permission-controller/tsconfig.build.json"
+    },
+    {
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
     },
     {

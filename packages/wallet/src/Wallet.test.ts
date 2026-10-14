@@ -3,6 +3,11 @@ import { getDefaultClaimsControllerState } from '@metamask/claims-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
 import {
+  PermissionController,
+  SubjectMetadataController,
+  SubjectType,
+} from '@metamask/permission-controller';
+import {
   getDefaultShieldControllerState,
   ShieldController,
 } from '@metamask/shield-controller';
@@ -424,6 +429,64 @@ describe('Wallet', () => {
         messenger.call('RemoteFeatureFlagController:getState')
           .remoteFeatureFlags,
       ).toStrictEqual({ testFlag: true });
+    });
+  });
+
+  describe('PermissionController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('PermissionController')).toBeInstanceOf(
+        PermissionController,
+      );
+      expect(
+        wallet.messenger.call('PermissionController:getState'),
+      ).toStrictEqual({ subjects: {} });
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(
+        wallet.messenger.call(
+          'PermissionController:hasPermissions',
+          'https://example.com',
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('SubjectMetadataController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('SubjectMetadataController')).toBeInstanceOf(
+        SubjectMetadataController,
+      );
+      expect(
+        wallet.messenger.call('SubjectMetadataController:getState'),
+      ).toStrictEqual({ subjectMetadata: {} });
+    });
+
+    it('stores and returns subject metadata', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+      const metadata = {
+        origin: 'https://example.com',
+        name: 'Example',
+        subjectType: SubjectType.Website,
+        iconUrl: null,
+        extensionId: null,
+      };
+
+      messenger.call('SubjectMetadataController:addSubjectMetadata', metadata);
+
+      expect(
+        messenger.call(
+          'SubjectMetadataController:getSubjectMetadata',
+          metadata.origin,
+        ),
+      ).toStrictEqual(metadata);
     });
   });
 
