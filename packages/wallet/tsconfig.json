@@ -14,6 +14,9 @@
       "path": "../claims-controller"
     },
     {
+      "path": "../client-controller"
+    },
+    {
       "path": "../config-registry-controller"
     },
     {
