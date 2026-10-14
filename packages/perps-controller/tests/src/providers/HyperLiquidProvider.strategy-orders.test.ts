@@ -11857,7 +11857,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Strategy placement racing a disconnect', () => {
-    it('does not sign a TWAP rollback after its account context becomes stale', async () => {
+    it('retracts a TWAP that finishes after same-account teardown', async () => {
       let disconnected: Promise<unknown> | undefined;
       const twapOrder = jest.fn().mockImplementation(async () => {
         disconnected = provider.disconnect();
@@ -11888,16 +11888,62 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
       await disconnected;
 
-      expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
+      expect(exchangeClient.twapCancel).toHaveBeenCalledWith({ a: 1, t: 987 });
       expect(placed).toMatchObject({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
         submittedSize: '1',
       });
-      expect(placed.orderId).toBe('987');
+      expect(placed.orderId).toBeUndefined();
     });
 
-    it('does not sign Scale rollbacks after their account context becomes stale', async () => {
+    it.each(['account', 'network'] as const)(
+      'does not retract a TWAP after its %s changes',
+      async (change) => {
+        let disconnected: Promise<unknown> | undefined;
+        const twapOrder = jest.fn().mockImplementation(async () => {
+          if (change === 'account') {
+            mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+              '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+            );
+          } else {
+            mockClientService.isTestnetMode.mockReturnValue(true);
+          }
+          disconnected = provider.disconnect();
+          await Promise.resolve();
+          return {
+            status: 'ok',
+            response: {
+              type: 'twapOrder',
+              data: { status: { running: { twapId: 987 } } },
+            },
+          };
+        });
+        const twapCancel = jest.fn().mockResolvedValue({
+          status: 'ok',
+          response: { type: 'twapCancel', data: { status: 'success' } },
+        });
+        const { exchangeClient } = useStrategyClients({
+          exchange: { twapOrder, twapCancel },
+        });
+
+        const placed = await provider.placeOrder({
+          ...baseOrder,
+          orderType: 'twap',
+          twapDuration: 30,
+        } satisfies OrderParams);
+        await disconnected;
+
+        expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
+        expect(placed).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          orderId: '987',
+        });
+      },
+    );
+
+    it('retracts resting Scale rungs after same-account teardown', async () => {
       let disconnected: Promise<unknown> | undefined;
       const order = jest.fn().mockImplementation(async () => {
         disconnected = provider.disconnect();
@@ -11935,19 +11981,67 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
       await disconnected;
 
-      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(exchangeClient.cancel).toHaveBeenCalledWith({
+        cancels: [
+          { a: 1, o: 11 },
+          { a: 1, o: 33 },
+        ],
+      });
       expect(placed).toMatchObject({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
         submittedSize: '1',
       });
-      expect(placed.orderId).toMatch(/^scale:/u);
-      expect(placed.childOrderIds).toStrictEqual(['11', '33']);
+      expect(placed.orderId).toBeUndefined();
+      expect(placed.childOrderIds).toStrictEqual([]);
       expect(placed.acceptedChildren).toStrictEqual([
         { orderId: '11', state: 'resting' },
         { orderId: '22', state: 'filled' },
         { orderId: '33', state: 'resting' },
       ]);
+    });
+
+    it('does not retract Scale rungs after the venue marks their account unsupported', async () => {
+      let disconnected: Promise<unknown> | undefined;
+      const order = jest.fn().mockImplementation(async () => {
+        disconnected = provider.disconnect();
+        await disconnected;
+        return {
+          status: 'ok',
+          response: {
+            data: {
+              statuses: [
+                { resting: { oid: 11 } },
+                { error: 'Multi-sig required' },
+                { resting: { oid: 33 } },
+              ],
+            },
+          },
+        };
+      });
+      const cancel = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: ['success', 'success'] } },
+      });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order, cancel },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+      await disconnected;
+
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        childOrderIds: ['11', '33'],
+      });
     });
   });
 

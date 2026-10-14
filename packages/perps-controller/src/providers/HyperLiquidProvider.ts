@@ -3073,13 +3073,25 @@ export class HyperLiquidProvider implements PerpsProvider {
       context.lifecycleGeneration,
       operation,
     );
-    const currentAddress = await this.#walletService
-      .getUserAddressWithDefault()
-      .catch(() => undefined);
+    await this.#assertAccountIdentityCurrent(context);
     this.#assertProviderLifecycleCurrent(
       context.lifecycleGeneration,
       operation,
     );
+  }
+
+  /**
+   * Confirm that the selected address and network still match an action,
+   * without requiring the provider lifecycle that created it to remain active.
+   *
+   * @param context - The account and network captured by the action.
+   */
+  async #assertAccountIdentityCurrent(
+    context: AccountSupportContext,
+  ): Promise<void> {
+    const currentAddress = await this.#walletService
+      .getUserAddressWithDefault()
+      .catch(() => undefined);
     const currentNetwork = this.#clientService.isTestnetMode()
       ? 'testnet'
       : 'mainnet';
@@ -3088,6 +3100,26 @@ export class HyperLiquidProvider implements PerpsProvider {
       currentNetwork !== context.network
     ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+  }
+
+  /**
+   * Permit best-effort rollback after teardown only while it still belongs to
+   * the same address and network, and the account is not known unsupported.
+   *
+   * @param context - The account and network captured by the parent action.
+   */
+  async #assertRollbackAccountWritable(
+    context: AccountSupportContext,
+  ): Promise<void> {
+    await this.#assertAccountIdentityCurrent(context);
+    const cachedSupport = this.#accountSupportByContext.get(
+      this.#getAccountSupportCacheKey(context.network, context.userAddress),
+    );
+    const support = cachedSupport ? await cachedSupport : undefined;
+    await this.#assertAccountIdentityCurrent(context);
+    if (support && !support.isSupported) {
+      throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
     }
   }
 
@@ -7778,10 +7810,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (generation !== this.#strategyGeneration) {
       let remainsLive = true;
       try {
-        await this.#assertNoKnownUnsupportedAccount(
-          accountContext,
-          'Stale TWAP placement rollback',
-        );
+        await this.#assertRollbackAccountWritable(accountContext);
         const cancelResult = await exchangeClient.twapCancel({
           a: assetId,
           t: running.twapId,
@@ -8017,10 +8046,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       clientOrderIds: Hex[];
     }> => {
       try {
-        await this.#assertNoKnownUnsupportedAccount(
-          accountContext,
-          'Scale placement rollback',
-        );
+        await this.#assertRollbackAccountWritable(accountContext);
       } catch (error) {
         this.#deps.debugLogger.log(
           'Scale placement rollback not signed after its account context changed',
