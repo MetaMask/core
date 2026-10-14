@@ -23,11 +23,9 @@ type InitializeOptions = WalletOptions & {
  * @returns Whether the reference has the metadata required to validate state.
  */
 function isInstanceValidatable(
-  reference:
-    | Partial<ValidatableController<unknown, StateConstraint>>
-    | undefined,
+  reference: Partial<ValidatableController<unknown, StateConstraint>>,
 ): reference is ValidatableController<unknown, StateConstraint> {
-  return reference?.struct !== undefined;
+  return reference.struct !== undefined;
 }
 
 /**
@@ -62,7 +60,7 @@ export function initialize(options: InitializeOptions): DefaultInstances {
     const rawState = state[name];
 
     const instanceState =
-      rawState && isInstanceValidatable(reference)
+      rawState && reference && isInstanceValidatable(reference)
         ? validateControllerState(
             name,
             reference,
