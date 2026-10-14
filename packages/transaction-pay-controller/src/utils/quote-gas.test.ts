@@ -61,6 +61,7 @@ describe('quote gas estimation', () => {
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 51000,
       gasLimits: [21000, 30000],
+      mode: 'per-transaction',
     });
 
     const result = await estimateQuoteGasLimits({
@@ -111,6 +112,7 @@ describe('quote gas estimation', () => {
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 50000,
       gasLimits: [50000],
+      mode: 'eip7702-outer',
     });
 
     const result = await estimateQuoteGasLimits({
@@ -158,6 +160,7 @@ describe('quote gas estimation', () => {
       totalGasLimit: 50000,
       gasLimits: [50000],
       requiresAuthorizationList: true,
+      mode: 'eip7702-outer',
     });
 
     const result = await estimateQuoteGasLimits({
@@ -189,6 +192,7 @@ describe('quote gas estimation', () => {
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 51000,
       gasLimits: [21000, 30000],
+      mode: 'per-transaction',
     });
 
     const result = await estimateQuoteGasLimits({
@@ -219,6 +223,7 @@ describe('quote gas estimation', () => {
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 56000,
       gasLimits: [21000, 35000],
+      mode: 'per-transaction',
     });
 
     const result = await estimateQuoteGasLimits({
@@ -265,6 +270,7 @@ describe('quote gas estimation', () => {
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 123000,
       gasLimits: [21000, 30000, 72000],
+      mode: 'per-transaction',
     });
 
     await expect(
@@ -276,6 +282,54 @@ describe('quote gas estimation', () => {
 
     expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
     expect(estimateGasLimitMock).not.toHaveBeenCalled();
+  });
+
+  it('throws when an EIP-7702 outer result has more than one gas limit', async () => {
+    estimateGasBatchMock.mockResolvedValue({
+      totalGasLimit: 51000,
+      gasLimits: [21000, 30000],
+      mode: 'eip7702-outer',
+    });
+
+    await expect(
+      estimateQuoteGasLimits({
+        messenger,
+        transactions: TRANSACTIONS_MOCK,
+      }),
+    ).rejects.toThrow('Unexpected batch gas limit count');
+  });
+
+  it('throws when a per-transaction result has a single gas limit for multiple transactions', async () => {
+    estimateGasBatchMock.mockResolvedValue({
+      totalGasLimit: 50000,
+      gasLimits: [50000],
+      mode: 'per-transaction',
+    });
+
+    await expect(
+      estimateQuoteGasLimits({
+        messenger,
+        transactions: TRANSACTIONS_MOCK,
+      }),
+    ).rejects.toThrow('Unexpected batch gas limit count');
+  });
+
+  it('detects an EIP-7702 outer result from the gas limit count if mode is missing', async () => {
+    estimateGasBatchMock.mockResolvedValue({
+      totalGasLimit: 50000,
+      gasLimits: [50000],
+    } as Awaited<ReturnType<typeof estimateGasBatchMock>>);
+
+    const result = await estimateQuoteGasLimits({
+      messenger,
+      transactions: TRANSACTIONS_MOCK,
+    });
+
+    expect(result.is7702).toBe(true);
+    expect(result.batchGasLimit).toStrictEqual({
+      estimate: 50000,
+      max: 50000,
+    });
   });
 
   it('treats numeric gas values as provided gas limits', async () => {
@@ -335,6 +389,7 @@ describe('quote gas estimation', () => {
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 50000,
       gasLimits: [50000],
+      mode: 'eip7702-outer',
     });
 
     await estimateQuoteGasLimits({
