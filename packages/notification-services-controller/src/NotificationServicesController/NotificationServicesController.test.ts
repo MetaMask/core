@@ -54,6 +54,7 @@ import {
   DEFAULT_PERPS_PREFERENCES,
   DEFAULT_PRICE_ALERT_PREFERENCES,
   DEFAULT_SOCIAL_AI_PREFERENCES,
+  MARKETING_CONSENT_REQUIRED_ERROR_CODE,
   MarketingConsentRequiredError,
   NotificationServicesController,
   ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS,
@@ -2572,7 +2573,9 @@ describe('NotificationServicesController', () => {
           controller.updateNotificationPreferences(
             mockPreferences({ marketing }),
           ),
-        ).rejects.toMatchObject({ code: 'MARKETING_CONSENT_REQUIRED' });
+        ).rejects.toMatchObject({
+          code: MARKETING_CONSENT_REQUIRED_ERROR_CODE,
+        });
         expect(mockPutNotificationPreferences).not.toHaveBeenCalled();
       },
     );

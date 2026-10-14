@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `updateNotificationPreferences` method and `NotificationServicesController:updateNotificationPreferences` action, which save notification preferences to Authenticated User Storage and reject marketing channels that are on without marketing consent ([#10821](https://github.com/MetaMask/core/pull/10821))
-- Add `MarketingConsentRequiredError`, with `code` `'MARKETING_CONSENT_REQUIRED'` ([#10821](https://github.com/MetaMask/core/pull/10821))
+- Add `MarketingConsentRequiredError` and its `code`, `MARKETING_CONSENT_REQUIRED_ERROR_CODE` ([#10821](https://github.com/MetaMask/core/pull/10821))
 
 ### Changed
 
