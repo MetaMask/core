@@ -14,9 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `SubjectMetadataController` to the default initialization configurations ([#10807](https://github.com/MetaMask/core/pull/10807))
 - **BREAKING:** Add `SelectedNetworkController` to the default initialization configurations ([#10808](https://github.com/MetaMask/core/pull/10808))
   - Requires `instanceOptions.selectedNetworkController.domainProxyMap`.
+- **BREAKING:** Add `ClientController` to the default initialization configurations ([#10826](https://github.com/MetaMask/core/pull/10826))
 
 ### Changed
 
+- Add `@metamask/client-controller` as a dependency ([#10826](https://github.com/MetaMask/core/pull/10826))
 - Add `@metamask/permission-controller` as a dependency ([#10807](https://github.com/MetaMask/core/pull/10807))
 - Add `@metamask/selected-network-controller` as a dependency ([#10808](https://github.com/MetaMask/core/pull/10808))
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
