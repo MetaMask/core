@@ -1,9 +1,12 @@
-import { BackupAndSyncAnalyticsEvent, formatAnalyticsEvent } from './segment';
+import {
+  BackupAndSyncAnalyticsEvent,
+  formatAnalyticsEvent,
+} from './segment.js';
 import type {
   BackupAndSyncAnalyticsAction,
   BackupAndSyncEmitAnalyticsEventParams,
   BackupAndSyncAnalyticsEventPayload,
-} from './segment';
+} from './segment.js';
 
 describe('BackupAndSyncAnalytics - Segment', () => {
   describe('BackupAndSyncAnalyticsEvents', () => {

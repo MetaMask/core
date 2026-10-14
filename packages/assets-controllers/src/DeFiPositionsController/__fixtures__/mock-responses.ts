@@ -1,4 +1,4 @@
-import type { DefiPositionResponse } from '../fetch-positions';
+import type { DefiPositionResponse } from '../fetch-positions.js';
 
 /**
  * Entries are from different chains

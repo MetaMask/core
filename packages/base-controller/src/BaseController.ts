@@ -150,11 +150,23 @@ export type ControllerGetStateAction<
   handler: () => ControllerState;
 };
 
+/**
+ * @deprecated This event type is deprecated. Please use
+ * `ControllerStateChangedEvent` instead.
+ */
 export type ControllerStateChangeEvent<
   ControllerName extends string,
   ControllerState extends StateConstraint,
 > = {
   type: `${ControllerName}:stateChange`;
+  payload: [ControllerState, Patch[]];
+};
+
+export type ControllerStateChangedEvent<
+  ControllerName extends string,
+  ControllerState extends StateConstraint,
+> = {
+  type: `${ControllerName}:stateChanged`;
   payload: [ControllerState, Patch[]];
 };
 
@@ -166,7 +178,9 @@ export type ControllerActions<
 export type ControllerEvents<
   ControllerName extends string,
   ControllerState extends StateConstraint,
-> = ControllerStateChangeEvent<ControllerName, ControllerState>;
+> =
+  | ControllerStateChangeEvent<ControllerName, ControllerState>
+  | ControllerStateChangedEvent<ControllerName, ControllerState>;
 
 /**
  * Controller class that provides state management, subscriptions, and state metadata
@@ -235,12 +249,17 @@ export class BaseController<
       ControllerName,
       ControllerState
     >['type'] extends MessengerActions<ControllerMessenger>['type']
-      ? ControllerEvents<
+      ? ControllerStateChangeEvent<
           ControllerName,
           ControllerState
         >['type'] extends MessengerEvents<ControllerMessenger>['type']
         ? ControllerMessenger
-        : never
+        : ControllerStateChangedEvent<
+              ControllerName,
+              ControllerState
+            >['type'] extends MessengerEvents<ControllerMessenger>['type']
+          ? ControllerMessenger
+          : never
       : never;
     metadata: StateMetadata<ControllerState>;
     name: ControllerName;
@@ -267,6 +286,10 @@ export class BaseController<
 
     this.#messenger.registerInitialEventPayload({
       eventType: `${name}:stateChange`,
+      getPayload: () => [this.state, []],
+    });
+    this.#messenger.registerInitialEventPayload({
+      eventType: `${name}:stateChanged`,
       getPayload: () => [this.state, []],
     });
   }
@@ -321,6 +344,11 @@ export class BaseController<
         nextState,
         patches,
       );
+      this.#messenger.publish(
+        `${this.name}:stateChanged` as const,
+        nextState,
+        patches,
+      );
     }
 
     return { nextState, patches, inversePatches };
@@ -341,6 +369,11 @@ export class BaseController<
       nextState,
       patches,
     );
+    this.#messenger.publish(
+      `${this.name}:stateChanged` as const,
+      nextState,
+      patches,
+    );
   }
 
   /**
@@ -354,6 +387,7 @@ export class BaseController<
    */
   protected destroy(): void {
     this.messenger.clearEventSubscriptions(`${this.name}:stateChange`);
+    this.messenger.clearEventSubscriptions(`${this.name}:stateChanged`);
   }
 }
 

@@ -1,7 +1,7 @@
-import encryption, { createSHA256Hash } from '../../shared/encryption';
-import { Env } from '../../shared/env';
-import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
-import { STORAGE_URL } from '../user-storage';
+import encryption, { createSHA256Hash } from '../../shared/encryption/index.js';
+import { Env } from '../../shared/env.js';
+import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema.js';
+import { STORAGE_URL } from '../user-storage.js';
 
 // Example mock notifications storage entry (wildcard)
 export const MOCK_STORAGE_URL = STORAGE_URL(

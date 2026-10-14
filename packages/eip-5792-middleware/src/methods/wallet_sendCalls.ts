@@ -1,9 +1,9 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
-import { SendCallsStruct } from '../types';
-import type { ProcessSendCallsHook, SendCallsPayload } from '../types';
-import { validateAndNormalizeKeyholder, validateParams } from '../utils';
+import { SendCallsStruct } from '../types.js';
+import type { ProcessSendCallsHook, SendCallsPayload } from '../types.js';
+import { validateAndNormalizeKeyholder, validateParams } from '../utils.js';
 
 /**
  * The RPC method handler middleware for `wallet_sendCalls`

@@ -1,29 +1,29 @@
 import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
-import { query } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { GetBalanceChangesRequest } from './balance-changes';
-import { getBalanceChanges, SupportedToken } from './balance-changes';
-import { simulateTransactions } from '../api/simulation-api';
+import { simulateTransactions } from '../api/simulation-api.js';
 import type {
   SimulationResponseLog,
   SimulationResponseTransaction,
-} from '../api/simulation-api';
-import type { SimulationResponse } from '../api/simulation-api';
+} from '../api/simulation-api.js';
+import type { SimulationResponse } from '../api/simulation-api.js';
 import {
   SimulationInvalidResponseError,
   SimulationRevertedError,
-} from '../errors';
-import type { GetSimulationConfig } from '../types';
-import { SimulationErrorCode, SimulationTokenStandard } from '../types';
+} from '../errors.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { GetSimulationConfig } from '../types.js';
+import { SimulationErrorCode, SimulationTokenStandard } from '../types.js';
+import type { GetBalanceChangesRequest } from './balance-changes.js';
+import { getBalanceChanges, SupportedToken } from './balance-changes.js';
+import { rpcRequest } from './provider.js';
 
 jest.mock('../api/simulation-api');
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  query: jest.fn(),
+jest.mock('./provider', () => ({
+  rpcRequest: jest.fn(),
 }));
 
 // Utility function to encode addresses and values to 32-byte ABI format
@@ -57,11 +57,13 @@ const ERROR_MESSAGE_MOCK = 'Test Error';
 const USER_ADDRESS_WITH_LEADING_ZERO =
   '0x0012333333333333333333333333333333333333' as Hex;
 
+const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
+const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId' as NetworkClientId;
+
 const REQUEST_MOCK: GetBalanceChangesRequest = {
   chainId: '0x1',
-  ethQuery: {
-    sendAsync: jest.fn(),
-  } as EthQuery,
+  messenger: MESSENGER_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
   getSimulationConfig: jest.fn(),
   txParams: {
     data: '0x123',
@@ -282,12 +284,12 @@ function mockParseLog({
 
 describe('Balance Change Utils', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
-  const queryMock = jest.mocked(query);
+  const rpcRequestMock = jest.mocked(rpcRequest);
 
   beforeEach(() => {
     jest.resetAllMocks();
     jest.spyOn(Interface.prototype, 'encodeFunctionData').mockReturnValue('');
-    queryMock.mockResolvedValue('0xFFFFFFFFFFFF');
+    rpcRequestMock.mockResolvedValue('0xFFFFFFFFFFFF');
   });
 
   describe('getBalanceChanges', () => {
@@ -316,6 +318,7 @@ describe('Balance Change Utils', () => {
               tokenBalanceChanges: [],
             },
             gasUsed: undefined,
+            simulationRevert: undefined,
           });
         },
       );
@@ -334,13 +337,23 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
       it('ignoring gas cost', async () => {
-        simulateTransactionsMock.mockResolvedValueOnce(
-          createNativeBalanceResponse('0x3', '0x8', 2),
-        );
+        const response = createNativeBalanceResponse('0x3', '0x8', 2);
+        response.transactions[0].stateDiff = {
+          pre: {
+            [USER_ADDRESS_MOCK]: { balance: '0x3' },
+            [OTHER_ADDRESS_MOCK]: { balance: '0x7' },
+          },
+          post: {
+            [USER_ADDRESS_MOCK]: { balance: '0x8' },
+            [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+          },
+        };
+        simulateTransactionsMock.mockResolvedValueOnce(response);
 
         const result = await getBalanceChanges(REQUEST_MOCK);
 
@@ -356,6 +369,144 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
+        });
+      });
+
+      it('does not ignore gas cost when transaction has no fee per gas', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x10', '0xb', 7),
+        );
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gasPrice: undefined,
+            maxFeePerGas: undefined,
+          },
+        });
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: [],
+            nativeBalanceChange: {
+              difference: '0x5',
+              isDecrease: true,
+              newBalance: '0xb',
+              previousBalance: '0x10',
+            },
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
+          simulationRevert: undefined,
+        });
+      });
+
+      it('ignores gas cost when transaction has gas price but no max fee per gas', async () => {
+        const response = createNativeBalanceResponse('0x10', '0xb', 3);
+        response.transactions[0].stateDiff = {
+          pre: {
+            [USER_ADDRESS_MOCK]: { balance: '0x10' },
+            [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+          },
+          post: {
+            [USER_ADDRESS_MOCK]: { balance: '0xb' },
+            [OTHER_ADDRESS_MOCK]: { balance: '0x2' },
+          },
+        };
+        simulateTransactionsMock.mockResolvedValueOnce(response);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gasPrice: '0xbbb',
+            maxFeePerGas: undefined,
+          },
+        });
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: [],
+            nativeBalanceChange: {
+              difference: '0x2',
+              isDecrease: true,
+              newBalance: '0xe',
+              previousBalance: '0x10',
+            },
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
+          simulationRevert: undefined,
+        });
+      });
+
+      it('does not ignore gas cost when state diff omits the fee debit', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: 7,
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: '0x10' },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xb' },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x5' },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x7' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            value: '0x5',
+          },
+        });
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: [],
+            nativeBalanceChange: {
+              difference: '0x5',
+              isDecrease: true,
+              newBalance: '0xb',
+              previousBalance: '0x10',
+            },
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
+          simulationRevert: undefined,
+        });
+      });
+
+      it('looks up the sender balance using a case-insensitive address', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x10', '0xb'),
+        );
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            from: USER_ADDRESS_MOCK.toUpperCase(),
+            maxFeePerGas: undefined,
+            gasPrice: undefined,
+          },
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: '0x5',
+          isDecrease: true,
+          newBalance: '0xb',
+          previousBalance: '0x10',
         });
       });
     });
@@ -483,6 +634,7 @@ describe('Balance Change Utils', () => {
               ],
             },
             gasUsed: undefined,
+            simulationRevert: undefined,
           });
         },
       );
@@ -552,6 +704,7 @@ describe('Balance Change Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -594,6 +747,7 @@ describe('Balance Change Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -651,6 +805,7 @@ describe('Balance Change Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -763,6 +918,7 @@ describe('Balance Change Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -786,6 +942,7 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -814,6 +971,7 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -839,6 +997,7 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -870,6 +1029,7 @@ describe('Balance Change Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -929,6 +1089,7 @@ describe('Balance Change Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
     });
@@ -961,6 +1122,7 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1007,6 +1169,7 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1051,7 +1214,67 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
+      });
+
+      it('returns simulationRevert with decoded message and raw data when output is set', async () => {
+        const data =
+          '0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000';
+
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              error: 'execution reverted',
+              callTrace: {
+                calls: [],
+                logs: [],
+                error: 'execution reverted',
+                output: data,
+              },
+            },
+          ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
+        });
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationRevert).toStrictEqual({
+          message: 'ERC20: transfer amount exceeds balance',
+          data,
+        });
+      });
+
+      it('returns simulationRevert from root frame only, ignoring nested errors', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              callTrace: {
+                calls: [
+                  {
+                    calls: [],
+                    logs: [],
+                    error: 'execution reverted: nested caught error',
+                  },
+                ],
+                logs: [],
+              },
+            },
+          ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
+        });
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationRevert).toBeUndefined();
       });
     });
 
@@ -1074,6 +1297,7 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1094,6 +1318,7 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1118,6 +1343,7 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1147,6 +1373,7 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1176,6 +1403,7 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1197,6 +1425,7 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
     });
@@ -1239,7 +1468,7 @@ describe('Balance Change Utils', () => {
 
     describe('overrides balance in API request if insufficient balance due to', () => {
       it('gas fee', async () => {
-        queryMock.mockResolvedValue('0x7d182d');
+        rpcRequestMock.mockResolvedValue('0x7d182d');
 
         await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -1263,7 +1492,7 @@ describe('Balance Change Utils', () => {
       });
 
       it('legacy gas fee', async () => {
-        queryMock.mockResolvedValue('0xc1f3d');
+        rpcRequestMock.mockResolvedValue('0xc1f3d');
 
         await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -1290,7 +1519,7 @@ describe('Balance Change Utils', () => {
       });
 
       it('value', async () => {
-        queryMock.mockResolvedValue('0x122');
+        rpcRequestMock.mockResolvedValue('0x122');
 
         await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -1315,7 +1544,7 @@ describe('Balance Change Utils', () => {
       });
 
       it('nested transaction value', async () => {
-        queryMock.mockResolvedValue('0x332');
+        rpcRequestMock.mockResolvedValue('0x332');
 
         await getBalanceChanges({
           ...REQUEST_MOCK,

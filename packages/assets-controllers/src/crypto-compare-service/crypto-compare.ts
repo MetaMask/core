@@ -1,6 +1,6 @@
 import { handleFetch } from '@metamask/controller-utils';
 
-import { getKeyByValue } from '../assetsUtil';
+import { getKeyByValue } from '../assetsUtil.js';
 
 /**
  * A map from native currency symbol to CryptoCompare identifier.

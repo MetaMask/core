@@ -10,7 +10,6 @@
 // format, but also check the presence of certain files as well.
 
 /** @type {import('@yarnpkg/types')} */
-const { hasProperty } = require('@metamask/utils');
 const { defineConfig } = require('@yarnpkg/types');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
@@ -23,9 +22,55 @@ const { inspect } = require('util');
  * Only intended as temporary measures to faciliate upgrades and releases.
  * This should trend towards empty.
  */
-const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  // '@metamask/json-rpc-engine': ['^9.0.3'],
-};
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
+
+/**
+ * Whether `yarn constraints --fix` may resolve a dependency range disagreement
+ * on its own by aligning every workspace to the highest range.
+ *
+ * Off by default, so `yarn lint:fix` never turns an unrelated change into a
+ * monorepo-wide dependency bump. Dependency upgrades belong in their own pull
+ * requests, so this is set only by the workflow that repairs Dependabot pull
+ * requests. It is deliberately not exposed as a package script: a convenient
+ * front door is precisely what would tempt someone into bundling an upgrade
+ * into unrelated work.
+ *
+ * Note that this cannot be a command line flag: `yarn constraints` is a Yarn
+ * builtin and rejects any option other than `--fix` and `--json`.
+ */
+// oxlint-disable-next-line n/no-process-env
+const ALIGN_DEPENDENCY_RANGES = process.env.ALIGN_DEPENDENCY_RANGES === 'true';
+
+/**
+ * These packages are allowed as peer dependencies without requiring installation as
+ * devDependencies.
+ */
+const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
+
+/**
+ * These packages are tools and do not ship with APIs.
+ */
+const TOOLS = [
+  '@metamask/foundryup',
+  '@metamask/messenger-cli',
+  '@metamask/wallet-cli',
+  '@metamask/wallet-framework-docs',
+  '@metamask/platform-api-docs',
+];
+
+/**
+ * These packages deploy documentation sites and use a different build script.
+ */
+const DOCSITE_PACKAGES = ['@metamask/wallet-framework-docs'];
+
+/**
+ * We don't check that test scripts are defined for these packages.
+ *
+ * Here we exclude `@metamask/wallet-cli`: it prepends a `better-sqlite3`
+ * prebuild fetch to its "test" script, as the native addon isn't built
+ * during `yarn install` (Yarn runs with `enableScripts: false`).
+ */
+const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = ['@metamask/wallet-cli'];
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
@@ -52,14 +97,24 @@ module.exports = defineConfig({
       const workspaceBasename = getWorkspaceBasename(workspace);
       const isChildWorkspace = workspace.cwd !== '.';
       const isPrivate =
-        hasProperty(workspace.manifest, 'private') &&
+        Object.hasOwn(workspace.manifest, 'private') &&
         workspace.manifest.private === true;
+      const isTemplate =
+        workspace.manifest.name === '@metamask/package-template';
+
       const dependenciesByIdentAndType = getDependenciesByIdentAndType(
         Yarn.dependencies({ workspace }),
       );
 
       // All packages must have a name.
       expectWorkspaceField(workspace, 'name');
+
+      // All workspaces must specify "type: module" (except for packages that
+      // exclusively deploy documentation using Docusaurus, because Docusaurus
+      // is not fully compatible with ESM projects).
+      if (!DOCSITE_PACKAGES.includes(workspace.ident)) {
+        expectWorkspaceField(workspace, 'type', 'module');
+      }
 
       if (isChildWorkspace) {
         // All non-root packages must have a name that matches its directory
@@ -78,14 +133,22 @@ module.exports = defineConfig({
         expectWorkspaceDescription(workspace);
 
         // All non-root packages must have the same set of NPM keywords.
-        expectWorkspaceField(workspace, 'keywords', ['MetaMask', 'Ethereum']);
+        expectWorkspaceField(workspace, 'keywords', ['Ethereum', 'MetaMask']);
 
         // All non-root packages must have a homepage URL that includes its name.
-        expectWorkspaceField(
-          workspace,
-          'homepage',
-          `${repositoryUri}/tree/main/packages/${workspaceBasename}#readme`,
-        );
+        if (isTemplate) {
+          expectWorkspaceField(
+            workspace,
+            'homepage',
+            `${repositoryUri}/tree/main/packages/PACKAGE_DIRECTORY_NAME#readme`,
+          );
+        } else {
+          expectWorkspaceField(
+            workspace,
+            'homepage',
+            `${repositoryUri}/tree/main/packages/${workspaceBasename}#readme`,
+          );
+        }
 
         // All non-root packages must have a URL for reporting bugs that points
         // to the Issues page for the repository.
@@ -110,27 +173,47 @@ module.exports = defineConfig({
         }
 
         // All non-root packages must set up ESM- and CommonJS-compatible
-        // exports correctly.
-        if (workspace.ident !== '@metamask/foundryup') {
+        // exports correctly (aside from tools).
+        if (!TOOLS.includes(workspace.ident)) {
           expectCorrectWorkspaceExports(workspace);
         }
 
-        // All non-root packages must have the same "build" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.build',
-          'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
-        );
+        // All non-root packages must have a "build" script. All packages that
+        // do not exclusively deploy documentation sites must use `tsc`.
+        if (DOCSITE_PACKAGES.includes(workspace.ident)) {
+          expectWorkspaceField(workspace, 'scripts.build');
+        } else {
+          expectWorkspaceField(
+            workspace,
+            'scripts.build',
+            'tsc --project tsconfig.build.json',
+          );
 
-        // All non-root packages must have the same "build:all" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.build:all',
-          'ts-bridge --project tsconfig.build.json --verbose --clean',
-        );
+          // All non-root packages must have the same "build:all" script.
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:all',
+            'tsc --build tsconfig.build.json --verbose',
+          );
 
-        // All non-root packages must have the same "build:docs" script.
-        expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:clean',
+            'yarn build:only-clean && yarn build',
+          );
+
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:only-clean',
+            `rimraf './dist' './tsconfig.build.tsbuildinfo'`,
+          );
+        }
+
+        // All non-root packages must have the same "build:docs" script (aside
+        // from tools).
+        if (!TOOLS.includes(workspace.ident)) {
+          expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
+        }
 
         // No non-root packages may have a "prepack" script.
         workspace.unset('scripts.prepack');
@@ -146,32 +229,21 @@ module.exports = defineConfig({
           '../../scripts/since-latest-release.sh',
         );
 
-        // All non-root packages must have the same "test" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.test',
-          'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-        );
+        if (!PACKAGES_WITH_CUSTOM_TEST_SCRIPTS.includes(workspace.ident)) {
+          expectTestScripts(workspace);
+        }
 
-        // All non-root packages must have the same "test:clean" script.
+        // All non-root packages must have scripts that lint-check tsconfig
+        // project references for this package.
         expectWorkspaceField(
           workspace,
-          'scripts.test:clean',
-          'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+          'scripts.lint:tsconfigs',
+          'node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts',
         );
-
-        // All non-root packages must have the same "test:verbose" script.
         expectWorkspaceField(
           workspace,
-          'scripts.test:verbose',
-          'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
-        );
-
-        // All non-root packages must have the same "test:watch" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.test:watch',
-          'NODE_OPTIONS=--experimental-vm-modules jest --watch',
+          'scripts.lint:tsconfigs:fix',
+          'node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
         );
       }
 
@@ -229,15 +301,15 @@ module.exports = defineConfig({
       if (isChildWorkspace) {
         workspace.unset('packageManager');
       } else {
-        expectWorkspaceField(workspace, 'packageManager', 'yarn@4.10.3');
+        expectYarnPackageManager(workspace);
       }
 
-      // All packages must specify a minimum Node.js version of 18.18.
-      expectWorkspaceField(workspace, 'engines.node', '^18.18 || >=20');
+      // All packages must specify a minimum Node.js version of 22.
+      expectWorkspaceField(workspace, 'engines.node', '^22.14.0 || ^24');
 
       // All non-root public packages should be published to the NPM registry;
       // all non-root private packages should not.
-      if (isPrivate) {
+      if (isPrivate && !isTemplate) {
         workspace.unset('publishConfig');
       } else {
         expectWorkspaceField(workspace, 'publishConfig.access', 'public');
@@ -250,9 +322,11 @@ module.exports = defineConfig({
 
       if (isChildWorkspace) {
         // All non-root packages must have a valid README.md file.
-        await expectReadme(workspace, workspaceBasename);
+        await expectReadme(workspace, workspaceBasename, isPrivate);
 
-        await expectCodeowner(workspace, workspaceBasename);
+        if (!isTemplate) {
+          await expectCodeowner(workspace, workspaceBasename);
+        }
       }
     }
 
@@ -378,7 +452,7 @@ async function workspaceFileExists(workspace, path) {
   try {
     await getWorkspaceFile(workspace, path);
   } catch (error) {
-    if (hasProperty(error, 'code') && error.code === 'ENOENT') {
+    if (Object.hasOwn(error, 'code') && error.code === 'ENOENT') {
       return false;
     }
     throw error;
@@ -401,7 +475,7 @@ async function workspaceFileExists(workspace, path) {
  * @param {string} fieldName - The field to check.
  * @param {unknown} [expectedValue] - The value to check.
  */
-function expectWorkspaceField(workspace, fieldName, expectedValue = undefined) {
+function expectWorkspaceField(workspace, fieldName, expectedValue) {
   const fieldValue = get(workspace.manifest, fieldName);
 
   if (expectedValue !== undefined && expectedValue !== null) {
@@ -426,11 +500,7 @@ function expectWorkspaceField(workspace, fieldName, expectedValue = undefined) {
  * @param {string} fieldName - The field to check.
  * @param {unknown} expectedValue - The value that should be contained in the array.
  */
-function expectWorkspaceArrayField(
-  workspace,
-  fieldName,
-  expectedValue = undefined,
-) {
+function expectWorkspaceArrayField(workspace, fieldName, expectedValue) {
   let fieldValue = get(workspace.manifest, fieldName);
 
   if (expectedValue) {
@@ -505,6 +575,7 @@ async function expectWorkspaceLicense(workspace) {
       '@metamask/permission-log-controller',
       '@metamask/eth-json-rpc-middleware',
       '@metamask/eth-json-rpc-provider',
+      '@metamask/smart-transactions-controller',
     ].includes(workspace.manifest.name)
   ) {
     expectWorkspaceField(workspace, 'license');
@@ -519,35 +590,16 @@ async function expectWorkspaceLicense(workspace) {
 function expectCorrectWorkspaceExports(workspace) {
   // All non-root packages must provide the location of the ESM-compatible
   // JavaScript entrypoint and its matching type declaration file.
-  expectWorkspaceField(
-    workspace,
-    'exports["."].import.types',
-    './dist/index.d.mts',
-  );
-  expectWorkspaceField(
-    workspace,
-    'exports["."].import.default',
-    './dist/index.mjs',
-  );
+  expectWorkspaceField(workspace, 'exports["."].types', './dist/index.d.ts');
+  expectWorkspaceField(workspace, 'exports["."].default', './dist/index.js');
 
-  // All non-root package must provide the location of the CommonJS-compatible
-  // entrypoint and its matching type declaration file.
-  expectWorkspaceField(
-    workspace,
-    'exports["."].require.types',
-    './dist/index.d.cts',
-  );
-  expectWorkspaceField(
-    workspace,
-    'exports["."].require.default',
-    './dist/index.cjs',
-  );
-  expectWorkspaceField(workspace, 'main', './dist/index.cjs');
-  expectWorkspaceField(workspace, 'types', './dist/index.d.cts');
+  // Packages should not provide separate CommonJS/ESM exports.
+  expectWorkspaceField(workspace, 'exports["."].require', null);
+  expectWorkspaceField(workspace, 'exports["."].import', null);
 
-  // Types should not be set in the export object directly, but rather in the
-  // `import` and `require` subfields.
-  expectWorkspaceField(workspace, 'exports["."].types', null);
+  // Packages should not provide a "main" or "types" field.
+  expectWorkspaceField(workspace, 'main', null);
+  expectWorkspaceField(workspace, 'types', null);
 
   // All non-root packages must export a `package.json` file.
   expectWorkspaceField(
@@ -555,6 +607,36 @@ function expectCorrectWorkspaceExports(workspace) {
     'exports["./package.json"]',
     './package.json',
   );
+
+  const nonRootExports = Object.keys(workspace.manifest.exports).filter(
+    (key) => key !== '.' && key !== './package.json',
+  );
+
+  for (const key of nonRootExports) {
+    const prefix = `exports["${key}"]`;
+    expectWorkspaceField(workspace, `${prefix}.types`);
+    expectWorkspaceField(workspace, `${prefix}.default`);
+
+    const typesValue = get(workspace.manifest, `${prefix}.types`);
+    if (
+      typesValue &&
+      (typeof typesValue !== 'string' || !typesValue.endsWith('.d.ts'))
+    ) {
+      workspace.error(
+        `Expected package's "${prefix}.types" field to end with ".d.ts", but it was "${typesValue}".`,
+      );
+    }
+
+    const importValue = get(workspace.manifest, `${prefix}.default`);
+    if (
+      importValue &&
+      (typeof importValue !== 'string' || !importValue.endsWith('.js'))
+    ) {
+      workspace.error(
+        `Expected package's "${prefix}.default" field to end with ".js", but it was "${importValue}".`,
+      );
+    }
+  }
 }
 
 /**
@@ -597,6 +679,75 @@ function expectCorrectWorkspaceChangelogScripts(workspace) {
         `Expected package's "changelog:${variant}" script to be or start with "${expectedStartString}", but it was "${script}".`,
       );
     }
+  }
+}
+
+/**
+ * Expect that the workspace has scripts for running tests.
+ *
+ * If the workspace has a `test:types` script (i.e. it runs type tests in
+ * addition to Jest tests), it must have scripts that run both Jest and the type
+ * tests, otherwise just Jest.
+ *
+ * It must also provide scripts that allow Jest to be run in silent mode, clean
+ * mode, verbose mode, and watch mode.
+ *
+ * @param {Workspace} workspace - The workspace to check.
+ */
+function expectTestScripts(workspace) {
+  expectWorkspaceField(
+    workspace,
+    'scripts.test:watch',
+    'NODE_OPTIONS=--experimental-vm-modules jest --watch',
+  );
+
+  if (workspace.manifest.scripts['test:types'] === undefined) {
+    expectWorkspaceField(
+      workspace,
+      'scripts.test',
+      'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:clean',
+      'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:verbose',
+      'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+    );
+  } else {
+    expectWorkspaceField(
+      workspace,
+      'scripts.test',
+      'yarn test:unit && yarn test:types',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:clean',
+      'yarn test:unit:clean && yarn test:types',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:verbose',
+      'yarn test:unit:verbose && yarn test:types',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit',
+      'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit:clean',
+      'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit:verbose',
+      'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+    );
   }
 }
 
@@ -747,6 +898,10 @@ function expectPeerDependenciesAlsoListedAsDevDependencies(
       continue;
     }
 
+    if (ALLOWED_PEER_DEPENDENCIES.includes(dependencyIdent)) {
+      continue;
+    }
+
     const dependencyWorkspace = Yarn.workspace({ ident: dependencyIdent });
 
     if (!dependencyWorkspace) {
@@ -842,10 +997,60 @@ function getInconsistentDependenciesAndDevDependencies(
 }
 
 /**
+ * Given a set of version ranges for the same dependency, return the range which
+ * permits the highest minimum version.
+ *
+ * Returns `null` if any of the ranges cannot be compared, such as aliases
+ * (`npm:foo@^1.0.0`), protocols (`workspace:^`), or dist tags. In that case the
+ * caller is expected to ask a human to resolve the conflict instead.
+ *
+ * @param {string[]} ranges - The version ranges to compare.
+ * @returns {string | null} The highest range, or `null` if they are not all
+ * comparable.
+ */
+function getHighestRange(ranges) {
+  let highestRange = null;
+  let highestMinimumVersion = null;
+
+  for (const range of ranges) {
+    const minimumVersion = semver.validRange(range)
+      ? semver.minVersion(range)
+      : null;
+
+    if (minimumVersion === null) {
+      return null;
+    }
+
+    if (
+      highestMinimumVersion === null ||
+      semver.gt(minimumVersion, highestMinimumVersion)
+    ) {
+      highestRange = range;
+      highestMinimumVersion = minimumVersion;
+    }
+  }
+
+  return highestRange;
+}
+
+/**
  * Expect that across the entire monorepo all version ranges in `dependencies`
  * and `devDependencies` for the same dependency are the same (as long as it is
- * not a dependency on a workspace package). As it is impossible to compare NPM
- * version ranges, let the user decide if there are conflicts.
+ * not a dependency on a workspace package).
+ *
+ * By default a disagreement is an error for a human to resolve, so that routine
+ * use of `yarn lint:fix` cannot quietly fold a dependency bump into an
+ * unrelated pull request.
+ *
+ * Under `ALIGN_DEPENDENCY_RANGES` (see above) the rule instead becomes
+ * fixable: where every conflicting range is plain semver, the one permitting
+ * the highest minimum version wins and `yarn constraints --fix` aligns the
+ * rest. That is meant for the workflow that repairs Dependabot pull requests,
+ * whose security updates walk manifests one at a time rather than as a
+ * workspace and so routinely leave ranges disagreeing.
+ *
+ * Ranges that cannot be compared (aliases, protocols, dist tags) are always an
+ * error, opted in or not.
  *
  * @param {Yarn} Yarn - The Yarn "global".
  */
@@ -870,34 +1075,40 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
         dependenciesByRange,
       );
     const dependencyRanges = [...dependenciesToConsider.keys()].sort();
+    const highestRange = getHighestRange(dependencyRanges);
 
     for (const dependencies of dependenciesToConsider.values()) {
       for (const dependency of dependencies) {
-        dependency.error(
-          `Expected version range for ${dependencyIdent} (in ${
-            dependency.type
-          }) to be consistent across monorepo. Pick one: ${inspect(
-            dependencyRanges,
-          )}`,
-        );
+        if (highestRange !== null && ALIGN_DEPENDENCY_RANGES) {
+          dependency.update(highestRange);
+        } else {
+          dependency.error(
+            `Expected version range for ${dependencyIdent} (in ${
+              dependency.type
+            }) to be consistent across monorepo. Pick one: ${inspect(
+              dependencyRanges,
+            )}`,
+          );
+        }
       }
     }
   }
 }
 
 /**
- * Expect that the workspace has a README.md file, and that it is a non-empty
- * string. The README.md is expected to:
+ * Expects the README.md:
  *
- * - Not contain template instructions (unless the workspace is the module
+ * - To not contain template instructions (unless the workspace is the module
  * template itself).
- * - Match the version of Node.js specified in the `.nvmrc` file.
+ * - To contain installation instructions (if it is not private)
+ * - To match the version of Node.js specified in the `.nvmrc` file.
  *
  * @param {Workspace} workspace - The workspace to check.
  * @param {string} workspaceBasename - The name of the workspace.
+ * @param {boolean} isPrivate - Whether the package is private.
  * @returns {Promise<void>}
  */
-async function expectReadme(workspace, workspaceBasename) {
+async function expectReadme(workspace, workspaceBasename, isPrivate) {
   const readme = await getWorkspaceFile(workspace, 'README.md');
 
   if (
@@ -909,13 +1120,19 @@ async function expectReadme(workspace, workspaceBasename) {
     );
   }
 
-  if (!readme.includes(`yarn add @metamask/${workspaceBasename}`)) {
+  if (
+    !isPrivate &&
+    !readme.includes(`yarn add @metamask/${workspaceBasename}`)
+  ) {
     workspace.error(
       `The README.md does not contain an example of how to install the package using Yarn (\`yarn add @metamask/${workspaceBasename}\`). Please add an example.`,
     );
   }
 
-  if (!readme.includes(`npm install @metamask/${workspaceBasename}`)) {
+  if (
+    !isPrivate &&
+    !readme.includes(`npm install @metamask/${workspaceBasename}`)
+  ) {
     workspace.error(
       `The README.md does not contain an example of how to install the package using npm (\`npm install @metamask/${workspaceBasename}\`). Please add an example.`,
     );
@@ -978,5 +1195,28 @@ async function expectCodeowner(workspace, workspaceBasename) {
         'Missing CODEOWNER rule for package.json co-ownership with core platform team',
       );
     }
+  }
+}
+
+/**
+ * Expect that the workspace has a package manager set, and that it is Yarn with
+ * a sha256 hash.
+ *
+ * @param {Workspace} workspace - The workspace to check.
+ */
+function expectYarnPackageManager(workspace) {
+  expectWorkspaceField(workspace, 'packageManager');
+
+  const { packageManager } = workspace.manifest;
+  if (!packageManager.startsWith('yarn@')) {
+    workspace.error(
+      `Expected packageManager to start with "yarn@<version>", but got "${packageManager}".`,
+    );
+  }
+
+  if (!packageManager.includes('sha256')) {
+    workspace.error(
+      `Expected packageManager to include a sha256 hash, but got "${packageManager}".`,
+    );
   }
 }

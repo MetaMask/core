@@ -1,5 +1,5 @@
-import { MAX_KDF_PROMISE_CACHE_SIZE } from './constants';
-import encryption, { createSHA256Hash } from './encryption';
+import { MAX_KDF_PROMISE_CACHE_SIZE } from './constants.js';
+import encryption, { createSHA256Hash } from './encryption.js';
 
 describe('encryption tests', () => {
   const PASSWORD = '123';
@@ -203,12 +203,12 @@ describe('encryption tests', () => {
       await expect(
         encryption.decryptString(results[0], password2),
       ).rejects.toThrow(
-        'Unable to decrypt string - aes/gcm: invalid ghash tag',
+        'Unable to decrypt string - The operation failed for an operation-specific reason',
       );
       await expect(
         encryption.decryptString(results[1], password1),
       ).rejects.toThrow(
-        'Unable to decrypt string - aes/gcm: invalid ghash tag',
+        'Unable to decrypt string - The operation failed for an operation-specific reason',
       );
     });
 

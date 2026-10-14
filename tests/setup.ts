@@ -10,5 +10,5 @@ delete globalThis.Request;
 delete globalThis.Response;
 // We need to import this *after* we delete `fetch` etc. above.
 // Additionally, this import is used for side effects only.
-// eslint-disable-next-line import-x/first, import-x/no-unassigned-import
+// oxlint-disable-next-line import-x/first, import-x/no-unassigned-import
 import 'isomorphic-fetch';

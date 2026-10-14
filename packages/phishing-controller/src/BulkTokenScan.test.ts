@@ -11,13 +11,13 @@ import {
   PhishingController,
   SECURITY_ALERTS_BASE_URL,
   TOKEN_BULK_SCANNING_ENDPOINT,
-} from './PhishingController';
+} from './PhishingController.js';
 import type {
   PhishingControllerMessenger,
   PhishingControllerOptions,
-} from './PhishingController';
-import { TokenScanResultType } from './types';
-import type { BulkTokenScanRequest, TokenScanApiResponse } from './types';
+} from './PhishingController.js';
+import { TokenScanResultType } from './types.js';
+import type { BulkTokenScanRequest, TokenScanApiResponse } from './types.js';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -174,7 +174,29 @@ describe('PhishingController - Bulk Token Scanning', () => {
         const result = await controller.bulkScanTokens(request);
 
         expect(result).toStrictEqual({});
-        expect(consoleWarnSpy).toHaveBeenCalledWith('Unknown chain ID: 0x999');
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          'Unsupported chain ID: 0x999',
+        );
+      });
+
+      it('should return empty object and log warning for a known chain that is not supported by token scanning', async () => {
+        const scope = nock(SECURITY_ALERTS_BASE_URL)
+          .post(TOKEN_BULK_SCANNING_ENDPOINT)
+          .reply(200, { results: {} });
+
+        const request: BulkTokenScanRequest = {
+          chainId: '0x64',
+          tokens: ['0x1234567890123456789012345678901234567890'],
+        };
+
+        const result = await controller.bulkScanTokens(request);
+
+        expect(result).toStrictEqual({});
+        expect(scope.isDone()).toBe(false);
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          'Unsupported chain ID: 0x64',
+        );
+        cleanAll();
       });
 
       it('should handle case insensitive chainId', async () => {

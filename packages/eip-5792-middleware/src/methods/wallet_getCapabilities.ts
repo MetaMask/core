@@ -1,9 +1,9 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
-import { GetCapabilitiesStruct } from '../types';
-import type { GetCapabilitiesHook } from '../types';
-import { validateAndNormalizeKeyholder, validateParams } from '../utils';
+import { GetCapabilitiesStruct } from '../types.js';
+import type { GetCapabilitiesHook } from '../types.js';
+import { validateAndNormalizeKeyholder, validateParams } from '../utils.js';
 
 /**
  * The RPC method handler middleware for `wallet_getCapabilities`

@@ -1,9 +1,4 @@
-import type {
-  ChainId,
-  DataRequest,
-  DataResponse,
-  AssetsControllerStateInternal,
-} from '../types';
+import type { ChainId, DataRequest, DataResponse } from '../types.js';
 
 // ============================================================================
 // DATA SOURCE BASE TYPES
@@ -22,10 +17,11 @@ export type SubscriptionRequest = {
     request?: DataRequest,
   ) => void | Promise<void>;
   /**
-   * Optional state access (e.g. for price/token data sources that need assetsBalance).
-   * Provided by the controller when subscribing.
+   * When true, skip the one-shot fetch that normally runs when a subscription
+   * is created. Used after the controller has already force-fetched balances
+   * for the same accounts/chains so we do not immediately hit the API again.
    */
-  getAssetsState?: () => AssetsControllerStateInternal;
+  skipInitialFetch?: boolean;
 };
 
 /**

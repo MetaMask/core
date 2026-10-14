@@ -1,21 +1,16 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
-import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource';
-import { StakedBalanceDataSource } from './StakedBalanceDataSource';
 import {
   MockRootMessenger,
-  createMockAssetControllerMessenger,
+  createMockMessengers,
   createMockWeb3Provider,
   registerStakedMessengerActions,
-} from '../__fixtures__/MockAssetControllerMessenger';
-import type { AssetsControllerMessenger } from '../AssetsController';
-import type {
-  AssetsControllerStateInternal,
-  ChainId,
-  Context,
-  DataRequest,
-} from '../types';
+} from '../__fixtures__/MockAssetControllerMessenger.js';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import type { ChainId, Context, DataRequest } from '../types.js';
+import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource.js';
+import { StakedBalanceDataSource } from './StakedBalanceDataSource.js';
 
 const MAINNET_CHAIN_ID_HEX = '0x1';
 const MAINNET_CHAIN_ID_CAIP = 'eip155:1' as ChainId;
@@ -40,7 +35,7 @@ function createMockInternalAccount(
       lastSelected: Date.now(),
     },
     ...overrides,
-  } as InternalAccount;
+  };
 }
 
 function createDataRequest(
@@ -60,21 +55,10 @@ function createDataRequest(
   };
 }
 
-function getMockAssetsState(): AssetsControllerStateInternal {
-  return {
-    assetsInfo: {},
-    assetsBalance: {},
-    assetsPrice: {},
-    customAssets: {},
-    assetPreferences: {},
-  };
-}
-
 function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: getMockAssetsState,
     ...overrides,
   };
 }
@@ -120,11 +104,12 @@ async function withController<ReturnValue>(
     }),
   } = controllerOptions;
 
-  const { assetsControllerMessenger, rootMessenger } =
-    createMockAssetControllerMessenger();
-  registerStakedMessengerActions(rootMessenger, {
-    enabledNetworkMap,
-    mockProvider,
+  const { rootMessenger, assetsControllerMessenger } = createMockMessengers({
+    registerCustomRootActions: (messenger) =>
+      registerStakedMessengerActions(messenger, {
+        enabledNetworkMap,
+        mockProvider,
+      }),
   });
 
   // spy on staked messenger calls, so we can inspect and assert
@@ -221,10 +206,6 @@ describe('StakedBalanceDataSource', () => {
           expect.any(Function),
         );
         expect(mockMessengerSubscribe).toHaveBeenCalledWith(
-          'TransactionController:incomingTransactionsReceived',
-          expect.any(Function),
-        );
-        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
           'NetworkController:stateChange',
           expect.any(Function),
         );
@@ -289,11 +270,11 @@ describe('StakedBalanceDataSource', () => {
     it('returns empty response for unsupported chain', async () => {
       await withController(async ({ controller }) => {
         const request = createDataRequest({
-          chainIds: ['eip155:999' as ChainId],
+          chainIds: ['eip155:999'],
           accountsWithSupportedChains: [
             {
               account: createMockInternalAccount(),
-              supportedChains: ['eip155:999' as ChainId],
+              supportedChains: ['eip155:999'],
             },
           ],
         });
@@ -358,7 +339,6 @@ describe('StakedBalanceDataSource', () => {
           subscriptionId: 'test-sub',
           isUpdate: false,
           onAssetsUpdate,
-          getAssetsState: getMockAssetsState,
         });
         await new Promise((resolve) => {
           setTimeout(resolve, 100);
@@ -380,7 +360,6 @@ describe('StakedBalanceDataSource', () => {
             subscriptionId: 'test-sub',
             isUpdate: false,
             onAssetsUpdate,
-            getAssetsState: getMockAssetsState,
           });
           expect(onAssetsUpdate).not.toHaveBeenCalled();
         },
@@ -396,7 +375,6 @@ describe('StakedBalanceDataSource', () => {
           subscriptionId: 'test-sub',
           isUpdate: false,
           onAssetsUpdate: jest.fn(),
-          getAssetsState: getMockAssetsState,
         });
         await controller.unsubscribe('test-sub');
         const chains = await controller.getActiveChains();
@@ -416,7 +394,6 @@ describe('StakedBalanceDataSource', () => {
         subscriptionId: 'test-sub',
         isUpdate: false,
         onAssetsUpdate,
-        getAssetsState: getMockAssetsState,
       });
       await new Promise((resolve) => setTimeout(resolve, 100));
       onAssetsUpdate.mockClear();
@@ -492,64 +469,6 @@ describe('StakedBalanceDataSource', () => {
         expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
       });
     });
-
-    it('refreshes when incomingTransactionsReceived includes tx involving staking contract', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        // Arrange
-        const onAssetsUpdate = await arrange({ controller });
-
-        // Act
-        rootMessenger.publish(
-          'TransactionController:incomingTransactionsReceived',
-          [
-            {
-              id: '1',
-              networkClientId: 'mainnet',
-              status: TransactionStatus.confirmed,
-              time: Date.now(),
-              chainId: MAINNET_CHAIN_ID_HEX,
-              txParams: {
-                to: STAKING_CONTRACT_MAINNET,
-                from: '0x0000000000000000000000000000000000000000',
-              },
-            },
-          ],
-        );
-
-        // Assert
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
-      });
-    });
-
-    it('does not refresh when incomingTransactionsReceived has no tx involving staking contract', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        // Arrange
-        const onAssetsUpdate = await arrange({ controller });
-
-        // Act
-        rootMessenger.publish(
-          'TransactionController:incomingTransactionsReceived',
-          [
-            {
-              id: '1',
-              networkClientId: 'mainnet',
-              status: TransactionStatus.confirmed,
-              time: Date.now(),
-              chainId: MAINNET_CHAIN_ID_HEX,
-              txParams: {
-                to: '0x1234567890123456789012345678901234567890',
-                from: '0x0000000000000000000000000000000000000000',
-              },
-            },
-          ],
-        );
-
-        // Assert
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        expect(onAssetsUpdate).not.toHaveBeenCalled();
-      });
-    });
   });
 
   describe('refreshStakedBalance', () => {
@@ -561,7 +480,6 @@ describe('StakedBalanceDataSource', () => {
           subscriptionId: 'test-sub',
           isUpdate: false,
           onAssetsUpdate,
-          getAssetsState: getMockAssetsState,
         });
         onAssetsUpdate.mockClear();
         expect(await controller.refreshStakedBalance()).toBeUndefined();

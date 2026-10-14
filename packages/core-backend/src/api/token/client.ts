@@ -17,8 +17,13 @@ import type {
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
+import { BaseApiClient, STALE_TIMES, GC_TIMES } from '../base-client.js';
+import { getQueryOptionsOverrides } from '../shared-types.js';
+import type { FetchOptions } from '../shared-types.js';
 import type {
   TokenMetadata,
+  TokenListQueryOptions,
+  TokenV2SupportedNetworksResponse,
   V1TokenDescriptionResponse,
   NetworkInfo,
   TopAsset,
@@ -26,10 +31,7 @@ import type {
   TrendingSortOption,
   TopGainersSortOption,
   V1SuggestedOccurrenceFloorsResponse,
-} from './types';
-import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
-import { getQueryOptionsOverrides } from '../shared-types';
-import type { FetchOptions } from '../shared-types';
+} from './types.js';
 
 /**
  * Token API Client.
@@ -67,7 +69,7 @@ export class TokenApiClient extends BaseApiClient {
     return {
       queryKey: ['token', 'networks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<NetworkInfo[]>(API_URLS.TOKEN, '/networks', { signal }),
+        this.fetch<NetworkInfo[]>(this.apiUrls.TOKEN, '/networks', { signal }),
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.SUPPORTED_NETWORKS,
       gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
@@ -98,7 +100,7 @@ export class TokenApiClient extends BaseApiClient {
     return {
       queryKey: ['token', 'networkByChainId', chainId],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<NetworkInfo>(API_URLS.TOKEN, `/networks/${chainId}`, {
+        this.fetch<NetworkInfo>(this.apiUrls.TOKEN, `/networks/${chainId}`, {
           signal,
         }),
       ...getQueryOptionsOverrides(options),
@@ -131,40 +133,23 @@ export class TokenApiClient extends BaseApiClient {
    * Returns the TanStack Query options object for token list.
    *
    * @param chainId - The chain ID.
-   * @param queryOptions - Query options.
-   * @param queryOptions.includeTokenFees - Whether to include token fees.
-   * @param queryOptions.includeAssetType - Whether to include asset type.
-   * @param queryOptions.includeAggregators - Whether to include aggregators.
-   * @param queryOptions.includeERC20Permit - Whether to include ERC20 permit.
-   * @param queryOptions.includeOccurrences - Whether to include occurrences.
-   * @param queryOptions.includeStorage - Whether to include storage.
-   * @param queryOptions.includeIconUrl - Whether to include icon URL.
-   * @param queryOptions.includeAddress - Whether to include address.
-   * @param queryOptions.includeName - Whether to include name.
+   * @param queryOptions - Query options forwarded to `GET /tokens/{chainId}`.
    * @param options - Fetch options including cache settings.
    * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
    */
   getTokenListQueryOptions(
     chainId: number,
-    queryOptions?: {
-      includeTokenFees?: boolean;
-      includeAssetType?: boolean;
-      includeAggregators?: boolean;
-      includeERC20Permit?: boolean;
-      includeOccurrences?: boolean;
-      includeStorage?: boolean;
-      includeIconUrl?: boolean;
-      includeAddress?: boolean;
-      includeName?: boolean;
-    },
+    queryOptions?: TokenListQueryOptions,
     options?: FetchOptions,
   ): FetchQueryOptions<TokenMetadata[]> {
     return {
       queryKey: ['token', 'tokenList', { chainId, options: queryOptions }],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<TokenMetadata[]>(API_URLS.TOKEN, `/tokens/${chainId}`, {
+        this.fetch<TokenMetadata[]>(this.apiUrls.TOKEN, `/tokens/${chainId}`, {
           signal,
           params: {
+            occurrenceFloor: queryOptions?.occurrenceFloor,
+            includeNativeAssets: queryOptions?.includeNativeAssets,
             includeTokenFees: queryOptions?.includeTokenFees,
             includeAssetType: queryOptions?.includeAssetType,
             includeAggregators: queryOptions?.includeAggregators,
@@ -174,6 +159,7 @@ export class TokenApiClient extends BaseApiClient {
             includeIconUrl: queryOptions?.includeIconUrl,
             includeAddress: queryOptions?.includeAddress,
             includeName: queryOptions?.includeName,
+            includeRwaData: queryOptions?.includeRwaData,
           },
         }),
       ...getQueryOptionsOverrides(options),
@@ -186,36 +172,54 @@ export class TokenApiClient extends BaseApiClient {
    * Get token list for a chain.
    *
    * @param chainId - The chain ID.
-   * @param queryOptions - Query options.
-   * @param queryOptions.includeTokenFees - Include token fees data.
-   * @param queryOptions.includeAssetType - Include asset type data.
-   * @param queryOptions.includeAggregators - Include aggregators data.
-   * @param queryOptions.includeERC20Permit - Include ERC20 permit data.
-   * @param queryOptions.includeOccurrences - Include occurrences data.
-   * @param queryOptions.includeStorage - Include storage data.
-   * @param queryOptions.includeIconUrl - Include icon URL.
-   * @param queryOptions.includeAddress - Include address.
-   * @param queryOptions.includeName - Include name.
+   * @param queryOptions - Query options forwarded to `GET /tokens/{chainId}`.
    * @param options - Fetch options including cache settings.
    * @returns Array of token metadata.
    */
   async fetchTokenList(
     chainId: number,
-    queryOptions?: {
-      includeTokenFees?: boolean;
-      includeAssetType?: boolean;
-      includeAggregators?: boolean;
-      includeERC20Permit?: boolean;
-      includeOccurrences?: boolean;
-      includeStorage?: boolean;
-      includeIconUrl?: boolean;
-      includeAddress?: boolean;
-      includeName?: boolean;
-    },
+    queryOptions?: TokenListQueryOptions,
     options?: FetchOptions,
   ): Promise<TokenMetadata[]> {
     return this.queryClient.fetchQuery(
       this.getTokenListQueryOptions(chainId, queryOptions, options),
+    );
+  }
+
+  /**
+   * Returns the TanStack Query options object for v2 supported networks.
+   *
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV2SupportedNetworksQueryOptions(
+    options?: FetchOptions,
+  ): FetchQueryOptions<TokenV2SupportedNetworksResponse> {
+    return {
+      queryKey: ['token', 'v2SupportedNetworks'],
+      queryFn: ({ signal }: QueryFunctionContext) =>
+        this.fetch<TokenV2SupportedNetworksResponse>(
+          this.apiUrls.TOKEN,
+          '/v2/supportedNetworks',
+          { signal },
+        ),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.SUPPORTED_NETWORKS,
+      gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
+    };
+  }
+
+  /**
+   * Get CAIP chain IDs supported by the Token API (`GET /v2/supportedNetworks`).
+   *
+   * @param options - Fetch options including cache settings.
+   * @returns Full and partial support chain IDs.
+   */
+  async fetchV2SupportedNetworks(
+    options?: FetchOptions,
+  ): Promise<TokenV2SupportedNetworksResponse> {
+    return this.queryClient.fetchQuery(
+      this.getV2SupportedNetworksQueryOptions(options),
     );
   }
 
@@ -266,21 +270,25 @@ export class TokenApiClient extends BaseApiClient {
       queryFn: async ({
         signal,
       }: QueryFunctionContext): Promise<TokenMetadata> => {
-        return this.fetch<TokenMetadata>(API_URLS.TOKEN, `/token/${chainId}`, {
-          signal,
-          params: {
-            address: tokenAddress,
-            includeTokenFees: queryOptions?.includeTokenFees,
-            includeAssetType: queryOptions?.includeAssetType,
-            includeAggregators: queryOptions?.includeAggregators,
-            includeERC20Permit: queryOptions?.includeERC20Permit,
-            includeOccurrences: queryOptions?.includeOccurrences,
-            includeStorage: queryOptions?.includeStorage,
-            includeIconUrl: queryOptions?.includeIconUrl,
-            includeAddress: queryOptions?.includeAddress,
-            includeName: queryOptions?.includeName,
+        return this.fetch<TokenMetadata>(
+          this.apiUrls.TOKEN,
+          `/token/${chainId}`,
+          {
+            signal,
+            params: {
+              address: tokenAddress,
+              includeTokenFees: queryOptions?.includeTokenFees,
+              includeAssetType: queryOptions?.includeAssetType,
+              includeAggregators: queryOptions?.includeAggregators,
+              includeERC20Permit: queryOptions?.includeERC20Permit,
+              includeOccurrences: queryOptions?.includeOccurrences,
+              includeStorage: queryOptions?.includeStorage,
+              includeIconUrl: queryOptions?.includeIconUrl,
+              includeAddress: queryOptions?.includeAddress,
+              includeName: queryOptions?.includeName,
+            },
           },
-        });
+        );
       },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.TOKEN_METADATA,
@@ -355,7 +363,7 @@ export class TokenApiClient extends BaseApiClient {
         signal,
       }: QueryFunctionContext): Promise<V1TokenDescriptionResponse> =>
         this.fetch<V1TokenDescriptionResponse>(
-          API_URLS.TOKEN,
+          this.apiUrls.TOKEN,
           `/token/${chainId}/description`,
           {
             signal,
@@ -429,7 +437,7 @@ export class TokenApiClient extends BaseApiClient {
         { chainIds: [...chainIds].sort(), options: queryOptions },
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<TrendingToken[]>(API_URLS.TOKEN, '/v3/tokens/trending', {
+        this.fetch<TrendingToken[]>(this.apiUrls.TOKEN, '/v3/tokens/trending', {
           signal,
           params: {
             chainIds,
@@ -516,19 +524,23 @@ export class TokenApiClient extends BaseApiClient {
         { chainIds: [...chainIds].sort(), options: queryOptions },
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<TrendingToken[]>(API_URLS.TOKEN, '/v3/tokens/top-gainers', {
-          signal,
-          params: {
-            chainIds,
-            sort: queryOptions?.sort,
-            blockRegion: queryOptions?.blockRegion,
-            minLiquidity: queryOptions?.minLiquidity,
-            minVolume24hUsd: queryOptions?.minVolume24hUsd,
-            maxVolume24hUsd: queryOptions?.maxVolume24hUsd,
-            minMarketCap: queryOptions?.minMarketCap,
-            maxMarketCap: queryOptions?.maxMarketCap,
+        this.fetch<TrendingToken[]>(
+          this.apiUrls.TOKEN,
+          '/v3/tokens/top-gainers',
+          {
+            signal,
+            params: {
+              chainIds,
+              sort: queryOptions?.sort,
+              blockRegion: queryOptions?.blockRegion,
+              minLiquidity: queryOptions?.minLiquidity,
+              minVolume24hUsd: queryOptions?.minVolume24hUsd,
+              maxVolume24hUsd: queryOptions?.maxVolume24hUsd,
+              minMarketCap: queryOptions?.minMarketCap,
+              maxMarketCap: queryOptions?.maxMarketCap,
+            },
           },
-        }),
+        ),
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.TRENDING,
       gcTime: options?.gcTime ?? GC_TIMES.SHORT,
@@ -601,7 +613,7 @@ export class TokenApiClient extends BaseApiClient {
         { chainIds: [...chainIds].sort(), options: queryOptions },
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<TrendingToken[]>(API_URLS.TOKEN, '/v3/tokens/popular', {
+        this.fetch<TrendingToken[]>(this.apiUrls.TOKEN, '/v3/tokens/popular', {
           signal,
           params: {
             chainIds,
@@ -668,7 +680,7 @@ export class TokenApiClient extends BaseApiClient {
     return {
       queryKey: ['token', 'topAssets', chainId],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<TopAsset[]>(API_URLS.TOKEN, `/topAssets/${chainId}`, {
+        this.fetch<TopAsset[]>(this.apiUrls.TOKEN, `/topAssets/${chainId}`, {
           signal,
         }),
       ...getQueryOptionsOverrides(options),
@@ -710,7 +722,7 @@ export class TokenApiClient extends BaseApiClient {
       queryKey: ['token', 'v1SuggestedOccurrenceFloors'],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V1SuggestedOccurrenceFloorsResponse>(
-          API_URLS.TOKEN,
+          this.apiUrls.TOKEN,
           '/v1/suggestedOccurrenceFloors',
           { signal },
         ),

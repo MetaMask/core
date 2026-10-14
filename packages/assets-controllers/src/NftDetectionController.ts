@@ -17,9 +17,10 @@ import {
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClient,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerStateChangeEvent,
   NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type {
   PreferencesControllerGetStateAction,
@@ -29,13 +30,12 @@ import type {
 import { createDeferredPromise } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { Source } from './constants';
+import { Source } from './constants.js';
 import type {
   NftController,
   NftControllerState,
   NftMetadata,
-} from './NftController';
-import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
+} from './NftController.js';
 
 const controllerName = 'NftDetectionController';
 
@@ -719,7 +719,7 @@ export class NftDetectionController extends BaseController<
                 nftMetadata,
               };
             }
-            return undefined;
+            return;
           })
           .filter((nft): nft is NonNullable<typeof nft> => nft !== undefined);
 

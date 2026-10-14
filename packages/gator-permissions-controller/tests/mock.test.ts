@@ -1,5 +1,5 @@
-import { mockGatorPermissionsStorageEntriesFactory } from './mocks';
-import type { MockGatorPermissionsStorageEntriesConfig } from './mocks';
+import { mockGatorPermissionsStorageEntriesFactory } from './mocks.js';
+import type { MockGatorPermissionsStorageEntriesConfig } from './mocks.js';
 
 describe('mockGatorPermissionsStorageEntriesFactory', () => {
   it('should create mock storage entries for all permission types', () => {

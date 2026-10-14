@@ -1,3 +1,3 @@
-export * from './process-feature-announcement';
-export * from './process-notifications';
-export * from './process-api-notifications';
+export * from './process-feature-announcement.js';
+export * from './process-notifications.js';
+export * from './process-api-notifications.js';

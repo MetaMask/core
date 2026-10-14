@@ -76,9 +76,11 @@ export type MarketInsightsTrend = {
 
 /**
  * AI-generated market insights report for a crypto asset.
- * Returned by `GET /asset-summary?caipAssetType=<caip19Id>` or `GET /asset-summary?hlPerpsMarket=<symbol>`.
+ * Returned by `GET /asset-summary?asset=<identifier>`.
  */
 export type MarketInsightsReport = {
+  /** Unique identifier for this digest, sourced from the API response envelope. */
+  digestId: string;
   /** API version */
   version?: string;
   /** Asset symbol (lowercase, e.g. "btc") */
@@ -99,28 +101,6 @@ export type MarketInsightsReport = {
   metadata?: AIResponseMetadata[];
 };
 
-/**
- * A cached market insights entry.
- */
-export type MarketInsightsEntry = {
-  /** Asset identifier — either a CAIP-19 ID (e.g. "eip155:1/slip44:60") or a perps market symbol (e.g. "ETH") */
-  assetIdentifier: string;
-  /** Timestamp when the entry was fetched */
-  fetchedAt: number;
-  /** The market insights report data */
-  data: MarketInsightsReport;
-};
-
-/**
- * A cached market overview entry.
- */
-export type MarketOverviewEntry = {
-  /** Timestamp when the entry was fetched */
-  fetchedAt: number;
-  /** The market overview data */
-  data: MarketOverview;
-};
-
 // ---------------------------------------------------------------------------
 // Market Overview types (non-asset-specific)
 // ---------------------------------------------------------------------------
@@ -130,16 +110,31 @@ export type MarketOverviewEntry = {
  * Returned by the `/market-overview` API as a rich object.
  */
 export type RelatedAsset = {
-  /** Human-readable asset name (e.g. "Bitcoin") */
-  name: string;
-  /** Ticker symbol (e.g. "BTC") */
+  /**
+   * Human-readable asset name (e.g. "Bitcoin"). Optional — clients must fall
+   * back to `symbol` when absent.
+   */
+  name?: string;
+  /** Ticker symbol (e.g. "BTC"). The only field guaranteed to be present. */
   symbol: string;
-  /** CAIP-19 identifiers for this asset across chains */
-  caip19: string[];
-  /** Canonical source asset identifier (e.g. "bitcoin") */
-  sourceAssetId: string;
-  /** Optional Hyperliquid perps market symbol (e.g. "BTC") */
-  hlPerpsMarket?: string;
+  /**
+   * CAIP-19 identifiers for this asset across chains. May be absent for
+   * purely synthetic / perps-only assets (e.g. ETHFI). The service
+   * normalises missing values to `[]`.
+   */
+  caip19?: string[];
+  /**
+   * Canonical source asset identifier (e.g. "bitcoin"). Optional — may be
+   * absent when the API pipeline cannot enrich the asset record.
+   */
+  sourceAssetId?: string;
+  /**
+   * Optional HyperLiquid market identifiers for this asset (e.g. `BTC`, `ETH`,
+   * `xyz:TSLA`). Covers both regular crypto tokens that trade on HyperLiquid
+   * and purely synthetic perps assets. Use this to resolve Perps icon URLs via
+   * `getAssetIconUrls` on clients when `caip19` is empty.
+   */
+  hlPerpsMarket?: string[];
 };
 
 export type MarketOverviewTrend = {
@@ -171,14 +166,42 @@ export type MarketOverview = {
   metadata?: AIResponseMetadata[];
 };
 
+/**
+ * A single market overview item. Shares the exact same schema as a
+ * {@link MarketOverviewTrend} — i.e. one entry of `MarketOverview.trends`.
+ */
+export type MarketOverviewItem = MarketOverviewTrend;
+
+/**
+ * A market overview "front page": a single AI-selected item (mirroring the
+ * front page of a newspaper) plus its call-to-action copy, addressable by id.
+ *
+ * Returned by `GET /market-overview/front-page/:id` (and `.../latest`). Unlike
+ * `/market-overview`, which only ever returns the latest report, this lets
+ * clients fetch an older item that has since dropped out of the report.
+ */
+export type MarketOverviewFrontPage = {
+  /** Unique identifier of the front-page row (UUID). */
+  id: string;
+  /** The selected item — same schema as an individual market overview item. */
+  item: MarketOverviewItem;
+  /** Call-to-action title for the front-page item. */
+  ctaTitle: string;
+  /** Call-to-action description for the front-page item. */
+  ctaDescription: string;
+  /** ISO date string when the front-page row was created. */
+  createdAt: string;
+};
+
 // ---------------------------------------------------------------------------
 // Controller state
 // ---------------------------------------------------------------------------
 
-export type AiDigestControllerState = {
-  marketInsights: Record<string, MarketInsightsEntry>;
-  marketOverview: MarketOverviewEntry | null;
-};
+/**
+ * AiDigestController has no persisted cache. Digest freshness is owned by
+ * clients (e.g. React Query).
+ */
+export type AiDigestControllerState = Record<string, never>;
 
 // ---------------------------------------------------------------------------
 // Service interface
@@ -188,14 +211,13 @@ export type DigestService = {
   /**
    * Search for market insights by asset identifier.
    *
-   * Accepts either a CAIP-19 asset type (e.g. `eip155:1/slip44:60`) or a perps
-   * market symbol (e.g. `ETH`). The implementation is responsible for choosing
-   * the correct query parameter (`caipAssetType` vs `hlPerpsMarket`).
+   * Accepts any identifier the API understands — CAIP-19 asset type
+   * (e.g. `eip155:1/slip44:60`), ticker symbol (e.g. `ETH`), asset name
+   * (e.g. `Bitcoin`), or HyperLiquid perps market id (e.g. `xyz:TSLA`).
    *
-   * Calls `GET /asset-summary?caipAssetType=<assetIdentifier>` for CAIP-19 IDs,
-   * or `GET /asset-summary?hlPerpsMarket=<assetIdentifier>` for perps symbols.
+   * Calls `GET /asset-summary?asset=<assetIdentifier>`.
    *
-   * @param assetIdentifier - The asset identifier (CAIP-19 ID or perps market symbol).
+   * @param assetIdentifier - The asset identifier.
    * @returns The market insights report, or `null` if no insights exist (404).
    */
   searchDigest(assetIdentifier: string): Promise<MarketInsightsReport | null>;
@@ -207,4 +229,13 @@ export type DigestService = {
    * @returns The market overview report, or `null` if none exists (404).
    */
   fetchMarketOverview(): Promise<MarketOverview | null>;
+
+  /**
+   * Fetch a single market overview front page by id.
+   * Calls `GET /market-overview/front-page/:id`.
+   *
+   * @param id - The front-page identifier (UUID).
+   * @returns The market overview front page, or `null` if none exists (404).
+   */
+  fetchFrontPageItem(id: string): Promise<MarketOverviewFrontPage | null>;
 };

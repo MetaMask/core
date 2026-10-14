@@ -11,6 +11,7 @@ import type {
 } from '@metamask/base-controller';
 import {
   BNToHex,
+  isEqualCaseInsensitive,
   isValidHexAddress,
   safelyExecuteWithTimeout,
   toChecksumHexAddress,
@@ -41,10 +42,7 @@ import type {
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import type {
-  TransactionControllerIncomingTransactionsReceivedEvent,
-  TransactionControllerTransactionConfirmedEvent,
-} from '@metamask/transaction-controller';
+import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import {
   isCaipAssetType,
@@ -54,32 +52,39 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import { produce } from 'immer';
-import { isEqual } from 'lodash';
+import { isEqual, union } from 'lodash-es';
 
-import type { AccountTrackerControllerGetStateAction } from './AccountTrackerController';
 import type {
   AccountTrackerControllerUpdateNativeBalancesAction,
   AccountTrackerControllerUpdateStakedBalancesAction,
-} from './AccountTrackerController-method-action-types';
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
-import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+} from './AccountTrackerController-method-action-types.js';
+import type { AccountTrackerControllerGetStateAction } from './AccountTrackerController.js';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController.js';
+import {
+  MUSD_ERC20_ADDRESS_LOWER,
+  MUSD_TOKEN_DETECTION_CHAIN_IDS,
+} from './constants.js';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher.js';
 import type {
   BalanceFetcher,
   ProcessedBalance,
   UnprocessedTokens,
-} from './multi-chain-accounts-service/api-balance-fetcher';
-import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
-import type { TokenBalancesControllerMethodActions } from './TokenBalancesController-method-action-types';
+} from './multi-chain-accounts-service/api-balance-fetcher.js';
+import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher.js';
+import type { TokenBalancesControllerMethodActions } from './TokenBalancesController-method-action-types.js';
 import type {
   TokenDetectionControllerAddDetectedTokensViaPollingAction,
   TokenDetectionControllerAddDetectedTokensViaWsAction,
   TokenDetectionControllerDetectTokensAction,
-} from './TokenDetectionController-method-action-types';
+} from './TokenDetectionController-method-action-types.js';
 import type {
   TokensControllerGetStateAction,
   TokensControllerState,
   TokensControllerStateChangeEvent,
-} from './TokensController';
+} from './TokensController.js';
+import { createBatchedHandler } from './utils/create-batch-handler.js';
+
+const MUSD_IMPORT_CHAIN_ID_SET = new Set<Hex>(MUSD_TOKEN_DETECTION_CHAIN_IDS);
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -88,10 +93,43 @@ const CONTROLLER = 'TokenBalancesController' as const;
 const DEFAULT_INTERVAL_MS = 30_000; // 30 seconds
 const DEFAULT_WEBSOCKET_ACTIVE_POLLING_INTERVAL_MS = 300_000; // 5 minutes
 
+/** Debounce wait (ms) for coalescing rapid updateBalances calls before flush */
+export const UPDATE_BALANCES_BATCH_MS = 200;
+
+export type UpdateBalancesOptions = {
+  chainIds?: ChainIdHex[];
+  tokenAddresses?: string[];
+  queryAllAccounts?: boolean;
+};
+
+/**
+ * Merges two UpdateBalancesOptions per queue-and-merge rules:
+ * - chainIds: union of both lists when each option includes `chainIds`; if either omits `chainIds`, the merged field is undefined (all chains).
+ * - tokenAddresses: union of both lists when each option includes `tokenAddresses`; if either omits `tokenAddresses`, the merged field is undefined (all tokens).
+ * - queryAllAccounts: true if either is true.
+ * Exported for tests.
+ *
+ * @param a - First options (e.g. accumulated).
+ * @param b - Second options to merge in.
+ * @returns New merged options.
+ */
+export function mergeUpdateBalancesOptions(
+  a: UpdateBalancesOptions,
+  b: UpdateBalancesOptions,
+): UpdateBalancesOptions {
+  const chainIds = a.chainIds && b.chainIds && union(a.chainIds, b.chainIds);
+  const tokenAddresses =
+    a.tokenAddresses &&
+    b.tokenAddresses &&
+    union(a.tokenAddresses, b.tokenAddresses);
+  const queryAllAccounts =
+    Boolean(a.queryAllAccounts) || Boolean(b.queryAllAccounts);
+  return { chainIds, tokenAddresses, queryAllAccounts };
+}
 const metadata: StateMetadata<TokenBalancesControllerState> = {
   tokenBalances: {
     includeInStateLogs: false,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
@@ -154,8 +192,7 @@ export type AllowedEvents =
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceStatusChangedEvent
   | AccountsControllerSelectedEvmAccountChangeEvent
-  | TransactionControllerTransactionConfirmedEvent
-  | TransactionControllerIncomingTransactionsReceivedEvent;
+  | TransactionControllerTransactionConfirmedEvent;
 
 export type TokenBalancesControllerMessenger = Messenger<
   typeof CONTROLLER,
@@ -193,6 +230,15 @@ export type TokenBalancesControllerOptions = {
   websocketActivePollingInterval?: number;
   /** Whether the user has completed onboarding. If false, balance updates are skipped. */
   isOnboarded?: () => boolean;
+  /**
+   * Optional function that returns true to completely disable this controller
+   * (no requests, no state updates). When it returns `true`, `tokenBalances` is
+   * reset to `{}` at construction and at every entry point, so no stale balances
+   * remain in state. The function is evaluated dynamically on each entry point so
+   * it can be toggled at runtime. Intended for use when a higher-level controller
+   * (e.g. AssetsController) supersedes this one.
+   */
+  isDeprecated?: () => boolean;
 };
 
 const draft = <State>(base: State, fn: (draftState: State) => void): State =>
@@ -255,6 +301,8 @@ type StakedBalanceUpdate = {
 const MESSENGER_EXPOSED_METHODS = [
   'updateChainPollingConfigs',
   'getChainPollingConfig',
+  'updateBalances',
+  'resetState',
 ] as const;
 
 export class TokenBalancesController extends StaticIntervalPollingController<{
@@ -273,6 +321,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   readonly #allowExternalServices: () => boolean;
 
   readonly #isOnboarded: () => boolean;
+
+  readonly #isDeprecated: () => boolean;
 
   readonly #balanceFetchers: { fetcher: BalanceFetcher; name: string }[];
 
@@ -312,6 +362,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     pendingChanges: new Map(),
   };
 
+  readonly #batchedUpdateBalances: (
+    options: UpdateBalancesOptions,
+  ) => Promise<void>;
+
   constructor({
     messenger,
     interval = DEFAULT_INTERVAL_MS,
@@ -323,6 +377,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     allowExternalServices = (): boolean => true,
     platform,
     isOnboarded = (): boolean => true,
+    isDeprecated = (): boolean => false,
   }: TokenBalancesControllerOptions) {
     super({
       name: CONTROLLER,
@@ -338,6 +393,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#accountsApiChainIds = accountsApiChainIds;
     this.#allowExternalServices = allowExternalServices;
     this.#isOnboarded = isOnboarded;
+    this.#isDeprecated = isDeprecated;
     this.#defaultInterval = interval;
     this.#websocketActivePollingInterval = websocketActivePollingInterval;
     this.#chainPollingConfig = { ...chainPollingIntervals };
@@ -372,8 +428,43 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
     this.#isUnlocked = isUnlocked;
 
+    this.#batchedUpdateBalances = createBatchedHandler(
+      (buffer) =>
+        buffer.length === 0
+          ? {}
+          : buffer
+              .slice(1)
+              .reduce<UpdateBalancesOptions>(
+                (acc, opts) => mergeUpdateBalancesOptions(acc, opts),
+                buffer[0],
+              ),
+      UPDATE_BALANCES_BATCH_MS,
+      (merged: UpdateBalancesOptions): Promise<void> =>
+        this.#executeUpdateBalances(merged),
+    );
+
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    }
+
     this.#subscribeToControllers();
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
+  }
+
+  /**
+   * Clears all persisted `tokenBalances` so that no stale balances remain in
+   * state.
+   *
+   * Called from every entry point when `isDeprecated()` is true so that a runtime
+   * toggle propagates to state immediately, even if the controller was originally
+   * constructed while it was enabled. The update is skipped when `tokenBalances`
+   * is already empty to avoid emitting redundant state changes.
+   */
+  #enforceDisabledState(): void {
+    if (Object.keys(this.state.tokenBalances).length === 0) {
+      return;
+    }
+    this.update(() => ({ tokenBalances: {} }));
   }
 
   #subscribeToControllers(): void {
@@ -428,17 +519,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       (transactionMeta) => {
         this.updateBalances({
           chainIds: [transactionMeta.chainId],
-        }).catch(() => {
-          // Silently handle balance update errors
-        });
-      },
-    );
-
-    this.messenger.subscribe(
-      'TransactionController:incomingTransactionsReceived',
-      (incomingTransactions) => {
-        this.updateBalances({
-          chainIds: incomingTransactions.map((tx) => tx.chainId),
         }).catch(() => {
           // Silently handle balance update errors
         });
@@ -668,7 +748,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainIds: ChainIdHex[];
     queryAllAccounts?: boolean;
   }): Promise<void> {
-    await this.updateBalances({ chainIds, queryAllAccounts });
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+    await this.#executeUpdateBalances({ chainIds, queryAllAccounts });
   }
 
   updateChainPollingConfigs(
@@ -685,15 +769,26 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   }
 
-  async updateBalances({
+  async updateBalances(options: UpdateBalancesOptions = {}): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+    if (!this.isActive) {
+      return;
+    }
+    await this.#batchedUpdateBalances(options);
+  }
+
+  async #executeUpdateBalances({
     chainIds,
     tokenAddresses,
     queryAllAccounts = false,
-  }: {
-    chainIds?: ChainIdHex[];
-    tokenAddresses?: string[];
-    queryAllAccounts?: boolean;
-  } = {}): Promise<void> {
+  }: UpdateBalancesOptions = {}): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     if (!this.isActive) {
       return;
     }
@@ -765,7 +860,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
     }
 
-    await this.#importUntrackedTokens(filteredAggregated);
+    await this.#importUntrackedTokens(filteredAggregated, targetChains);
   }
 
   #getTargetChains(chainIds?: ChainIdHex[]): ChainIdHex[] {
@@ -1100,14 +1195,20 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /**
    * Import untracked tokens that have non-zero balances.
    * This mirrors the v2 behavior where only tokens with actual balances are added.
+   * For mUSD default networks, the mUSD contract is also scheduled for import when
+   * balance is zero (Accounts API omits it like the single-call contract).
    * Delegates to TokenDetectionController:addDetectedTokensViaPolling which handles:
    * - Checking if useTokenDetection preference is enabled
    * - Filtering tokens already in allTokens or allIgnoredTokens
    * - Token metadata lookup and addition via TokensController
    *
    * @param balances - Array of processed balance results from fetchers
+   * @param targetChainIds - Chains included in this balance update (for mUSD zero-balance import)
    */
-  async #importUntrackedTokens(balances: ProcessedBalance[]): Promise<void> {
+  async #importUntrackedTokens(
+    balances: ProcessedBalance[],
+    targetChainIds: ChainIdHex[],
+  ): Promise<void> {
     const tokensByChain = new Map<ChainIdHex, string[]>();
 
     for (const balance of balances) {
@@ -1126,6 +1227,19 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       if (!existing.includes(tokenAddress)) {
         existing.push(tokenAddress);
         tokensByChain.set(balance.chainId, existing);
+      }
+    }
+
+    for (const chainId of targetChainIds) {
+      if (!MUSD_IMPORT_CHAIN_ID_SET.has(chainId)) {
+        continue;
+      }
+      const existing = tokensByChain.get(chainId) ?? [];
+      const alreadyHasMusd = existing.some((addr) =>
+        isEqualCaseInsensitive(addr, MUSD_ERC20_ADDRESS_LOWER),
+      );
+      if (!alreadyHasMusd) {
+        tokensByChain.set(chainId, [...existing, MUSD_ERC20_ADDRESS_LOWER]);
       }
     }
 
@@ -1177,6 +1291,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   readonly #onTokensChanged = async (
     state: TokensControllerState,
   ): Promise<void> => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     const changed: ChainIdHex[] = [];
     let hasChanges = false;
 
@@ -1258,6 +1376,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   };
 
   readonly #onNetworkChanged = (state: NetworkState): void => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     const currentNetworks = new Set(
       Object.keys(state.networkConfigurationsByChainId),
     );
@@ -1294,6 +1416,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   };
 
   readonly #onAccountRemoved = (addr: string): void => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     if (!isStrictHexString(addr) || !isValidHexAddress(addr)) {
       return;
     }
@@ -1303,6 +1429,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   };
 
   readonly #onAccountChanged = (): void => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     const chainIds = this.#chainIdsWithTokens();
     if (!chainIds.length) {
       return;
@@ -1386,6 +1516,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chain: string;
     updates: BalanceUpdate[];
   }): Promise<void> => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     const chainId = caipChainIdToHex(chain);
     const checksummedAccount = checksum(address);
 
@@ -1443,6 +1577,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainIds: string[];
     status: 'up' | 'down';
   }): void => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     for (const chainId of chainIds) {
       this.#statusChangeDebouncer.pendingChanges.set(chainId, status);
     }

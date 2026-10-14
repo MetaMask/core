@@ -48,6 +48,22 @@ export function assertGroupIndexIsValid(
 }
 
 /**
+ * Augmented `Error` shape produced by {@link createSentryError}. The runtime
+ * value carries a `cause` and (optionally) a structured `context` payload
+ * that downstream Sentry tooling can read.
+ *
+ * The `TContext` type parameter narrows the shape of `context` for callers
+ * that know what they put in — most useful in tests when asserting on a
+ * captured error.
+ */
+export type SentryError<
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+> = Error & {
+  cause: Error;
+  context?: TContext;
+};
+
+/**
  * Creates a Sentry error from an error message, an inner error and a context.
  *
  * NOTE: Sentry defaults to a depth of 3 when extracting non-native attributes.
@@ -58,15 +74,14 @@ export function assertGroupIndexIsValid(
  * @param context - The context to add to the Sentry error.
  * @returns A Sentry error.
  */
-export const createSentryError = (
+export const createSentryError = <
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+>(
   message: string,
   innerError: Error,
-  context?: Record<string, unknown>,
-): Error => {
-  const error = new Error(message) as Error & {
-    cause: Error;
-    context: typeof context;
-  };
+  context?: TContext,
+): SentryError<TContext> => {
+  const error = new Error(message) as SentryError<TContext>;
   error.cause = innerError;
   if (context) {
     error.context = context;

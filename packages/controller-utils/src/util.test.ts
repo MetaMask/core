@@ -1,12 +1,12 @@
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import { assert, JsonRpcParams } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
 import nock from 'nock';
 
-import { MAX_SAFE_CHAIN_ID } from './constants';
-import * as util from './util';
-import { FakeProvider } from '../../../tests/fake-provider';
+import { MAX_SAFE_CHAIN_ID } from './constants.js';
+import * as util from './util.js';
 
 type EverythingButNull =
   | string
@@ -600,7 +600,7 @@ describe('util', () => {
       expect(invalid).toBeNull();
       invalid = util.normalizeEnsName('@metamask.eth');
       expect(invalid).toBeNull();
-      invalid = util.normalizeEnsName('foobar.eth');
+      invalid = util.normalizeEnsName('fo.eth');
       expect(invalid).toBeNull();
     });
 
@@ -617,9 +617,9 @@ describe('util', () => {
       expect(invalid).toBeNull();
     });
 
-    it('should return null with invalid 2LD and valid 3LD', async () => {
-      const invalid = util.normalizeEnsName('foo.barbaz.eth');
-      expect(invalid).toBeNull();
+    it('should normalize with valid 3LD', async () => {
+      const valid = util.normalizeEnsName('foo.barbaz.eth');
+      expect(valid).toBe('foo.barbaz.eth');
     });
 
     it('should return null with invalid TLD', async () => {
@@ -652,7 +652,7 @@ describe('util', () => {
           }
         }
         const result = await util.query(
-          new MockEthQuery(new FakeProvider()),
+          new MockEthQuery(new MockInternalProvider()),
           'getBlockByHash',
           ['0x1234'],
         );
@@ -669,9 +669,11 @@ describe('util', () => {
           }
         }
         await expect(
-          util.query(new MockEthQuery(new FakeProvider()), 'getBlockByHash', [
-            '0x1234',
-          ]),
+          util.query(
+            new MockEthQuery(new MockInternalProvider()),
+            'getBlockByHash',
+            ['0x1234'],
+          ),
         ).rejects.toThrow('uh oh');
       });
     });
@@ -691,7 +693,7 @@ describe('util', () => {
           }
         }
         const result = await util.query(
-          new MockEthQuery(new FakeProvider()),
+          new MockEthQuery(new MockInternalProvider()),
           'eth_getBlockByHash',
           ['0x1234'],
         );
@@ -709,7 +711,7 @@ describe('util', () => {
         }
         await expect(
           util.query(
-            new MockEthQuery(new FakeProvider()),
+            new MockEthQuery(new MockInternalProvider()),
             'eth_getBlockByHash',
             ['0x1234'],
           ),

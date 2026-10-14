@@ -2,38 +2,39 @@ import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { AccountWalletType } from '@metamask/account-api';
 import type { UserStorageController } from '@metamask/profile-sync-controller';
 
-import { AtomicSyncQueue } from './atomic-sync-queue';
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountTreeControllerState } from '../../types';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import { TraceName } from '../analytics';
-import type { ProfileId } from '../authentication';
-import { getProfileId } from '../authentication';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { AccountTreeControllerState } from '../../types.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import { TraceName } from '../analytics/index.js';
+import type { ProfileId } from '../authentication/index.js';
+import { getProfileId } from '../authentication/index.js';
 import {
   createLocalGroupsFromUserStorage,
   performLegacyAccountSyncing,
   syncGroupsMetadata,
   syncGroupMetadata,
   syncWalletMetadata,
-} from '../syncing';
+} from '../syncing/index.js';
 import type {
   BackupAndSyncContext,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
-} from '../types';
+} from '../types.js';
 import {
   getAllGroupsFromUserStorage,
   getGroupFromUserStorage,
   getWalletFromUserStorage,
   pushGroupToUserStorageBatch,
-} from '../user-storage';
+} from '../user-storage/index.js';
 import {
   createStateSnapshot,
   restoreStateFromSnapshot,
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
-} from '../utils';
-import type { StateSnapshot } from '../utils';
+  toErrorMessage,
+} from '../utils/index.js';
+import type { StateSnapshot } from '../utils/index.js';
+import { AtomicSyncQueue } from './atomic-sync-queue.js';
 
 /**
  * Service responsible for managing all backup and sync operations.
@@ -214,9 +215,9 @@ export class BackupAndSyncService {
    *
    * @returns A promise that resolves when the sync is complete.
    */
-  async performFullSync(): Promise<void> {
+  performFullSync(): Promise<void> {
     if (!this.isBackupAndSyncEnabled) {
-      return undefined;
+      return Promise.resolve(undefined);
     }
 
     // If there's an ongoing sync (including first sync), return it
@@ -248,9 +249,9 @@ export class BackupAndSyncService {
    *
    * @returns A promise that resolves when the sync is complete.
    */
-  async performFullSyncAtLeastOnce(): Promise<void> {
+  performFullSyncAtLeastOnce(): Promise<void> {
     if (!this.isBackupAndSyncEnabled) {
-      return undefined;
+      return Promise.resolve(undefined);
     }
 
     if (!this.#firstOngoingFullSyncPromise) {
@@ -331,10 +332,7 @@ export class BackupAndSyncService {
             ]);
 
             // 2.1 Decide if we need to perform legacy account syncing
-            if (
-              !walletFromUserStorage ||
-              !walletFromUserStorage.isLegacyAccountSyncingDisabled
-            ) {
+            if (!walletFromUserStorage?.isLegacyAccountSyncingDisabled) {
               // 2.2 Perform legacy account syncing
               // This will migrate legacy account data to the new structure.
               // This operation will only be performed once.
@@ -345,16 +343,24 @@ export class BackupAndSyncService {
               );
             }
           } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
-            const errorString = `Legacy syncing failed for wallet ${wallet.id}: ${errorMessage}`;
+            const errorMessage = toErrorMessage(error);
 
-            backupAndSyncLogger(errorString);
-            throw new Error(errorString);
+            backupAndSyncLogger(
+              `Legacy syncing failed for wallet ${wallet.id}: ${errorMessage}`,
+            );
+            throw new Error(
+              `Legacy syncing failed for wallet: ${errorMessage}`,
+            );
           }
 
           // 3. Execute multichain account syncing
           let stateSnapshot: StateSnapshot | undefined;
+
+          // Capture the local-write flag so it can be reverted together with
+          // the state snapshot if this wallet is rolled back. Remote writes are
+          // durable and intentionally excluded.
+          const localWriteBeforeWallet =
+            this.#context.mutationTracker?.getLocalWrite() ?? false;
 
           try {
             // 3.1 Wallet syncing
@@ -400,8 +406,7 @@ export class BackupAndSyncService {
               walletProfileId,
             );
           } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
+            const errorMessage = toErrorMessage(error);
             const errorString = `Error during multichain account syncing for wallet ${wallet.id}: ${errorMessage}`;
 
             backupAndSyncLogger(errorString);
@@ -414,6 +419,11 @@ export class BackupAndSyncService {
                 );
               }
               restoreStateFromSnapshot(this.#context, stateSnapshot);
+              // Revert the local-write flag too, so a rolled-back wallet does
+              // not keep the run marked as having changed local state.
+              this.#context.mutationTracker?.setLocalWrite(
+                localWriteBeforeWallet,
+              );
               backupAndSyncLogger(
                 `Rolled back state changes for wallet ${wallet.id}`,
               );
@@ -440,21 +450,37 @@ export class BackupAndSyncService {
       });
     };
 
-    // Execute the big sync function with tracing and ensure state cleanup
+    // Execute the big sync function and ensure state cleanup.
+    // The sync runs untraced so we can decide afterwards whether it did any
+    // real work; the span is then backdated to preserve the real duration.
+    const { mutationTracker } = this.#context;
+    mutationTracker?.reset();
+    const startTime = Date.now();
     try {
-      await this.#context.traceFn(
-        {
-          name: TraceName.AccountSyncFull,
-        },
-        bigSyncFn,
-      );
+      await bigSyncFn();
     } finally {
-      // Always reset state, regardless of success or failure
       this.#context.controllerStateUpdateFn(
         (state: AccountTreeControllerState) => {
           state.isAccountTreeSyncingInProgress = false;
         },
       );
+
+      if (mutationTracker?.hasOccurred()) {
+        try {
+          await this.#context.traceFn(
+            {
+              name: TraceName.AccountSyncFull,
+              startTime,
+            },
+            () => undefined,
+          );
+        } catch (traceError) {
+          backupAndSyncLogger(
+            'Failed to emit AccountSyncFull trace:',
+            traceError,
+          );
+        }
+      }
     }
   }
 

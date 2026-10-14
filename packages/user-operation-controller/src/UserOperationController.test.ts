@@ -1,42 +1,38 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
-import {
-  determineTransactionType,
-  TransactionType,
-} from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import { EventEmitter } from 'stream';
 
-import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants';
-import * as BundlerHelper from './helpers/Bundler';
-import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker';
-import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount';
-import { UserOperationStatus } from './types';
-import type { UserOperationMetadata } from './types';
+import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants.js';
+import * as BundlerHelper from './helpers/Bundler.js';
+import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker.js';
+import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount.js';
+import { UserOperationStatus } from './types.js';
+import type { UserOperationMetadata } from './types.js';
 import type {
   PrepareUserOperationResponse,
   SignUserOperationResponse,
   SmartContractAccount,
   UpdateUserOperationResponse,
-} from './types';
+} from './types.js';
 import type {
   AddUserOperationOptions,
   AddUserOperationRequest,
   UserOperationControllerMessenger,
-} from './UserOperationController';
-import { UserOperationController } from './UserOperationController';
-import { updateGas } from './utils/gas';
-import { updateGasFees } from './utils/gas-fees';
+} from './UserOperationController.js';
+import { UserOperationController } from './UserOperationController.js';
+import { updateGasFees } from './utils/gas-fees.js';
+import { updateGas } from './utils/gas.js';
 import {
   validateAddUserOperationRequest,
   validateAddUserOperationOptions,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
-} from './utils/validation';
+} from './utils/validation.js';
 
-jest.mock('@metamask/transaction-controller');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/validation');
@@ -166,7 +162,6 @@ describe('UserOperationController', () => {
   const networkControllerGetClientByIdMock = jest.fn();
   const resultCallbackSuccessMock = jest.fn();
   const resultCallbackErrorMock = jest.fn();
-  const determineTransactionTypeMock = jest.mocked(determineTransactionType);
   const getGasFeeEstimates = jest.fn();
   const updateGasMock = jest.mocked(updateGas);
   const updateGasFeesMock = jest.mocked(updateGasFees);
@@ -246,10 +241,6 @@ describe('UserOperationController', () => {
       },
     );
 
-    determineTransactionTypeMock.mockResolvedValue({
-      type: TransactionType.simpleSend,
-    });
-
     updateGasMock.mockImplementation(async (metadata) => {
       metadata.userOperation.callGasLimit = PREPARE_USER_OPERATION_RESPONSE_MOCK
         .gas?.callGasLimit as string;
@@ -314,7 +305,7 @@ describe('UserOperationController', () => {
       request: AddUserOperationRequest | TransactionParams,
       options: AddUserOperationOptions,
     ) {
-      return controller[method](request as TransactionParams, options);
+      return controller[method](request, options);
     }
 
     it('submits user operation to bundler', async () => {
@@ -1281,11 +1272,9 @@ describe('UserOperationController', () => {
         expect(controller.state.userOperations[id].transactionType).toBe(
           TransactionType.swap,
         );
-
-        expect(determineTransactionTypeMock).toHaveBeenCalledTimes(0);
       });
 
-      it('determines transaction type if not set', async () => {
+      it('defaults transaction type to contractInteraction if not set', async () => {
         const controller = new UserOperationController(optionsMock);
 
         const { id } = await addUserOperation(
@@ -1300,13 +1289,7 @@ describe('UserOperationController', () => {
         await flushPromises();
 
         expect(controller.state.userOperations[id].transactionType).toBe(
-          TransactionType.simpleSend,
-        );
-
-        expect(determineTransactionTypeMock).toHaveBeenCalledTimes(1);
-        expect(determineTransactionTypeMock).toHaveBeenCalledWith(
-          ADD_USER_OPERATION_REQUEST_MOCK,
-          expect.anything(),
+          TransactionType.contractInteraction,
         );
       });
     }

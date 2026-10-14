@@ -1,15 +1,17 @@
-import type { ENV } from './endpoints';
-import * as endpoints from './endpoints';
-import type { PushNotificationEnv } from '../types';
+import type { PushNotificationEnv } from '../types/index.js';
 import type {
   CreateRegToken,
   DeleteRegToken,
-} from '../types/push-service-interface';
+} from '../types/push-service-interface.js';
+import type { ENV } from './endpoints.js';
+import * as endpoints from './endpoints.js';
 
 export type RegToken = {
   token: string;
   platform: 'extension' | 'mobile' | 'portfolio';
   locale: string;
+  os?: 'android' | 'ios';
+  appVersion?: string;
   oldToken?: string;
 };
 
@@ -26,6 +28,8 @@ export type PushTokenRequest = {
     token: string;
     platform: 'extension' | 'mobile' | 'portfolio';
     locale: string;
+    os?: 'android' | 'ios';
+    appVersion?: string;
     oldToken?: string;
   };
 };
@@ -129,7 +133,10 @@ type ActivatePushNotificationsParams = {
   // Other Request Parameters
   bearerToken: string;
   addresses: string[];
-  regToken: Pick<RegToken, 'locale' | 'platform' | 'oldToken'>;
+  regToken: Pick<
+    RegToken,
+    'appVersion' | 'locale' | 'oldToken' | 'os' | 'platform'
+  >;
 };
 
 /**
@@ -148,6 +155,12 @@ export async function activatePushNotifications(
     return null;
   }
 
+  // The links API rejects an empty address list. Skipping that request still
+  // returns the token created above.
+  if (params.addresses.length === 0) {
+    return regToken;
+  }
+
   await updateLinksAPI({
     bearerToken: params.bearerToken,
     addresses: params.addresses,
@@ -155,6 +168,8 @@ export async function activatePushNotifications(
       token: regToken,
       platform: params.regToken.platform,
       locale: params.regToken.locale,
+      os: params.regToken.os,
+      appVersion: params.regToken.appVersion,
       oldToken: params.regToken.oldToken,
     },
     env: params.controllerEnv,

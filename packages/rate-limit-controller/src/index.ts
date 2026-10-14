@@ -9,5 +9,5 @@ export type {
   RateLimitControllerStateChangeEvent,
   RateLimitMessenger,
   RateLimitState,
-} from './RateLimitController';
-export { RateLimitController } from './RateLimitController';
+} from './RateLimitController.js';
+export { RateLimitController } from './RateLimitController.js';

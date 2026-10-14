@@ -1,8 +1,7 @@
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-import { createRetryOnEmptyMiddleware } from '.';
-import type { ProviderRequestStub } from '../test/util/helpers';
+import type { ProviderRequestStub } from '../test/util/helpers.js';
 import {
   createMockParamsWithBlockParamAt,
   createMockParamsWithoutBlockParamAt,
@@ -14,7 +13,8 @@ import {
   createEngine,
   createRequest,
   createFinalMiddlewareWithDefaultResult,
-} from '../test/util/helpers';
+} from '../test/util/helpers.js';
+import { createRetryOnEmptyMiddleware } from './index.js';
 
 const originalSetTimeout = globalThis.setTimeout;
 

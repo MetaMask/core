@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /**
  * Represents the result of checking a domain.
  */
@@ -214,7 +215,26 @@ export const DEFAULT_CHAIN_ID_TO_NAME = {
   '0x2eb': 'flow-evm',
   '0x8f': 'monad',
   '0x3e7': 'hyperevm',
+  '0xc4': 'xlayer',
+  '0x10e6': 'megaeth',
+  '0x1079': 'tempo',
+  '0xa5bf': 'tempo-testnet',
+  '0x2019': 'kaia',
+  '0x1237': 'robinhood',
+  '0x13b2': 'arc',
+  '0x2611': 'plasma',
+  '0x1388': 'mantle',
+  '0xb67d2': 'katana',
+  '0x18232': 'plume',
+  '0x93e': 'kite-ai',
+  '0x279f': 'monad-testnet',
   solana: 'solana',
+  starknet: 'starknet',
+  'starknet-sepolia': 'starknet-sepolia',
+  stellar: 'stellar',
+  bitcoin: 'bitcoin',
+  sui: 'sui',
+  tron: 'tron',
 } as const;
 
 export type ChainIdToNameMap = typeof DEFAULT_CHAIN_ID_TO_NAME;
@@ -261,4 +281,212 @@ export type AddressScanResult = {
 export type AddressScanCacheData = {
   result_type: AddressScanResultType;
   label: string;
+};
+
+/**
+ * Similar address match metadata for address poisoning detection.
+ */
+export type SimilarAddressMatch = {
+  /**
+   * The known recipient address that resembles the candidate address.
+   */
+  knownAddress: string;
+  /**
+   * Number of matching characters at the start of the address body.
+   */
+  prefixMatchLength: number;
+  /**
+   * Number of matching characters at the end of the address body.
+   */
+  suffixMatchLength: number;
+  /**
+   * Combined similarity score used to rank matches.
+   */
+  poisoningScore: number;
+  /**
+   * Character positions where the candidate and known addresses differ.
+   * Indices are based on the full hex string, including the `0x` prefix.
+   */
+  diffIndices: number[];
+};
+
+/**
+ * Thresholds for address poisoning similarity detection.
+ */
+export type SimilarityOptions = {
+  /**
+   * Minimum required prefix match length.
+   */
+  prefixLen?: number;
+  /**
+   * Minimum required suffix match length.
+   */
+  suffixLen?: number;
+};
+
+export const APPROVAL_SUPPORTED_CHAINS = [
+  'ethereum',
+  'polygon',
+  'bsc',
+  'avalanche',
+  'arbitrum',
+  'base',
+  'linea',
+  'optimism',
+] as const;
+
+export type ApprovalSupportedChain = (typeof APPROVAL_SUPPORTED_CHAINS)[number];
+
+export const TOKEN_SCAN_SUPPORTED_CHAINS = [
+  'arbitrum',
+  'avalanche',
+  'base',
+  'bsc',
+  'ethereum',
+  'optimism',
+  'polygon',
+  'zora',
+  'solana',
+  'starknet',
+  'starknet-sepolia',
+  'stellar',
+  'linea',
+  'degen',
+  'zksync',
+  'scroll',
+  'blast',
+  'soneium-minato',
+  'base-sepolia',
+  'bitcoin',
+  'abstract',
+  'soneium',
+  'ink',
+  'berachain',
+  'unichain',
+  'ronin',
+  'sui',
+  'hedera',
+  'hyperevm',
+  'xlayer',
+  'monad',
+  'megaeth',
+  'tempo',
+  'sei',
+  'kaia',
+  'tron',
+  'robinhood',
+] as const;
+
+export type TokenScanSupportedChain =
+  (typeof TOKEN_SCAN_SUPPORTED_CHAINS)[number];
+
+export const ADDRESS_SCAN_SUPPORTED_CHAINS = [
+  'arbitrum',
+  'avalanche',
+  'base',
+  'base-sepolia',
+  'bsc',
+  'ethereum',
+  'optimism',
+  'polygon',
+  'zksync',
+  'zksync-sepolia',
+  'zora',
+  'linea',
+  'blast',
+  'scroll',
+  'ethereum-sepolia',
+  'degen',
+  'avalanche-fuji',
+  'gnosis',
+  'worldchain',
+  'soneium-minato',
+  'ronin',
+  'apechain',
+  'berachain',
+  'berachain-bartio',
+  'ink',
+  'ink-sepolia',
+  'abstract',
+  'abstract-testnet',
+  'soneium',
+  'unichain',
+  'sei',
+  'flow-evm',
+  'hyperevm',
+  'megaeth',
+  'katana',
+  'plume',
+  'xlayer',
+  'monad',
+  'monad-testnet',
+  'tempo',
+  'tempo-testnet',
+  'kite-ai',
+  'kaia',
+  'plasma',
+  'mantle',
+  'robinhood',
+  'arc',
+] as const;
+
+export type AddressScanSupportedChain =
+  (typeof ADDRESS_SCAN_SUPPORTED_CHAINS)[number];
+
+export enum ApprovalResultType {
+  Malicious = 'Malicious',
+  Warning = 'Warning',
+  Benign = 'Benign',
+  ErrorResult = 'Error',
+}
+
+export enum ApprovalFeatureType {
+  Malicious = 'Malicious',
+  Warning = 'Warning',
+  Benign = 'Benign',
+  Info = 'Info',
+}
+
+export type ApprovalFeature = {
+  feature_id: string;
+  type: ApprovalFeatureType;
+  description: string;
+};
+
+export type Allowance = {
+  value?: string;
+  usd_price?: string;
+};
+
+export type ApprovalAsset = {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  logo_url?: string;
+  type?: string;
+};
+
+export type Exposure = {
+  usd_price?: string;
+  value: string;
+  raw_value: string;
+};
+
+export type Spender = {
+  address: string;
+  label?: string;
+  features?: ApprovalFeature[];
+};
+
+export type Approval = {
+  allowance: Allowance;
+  asset: ApprovalAsset;
+  exposure: Exposure;
+  spender: Spender;
+  verdict: ApprovalResultType;
+};
+
+export type ApprovalsResponse = {
+  approvals: Approval[];
 };

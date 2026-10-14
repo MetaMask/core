@@ -1,21 +1,30 @@
-import type {
-  AccessToken,
-  ErrorMessage,
-  UserProfile,
-  UserProfileLineage,
-} from './types';
-import { AuthType } from './types';
-import type { Env, Platform } from '../../shared/env';
-import { getEnvUrls, getOidcClientId } from '../../shared/env';
-import type { MetaMetricsAuth } from '../../shared/types/services';
-import { HTTP_STATUS_CODES } from '../constants';
+import type { Env, Platform } from '../../shared/env.js';
+import { getEnvUrls, getOidcClientId } from '../../shared/env.js';
+import type { MetaMetricsAuth } from '../../shared/types/services.js';
+import { HTTP_STATUS_CODES } from '../constants.js';
 import {
   NonceRetrievalError,
+  EmailRequiredError,
+  PairConflictError,
   PairError,
   SignInError,
   ValidationError,
   RateLimitedError,
-} from '../errors';
+} from '../errors.js';
+import { validatePairResponse } from '../utils/validate-pair-response.js';
+import type {
+  AccessToken,
+  ErrorMessage,
+  LoginIdentifierType,
+  OidcTokenAudience,
+  OidcTokenClaims,
+  PairSocialIdentifierParams,
+  ProfileAlias,
+  ProfileIdentifier,
+  UserProfile,
+  UserProfileLineage,
+} from './types.js';
+import { AuthType } from './types.js';
 
 /**
  * Parse Retry-After header into milliseconds if possible.
@@ -150,8 +159,20 @@ export const SRP_LOGIN_URL = (env: Env): string =>
 export const SIWE_LOGIN_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/siwe/login`;
 
+export const PAIR_PROFILES_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/profile/pair`;
+
+export const PAIR_SOCIAL_IDENTIFIER_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/profile/pair/identifier`;
+
 export const PROFILE_LINEAGE_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/profile/lineage`;
+
+export const CUSTOMER_SERVICE_TOKEN_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/customer-service/token`;
+
+export const PARTNER_IDENTITY_TOKEN_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/oidc/token`;
 
 const getAuthenticationUrl = (authType: AuthType, env: Env): string => {
   switch (authType) {
@@ -171,6 +192,23 @@ type NonceResponse = {
   nonce: string;
   identifier: string;
   expiresIn: number;
+};
+
+type RawProfileAlias = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  alias_profile_id: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  canonical_profile_id: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  identifier_ids: { id: string; type: string }[];
+};
+
+const parseProfileAliases = (raw: RawProfileAlias[]): ProfileAlias[] => {
+  return raw.map((alias) => ({
+    aliasProfileId: alias.alias_profile_id,
+    canonicalProfileId: alias.canonical_profile_id,
+    identifierIds: alias.identifier_ids ?? [],
+  }));
 };
 
 type PairRequest = {
@@ -227,6 +265,113 @@ export async function pairIdentifiers(
       'Failed to pair identifiers',
       PairError,
     );
+  }
+}
+
+export type PairProfilesResponse = {
+  profile: UserProfile;
+  profileAliases: ProfileAlias[];
+};
+
+/**
+ * Pair multiple profiles using their OIDC access tokens.
+ * Idempotent — calling with already-paired tokens is a no-op.
+ *
+ * @param accessTokens - Two or more OIDC access tokens to pair
+ * @param authAccessToken - A valid access token for the Authorization header
+ * @param env - server environment
+ * @returns The pair response containing the canonical profile and aliases
+ */
+export async function pairProfiles(
+  accessTokens: string[],
+  authAccessToken: string,
+  env: Env,
+): Promise<PairProfilesResponse> {
+  const pairUrl = new URL(PAIR_PROFILES_URL(env));
+
+  try {
+    const response = await fetch(pairUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authAccessToken}`,
+      },
+      body: JSON.stringify({
+        jwts: accessTokens,
+      }),
+    });
+
+    if (!response.ok) {
+      return await throwServiceError(
+        response,
+        'Failed to pair profiles',
+        PairError,
+      );
+    }
+
+    const pairResponse: unknown = await response.json();
+    validatePairResponse(pairResponse);
+
+    return {
+      profile: {
+        identifierId: pairResponse.profile.identifier_id,
+        metaMetricsId: pairResponse.profile.metametrics_id ?? '',
+        profileId: pairResponse.profile.profile_id,
+        canonicalProfileId: pairResponse.profile.profile_id,
+        pairedIdentifierIds: pairResponse.profile.paired_identifier_ids,
+      },
+      profileAliases: parseProfileAliases(pairResponse.profile_aliases ?? []),
+    };
+  } catch (error) {
+    return await throwServiceError(error, 'Failed to pair profiles', PairError);
+  }
+}
+
+/**
+ * Attach a Google/Apple/Telegram social identifier to the profile that
+ * owns `authAccessToken` (`POST /api/v2/profile/pair/identifier`).
+ *
+ * `email` is omitted from the body when undefined. 409 Conflict throws
+ * {@link PairConflictError} so callers can treat it as terminal.
+ *
+ * @param params - Social identifier type, social JWT, and optional email
+ * @param authAccessToken - Bearer token of the canonical (primary SRP) profile
+ * @param env - server environment
+ * @returns The profile's paired identifiers, if returned by the API
+ */
+export async function pairSocialIdentifier(
+  params: PairSocialIdentifierParams,
+  authAccessToken: string,
+  env: Env,
+): Promise<ProfileIdentifier[] | undefined> {
+  const pairUrl = new URL(PAIR_SOCIAL_IDENTIFIER_URL(env));
+  const errorPrefix = 'Failed to pair social identifier';
+
+  try {
+    const response = await fetch(pairUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authAccessToken}`,
+      },
+      body: JSON.stringify({
+        identifier_type: params.identifierType,
+        social_jwt: params.socialJwt,
+        ...(params.email === undefined ? {} : { email: params.email }),
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === HTTP_STATUS_CODES.CONFLICT) {
+        await throwServiceError(response, errorPrefix, PairConflictError);
+      }
+      await throwServiceError(response, errorPrefix, PairError);
+    }
+
+    const pairResponse = await response.json();
+    return pairResponse.profile.paired_identifier_ids;
+  } catch (error) {
+    return await throwServiceError(error, errorPrefix, PairError);
   }
 }
 
@@ -323,6 +468,7 @@ type Authentication = {
   token: string;
   expiresIn: number;
   profile: UserProfile;
+  profileAliases: ProfileAlias[];
 };
 /**
  * Service to Authenticate/Login a user via SIWE or SRP derived key.
@@ -332,6 +478,8 @@ type Authentication = {
  * @param authType - authentication type/flow used
  * @param env - server environment
  * @param metametrics - optional metametrics
+ * @param identifierType - login identifier type included in metametrics
+ *   (defaults to `SRP` when metametrics is present)
  * @returns Authentication Token
  */
 export async function authenticate(
@@ -340,6 +488,7 @@ export async function authenticate(
   authType: AuthType,
   env: Env,
   metametrics?: MetaMetricsAuth,
+  identifierType: LoginIdentifierType = 'SRP',
 ): Promise<Authentication> {
   const authenticationUrl = getAuthenticationUrl(authType, env);
 
@@ -348,6 +497,9 @@ export async function authenticate(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(authType === AuthType.SRP
+          ? { 'X-MetaMask-Profile-Pairing': 'enabled' }
+          : {}),
       },
       body: JSON.stringify({
         signature,
@@ -357,6 +509,8 @@ export async function authenticate(
               metametrics: {
                 metametrics_id: await metametrics.getMetaMetricsId(),
                 agent: metametrics.agent,
+                app_version: await metametrics.getAppVersion?.(),
+                identifier_type: identifierType,
               },
             }
           : {}),
@@ -372,6 +526,7 @@ export async function authenticate(
     }
 
     const loginResponse = await response.json();
+
     return {
       token: loginResponse.token,
       expiresIn: loginResponse.expires_in,
@@ -379,7 +534,10 @@ export async function authenticate(
         identifierId: loginResponse.profile.identifier_id,
         metaMetricsId: loginResponse.profile.metametrics_id,
         profileId: loginResponse.profile.profile_id,
+        canonicalProfileId: loginResponse.profile.profile_id,
+        pairedIdentifierIds: loginResponse.profile.paired_identifier_ids,
       },
+      profileAliases: parseProfileAliases(loginResponse.profile_aliases ?? []),
     };
   } catch (error) {
     return await throwServiceError(
@@ -427,5 +585,114 @@ export async function getUserProfileLineage(
       'Failed to get profile lineage',
       SignInError,
     );
+  }
+}
+
+/**
+ * Service to get a Customer Service specific access token.
+ *
+ * Exchanges a valid OIDC access token for a short-lived token scoped to the
+ * customer-service audience, which Customer Service tooling consumes to
+ * identify and authenticate the user.
+ *
+ * @param env - server environment
+ * @param accessToken - JWT access token used to access protected resources
+ * @returns The customer-service access token.
+ */
+export async function getCustomerServiceToken(
+  env: Env,
+  accessToken: string,
+): Promise<string> {
+  const customerServiceTokenUrl = new URL(CUSTOMER_SERVICE_TOKEN_URL(env));
+
+  try {
+    const response = await fetch(customerServiceTokenUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      return await throwServiceError(
+        response,
+        'Failed to get customer service token',
+        SignInError,
+      );
+    }
+
+    const tokenResponse = await response.json();
+    if (typeof tokenResponse?.access_token !== 'string') {
+      throw new SignInError(
+        'Failed to get customer service token: missing access_token',
+      );
+    }
+    return tokenResponse.access_token;
+  } catch (error) {
+    return await throwServiceError(
+      error,
+      'Failed to get customer service token',
+      SignInError,
+    );
+  }
+}
+
+/**
+ * Mint a partner identity token (`POST /api/v2/oidc/token`).
+ *
+ * Exchanges a Hydra login bearer for a short-lived JWT scoped to `audience`
+ * (`kyc` / `iron`) with the requested claims. Email lands under JWT `ext`
+ * on live tokens. Returns only `access_token`.
+ *
+ * @param env - server environment
+ * @param accessToken - Hydra JWT used to access protected resources
+ * @param claims - claim names to embed (only `email` is supported)
+ * @param audience - partner audience stamped on the minted JWT
+ * @returns The partner identity access token.
+ * @throws EmailRequiredError when the profile has no verified email (HTTP 422)
+ */
+export async function getPartnerIdentityToken(
+  env: Env,
+  accessToken: string,
+  claims: OidcTokenClaims,
+  audience: OidcTokenAudience,
+): Promise<string> {
+  const partnerIdentityTokenUrl = new URL(PARTNER_IDENTITY_TOKEN_URL(env));
+  const errorPrefix = 'Failed to get partner identity token';
+
+  try {
+    const response = await fetch(partnerIdentityTokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        claims,
+        audience,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY) {
+        return await throwServiceError(
+          response,
+          errorPrefix,
+          EmailRequiredError,
+        );
+      }
+      return await throwServiceError(response, errorPrefix, SignInError);
+    }
+
+    const tokenResponse = await response.json();
+    if (typeof tokenResponse?.access_token !== 'string') {
+      throw new SignInError(`${errorPrefix}: missing access_token`);
+    }
+    return tokenResponse.access_token;
+  } catch (error) {
+    if (error instanceof EmailRequiredError) {
+      throw error;
+    }
+    return await throwServiceError(error, errorPrefix, SignInError);
   }
 }

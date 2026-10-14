@@ -2,7 +2,7 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type {
   QuoteMetadata,
-  QuoteResponse,
+  QuoteResponseV1,
   Trade,
 } from '@metamask/bridge-controller';
 import {
@@ -10,20 +10,24 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
   isCrossChain,
+  isNonEvmChainId,
+  isTronChainId,
   isTronTrade,
 } from '@metamask/bridge-controller';
+import { SnapController } from '@metamask/snaps-controllers';
 import {
+  CHAIN_IDS,
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { CaipChainId, Hex } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
 import type {
   BridgeStatusControllerMessenger,
   SolanaTransactionMeta,
-} from '../types';
+} from '../types.js';
 
 /**
  * Creates a client request object for signing and sending a transaction
@@ -68,32 +72,53 @@ export const createClientTransactionRequest = (
  *
  * @param trade - The trade data
  * @param srcChainId - The source chain ID
- * @param accountId - The selected account ID
+ * @param accountId - The account ID
  * @param snapId - The snap ID
+ * @param sourceAssetId - The source asset ID
+ * @param destAssetId - The destination asset ID
  * @returns The snap request object for signing and sending transaction
  */
 export const getClientRequest = (
   trade: Trade,
   srcChainId: number,
-  accountId: string,
+  accountId: AccountsControllerState['internalAccounts']['accounts'][string]['id'],
   snapId: string,
-) => {
+  sourceAssetId?: CaipAssetType,
+  destAssetId?: CaipAssetType,
+): Parameters<SnapController['handleRequest']>[0] => {
   const scope = formatChainIdToCaip(srcChainId);
 
-  const transactionData = extractTradeData(trade);
+  const transaction = extractTradeData(trade);
 
-  // Tron trades need the visible flag and contract type to be included in the request options
-  const options = isTronTrade(trade)
-    ? {
+  let options: Record<string, unknown> | undefined;
+  const isTron = isTronChainId(srcChainId);
+
+  // Stellar, Solana, and Bitcoin trades expect the swap/bridge asset IDs in the
+  // request options; Tron also adds its own fields in the branch below.
+  if (isNonEvmChainId(srcChainId)) {
+    if (sourceAssetId !== undefined || destAssetId !== undefined) {
+      options = {
+        ...(sourceAssetId !== undefined && {
+          sourceAssetId,
+        }),
+        ...(destAssetId !== undefined && {
+          destAssetId,
+        }),
+      };
+    }
+
+    if (isTron && isTronTrade(trade)) {
+      options = {
+        ...(options ?? {}),
         visible: trade.visible,
         type: trade.raw_data?.contract?.[0]?.type,
-      }
-    : undefined;
+      };
+    }
+  }
 
-  // Use the new unified interface
   return createClientTransactionRequest(
     snapId,
-    transactionData,
+    transaction,
     scope,
     accountId,
     options,
@@ -101,7 +126,7 @@ export const getClientRequest = (
 };
 
 export const getTxMetaFields = (
-  quoteResponse: Omit<QuoteResponse<Trade, Trade>, 'approval' | 'trade'> &
+  quoteResponse: Omit<QuoteResponseV1<Trade, Trade>, 'approval' | 'trade'> &
     QuoteMetadata,
   approvalTxId?: string,
 ): Omit<
@@ -114,7 +139,7 @@ export const getTxMetaFields = (
     destinationChainId = formatChainIdToHex(quoteResponse.quote.destChainId);
   } catch {
     // Fallback for non-EVM destination (shouldn't happen for BTC->EVM)
-    destinationChainId = '0x1' as `0x${string}`; // Default to mainnet
+    destinationChainId = CHAIN_IDS.MAINNET; // Default to mainnet
   }
 
   return {
@@ -132,7 +157,7 @@ export const getTxMetaFields = (
     // chainId is now excluded from this function and handled by the caller
     approvalTxId,
     // this is the decimal (non atomic) amount (not USD value) of source token to swap
-    swapTokenValue: quoteResponse.sentAmount.amount,
+    swapTokenValue: quoteResponse?.sentAmount?.amount,
   };
 };
 
@@ -154,7 +179,7 @@ export const handleNonEvmTxResponse = (
     | { result: Record<string, string> }
     | { signature: string },
   trade: Trade,
-  quoteResponse: Omit<QuoteResponse<Trade>, 'trade' | 'approval'> &
+  quoteResponse: Omit<QuoteResponseV1<Trade>, 'trade' | 'approval'> &
     QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
 ): TransactionMeta & SolanaTransactionMeta => {
@@ -230,13 +255,15 @@ export const handleNonEvmTxResponse = (
  * @param trade - The trade data (can be approval or main trade)
  * @param quoteResponse - The quote response containing metadata
  * @param selectedAccount - The account to submit the transaction for
+ * @param isApproval - Whether the trade is the approval transaction rather than the main trade
  * @returns The transaction meta
  */
 export const handleNonEvmTx = async (
   messenger: BridgeStatusControllerMessenger,
   trade: Trade,
-  quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
+  quoteResponse: QuoteResponseV1<Trade, Trade> & QuoteMetadata,
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
+  isApproval = false,
 ): Promise<TransactionMeta> => {
   if (!selectedAccount.metadata?.snap?.id) {
     throw new Error(
@@ -244,11 +271,17 @@ export const handleNonEvmTx = async (
     );
   }
 
+  // The quote's asset ids describe the swap/bridge transaction, not the token
+  // approval that precedes it. Passing them for the approval would make the snap
+  // classify the approval as a swap or a bridge, so they are only attached to
+  // the main trade.
   const request = getClientRequest(
     trade,
     quoteResponse.quote.srcChainId,
     selectedAccount.id,
     selectedAccount.metadata?.snap?.id,
+    isApproval ? undefined : quoteResponse.quote.srcAsset.assetId,
+    isApproval ? undefined : quoteResponse.quote.destAsset.assetId,
   );
   const requestResponse = (await messenger.call(
     'SnapController:handleRequest',

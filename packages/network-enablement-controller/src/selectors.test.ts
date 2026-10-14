@@ -1,6 +1,6 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 
-import type { NetworkEnablementControllerState } from './NetworkEnablementController';
+import type { NetworkEnablementControllerState } from './NetworkEnablementController.js';
 import {
   selectEnabledNetworkMap,
   selectIsNetworkEnabled,
@@ -9,7 +9,7 @@ import {
   selectEnabledNetworksCount,
   selectEnabledEvmNetworks,
   selectEnabledSolanaNetworks,
-} from './selectors';
+} from './selectors.js';
 
 describe('NetworkEnablementController Selectors', () => {
   const mockState: NetworkEnablementControllerState = {

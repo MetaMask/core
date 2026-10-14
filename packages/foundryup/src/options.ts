@@ -2,15 +2,15 @@ import { platform } from 'node:os';
 import { argv, stdout } from 'node:process';
 import yargs from 'yargs/yargs';
 
-import { Architecture, Binary, Platform } from './types';
+import { Architecture, Binary, Platform } from './types.js';
 import type {
   Checksums,
   ParsedOptions,
   ArchitecturesTuple,
   BinariesTuple,
   PlatformsTuple,
-} from './types';
-import { normalizeSystemArchitecture } from './utils';
+} from './types.js';
+import { normalizeSystemArchitecture } from './utils.js';
 
 /**
  * Type guard to check if a string is a valid version string starting with 'v'.

@@ -5,7 +5,7 @@ import type {
   TypeExtensionLinkFields,
   TypePortfolioLinkFields,
   TypeMobileLinkFields,
-} from './type-links';
+} from './type-links.js';
 
 export type ImageFields = {
   fields: {

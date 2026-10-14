@@ -1,6 +1,6 @@
 import { BigNumber } from 'bignumber.js';
 
-import { getFiatValueFromUsd, sumAmounts } from './amounts';
+import { getFiatValueFromUsd, sumAmounts } from './amounts.js';
 
 describe('Amounts utils', () => {
   describe('sumAmounts', () => {

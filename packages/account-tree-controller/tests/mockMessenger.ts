@@ -5,7 +5,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { AccountTreeControllerMessenger } from '../src/types';
+import type { AccountTreeControllerMessenger } from '../src/types.js';
 
 type AllAccountTreeControllerActions =
   MessengerActions<AccountTreeControllerMessenger>;
@@ -53,6 +53,7 @@ export function getAccountTreeControllerMessenger(
     actions: [
       'AccountsController:listMultichainAccounts',
       'AccountsController:getAccount',
+      'AccountsController:getAccounts',
       'AccountsController:getSelectedMultichainAccount',
       'AccountsController:setSelectedAccount',
       'UserStorageController:getState',
@@ -62,8 +63,16 @@ export function getAccountTreeControllerMessenger(
       'UserStorageController:performBatchSetStorage',
       'AuthenticationController:getSessionProfile',
       'MultichainAccountService:createMultichainAccountGroup',
+      'MultichainAccountService:createMultichainAccountGroups',
+      'MultichainAccountService:createMultichainAccountWallet',
+      'MultichainAccountService:removeMultichainAccountWallet',
       'KeyringController:getState',
-      'SnapController:get',
+      'KeyringController:removeAccount',
+      'KeyringController:verifyPassword',
+      'KeyringController:withController',
+      'KeyringController:withKeyringV2',
+      'KeyringController:withKeyringV2Unsafe',
+      'SnapController:getSnap',
     ],
   });
   return accountTreeControllerMessenger;

@@ -1,2 +1,2 @@
-export * from './mockResponses';
-export * from './mockStorage';
+export * from './mockResponses.js';
+export * from './mockStorage.js';

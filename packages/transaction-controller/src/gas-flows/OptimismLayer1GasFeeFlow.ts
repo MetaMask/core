@@ -2,10 +2,10 @@ import { handleFetch } from '@metamask/controller-utils';
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow';
-import { CHAIN_IDS } from '../constants';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { TransactionMeta } from '../types';
+import { CHAIN_IDS } from '../constants.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta } from '../types.js';
+import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow.js';
 
 const FALLBACK_OPTIMISM_STACK_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.OPTIMISM,
@@ -15,6 +15,8 @@ const FALLBACK_OPTIMISM_STACK_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.OPBNB,
   CHAIN_IDS.OPBNB_TESTNET,
   CHAIN_IDS.ZORA,
+  CHAIN_IDS.INK,
+  CHAIN_IDS.INK_SEPOLIA,
 ];
 
 // Default oracle address now provided by base class

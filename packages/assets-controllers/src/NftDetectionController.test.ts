@@ -4,6 +4,8 @@ import {
   ChainId,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import { MockPollingBlockTracker } from '@metamask/eth-block-tracker';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -25,21 +27,19 @@ import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import nock from 'nock';
 
-import { Source } from './constants';
-import { getDefaultNftControllerState } from './NftController';
-import {
-  NftDetectionController,
-  BlockaidResultType,
-} from './NftDetectionController';
-import type { NftDetectionControllerMessenger } from './NftDetectionController';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { jestAdvanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import { jestAdvanceTime } from '../../../tests/helpers.js';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
   buildMockFindNetworkClientIdByChainId,
   buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
+} from '../../network-controller/tests/helpers.js';
+import { Source } from './constants.js';
+import { getDefaultNftControllerState } from './NftController.js';
+import {
+  NftDetectionController,
+  BlockaidResultType,
+} from './NftDetectionController.js';
+import type { NftDetectionControllerMessenger } from './NftDetectionController.js';
 
 type AllActions = MessengerActions<NftDetectionControllerMessenger>;
 
@@ -771,7 +771,7 @@ describe('NftDetectionController', () => {
 
   it('should return true if mainnet is detected', async () => {
     const mockAddNfts = jest.fn();
-    const provider = new FakeProvider();
+    const provider = new MockInternalProvider();
     const mockNetworkClient: NetworkClient = {
       configuration: {
         chainId: ChainId.mainnet,
@@ -781,7 +781,7 @@ describe('NftDetectionController', () => {
         type: NetworkClientType.Custom,
       },
       provider,
-      blockTracker: new FakeBlockTracker({ provider }),
+      blockTracker: new MockPollingBlockTracker({ provider }),
       destroy: () => {
         // do nothing
       },
@@ -1209,7 +1209,11 @@ describe('NftDetectionController', () => {
           'mainnet',
           { userAddress: selectedAddress },
         );
-        expect(mockAddNfts).toHaveBeenCalledWith([], selectedAddress, Source.Detected);
+        expect(mockAddNfts).toHaveBeenCalledWith(
+          [],
+          selectedAddress,
+          Source.Detected,
+        );
       },
     );
   });

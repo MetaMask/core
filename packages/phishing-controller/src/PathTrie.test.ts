@@ -5,8 +5,8 @@ import {
   insertToTrie,
   isTerminal,
   matchedPathPrefix,
-} from './PathTrie';
-import type { PathTrie } from './PathTrie';
+} from './PathTrie.js';
+import type { PathTrie } from './PathTrie.js';
 
 const emptyPathTrie: PathTrie = {};
 
@@ -357,7 +357,7 @@ describe('convertListToTrie', () => {
 
   it('handles undefined input gracefully', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = convertListToTrie(undefined as any);
+    const result = convertListToTrie(undefined);
     expect(result).toStrictEqual({});
   });
 

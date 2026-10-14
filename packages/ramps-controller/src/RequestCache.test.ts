@@ -6,7 +6,7 @@ import {
   createSuccessState,
   createErrorState,
   DEFAULT_REQUEST_CACHE_TTL,
-} from './RequestCache';
+} from './RequestCache.js';
 
 describe('RequestCache', () => {
   describe('createCacheKey', () => {

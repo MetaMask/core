@@ -1,21 +1,47 @@
 import { toHex } from '@metamask/controller-utils';
 import type { CaipChainId } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
-import nock from 'nock';
+import nock, { cleanAll } from 'nock';
 
-import type { SortTrendingBy } from './token-service';
+import type { SortTrendingBy } from './token-service.js';
 import {
+  fetchRwas,
   fetchTokenAssets,
   fetchTokenListByChainId,
   fetchTokenMetadata,
   getTrendingTokens,
+  resetSuggestedOccurrenceFloorsCacheForTesting,
   searchTokens,
   TOKEN_END_POINT_API,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
-} from './token-service';
+} from './token-service.js';
 
 const ONE_MILLISECOND = 1;
 const ONE_SECOND_IN_MILLISECONDS = 1_000;
+
+/**
+ * Default `/v1/suggestedOccurrenceFloors` payload for token-list tests.
+ * Mirrors production shape (decimal chain ID → floor).
+ */
+const DEFAULT_SUGGESTED_OCCURRENCE_FLOORS: Record<string, number> = {
+  '1': 3,
+  '59144': 1,
+};
+
+/**
+ * Persist a nock for suggested occurrence floors.
+ *
+ * @param floors - Override payload; defaults to {@link DEFAULT_SUGGESTED_OCCURRENCE_FLOORS}.
+ * @returns The nock scope for the floors endpoint.
+ */
+function nockSuggestedOccurrenceFloors(
+  floors: Record<string, number> = DEFAULT_SUGGESTED_OCCURRENCE_FLOORS,
+): nock.Scope {
+  return nock(TOKEN_END_POINT_API)
+    .get('/v1/suggestedOccurrenceFloors')
+    .reply(200, floors)
+    .persist();
+}
 
 const sampleTokenList = [
   {
@@ -291,6 +317,16 @@ const polygonCaipChainId: CaipChainId = 'eip155:137';
 
 describe('Token service', () => {
   describe('fetchTokenListByChainId', () => {
+    beforeEach(() => {
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      nockSuggestedOccurrenceFloors();
+    });
+
+    afterEach(() => {
+      cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+    });
+
     it('should call the tokens api and return the list of tokens', async () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
@@ -320,6 +356,74 @@ describe('Token service', () => {
       const tokens = await fetchTokenListByChainId(lineaHexChain, signal);
 
       expect(tokens).toStrictEqual(sampleTokenListLinea);
+    });
+
+    it('should use occurrenceFloor from suggestedOccurrenceFloors for the chain', async () => {
+      const { signal } = new AbortController();
+      cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      nockSuggestedOccurrenceFloors({ '1': 5 });
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=5&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .reply(200, sampleTokenList);
+
+      const tokens = await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(tokens).toStrictEqual(sampleTokenList);
+    });
+
+    it('should fall back to occurrenceFloor 3 when the chain is missing from suggestedOccurrenceFloors', async () => {
+      const { signal } = new AbortController();
+      cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      nockSuggestedOccurrenceFloors({ '59144': 1 });
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .reply(200, sampleTokenList);
+
+      const tokens = await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(tokens).toStrictEqual(sampleTokenList);
+    });
+
+    it('should fall back to occurrenceFloor 3 when suggestedOccurrenceFloors fails', async () => {
+      const { signal } = new AbortController();
+      cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      nock(TOKEN_END_POINT_API).get('/v1/suggestedOccurrenceFloors').reply(500);
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .reply(200, sampleTokenList);
+
+      const tokens = await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(tokens).toStrictEqual(sampleTokenList);
+    });
+
+    it('should cache suggestedOccurrenceFloors across token list fetches', async () => {
+      const { signal } = new AbortController();
+      cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      const floorsScope = nock(TOKEN_END_POINT_API)
+        .get('/v1/suggestedOccurrenceFloors')
+        .reply(200, DEFAULT_SUGGESTED_OCCURRENCE_FLOORS);
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .times(2)
+        .reply(200, sampleTokenList);
+
+      await fetchTokenListByChainId(sampleChainId, signal);
+      await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(floorsScope.isDone()).toBe(true);
     });
 
     it('should correctly filter linea tokens: include if has lineaTeam OR >= 3 aggregators', async () => {
@@ -557,6 +661,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -583,6 +688,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: 1,
         data: [sampleSearchResults[0]],
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -607,6 +713,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -636,6 +743,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -734,7 +842,11 @@ describe('Token service', () => {
 
       const results = await searchTokens([sampleCaipChainId], searchQuery);
 
-      expect(results).toStrictEqual({ count: 0, data: [] });
+      expect(results).toStrictEqual({
+        count: 0,
+        data: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      });
     });
 
     it('should return empty array when no chainIds are provided', async () => {
@@ -754,7 +866,11 @@ describe('Token service', () => {
 
       const results = await searchTokens([], searchQuery);
 
-      expect(results).toStrictEqual({ count: 0, data: [] });
+      expect(results).toStrictEqual({
+        count: 0,
+        data: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      });
     });
 
     it('should handle API error responses in JSON format', async () => {
@@ -809,6 +925,7 @@ describe('Token service', () => {
       expect(result).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -834,6 +951,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -860,6 +978,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -886,6 +1005,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -912,6 +1032,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -935,7 +1056,87 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
+    });
+
+    it('should forward pageInfo and totalCount when the API returns them', async () => {
+      const searchQuery = 'USD';
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        totalCount: 2343,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: true, endCursor: 'MA==' },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        totalCount: 2343,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: true, endCursor: 'MA==' },
+      });
+    });
+
+    it('should send the after cursor as a query parameter', async () => {
+      const searchQuery = 'USD';
+      const cursor = 'MA==';
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        totalCount: 2343,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: 'MQ==' },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&after=${encodeURIComponent(cursor)}&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery, {
+        after: cursor,
+      });
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        totalCount: 2343,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: 'MQ==' },
+      });
+    });
+
+    it('should omit pageInfo and totalCount when the API does not return them', async () => {
+      const searchQuery = 'USD';
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+      });
+      expect(results).not.toHaveProperty('pageInfo');
+      expect(results).not.toHaveProperty('totalCount');
     });
   });
 
@@ -1139,7 +1340,7 @@ describe('Token service', () => {
     it('returns empty array if api returns non-array response', async () => {
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}&includeRwaData=true&usePriceApiData=true`,
         )
         .reply(200, { error: 'Invalid response' })
         .persist();
@@ -1151,7 +1352,7 @@ describe('Token service', () => {
     it('returns empty array if the fetch fails', async () => {
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}&includeRwaData=true&usePriceApiData=true`,
         )
         .reply(500)
         .persist();
@@ -1162,7 +1363,7 @@ describe('Token service', () => {
 
     it('returns the list of trending tokens if the fetch succeeds', async () => {
       const testChainId = 'eip155:1';
-      const sortBy: SortTrendingBy = 'm5_trending';
+      const sort: SortTrendingBy = 'm5_trending';
       const testMinLiquidity = 1000000;
       const testMinVolume24hUsd = 1000000;
       const testMaxVolume24hUsd = 1000000;
@@ -1170,14 +1371,14 @@ describe('Token service', () => {
       const testMaxMarketCap = 1000000;
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sort=${sortBy}&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume24hUsd}&maxVolume24hUsd=${testMaxVolume24hUsd}&minMarketCap=${testMinMarketCap}&maxMarketCap=${testMaxMarketCap}&includeRwaData=true&usePriceApiData=true`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sort=${sort}&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume24hUsd}&maxVolume24hUsd=${testMaxVolume24hUsd}&minMarketCap=${testMinMarketCap}&maxMarketCap=${testMaxMarketCap}&includeRwaData=true&usePriceApiData=true`,
         )
         .reply(200, sampleTrendingTokens)
         .persist();
 
       const result = await getTrendingTokens({
         chainIds: [testChainId],
-        sortBy,
+        sort,
         minLiquidity: testMinLiquidity,
         minVolume24hUsd: testMinVolume24hUsd,
         maxVolume24hUsd: testMaxVolume24hUsd,
@@ -1292,13 +1493,30 @@ describe('Token service', () => {
 
       const result = await getTrendingTokens({
         chainIds: [testChainId],
-        sortBy: 'h6_trending',
+        sort: 'h6_trending',
         minLiquidity: testMinLiquidity,
         minVolume24hUsd: testMinVolume,
         includeRwaData: false,
         includeTokenSecurityData: true,
       });
       expect(result).toStrictEqual(sampleTrendingTokensWithSecurityData);
+    });
+
+    it('passes unknown query params through to the URL', async () => {
+      const testChainId = 'eip155:1';
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true&usePriceApiData=true&vsCurrency=eur`,
+        )
+        .reply(200, sampleTrendingTokens)
+        .persist();
+
+      const result = await getTrendingTokens({
+        chainIds: [testChainId],
+        vsCurrency: 'eur',
+      });
+      expect(result).toStrictEqual(sampleTrendingTokens);
     });
   });
 
@@ -1404,6 +1622,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResultsWithSecurityData.length,
         data: sampleSearchResultsWithSecurityData,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
       expect(results.data[0].securityData?.resultType).toBe('Verified');
       expect(results.data[0].securityData?.maliciousScore).toBe('0.0');
@@ -1681,6 +1900,156 @@ describe('Token service', () => {
       setupNock();
       const result = await fetchTokenAssets([oneInchAssetId]);
       expect(result).toStrictEqual([]);
+    });
+  });
+
+  describe('fetchRwas', () => {
+    const sampleRwasResponse = {
+      data: [
+        {
+          id: 'eip155:1/erc20:0x1234567890123456789012345678901234567890',
+          assetId: 'eip155:1/erc20:0x1234567890123456789012345678901234567890',
+          symbol: 'TSLAx',
+          decimals: 18,
+          name: 'Tesla xStock',
+          rwaData: {
+            price: '342.13',
+            priceChange: '1.23',
+            marketCap: 1090000000000,
+            aggregatedUsdVolume: 1234567,
+            active: true,
+            ticker: 'TSLA',
+            instrumentType: 'stock',
+            custodians: ['ondo'],
+            industry: ['consumer discretionary'],
+            market: {
+              nextOpen: '2026-05-29T13:30:00.000Z',
+              nextClose: '2026-05-29T20:00:00.000Z',
+            },
+          },
+        },
+      ],
+      count: 1,
+      totalCount: 1,
+      pageInfo: {
+        nextCursor: null,
+        hasNextPage: false,
+      },
+    };
+
+    it('fetches RWAs with default params', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?limit=100')
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas();
+
+      expect(result).toStrictEqual(sampleRwasResponse);
+    });
+
+    it('includes supported query params and trims the search query', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          '/v1/rwas?chainIds=eip155%3A1%2Ceip155%3A137&query=Tesla&active=true&custodian=ondo&type=stock&industry=consumer+discretionary&sortBy=market_cap_desc&limit=25&after=cursor-1',
+        )
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas({
+        chainIds: ['eip155:1', 'eip155:137'],
+        query: '  Tesla  ',
+        sortBy: 'market_cap_desc',
+        limit: 25,
+        after: 'cursor-1',
+        active: true,
+        custodian: 'ondo',
+        type: 'stock',
+        industry: 'consumer discretionary',
+      });
+
+      expect(result).toStrictEqual(sampleRwasResponse);
+    });
+
+    it('omits blank and undefined query params', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?active=false&limit=100')
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas({
+        query: '   ',
+        active: false,
+      });
+
+      expect(result).toStrictEqual(sampleRwasResponse);
+    });
+
+    it('passes unknown query params through to the URL', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          '/v1/rwas?chainIds=eip155%3A1&limit=100&foo=bar&enabled=true&page=2',
+        )
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas({
+        chainIds: ['eip155:1'],
+        foo: 'bar',
+        enabled: true,
+        page: 2,
+      });
+
+      expect(result).toStrictEqual(sampleRwasResponse);
+    });
+
+    it('passes through offhours field when present in the response', async () => {
+      const responseWithOffhours = {
+        ...sampleRwasResponse,
+        data: [
+          {
+            ...sampleRwasResponse.data[0],
+            rwaData: {
+              ...sampleRwasResponse.data[0].rwaData,
+              offhours: {
+                nextOpen: '2026-08-08T00:05:00Z',
+                nextClose: '2026-08-09T23:55:00Z',
+              },
+            },
+          },
+        ],
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?limit=100')
+        .reply(200, responseWithOffhours)
+        .persist();
+
+      const result = await fetchRwas();
+
+      expect(result.data[0].rwaData.offhours).toStrictEqual({
+        nextOpen: '2026-08-08T00:05:00Z',
+        nextClose: '2026-08-09T23:55:00Z',
+      });
+    });
+
+    it('returns rwaData without offhours field when asset does not support off-hours trading', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?limit=100')
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas();
+
+      expect(result.data[0].rwaData.offhours).toBeUndefined();
+    });
+
+    it('throws if the fetch fails', async () => {
+      nock(TOKEN_END_POINT_API).get('/v1/rwas?limit=100').reply(500);
+
+      await expect(fetchRwas()).rejects.toThrow(
+        "Fetch failed with status '500'",
+      );
     });
   });
 });

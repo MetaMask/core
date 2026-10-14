@@ -1,3 +1,4 @@
+export { encodeFunctionData } from './abi.js';
 export {
   BrokenCircuitError,
   CircuitState,
@@ -11,13 +12,13 @@ export {
   createServicePolicy,
   handleAll,
   handleWhen,
-} from './create-service-policy';
+} from './create-service-policy.js';
 export type {
   CockatielEvent,
   CreateServicePolicyOptions,
   CockatielFailureReason,
   ServicePolicy,
-} from './create-service-policy';
+} from './create-service-policy.js';
 export {
   RPC,
   FALL_BACK_VS_CURRENCY,
@@ -54,8 +55,9 @@ export {
   DAY,
   DAYS,
   NETWORKS_BYPASSING_VALIDATION,
-} from './constants';
-export type { NonEmptyArray } from './util';
+  CHAIN_IDS_WITH_NO_NATIVE_TOKEN,
+} from './constants.js';
+export type { NonEmptyArray } from './util.js';
 export {
   BNToHex,
   convertHexToDecimal,
@@ -85,6 +87,6 @@ export {
   toHex,
   weiHexToGweiDec,
   isEqualCaseInsensitive,
-} from './util';
-export * from './types';
-export * from './siwe';
+} from './util.js';
+export * from './types.js';
+export * from './siwe.js';

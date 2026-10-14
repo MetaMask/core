@@ -5,9 +5,11 @@ import {
   boolean,
   number,
   optional,
+  record,
   string,
   type,
 } from '@metamask/superstruct';
+import { CaipChainIdStruct, StrictHexStruct } from '@metamask/utils';
 
 const AssetSchema = type({
   assetId: string(),
@@ -15,11 +17,11 @@ const AssetSchema = type({
   name: string(),
   symbol: string(),
   decimals: number(),
-  coingeckoCoinId: string(),
+  coingeckoCoinId: optional(string()),
 });
 
 const AssetsSchema = type({
-  listUrl: string(),
+  listUrl: optional(string()),
   native: AssetSchema,
   governance: optional(AssetSchema),
 });
@@ -47,7 +49,12 @@ const ChainConfigSchema = type({
   isFeatured: boolean(),
   isDeprecated: boolean(),
   isDeletable: boolean(),
+  isAutoEnabled: optional(boolean()),
   priority: number(),
+});
+
+const NetworkContractsSchema = type({
+  multicall3: optional(StrictHexStruct),
 });
 
 /**
@@ -55,7 +62,7 @@ const ChainConfigSchema = type({
  * chainId is in CAIP-2 format (e.g. "eip155:1", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp").
  */
 export const RegistryNetworkConfigSchema = type({
-  chainId: string(),
+  chainId: CaipChainIdStruct,
   name: string(),
   imageUrl: string(),
   coingeckoPlatformId: string(),
@@ -64,6 +71,7 @@ export const RegistryNetworkConfigSchema = type({
   rpcProviders: RpcProvidersSchema,
   blockExplorerUrls: BlockExplorerUrlsSchema,
   config: ChainConfigSchema,
+  contracts: optional(NetworkContractsSchema),
 });
 
 /**
@@ -89,6 +97,31 @@ export function validateRegistryConfigApiResponse(
   assert(data, RegistryConfigApiResponseSchema);
 }
 
+/**
+ * Schema for the events-config API response.
+ * Maps event names to their allowed analytics purposes.
+ */
+export const RegistryEventsConfigApiResponseSchema = type({
+  data: type({
+    schemaVersion: string(),
+    version: string(),
+    timestamp: number(),
+    events: record(string(), array(string())),
+  }),
+});
+
+export type RegistryEventsConfigApiResponse = Infer<
+  typeof RegistryEventsConfigApiResponseSchema
+>;
+
+export type RegistryEventsConfig = RegistryEventsConfigApiResponse['data'];
+
+export function validateRegistryEventsConfigApiResponse(
+  data: unknown,
+): asserts data is RegistryEventsConfigApiResponse {
+  assert(data, RegistryEventsConfigApiResponseSchema);
+}
+
 export type FetchConfigOptions = {
   etag?: string;
 };
@@ -106,5 +139,17 @@ export type FetchConfigResult =
   | {
       modified: true;
       data: RegistryConfigApiResponse;
+      etag?: string;
+    };
+
+export type FetchEventsConfigResult =
+  | {
+      modified: false;
+      etag?: string;
+      data?: RegistryEventsConfigApiResponse;
+    }
+  | {
+      modified: true;
+      data: RegistryEventsConfigApiResponse;
       etag?: string;
     };

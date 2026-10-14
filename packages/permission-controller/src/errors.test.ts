@@ -1,7 +1,7 @@
 import {
   CaveatMergeTypeMismatchError,
   EndowmentPermissionDoesNotExistError,
-} from './errors';
+} from './errors.js';
 
 describe('error', () => {
   describe('CaveatMergeTypeMismatchError', () => {

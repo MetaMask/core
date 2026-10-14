@@ -6,7 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { AnnouncementControllerMethodActions } from './AnnouncementController-method-action-types';
+import type { AnnouncementControllerMethodActions } from './AnnouncementController-method-action-types.js';
 
 type ViewedAnnouncement = {
   [id: number]: boolean;

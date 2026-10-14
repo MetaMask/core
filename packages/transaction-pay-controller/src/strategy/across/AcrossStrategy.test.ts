@@ -5,16 +5,18 @@ import {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getAcrossQuotes } from './across-quotes';
-import { submitAcrossQuotes } from './across-submit';
-import { AcrossStrategy } from './AcrossStrategy';
-import type { AcrossQuote } from './types';
+import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../../constants.js';
 import type {
+  PayStrategyCheckQuoteSupportRequest,
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
-} from '../../types';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
+} from '../../types.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getAcrossQuotes } from './across-quotes.js';
+import { submitAcrossQuotes } from './across-submit.js';
+import { AcrossStrategy } from './AcrossStrategy.js';
+import type { AcrossQuote } from './types.js';
 
 jest.mock('./across-quotes');
 jest.mock('./across-submit');
@@ -43,17 +45,36 @@ describe('AcrossStrategy', () => {
     transaction: TRANSACTION_META_MOCK,
     requests: [
       {
-        from: '0xabc' as Hex,
+        from: '0xabc',
         sourceBalanceRaw: '100',
-        sourceChainId: '0x1' as Hex,
-        sourceTokenAddress: '0xabc' as Hex,
+        sourceChainId: '0x1',
+        sourceTokenAddress: '0xabc',
         sourceTokenAmount: '100',
         targetAmountMinimum: '100',
-        targetChainId: '0x2' as Hex,
-        targetTokenAddress: '0xdef' as Hex,
+        targetChainId: '0x2',
+        targetTokenAddress: '0xdef',
       },
     ],
   } as PayStrategyGetQuotesRequest;
+
+  const quoteWithAuthorizationList = {
+    request: {
+      ...baseRequest.requests[0],
+    },
+    original: {
+      metamask: {
+        gasLimits: [],
+        is7702: true,
+        requiresAuthorizationList: true,
+      },
+      quote: {},
+      request: {
+        actions: [],
+        amount: '100',
+        tradeType: 'exactInput',
+      },
+    },
+  } as TransactionPayQuote<AcrossQuote>;
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -91,7 +112,7 @@ describe('AcrossStrategy', () => {
     expect(strategy.supports(baseRequest)).toBe(false);
   });
 
-  it('returns true for perps deposits when other constraints are met', () => {
+  it('returns true for supported perps direct deposits', () => {
     const strategy = new AcrossStrategy();
     expect(
       strategy.supports({
@@ -99,12 +120,169 @@ describe('AcrossStrategy', () => {
         transaction: {
           ...TRANSACTION_META_MOCK,
           type: TransactionType.perpsDeposit,
-        } as TransactionMeta,
+        },
+        requests: [
+          {
+            from: '0xabc',
+            sourceBalanceRaw: '100',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '100',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ],
       }),
     ).toBe(true);
   });
 
-  it('returns false for perps across deposits', () => {
+  it('ignores synthetic gas legs for supported perps direct deposits', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDeposit,
+        },
+        requests: [
+          {
+            from: '0xabc',
+            sourceBalanceRaw: '100',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '100',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+          {
+            from: '0xabc',
+            sourceBalanceRaw: '100',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: '0x0000000000000000000000000000000000000000',
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false when all requests are synthetic zero-minimum legs', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        requests: [
+          {
+            from: '0xabc',
+            sourceBalanceRaw: '100',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: '0x0000000000000000000000000000000000000000',
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it('treats max-amount requests as actionable even with zero minimums', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        requests: [
+          {
+            from: '0xabc',
+            isMaxAmount: true,
+            sourceBalanceRaw: '100',
+            sourceChainId: '0x1',
+            sourceTokenAddress: '0xabc',
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: '0x2',
+            targetTokenAddress: '0xdef',
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it('supports post-quote predict withdraw requests with source-chain authorization lists', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' }],
+            data: '0x12345678',
+            to: '0xdef',
+          },
+        },
+        requests: [
+          {
+            from: '0xabc',
+            isPostQuote: true,
+            sourceBalanceRaw: '100',
+            sourceChainId: '0x1',
+            sourceTokenAddress: '0xabc',
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: '0x2',
+            targetTokenAddress: '0xdef',
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it('does not support post-quote requests outside predict withdraw', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        requests: [
+          {
+            from: '0xabc',
+            isPostQuote: true,
+            sourceBalanceRaw: '100',
+            sourceChainId: '0x1',
+            sourceTokenAddress: '0xabc',
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: '0x2',
+            targetTokenAddress: '0xdef',
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false for unsupported perps deposits', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDeposit,
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it('applies generic cross-chain handling to perps across deposits', () => {
     const strategy = new AcrossStrategy();
     expect(
       strategy.supports({
@@ -112,9 +290,9 @@ describe('AcrossStrategy', () => {
         transaction: {
           ...TRANSACTION_META_MOCK,
           type: TransactionType.perpsAcrossDeposit,
-        } as TransactionMeta,
+        },
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('returns false for same-chain swaps', () => {
@@ -124,16 +302,179 @@ describe('AcrossStrategy', () => {
         ...baseRequest,
         requests: [
           {
-            from: '0xabc' as Hex,
+            from: '0xabc',
             sourceBalanceRaw: '100',
-            sourceChainId: '0x1' as Hex,
-            sourceTokenAddress: '0xabc' as Hex,
+            sourceChainId: '0x1',
+            sourceTokenAddress: '0xabc',
             sourceTokenAmount: '100',
             targetAmountMinimum: '100',
-            targetChainId: '0x1' as Hex,
-            targetTokenAddress: '0xdef' as Hex,
+            targetChainId: '0x1',
+            targetTokenAddress: '0xdef',
           },
         ],
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when the transaction has an authorization list', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' }],
+          },
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it('does not support authorization lists during request support checks', () => {
+    const strategy = new AcrossStrategy();
+    const result = strategy.supports({
+      ...baseRequest,
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        txParams: {
+          ...TRANSACTION_META_MOCK.txParams,
+          authorizationList: [{ address: '0xabc' }],
+        },
+      },
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it('does not support quotes that require first-time 7702 upgrades', () => {
+    const strategy = new AcrossStrategy();
+    const quote = {
+      original: {
+        metamask: {
+          gasLimits: [],
+          is7702: true,
+          requiresAuthorizationList: true,
+        },
+      },
+    } as TransactionPayQuote<AcrossQuote>;
+
+    const result = strategy.checkQuoteSupport({
+      messenger,
+      quotes: [quote],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it('supports source 7702 authorization lists for Predict withdraw post-quote quotes without Across actions', () => {
+    const strategy = new AcrossStrategy();
+    const request = {
+      messenger,
+      quotes: [
+        {
+          ...quoteWithAuthorizationList,
+          request: {
+            ...quoteWithAuthorizationList.request,
+            isPostQuote: true,
+          },
+        },
+      ],
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.predictWithdraw,
+      } as TransactionMeta,
+    } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
+
+    expect(strategy.checkQuoteSupport(request)).toBe(true);
+  });
+
+  it('does not support first-time 7702 authorization lists for non-post-quote Across quotes', () => {
+    const strategy = new AcrossStrategy();
+    const request = {
+      messenger,
+      quotes: [quoteWithAuthorizationList],
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.predictWithdraw,
+      } as TransactionMeta,
+    } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
+
+    expect(strategy.checkQuoteSupport(request)).toBe(false);
+  });
+
+  it('does not support first-time 7702 authorization lists when the Across quote has embedded destination actions', () => {
+    const strategy = new AcrossStrategy();
+    const request = {
+      messenger,
+      quotes: [
+        {
+          ...quoteWithAuthorizationList,
+          request: {
+            ...quoteWithAuthorizationList.request,
+            isPostQuote: true,
+          },
+          original: {
+            ...quoteWithAuthorizationList.original,
+            request: {
+              ...quoteWithAuthorizationList.original.request,
+              actions: [
+                {
+                  args: [],
+                  functionSignature: 'function transfer(address,uint256)',
+                  isNativeTransfer: false,
+                  target: '0xdef',
+                  value: '0',
+                },
+              ],
+            },
+          },
+        },
+      ],
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.predictWithdraw,
+      } as TransactionMeta,
+    } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
+
+    expect(strategy.checkQuoteSupport(request)).toBe(false);
+  });
+
+  it('supports 7702 quotes that do not require an authorization list', () => {
+    const strategy = new AcrossStrategy();
+    const quote = {
+      original: {
+        metamask: {
+          gasLimits: [],
+          is7702: true,
+        },
+      },
+    } as TransactionPayQuote<AcrossQuote>;
+
+    expect(
+      strategy.checkQuoteSupport({
+        messenger,
+        quotes: [quote],
+        transaction: TRANSACTION_META_MOCK,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for unsupported destination actions', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            data: '0x12345678',
+            to: '0xdef',
+          },
+        },
       }),
     ).toBe(false);
   });

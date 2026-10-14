@@ -1,21 +1,28 @@
-import type { AssetsControllerGetStateForTransactionPayAction } from '@metamask/assets-controller';
+import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import type {
-  CurrencyRateControllerActions,
-  TokenBalancesControllerGetStateAction,
-} from '@metamask/assets-controllers';
-import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
-import type { TokensControllerGetStateAction } from '@metamask/assets-controllers';
-import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
+  AssetsControllerGetStateAction,
+  AssetsControllerStateChangeEvent,
+} from '@metamask/assets-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
-import type { BridgeControllerActions } from '@metamask/bridge-controller';
-import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
-import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
-import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
+import type { GetGasFeeState } from '@metamask/gas-fee-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerSignTypedMessageAction,
+  KeyringControllerUnlockEvent,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
+import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
+import type { Quote as RampsQuote } from '@metamask/ramps-controller';
+import type {
+  RampsControllerGetOrderAction,
+  RampsControllerGetQuoteWithFeesAction,
+} from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
 import type {
   AuthorizationList,
   TransactionControllerAddTransactionBatchAction,
@@ -25,6 +32,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type {
   BatchTransaction,
+  BatchTransactionParams,
   TransactionControllerAddTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
@@ -35,22 +43,26 @@ import type {
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
-import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types';
+import type {
+  CONTROLLER_NAME,
+  PaymentOverride,
+  TransactionPayStrategy,
+} from './constants.js';
+import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types.js';
 
 export type AllowedActions =
-  | AccountTrackerControllerGetStateAction
-  | AssetsControllerGetStateForTransactionPayAction
-  | BridgeControllerActions
-  | BridgeStatusControllerActions
-  | CurrencyRateControllerActions
-  | GasFeeControllerActions
+  | AccountsControllerGetStateAction
+  | AssetsControllerGetStateAction
+  | GetGasFeeState
+  | KeyringControllerGetStateAction
+  | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetNetworkConfigurationByChainIdAction
+  | RampsControllerGetOrderAction
+  | RampsControllerGetQuoteWithFeesAction
   | RemoteFeatureFlagControllerGetStateAction
-  | TokenBalancesControllerGetStateAction
-  | TokenRatesControllerGetStateAction
-  | TokensControllerGetStateAction
+  | SentinelApiServiceActions
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerEstimateGasAction
@@ -60,7 +72,8 @@ export type AllowedActions =
   | TransactionControllerUpdateTransactionAction;
 
 export type AllowedEvents =
-  | BridgeStatusControllerStateChangeEvent
+  | AssetsControllerStateChangeEvent
+  | KeyringControllerUnlockEvent
   | TransactionControllerStateChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent;
 
@@ -71,6 +84,38 @@ export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
 
 /** Configurable properties of a transaction. */
 export type TransactionConfig = {
+  /**
+   * Optional address to override the default account used by the transaction.
+   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is false, it provides the funds and pays for gas.
+   */
+  accountOverride?: Hex;
+
+  /**
+   * Whether the target transaction (or `paymentOverride` batch) is executed
+   * atomically with the Relay quote. Defaults to `true` (embedded in the quote
+   * and executed by the Relay solver). When `false`, Pay does not embed the
+   * target/override calls in the quote; the quote only bridges the required
+   * asset to `recipient`, and the calls are submitted separately after Relay
+   * completion. Used by flows whose second-leg amount is only known after
+   * Relay settles (EXACT_INPUT max flows) or that require the second leg to
+   * originate from a different signer than the Relay solver.
+   * For max deposits enabled by `payStrategies.relay.atomicMaxEnabled`, this
+   * is a subsidy hint: atomic quotes are retried non-atomically if not
+   * subsidized, and subsidized non-atomic quotes are upgraded to atomic.
+   */
+  atomic?: boolean;
+
+  /**
+   * Whether the source of funds is HyperLiquid (HyperCore).
+   * When true, the Relay strategy uses the HyperLiquid 2-step withdrawal
+   * flow: (1) authorize nonce-mapping, (2) sendAsset to Relay solver.
+   */
+  isHyperliquidSource?: boolean;
+
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
+
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
 
@@ -81,9 +126,15 @@ export type TransactionConfig = {
    */
   isPostQuote?: boolean;
 
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
+
+  /** When true, a quote is always fetched even when the source and target tokens are identical. */
+  isQuoteRequired?: boolean;
+
   /**
-   * Optional address to receive refunds if the Relay transaction fails.
-   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * Optional address to receive refunds if the quote provider transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the quote
    * request. Use this for post-quote flows where the user's funds originate
    * from a smart contract account (e.g. Predict Safe proxy) so that refunds
    * go back to that account rather than the EOA.
@@ -93,6 +144,88 @@ export type TransactionConfig = {
 
 /** Callback to update transaction config. */
 export type TransactionConfigCallback = (config: TransactionConfig) => void;
+
+/** Request passed to {@link GetPaymentOverrideDataCallback}. */
+export type GetPaymentOverrideDataRequest = {
+  /** Amount of the source token in human-readable format. */
+  amount: string;
+
+  /** Metadata of the original transaction. */
+  transaction: TransactionMeta;
+
+  /** Pay-controller state for the transaction. */
+  transactionData: TransactionData;
+};
+
+/** Response returned by {@link GetPaymentOverrideDataCallback}. */
+export type GetPaymentOverrideDataResponse = {
+  /** Batch transaction params to prepend to the submit batch. */
+  calls: BatchTransactionParams[];
+
+  /** Optional recipient address for the funding token transfer. */
+  recipient?: Hex;
+
+  /** Optional EIP-7702 authorization list from delegation. */
+  authorizationList?: AuthorizationList;
+};
+
+/**
+ * Callback invoked during submit when `paymentOverride` is defined.
+ * Returns batch transaction params to prepend to the submit batch.
+ */
+export type GetPaymentOverrideDataCallback = (
+  request: GetPaymentOverrideDataRequest,
+) => Promise<GetPaymentOverrideDataResponse>;
+
+export type GetAmountDataRequest = {
+  /** Raw token amount (atomic units) to encode into calldata. */
+  amount: string;
+
+  /** Metadata of the transaction whose nested calls need updating. */
+  transaction: TransactionMeta;
+};
+
+export type GetAmountDataResponse = {
+  /** Per-nested-call data updates; empty when no update is needed. */
+  updates: { nestedTransactionIndex: number; data: Hex }[];
+};
+
+/**
+ * Optional callback that re-encodes nested transaction calldata for a given
+ * token amount. Used by transaction types with non-standard nested data
+ * (e.g. vault approve + deposit) that cannot be derived from the amount alone
+ * without client-side context (vault config, RPC providers, etc.).
+ */
+export type GetAmountDataCallback = (
+  request: GetAmountDataRequest,
+) => Promise<GetAmountDataResponse>;
+
+/** Request passed to {@link GetBalanceCallback}. */
+export type GetBalanceRequest = {
+  /** Metadata of the transaction whose source balance is being resolved. */
+  transaction: TransactionMeta;
+  /** Pay-controller state for the transaction. */
+  transactionData: TransactionData;
+};
+
+/** Balance override returned by {@link GetBalanceCallback}. */
+export type GetBalanceResponse = {
+  /** Balance in atomic format without factoring token decimals. */
+  balanceRaw: string;
+};
+
+/**
+ * Optional client-supplied callback that overrides the built-in
+ * pay-token / required-token balance lookup used for `isMaxAmount`
+ * source-amount calculation. Enables alternate balance sources
+ * (perps, predict, money-account, post-quote, etc.) without adding
+ * conditional branches inside the controller. MUST be synchronous:
+ * it runs inside the controller state-update block.
+ * Return `undefined` to fall back to the built-in token balance.
+ */
+export type GetBalanceCallback = (
+  request: GetBalanceRequest,
+) => GetBalanceResponse | undefined;
 
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (
@@ -118,10 +251,35 @@ export type TransactionPayControllerMessenger = Messenger<
   TransactionPayControllerEvents | AllowedEvents
 >;
 
+/**
+ * Keyring types that support EIP-7702 authorization signing.
+ * Hardware wallets, snap keyrings, and custody keyrings are excluded.
+ */
+export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
+  'HD Key Tree',
+  'Simple Key Pair',
+  'Money Keyring',
+];
+
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
+  /** Optional callback to re-encode nested transaction calldata for a given amount. */
+  getAmountData?: GetAmountDataCallback;
+
+  /** Optional callback to override the source balance used for max-amount calculation. */
+  getBalance?: GetBalanceCallback;
+
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;
+
+  /** Optional fiat execution configuration. */
+  fiatOptions?: TransactionPayFiatOptions;
+
+  /**
+   * Optional callback invoked during quote execution when `paymentOverride` is defined.
+   * Returns additional transactions to be submitted alongside the quote batch.
+   */
+  getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
   /** Callback to select the PayStrategy for a transaction. */
   getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
@@ -131,6 +289,9 @@ export type TransactionPayControllerOptions = {
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
+
+  /** Callbacks for the Polymarket relayer; required only for the Polymarket deposit-wallet flow. */
+  polymarket?: PolymarketCallbacks;
 
   /** Initial state of the controller. */
   state?: Partial<TransactionPayControllerState>;
@@ -142,8 +303,30 @@ export type TransactionPayControllerState = {
   transactionData: Record<string, TransactionData>;
 };
 
+/** Optional fiat execution configuration. */
+export type TransactionPayFiatOptions = {
+  /** Test funding source used to bypass fiat on-ramp execution during local QA. */
+  testFundingSource?: Hex;
+
+  /** Optional human amount to transfer from the test funding source. */
+  testAmountOverride?: string;
+};
+
 /** State relating to a single transaction. */
 export type TransactionData = {
+  /**
+   * Optional address to override the default account used by the transaction.
+   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is false, it provides the funds and pays for gas.
+   */
+  accountOverride?: Hex;
+
+  /**
+   * Whether the target transaction is executed atomically with the Relay
+   * quote. See {@link TransactionConfig.atomic}.
+   */
+  atomic?: boolean;
+
   /** Fiat payment method state. */
   fiatPayment?: TransactionFiatPayment;
 
@@ -162,9 +345,21 @@ export type TransactionData = {
    */
   isPostQuote?: boolean;
 
+  /** Whether the source of funds is HyperLiquid (HyperCore). */
+  isHyperliquidSource?: boolean;
+
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
+
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
+
+  /** When true, a quote is always fetched even when the source and target tokens are identical. */
+  isQuoteRequired?: boolean;
+
   /**
-   * Optional address to receive refunds if the Relay transaction fails.
-   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * Optional address to receive refunds if the quote provider transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the quote
    * request.
    */
   refundTo?: Hex;
@@ -178,6 +373,9 @@ export type TransactionData = {
 
   /** Quotes retrieved for the transaction. */
   quotes?: TransactionPayQuote<Json>[];
+
+  /** Most relevant structured validation error from the latest quote attempt. */
+  quoteError?: QuoteErrorInfo;
 
   /** Timestamp of when quotes were last updated. */
   quotesLastUpdated?: number;
@@ -196,6 +394,15 @@ export type TransactionData = {
 export type TransactionFiatPayment = {
   /** Entered fiat amount for the selected payment method. */
   amountFiat?: string;
+
+  /** CAIP-19 asset id derived from the transaction type for the fiat on-ramp. */
+  caipAssetId?: string;
+
+  /** Order identifier in normalized format (/providers/{provider}/orders/{id}). */
+  orderId?: string;
+
+  /** The ramps quote received from the ramps provider. */
+  rampsQuote?: RampsQuote;
 
   /** Selected fiat payment method ID. */
   selectedPaymentMethodId?: string;
@@ -267,6 +474,36 @@ export type TransactionPaySourceAmount = {
   targetTokenAddress: Hex;
 };
 
+/**
+ * Machine-readable discriminator for a quote validation failure.
+ *
+ * Used for analytics and tests. Human-readable copy is carried by `message`
+ * and `detail` on {@link QuoteErrorInfo}.
+ */
+export type QuoteErrorReason =
+  | 'balance-unavailable'
+  | 'insufficient-source-balance'
+  | 'insufficient-transfer-balance'
+  | 'no-quotes'
+  | 'simulation-failed';
+
+/**
+ * Structured description of why a quote failed validation.
+ *
+ * `message` and `detail` are formatted (English) copy ready to display; `reason`
+ * is a machine-readable discriminator for analytics and tests.
+ */
+export type QuoteErrorInfo = {
+  /** Short, display-ready summary of the failure. */
+  message: string;
+
+  /** Machine-readable discriminator for the failure. */
+  reason: QuoteErrorReason;
+
+  /** Optional display-ready detail rows (e.g. Required / Current / Missing). */
+  detail?: string[];
+};
+
 /** Source token used to pay for required tokens. */
 export type TransactionPaymentToken = {
   /** Address of the payment token. */
@@ -313,6 +550,12 @@ export type FiatRates = {
 
 /** Request for a quote to retrieve a required token. */
 export type QuoteRequest = {
+  /**
+   * Whether the target transaction is executed atomically with the Relay
+   * quote. See {@link TransactionConfig.atomic}.
+   */
+  atomic?: boolean;
+
   /** Address of the user's account. */
   from: Hex;
 
@@ -322,12 +565,30 @@ export type QuoteRequest = {
   /** Whether this is a post-quote flow. */
   isPostQuote?: boolean;
 
+  /** Whether the source of funds is HyperLiquid (HyperCore). */
+  isHyperliquidSource?: boolean;
+
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
+
+  /** Whether this quote is the direct mUSD-to-Money-Account fiat flow. */
+  isDirectMusdMoneyAccount?: boolean;
+
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
+
+  /** Optional recipient address for Relay requests. When set, overrides the default `from` address. */
+  recipient?: Hex;
+
   /**
-   * Optional address to receive refunds if the Relay transaction fails.
-   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * Optional address to receive refunds if the quote provider transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the quote
    * request.
    */
   refundTo?: Hex;
+
+  /** Whether to skip processTransactions in relay-quotes. Defaults to `isPostQuote`. */
+  skipProcessTransactions?: boolean;
 
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;
@@ -349,6 +610,14 @@ export type QuoteRequest = {
 
   /** Address of the target token. */
   targetTokenAddress: Hex;
+
+  /**
+   * One-time HyperLiquid activation fee (USD) reserved from the source amount
+   * for an unactivated HyperCore account. The source amount sent to the
+   * provider is reduced by this amount so HyperLiquid retains enough balance
+   * for the fee, and the amount is surfaced as part of the provider fee.
+   */
+  hyperliquidActivationFeeUsd?: string;
 };
 
 /** Fees associated with a transaction pay quote. */
@@ -364,6 +633,9 @@ export type TransactionPayFees = {
 
   /** Fee charged by the quote provider. */
   provider: FiatValue;
+
+  /** Fee charged by fiat on-ramp provider (breakdown of the provider total). */
+  providerFiat?: FiatValue;
 
   /** Network fee for transactions on the source network. */
   sourceNetwork: {
@@ -386,11 +658,28 @@ export type TransactionPayQuote<OriginalQuote> = {
   /** Fees associated with the transaction pay quote. */
   fees: TransactionPayFees;
 
+  /** Whether fees are subtracted from the destination amount, meaning the input amount is static. */
+  isInputBased?: boolean;
+
+  /** Whether the reported fees are already included in the source amount. */
+  areFeesIncludedInSourceAmount?: boolean;
+
   /** Raw quote data returned by the provider. */
   original: OriginalQuote;
 
   /** Associated quote request. */
   request: QuoteRequest;
+
+  /**
+   * Whether the target calls could not be embedded in the quote and must be
+   * submitted separately, on the target chain, once the quote settles.
+   *
+   * Set by the strategy at quote time, since only it knows whether the provider
+   * accepted the calls. {@link TransactionConfig.atomic} is a hint rather than
+   * a guarantee: a quote requested atomically still falls back to a second leg
+   * when the provider cannot execute the calls itself.
+   */
+  requiresSecondLeg?: boolean;
 
   /** Amount of source token required. */
   sourceAmount: Amount;
@@ -404,11 +693,31 @@ export type TransactionPayQuote<OriginalQuote> = {
 
 /** Request to get quotes for a transaction. */
 export type PayStrategyGetQuotesRequest = {
+  /** Whether the account supports EIP-7702 authorization signing. */
+  accountSupports7702: boolean;
+
+  /** Selected fiat payment method ID, if applicable. */
+  fiatPaymentMethod?: string;
+
+  /**
+   * Resolved wallet address for the transaction.
+   * This is `accountOverride ?? txParams.from`, pre-computed by the quote
+   * orchestrator so that individual strategies do not need to re-derive it.
+   */
+  from: Hex;
+
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
   /** Quote requests for required tokens. */
   requests: QuoteRequest[];
+
+  /**
+   * Signal that aborts when a newer quote request supersedes this one.
+   * Strategies that perform their own network IO should forward this to
+   * their fetch calls so cancelled requests release network resources.
+   */
+  signal?: AbortSignal;
 
   /** Metadata of the original target transaction. */
   transaction: TransactionMeta;
@@ -416,6 +725,9 @@ export type PayStrategyGetQuotesRequest = {
 
 /** Request to submit quotes for a transaction. */
 export type PayStrategyExecuteRequest<OriginalRequest> = {
+  /** Whether the account supports EIP-7702 authorization signing. */
+  accountSupports7702: boolean;
+
   /** Callback to determine if the transaction is a smart transaction. */
   isSmartTransaction: (chainId: Hex) => boolean;
 
@@ -436,6 +748,24 @@ export type PayStrategyGetBatchRequest<OriginalQuote> = {
 
   /** Quotes for required tokens. */
   quotes: TransactionPayQuote<OriginalQuote>[];
+
+  /** Signal that aborts when a newer quote request supersedes this one. */
+  signal?: AbortSignal;
+};
+
+/** Request to check whether retrieved quotes can be executed by a strategy. */
+export type PayStrategyCheckQuoteSupportRequest<OriginalQuote> = {
+  /** Controller messenger. */
+  messenger: TransactionPayControllerMessenger;
+
+  /** Quotes returned by the strategy. */
+  quotes: TransactionPayQuote<OriginalQuote>[];
+
+  /** Signal that aborts when a newer quote request supersedes this one. */
+  signal?: AbortSignal;
+
+  /** Metadata of the original target transaction. */
+  transaction: TransactionMeta;
 };
 
 /** Request to get refresh interval for a specific strategy. */
@@ -453,12 +783,26 @@ export type PayStrategy<OriginalQuote> = {
    * Check if the strategy supports the given request.
    * Defaults to true if not implemented.
    */
-  supports?: (request: PayStrategyGetQuotesRequest) => boolean;
+  supports?: (
+    request: PayStrategyGetQuotesRequest,
+  ) => boolean | Promise<boolean>;
 
   /** Retrieve quotes for required tokens. */
   getQuotes: (
     request: PayStrategyGetQuotesRequest,
   ) => Promise<TransactionPayQuote<OriginalQuote>[]>;
+
+  /**
+   * Check if the returned quotes are supported after provider quote
+   * construction and gas planning.
+   *
+   * Use this for limitations that are only knowable once quote metadata is
+   * available, such as whether execution will require an EIP-7702
+   * authorization list.
+   */
+  checkQuoteSupport?: (
+    request: PayStrategyCheckQuoteSupportRequest<OriginalQuote>,
+  ) => boolean | Promise<boolean>;
 
   /** Retrieve batch transactions for quotes, if supported by the strategy. */
   getBatchTransactions?: (
@@ -496,6 +840,9 @@ export type TransactionPayTotals = {
   /** Total fees for the target transaction and all quotes. */
   fees: TransactionPayFees;
 
+  /** Whether the selected quotes subtract fees from the destination amount, meaning the input amount is static. */
+  isInputBased?: boolean;
+
   /** Total amount of source token required. */
   sourceAmount: Amount;
 
@@ -530,14 +877,29 @@ export type UpdateFiatPaymentRequest = {
 /** Callback to convert a transaction to a redeem delegation. */
 export type GetDelegationTransactionCallback = ({
   transaction,
+  isSubsidized,
 }: {
   transaction: TransactionMeta;
+  isSubsidized?: boolean;
 }) => Promise<{
   authorizationList?: AuthorizationList;
   data: Hex;
   to: Hex;
   value: Hex;
 }>;
+
+/** Client-supplied callbacks for the Polymarket relayer protocol. */
+export type PolymarketCallbacks = {
+  /** Derive the deposit-wallet address (CREATE2) for the given EOA. */
+  getDepositWalletAddress: (params: { eoa: Hex }) => Promise<Hex>;
+
+  /** Sign and broadcast a deposit-wallet batch, returning the source hash. */
+  submitDepositWalletBatch: (params: {
+    eoa: Hex;
+    depositWallet: Hex;
+    calls: { target: Hex; data: Hex; value: string }[];
+  }) => Promise<{ sourceHash: Hex }>;
+};
 
 /** Single amount in alternate formats. */
 export type Amount = FiatValue & {

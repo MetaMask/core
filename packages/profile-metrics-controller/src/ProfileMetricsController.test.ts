@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -10,23 +11,29 @@ import type {
 import {
   DEFAULT_INITIAL_DELAY_DURATION,
   ProfileMetricsController,
-} from './ProfileMetricsController';
-import type { ProfileMetricsControllerMessenger } from './ProfileMetricsController';
+} from './ProfileMetricsController.js';
+import type { ProfileMetricsControllerMessenger } from './ProfileMetricsController.js';
 import type {
-  ProfileMetricsSubmitMetricsRequest,
+  AccountOwnershipProof,
   AccountWithScopes,
-} from './ProfileMetricsService';
+  ProfileMetricsFetchNoncesRequest,
+  ProfileMetricsSubmitMetricsRequest,
+} from './ProfileMetricsService.js';
+import type { ProofOfOwnershipSignRequest } from './ProofOfOwnershipService.js';
+import { ProofUnsupportedNamespaceError } from './utils/canonicalize.js';
 
 /**
  * Creates a mock InternalAccount object for testing purposes.
  *
  * @param address - The address of the mock account.
  * @param withEntropy - Whether to include entropy information in the account options. Defaults to true.
+ * @param keyringType - The keyring type for the account.
  * @returns A mock InternalAccount object.
  */
 function createMockAccount(
   address: string,
   withEntropy = true,
+  keyringType: string = 'Test Keyring',
 ): InternalAccount {
   return {
     id: `id-${address}`,
@@ -46,7 +53,7 @@ function createMockAccount(
     type: 'any:account',
     metadata: {
       keyring: {
-        type: 'Test Keyring',
+        type: keyringType,
       },
       name: `Account ${address}`,
       importTime: 1713153716,
@@ -86,49 +93,178 @@ describe('ProfileMetricsController', () => {
         );
       });
 
-      describe('when `initialEnqueueCompleted` is false', () => {
-        it.each([{ assertUserOptedIn: true }, { assertUserOptedIn: false }])(
-          'adds existing accounts to the queue when `assertUserOptedIn` is $assertUserOptedIn',
-          async ({ assertUserOptedIn }) => {
-            await withController(
-              { options: { assertUserOptedIn: () => assertUserOptedIn } },
-              async ({ controller, rootMessenger }) => {
-                rootMessenger.registerActionHandler(
-                  'AccountsController:getState',
-                  () => {
-                    const account1 = createMockAccount('0xAccount1');
-                    const account2 = createMockAccount('0xAccount2', false);
-                    return {
-                      internalAccounts: {
-                        accounts: {
-                          [account1.id]: account1,
-                          [account2.id]: account2,
-                        },
-                        selectedAccount: account1.id,
-                      },
-                      accountIdByAddress: {
-                        [account1.address]: account1.id,
-                        [account2.address]: account2.id,
-                      },
-                    };
+      describe('when `initialEnqueueCompleted` is false (fresh install)', () => {
+        it('enqueues existing accounts and flips both completion flags when the user has opted in', async () => {
+          await withController(
+            { options: { assertUserOptedIn: () => true } },
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([
+                createMockAccount('0xAccount1'),
+                createMockAccount('0xAccount2', false, KeyringTypes.simple),
+              ]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              // Wait for async operations to complete.
+              await Promise.resolve();
+
+              expect(controller.state.initialEnqueueCompleted).toBe(true);
+              // Fresh installs satisfy the proof backfill in the same
+              // enqueue — accounts are queued with proofs in mind from
+              // the very first poll.
+              expect(controller.state.proofBackfillEnqueued).toBe(true);
+              expect(controller.state.accountSourceBackfillEnqueued).toBe(true);
+              expect(controller.state.syncQueue).toStrictEqual({
+                'entropy-0xAccount1': [
+                  {
+                    address: '0xAccount1',
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
                   },
-                );
+                ],
+                null: [
+                  {
+                    address: '0xAccount2',
+                    scopes: ['eip155:1'],
+                    accountSource: 'imported',
+                  },
+                ],
+              });
+            },
+          );
+        });
 
-                rootMessenger.publish('KeyringController:unlock');
-                // Wait for async operations to complete.
-                await Promise.resolve();
+        it('enqueues canonical addresses', async () => {
+          const checksummedAddress =
+            '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+          await withController(
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([
+                createMockAccount(checksummedAddress.toLowerCase()),
+              ]);
 
-                expect(controller.state.initialEnqueueCompleted).toBe(true);
-                expect(controller.state.syncQueue).toStrictEqual({
-                  'entropy-0xAccount1': [
-                    { address: '0xAccount1', scopes: ['eip155:1'] },
-                  ],
-                  null: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
-                });
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.syncQueue).toStrictEqual({
+                [`entropy-${checksummedAddress.toLowerCase()}`]: [
+                  {
+                    address: checksummedAddress,
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
+                ],
+              });
+            },
+          );
+        });
+
+        it('does not enqueue or flip the flags when the user has not opted in', async () => {
+          await withController(
+            { options: { assertUserOptedIn: () => false } },
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([createMockAccount('0xAccount1')]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.initialEnqueueCompleted).toBe(false);
+              expect(controller.state.proofBackfillEnqueued).toBe(false);
+              expect(controller.state.syncQueue).toStrictEqual({});
+            },
+          );
+        });
+
+        it('does not re-enqueue accounts that were already reported', async () => {
+          await withController(
+            {
+              options: {
+                state: { reportedAccounts: ['0xAccount1'] },
               },
-            );
-          },
-        );
+            },
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([
+                createMockAccount('0xAccount1'),
+                createMockAccount('0xAccount2'),
+              ]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.syncQueue).toStrictEqual({
+                'entropy-0xAccount2': [
+                  {
+                    address: '0xAccount2',
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
+                ],
+              });
+            },
+          );
+        });
+
+        it('enqueues accounts sharing a canonical address only once', async () => {
+          const checksummedAddress =
+            '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+          await withController(
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([
+                createMockAccount(checksummedAddress.toLowerCase()),
+                createMockAccount(checksummedAddress, false),
+              ]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.syncQueue).toStrictEqual({
+                [`entropy-${checksummedAddress.toLowerCase()}`]: [
+                  {
+                    address: checksummedAddress,
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
+                ],
+              });
+            },
+          );
+        });
+
+        it('groups all non-mnemonic accounts into a single batch, each tagged with its account source', async () => {
+          await withController(
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([
+                createMockAccount('0xHardware', false, KeyringTypes.ledger),
+                createMockAccount('0xImported', false, KeyringTypes.simple),
+                createMockAccount('0xSnap', false, KeyringTypes.snap),
+                createMockAccount('0xUnknown', false, 'Custom Keyring'),
+              ]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.syncQueue).toStrictEqual({
+                null: [
+                  {
+                    address: '0xHardware',
+                    scopes: ['eip155:1'],
+                    accountSource: 'hardware',
+                  },
+                  {
+                    address: '0xImported',
+                    scopes: ['eip155:1'],
+                    accountSource: 'imported',
+                  },
+                  {
+                    address: '0xSnap',
+                    scopes: ['eip155:1'],
+                    accountSource: 'snap',
+                  },
+                  { address: '0xUnknown', scopes: ['eip155:1'] },
+                ],
+              });
+            },
+          );
+        });
       });
 
       describe('when `initialEnqueueCompleted` is true', () => {
@@ -139,30 +275,19 @@ describe('ProfileMetricsController', () => {
               {
                 options: {
                   assertUserOptedIn: () => assertUserOptedIn,
-                  state: { initialEnqueueCompleted: true },
+                  state: {
+                    initialEnqueueCompleted: true,
+                    proofBackfillEnqueued: true,
+                    accountSourceBackfillEnqueued: true,
+                    reportedAccounts: ['0xAccount1', '0xAccount2'],
+                  },
                 },
               },
-              async ({ controller, rootMessenger }) => {
-                rootMessenger.registerActionHandler(
-                  'AccountsController:getState',
-                  () => {
-                    const account1 = createMockAccount('0xAccount1');
-                    const account2 = createMockAccount('0xAccount2');
-                    return {
-                      internalAccounts: {
-                        accounts: {
-                          [account1.id]: account1,
-                          [account2.id]: account2,
-                        },
-                        selectedAccount: account1.id,
-                      },
-                      accountIdByAddress: {
-                        [account1.address]: account1.id,
-                        [account2.address]: account2.id,
-                      },
-                    };
-                  },
-                );
+              async ({ controller, rootMessenger, registerAccounts }) => {
+                registerAccounts([
+                  createMockAccount('0xAccount1'),
+                  createMockAccount('0xAccount2'),
+                ]);
 
                 rootMessenger.publish('KeyringController:unlock');
                 // Wait for async operations to complete.
@@ -174,6 +299,136 @@ describe('ProfileMetricsController', () => {
             );
           },
         );
+      });
+
+      describe('when `proofBackfillEnqueued` is false (upgrade path)', () => {
+        it('re-enqueues all known accounts and flips `proofBackfillEnqueued` to true when the user has opted in', async () => {
+          await withController(
+            {
+              options: {
+                assertUserOptedIn: () => true,
+                // Existing user upgrading: they've already first-synced
+                // (`initialEnqueueCompleted` true, persisted) but never had
+                // proofs attached (`proofBackfillEnqueued` defaults to false).
+                state: { initialEnqueueCompleted: true },
+              },
+            },
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([
+                createMockAccount('0xAccount1'),
+                createMockAccount('0xAccount2', false),
+              ]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.proofBackfillEnqueued).toBe(true);
+              expect(controller.state.syncQueue).toStrictEqual({
+                'entropy-0xAccount1': [
+                  {
+                    address: '0xAccount1',
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
+                ],
+                null: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
+              });
+            },
+          );
+        });
+
+        it('does not enqueue or flip the flag when the user has not opted in', async () => {
+          await withController(
+            {
+              options: {
+                assertUserOptedIn: () => false,
+                state: { initialEnqueueCompleted: true },
+              },
+            },
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([createMockAccount('0xAccount1')]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.proofBackfillEnqueued).toBe(false);
+              expect(controller.state.syncQueue).toStrictEqual({});
+            },
+          );
+        });
+
+        it('does not duplicate accounts already pending in the queue (nonces are single-use)', async () => {
+          await withController(
+            {
+              options: {
+                assertUserOptedIn: () => true,
+                state: {
+                  initialEnqueueCompleted: true,
+                  // Simulate an `accountAdded` event having queued one of
+                  // the accounts between session start and this backfill.
+                  syncQueue: {
+                    'entropy-0xAccount1': [
+                      { address: '0xAccount1', scopes: ['eip155:1'] },
+                    ],
+                  },
+                },
+              },
+            },
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([
+                createMockAccount('0xAccount1'),
+                createMockAccount('0xAccount2'),
+              ]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.proofBackfillEnqueued).toBe(true);
+              expect(controller.state.syncQueue).toStrictEqual({
+                'entropy-0xAccount1': [
+                  {
+                    address: '0xAccount1',
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
+                ],
+                'entropy-0xAccount2': [
+                  {
+                    address: '0xAccount2',
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
+                ],
+              });
+            },
+          );
+        });
+      });
+
+      describe('when all backfills are complete', () => {
+        it('does not re-enqueue accounts on subsequent unlocks', async () => {
+          await withController(
+            {
+              options: {
+                assertUserOptedIn: () => true,
+                state: {
+                  initialEnqueueCompleted: true,
+                  proofBackfillEnqueued: true,
+                  accountSourceBackfillEnqueued: true,
+                  reportedAccounts: ['0xAccount1'],
+                },
+              },
+            },
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([createMockAccount('0xAccount1')]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.syncQueue).toStrictEqual({});
+            },
+          );
+        });
       });
     });
 
@@ -237,7 +492,11 @@ describe('ProfileMetricsController', () => {
 
                 expect(controller.state.syncQueue).toStrictEqual({
                   'entropy-0xNewAccount': [
-                    { address: '0xNewAccount', scopes: ['eip155:1'] },
+                    {
+                      address: '0xNewAccount',
+                      scopes: ['eip155:1'],
+                      accountSource: 'mnemonic',
+                    },
                   ],
                 });
               },
@@ -259,6 +518,236 @@ describe('ProfileMetricsController', () => {
 
                 expect(controller.state.syncQueue).toStrictEqual({
                   null: [{ address: '0xNewAccount', scopes: ['eip155:1'] }],
+                });
+              },
+            );
+          });
+
+          it.each([
+            { keyringType: KeyringTypes.qr, accountSource: 'hardware' },
+            { keyringType: KeyringTypes.trezor, accountSource: 'hardware' },
+            { keyringType: KeyringTypes.oneKey, accountSource: 'hardware' },
+            { keyringType: KeyringTypes.ledger, accountSource: 'hardware' },
+            { keyringType: KeyringTypes.lattice, accountSource: 'hardware' },
+            { keyringType: KeyringTypes.simple, accountSource: 'imported' },
+            { keyringType: KeyringTypes.snap, accountSource: 'snap' },
+          ] as const)(
+            'adds the new `$keyringType` account to the sync queue under `null` tagged with the `$accountSource` account source',
+            async ({ keyringType, accountSource }) => {
+              await withController(
+                { options: { assertUserOptedIn: () => assertUserOptedIn } },
+                async ({ controller, rootMessenger }) => {
+                  const newAccount = createMockAccount(
+                    '0xNewAccount',
+                    false,
+                    keyringType,
+                  );
+
+                  rootMessenger.publish(
+                    'AccountsController:accountAdded',
+                    newAccount,
+                  );
+                  await Promise.resolve();
+
+                  expect(controller.state.syncQueue).toStrictEqual({
+                    null: [
+                      {
+                        address: '0xNewAccount',
+                        scopes: ['eip155:1'],
+                        accountSource,
+                      },
+                    ],
+                  });
+                },
+              );
+            },
+          );
+
+          it('tags a mnemonic-backed Snap account as mnemonic', async () => {
+            await withController(
+              { options: { assertUserOptedIn: () => assertUserOptedIn } },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish(
+                  'AccountsController:accountAdded',
+                  createMockAccount('0xNewAccount', true, KeyringTypes.snap),
+                );
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  'entropy-0xNewAccount': [
+                    {
+                      address: '0xNewAccount',
+                      scopes: ['eip155:1'],
+                      accountSource: 'mnemonic',
+                    },
+                  ],
+                });
+              },
+            );
+          });
+
+          it('adds the new account to the sync queue with its canonical address', async () => {
+            const checksummedAddress =
+              '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            await withController(
+              { options: { assertUserOptedIn: () => assertUserOptedIn } },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish(
+                  'AccountsController:accountAdded',
+                  createMockAccount(checksummedAddress.toLowerCase(), false),
+                );
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  null: [{ address: checksummedAddress, scopes: ['eip155:1'] }],
+                });
+              },
+            );
+          });
+
+          it('adds the new account to the sync queue as-is and logs when its address cannot be canonicalized', async () => {
+            const consoleErrorSpy = jest
+              .spyOn(console, 'error')
+              .mockImplementation();
+            await withController(
+              { options: { assertUserOptedIn: () => assertUserOptedIn } },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish('AccountsController:accountAdded', {
+                  ...createMockAccount('0xNewAccount'),
+                  scopes: [],
+                });
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  'entropy-0xNewAccount': [
+                    {
+                      address: '0xNewAccount',
+                      scopes: [],
+                      accountSource: 'mnemonic',
+                    },
+                  ],
+                });
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                  'Failed to canonicalize address for account id-0xNewAccount:',
+                  new Error('Scope not found for account id-0xNewAccount'),
+                );
+              },
+            );
+          });
+
+          it('adds the new account to the sync queue as-is without logging when its namespace is unsupported', async () => {
+            const consoleErrorSpy = jest
+              .spyOn(console, 'error')
+              .mockImplementation();
+            await withController(
+              { options: { assertUserOptedIn: () => assertUserOptedIn } },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish('AccountsController:accountAdded', {
+                  ...createMockAccount('cosmos1abc'),
+                  scopes: ['cosmos:cosmoshub-4'],
+                });
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  'entropy-cosmos1abc': [
+                    {
+                      address: 'cosmos1abc',
+                      scopes: ['cosmos:cosmoshub-4'],
+                      accountSource: 'mnemonic',
+                    },
+                  ],
+                });
+                expect(consoleErrorSpy).not.toHaveBeenCalled();
+              },
+            );
+          });
+
+          it('does not enqueue an account whose canonical address has already been reported', async () => {
+            const checksummedAddress =
+              '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            await withController(
+              {
+                options: {
+                  assertUserOptedIn: () => assertUserOptedIn,
+                  state: { reportedAccounts: [checksummedAddress] },
+                },
+              },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish(
+                  'AccountsController:accountAdded',
+                  createMockAccount(checksummedAddress.toLowerCase()),
+                );
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({});
+              },
+            );
+          });
+
+          it('does not enqueue an account that is already queued', async () => {
+            await withController(
+              {
+                options: {
+                  assertUserOptedIn: () => assertUserOptedIn,
+                  state: {
+                    syncQueue: {
+                      existing: [
+                        {
+                          address: '0xNewAccount',
+                          scopes: ['eip155:1'],
+                        },
+                      ],
+                    },
+                  },
+                },
+              },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish(
+                  'AccountsController:accountAdded',
+                  createMockAccount('0xNewAccount'),
+                );
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  existing: [
+                    {
+                      address: '0xNewAccount',
+                      scopes: ['eip155:1'],
+                    },
+                  ],
+                });
+              },
+            );
+          });
+
+          it('appends distinct accounts to an existing batch', async () => {
+            await withController(
+              {
+                options: {
+                  assertUserOptedIn: () => assertUserOptedIn,
+                  state: {
+                    syncQueue: {
+                      null: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+                    },
+                  },
+                },
+              },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish(
+                  'AccountsController:accountAdded',
+                  createMockAccount('0xAccount2', false, KeyringTypes.simple),
+                );
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  null: [
+                    { address: '0xAccount1', scopes: ['eip155:1'] },
+                    {
+                      address: '0xAccount2',
+                      scopes: ['eip155:1'],
+                      accountSource: 'imported',
+                    },
+                  ],
                 });
               },
             );
@@ -453,6 +942,24 @@ describe('ProfileMetricsController', () => {
       });
 
       describe('when the initial delay period has ended', () => {
+        it('does not read accounts or submit anything when the sync queue is empty', async () => {
+          await withController(
+            {
+              options: {
+                state: { initialDelayEndTimestamp: 0 },
+              },
+            },
+            async ({ controller, messenger, mockSubmitMetrics }) => {
+              const callSpy = jest.spyOn(messenger, 'call');
+
+              await controller._executePoll();
+
+              expect(callSpy).not.toHaveBeenCalled();
+              expect(mockSubmitMetrics).not.toHaveBeenCalled();
+            },
+          );
+        });
+
         it('processes the sync queue on each poll', async () => {
           const accounts: Record<string, AccountWithScopes[]> = {
             id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
@@ -552,12 +1059,746 @@ describe('ProfileMetricsController', () => {
               expect(controller.state.syncQueue).toStrictEqual({
                 id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
               });
+              expect(controller.state.reportedAccounts).toStrictEqual([
+                '0xAccount2',
+              ]);
               expect(consoleErrorSpy).toHaveBeenCalledWith(
-                'Failed to submit profile metrics for entropy source ID id1:',
+                'Failed to submit profile metrics for sync queue key id1:',
                 expect.any(Error),
               );
             },
           );
+        });
+
+        describe('proof of ownership wiring', () => {
+          it('fetches nonces and signs proofs for queued accounts, matching them against live accounts by canonical address', async () => {
+            const checksummedAddress =
+              '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const lowercased = checksummedAddress.toLowerCase();
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [{ address: checksummedAddress, scopes: ['eip155:1'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                getMetaMetricsId,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProof,
+                registerAccounts,
+              }) => {
+                registerAccounts([createMockAccount(lowercased)]);
+                mockFetchNonces.mockResolvedValueOnce({
+                  [checksummedAddress]: 'nonce-1',
+                });
+                mockSignProof.mockResolvedValueOnce({
+                  nonce: 'nonce-1',
+                  signature: '0xdeadbeef',
+                });
+
+                await controller._executePoll();
+
+                expect(mockFetchNonces).toHaveBeenCalledWith({
+                  identifiers: [checksummedAddress],
+                  entropySourceId: 'id1',
+                });
+                expect(mockSignProof).toHaveBeenCalledWith({
+                  account: expect.objectContaining({ address: lowercased }),
+                  nonce: 'nonce-1',
+                });
+                expect(mockSubmitMetrics).toHaveBeenCalledWith({
+                  metametricsId: getMetaMetricsId(),
+                  entropySourceId: 'id1',
+                  accounts: [
+                    {
+                      address: checksummedAddress,
+                      scopes: ['eip155:1'],
+                      proof: { nonce: 'nonce-1', signature: '0xdeadbeef' },
+                    },
+                  ],
+                });
+                expect(controller.state.syncQueue).toStrictEqual({});
+              },
+            );
+          });
+
+          it('submits the non-mnemonic batch without an entropy source ID or proofs and records its accounts as reported', async () => {
+            const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              null: [
+                { address, scopes: ['eip155:1'], accountSource: 'hardware' },
+                {
+                  address: '0xImported',
+                  scopes: ['eip155:1'],
+                  accountSource: 'imported',
+                },
+                {
+                  address: '0xSnap',
+                  scopes: ['eip155:1'],
+                  accountSource: 'snap',
+                },
+                // Persisted by a version that did not tag sources.
+                { address: '0xLegacy', scopes: ['eip155:1'] },
+              ],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                getMetaMetricsId,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProof,
+                registerAccounts,
+              }) => {
+                registerAccounts([
+                  createMockAccount(address, false, KeyringTypes.ledger),
+                ]);
+
+                await controller._executePoll();
+
+                expect(mockFetchNonces).not.toHaveBeenCalled();
+                expect(mockSignProof).not.toHaveBeenCalled();
+                expect(mockSubmitMetrics).toHaveBeenCalledWith({
+                  metametricsId: getMetaMetricsId(),
+                  entropySourceId: null,
+                  accounts: accounts.null,
+                });
+                expect(controller.state.syncQueue).toStrictEqual({});
+                expect(controller.state.reportedAccounts).toStrictEqual([
+                  address,
+                  '0xImported',
+                  '0xSnap',
+                  '0xLegacy',
+                ]);
+              },
+            );
+          });
+
+          it('does not record the same reported address twice', async () => {
+            await withController(
+              {
+                options: {
+                  state: {
+                    syncQueue: {
+                      id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+                    },
+                    reportedAccounts: ['0xAccount1'],
+                    initialDelayEndTimestamp: 0,
+                  },
+                },
+              },
+              async ({ controller }) => {
+                await controller._executePoll();
+
+                expect(controller.state.reportedAccounts).toStrictEqual([
+                  '0xAccount1',
+                ]);
+              },
+            );
+          });
+
+          it('matches queued bech32 Bitcoin addresses against the lowercased live account address before fetching the nonce', async () => {
+            const mixedCase = 'BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ';
+            const canonical = mixedCase.toLowerCase();
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [
+                {
+                  address: canonical,
+                  scopes: ['bip122:000000000019d6689c085ae165831e93'],
+                },
+              ],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProof,
+                registerAccounts,
+              }) => {
+                const btcAccount: InternalAccount = {
+                  ...createMockAccount(mixedCase),
+                  scopes: ['bip122:000000000019d6689c085ae165831e93'],
+                };
+                registerAccounts([btcAccount]);
+                mockFetchNonces.mockResolvedValueOnce({ [canonical]: 'n-btc' });
+                mockSignProof.mockResolvedValueOnce({
+                  nonce: 'n-btc',
+                  signature: '0xbtcsig',
+                });
+
+                await controller._executePoll();
+
+                expect(mockFetchNonces).toHaveBeenCalledWith({
+                  identifiers: [canonical],
+                  entropySourceId: 'id1',
+                });
+                expect(
+                  mockSubmitMetrics.mock.calls[0][0].accounts[0],
+                ).toStrictEqual({
+                  address: canonical,
+                  scopes: ['bip122:000000000019d6689c085ae165831e93'],
+                  proof: { nonce: 'n-btc', signature: '0xbtcsig' },
+                });
+              },
+            );
+          });
+
+          it('de-duplicates identifiers when the same address is queued twice', async () => {
+            const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const lowercased = address.toLowerCase();
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [
+                { address, scopes: ['eip155:1'] },
+                { address, scopes: ['eip155:1'] },
+              ],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockFetchNonces,
+                mockSignProof,
+                registerAccounts,
+              }) => {
+                registerAccounts([createMockAccount(lowercased)]);
+                mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
+                mockSignProof.mockResolvedValue({
+                  nonce: 'n',
+                  signature: '0xsig',
+                });
+
+                await controller._executePoll();
+
+                expect(mockFetchNonces).toHaveBeenCalledWith({
+                  identifiers: [address],
+                  entropySourceId: 'id1',
+                });
+              },
+            );
+          });
+
+          it('submits accounts whose namespace is unsupported as-is, without consulting nonce/sign', async () => {
+            const cosmosAddress = 'cosmos1abc';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [{ address: cosmosAddress, scopes: ['cosmos:cosmoshub-4'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                getMetaMetricsId,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProof,
+                registerAccounts,
+              }) => {
+                registerAccounts([
+                  {
+                    ...createMockAccount(cosmosAddress),
+                    scopes: ['cosmos:cosmoshub-4'],
+                  },
+                ]);
+
+                await controller._executePoll();
+
+                expect(mockFetchNonces).not.toHaveBeenCalled();
+                expect(mockSignProof).not.toHaveBeenCalled();
+                expect(mockSubmitMetrics).toHaveBeenCalledWith({
+                  metametricsId: getMetaMetricsId(),
+                  entropySourceId: 'id1',
+                  accounts: [
+                    {
+                      address: cosmosAddress,
+                      scopes: ['cosmos:cosmoshub-4'],
+                    },
+                  ],
+                });
+              },
+            );
+          });
+
+          it('logs and submits without proof when the account scope is not a valid CAIP-2 chain ID', async () => {
+            const address = '0xMalformed';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [
+                {
+                  address,
+                  scopes: ['garbage' as `${string}:${string}`],
+                },
+              ],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                registerAccounts,
+              }) => {
+                const consoleErrorSpy = jest
+                  .spyOn(console, 'error')
+                  .mockImplementation();
+                registerAccounts([
+                  {
+                    ...createMockAccount(address),
+                    scopes: ['garbage' as `${string}:${string}`],
+                  },
+                ]);
+
+                await controller._executePoll();
+
+                expect(mockFetchNonces).not.toHaveBeenCalled();
+                expect(mockSubmitMetrics).toHaveBeenCalledWith(
+                  expect.objectContaining({
+                    accounts: [
+                      {
+                        address,
+                        scopes: ['garbage'],
+                      },
+                    ],
+                  }),
+                );
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                  `Failed to canonicalize address for account id-${address}:`,
+                  expect.any(Error),
+                );
+              },
+            );
+          });
+
+          it('submits accounts that are no longer in AccountsController state as-is, without consulting nonce/sign', async () => {
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [
+                {
+                  address: '0xRemoved',
+                  scopes: ['eip155:1'],
+                },
+              ],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                getMetaMetricsId,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProof,
+              }) => {
+                // AccountsController is intentionally empty: the account
+                // was removed between enqueue and poll.
+
+                await controller._executePoll();
+
+                expect(mockFetchNonces).not.toHaveBeenCalled();
+                expect(mockSignProof).not.toHaveBeenCalled();
+                expect(mockSubmitMetrics).toHaveBeenCalledWith({
+                  metametricsId: getMetaMetricsId(),
+                  entropySourceId: 'id1',
+                  accounts: [{ address: '0xRemoved', scopes: ['eip155:1'] }],
+                });
+              },
+            );
+          });
+
+          it('submits accounts without proofs and logs when fetchNonces rejects', async () => {
+            const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [{ address, scopes: ['eip155:1'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProof,
+                registerAccounts,
+              }) => {
+                const consoleErrorSpy = jest
+                  .spyOn(console, 'error')
+                  .mockImplementation();
+                registerAccounts([createMockAccount(address.toLowerCase())]);
+                mockFetchNonces.mockRejectedValueOnce(
+                  new Error('auth API 503'),
+                );
+
+                await controller._executePoll();
+
+                expect(mockSignProof).not.toHaveBeenCalled();
+                expect(mockSubmitMetrics).toHaveBeenCalledWith(
+                  expect.objectContaining({
+                    entropySourceId: 'id1',
+                    accounts: [{ address, scopes: ['eip155:1'] }],
+                  }),
+                );
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                  'Failed to fetch proof-of-ownership nonces for entropy source ID id1:',
+                  expect.any(Error),
+                );
+                // Batch is dropped from the queue on a successful submit.
+                expect(controller.state.syncQueue).toStrictEqual({});
+              },
+            );
+          });
+
+          it('submits the account without proof when the nonce response omits its identifier', async () => {
+            const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [{ address, scopes: ['eip155:1'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProof,
+                registerAccounts,
+              }) => {
+                registerAccounts([createMockAccount(address.toLowerCase())]);
+                mockFetchNonces.mockResolvedValueOnce({});
+
+                await controller._executePoll();
+
+                expect(mockSignProof).not.toHaveBeenCalled();
+                expect(mockSubmitMetrics).toHaveBeenCalledWith(
+                  expect.objectContaining({
+                    accounts: [{ address, scopes: ['eip155:1'] }],
+                  }),
+                );
+              },
+            );
+          });
+
+          it('attaches proofs for the successful accounts and submits the rejected one without a proof when sign throws', async () => {
+            const goodAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const badAddress = '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359';
+            const goodLower = goodAddress.toLowerCase();
+            const badLower = badAddress.toLowerCase();
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [
+                { address: goodAddress, scopes: ['eip155:1'] },
+                { address: badAddress, scopes: ['eip155:1'] },
+              ],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProof,
+                registerAccounts,
+              }) => {
+                const consoleErrorSpy = jest
+                  .spyOn(console, 'error')
+                  .mockImplementation();
+                registerAccounts([
+                  createMockAccount(goodLower),
+                  createMockAccount(badLower),
+                ]);
+                mockFetchNonces.mockResolvedValueOnce({
+                  [goodAddress]: 'n-good',
+                  [badAddress]: 'n-bad',
+                });
+                mockSignProof.mockImplementation(async ({ account }) => {
+                  if (account.address === goodLower) {
+                    return { nonce: 'n-good', signature: '0xgood' };
+                  }
+                  throw new Error('Method not found: signProofOfOwnership');
+                });
+
+                await controller._executePoll();
+
+                expect(mockSubmitMetrics).toHaveBeenCalledWith(
+                  expect.objectContaining({
+                    accounts: [
+                      {
+                        address: goodAddress,
+                        scopes: ['eip155:1'],
+                        proof: { nonce: 'n-good', signature: '0xgood' },
+                      },
+                      { address: badAddress, scopes: ['eip155:1'] },
+                    ],
+                  }),
+                );
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                  `Failed to sign proof of ownership for account id-${badLower}:`,
+                  expect.any(Error),
+                );
+              },
+            );
+          });
+
+          it('keeps the batch in the queue when submitMetrics fails after proofs have been signed', async () => {
+            const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [{ address, scopes: ['eip155:1'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProof,
+                registerAccounts,
+              }) => {
+                jest.spyOn(console, 'error').mockImplementation();
+                registerAccounts([createMockAccount(address.toLowerCase())]);
+                mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
+                mockSignProof.mockResolvedValueOnce({
+                  nonce: 'n',
+                  signature: '0xsig',
+                });
+                mockSubmitMetrics.mockRejectedValueOnce(new Error('500'));
+
+                await controller._executePoll();
+
+                expect(controller.state.syncQueue).toStrictEqual(accounts);
+              },
+            );
+          });
+
+          it('scopes each fetchNonces call to its entropy-source batch when processing multiple groups', async () => {
+            const address1 = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const address2 = '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [{ address: address1, scopes: ['eip155:1'] }],
+              id2: [{ address: address2, scopes: ['eip155:1'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockFetchNonces,
+                mockSignProof,
+                registerAccounts,
+              }) => {
+                registerAccounts([
+                  createMockAccount(address1.toLowerCase()),
+                  createMockAccount(address2.toLowerCase()),
+                ]);
+                mockFetchNonces.mockImplementation(async ({ identifiers }) =>
+                  Object.fromEntries(identifiers.map((id) => [id, `n-${id}`])),
+                );
+                mockSignProof.mockImplementation(async ({ nonce }) => ({
+                  nonce,
+                  signature: '0xsig',
+                }));
+
+                await controller._executePoll();
+
+                expect(mockFetchNonces).toHaveBeenCalledTimes(2);
+                expect(mockFetchNonces).toHaveBeenNthCalledWith(1, {
+                  identifiers: [address1],
+                  entropySourceId: 'id1',
+                });
+                expect(mockFetchNonces).toHaveBeenNthCalledWith(2, {
+                  identifiers: [address2],
+                  entropySourceId: 'id2',
+                });
+              },
+            );
+          });
+
+          it('only attaches proofs to the candidate accounts in a mixed batch, leaving the rest untouched', async () => {
+            const evmAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const cosmosAddress = 'cosmos1abc';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [
+                { address: evmAddress, scopes: ['eip155:1'] },
+                { address: cosmosAddress, scopes: ['cosmos:cosmoshub-4'] },
+              ],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProof,
+                registerAccounts,
+              }) => {
+                registerAccounts([
+                  createMockAccount(evmAddress.toLowerCase()),
+                  {
+                    ...createMockAccount(cosmosAddress),
+                    scopes: ['cosmos:cosmoshub-4'],
+                  },
+                ]);
+                mockFetchNonces.mockResolvedValueOnce({ [evmAddress]: 'n' });
+                mockSignProof.mockResolvedValueOnce({
+                  nonce: 'n',
+                  signature: '0xsig',
+                });
+
+                await controller._executePoll();
+
+                expect(mockFetchNonces).toHaveBeenCalledWith({
+                  identifiers: [evmAddress],
+                  entropySourceId: 'id1',
+                });
+                expect(mockSignProof).toHaveBeenCalledTimes(1);
+                expect(mockSubmitMetrics).toHaveBeenCalledWith(
+                  expect.objectContaining({
+                    accounts: [
+                      {
+                        address: evmAddress,
+                        scopes: ['eip155:1'],
+                        proof: { nonce: 'n', signature: '0xsig' },
+                      },
+                      {
+                        address: cosmosAddress,
+                        scopes: ['cosmos:cosmoshub-4'],
+                      },
+                    ],
+                  }),
+                );
+              },
+            );
+          });
+
+          it('submits the account as-is when its live scopes list is empty', async () => {
+            const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [{ address, scopes: ['eip155:1'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                registerAccounts,
+              }) => {
+                // Cover the defensive guard that fires when a live account
+                // ends up with an empty scopes array between enqueue and poll.
+                const consoleErrorSpy = jest
+                  .spyOn(console, 'error')
+                  .mockImplementation();
+                registerAccounts([
+                  {
+                    ...createMockAccount(address),
+                    scopes: [],
+                  },
+                ]);
+
+                await controller._executePoll();
+
+                expect(mockFetchNonces).not.toHaveBeenCalled();
+                expect(mockSubmitMetrics).toHaveBeenCalledWith(
+                  expect.objectContaining({
+                    accounts: [
+                      {
+                        address,
+                        scopes: ['eip155:1'],
+                      },
+                    ],
+                  }),
+                );
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                  `Failed to canonicalize address for account id-${address}:`,
+                  new Error(`Scope not found for account id-${address}`),
+                );
+              },
+            );
+          });
+
+          it('does not log when the unsupported namespace surfaces as ProofUnsupportedNamespaceError', async () => {
+            const cosmosAddress = 'cosmos1abc';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [{ address: cosmosAddress, scopes: ['cosmos:cosmoshub-4'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({ controller, registerAccounts }) => {
+                const consoleErrorSpy = jest
+                  .spyOn(console, 'error')
+                  .mockImplementation();
+                registerAccounts([
+                  {
+                    ...createMockAccount(cosmosAddress),
+                    scopes: ['cosmos:cosmoshub-4'],
+                  },
+                ]);
+                // Sanity check that the error class is exported alongside the
+                // helper that throws it (consumers depend on it for catch
+                // narrowing).
+                expect(ProofUnsupportedNamespaceError.name).toBe(
+                  'ProofUnsupportedNamespaceError',
+                );
+
+                await controller._executePoll();
+
+                expect(consoleErrorSpy).not.toHaveBeenCalled();
+              },
+            );
+          });
         });
       });
     });
@@ -576,8 +1817,10 @@ describe('ProfileMetricsController', () => {
             ),
           ).toMatchInlineSnapshot(`
             {
+              "accountSourceBackfillEnqueued": false,
               "initialDelayEndTimestamp": 10,
               "initialEnqueueCompleted": false,
+              "proofBackfillEnqueued": false,
             }
           `);
         },
@@ -596,8 +1839,11 @@ describe('ProfileMetricsController', () => {
             ),
           ).toMatchInlineSnapshot(`
             {
+              "accountSourceBackfillEnqueued": false,
               "initialDelayEndTimestamp": 10,
               "initialEnqueueCompleted": false,
+              "proofBackfillEnqueued": false,
+              "reportedAccounts": [],
               "syncQueue": {},
             }
           `);
@@ -617,8 +1863,11 @@ describe('ProfileMetricsController', () => {
             ),
           ).toMatchInlineSnapshot(`
             {
+              "accountSourceBackfillEnqueued": false,
               "initialDelayEndTimestamp": 10,
               "initialEnqueueCompleted": false,
+              "proofBackfillEnqueued": false,
+              "reportedAccounts": [],
               "syncQueue": {},
             }
           `);
@@ -663,6 +1912,15 @@ type WithControllerCallback<ReturnValue> = (payload: {
     Promise<void>,
     [ProfileMetricsSubmitMetricsRequest]
   >;
+  mockFetchNonces: jest.Mock<
+    Promise<Record<string, string>>,
+    [ProfileMetricsFetchNoncesRequest]
+  >;
+  mockSignProof: jest.Mock<
+    Promise<AccountOwnershipProof>,
+    [ProofOfOwnershipSignRequest]
+  >;
+  registerAccounts: (accounts: InternalAccount[]) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 /**
@@ -701,6 +1959,8 @@ function getMessenger(
     actions: [
       'AccountsController:getState',
       'ProfileMetricsService:submitMetrics',
+      'ProfileMetricsService:fetchNonces',
+      'ProofOfOwnershipService:sign',
     ],
     events: [
       'KeyringController:unlock',
@@ -731,16 +1991,51 @@ async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const [{ options = {} }, testFunction] =
     args.length === 2 ? args : [{}, args[0]];
-  const mockSubmitMetrics = jest.fn();
+  const mockSubmitMetrics = jest.fn().mockResolvedValue(undefined);
+  const mockFetchNonces = jest.fn().mockResolvedValue({});
+  const mockSignProof = jest
+    .fn()
+    .mockRejectedValue(new Error('mockSignProof not configured for this test'));
   const mockAssertUserOptedIn = jest.fn().mockReturnValue(true);
   const mockGetMetaMetricsId = jest.fn().mockReturnValue('test-metrics-id');
+
+  // Default to an empty `AccountsController` state so existing tests that
+  // do not exercise the proof-signing path keep the no-proof, submit-raw
+  // behavior they were written against.
+  const accountsByAddress = new Map<string, InternalAccount>();
+  const accountsById = new Map<string, InternalAccount>();
+  const registerAccounts = (accounts: InternalAccount[]): void => {
+    for (const account of accounts) {
+      accountsByAddress.set(account.address, account);
+      accountsById.set(account.id, account);
+    }
+  };
 
   const rootMessenger = getRootMessenger();
   rootMessenger.registerActionHandler(
     'ProfileMetricsService:submitMetrics',
     mockSubmitMetrics,
   );
-
+  rootMessenger.registerActionHandler(
+    'ProfileMetricsService:fetchNonces',
+    mockFetchNonces,
+  );
+  rootMessenger.registerActionHandler(
+    'ProofOfOwnershipService:sign',
+    mockSignProof,
+  );
+  rootMessenger.registerActionHandler('AccountsController:getState', () => ({
+    internalAccounts: {
+      accounts: Object.fromEntries(accountsById),
+      selectedAccount: accountsById.keys().next().value ?? '',
+    },
+    accountIdByAddress: Object.fromEntries(
+      Array.from(accountsByAddress.entries(), ([address, account]) => [
+        address,
+        account.id,
+      ]),
+    ),
+  }));
   const messenger = getMessenger(rootMessenger);
   const controller = new ProfileMetricsController({
     messenger,
@@ -756,5 +2051,8 @@ async function withController<ReturnValue>(
     assertUserOptedIn: mockAssertUserOptedIn,
     getMetaMetricsId: mockGetMetaMetricsId,
     mockSubmitMetrics,
+    mockFetchNonces,
+    mockSignProof,
+    registerAccounts,
   });
 }

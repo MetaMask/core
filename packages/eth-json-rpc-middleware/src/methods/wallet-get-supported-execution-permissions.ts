@@ -5,9 +5,9 @@ import { array, object, record, string } from '@metamask/superstruct';
 import { StrictHexStruct } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { NoParamsStruct } from '../utils/structs';
-import { validateParams } from '../utils/validation';
-import type { WalletMiddlewareContext } from '../wallet';
+import { NoParamsStruct } from '../utils/structs.js';
+import { validateParams } from '../utils/validation.js';
+import type { WalletMiddlewareContext } from '../wallet.js';
 
 /**
  * Superstruct schema for the `wallet_getSupportedExecutionPermissions` request params.

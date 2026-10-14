@@ -1,7 +1,7 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
-import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
-import { MultichainMiddlewareManager } from './MultichainMiddlewareManager';
+import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager.js';
+import { MultichainMiddlewareManager } from './MultichainMiddlewareManager.js';
 
 const scope = 'eip155:1';
 const origin = 'example.com';

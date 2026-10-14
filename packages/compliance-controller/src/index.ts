@@ -3,13 +3,13 @@ export type {
   ComplianceServiceEnvironment,
   ComplianceServiceEvents,
   ComplianceServiceMessenger,
-} from './ComplianceService';
+  ComplianceServiceOptions,
+} from './ComplianceService.js';
 export type {
   ComplianceServiceCheckWalletComplianceAction,
   ComplianceServiceCheckWalletsComplianceAction,
-  ComplianceServiceUpdateBlockedWalletsAction,
-} from './ComplianceService-method-action-types';
-export { ComplianceService } from './ComplianceService';
+} from './ComplianceService-method-action-types.js';
+export { ComplianceService } from './ComplianceService.js';
 export type {
   ComplianceControllerActions,
   ComplianceControllerEvents,
@@ -17,17 +17,18 @@ export type {
   ComplianceControllerMessenger,
   ComplianceControllerState,
   ComplianceControllerStateChangeEvent,
-} from './ComplianceController';
+} from './ComplianceController.js';
 export type {
   ComplianceControllerCheckWalletComplianceAction,
   ComplianceControllerCheckWalletsComplianceAction,
   ComplianceControllerClearComplianceStateAction,
-  ComplianceControllerUpdateBlockedWalletsAction,
-  ComplianceControllerInitAction,
-} from './ComplianceController-method-action-types';
+} from './ComplianceController-method-action-types.js';
 export {
   ComplianceController,
   getDefaultComplianceControllerState,
-} from './ComplianceController';
-export { selectIsWalletBlocked } from './selectors';
-export type { WalletComplianceStatus, BlockedWalletsInfo } from './types';
+} from './ComplianceController.js';
+export {
+  selectAreAnyWalletsBlocked,
+  selectIsWalletBlocked,
+} from './selectors.js';
+export type { WalletComplianceStatus } from './types.js';

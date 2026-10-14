@@ -6,9 +6,9 @@ import type {
   EncryptionResult,
 } from '@metamask/browser-passworder';
 import type { Json } from '@metamask/utils';
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 
-import type { Encryptor } from '../../src/KeyringController';
+import type { Encryptor } from '../../src/KeyringController.js';
 
 export const PASSWORD = 'password123';
 export const SALT = 'salt';

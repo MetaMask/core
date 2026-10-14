@@ -1,12 +1,12 @@
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 import { klona } from 'klona';
 
-import { walletGetCapabilities } from './wallet_getCapabilities';
 import type {
   GetCapabilitiesHook,
   GetCapabilitiesParams,
   GetCapabilitiesResult,
-} from '../types';
+} from '../types.js';
+import { walletGetCapabilities } from './wallet_getCapabilities.js';
 
 type GetPermittedAccountsForOrigin = () => Promise<string[]>;
 
@@ -122,7 +122,7 @@ describe('wallet_getCapabilities', () => {
   });
 
   it('throws if wrong length', async () => {
-    params[0] = '0x123' as never;
+    params[0] = '0x123';
 
     await expect(callMethod()).rejects.toMatchInlineSnapshot(`
             [Error: Invalid params

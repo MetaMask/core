@@ -3,7 +3,7 @@ export {
   encodeAggregate3,
   MulticallClient,
   type MulticallClientConfig,
-} from './MulticallClient';
+} from './MulticallClient.js';
 
 // Re-export provider types from types module
-export type { GetProviderFunction, Provider } from '../types';
+export type { GetProviderFunction, Provider } from '../types/index.js';

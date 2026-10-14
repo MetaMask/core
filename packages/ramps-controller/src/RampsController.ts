@@ -4,27 +4,69 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
+import { BrokenCircuitError, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  AuthenticationController,
+  UserStorageController,
+} from '@metamask/profile-sync-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Json } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import type { Draft } from 'immer';
 
 import type {
-  BuyWidget,
-  Country,
-  TokensResponse,
-  Provider,
-  State,
-  RampAction,
-  PaymentMethod,
-  PaymentMethodsResponse,
-  QuotesResponse,
-  Quote,
-  RampsToken,
-  RampsServiceActions,
-  RampsOrder,
-} from './RampsService';
-import { RampsOrderStatus } from './RampsService';
+  AutorampAccount,
+  AutorampRemoteSnapshot,
+  CreateAutorampRequest,
+} from './autorampAccount.js';
+import {
+  applyAutorampRemoteStatus,
+  AutorampStatus,
+  createAutorampAccount,
+  markAutorampNotified,
+} from './autorampAccount.js';
+import {
+  getHeadlessProviderAllowlist,
+  isHeadlessAllProvidersEnabled,
+  normalizeHeadlessProviderId,
+} from './featureFlags.js';
 import type {
+  NeoBankServiceCreateAutorampAction,
+  NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampsAction,
+  NeoBankServiceGetCustomerByExternalIdAction,
+  NeoBankServiceGetWalletRegistrationStatusAction,
+  NeoBankServiceRegisterSelfHostedWalletAction,
+} from './NeoBankService-method-action-types.js';
+import type { NeoBankServiceActions } from './NeoBankService.js';
+import {
+  areOrdersEqual,
+  deleteOrderInUserStorage,
+  syncOrdersWithUserStorage as syncOrdersWithUserStorageInternal,
+  updateOrderInUserStorage,
+} from './order-syncing/index.js';
+import type { SyncRampsOrder } from './order-syncing/types.js';
+import {
+  PENDING_ORDER_STATUSES,
+  TERMINAL_ORDER_STATUSES,
+} from './orderStatus.js';
+import { buildOwnershipMessage } from './ownership-message.js';
+import {
+  mergePaymentMethodsById,
+  pickPaymentMethod,
+} from './paymentMethodMerge.js';
+import {
+  getProvidersServingAsset,
+  normalizeRampsAssetId,
+  providerServesAsset,
+} from './providerAvailability.js';
+import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
+import type { RampsErrorCode } from './rampsErrorCodes.js';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
+import type {
+  RampsServiceGetDefaultRedirectCallbackUrlAction,
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetTokensAction,
@@ -34,14 +76,33 @@ import type {
   RampsServiceGetBuyWidgetUrlAction,
   RampsServiceGetOrderAction,
   RampsServiceGetOrderFromCallbackAction,
-} from './RampsService-method-action-types';
+} from './RampsService-method-action-types.js';
+import type {
+  BuyWidget,
+  BuyWidgetFallback,
+  Country,
+  TokensResponse,
+  Provider,
+  State,
+  RampAction,
+  PaymentMethod,
+  PaymentMethodsResponse,
+  QuotesResponse,
+  Quote,
+  QuoteSortBy,
+  RampsToken,
+  RampsServiceActions,
+  RampsOrder,
+  ProvidersResponse,
+} from './RampsService.js';
+import { RampsOrderStatus } from './RampsService.js';
 import type {
   RequestCache as RequestCacheType,
   RequestState,
   ExecuteRequestOptions,
   PendingRequest,
   ResourceType,
-} from './RequestCache';
+} from './RequestCache.js';
 import {
   DEFAULT_REQUEST_CACHE_TTL,
   DEFAULT_REQUEST_CACHE_MAX_SIZE,
@@ -51,24 +112,7 @@ import {
   createSuccessState,
   createErrorState,
   RequestStatus,
-} from './RequestCache';
-import type {
-  TransakAccessToken,
-  TransakUserDetails,
-  TransakBuyQuote,
-  TransakKycRequirement,
-  TransakAdditionalRequirementsResponse,
-  TransakDepositOrder,
-  TransakUserLimits,
-  TransakOttResponse,
-  TransakQuoteTranslation,
-  TransakTranslationRequest,
-  TransakIdProofStatus,
-  TransakOrderPaymentMethod,
-  PatchUserRequestBody,
-  TransakOrder,
-} from './TransakService';
-import type { TransakServiceActions } from './TransakService';
+} from './RequestCache.js';
 import type {
   TransakServiceSetApiKeyAction,
   TransakServiceSetAccessTokenAction,
@@ -85,6 +129,7 @@ import type {
   TransakServiceGetUserLimitsAction,
   TransakServiceRequestOttAction,
   TransakServiceGeneratePaymentWidgetUrlAction,
+  TransakServiceCreateWidgetUrlAction,
   TransakServiceSubmitPurposeOfUsageFormAction,
   TransakServicePatchUserAction,
   TransakServiceSubmitSsnDetailsAction,
@@ -94,7 +139,36 @@ import type {
   TransakServiceCancelOrderAction,
   TransakServiceCancelAllActiveOrdersAction,
   TransakServiceGetActiveOrdersAction,
-} from './TransakService-method-action-types';
+} from './TransakService-method-action-types.js';
+import type {
+  TransakAccessToken,
+  TransakUserDetails,
+  TransakBuyQuote,
+  TransakKycRequirement,
+  TransakAdditionalRequirementsResponse,
+  TransakDepositOrder,
+  TransakUserLimits,
+  TransakOttResponse,
+  TransakQuoteTranslation,
+  TransakTranslationRequest,
+  TransakIdProofStatus,
+  TransakOrderPaymentMethod,
+  PatchUserRequestBody,
+  TransakOrder,
+} from './TransakService.js';
+import type { TransakServiceActions } from './TransakService.js';
+import {
+  createInitialState as createInitialWalletRegistrationState,
+  transition as transitionWalletRegistration,
+} from './wallet-registration-machine.js';
+import {
+  createIdempotencyKey,
+  WalletRegistrationError,
+} from './wallet-registration-service.js';
+import type {
+  RegistrationStatus,
+  SelfHostedRegistration,
+} from './wallet-registration-service.js';
 
 // === GENERAL ===
 
@@ -110,10 +184,8 @@ export const controllerName = 'RampsController';
  * Any host (e.g. mobile) that creates a RampsController messenger must delegate
  * these actions from the root messenger so the controller can function.
  */
-export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
-  | RampsServiceActions['type']
-  | TransakServiceActions['type']
-)[] = [
+export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
+  'RampsService:getDefaultRedirectCallbackUrl',
   'RampsService:getGeolocation',
   'RampsService:getCountries',
   'RampsService:getTokens',
@@ -138,6 +210,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'TransakService:getUserLimits',
   'TransakService:requestOtt',
   'TransakService:generatePaymentWidgetUrl',
+  'TransakService:createWidgetUrl',
   'TransakService:submitPurposeOfUsageForm',
   'TransakService:patchUser',
   'TransakService:submitSsnDetails',
@@ -147,13 +220,489 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'TransakService:cancelOrder',
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
-];
+  'NeoBankService:getAutoramp',
+  'NeoBankService:getAutoramps',
+  'NeoBankService:createAutoramp',
+  'NeoBankService:getCustomerByExternalId',
+  'NeoBankService:getWalletRegistrationStatus',
+  'NeoBankService:registerSelfHostedWallet',
+] as const satisfies readonly (
+  | RampsServiceActions['type']
+  | TransakServiceActions['type']
+  | NeoBankServiceActions['type']
+)[];
+
+/**
+ * Every external controller action RampsController calls via the messenger,
+ * which hosts must delegate from the root messenger.
+ * `AuthenticationController:getSessionProfile` resolves the vendor customer
+ * identity from Profile Sync, and `KeyringController:signPersonalMessage` signs
+ * the EIP-191 ownership proof for Money Account self-hosted wallet
+ * registration; both are only exercised by the autoramp paths. User Storage
+ * and authentication actions support cross-client order syncing.
+ */
+export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
+  'AuthenticationController:getSessionProfile',
+  'AuthenticationController:isSignedIn',
+  'KeyringController:signPersonalMessage',
+  'KycController:getProviderFlowStatus',
+  'KycController:readSessionStatus',
+  'KycController:fetchSessionStatusOnce',
+  'KycController:hasCompletedVendorDisclaimers',
+  'KycController:hasCompletedSessionDisclaimers',
+  'KycController:clearState',
+  'RemoteFeatureFlagController:getState',
+  'UserStorageController:getState',
+  'UserStorageController:performGetStorageAllFeatureEntries',
+  'UserStorageController:performBatchSetStorage',
+] as const;
+
+/**
+ * Structural type for the keyring controller's `signPersonalMessage` messenger
+ * action (EIP-191). Declared locally to avoid a package dependency for a single
+ * type-only messenger action.
+ */
+export type KeyringControllerSignPersonalMessageAction = {
+  type: 'KeyringController:signPersonalMessage';
+  handler: (messageParams: { data: string; from: string }) => Promise<string>;
+};
+
+/**
+ * Minimal structural subset of the KYC controller's session status — only the
+ * status fields the VBA read path uses.
+ */
+type KycControllerSessionStatus = {
+  id: string;
+  finalStatus: string;
+  kycStatus: string;
+  vendorStatus: string;
+  /** Canonical id of the profile that owns the session (set at creation). */
+  externalUserId: string;
+};
+
+/**
+ * `finalStatus` values that end a KYC session. Mirrors
+ * `TERMINAL_SESSION_STATUSES` in `@metamask/kyc-controller`.
+ */
+const TERMINAL_VBA_KYC_FINAL_STATUSES: ReadonlySet<string> = new Set([
+  'approved',
+  'rejected',
+  'retry',
+]);
+
+/**
+ * Structural types for the KYC controller's VBA onboarding messenger actions.
+ * Declared locally so the ramps package does not depend on
+ * `@metamask/kyc-controller`.
+ */
+export type KycControllerReadSessionStatusAction = {
+  type: 'KycController:readSessionStatus';
+  handler: () => KycControllerSessionStatus | null;
+};
+
+export type KycControllerFetchSessionStatusOnceAction = {
+  type: 'KycController:fetchSessionStatusOnce';
+  handler: (sessionId: string) => Promise<KycControllerSessionStatus>;
+};
+
+export type KycControllerGetProviderFlowStatusAction = {
+  type: 'KycController:getProviderFlowStatus';
+  handler: () => VbaProviderFlowStatus;
+};
+
+export type KycControllerHasCompletedVendorDisclaimersAction = {
+  type: 'KycController:hasCompletedVendorDisclaimers';
+  handler: () => Promise<boolean>;
+};
+
+export type KycControllerHasCompletedSessionDisclaimersAction = {
+  type: 'KycController:hasCompletedSessionDisclaimers';
+  handler: () => Promise<boolean>;
+};
+
+export type KycControllerClearStateAction = {
+  type: 'KycController:clearState';
+  handler: () => void;
+};
+
+/**
+ * Outcome of {@link RampsController.registerMoneyAccountWallet}.
+ *
+ * `lookupUnavailable` means the address list could not be fetched or parsed.
+ * It is not the same as unregistered — callers must not treat it as a cue to
+ * submit a new ownership proof.
+ */
+/**
+ * Persisted Money Account wallet registration.
+ *
+ * Written only after {@link RampsController.registerMoneyAccountWallet}
+ * observes `alreadyRegistered`, `registered`, or `registeredDisabled`.
+ * The EIP-191 signature and ownership message are not stored.
+ */
+export type MoneyAccountWalletRegistration = {
+  walletAddress: string;
+  status: 'active' | 'disabled';
+  updatedAt: number;
+};
+
+export type MoneyAccountWalletRegistrationResult =
+  | {
+      type: 'registered' | 'alreadyRegistered';
+      registration: SelfHostedRegistration;
+    }
+  | {
+      type: 'registeredDisabled';
+      registration: SelfHostedRegistration;
+    }
+  | {
+      type: 'lookupUnavailable';
+      error: WalletRegistrationError;
+    };
+
+type LookupUnavailableResult = Extract<
+  MoneyAccountWalletRegistrationResult,
+  { type: 'lookupUnavailable' }
+>;
+
+/**
+ * KYC vocabulary used on the VBA onboarding snapshot. `'none'` means no
+ * session exists yet (or the vendor returned an unrecognized status).
+ */
+export const VBA_KYC_STATUSES = [
+  'none',
+  'new',
+  'retry',
+  'pending',
+  'approved',
+  'rejected',
+] as const;
+
+export type VbaKycStatus = (typeof VBA_KYC_STATUSES)[number];
+
+export const VBA_PROVIDER_FLOW_STATUSES = [
+  'not_started',
+  'submitted',
+  'abandoned',
+  'failed',
+] as const;
+
+export type VbaProviderFlowStatus = (typeof VBA_PROVIDER_FLOW_STATUSES)[number];
+
+/**
+ * Autoramp setup progress after KYC has been approved.
+ *
+ * `'needs_wallet_registration'` means KYC is approved, this wallet has no
+ * persisted registration row, and there is no usable autoramp.
+ * `'needs_source_currency'` means KYC is approved, the registration row is
+ * `active` or `disabled`, and there is no usable autoramp.
+ * `'in_progress'` is reserved for hosts that observe an in-flight hydrate.
+ * {@link RampsController.hydrateVbaOnboarding} returns `'ready'`,
+ * `'needs_wallet_registration'`, `'needs_source_currency'`, or
+ * `'retryable_failure'` once an approved read settles.
+ */
+export const VBA_AUTORAMP_STATUSES = [
+  'not_ready',
+  'in_progress',
+  'needs_wallet_registration',
+  'needs_source_currency',
+  'ready',
+  'retryable_failure',
+] as const;
+
+export type VbaAutorampStatus = (typeof VBA_AUTORAMP_STATUSES)[number];
+
+/**
+ * Backend facts for VBA onboarding. Hosts own funnel order and map this
+ * snapshot onto screens; this controller does not name routes.
+ */
+export type VbaOnboardingSnapshot = {
+  sessionExists: boolean;
+  vendorDisclaimersComplete: boolean;
+  sessionDisclaimersComplete: boolean;
+  providerFlowStatus: VbaProviderFlowStatus;
+  /** Overall KYC session outcome used to decide whether autoramp setup can run. */
+  kycStatus: VbaKycStatus;
+  autorampStatus: VbaAutorampStatus;
+};
+
+const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
+  sessionExists: false,
+  vendorDisclaimersComplete: false,
+  sessionDisclaimersComplete: false,
+  providerFlowStatus: 'not_started',
+  kycStatus: 'none',
+  autorampStatus: 'not_ready',
+};
+
+const VBA_KYC_STATUS_SET = new Set<string>(VBA_KYC_STATUSES);
+
+type MoonpayCustomerRecord = {
+  id: string;
+  status: string | null;
+};
+
+/**
+ * Reads the MoonPay customer id and lifecycle status from a customer payload.
+ *
+ * @param customer - `GET /neobank/customers/{external_id}/external` body.
+ * @returns The id and status, or `null` when the id is missing.
+ */
+function readMoonpayCustomerRecord(
+  customer: unknown,
+): MoonpayCustomerRecord | null {
+  if (!customer || typeof customer !== 'object') {
+    return null;
+  }
+  const { id, status } = customer as { id?: unknown; status?: unknown };
+  if (typeof id !== 'string' || id.length === 0) {
+    return null;
+  }
+  return {
+    id,
+    status: typeof status === 'string' && status.length > 0 ? status : null,
+  };
+}
+
+/**
+ * Maps a vendor status string onto the snapshot vocabulary.
+ *
+ * @param value - Raw KYC status from the session.
+ * @returns A known {@link VbaKycStatus}, or `'none'` when missing/unknown.
+ */
+function toVbaKycStatus(value: string | undefined): VbaKycStatus {
+  if (value && VBA_KYC_STATUS_SET.has(value)) {
+    return value as VbaKycStatus;
+  }
+  return 'none';
+}
+
+/**
+ * Maps a KYC session onto the snapshot vocabulary.
+ *
+ * Relay approval (`kycStatus: 'approved'`) counts even when `finalStatus` is
+ * still `pending`. A non-approved session whose provider flow was submitted,
+ * or whose status is pending, is `pending`.
+ *
+ * @param session - Persisted or freshly fetched KYC session.
+ * @param providerFlowStatus - Durable provider-flow outcome.
+ * @returns The snapshot KYC status.
+ */
+function resolveVbaKycStatus(
+  session: KycControllerSessionStatus,
+  providerFlowStatus: VbaProviderFlowStatus,
+): VbaKycStatus {
+  if (session.finalStatus === 'approved' || session.kycStatus === 'approved') {
+    return 'approved';
+  }
+  const mapped = toVbaKycStatus(session.finalStatus);
+  if (mapped === 'rejected' || mapped === 'retry') {
+    return mapped;
+  }
+  if (
+    session.finalStatus === 'pending' ||
+    session.kycStatus === 'pending' ||
+    providerFlowStatus === 'submitted'
+  ) {
+    return 'pending';
+  }
+  return mapped;
+}
+
+/**
+ * Idempotency key for a standing fiat to mUSD autoramp on Monad.
+ *
+ * The source fiat, customer, and wallet keep retries of one create on the
+ * same key (`brl-musd-monad` versus `usd-musd-monad`). Rejected or cancelled
+ * route ids are appended, sorted, so a replacement create is a new key and
+ * MoonPay does not replay the terminal route.
+ *
+ * @param sourceCurrencyCode - Fiat code from the create body. Trimmed and lowercased here.
+ * @param customerId - MoonPay customer id.
+ * @param walletAddress - Money Account address that receives mUSD.
+ * @param terminalAutorampIds - Ids of rejected or cancelled routes for this wallet.
+ * @returns Idempotency-Key value.
+ */
+function buildMusdAutorampIdempotencyKey(
+  sourceCurrencyCode: string,
+  customerId: string,
+  walletAddress: string,
+  terminalAutorampIds: readonly string[],
+): string {
+  const fiatPrefix = sourceCurrencyCode.trim().toLowerCase();
+  const base = `${fiatPrefix}-musd-monad:${customerId}:${walletAddress.trim().toLowerCase()}`;
+  if (terminalAutorampIds.length === 0) {
+    return base;
+  }
+  return `${base}:${[...terminalAutorampIds].sort().join(':')}`;
+}
+
+/**
+ * Reads the first fiat `source_currencies` code from an autoramp create body.
+ *
+ * @param request - Caller-supplied create payload.
+ * @returns Lowercased fiat code, or `null` when the body has none.
+ */
+function readCreateAutorampFiatCode(
+  request: CreateAutorampRequest,
+): string | null {
+  const sourceCurrencies = request.source_currencies;
+  if (!Array.isArray(sourceCurrencies)) {
+    return null;
+  }
+  for (const currency of sourceCurrencies) {
+    if (!currency || typeof currency !== 'object') {
+      continue;
+    }
+    const record = currency as { type?: unknown; code?: unknown };
+    if (record.type !== 'Fiat' || typeof record.code !== 'string') {
+      continue;
+    }
+    const code = record.code.trim().toLowerCase();
+    if (code.length > 0) {
+      return code;
+    }
+  }
+  return null;
+}
+
+/**
+ * Reads the destination wallet from an autoramp create body.
+ *
+ * @param request - Caller-supplied create payload.
+ * @returns Trimmed recipient address, or `null` when it is missing.
+ */
+function readCreateAutorampWalletAddress(
+  request: CreateAutorampRequest,
+): string | null {
+  const recipient = request.recipient_account;
+  if (!recipient || typeof recipient !== 'object') {
+    return null;
+  }
+  const { address } = recipient as { address?: unknown };
+  if (typeof address !== 'string') {
+    return null;
+  }
+  const trimmed = address.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Distinguishes an already-materialized {@link AutorampAccount} from the
+ * create-fields shape accepted by {@link RampsController.addAutoramp}.
+ *
+ * @param value - Full account or create fields.
+ * @returns Whether the value already carries the derived account fields.
+ */
+function isFullAutorampAccount(
+  value: AutorampAccount | { id: string; customerId: string },
+): value is AutorampAccount {
+  return (
+    typeof (value as AutorampAccount).updatedAt === 'number' &&
+    (value as AutorampAccount).lastSeenStatus !== undefined
+  );
+}
 
 /**
  * Default TTL for quotes requests (15 seconds).
  * Quotes are time-sensitive and should have a shorter cache duration.
  */
 const DEFAULT_QUOTES_TTL = 15000;
+
+const CIRCUIT_BREAKER_OPEN_ERROR =
+  'Execution prevented because the circuit breaker is open';
+
+type ErrorWithMessage = {
+  message: string;
+};
+
+type ErrorWithRampsErrorKey = Error & {
+  errorKey?: RampsErrorCode;
+};
+
+type ErrorWithHttpStatus = Error & {
+  httpStatus: number;
+};
+
+type RampsErrorInfo = {
+  errorKey: RampsErrorCode | null;
+  message: string;
+};
+
+type NormalizedRampsError = {
+  errorInfo: RampsErrorInfo;
+  normalizedError: unknown;
+};
+
+function hasStringMessage(error: unknown): error is ErrorWithMessage {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    typeof (error as { message?: unknown }).message === 'string'
+  );
+}
+
+function hasHttpStatus(error: unknown): error is ErrorWithHttpStatus {
+  return (
+    error instanceof Error &&
+    typeof (error as { httpStatus?: unknown }).httpStatus === 'number'
+  );
+}
+
+function getRampsErrorInfo(error: unknown): RampsErrorInfo {
+  if (error instanceof BrokenCircuitError && hasStringMessage(error)) {
+    return {
+      errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+      message: error.message,
+    };
+  }
+
+  let rawMessage: string | undefined;
+
+  if (hasStringMessage(error)) {
+    rawMessage = error.message;
+  } else if (typeof error === 'string') {
+    rawMessage = error;
+  }
+
+  if (rawMessage?.includes(CIRCUIT_BREAKER_OPEN_ERROR)) {
+    return {
+      errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+      message: rawMessage,
+    };
+  }
+
+  return {
+    errorKey: null,
+    message: rawMessage ?? 'Unknown error',
+  };
+}
+
+function getNormalizedRampsError(error: unknown): NormalizedRampsError {
+  const errorInfo = getRampsErrorInfo(error);
+
+  return {
+    errorInfo,
+    normalizedError: normalizeRampsErrorForRethrow(error, errorInfo),
+  };
+}
+
+function normalizeRampsErrorForRethrow(
+  error: unknown,
+  errorInfo: RampsErrorInfo,
+): unknown {
+  if (!errorInfo.errorKey) {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    (error as ErrorWithRampsErrorKey).errorKey = errorInfo.errorKey;
+    return error;
+  }
+
+  return Object.assign(new Error(errorInfo.message), {
+    errorKey: errorInfo.errorKey,
+  });
+}
 
 // === STATE ===
 
@@ -198,6 +747,10 @@ export type ResourceState<TData, TSelected = null> = {
    * Error message if the fetch failed, or null.
    */
   error: string | null;
+  /**
+   * Stable error key for client-side localization, if available.
+   */
+  errorKey?: RampsErrorCode | null;
 };
 
 /**
@@ -217,6 +770,30 @@ export type TransakState = {
  */
 export type NativeProvidersState = {
   transak: TransakState;
+};
+
+/**
+ * Response from {@link RampsController.getPaymentMethodsForContext}.
+ *
+ * Methods are request-eligible for the resolved provider set; they are not a
+ * guarantee that every amount will produce a quote (provider fiat limits still
+ * apply at quote time).
+ */
+export type PaymentMethodsForContextResponse = {
+  /**
+   * Deduped payment methods contributed by the resolved provider set.
+   */
+  methods: PaymentMethod[];
+  /**
+   * Suggested selection for this request only. Written to controller state only
+   * when `updateState` was true on the call.
+   */
+  selected: PaymentMethod | null;
+  /**
+   * Provider IDs whose methods were requested (after resolution / allowlist
+   * filtering).
+   */
+  providerIds: string[];
 };
 
 /**
@@ -263,7 +840,32 @@ export type RampsControllerState = {
    * The controller is the authority for V2 orders — it polls, updates,
    * and persists them.
    */
-  orders: RampsOrder[];
+  orders: SyncRampsOrder[];
+  /**
+   * Last-seen MoonPay autoramp accounts (standing routes). MoonPay is the
+   * source of truth; this cache is used to detect status transitions for
+   * notifications after refresh or push.
+   */
+  autoramps: AutorampAccount[];
+  /**
+   * Money Account self-hosted wallet registrations observed by
+   * {@link RampsController.registerMoneyAccountWallet}.
+   * Each row is the address plus `active` or `disabled`. It does not store
+   * the EIP-191 signature or the ownership message.
+   */
+  moneyAccountWalletRegistrations: MoneyAccountWalletRegistration[];
+  /**
+   * Epoch ms of the last successful VBA autoramp list `GET`.
+   * The usable-autoramp short-circuit does not update it.
+   */
+  vbaAutorampListFetchedAt: number | null;
+  /**
+   * Whether the currently selected provider was auto-selected by the system
+   * (no order history, no Transak) rather than chosen by the user or derived
+   * from order history. When true, the UI should silently switch providers on
+   * token conflict instead of showing the "Token Not Available" modal.
+   */
+  providerAutoSelected: boolean;
 };
 
 /**
@@ -277,19 +879,19 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   countries: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
   },
   providers: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
   },
   tokens: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
@@ -313,6 +915,30 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   orders: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  autoramps: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  moneyAccountWalletRegistrations: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  vbaAutorampListFetchedAt: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  providerAutoSelected: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -378,6 +1004,10 @@ export function getDefaultRampsControllerState(): RampsControllerState {
       },
     },
     orders: [],
+    autoramps: [],
+    moneyAccountWalletRegistrations: [],
+    vbaAutorampListFetchedAt: null,
+    providerAutoSelected: false,
   };
 }
 
@@ -391,17 +1021,36 @@ type DependentResourceKey = (typeof DEPENDENT_RESOURCE_KEYS)[number];
 
 const DEPENDENT_RESOURCE_KEYS_SET = new Set<string>(DEPENDENT_RESOURCE_KEYS);
 
+function getResourceState<TResourceType extends ResourceType>(
+  state: Draft<RampsControllerState>,
+  resourceType: TResourceType,
+): Draft<RampsControllerState[TResourceType]> {
+  switch (resourceType) {
+    case 'countries':
+      return state.countries as Draft<RampsControllerState[TResourceType]>;
+    case 'providers':
+      return state.providers as Draft<RampsControllerState[TResourceType]>;
+    case 'tokens':
+      return state.tokens as Draft<RampsControllerState[TResourceType]>;
+    case 'paymentMethods':
+      return state.paymentMethods as Draft<RampsControllerState[TResourceType]>;
+    /* istanbul ignore next -- ResourceType is a closed internal union. */
+    default:
+      throw new Error(`Unsupported resource type: ${resourceType as string}`);
+  }
+}
+
 function resetResource(
   state: Draft<RampsControllerState>,
   resourceType: DependentResourceKey,
-  defaultResource?: RampsControllerState[DependentResourceKey],
+  defaultResource: RampsControllerState[DependentResourceKey],
 ): void {
-  const def = defaultResource ?? getDefaultRampsControllerState()[resourceType];
-  const resource = state[resourceType];
-  resource.data = def.data;
-  resource.selected = def.selected;
-  resource.isLoading = def.isLoading;
-  resource.error = def.error;
+  const resource = getResourceState(state, resourceType);
+  resource.data = defaultResource.data;
+  resource.selected = defaultResource.selected;
+  resource.isLoading = defaultResource.isLoading;
+  resource.error = defaultResource.error;
+  resource.errorKey = defaultResource.errorKey ?? null;
 }
 
 /**
@@ -423,6 +1072,7 @@ function resetDependentResources(
   for (const key of DEPENDENT_RESOURCE_KEYS) {
     resetResource(state, key, defaultState[key]);
   }
+  state.providerAutoSelected = false;
 }
 
 // === MESSENGER ===
@@ -436,42 +1086,18 @@ export type RampsControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * Sets selected token in the {@link RampsController}.
- */
-export type RampsControllerSetSelectedTokenAction = {
-  type: 'RampsController:setSelectedToken';
-  handler: RampsController['setSelectedToken'];
-};
-
-/**
- * Fetches quotes via the {@link RampsController}.
- */
-export type RampsControllerGetQuotesAction = {
-  type: 'RampsController:getQuotes';
-  handler: RampsController['getQuotes'];
-};
-
-/**
- * Fetches an order via the {@link RampsController}.
- */
-export type RampsControllerGetOrderAction = {
-  type: 'RampsController:getOrder';
-  handler: RampsController['getOrder'];
-};
-
-/**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
 export type RampsControllerActions =
   | RampsControllerGetStateAction
-  | RampsControllerGetOrderAction
-  | RampsControllerGetQuotesAction
-  | RampsControllerSetSelectedTokenAction;
+  | RampsControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link RampsController} calls.
  */
 type AllowedActions =
+  | RemoteFeatureFlagControllerGetStateAction
+  | RampsServiceGetDefaultRedirectCallbackUrlAction
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction
@@ -496,6 +1122,7 @@ type AllowedActions =
   | TransakServiceGetUserLimitsAction
   | TransakServiceRequestOttAction
   | TransakServiceGeneratePaymentWidgetUrlAction
+  | TransakServiceCreateWidgetUrlAction
   | TransakServiceSubmitPurposeOfUsageFormAction
   | TransakServicePatchUserAction
   | TransakServiceSubmitSsnDetailsAction
@@ -504,7 +1131,25 @@ type AllowedActions =
   | TransakServiceGetIdProofStatusAction
   | TransakServiceCancelOrderAction
   | TransakServiceCancelAllActiveOrdersAction
-  | TransakServiceGetActiveOrdersAction;
+  | TransakServiceGetActiveOrdersAction
+  | NeoBankServiceGetAutorampAction
+  | NeoBankServiceGetAutorampsAction
+  | NeoBankServiceCreateAutorampAction
+  | NeoBankServiceGetCustomerByExternalIdAction
+  | NeoBankServiceGetWalletRegistrationStatusAction
+  | NeoBankServiceRegisterSelfHostedWalletAction
+  | AuthenticationController.AuthenticationControllerGetSessionProfileAction
+  | KeyringControllerSignPersonalMessageAction
+  | KycControllerReadSessionStatusAction
+  | KycControllerFetchSessionStatusOnceAction
+  | KycControllerGetProviderFlowStatusAction
+  | KycControllerHasCompletedVendorDisclaimersAction
+  | KycControllerHasCompletedSessionDisclaimersAction
+  | KycControllerClearStateAction
+  | UserStorageController.UserStorageControllerGetStateAction
+  | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
+  | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
+  | AuthenticationController.AuthenticationControllerIsSignedInAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -524,11 +1169,28 @@ export type RampsControllerOrderStatusChangedEvent = {
 };
 
 /**
+ * Published when an autoramp's last-seen status changes after refresh or push.
+ * Every transition is published so analytics can observe the full lifecycle;
+ * `shouldNotify` distinguishes the subset the UI should surface to the user.
+ */
+export type RampsControllerAutorampStatusChangedEvent = {
+  type: `${typeof controllerName}:autorampStatusChanged`;
+  payload: [
+    {
+      autoramp: AutorampAccount;
+      previousStatus: AutorampAccount['status'];
+      shouldNotify: boolean;
+    },
+  ];
+};
+
+/**
  * Events that {@link RampsControllerMessenger} exposes to other consumers.
  */
 export type RampsControllerEvents =
   | RampsControllerStateChangeEvent
-  | RampsControllerOrderStatusChangedEvent;
+  | RampsControllerOrderStatusChangedEvent
+  | RampsControllerAutorampStatusChangedEvent;
 
 /**
  * Events from other messengers that {@link RampsController} subscribes to.
@@ -557,6 +1219,18 @@ export type RampsControllerOptions = {
   requestCacheTTL?: number;
   /** Maximum number of entries in the request cache. Defaults to 250. */
   requestCacheMaxSize?: number;
+  /**
+   * Optional callback for order-sync failures (full sync parse/fetch/merge and
+   * incremental remote push/delete). Context never includes full order JSON.
+   */
+  onOrderSyncErroneousSituation?: (
+    errorMessage: string,
+    sentryContext?: Record<string, unknown>,
+  ) => void;
+  /**
+   * Optional performance tracing callback used by order sync operations.
+   */
+  trace?: TraceCallback;
 };
 
 // === HELPER FUNCTIONS ===
@@ -623,25 +1297,36 @@ function findRegionFromCode(
   };
 }
 
-export function normalizeProviderCode(providerCode: string): string {
-  return providerCode.replace(/^\/providers\//u, '');
+/**
+ * Returns the internal MetaMask order code used for state lookups and polling.
+ * Prefers the code embedded in the canonical order `id` path over `providerOrderId`,
+ * which may contain the provider's native order identifier.
+ *
+ * @param orderOrId - Order fields or a full order id / order code string.
+ * @returns The internal order code.
+ */
+export function getInternalOrderCode(
+  orderOrId: Pick<RampsOrder, 'id' | 'providerOrderId'> | string,
+): string {
+  if (typeof orderOrId === 'string') {
+    if (orderOrId.includes('/orders/')) {
+      return orderOrId.split('/orders/')[1]?.trim() || '';
+    }
+    return orderOrId.trim();
+  }
+
+  const { id, providerOrderId } = orderOrId;
+  if (id?.includes('/orders/')) {
+    const code = id.split('/orders/')[1]?.trim();
+    if (code) {
+      return code;
+    }
+  }
+
+  return providerOrderId?.trim() ?? '';
 }
 
 // === ORDER POLLING CONSTANTS ===
-
-const TERMINAL_ORDER_STATUSES = new Set<RampsOrderStatus>([
-  RampsOrderStatus.Completed,
-  RampsOrderStatus.Failed,
-  RampsOrderStatus.Cancelled,
-  RampsOrderStatus.IdExpired,
-]);
-
-const PENDING_ORDER_STATUSES = new Set<RampsOrderStatus>([
-  RampsOrderStatus.Pending,
-  RampsOrderStatus.Created,
-  RampsOrderStatus.Unknown,
-  RampsOrderStatus.Precreated,
-]);
 
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
 const MAX_ERROR_COUNT = 5;
@@ -653,9 +1338,143 @@ type OrderPollingMetadata = {
 
 // === CONTROLLER DEFINITION ===
 
+const MESSENGER_EXPOSED_METHODS = [
+  'executeRequest',
+  'abortRequest',
+  'getRequestState',
+  'setUserRegion',
+  'setSelectedProvider',
+  'setSelectedProviderForAsset',
+  'init',
+  'getCountries',
+  'getTokens',
+  'setSelectedToken',
+  'getProviders',
+  'getPaymentMethods',
+  'getPaymentMethodsForContext',
+  'setSelectedPaymentMethod',
+  'getQuotes',
+  'getQuoteWithFees',
+  'addOrder',
+  'removeOrder',
+  'addAutoramp',
+  'createAutoramp',
+  'hydrateVbaOnboarding',
+  'removeAutoramp',
+  'registerMoneyAccountWallet',
+  'markAutorampAsNotified',
+  'applyAutorampStatusFromPush',
+  'refreshAutoramp',
+  'refreshAutoramps',
+  'startOrderPolling',
+  'stopOrderPolling',
+  'getBuyWidgetData',
+  'getFallbackBuyWidgetData',
+  'addPrecreatedOrder',
+  'getOrder',
+  'getOrderFromCallback',
+  'transakSetApiKey',
+  'transakSetAccessToken',
+  'transakClearAccessToken',
+  'transakSetAuthenticated',
+  'transakResetState',
+  'transakSendUserOtp',
+  'transakVerifyUserOtp',
+  'transakLogout',
+  'transakGetUserDetails',
+  'transakGetBuyQuote',
+  'transakGetKycRequirement',
+  'transakGetAdditionalRequirements',
+  'transakCreateOrder',
+  'transakGetOrder',
+  'transakGetUserLimits',
+  'transakRequestOtt',
+  'transakGeneratePaymentWidgetUrl',
+  'transakCreateWidgetUrl',
+  'transakSubmitPurposeOfUsageForm',
+  'transakPatchUser',
+  'transakSubmitSsnDetails',
+  'transakConfirmPayment',
+  'transakGetTranslation',
+  'transakGetIdProofStatus',
+  'transakCancelOrder',
+  'transakCancelAllActiveOrders',
+  'transakGetActiveOrders',
+  'syncOrdersWithUserStorage',
+] as const;
+
 /**
  * Manages cryptocurrency on/off ramps functionality.
  */
+/**
+ * The state fields {@link contextStillMatches} reads, narrowed rather than
+ * taking `RampsControllerState`. Callers pass Immer's deep `WritableDraft`, and
+ * checking that against the full state type exceeds the type instantiation
+ * depth limit on declaration emit (TS2589), even though `tsc --noEmit` accepts
+ * it.
+ */
+type ContextGuardState = {
+  userRegion: { regionCode?: string } | null;
+  tokens: { selected: { assetId: string } | null };
+  providers: { selected: { id: string } | null };
+};
+
+/**
+ * Whether controller state still describes the context a payment-method
+ * request was issued for, so a completed request may write the Buy catalog.
+ *
+ * Compared at commit time rather than against a snapshot, so an older request
+ * that returns after the context moved on is dropped.
+ *
+ * @param state - Controller state at commit time.
+ * @param context - The context the request was issued for.
+ * @param context.region - Normalized region code.
+ * @param context.assetId - Canonicalized CAIP-19 asset id.
+ * @param context.providerId - Trimmed provider id, or an empty string.
+ * @returns Whether the write may proceed.
+ */
+function contextStillMatches(
+  state: ContextGuardState,
+  context: { region: string; assetId: string; providerId: string },
+): boolean {
+  return (
+    state.userRegion?.regionCode?.trim().toLowerCase() === context.region &&
+    normalizeRampsAssetId(state.tokens.selected?.assetId ?? '') ===
+      context.assetId &&
+    (state.providers.selected?.id.trim() ?? '') === context.providerId
+  );
+}
+
+/**
+ * Provider codes that identify Transak's native (non-aggregator) integration,
+ * in the bare form produced by {@link normalizeHeadlessProviderId}.
+ */
+const NATIVE_TRANSAK_PROVIDER_CODES = [
+  'transak-native',
+  'transak-native-staging',
+];
+
+/**
+ * Coerces a quote fee value to a non-negative BigNumber, treating a missing or
+ * invalid value as zero.
+ *
+ * @param value - Raw fee value from a quote.
+ * @returns The fee as a non-negative BigNumber.
+ */
+function getSafeRampsFee(value: number | string | undefined): BigNumber {
+  const fee = new BigNumber(value ?? 0);
+  return fee.isFinite() && fee.isGreaterThanOrEqualTo(0)
+    ? fee
+    : new BigNumber(0);
+}
+
+/** EVM ERC-20 CAIP-19. Hex case is not part of the address. */
+const EIP155_ERC20_ASSET_ID = /^eip155:\d+\/erc20:0x[0-9a-fA-F]{40}$/u;
+
+function isEip155Erc20AssetId(assetId: string | undefined): assetId is string {
+  return typeof assetId === 'string' && EIP155_ERC20_ASSET_ID.test(assetId);
+}
+
 export class RampsController extends BaseController<
   typeof controllerName,
   RampsControllerState,
@@ -671,6 +1490,13 @@ export class RampsController extends BaseController<
    */
   readonly #requestCacheMaxSize: number;
 
+  readonly #onOrderSyncErroneousSituation?: (
+    errorMessage: string,
+    sentryContext?: Record<string, unknown>,
+  ) => void;
+
+  readonly #trace?: TraceCallback;
+
   /**
    * Map of pending requests for deduplication.
    * Key is the cache key, value is the pending request with abort controller.
@@ -683,6 +1509,12 @@ export class RampsController extends BaseController<
    */
   readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
 
+  /**
+   * Monotonic generation per resource type used to invalidate stale in-flight
+   * requests after region/token/provider dependent-resource resets.
+   */
+  readonly #pendingResourceGeneration: Map<ResourceType, number> = new Map();
+
   readonly #orderPollingMeta: Map<string, OrderPollingMetadata> = new Map();
 
   #orderPollingTimer: ReturnType<typeof setInterval> | null = null;
@@ -690,6 +1522,87 @@ export class RampsController extends BaseController<
   #isPolling = false;
 
   #initPromise: Promise<void> | null = null;
+
+  #vbaOnboardingHydrationPromise: Promise<VbaOnboardingSnapshot> | null = null;
+
+  /**
+   * Semaphore that prevents sync feedback loops while applying remote order changes.
+   */
+  #isOrderSyncingInProgress = false;
+
+  /**
+   * Whether the full sync is applying its own local state changes.
+   */
+  #isApplyingOrderSyncChanges = false;
+
+  /**
+   * Orders deleted locally while a full sync held the semaphore.
+   */
+  readonly #pendingRemoteDeletes: Map<string, RampsOrder> = new Map();
+
+  /**
+   * Coalesces overlapping `syncOrdersWithUserStorage` calls into a follow-up run.
+   */
+  #orderSyncQueued = false;
+
+  #orderSyncPromise: Promise<void> | null = null;
+
+  /**
+   * Whether a full order sync is currently applying remote changes.
+   *
+   * @returns Whether order sync is in progress.
+   */
+  get isOrderSyncingInProgress(): boolean {
+    return this.#isOrderSyncingInProgress;
+  }
+
+  /**
+   * Sets the order-syncing-in-progress semaphore.
+   * Used by the order-syncing module; hosts should not call this.
+   *
+   * @param value - Whether sync is in progress.
+   * @internal
+   */
+  setIsOrderSyncingInProgress(value: boolean): void {
+    this.#isOrderSyncingInProgress = value;
+  }
+
+  /**
+   * Distinguishes full sync's own state changes from external mutations.
+   *
+   * @param value - Whether sync changes are being applied.
+   * @internal
+   */
+  setIsApplyingOrderSyncChanges(value: boolean): void {
+    this.#isApplyingOrderSyncChanges = value;
+  }
+
+  /**
+   * Returns orders deleted while a full sync was in progress.
+   * Used by the order-syncing module.
+   *
+   * @returns Pending deletes for remote tombstone upload.
+   * @internal
+   */
+  getPendingRemoteDeletes(): RampsOrder[] {
+    return [...this.#pendingRemoteDeletes.values()];
+  }
+
+  /**
+   * Clears deletes whose tombstones were successfully persisted. A delete
+   * replaced while a write was in flight remains pending.
+   *
+   * @param orders - Deletes included in a successful remote write.
+   * @internal
+   */
+  acknowledgePendingRemoteDeletes(orders: RampsOrder[]): void {
+    for (const order of orders) {
+      const key = getInternalOrderCode(order);
+      if (key && this.#pendingRemoteDeletes.get(key) === order) {
+        this.#pendingRemoteDeletes.delete(key);
+      }
+    }
+  }
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -704,6 +1617,8 @@ export class RampsController extends BaseController<
   #clearPendingResourceCountForDependentResources(): void {
     for (const resourceType of DEPENDENT_RESOURCE_KEYS) {
       this.#pendingResourceCount.delete(resourceType);
+      const generation = this.#pendingResourceGeneration.get(resourceType) ?? 0;
+      this.#pendingResourceGeneration.set(resourceType, generation + 1);
     }
   }
 
@@ -729,12 +1644,16 @@ export class RampsController extends BaseController<
    * controller. Missing properties will be filled in with defaults.
    * @param args.requestCacheTTL - Time to live for cached requests in milliseconds.
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
+   * @param args.onOrderSyncErroneousSituation - Optional order-sync error reporter.
+   * @param args.trace - Optional performance tracing callback for order sync.
    */
   constructor({
     messenger,
     state = {},
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
+    onOrderSyncErroneousSituation,
+    trace,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -750,23 +1669,47 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+    this.#onOrderSyncErroneousSituation = onOrderSyncErroneousSituation;
+    this.#trace = trace;
 
-    this.#registerActionHandlers();
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
-  #registerActionHandlers(): void {
-    this.messenger.registerActionHandler(
-      'RampsController:getOrder',
-      this.getOrder.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      'RampsController:getQuotes',
-      this.getQuotes.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      'RampsController:setSelectedToken',
-      this.setSelectedToken.bind(this),
-    );
+  /**
+   * Resolves the Headless Buy all-providers feature flag: whether widening is
+   * enabled, and the provider-id allowlist the widened pick is restricted to
+   * (if the flag's object payload carries one).
+   *
+   * Reads `RemoteFeatureFlagController` state through the messenger on every
+   * call, so a remote flag fetch or a local dev override takes effect at
+   * runtime without reconstructing the controller. The single read keeps the
+   * enabled bit and the allowlist consistent even if the flag changes while a
+   * quote request is in flight. Key lookup, local-override merging, and value
+   * coercion live in the shared `isHeadlessAllProvidersEnabled` /
+   * `getHeadlessProviderAllowlist` helpers so UI consumers resolve the flag
+   * identically. Fails closed: when `RemoteFeatureFlagController:getState` is
+   * not wired up, quoting stays native-only.
+   *
+   * @returns The enabled bit and the optional provider-id allowlist.
+   */
+  #resolveAllProvidersFlag(): {
+    enabled: boolean;
+    allowlist?: string[];
+  } {
+    try {
+      const remoteFeatureFlagState = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      return {
+        enabled: isHeadlessAllProvidersEnabled(remoteFeatureFlagState),
+        allowlist: getHeadlessProviderAllowlist(remoteFeatureFlagState),
+      };
+    } catch {
+      return { enabled: false };
+    }
   }
 
   /**
@@ -823,6 +1766,9 @@ export class RampsController extends BaseController<
     const abortController = new AbortController();
     const lastFetchedAt = Date.now();
     const { resourceType } = options ?? {};
+    const resourceGeneration = resourceType
+      ? (this.#pendingResourceGeneration.get(resourceType) ?? 0)
+      : undefined;
 
     // Update state to loading
     this.#updateRequestState(cacheKey, createLoadingState());
@@ -864,19 +1810,23 @@ export class RampsController extends BaseController<
           throw error;
         }
 
-        const errorMessage = (error as Error)?.message ?? 'Unknown error';
+        const { errorInfo, normalizedError } = getNormalizedRampsError(error);
         this.#updateRequestState(
           cacheKey,
-          createErrorState(errorMessage, lastFetchedAt),
+          createErrorState(
+            errorInfo.message,
+            lastFetchedAt,
+            errorInfo.errorKey,
+          ),
         );
         if (resourceType) {
           const isCurrent =
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
-            this.#setResourceError(resourceType, errorMessage);
+            this.#setResourceError(resourceType, errorInfo);
           }
         }
-        throw error;
+        throw normalizedError;
       } finally {
         if (
           this.#pendingRequests.get(cacheKey)?.abortController ===
@@ -887,13 +1837,17 @@ export class RampsController extends BaseController<
 
         // Clear resource-level loading state only when no requests for this resource remain
         if (resourceType && !abortController.signal.aborted) {
-          const count = this.#pendingResourceCount.get(resourceType) ?? 0;
-          const next = Math.max(0, count - 1);
-          if (next === 0) {
-            this.#pendingResourceCount.delete(resourceType);
-            this.#setResourceLoading(resourceType, false);
-          } else {
-            this.#pendingResourceCount.set(resourceType, next);
+          const currentGeneration =
+            this.#pendingResourceGeneration.get(resourceType) ?? 0;
+          if (currentGeneration === resourceGeneration) {
+            const count = this.#pendingResourceCount.get(resourceType) ?? 0;
+            const next = Math.max(0, count - 1);
+            if (next === 0) {
+              this.#pendingResourceCount.delete(resourceType);
+              this.#setResourceLoading(resourceType, false);
+            } else {
+              this.#pendingResourceCount.set(resourceType, next);
+            }
           }
         }
       }
@@ -956,16 +1910,6 @@ export class RampsController extends BaseController<
     );
   }
 
-  /**
-   * Executes a promise without awaiting, swallowing errors.
-   * Errors are stored in state via executeRequest.
-   *
-   * @param promise - The promise to execute.
-   */
-  #fireAndForget<Result>(promise: Promise<Result>): void {
-    promise.catch((_error: unknown) => undefined);
-  }
-
   #requireRegion(): string {
     const regionCode = this.state.userRegion?.regionCode;
     if (!regionCode) {
@@ -1002,14 +1946,12 @@ export class RampsController extends BaseController<
    */
   #updateResourceField(
     resourceType: ResourceType,
-    field: 'isLoading' | 'error',
-    value: boolean | string | null,
+    field: 'isLoading' | 'error' | 'errorKey',
+    value: boolean | string | RampsErrorCode | null,
   ): void {
     this.update((state) => {
-      const resource = state[resourceType];
-      if (resource) {
-        (resource as Record<string, unknown>)[field] = value;
-      }
+      const resource = getResourceState(state, resourceType);
+      (resource as Record<string, unknown>)[field] = value;
     });
   }
 
@@ -1027,10 +1969,17 @@ export class RampsController extends BaseController<
    * Sets the error state for a resource type.
    *
    * @param resourceType - The type of resource.
-   * @param error - The error message, or null to clear.
+   * @param errorInfo - The error info, or null to clear.
    */
-  #setResourceError(resourceType: ResourceType, error: string | null): void {
-    this.#updateResourceField(resourceType, 'error', error);
+  #setResourceError(
+    resourceType: ResourceType,
+    errorInfo: RampsErrorInfo | null,
+  ): void {
+    this.update((state) => {
+      const resource = getResourceState(state, resourceType);
+      resource.error = errorInfo?.message ?? null;
+      resource.errorKey = errorInfo?.errorKey ?? null;
+    });
   }
 
   /**
@@ -1115,15 +2064,15 @@ export class RampsController extends BaseController<
       }
 
       const regionChanged =
+        Boolean(options?.forceRefresh) ||
         normalizedRegion !== this.state.userRegion?.regionCode;
 
-      const needsRefetch =
-        regionChanged ||
-        !this.state.tokens.data ||
-        this.state.providers.data.length === 0;
-
       if (regionChanged) {
-        this.#abortDependentRequests();
+        // Note: we intentionally do NOT abort in-flight requests here.
+        // Aborting causes data loss during rapid region switching (e.g.
+        // user taps France → Finland → France quickly). Instead we let
+        // old requests complete naturally; isResultCurrent guards in
+        // getProviders/getPaymentMethods discard stale results.
         this.#clearPendingResourceCountForDependentResources();
       }
       this.update((state) => {
@@ -1133,23 +2082,6 @@ export class RampsController extends BaseController<
         state.userRegion = userRegion;
       });
 
-      if (needsRefetch) {
-        const refetchPromises: Promise<unknown>[] = [];
-        if (regionChanged || !this.state.tokens.data) {
-          refetchPromises.push(
-            this.getTokens(userRegion.regionCode, 'buy', options),
-          );
-        }
-        if (regionChanged || this.state.providers.data.length === 0) {
-          refetchPromises.push(
-            this.getProviders(userRegion.regionCode, options),
-          );
-        }
-        if (refetchPromises.length > 0) {
-          this.#fireAndForget(Promise.all(refetchPromises));
-        }
-      }
-
       return userRegion;
     } catch (error) {
       this.#cleanupState();
@@ -1158,59 +2090,127 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected provider by ID, or clears the selection.
-   * Looks up the provider from the current providers in state and automatically
-   * fetches payment methods for that provider.
+   * Sets the user's selected provider.
    *
-   * @param providerId - The provider ID (e.g., "/providers/moonpay"), or null to clear.
-   * @throws If region is not set, providers are not loaded, or provider is not found.
+   * Accepts either a Provider object (stored directly) or a provider ID
+   * string (looked up from state). The object form is preferred when the
+   * caller already has the full data (e.g. from React Query cache).
+   *
+   * @param providerOrId - A Provider object, a provider ID string (e.g., "/providers/moonpay"), or null to clear.
+   * @param options - Optional settings for the selection.
+   * @param options.autoSelected - When true, marks the provider as system-guessed
+   *   (soft selection). The UI will silently auto-switch on token conflict instead
+   *   of showing the "Token Not Available" modal. Defaults to false.
    */
-  setSelectedProvider(providerId: string | null): void {
-    if (providerId === null) {
+  setSelectedProvider(
+    providerOrId: string | Provider | null,
+    options?: { autoSelected?: boolean },
+  ): void {
+    if (providerOrId === null) {
       this.update((state) => {
         state.providers.selected = null;
-        resetResource(state, 'paymentMethods');
+        state.providerAutoSelected = false;
       });
       return;
     }
 
-    const regionCode = this.#requireRegion();
+    this.#requireRegion();
+
+    // If a full Provider object is passed, store it directly (avoids
+    // depending on state.providers.data being populated).
+    if (typeof providerOrId !== 'string') {
+      this.update((state) => {
+        state.providers.selected = providerOrId;
+        state.providerAutoSelected = options?.autoSelected ?? false;
+      });
+      return;
+    }
+
+    // ID string: look up from state
     const providers = this.state.providers.data;
-    if (!providers || providers.length === 0) {
-      throw new Error(
-        'Providers not loaded. Cannot set selected provider before providers are fetched.',
-      );
+    const provider = providers?.find((prov) => prov.id === providerOrId);
+
+    if (provider) {
+      this.update((state) => {
+        state.providers.selected = provider;
+        state.providerAutoSelected = options?.autoSelected ?? false;
+      });
+    }
+  }
+
+  /**
+   * Switches to the preferred provider in state that serves the given asset,
+   * when the currently selected provider does not.
+   *
+   * This is the controller-level equivalent of UB2's BuildQuote tier-1
+   * silent-switch effect and MMPay's `useEnsureCompatibleProvider` hook: it
+   * keeps provider-asset compatibility logic in one place rather than
+   * duplicating `providerServesAsset` + find-and-switch across multiple UI
+   * layers.
+   *
+   * The compatibility check prefers the current provider's entry in
+   * `providers.data` over the `providers.selected` copy, which can be stale
+   * once a fresh providers list arrives.
+   *
+   * Among the providers that serve the asset, the new selection is:
+   * 1. The first provider the user has completed an order with before (most
+   *    recent first). This keeps an existing KYC relationship instead of
+   *    moving the user to a new provider.
+   * 2. Otherwise the first provider in `providers.data` (API ranking order).
+   *
+   * No-op when:
+   * - `providers.data` is empty (providers not yet loaded)
+   * - the currently selected provider already serves the asset
+   * - no provider in the list serves the asset (no safe fallback)
+   *
+   * @param assetId - CAIP-19 asset id of the deposit asset.
+   * @param options - Optional settings forwarded to `setSelectedProvider`.
+   * @param options.autoSelected - When true, marks the new selection as
+   *   system-guessed (soft selection). Defaults to true.
+   * @returns `true` if the selected provider was changed, `false` otherwise.
+   */
+  setSelectedProviderForAsset(
+    assetId: string,
+    options?: { autoSelected?: boolean },
+  ): boolean {
+    const providers = this.state.providers.data;
+    if (!providers?.length) {
+      return false;
     }
 
-    const provider = providers.find((prov) => prov.id === providerId);
-    if (!provider) {
-      throw new Error(
-        `Provider with ID "${providerId}" not found in available providers.`,
-      );
+    const selectedId = this.state.providers.selected?.id;
+    const currentProvider =
+      providers.find((provider) => provider.id === selectedId) ??
+      this.state.providers.selected;
+    if (currentProvider && providerServesAsset(currentProvider, assetId)) {
+      return false;
     }
 
-    const selectedToken = this.state.tokens.selected;
-    const supportedCryptos = provider.supportedCryptoCurrencies;
-
-    // Only fetch payment methods if the selected token is supported by the new
-    // provider. If it isn't, the payment methods request would fail or return
-    // empty for the wrong reason; the UI will show the Token Not Available modal
-    // so the user can change token or pick a different provider.
-    const assetId = selectedToken?.assetId;
-    const tokenSupportedByProvider = !(
-      assetId && supportedCryptos?.[assetId] === false
+    const compatible = providers.filter(
+      (provider) =>
+        provider.id !== selectedId && providerServesAsset(provider, assetId),
     );
-
-    this.update((state) => {
-      state.providers.selected = provider;
-      resetResource(state, 'paymentMethods');
-    });
-
-    if (tokenSupportedByProvider) {
-      this.#fireAndForget(
-        this.getPaymentMethods(regionCode, { provider: provider.id }),
-      );
+    if (compatible.length === 0) {
+      return false;
     }
+
+    const preferredIds = this.#getPreferredProviderIdsFromOrders().map(
+      normalizeHeadlessProviderId,
+    );
+    const preferred = preferredIds
+      .map((preferredId) =>
+        compatible.find(
+          (provider) =>
+            normalizeHeadlessProviderId(provider.id) === preferredId,
+        ),
+      )
+      .find((provider) => provider !== undefined);
+
+    this.setSelectedProvider(preferred ?? compatible[0], {
+      autoSelected: true,
+      ...options,
+    });
+    return true;
   }
 
   /**
@@ -1218,8 +2218,10 @@ export class RampsController extends BaseController<
    * This should be called once at app startup to set up the initial region.
    *
    * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
-   * Skips getCountries when countries are already loaded; skips geolocation when
-   * userRegion already exists.
+   * Force-refetches the countries catalog on startup (bypassing the in-session
+   * request cache) so region preset amounts stay current. The catalog is not
+   * persisted, so a cold start always re-fetches it regardless. Skips
+   * geolocation when userRegion already exists.
    *
    * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
    * @returns Promise that resolves when initialization is complete.
@@ -1247,20 +2249,18 @@ export class RampsController extends BaseController<
   }
 
   async #runInit(options?: ExecuteRequestOptions): Promise<void> {
-    const forceRefresh = options?.forceRefresh === true;
-    const hasCountries = this.state.countries.data.length > 0;
+    // Force-refetch the catalog on startup so region preset amounts stay
+    // current, bypassing the in-session request cache. The catalog is not
+    // persisted, so a cold start always re-fetches it regardless.
+    await this.getCountries({ ...options, forceRefresh: true });
 
-    if (forceRefresh || !hasCountries) {
-      await this.getCountries(options);
-    }
-
-    let regionCode: string | undefined;
-    if (forceRefresh) {
-      regionCode = await this.messenger.call('RampsService:getGeolocation');
-    } else {
-      regionCode = this.state.userRegion?.regionCode;
-      regionCode ??= await this.messenger.call('RampsService:getGeolocation');
-    }
+    // Always prefer the user's persisted region. Geolocation is only used to
+    // seed the initial value; once the user (or a prior init) has set a region
+    // we must respect that choice — even on forceRefresh.
+    const persistedRegionCode = this.state.userRegion?.regionCode;
+    const regionCode =
+      persistedRegionCode ??
+      (await this.messenger.call('RampsService:getGeolocation'));
 
     if (!regionCode) {
       throw new Error(
@@ -1268,7 +2268,43 @@ export class RampsController extends BaseController<
       );
     }
 
+    // For an already-persisted region, getCountries() has already re-synced it
+    // from the fresh catalog (see #syncUserRegionFromCountriesCatalog). Calling
+    // setUserRegion here would re-validate against that catalog and, if it is
+    // momentarily empty or no longer lists the region (e.g. a transient/partial
+    // catalog response or a region with no current provider coverage), throw and
+    // wipe the persisted region via #cleanupState. Preserve the existing region
+    // instead; only resolve a brand-new region (from geolocation) strictly.
+    if (persistedRegionCode) {
+      return;
+    }
+
     await this.setUserRegion(regionCode, options);
+  }
+
+  /**
+   * Re-applies `userRegion` from the current countries catalog so preset
+   * amounts and support flags stay in sync after a catalog refresh.
+   */
+  #syncUserRegionFromCountriesCatalog(): void {
+    const regionCode = this.state.userRegion?.regionCode;
+    if (!regionCode) {
+      return;
+    }
+
+    const countriesData = this.state.countries.data;
+    if (!countriesData.length) {
+      return;
+    }
+
+    const userRegion = findRegionFromCode(regionCode, countriesData);
+    if (!userRegion) {
+      return;
+    }
+
+    this.update((state) => {
+      state.userRegion = userRegion;
+    });
   }
 
   /**
@@ -1293,6 +2329,8 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.countries.data = Array.isArray(countries) ? [...countries] : [];
     });
+
+    this.#syncUserRegionFromCountriesCatalog();
 
     return countries;
   }
@@ -1354,6 +2392,33 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Exact CAIP-19 match, then a case-insensitive match for `eip155` ERC-20
+   * only. Solana, Tron, and Bitcoin references stay exact: their case is
+   * part of the id. The returned token keeps the catalog's own `assetId`.
+   *
+   * @param tokens - Region catalog from the top-tokens response.
+   * @param assetId - Caller CAIP-19 id.
+   * @returns The catalog token, or `undefined` when nothing matches.
+   */
+  #findTokenForAssetId(
+    tokens: TokensResponse,
+    assetId: string,
+  ): RampsToken | undefined {
+    const exact =
+      tokens.allTokens.find((tok) => tok.assetId === assetId) ??
+      tokens.topTokens.find((tok) => tok.assetId === assetId);
+    if (exact || !isEip155Erc20AssetId(assetId)) {
+      return exact;
+    }
+    const target = assetId.toLowerCase();
+    const matchesEvm = (tok: RampsToken): boolean =>
+      isEip155Erc20AssetId(tok.assetId) && tok.assetId.toLowerCase() === target;
+    return (
+      tokens.allTokens.find(matchesEvm) ?? tokens.topTokens.find(matchesEvm)
+    );
+  }
+
+  /**
    * Sets the user's selected token by asset ID.
    * Looks up the token from the current tokens in state and automatically
    * fetches payment methods for that token.
@@ -1365,12 +2430,11 @@ export class RampsController extends BaseController<
     if (!assetId) {
       this.update((state) => {
         state.tokens.selected = null;
-        resetResource(state, 'paymentMethods');
       });
       return;
     }
 
-    const regionCode = this.#requireRegion();
+    this.#requireRegion();
     const tokens = this.state.tokens.data;
     if (!tokens) {
       throw new Error(
@@ -1378,9 +2442,7 @@ export class RampsController extends BaseController<
       );
     }
 
-    const token =
-      tokens.allTokens.find((tok) => tok.assetId === assetId) ??
-      tokens.topTokens.find((tok) => tok.assetId === assetId);
+    const token = this.#findTokenForAssetId(tokens, assetId);
 
     if (!token) {
       throw new Error(
@@ -1390,12 +2452,7 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.tokens.selected = token;
-      resetResource(state, 'paymentMethods');
     });
-
-    this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { assetId: token.assetId }),
-    );
   }
 
   /**
@@ -1406,7 +2463,6 @@ export class RampsController extends BaseController<
    * @param options - Options for cache behavior and query filters.
    * @param options.provider - Provider ID(s) to filter by.
    * @param options.crypto - Crypto currency ID(s) to filter by.
-   * @param options.fiat - Fiat currency ID(s) to filter by.
    * @param options.payments - Payment method ID(s) to filter by.
    * @returns The providers response containing providers array.
    */
@@ -1415,10 +2471,9 @@ export class RampsController extends BaseController<
     options?: ExecuteRequestOptions & {
       provider?: string | string[];
       crypto?: string | string[];
-      fiat?: string | string[];
       payments?: string | string[];
     },
-  ): Promise<{ providers: Provider[] }> {
+  ): Promise<ProvidersResponse> {
     const regionToUse = region ?? this.#requireRegion();
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
@@ -1426,11 +2481,10 @@ export class RampsController extends BaseController<
       normalizedRegion,
       options?.provider,
       options?.crypto,
-      options?.fiat,
       options?.payments,
     ]);
 
-    const { providers } = await this.executeRequest(
+    const response = await this.executeRequest(
       cacheKey,
       async () => {
         return this.messenger.call(
@@ -1439,7 +2493,6 @@ export class RampsController extends BaseController<
           {
             provider: options?.provider,
             crypto: options?.crypto,
-            fiat: options?.fiat,
             payments: options?.payments,
           },
         );
@@ -1450,6 +2503,7 @@ export class RampsController extends BaseController<
         isResultCurrent: () => this.#isRegionCurrent(normalizedRegion),
       },
     );
+    const { providers } = response;
 
     this.update((state) => {
       const userRegionCode = state.userRegion?.regionCode;
@@ -1459,7 +2513,7 @@ export class RampsController extends BaseController<
       }
     });
 
-    return { providers };
+    return response;
   }
 
   /**
@@ -1468,7 +2522,6 @@ export class RampsController extends BaseController<
    *
    * @param region - User's region code (e.g. "fr", "us-ny").
    * @param options - Query parameters for filtering payment methods.
-   * @param options.fiat - Fiat currency code (e.g., "usd"). If not provided, uses the user's region currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
    * @returns The payment methods response containing payments array.
@@ -1476,30 +2529,19 @@ export class RampsController extends BaseController<
   async getPaymentMethods(
     region?: string,
     options?: ExecuteRequestOptions & {
-      fiat?: string;
       assetId?: string;
       provider?: string;
     },
   ): Promise<PaymentMethodsResponse> {
     const regionCode = region ?? this.#requireRegion();
-    const fiatToUse =
-      options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
     const assetIdToUse =
       options?.assetId ?? this.state.tokens.selected?.assetId ?? '';
     const providerToUse =
       options?.provider ?? this.state.providers.selected?.id ?? '';
 
-    if (!fiatToUse) {
-      throw new Error(
-        'Fiat currency is required. Either provide a fiat parameter or ensure userRegion is set in controller state.',
-      );
-    }
-
     const normalizedRegion = regionCode.toLowerCase().trim();
-    const normalizedFiat = fiatToUse.toLowerCase().trim();
     const cacheKey = createCacheKey('getPaymentMethods', [
       normalizedRegion,
-      normalizedFiat,
       assetIdToUse,
       providerToUse,
     ]);
@@ -1509,7 +2551,6 @@ export class RampsController extends BaseController<
       async () => {
         return this.messenger.call('RampsService:getPaymentMethods', {
           region: normalizedRegion,
-          fiat: normalizedFiat,
           assetId: assetIdToUse,
           provider: providerToUse,
         });
@@ -1553,38 +2594,213 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected payment method by ID.
-   * Looks up the payment method from the current payment methods in state.
+   * Fetches payment methods for a quoting context without coupling callers to
+   * the Buy flow's globally selected provider/token catalog.
    *
-   * @param paymentMethodId - The payment method ID (e.g., "/payments/debit-credit-card"), or null to clear.
-   * @throws If payment methods are not loaded or payment method is not found.
+   * Provider contribution mirrors {@link getQuotes}:
+   * - explicit `providers` (optionally filtered when
+   *   `restrictToKnownOrNativeProviders` is set)
+   * - auto-select / restrict path, including `moneyHeadlessAllProviders`
+   *   widening: flag off uses the restricted/native resolver; flag on uses
+   *   supporting providers, intersected with the flag allowlist when that
+   *   allowlist is non-empty (pick-survivor set for picker methods)
+   * - when those resolution flags and `providers` are omitted, uses only
+   *   `providers.selected` (UB2 selected-provider context)
+   *
+   * By default this is request-only: it does **not** mutate
+   * `paymentMethods.data` or `paymentMethods.selected`. Pass `updateState:
+   * true` only when the caller explicitly wants Buy-catalog write semantics
+   * (UB2). Headless / MM Pay selection stays TPC-owned. `updateState: true`
+   * throws when the resolved provider set holds more than one provider, because
+   * the write guards cannot tell two such requests apart.
+   *
+   * Methods are request-eligible for the resolved provider set; they are not
+   * guaranteed to produce a quote for every amount (provider fiat limits still
+   * apply at quote time).
+   *
+   * @param options - Context for the payment-method fetch.
+   * @param options.region - Region code. Defaults to `userRegion`.
+   * @param options.assetId - Required CAIP-19 quoting asset.
+   * @param options.providers - Explicit provider ids.
+   * @param options.autoSelectProvider - Resolve providers like `getQuotes`.
+   * @param options.preferredProviderIds - Preferred ids for auto-selection.
+   * @param options.restrictToKnownOrNativeProviders - Headless gating.
+   * @param options.updateState - When true, write `paymentMethods` state.
+   * @param options.preferPaymentMethodId - Preserve this id when still present.
+   * @param options.forceRefresh - Bypass request cache for provider fetches.
+   * @param options.ttl - Custom TTL for provider payment-method fetches.
+   * @returns Deduped methods, a request-only suggested selection, and the
+   *   provider ids that contributed.
    */
-  setSelectedPaymentMethod(paymentMethodId?: string): void {
-    if (!paymentMethodId) {
+  async getPaymentMethodsForContext(options: {
+    region?: string;
+    assetId: string;
+    providers?: string[];
+    autoSelectProvider?: boolean;
+    preferredProviderIds?: string[];
+    restrictToKnownOrNativeProviders?: boolean;
+    updateState?: boolean;
+    preferPaymentMethodId?: string;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): Promise<PaymentMethodsForContextResponse> {
+    const regionToUse = options.region ?? this.#requireRegion();
+    const normalizedRegion = regionToUse.toLowerCase().trim();
+    const assetId = options.assetId.trim();
+    if (assetId === '') {
+      throw new Error('assetId is required.');
+    }
+    const normalizedAssetContext = normalizeRampsAssetId(assetId);
+    const updateState = options.updateState === true;
+    const providerIdForState =
+      options.providers?.length === 1
+        ? options.providers[0].trim()
+        : (this.state.providers.selected?.id.trim() ?? '');
+
+    const providerIds = await this.#resolveProviderIdsForPaymentMethods({
+      assetId,
+      region: normalizedRegion,
+      providers: options.providers,
+      autoSelectProvider: options.autoSelectProvider,
+      preferredProviderIds: options.preferredProviderIds,
+      restrictToKnownOrNativeProviders:
+        options.restrictToKnownOrNativeProviders,
+    });
+
+    // A fan-out across several providers produces a merged catalog whose value
+    // depends on the provider set, but the write guards below only compare
+    // region, selected token, and selected provider. Two concurrent
+    // multi-provider requests share all three, so nothing distinguishes them
+    // and the slower one would silently overwrite the faster one.
+    if (updateState && providerIds.length > 1) {
+      throw new Error(
+        `getPaymentMethodsForContext cannot write paymentMethods state for ${providerIds.length} resolved providers. Use updateState: false, or request exactly one provider.`,
+      );
+    }
+
+    const writeContext = {
+      region: normalizedRegion,
+      assetId: normalizedAssetContext,
+      providerId: providerIdForState,
+    };
+
+    if (providerIds.length === 0) {
+      if (updateState) {
+        this.update((state) => {
+          if (contextStillMatches(state, writeContext)) {
+            state.paymentMethods.data = [];
+            state.paymentMethods.selected = null;
+          }
+        });
+      }
+      return { methods: [], selected: null, providerIds };
+    }
+
+    const settled = await Promise.allSettled(
+      providerIds.map(async (providerId) => {
+        const cacheKey = createCacheKey('getPaymentMethodsForContext', [
+          normalizedRegion,
+          assetId,
+          providerId,
+        ]);
+        return this.executeRequest(
+          cacheKey,
+          async () => {
+            return this.messenger.call('RampsService:getPaymentMethods', {
+              region: normalizedRegion,
+              assetId,
+              provider: providerId,
+            });
+          },
+          {
+            forceRefresh: options.forceRefresh,
+            ttl: options.ttl,
+            // Intentionally omit resourceType / isResultCurrent so this
+            // request-only path never drives Buy paymentMethods loading or
+            // selection state unless `updateState` is explicitly set below.
+          },
+        );
+      }),
+    );
+
+    const successfulLists: PaymentMethod[][] = [];
+    const failures: unknown[] = [];
+    for (const result of settled) {
+      if (result.status === 'fulfilled') {
+        successfulLists.push(result.value.payments);
+      } else {
+        failures.push(result.reason);
+      }
+    }
+
+    if (successfulLists.length === 0) {
+      const firstFailure = failures[0];
+      throw firstFailure instanceof Error
+        ? firstFailure
+        : new Error('Failed to fetch payment methods for context.');
+    }
+
+    const methods = mergePaymentMethodsById(successfulLists);
+    let selected = pickPaymentMethod(methods, [
+      options.preferPaymentMethodId,
+      this.state.paymentMethods.selected?.id,
+    ]);
+
+    if (updateState) {
+      this.update((state) => {
+        if (contextStillMatches(state, writeContext)) {
+          // The stored selection outranks the caller's preference: the user may
+          // have picked a method while this request was in flight.
+          selected = pickPaymentMethod(methods, [
+            state.paymentMethods.selected?.id,
+            options.preferPaymentMethodId,
+          ]);
+          state.paymentMethods.data = methods;
+          state.paymentMethods.selected = selected;
+        }
+      });
+    }
+
+    return { methods, selected, providerIds };
+  }
+
+  /**
+   * Sets the user's selected payment method.
+   *
+   * Accepts either a payment method ID (looked up from state) or a full
+   * PaymentMethod object (stored directly). The object form is preferred
+   * when the caller already has the full data (e.g. from React Query cache),
+   * as it avoids depending on controller state being populated.
+   *
+   * @param paymentMethodOrId - A PaymentMethod object, a payment method ID string, or undefined/null to clear.
+   */
+  setSelectedPaymentMethod(
+    paymentMethodOrId?: string | PaymentMethod | null,
+  ): void {
+    if (!paymentMethodOrId) {
       this.update((state) => {
         state.paymentMethods.selected = null;
       });
       return;
     }
 
-    const paymentMethods = this.state.paymentMethods.data;
-    if (!paymentMethods || paymentMethods.length === 0) {
-      throw new Error(
-        'Payment methods not loaded. Cannot set selected payment method before payment methods are fetched.',
-      );
+    // If a full object is passed, store it directly
+    if (typeof paymentMethodOrId !== 'string') {
+      this.update((state) => {
+        state.paymentMethods.selected = paymentMethodOrId;
+      });
+      return;
     }
 
-    const paymentMethod = paymentMethods.find(
+    // ID string: look up from state
+    const paymentMethodId = paymentMethodOrId;
+    const paymentMethods = this.state.paymentMethods.data;
+    const paymentMethod = paymentMethods?.find(
       (pm) => pm.id === paymentMethodId,
     );
-    if (!paymentMethod) {
-      throw new Error(
-        `Payment method with ID "${paymentMethodId}" not found in available payment methods.`,
-      );
-    }
 
     this.update((state) => {
-      state.paymentMethods.selected = paymentMethod;
+      state.paymentMethods.selected = paymentMethod ?? null;
     });
   }
 
@@ -1600,6 +2816,18 @@ export class RampsController extends BaseController<
    * @param options.walletAddress - The destination wallet address.
    * @param options.paymentMethods - Array of payment method IDs. If not provided, uses paymentMethods from state.
    * @param options.providers - Optional provider IDs to filter quotes.
+   * @param options.autoSelectProvider - When true and `providers` is omitted,
+   *   resolves a provider that supports `assetId` for this request only (no
+   *   state mutation). Ignored when `providers` is passed.
+   * @param options.preferredProviderIds - Optional provider IDs to prefer
+   *   during auto-selection, in priority order (e.g. derived by the caller
+   *   from completed-order history). Only used when `autoSelectProvider` is
+   *   true and `providers` is omitted.
+   * @param options.restrictToKnownOrNativeProviders - Headless-buy v0 gating. When
+   *   true, auto-selection resolves only a native provider, and an explicitly
+   *   passed `providers` list is filtered to those supporting the region and
+   *   asset. If nothing qualifies, `getQuotes` returns an empty response
+   *   instead of quoting other providers.
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @param options.action - The ramp action type. Defaults to 'buy'.
    * @param options.forceRefresh - Whether to bypass cache.
@@ -1614,6 +2842,9 @@ export class RampsController extends BaseController<
     walletAddress: string;
     paymentMethods?: string[];
     providers?: string[];
+    autoSelectProvider?: boolean;
+    preferredProviderIds?: string[];
+    restrictToKnownOrNativeProviders?: boolean;
     redirectUrl?: string;
     action?: RampAction;
     forceRefresh?: boolean;
@@ -1624,9 +2855,6 @@ export class RampsController extends BaseController<
     const paymentMethodsToUse =
       options.paymentMethods ??
       this.state.paymentMethods.data.map((pm: PaymentMethod) => pm.id);
-    const providersToUse =
-      options.providers ??
-      this.state.providers.data.map((provider: Provider) => provider.id);
     const action = options.action ?? 'buy';
     const assetIdToUse = options.assetId ?? this.state.tokens.selected?.assetId;
 
@@ -1639,6 +2867,63 @@ export class RampsController extends BaseController<
     const normalizedAssetIdForValidation = (assetIdToUse ?? '').trim();
     if (normalizedAssetIdForValidation === '') {
       throw new Error('assetId is required.');
+    }
+
+    // When the all-providers feature flag is enabled, widen the native-only
+    // auto-selection path to every supporting provider and pick the best
+    // quote from the results. Only the auto-select/restrict path that MM Pay's
+    // `getRampsQuote` uses is affected; explicit-`providers` callers and the
+    // plain all-provider path are untouched (and never read the flag).
+    const wantsAutoSelection =
+      !options.providers &&
+      (options.autoSelectProvider === true ||
+        options.restrictToKnownOrNativeProviders === true);
+    // Single flag read per call: the enabled bit and the allowlist come from
+    // the same `RemoteFeatureFlagController` state snapshot, so a flag edit
+    // during the awaited quote fetch cannot produce a mixed read.
+    const { enabled: allProvidersEnabled, allowlist: providerAllowlist } =
+      wantsAutoSelection
+        ? this.#resolveAllProvidersFlag()
+        : { enabled: false, allowlist: undefined };
+    const widenToAllProviders = wantsAutoSelection && allProvidersEnabled;
+
+    let providersToUse: string[];
+    let widenedProviderCatalog: Provider[] = this.state.providers.data;
+    if (options.providers) {
+      providersToUse = options.restrictToKnownOrNativeProviders
+        ? await this.#filterProviderIdsBySupport({
+            providerIds: options.providers,
+            assetId: normalizedAssetIdForValidation,
+            region: regionToUse,
+          })
+        : options.providers;
+    } else if (widenToAllProviders) {
+      // `#getSupportingProvidersForRegion` also hydrates the provider catalog
+      // when controller state is empty, so all-provider quoting cannot silently
+      // return zero providers here.
+      const { supporting } = await this.#getSupportingProvidersForRegion({
+        assetId: normalizedAssetIdForValidation,
+        region: regionToUse,
+      });
+      widenedProviderCatalog = supporting;
+      providersToUse = supporting.map((provider) => provider.id);
+    } else if (
+      options.autoSelectProvider ||
+      options.restrictToKnownOrNativeProviders
+    ) {
+      // The restriction flag implies resolution: it must narrow the provider
+      // set even when `autoSelectProvider` was not explicitly passed, otherwise
+      // it would be silently ignored and every provider quoted.
+      providersToUse = await this.#resolveProviderIdsForQuote({
+        assetId: normalizedAssetIdForValidation,
+        region: regionToUse,
+        preferredProviderIds: options.preferredProviderIds,
+        restrictToKnownOrNative: options.restrictToKnownOrNativeProviders,
+      });
+    } else {
+      providersToUse = this.state.providers.data.map(
+        (provider: Provider) => provider.id,
+      );
     }
 
     if (
@@ -1659,10 +2944,38 @@ export class RampsController extends BaseController<
       throw new Error('walletAddress is required.');
     }
 
+    // Under headless-buy gating, an empty resolved provider list means no
+    // eligible (native/supporting) provider exists. Return an empty response
+    // rather than passing `[]` to the service, which omits the provider filter
+    // and would quote every provider. This also guards the widened path:
+    // a caller may trigger widening with `autoSelectProvider` alone (no
+    // `restrictToKnownOrNativeProviders`), and an empty supporting set must not
+    // fall through to unfiltered quotes from providers that do not support the
+    // asset.
+    if (
+      (options.restrictToKnownOrNativeProviders || widenToAllProviders) &&
+      providersToUse.length === 0
+    ) {
+      return { success: [], sorted: [], error: [], customActions: [] };
+    }
+
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const normalizedFiat = fiatToUse.toLowerCase().trim();
     const normalizedAssetId = normalizedAssetIdForValidation;
     const normalizedWalletAddress = options.walletAddress.trim();
+
+    // The quotes API only embeds a `buyURL`/`buyWidget` when a `redirectUrl` is
+    // present, so on the widened path (where MM Pay omits one) ask the service
+    // for the callback URL of the environment it is configured with, so
+    // aggregator quotes carry a usable widget URL that always matches the
+    // environment the quotes came from. An explicit caller `redirectUrl`
+    // always wins, and the native-only path (flag off) never injects, so
+    // neither reaches the service.
+    const effectiveRedirectUrl =
+      options.redirectUrl ??
+      (widenToAllProviders
+        ? this.messenger.call('RampsService:getDefaultRedirectCallbackUrl')
+        : undefined);
 
     const cacheKey = createCacheKey('getQuotes', [
       normalizedRegion,
@@ -1672,7 +2985,7 @@ export class RampsController extends BaseController<
       normalizedWalletAddress,
       [...paymentMethodsToUse].sort().join(','),
       [...providersToUse].sort().join(','),
-      options.redirectUrl,
+      effectiveRedirectUrl,
       action,
     ]);
 
@@ -1684,11 +2997,11 @@ export class RampsController extends BaseController<
       walletAddress: normalizedWalletAddress,
       paymentMethods: paymentMethodsToUse,
       providers: providersToUse,
-      redirectUrl: options.redirectUrl,
+      redirectUrl: effectiveRedirectUrl,
       action,
     };
 
-    return this.executeRequest(
+    const response = await this.executeRequest(
       cacheKey,
       async () => {
         return this.messenger.call('RampsService:getQuotes', params);
@@ -1698,32 +3011,680 @@ export class RampsController extends BaseController<
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
       },
     );
+
+    if (!widenToAllProviders) {
+      return response;
+    }
+
+    // Reduce the widened multi-provider result to the single best quote
+    // and place it at `success[0]`, since single-pick consumers
+    // (`getRampsQuote` -> `success?.[0]`) rely on index 0 while `success[]`
+    // order is server-defined rather than ranked.
+    const selectedQuote = this.#pickWidenedQuote(response, {
+      amount: options.amount,
+      fiat: normalizedFiat,
+      providers: widenedProviderCatalog,
+      allowlist: providerAllowlist,
+    });
+
+    if (!selectedQuote) {
+      // No quote fits the published provider limits: surface "no quote"
+      // rather than handing the single-pick consumer an out-of-limits quote.
+      return {
+        success: [],
+        sorted: response.sorted,
+        error: response.error,
+        customActions: response.customActions,
+      };
+    }
+
+    return {
+      ...response,
+      success: [
+        selectedQuote,
+        ...response.success.filter((quote) => quote !== selectedQuote),
+      ],
+    };
+  }
+
+  /**
+   * Fetches the best on-ramp quote for a request and, when the resolved
+   * provider is Transak Native, reconciles its fees to match what Transak
+   * Native actually charges.
+   *
+   * The aggregator `/quotes` estimate of Transak's fee does not match the
+   * native integration. When the resolved provider is Transak Native this
+   * fetches the native buy quote (an unauthenticated, API-key-only lookup, so
+   * it is safe at estimate time) and rewrites the returned quote's fee fields
+   * to its `totalFee`, keeping the aggregator's `networkFee` on the network
+   * line and placing the remainder in the provider fee so the breakdown
+   * survives and `providerFee + networkFee` still equals the native total. A
+   * non-native provider, a failed lookup, or an unusable native fee returns the
+   * aggregator quote unchanged.
+   *
+   * Consumers (e.g. `TransactionPayController`) call this instead of owning the
+   * provider check, asset-id parsing, and second native quote themselves.
+   *
+   * @param options - Quote options; see {@link getQuotes}, plus the fee mode.
+   * @param options.amount - Fiat amount for the quote.
+   * @param options.assetId - CAIP-19 asset id being bought.
+   * @param options.fiat - Optional fiat currency; defaults like {@link getQuotes}.
+   * @param options.paymentMethods - Optional payment method ids.
+   * @param options.walletAddress - Wallet address receiving the on-ramped asset.
+   * @param options.isFeeExcludedFromFiat - Whether Transak adds its fee on top
+   * of the fiat amount (`true`, fee-on-top) or carves it out (`false`). Must
+   * mirror the eventual checkout mode so the estimate equals the charge.
+   * Defaults to `true`.
+   * @param options.providers - See {@link getQuotes}.
+   * @param options.autoSelectProvider - See {@link getQuotes}.
+   * @param options.restrictToKnownOrNativeProviders - See {@link getQuotes}.
+   * @param options.preferredProviderIds - See {@link getQuotes}.
+   * @param options.region - See {@link getQuotes}.
+   * @param options.redirectUrl - See {@link getQuotes}.
+   * @param options.action - See {@link getQuotes}.
+   * @param options.forceRefresh - See {@link getQuotes}.
+   * @param options.ttl - See {@link getQuotes}.
+   * @returns The best quote with native-reconciled fees, or `undefined` when
+   * no quote is available.
+   */
+  async getQuoteWithFees(options: {
+    amount: number;
+    assetId: string;
+    fiat?: string;
+    paymentMethods?: string[];
+    walletAddress: string;
+    isFeeExcludedFromFiat?: boolean;
+    providers?: string[];
+    autoSelectProvider?: boolean;
+    restrictToKnownOrNativeProviders?: boolean;
+    preferredProviderIds?: string[];
+    region?: string;
+    redirectUrl?: string;
+    action?: RampAction;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): Promise<Quote | undefined> {
+    const { isFeeExcludedFromFiat = true, ...quoteOptions } = options;
+
+    const response = await this.getQuotes(quoteOptions);
+    const quote = response.success?.[0];
+
+    if (!quote) {
+      return undefined;
+    }
+
+    return this.#reconcileNativeTransakFee(quote, {
+      amount: options.amount,
+      assetId: options.assetId,
+      fiat: options.fiat,
+      // Use the resolved quote's own payment method, not the request list: the
+      // aggregator may price a method other than `paymentMethods[0]` (or the
+      // caller may omit the list), and the native lookup must match the quote
+      // being reconciled.
+      paymentMethod: quote.quote.paymentMethod,
+      isFeeExcludedFromFiat,
+    });
+  }
+
+  /**
+   * Rewrites a quote's fees to Transak Native's own total when the resolved
+   * provider is Transak Native, so an estimate matches the native charge.
+   * Returns the quote unchanged for a non-native provider, a failed native
+   * lookup, or an unusable native fee.
+   *
+   * @param quote - The resolved aggregator quote.
+   * @param context - Native lookup inputs.
+   * @param context.amount - Fiat amount for the native quote.
+   * @param context.assetId - CAIP-19 asset id being bought.
+   * @param context.fiat - Fiat currency for the native quote.
+   * @param context.paymentMethod - Payment method id for the native quote.
+   * @param context.isFeeExcludedFromFiat - Fee mode for the native quote.
+   * @returns The quote with reconciled fees, or the original quote.
+   */
+  async #reconcileNativeTransakFee(
+    quote: Quote,
+    {
+      amount,
+      assetId,
+      fiat,
+      paymentMethod,
+      isFeeExcludedFromFiat,
+    }: {
+      amount: number;
+      assetId: string;
+      fiat?: string;
+      paymentMethod?: string;
+      isFeeExcludedFromFiat: boolean;
+    },
+  ): Promise<Quote> {
+    // `normalizeHeadlessProviderId` strips the `/providers/` prefix and
+    // lowercases, so `/providers/transak-native` and `transak-native` both match
+    // the native codes below (and the aggregator `transak` does not).
+    const providerCode = normalizeHeadlessProviderId(quote.provider);
+
+    if (!NATIVE_TRANSAK_PROVIDER_CODES.includes(providerCode)) {
+      return quote;
+    }
+
+    const fiatCurrency = fiat ?? this.state.userRegion?.country?.currency;
+
+    if (!fiatCurrency || !paymentMethod) {
+      return quote;
+    }
+
+    try {
+      const network = assetId.split('/')[0];
+
+      const nativeQuote = await this.messenger.call(
+        'TransakService:getBuyQuote',
+        fiatCurrency,
+        assetId,
+        network,
+        paymentMethod,
+        String(amount),
+        isFeeExcludedFromFiat,
+      );
+
+      const nativeTotalFee = new BigNumber(nativeQuote.totalFee ?? NaN);
+
+      if (!nativeTotalFee.isFinite() || nativeTotalFee.isLessThan(0)) {
+        return quote;
+      }
+
+      // Transak Native returns a single total fee, so keep the aggregator's
+      // network fee on the network line (clamped to the native total) and put
+      // the remainder in the provider fee. The breakdown survives and
+      // `providerFee + networkFee` still equals the native total.
+      const aggregatorNetworkFee = getSafeRampsFee(quote.quote.networkFee);
+      const networkFee = BigNumber.min(aggregatorNetworkFee, nativeTotalFee);
+      const providerFee = nativeTotalFee.minus(networkFee);
+
+      return {
+        ...quote,
+        quote: {
+          ...quote.quote,
+          providerFee: providerFee.toString(10),
+          networkFee: networkFee.toString(10),
+          totalFees: nativeTotalFee.toString(10),
+        },
+      };
+    } catch {
+      return quote;
+    }
+  }
+
+  /**
+   * Selects the best quote from a widened multi-provider response.
+   *
+   * Every provider class is eligible (native, in-app WebView aggregator, and
+   * external-browser / custom-action). When the feature flag payload carries a
+   * provider allowlist, candidates from unlisted providers are dropped first.
+   * Enforces per-provider fiat limits up front, then orders by reliability and
+   * falls back to price using the server-provided `sorted` order. Returns
+   * `undefined` when no quote survives.
+   *
+   * @param response - The multi-provider quotes response.
+   * @param options - Selection inputs.
+   * @param options.amount - Fiat amount, for the limit-fit check.
+   * @param options.fiat - Lowercased fiat short code, for the limit lookup.
+   * @param options.providers - Provider catalog for the limit lookup.
+   * @param options.allowlist - Optional provider ids (either `/providers/x`
+   * or bare form) the pick is restricted to.
+   * @returns The selected quote, or `undefined` when none is usable.
+   */
+  #pickWidenedQuote(
+    response: QuotesResponse,
+    {
+      amount,
+      fiat,
+      providers,
+      allowlist,
+    }: {
+      amount: number;
+      fiat: string;
+      providers: Provider[];
+      allowlist?: string[];
+    },
+  ): Quote | undefined {
+    const providerByCode = new Map(
+      providers.map((provider) => [provider.id, provider]),
+    );
+
+    const allowedProviderIds =
+      allowlist && allowlist.length > 0
+        ? new Set(allowlist.map(normalizeHeadlessProviderId))
+        : undefined;
+    const isAllowedProvider = (quote: Quote): boolean =>
+      !allowedProviderIds ||
+      allowedProviderIds.has(normalizeHeadlessProviderId(quote.provider));
+
+    const fitsProviderLimits = (quote: Quote): boolean => {
+      const provider = providerByCode.get(quote.provider);
+      const limit = provider?.limits?.fiat?.[fiat]?.[quote.quote.paymentMethod];
+      if (!limit) {
+        // No published limits for this provider/payment method: treat as
+        // eligible and let the provider enforce limits at checkout.
+        return true;
+      }
+      return amount >= limit.minAmount && amount <= limit.maxAmount;
+    };
+
+    const candidates = response.success.filter(
+      (quote) => isAllowedProvider(quote) && fitsProviderLimits(quote),
+    );
+    if (candidates.length === 0) {
+      return undefined;
+    }
+
+    const candidateByCode = new Map(
+      candidates.map((quote) => [quote.provider, quote]),
+    );
+
+    const pickBySortOrder = (sortBy: QuoteSortBy): Quote | undefined => {
+      const order = response.sorted.find(
+        (entry) => entry.sortBy === sortBy,
+      )?.ids;
+      if (!order) {
+        return undefined;
+      }
+      for (const providerId of order) {
+        const match = candidateByCode.get(providerId);
+        if (match) {
+          return match;
+        }
+      }
+      return undefined;
+    };
+
+    // Reliability first, then price, then the first surviving candidate.
+    return (
+      pickBySortOrder('reliability') ??
+      pickBySortOrder('price') ??
+      candidates[0]
+    );
+  }
+
+  /**
+   * Returns the region's providers that support the given asset, plus the full
+   * region provider list. Uses cached providers only when the request targets
+   * the current region; otherwise fetches for the requested region, since
+   * `getProviders` does not persist results for a non-current region. Does not
+   * mutate state.
+   *
+   * @param options - The options.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @returns The supporting providers and the full region provider list.
+   */
+  async #getSupportingProvidersForRegion({
+    assetId,
+    region,
+  }: {
+    assetId: string;
+    region: string;
+  }): Promise<{ supporting: Provider[]; all: Provider[] }> {
+    const normalizedRegion = region.toLowerCase().trim();
+
+    let providers: Provider[];
+    if (
+      this.#isRegionCurrent(normalizedRegion) &&
+      this.state.providers.data.length > 0
+    ) {
+      providers = this.state.providers.data;
+    } else {
+      ({ providers } = await this.getProviders(normalizedRegion));
+    }
+
+    // Case-insensitive CAIP-19 matching is shared with headless-buy consumers
+    // via `getProvidersServingAsset`, so the controller and the UI region gate
+    // cannot disagree about which providers serve the asset.
+    const supporting = getProvidersServingAsset(providers, assetId);
+
+    return { supporting, all: providers };
+  }
+
+  /**
+   * Filters an explicitly-requested provider ID list down to those that support
+   * the asset in the region. Used for headless-buy gating so an explicitly
+   * passed provider that cannot serve the region/asset yields no providers
+   * rather than being trusted blindly.
+   *
+   * @param options - The options.
+   * @param options.providerIds - Explicitly requested provider IDs.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @returns The subset of `providerIds` supporting the asset in the region.
+   */
+  async #filterProviderIdsBySupport({
+    providerIds,
+    assetId,
+    region,
+  }: {
+    providerIds: string[];
+    assetId: string;
+    region: string;
+  }): Promise<string[]> {
+    const { supporting } = await this.#getSupportingProvidersForRegion({
+      assetId,
+      region,
+    });
+    const supportingIds = new Set(supporting.map((provider) => provider.id));
+    return providerIds.filter((id) => supportingIds.has(id));
+  }
+
+  /**
+   * Resolves the provider IDs to use for a single quote request, scoped to the
+   * given asset and region. Does not mutate `providers.selected` or any other
+   * state.
+   *
+   * Resolves against the region's supporting providers using this precedence:
+   * 1. The currently selected provider, if it is in the supporting set.
+   * 2. The first preferred provider that supports the asset, where the
+   *    preference is taken from `preferredProviderIds` when supplied, otherwise
+   *    derived from the user's completed-order history (most recent first).
+   *    This takes priority over Transak Native to preserve an existing KYC
+   *    relationship.
+   * 3. A native provider (e.g. Transak Native).
+   * 4. The first supporting provider — unless `restrictToKnownOrNative` is set, in
+   *    which case no further provider is introduced and nothing is returned.
+   *
+   * When `restrictToKnownOrNative` is unset and no provider supports the asset, falls
+   * back to all known provider IDs so the request behaves as if no
+   * auto-selection occurred.
+   *
+   * @param options - The options.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @param options.preferredProviderIds - Provider IDs to prefer, in order.
+   * @param options.restrictToKnownOrNative - When true, resolve only a native provider
+   *   (or no providers when none supports the asset).
+   * @returns Provider IDs for this request only.
+   */
+  async #resolveProviderIdsForQuote({
+    assetId,
+    region,
+    preferredProviderIds,
+    restrictToKnownOrNative,
+  }: {
+    assetId: string;
+    region: string;
+    preferredProviderIds?: string[];
+    restrictToKnownOrNative?: boolean;
+  }): Promise<string[]> {
+    const { supporting, all } = await this.#getSupportingProvidersForRegion({
+      assetId,
+      region,
+    });
+
+    // When not restricted and nothing supports the asset, behave as if no
+    // auto-selection occurred (quote against all known providers).
+    if (!restrictToKnownOrNative && supporting.length === 0) {
+      return all.map((provider) => provider.id);
+    }
+
+    // 1. The currently selected provider, if it supports the asset.
+    const { selected } = this.state.providers;
+    if (
+      selected &&
+      supporting.some((provider) => provider.id === selected.id)
+    ) {
+      return [selected.id];
+    }
+
+    // 2. A provider the user has transacted with before — from
+    //    `preferredProviderIds` when supplied, otherwise completed-order
+    //    history. Takes priority over Transak Native to preserve an existing
+    //    KYC relationship and avoid churn.
+    const preferred =
+      preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
+
+    for (const preferredId of preferred) {
+      const match = supporting.find((provider) => provider.id === preferredId);
+      if (match) {
+        return [match.id];
+      }
+    }
+
+    // 3. A native provider (e.g. Transak Native).
+    const nativeProvider = supporting.find(
+      (provider) => provider.type === 'native',
+    );
+    if (nativeProvider) {
+      return [nativeProvider.id];
+    }
+
+    // 4. Fallback. Under headless gating, introduce no other provider — return
+    //    nothing so the caller surfaces an "unavailable" state. Otherwise the
+    //    aggregator and all other providers are treated equally: first wins.
+    if (restrictToKnownOrNative) {
+      return [];
+    }
+    return [supporting[0].id];
+  }
+
+  /**
+   * Resolves provider IDs that should contribute payment methods for a
+   * quoting context. Mirrors {@link getQuotes} provider-set selection, with
+   * one intentional difference on the widened path: when the all-providers
+   * flag allowlist is non-empty, returns supporting providers intersected
+   * with that allowlist (pick survivors for the picker). Does not mutate
+   * state.
+   *
+   * @param options - Resolution inputs aligned with `getQuotes`.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @param options.providers - Explicit provider IDs, when provided.
+   * @param options.autoSelectProvider - Resolve providers like `getQuotes`.
+   * @param options.preferredProviderIds - Preferred provider IDs in order.
+   * @param options.restrictToKnownOrNativeProviders - Headless gating.
+   * @returns Provider IDs for this request only.
+   */
+  async #resolveProviderIdsForPaymentMethods({
+    assetId,
+    region,
+    providers,
+    autoSelectProvider,
+    preferredProviderIds,
+    restrictToKnownOrNativeProviders,
+  }: {
+    assetId: string;
+    region: string;
+    providers?: string[];
+    autoSelectProvider?: boolean;
+    preferredProviderIds?: string[];
+    restrictToKnownOrNativeProviders?: boolean;
+  }): Promise<string[]> {
+    const wantsAutoSelection =
+      !providers &&
+      (autoSelectProvider === true ||
+        restrictToKnownOrNativeProviders === true);
+    const { enabled: allProvidersEnabled, allowlist: providerAllowlist } =
+      wantsAutoSelection
+        ? this.#resolveAllProvidersFlag()
+        : { enabled: false, allowlist: undefined };
+    const widenToAllProviders = wantsAutoSelection && allProvidersEnabled;
+
+    if (providers) {
+      return restrictToKnownOrNativeProviders
+        ? this.#filterProviderIdsBySupport({
+            providerIds: providers,
+            assetId,
+            region,
+          })
+        : providers;
+    }
+
+    if (widenToAllProviders) {
+      const { supporting } = await this.#getSupportingProvidersForRegion({
+        assetId,
+        region,
+      });
+      if (providerAllowlist && providerAllowlist.length > 0) {
+        const allowedProviderIds = new Set(
+          providerAllowlist.map(normalizeHeadlessProviderId),
+        );
+        return supporting
+          .filter((provider) =>
+            allowedProviderIds.has(normalizeHeadlessProviderId(provider.id)),
+          )
+          .map((provider) => provider.id);
+      }
+      return supporting.map((provider) => provider.id);
+    }
+
+    if (autoSelectProvider || restrictToKnownOrNativeProviders) {
+      return this.#resolveProviderIdsForQuote({
+        assetId,
+        region,
+        preferredProviderIds,
+        restrictToKnownOrNative: restrictToKnownOrNativeProviders,
+      });
+    }
+
+    const selectedId = this.state.providers.selected?.id;
+    return selectedId ? [selectedId] : [];
+  }
+
+  /**
+   * Derives an ordered list of provider IDs from the user's completed-order
+   * history, most recently completed first, with duplicates removed.
+   *
+   * Reads only this controller's own normalized order state, so it carries no
+   * dependency on any client-specific order representation.
+   *
+   * @returns Provider IDs ordered by most recent completed order.
+   */
+  #getPreferredProviderIdsFromOrders(): string[] {
+    const orderedIds: string[] = [];
+
+    const completedOrders = this.state.orders
+      .filter(
+        (order) =>
+          order.status === RampsOrderStatus.Completed && order.provider?.id,
+      )
+      .sort((orderA, orderB) => orderB.createdAt - orderA.createdAt);
+
+    for (const order of completedOrders) {
+      const id = order.provider?.id;
+      if (id && !orderedIds.includes(id)) {
+        orderedIds.push(id);
+      }
+    }
+
+    return orderedIds;
   }
 
   // === ORDER MANAGEMENT ===
 
   /**
    * Adds or updates a V2 order in controller state.
-   * If an order with the same providerOrderId already exists, the incoming
+   * If an order with the same internal order code already exists, the incoming
    * fields are merged on top of the existing order so that fields not present
    * in the update (e.g. paymentDetails from the Transak API) are preserved.
+   * Unchanged syncable payloads (including unchanged poll results) are ignored
+   * so `lastUpdatedAt` is not bumped and User Storage is not rewritten.
    *
    * @param order - The RampsOrder to add or update.
    */
   addOrder(order: RampsOrder): void {
+    const internalOrderCode = getInternalOrderCode(order);
+    if (!internalOrderCode) {
+      this.#onOrderSyncErroneousSituation?.(
+        'Unable to derive internal order code for addOrder',
+        {},
+      );
+      return;
+    }
+
+    const existing = this.state.orders.find(
+      (existingOrder) =>
+        getInternalOrderCode(existingOrder) === internalOrderCode,
+    );
+    if (
+      existing &&
+      !this.#isApplyingOrderSyncChanges &&
+      areOrdersEqual(existing, order)
+    ) {
+      // Syncable payload unchanged; check if paymentDetails differ.
+      // paymentDetails is local-only (never synced remotely), so if it's the
+      // only change we merge it without bumping lastUpdatedAt or writing remotely.
+      if (
+        order.paymentDetails &&
+        JSON.stringify(existing.paymentDetails) !==
+          JSON.stringify(order.paymentDetails)
+      ) {
+        this.update((state) => {
+          const idx = state.orders.findIndex(
+            (stateOrder) =>
+              getInternalOrderCode(stateOrder) === internalOrderCode,
+          );
+          if (idx !== -1) {
+            state.orders[idx] = {
+              ...state.orders[idx],
+              paymentDetails: order.paymentDetails,
+            };
+          }
+        });
+      }
+      return;
+    }
+
+    const incomingLastUpdatedAt = order.lastUpdatedAt;
+    // Local edits always bump lastUpdatedAt so full-sync LWW can prefer them
+    // over stale remote copies when an incremental push was skipped/failed.
+    // This includes external edits mid-sync (e.g. polling via `getOrder`),
+    // which the queued follow-up sync must not lose under LWW.
+    // Only when sync applies its own imported orders do we preserve the remote
+    // `lu` / `createdAt` (never invent "now" for missing `lu`, or stale remotes
+    // win later LWW comparisons).
+    const healedOrder: SyncRampsOrder = {
+      ...order,
+      providerOrderId: internalOrderCode,
+      lastUpdatedAt: this.#isApplyingOrderSyncChanges
+        ? (incomingLastUpdatedAt ?? order.createdAt ?? 0)
+        : Date.now(),
+    };
+
+    if (!this.#isApplyingOrderSyncChanges) {
+      this.#pendingRemoteDeletes.delete(internalOrderCode);
+    }
+
     this.update((state) => {
       const idx = state.orders.findIndex(
-        (existing) => existing.providerOrderId === order.providerOrderId,
+        (stateOrder) => getInternalOrderCode(stateOrder) === internalOrderCode,
       );
       if (idx === -1) {
-        state.orders.push(order as Draft<RampsOrder>);
+        state.orders.push(healedOrder);
       } else {
         state.orders[idx] = {
           ...state.orders[idx],
-          ...order,
-        } as Draft<RampsOrder>;
+          ...healedOrder,
+        };
       }
     });
+
+    if (this.#isOrderSyncingInProgress && !this.#isApplyingOrderSyncChanges) {
+      // Incremental push is suppressed during full sync; queue another full
+      // sync pass so mutations during the upload await are not dropped.
+      this.#orderSyncQueued = true;
+    } else if (!this.#isOrderSyncingInProgress) {
+      updateOrderInUserStorage(
+        healedOrder,
+        {
+          getRampsControllerInstance: () => this,
+          getMessenger: () => this.messenger,
+        },
+        {
+          onOrderSyncErroneousSituation: this.#onOrderSyncErroneousSituation,
+        },
+      ).catch((error) => {
+        console.error('Error updating ramps order in remote storage:', error);
+        this.#onOrderSyncErroneousSituation?.(
+          'Error updating ramps order in remote storage',
+          { error },
+        );
+      });
+    }
   }
 
   /**
@@ -1732,13 +3693,897 @@ export class RampsController extends BaseController<
    * @param providerOrderId - The provider order ID to remove.
    */
   removeOrder(providerOrderId: string): void {
+    const orderToRemove = this.state.orders.find(
+      (order) =>
+        order.providerOrderId === providerOrderId ||
+        getInternalOrderCode(order) === providerOrderId,
+    );
+
     this.update((state) => {
       state.orders = state.orders.filter(
-        (order) => order.providerOrderId !== providerOrderId,
+        (order) =>
+          order.providerOrderId !== providerOrderId &&
+          getInternalOrderCode(order) !== providerOrderId,
       );
     });
 
     this.#orderPollingMeta.delete(providerOrderId);
+
+    if (orderToRemove) {
+      if (orderToRemove.providerOrderId) {
+        this.#orderPollingMeta.delete(orderToRemove.providerOrderId);
+      }
+
+      const internalOrderCode = getInternalOrderCode(orderToRemove);
+      this.#orderPollingMeta.delete(internalOrderCode);
+    }
+
+    if (orderToRemove) {
+      const deleteKey = getInternalOrderCode(orderToRemove);
+      const isLocalDeletion = !this.#isApplyingOrderSyncChanges;
+
+      if (isLocalDeletion && deleteKey) {
+        // Retain the delete until a full sync confirms its tombstone was
+        // persisted. This prevents a failed incremental write from allowing
+        // the still-active remote copy to be imported again.
+        this.#pendingRemoteDeletes.set(deleteKey, orderToRemove);
+      }
+
+      if (this.#isOrderSyncingInProgress) {
+        if (isLocalDeletion) {
+          // Incremental remote deletes are gated off during full sync; queue a
+          // tombstone write and another full sync pass so deletes during the
+          // upload await are not dropped.
+          this.#orderSyncQueued = true;
+        }
+      } else if (isLocalDeletion) {
+        deleteOrderInUserStorage(
+          orderToRemove,
+          {
+            getRampsControllerInstance: () => this,
+            getMessenger: () => this.messenger,
+          },
+          {
+            onOrderSyncErroneousSituation: this.#onOrderSyncErroneousSituation,
+          },
+        ).catch((error) => {
+          console.error(
+            'Error deleting ramps order from remote storage:',
+            error,
+          );
+          this.#onOrderSyncErroneousSituation?.(
+            'Error deleting ramps order from remote storage',
+            { error },
+          );
+        });
+      }
+    }
+  }
+
+  /**
+   * Bidirectionally syncs V2 ramps orders with User Storage.
+   * Hosts should call this on unlock / when ramps syncing is enabled.
+   *
+   * Overlapping calls are coalesced into the in-flight worker. After the worker
+   * settles, this method loops when `#orderSyncQueued` is still set so a
+   * request that arrived between the worker's last loop check and promise
+   * resolution is not dropped.
+   */
+  async syncOrdersWithUserStorage(): Promise<void> {
+    this.#orderSyncQueued = true;
+    let syncError: Error | undefined;
+
+    while (this.#orderSyncQueued || this.#orderSyncPromise) {
+      if (this.#orderSyncPromise) {
+        try {
+          await this.#orderSyncPromise;
+        } catch (error) {
+          syncError ??=
+            error instanceof Error ? error : new Error(String(error));
+        }
+        continue;
+      }
+
+      this.#orderSyncPromise = (async (): Promise<void> => {
+        while (this.#orderSyncQueued) {
+          this.#orderSyncQueued = false;
+          await syncOrdersWithUserStorageInternal(
+            {
+              onOrderSyncErroneousSituation:
+                this.#onOrderSyncErroneousSituation,
+            },
+            {
+              getRampsControllerInstance: () => this,
+              getMessenger: () => this.messenger,
+              trace: this.#trace,
+            },
+          );
+        }
+        // Yield so a caller can set `#orderSyncQueued` after the inner while
+        // check and still be observed by the outer loop.
+        await Promise.resolve();
+      })();
+
+      try {
+        await this.#orderSyncPromise;
+      } catch (error) {
+        syncError ??= error instanceof Error ? error : new Error(String(error));
+      } finally {
+        this.#orderSyncPromise = null;
+      }
+    }
+
+    if (syncError) {
+      throw syncError;
+    }
+  }
+
+  /**
+   * Adds or updates a local autoramp last-seen cursor (e.g. after create).
+   *
+   * @param accountOrInput - Full account or create fields.
+   * @returns The upserted {@link AutorampAccount}.
+   */
+  addAutoramp(
+    accountOrInput:
+      | AutorampAccount
+      | {
+          id: string;
+          customerId: string;
+          walletAddress: string;
+          status?: AutorampAccount['status'] | string;
+        },
+  ): AutorampAccount {
+    const account: AutorampAccount = isFullAutorampAccount(accountOrInput)
+      ? accountOrInput
+      : createAutorampAccount(accountOrInput);
+
+    this.update((state) => {
+      const idx = state.autoramps.findIndex(
+        (existing) => existing.id === account.id,
+      );
+      if (idx === -1) {
+        state.autoramps.push(account);
+      } else {
+        state.autoramps[idx] = {
+          ...state.autoramps[idx],
+          ...account,
+        };
+      }
+    });
+
+    return (
+      this.state.autoramps.find((existing) => existing.id === account.id) ??
+      account
+    );
+  }
+
+  /**
+   * Creates an autoramp via the neo-bank proxy and applies the returned
+   * snapshot as the local last-seen cursor.
+   *
+   * The vendor `customer_id` is resolved via
+   * {@link RampsController.resolveAutorampCustomerId} and injected into the
+   * request (any caller-supplied `customer_id` is overwritten). The caller
+   * supplies the fiat body. When that body names a source fiat and a
+   * recipient wallet, the idempotency key is derived from that fiat
+   * (`brl-musd-monad` or `usd-musd-monad`), the customer, the wallet, and
+   * rejected or cancelled autoramp ids. A caller-supplied key is used only
+   * when the body has no source fiat or recipient address.
+   *
+   * @param request - CreateAutoramp payload, including the source fiat.
+   * @param options - Optional idempotency key forwarded when the body does
+   * not identify a fiat route.
+   * @param options.idempotencyKey - Value sent as `Idempotency-Key`.
+   * @returns The created/updated local {@link AutorampAccount}.
+   */
+  async createAutoramp(
+    request: CreateAutorampRequest,
+    options: { idempotencyKey?: string } = {},
+  ): Promise<AutorampAccount> {
+    const customerId = await this.resolveAutorampCustomerId();
+    const fiatCode = readCreateAutorampFiatCode(request);
+    const walletAddress = readCreateAutorampWalletAddress(request);
+    const requestOptions =
+      fiatCode && walletAddress
+        ? {
+            ...options,
+            idempotencyKey: buildMusdAutorampIdempotencyKey(
+              fiatCode,
+              customerId,
+              walletAddress,
+              this.#terminalAutorampIdsForWallet(walletAddress),
+            ),
+          }
+        : options;
+
+    const body = { ...request, customer_id: customerId };
+    const remote = await this.messenger.call(
+      'NeoBankService:createAutoramp',
+      body,
+      requestOptions,
+    );
+    return this.#applyAutorampRemoteSnapshot(remote);
+  }
+
+  /**
+   * Resolves the vendor `customer_id` for autoramp / Money Account operations.
+   *
+   * Maps the wallet's Profile Sync id (the partner `external_id`) to the
+   * vendor customer via `GET /neobank/customers/{external_id}/external`.
+   *
+   * @returns The vendor customer id.
+   */
+  async resolveAutorampCustomerId(): Promise<string> {
+    return (await this.#resolveMoonpayCustomer()).id;
+  }
+
+  /**
+   * Loads the MoonPay customer for the signed-in profile, including lifecycle
+   * `status`. Wallet registration is allowed only when that status is `Active`.
+   *
+   * @returns The customer id and status.
+   */
+  async #resolveMoonpayCustomer(): Promise<MoonpayCustomerRecord> {
+    const profile = await this.messenger.call(
+      'AuthenticationController:getSessionProfile',
+    );
+    const canonical = profile?.canonicalProfileId;
+    const externalId =
+      typeof canonical === 'string' && canonical.length > 0
+        ? canonical
+        : profile?.profileId;
+    if (typeof externalId !== 'string' || externalId.length === 0) {
+      throw new Error(
+        'Cannot resolve MoonPay customer id: wallet is not signed in to Profile Sync.',
+      );
+    }
+
+    const customer = readMoonpayCustomerRecord(
+      await this.messenger.call(
+        'NeoBankService:getCustomerByExternalId',
+        externalId,
+      ),
+    );
+    if (!customer) {
+      throw new Error(
+        `Cannot resolve MoonPay customer id: no MoonPay customer is mapped to external id "${externalId}".`,
+      );
+    }
+    return customer;
+  }
+
+  /**
+   * Registers a Money Account wallet with MoonPay Iron via neobank-proxy.
+   *
+   * @param params - Money Account wallet registration parameters.
+   * @param params.address - Monad Money Account address.
+   * @returns The registration state, or `{ type: 'lookupUnavailable' }` when
+   * the address-list lookup fails (never treated as unregistered).
+   */
+  async registerMoneyAccountWallet({
+    address,
+  }: {
+    address: string;
+  }): Promise<MoneyAccountWalletRegistrationResult> {
+    let machine = transitionWalletRegistration(
+      createInitialWalletRegistrationState(),
+      { type: 'START' },
+    );
+
+    const toExistingResult = (
+      status: RegistrationStatus,
+    ): MoneyAccountWalletRegistrationResult | undefined => {
+      if (status.type === 'active') {
+        return { type: 'alreadyRegistered', registration: status.registration };
+      }
+      if (status.type === 'disabled') {
+        return {
+          type: 'registeredDisabled',
+          registration: status.registration,
+        };
+      }
+      return undefined;
+    };
+
+    const customer = await this.#resolveMoonpayCustomer();
+    const { id: customerId } = customer;
+
+    const toLookupUnavailableResult = (
+      error: unknown,
+    ): LookupUnavailableResult => {
+      machine = transitionWalletRegistration(machine, {
+        type: 'LOOKUP_FAILED',
+      });
+      return {
+        type: 'lookupUnavailable',
+        error:
+          error instanceof WalletRegistrationError
+            ? error
+            : new WalletRegistrationError('lookupUnavailable', {
+                message: 'self-hosted address lookup failed',
+                body: error instanceof Error ? error.message : undefined,
+              }),
+      };
+    };
+
+    const lookup = async (): Promise<
+      RegistrationStatus | LookupUnavailableResult
+    > => {
+      try {
+        return await this.messenger.call(
+          'NeoBankService:getWalletRegistrationStatus',
+          { customerId, address },
+        );
+      } catch (error) {
+        return toLookupUnavailableResult(error);
+      }
+    };
+
+    const applyLookup = (
+      status: RegistrationStatus,
+    ): MoneyAccountWalletRegistrationResult | undefined => {
+      let eventType: 'LOOKUP_ACTIVE' | 'LOOKUP_DISABLED' | 'LOOKUP_ABSENT' =
+        'LOOKUP_ABSENT';
+      if (status.type === 'active') {
+        eventType = 'LOOKUP_ACTIVE';
+      } else if (status.type === 'disabled') {
+        eventType = 'LOOKUP_DISABLED';
+      }
+      machine = transitionWalletRegistration(machine, {
+        type: eventType,
+      });
+      return toExistingResult(status);
+    };
+
+    const resolveLookup = async (): Promise<
+      MoneyAccountWalletRegistrationResult | undefined
+    > => {
+      const status = await lookup();
+      if (status.type === 'lookupUnavailable') {
+        return status;
+      }
+      return applyLookup(status);
+    };
+
+    const existingResult = await resolveLookup();
+    if (existingResult) {
+      return this.#finishMoneyAccountWalletRegistration(
+        address,
+        existingResult,
+      );
+    }
+
+    if (customer.status !== 'Active') {
+      throw new WalletRegistrationError('forbidden', {
+        message:
+          'MoonPay customer must be Active before a self-hosted wallet can be registered',
+      });
+    }
+
+    let idempotencyKey = createIdempotencyKey();
+    let lastMessage: string | undefined;
+
+    while (true) {
+      const message = buildOwnershipMessage({
+        address,
+        customerId,
+        now: new Date(),
+      });
+      if (lastMessage !== undefined && message !== lastMessage) {
+        idempotencyKey = createIdempotencyKey();
+      }
+      lastMessage = message;
+
+      let signature: string;
+      try {
+        signature = await this.messenger.call(
+          'KeyringController:signPersonalMessage',
+          { data: message, from: address },
+        );
+        machine = transitionWalletRegistration(machine, { type: 'SIGN_OK' });
+      } catch (error) {
+        machine = transitionWalletRegistration(machine, {
+          type: 'SIGN_FAILED',
+          retryable: false,
+        });
+        throw error;
+      }
+
+      try {
+        const result = await this.messenger.call(
+          'NeoBankService:registerSelfHostedWallet',
+          {
+            address,
+            customerId,
+            message,
+            signature,
+            idempotencyKey,
+          },
+        );
+        machine = transitionWalletRegistration(machine, { type: 'SUBMIT_OK' });
+        return this.#finishMoneyAccountWalletRegistration(address, result);
+      } catch (error) {
+        if (!(error instanceof WalletRegistrationError)) {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_TERMINAL',
+          });
+          throw error;
+        }
+
+        if (error.kind === 'conflict') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_CONFLICT',
+          });
+        } else if (error.kind === 'transient') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_TRANSIENT',
+          });
+        } else if (error.kind === 'validation') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_VALIDATION',
+            utcRollover:
+              buildOwnershipMessage({
+                address,
+                customerId,
+                now: new Date(),
+              }) !== message,
+          });
+        } else if (error.kind === 'rateLimited') {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_RATE_LIMITED',
+          });
+        } else {
+          machine = transitionWalletRegistration(machine, {
+            type: 'SUBMIT_TERMINAL',
+          });
+        }
+
+        if (
+          machine.status === 'disambiguate409' ||
+          machine.status === 'checkThenRetry'
+        ) {
+          const reconciledResult = await resolveLookup();
+          if (reconciledResult) {
+            return this.#finishMoneyAccountWalletRegistration(
+              address,
+              reconciledResult,
+            );
+          }
+        }
+
+        if (machine.status !== 'signing') {
+          throw error;
+        }
+      }
+    }
+  }
+
+  /**
+   * Reads VBA onboarding facts. Hosts map the returned
+   * {@link VbaOnboardingSnapshot} onto their own funnel; this method does not
+   * name screens.
+   *
+   * The read uses the persisted KYC session. `refreshKyc` performs one
+   * session-status GET when a session id is already stored and `finalStatus`
+   * is not terminal. `refreshAutoramps` lists autoramps when KYC is approved,
+   * unless this wallet already has a usable route. An approved session with no
+   * usable autoramp returns `needs_wallet_registration` or
+   * `needs_source_currency` only when
+   * `GET /neobank/customers/{external_id}/external` reports
+   * `status: 'Active'`. Any other customer status returns `not_ready`.
+   * It does not sign, post a self-hosted address, create an autoramp, or start
+   * KYC polling.
+   *
+   * Overlapping calls share one run.
+   *
+   * @param params - VBA onboarding parameters.
+   * @param params.walletAddress - Monad Money Account wallet address.
+   * @param params.refreshKyc - When true, fetch session status once for a
+   * non-terminal persisted session. A failed GET keeps that session. Defaults
+   * to false.
+   * @param params.refreshAutoramps - When true, replace the autoramp cursor
+   * from `GET /neobank/autoramps` unless a usable route is already stored.
+   * Defaults to false.
+   * @returns Independent KYC and autoramp facts for the current customer.
+   */
+  async hydrateVbaOnboarding({
+    walletAddress,
+    refreshKyc = false,
+    refreshAutoramps = false,
+  }: {
+    walletAddress: string;
+    refreshKyc?: boolean;
+    refreshAutoramps?: boolean;
+  }): Promise<VbaOnboardingSnapshot> {
+    if (this.#vbaOnboardingHydrationPromise) {
+      return await this.#vbaOnboardingHydrationPromise;
+    }
+
+    const hydrationPromise = this.#hydrateVbaOnboarding({
+      walletAddress,
+      refreshKyc,
+      refreshAutoramps,
+    });
+    this.#vbaOnboardingHydrationPromise = hydrationPromise;
+
+    try {
+      return await hydrationPromise;
+    } finally {
+      if (this.#vbaOnboardingHydrationPromise === hydrationPromise) {
+        this.#vbaOnboardingHydrationPromise = null;
+      }
+    }
+  }
+
+  async #hydrateVbaOnboarding({
+    walletAddress,
+    refreshKyc,
+    refreshAutoramps,
+  }: {
+    walletAddress: string;
+    refreshKyc: boolean;
+    refreshAutoramps: boolean;
+  }): Promise<VbaOnboardingSnapshot> {
+    let session = this.messenger.call('KycController:readSessionStatus');
+
+    // A persisted session can outlive the identity that created it. Reusing it
+    // makes session-scoped calls fail closed. Discard it before any fetch, with
+    // the registration rows and autoramp cursor it left behind, since neither
+    // is keyed by profile.
+    if (session && !(await this.#isVbaSessionOwnedByCurrentProfile(session))) {
+      this.messenger.call('KycController:clearState');
+      this.update((state) => {
+        state.moneyAccountWalletRegistrations = [];
+        state.autoramps = [];
+        state.vbaAutorampListFetchedAt = null;
+      });
+      return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
+    }
+
+    if (
+      refreshKyc &&
+      session?.id &&
+      !TERMINAL_VBA_KYC_FINAL_STATUSES.has(session.finalStatus)
+    ) {
+      try {
+        session = await this.messenger.call(
+          'KycController:fetchSessionStatusOnce',
+          session.id,
+        );
+      } catch (error) {
+        if (error instanceof HttpError && error.httpStatus === 404) {
+          this.messenger.call('KycController:clearState');
+          return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
+        }
+        // The persisted session is already in hand. A transient status GET
+        // must not reject the read.
+      }
+    }
+
+    if (!session) {
+      return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
+    }
+
+    const vendorDisclaimersComplete = await this.messenger.call(
+      'KycController:hasCompletedVendorDisclaimers',
+    );
+    const sessionDisclaimersComplete = await this.messenger.call(
+      'KycController:hasCompletedSessionDisclaimers',
+    );
+    const providerFlowStatus = this.messenger.call(
+      'KycController:getProviderFlowStatus',
+    );
+
+    const snapshot: VbaOnboardingSnapshot = {
+      sessionExists: true,
+      vendorDisclaimersComplete,
+      sessionDisclaimersComplete,
+      providerFlowStatus,
+      kycStatus: resolveVbaKycStatus(session, providerFlowStatus),
+      autorampStatus: 'not_ready',
+    };
+
+    if (snapshot.kycStatus !== 'approved') {
+      return snapshot;
+    }
+    if (!walletAddress.trim()) {
+      throw new Error('walletAddress is required after KYC acceptance.');
+    }
+
+    if (this.#hasUsableAutorampForWallet(walletAddress)) {
+      return { ...snapshot, autorampStatus: 'ready' };
+    }
+
+    if (refreshAutoramps) {
+      try {
+        await this.#replaceAutorampCursorFromList();
+      } catch {
+        return { ...snapshot, autorampStatus: 'retryable_failure' };
+      }
+      if (this.#hasUsableAutorampForWallet(walletAddress)) {
+        return { ...snapshot, autorampStatus: 'ready' };
+      }
+    }
+
+    let customer: MoonpayCustomerRecord;
+    try {
+      customer = await this.#resolveMoonpayCustomer();
+    } catch {
+      return { ...snapshot, autorampStatus: 'retryable_failure' };
+    }
+    if (customer.status !== 'Active') {
+      return { ...snapshot, autorampStatus: 'not_ready' };
+    }
+
+    const registration = this.state.moneyAccountWalletRegistrations.find(
+      (row) =>
+        row.walletAddress.trim().toLowerCase() ===
+        walletAddress.trim().toLowerCase(),
+    );
+    if (!registration) {
+      return { ...snapshot, autorampStatus: 'needs_wallet_registration' };
+    }
+    return { ...snapshot, autorampStatus: 'needs_source_currency' };
+  }
+
+  /**
+   * Writes the registration row after a successful register outcome.
+   * `lookupUnavailable` writes nothing.
+   *
+   * @param address - Money Account wallet address.
+   * @param result - Registration outcome.
+   * @returns The same outcome.
+   */
+  #finishMoneyAccountWalletRegistration(
+    address: string,
+    result: MoneyAccountWalletRegistrationResult,
+  ): MoneyAccountWalletRegistrationResult {
+    if (result.type === 'lookupUnavailable') {
+      return result;
+    }
+    const normalized = address.trim().toLowerCase();
+    const status = result.type === 'registeredDisabled' ? 'disabled' : 'active';
+    const row: MoneyAccountWalletRegistration = {
+      walletAddress: normalized,
+      status,
+      updatedAt: Date.now(),
+    };
+    this.update((state) => {
+      const index = state.moneyAccountWalletRegistrations.findIndex(
+        (existing) =>
+          existing.walletAddress.trim().toLowerCase() === normalized,
+      );
+      if (index === -1) {
+        state.moneyAccountWalletRegistrations.push(row);
+      } else {
+        state.moneyAccountWalletRegistrations[index] = row;
+      }
+    });
+    return result;
+  }
+
+  /**
+   * Ids of rejected or cancelled autoramps for a wallet, used in create keys.
+   *
+   * @param walletAddress - Destination wallet address.
+   * @returns Terminal autoramp ids for that wallet.
+   */
+  #terminalAutorampIdsForWallet(walletAddress: string): string[] {
+    const normalized = walletAddress.trim().toLowerCase();
+    return this.state.autoramps
+      .filter(
+        (autoramp) =>
+          autoramp.walletAddress.toLowerCase() === normalized &&
+          (autoramp.status === AutorampStatus.Rejected ||
+            autoramp.status === AutorampStatus.Cancelled),
+      )
+      .map((autoramp) => autoramp.id);
+  }
+
+  /**
+   * Whether this wallet has an autoramp that is not Rejected or Cancelled.
+   *
+   * @param walletAddress - Destination wallet address.
+   * @returns Whether a usable route is already on the cursor.
+   */
+  #hasUsableAutorampForWallet(walletAddress: string): boolean {
+    const normalized = walletAddress.trim().toLowerCase();
+    return this.state.autoramps.some(
+      (autoramp) =>
+        autoramp.walletAddress.toLowerCase() === normalized &&
+        autoramp.status !== AutorampStatus.Rejected &&
+        autoramp.status !== AutorampStatus.Cancelled,
+    );
+  }
+
+  /**
+   * Replaces the autoramp cursor from `GET /neobank/autoramps` and records
+   * `vbaAutorampListFetchedAt` only after that GET succeeds.
+   */
+  async #replaceAutorampCursorFromList(): Promise<void> {
+    const customerId = await this.resolveAutorampCustomerId();
+    const remoteAutoramps = await this.messenger.call(
+      'NeoBankService:getAutoramps',
+      { customerId },
+    );
+    const remoteAutorampIds = new Set(
+      remoteAutoramps.map((autoramp) => autoramp.id),
+    );
+    for (const autoramp of remoteAutoramps) {
+      this.#applyAutorampRemoteSnapshot(autoramp);
+    }
+    this.update((state) => {
+      state.autoramps = state.autoramps.filter((autoramp) =>
+        remoteAutorampIds.has(autoramp.id),
+      );
+      state.vbaAutorampListFetchedAt = Date.now();
+    });
+  }
+
+  /**
+   * Whether a persisted KYC session belongs to the currently signed-in profile.
+   * A session's `externalUserId` is the canonical profile id captured when the
+   * session was created, so it must match the current profile for the session
+   * to be reused. When the current identity cannot be resolved, err on the side
+   * of keeping the session (return `true`) so a transient profile-read failure
+   * never discards a valid session.
+   *
+   * @param session - The persisted KYC session status to check.
+   * @returns Whether the session is owned by the current profile.
+   */
+  async #isVbaSessionOwnedByCurrentProfile(
+    session: KycControllerSessionStatus,
+  ): Promise<boolean> {
+    const profile = await this.messenger.call(
+      'AuthenticationController:getSessionProfile',
+    );
+    const canonicalId =
+      typeof profile?.canonicalProfileId === 'string' &&
+      profile.canonicalProfileId.length > 0
+        ? profile.canonicalProfileId
+        : profile?.profileId;
+    if (typeof canonicalId !== 'string' || canonicalId.length === 0) {
+      return true;
+    }
+    return session.externalUserId === canonicalId;
+  }
+
+  /**
+   * Removes a local autoramp last-seen cursor by id.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   */
+  removeAutoramp(autorampId: string): void {
+    this.update((state) => {
+      state.autoramps = state.autoramps.filter(
+        (autoramp) => autoramp.id !== autorampId,
+      );
+    });
+  }
+
+  /**
+   * Marks that the UI has already notified for the autoramp's current status.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   */
+  markAutorampAsNotified(autorampId: string): void {
+    const existing = this.state.autoramps.find(
+      (autoramp) => autoramp.id === autorampId,
+    );
+    if (!existing) {
+      return;
+    }
+    const notified = markAutorampNotified(existing);
+    this.update((state) => {
+      const idx = state.autoramps.findIndex(
+        (autoramp) => autoramp.id === autorampId,
+      );
+      if (idx !== -1) {
+        state.autoramps[idx] = notified;
+      }
+    });
+  }
+
+  /**
+   * Applies a remote autoramp snapshot from a websocket / webhook push.
+   *
+   * @param remote - Remote autoramp snapshot.
+   * @returns The updated local account.
+   */
+  applyAutorampStatusFromPush(remote: AutorampRemoteSnapshot): AutorampAccount {
+    return this.#applyAutorampRemoteSnapshot(remote);
+  }
+
+  /**
+   * Fetches one autoramp from the neo-bank proxy and applies it to the
+   * last-seen cursor. Does not recreate a cursor that was removed while the
+   * request was in flight.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @returns The updated local account, or an unpersisted snapshot if the
+   * cursor was removed during the fetch.
+   */
+  async refreshAutoramp(autorampId: string): Promise<AutorampAccount> {
+    const remote = await this.messenger.call(
+      'NeoBankService:getAutoramp',
+      autorampId,
+    );
+    return this.#applyAutorampRemoteSnapshot(remote, { allowInsert: false });
+  }
+
+  /**
+   * Refreshes all known local autoramps from MoonPay.
+   * Intended for app resume / unlock catch-up when webhooks were missed.
+   *
+   * @returns Updated autoramp accounts (failed fetches are skipped).
+   */
+  async refreshAutoramps(): Promise<AutorampAccount[]> {
+    const ids = this.state.autoramps.map((autoramp) => autoramp.id);
+    const updated: AutorampAccount[] = [];
+
+    for (const id of ids) {
+      try {
+        const account = await this.refreshAutoramp(id);
+        if (
+          this.state.autoramps.some((autoramp) => autoramp.id === account.id)
+        ) {
+          updated.push(account);
+        }
+      } catch {
+        // Keep local cursor for this id; continue remaining refreshes.
+      }
+    }
+
+    return updated;
+  }
+
+  /**
+   * Applies a remote snapshot to the last-seen cursor.
+   *
+   * @param remote - MoonPay snapshot.
+   * @param options - Apply options.
+   * @param options.allowInsert - When false, a missing local cursor is not
+   * recreated (used by refresh so a concurrent `removeAutoramp` wins).
+   * @returns The applied account. When `allowInsert` is false and no local
+   * cursor exists, the snapshot is returned without writing state.
+   */
+  #applyAutorampRemoteSnapshot(
+    remote: AutorampRemoteSnapshot,
+    { allowInsert = true }: { allowInsert?: boolean } = {},
+  ): AutorampAccount {
+    const local =
+      this.state.autoramps.find((autoramp) => autoramp.id === remote.id) ??
+      null;
+    if (local === null && !allowInsert) {
+      return applyAutorampRemoteStatus(null, remote).account;
+    }
+    const result = applyAutorampRemoteStatus(local, remote);
+
+    this.update((state) => {
+      const idx = state.autoramps.findIndex(
+        (autoramp) => autoramp.id === result.account.id,
+      );
+      if (idx === -1) {
+        state.autoramps.push(result.account);
+      } else {
+        state.autoramps[idx] = result.account;
+      }
+    });
+
+    if (result.statusChanged) {
+      this.messenger.publish('RampsController:autorampStatusChanged', {
+        autoramp: result.account,
+        previousStatus: result.previousStatus,
+        shouldNotify: result.shouldNotify,
+      });
+    }
+
+    return (
+      this.state.autoramps.find(
+        (autoramp) => autoramp.id === result.account.id,
+      ) ?? result.account
+    );
   }
 
   /**
@@ -1753,12 +4598,11 @@ export class RampsController extends BaseController<
       return;
     }
 
-    const providerCodeSegment = normalizeProviderCode(providerCode);
     const previousStatus = order.status;
 
     try {
       const updatedOrder = await this.getOrder(
-        providerCodeSegment,
+        providerCode,
         order.providerOrderId,
         order.walletAddress,
       );
@@ -1894,6 +4738,44 @@ export class RampsController extends BaseController<
       return null;
     }
 
+    return this.#fetchBuyWidget(buyUrl);
+  }
+
+  /**
+   * Fetches the widget data for a quote's hosted-flow fallback (see
+   * `getBuyWidgetFallback`), used when an embedded checkout turns the user away.
+   *
+   * @param fallback - The buy-widget fallback attached to the quote.
+   * @param options - Optional request options.
+   * @param options.redirectUrl - Where the hosted flow returns to; set as the
+   * `redirectUrl` query parameter, replacing any existing value.
+   * @returns Promise resolving to the hosted BuyWidget, or null if the fallback has no URL or the response has an empty url.
+   * @throws TypeError if the fallback URL is not a valid URL.
+   * @throws Rethrows errors from the RampsService (e.g. HttpError, network failures) so clients can react to fetch failures.
+   */
+  async getFallbackBuyWidgetData(
+    fallback: BuyWidgetFallback,
+    options?: { redirectUrl?: string },
+  ): Promise<BuyWidget | null> {
+    if (!fallback?.url) {
+      return null;
+    }
+
+    const buyUrl = new URL(fallback.url);
+    if (options?.redirectUrl) {
+      buyUrl.searchParams.set('redirectUrl', options.redirectUrl);
+    }
+
+    return this.#fetchBuyWidget(buyUrl.toString());
+  }
+
+  /**
+   * Resolves a buy-widget request URL into the provider widget via the RampsService.
+   *
+   * @param buyUrl - The buy-widget request URL.
+   * @returns Promise resolving to the BuyWidget, or null if the response has an empty url.
+   */
+  async #fetchBuyWidget(buyUrl: string): Promise<BuyWidget | null> {
     const buyWidget = await this.messenger.call(
       'RampsService:getBuyWidgetUrl',
       buyUrl,
@@ -1911,30 +4793,29 @@ export class RampsController extends BaseController<
    *
    * @param params - Object containing order identifiers and wallet info.
    * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
-   * @param params.providerCode - Provider code (e.g. "paypal", "transak"), with or without /providers/ prefix.
+   * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
    * @param params.walletAddress - Wallet address for the order.
-   * @param params.chainId - Optional chain ID for the order.
+   * @param params.chainId - Chain ID for the order (decimal, hex, or CAIP-2). Must be non-empty.
    */
   addPrecreatedOrder(params: {
     orderId: string;
     providerCode: string;
     walletAddress: string;
-    chainId?: string;
+    chainId: string;
   }): void {
     const { orderId, providerCode, walletAddress, chainId } = params;
 
-    const orderCode = orderId.includes('/orders/')
-      ? orderId.split('/orders/')[1]
-      : orderId;
+    const orderCode = getInternalOrderCode(orderId);
     if (!orderCode?.trim()) {
       return;
     }
-    const normalizedProviderCode = normalizeProviderCode(providerCode);
-
+    if (!chainId.trim()) {
+      return;
+    }
     const stubOrder: RampsOrder = {
       providerOrderId: orderCode,
       provider: {
-        id: `/providers/${normalizedProviderCode}`,
+        id: providerCode,
         name: '',
         environmentType: '',
         description: '',
@@ -1953,7 +4834,7 @@ export class RampsController extends BaseController<
       providerOrderLink: '',
       totalFeesFiat: 0,
       txHash: '',
-      network: chainId ? { chainId, name: '' } : { chainId: '', name: '' },
+      network: { chainId, name: '' },
       canBeUpdated: true,
       idHasExpired: false,
       excludeFromPurchases: false,
@@ -1977,6 +4858,9 @@ export class RampsController extends BaseController<
     orderCode: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    const hadOrderAtRequestStart = this.state.orders.some(
+      (existingOrder) => getInternalOrderCode(existingOrder) === orderCode,
+    );
     const order = await this.messenger.call(
       'RampsService:getOrder',
       providerCode,
@@ -1984,25 +4868,29 @@ export class RampsController extends BaseController<
       wallet,
     );
 
-    this.update((state) => {
-      const idx = state.orders.findIndex(
-        (existing) => existing.providerOrderId === orderCode,
-      );
-      if (idx === -1) {
-        state.orders.push({
-          ...order,
-          providerOrderId: orderCode,
-        } as Draft<RampsOrder>);
-      } else {
-        state.orders[idx] = {
-          ...state.orders[idx],
-          ...order,
-          providerOrderId: orderCode,
-        } as Draft<RampsOrder>;
-      }
+    const healedWalletAddress = order.walletAddress || wallet;
+    const internalOrderCode = getInternalOrderCode({
+      id: order.id,
+      providerOrderId: orderCode,
     });
+    const healedOrder = {
+      ...order,
+      walletAddress: healedWalletAddress,
+      providerOrderId: internalOrderCode,
+    };
 
-    return order;
+    const orderStillExists = this.state.orders.some(
+      (existingOrder) =>
+        getInternalOrderCode(existingOrder) === internalOrderCode,
+    );
+
+    // A polling request can finish after removeOrder. Do not let that stale
+    // response recreate the local order and overwrite its remote tombstone.
+    if (!hadOrderAtRequestStart || orderStillExists) {
+      this.addOrder(healedOrder);
+    }
+
+    return healedOrder;
   }
 
   /**
@@ -2021,12 +4909,14 @@ export class RampsController extends BaseController<
     callbackUrl: string,
     wallet: string,
   ): Promise<RampsOrder> {
-    return await this.messenger.call(
+    const order = await this.messenger.call(
       'RampsService:getOrderFromCallback',
       providerCode,
       callbackUrl,
       wallet,
     );
+
+    return order;
   }
 
   // === TRANSAK METHODS ===
@@ -2044,13 +4934,20 @@ export class RampsController extends BaseController<
    * @param error - The caught error to inspect.
    */
   #syncTransakAuthOnError(error: unknown): void {
-    if (
-      error instanceof Error &&
-      'httpStatus' in error &&
-      (error as Error & { httpStatus: number }).httpStatus === 401
-    ) {
+    if (hasHttpStatus(error) && error.httpStatus === 401) {
       this.transakSetAuthenticated(false);
     }
+  }
+
+  #getNormalizedTransakError(
+    error: unknown,
+    options: { syncAuth?: boolean } = {},
+  ): NormalizedRampsError {
+    if (options.syncAuth) {
+      this.#syncTransakAuthOnError(error);
+    }
+
+    return getNormalizedRampsError(error);
   }
 
   /**
@@ -2114,7 +5011,11 @@ export class RampsController extends BaseController<
     email: string;
     expiresIn: number;
   }> {
-    return this.messenger.call('TransakService:sendUserOtp', email);
+    try {
+      return await this.messenger.call('TransakService:sendUserOtp', email);
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
+    }
   }
 
   /**
@@ -2131,14 +5032,18 @@ export class RampsController extends BaseController<
     verificationCode: string,
     stateToken: string,
   ): Promise<TransakAccessToken> {
-    const token = await this.messenger.call(
-      'TransakService:verifyUserOtp',
-      email,
-      verificationCode,
-      stateToken,
-    );
-    this.transakSetAuthenticated(true);
-    return token;
+    try {
+      const token = await this.messenger.call(
+        'TransakService:verifyUserOtp',
+        email,
+        verificationCode,
+        stateToken,
+      );
+      this.transakSetAuthenticated(true);
+      return token;
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
+    }
   }
 
   /**
@@ -2149,8 +5054,9 @@ export class RampsController extends BaseController<
    */
   async transakLogout(): Promise<string> {
     try {
-      const result = await this.messenger.call('TransakService:logout');
-      return result;
+      return await this.messenger.call('TransakService:logout');
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
     } finally {
       this.transakClearAccessToken();
       this.update((state) => {
@@ -2169,6 +5075,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.userDetails.isLoading = true;
       state.nativeProviders.transak.userDetails.error = null;
+      delete state.nativeProviders.transak.userDetails.errorKey;
     });
     try {
       const details = await this.messenger.call(
@@ -2180,13 +5087,18 @@ export class RampsController extends BaseController<
       });
       return details;
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      const { errorInfo, normalizedError } = this.#getNormalizedTransakError(
+        error,
+        {
+          syncAuth: true,
+        },
+      );
       this.update((state) => {
         state.nativeProviders.transak.userDetails.isLoading = false;
-        state.nativeProviders.transak.userDetails.error = errorMessage;
+        state.nativeProviders.transak.userDetails.error = errorInfo.message;
+        state.nativeProviders.transak.userDetails.errorKey = errorInfo.errorKey;
       });
-      throw error;
+      throw normalizedError;
     }
   }
 
@@ -2199,6 +5111,8 @@ export class RampsController extends BaseController<
    * @param network - The blockchain network identifier.
    * @param paymentMethod - The payment method identifier.
    * @param fiatAmount - The fiat amount as a string.
+   * @param isFeeExcludedFromFiat - Whether fees are added to the fiat amount.
+   * Defaults to true to preserve Unified Buy's native Transak behavior.
    * @returns The buy quote with pricing and fee details.
    */
   async transakGetBuyQuote(
@@ -2207,10 +5121,12 @@ export class RampsController extends BaseController<
     network: string,
     paymentMethod: string,
     fiatAmount: string,
+    isFeeExcludedFromFiat = true,
   ): Promise<TransakBuyQuote> {
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;
       state.nativeProviders.transak.buyQuote.error = null;
+      delete state.nativeProviders.transak.buyQuote.errorKey;
     });
     try {
       const quote = await this.messenger.call(
@@ -2220,6 +5136,7 @@ export class RampsController extends BaseController<
         network,
         paymentMethod,
         fiatAmount,
+        isFeeExcludedFromFiat,
       );
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.data = quote;
@@ -2227,12 +5144,14 @@ export class RampsController extends BaseController<
       });
       return quote;
     } catch (error) {
-      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      const { errorInfo, normalizedError } =
+        this.#getNormalizedTransakError(error);
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.isLoading = false;
-        state.nativeProviders.transak.buyQuote.error = errorMessage;
+        state.nativeProviders.transak.buyQuote.error = errorInfo.message;
+        state.nativeProviders.transak.buyQuote.errorKey = errorInfo.errorKey;
       });
-      throw error;
+      throw normalizedError;
     }
   }
 
@@ -2249,6 +5168,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.kycRequirement.isLoading = true;
       state.nativeProviders.transak.kycRequirement.error = null;
+      delete state.nativeProviders.transak.kycRequirement.errorKey;
     });
     try {
       const requirement = await this.messenger.call(
@@ -2261,13 +5181,19 @@ export class RampsController extends BaseController<
       });
       return requirement;
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      const { errorInfo, normalizedError } = this.#getNormalizedTransakError(
+        error,
+        {
+          syncAuth: true,
+        },
+      );
       this.update((state) => {
         state.nativeProviders.transak.kycRequirement.isLoading = false;
-        state.nativeProviders.transak.kycRequirement.error = errorMessage;
+        state.nativeProviders.transak.kycRequirement.error = errorInfo.message;
+        state.nativeProviders.transak.kycRequirement.errorKey =
+          errorInfo.errorKey;
       });
-      throw error;
+      throw normalizedError;
     }
   }
 
@@ -2286,8 +5212,8 @@ export class RampsController extends BaseController<
         quoteId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2313,8 +5239,8 @@ export class RampsController extends BaseController<
         paymentMethodId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2331,12 +5257,16 @@ export class RampsController extends BaseController<
     wallet: string,
     paymentDetails?: TransakOrderPaymentMethod[],
   ): Promise<TransakDepositOrder> {
-    return this.messenger.call(
-      'TransakService:getOrder',
-      orderId,
-      wallet,
-      paymentDetails,
-    );
+    try {
+      return await this.messenger.call(
+        'TransakService:getOrder',
+        orderId,
+        wallet,
+        paymentDetails,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
+    }
   }
 
   /**
@@ -2360,8 +5290,8 @@ export class RampsController extends BaseController<
         kycType,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2374,8 +5304,8 @@ export class RampsController extends BaseController<
     try {
       return await this.messenger.call('TransakService:requestOtt');
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2404,6 +5334,34 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Creates a Transak payment widget URL via the ramps API proxy, which
+   * injects the partner API key server-side. Replaces the OTT flow
+   * ({@link transakRequestOtt} + {@link transakGeneratePaymentWidgetUrl}).
+   *
+   * @param quote - The buy quote to pre-fill in the widget.
+   * @param walletAddress - The destination wallet address.
+   * @param extraParams - Optional additional widget parameters (e.g. theming).
+   * @returns The single-use widget URL.
+   */
+  async transakCreateWidgetUrl(
+    quote: TransakBuyQuote,
+    walletAddress: string,
+    extraParams?: Record<string, string>,
+  ): Promise<string> {
+    try {
+      return await this.messenger.call(
+        'TransakService:createWidgetUrl',
+        quote,
+        walletAddress,
+        extraParams,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
+    }
+  }
+
+  /**
    * Submits the user's purpose of usage form for KYC compliance.
    *
    * @param purpose - Array of purpose strings selected by the user.
@@ -2416,8 +5374,8 @@ export class RampsController extends BaseController<
         purpose,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2431,8 +5389,8 @@ export class RampsController extends BaseController<
     try {
       return await this.messenger.call('TransakService:patchUser', data);
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2454,8 +5412,8 @@ export class RampsController extends BaseController<
         quoteId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2477,8 +5435,8 @@ export class RampsController extends BaseController<
         paymentMethodId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2491,7 +5449,14 @@ export class RampsController extends BaseController<
   async transakGetTranslation(
     request: TransakTranslationRequest,
   ): Promise<TransakQuoteTranslation> {
-    return this.messenger.call('TransakService:getTranslation', request);
+    try {
+      return await this.messenger.call(
+        'TransakService:getTranslation',
+        request,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
+    }
   }
 
   /**
@@ -2509,8 +5474,8 @@ export class RampsController extends BaseController<
         workFlowRunId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2527,8 +5492,8 @@ export class RampsController extends BaseController<
         depositOrderId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2542,8 +5507,8 @@ export class RampsController extends BaseController<
     try {
       return await this.messenger.call('TransakService:cancelAllActiveOrders');
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2556,8 +5521,8 @@ export class RampsController extends BaseController<
     try {
       return await this.messenger.call('TransakService:getActiveOrders');
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 }

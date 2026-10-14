@@ -8,9 +8,9 @@ import {
   propagateToContext,
   propagateToRequest,
   deserializeError,
-} from './compatibility-utils';
-import { MiddlewareContext } from './MiddlewareContext';
-import { stringify } from './utils';
+} from './compatibility-utils.js';
+import { MiddlewareContext } from './MiddlewareContext.js';
+import { stringify } from './utils.js';
 
 const jsonrpc = '2.0' as const;
 
@@ -32,7 +32,7 @@ describe('compatibility-utils', () => {
     it('produces a mutable clone of a frozen object', () => {
       const request = Object.freeze({
         jsonrpc,
-        method: 'test_method' as string,
+        method: 'test_method',
         params: Object.freeze([1, 2, 3]),
         id: 1,
       });

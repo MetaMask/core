@@ -1,13 +1,12 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "./dist",
     "rootDir": "./src"
   },
   "references": [
     {
-      "path": "../accounts-controller"
+      "path": "../account-tree-controller"
     },
     {
       "path": "../controller-utils"
@@ -20,6 +19,12 @@
     },
     {
       "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

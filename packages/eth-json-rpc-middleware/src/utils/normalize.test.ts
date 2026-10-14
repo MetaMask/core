@@ -2,7 +2,7 @@ import { MessageTypes, TypedMessage } from '@metamask/eth-sig-util';
 import deepFreeze from 'deep-freeze-strict';
 import { klona } from 'klona';
 
-import { normalizeTypedMessage } from './normalize';
+import { normalizeTypedMessage } from './normalize.js';
 
 const MESSAGE_DATA_MOCK = {
   types: {

@@ -1,20 +1,13 @@
 import log from 'loglevel';
 
-import { notificationsConfigCache } from './notification-config-cache';
-import { toRawAPINotification } from '../../shared/to-raw-notification';
+import { toRawAPINotification } from '../../shared/to-raw-notification.js';
 import type {
   NormalisedAPINotification,
   Schema,
   UnprocessedRawNotification,
-} from '../types/notification-api';
-import { makeApiCall } from '../utils/utils';
-
-export type NotificationTrigger = {
-  id: string;
-  chainId: string;
-  kind: string;
-  address: string;
-};
+} from '../types/notification-api/index.js';
+import { makeApiCall } from '../utils/utils.js';
+import { notificationsConfigCache } from './notification-config-cache.js';
 
 export type ENV = 'prd' | 'uat' | 'dev';
 
@@ -41,18 +34,18 @@ export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = (
   env: ENV = 'prd',
 ): string => `${TRIGGER_API(env)}/api/v2/notifications/query`;
 
-// Used to create/update account notifications for each account provided
+// Creates/updates account notification subscriptions for each account provided
 export const TRIGGER_API_NOTIFICATIONS_ENDPOINT = (env: ENV = 'prd'): string =>
   `${TRIGGER_API(env)}/api/v2/notifications`;
 
-// Lists notifications for each account provided
+// Lists notifications for each address provided
 export const NOTIFICATION_API_LIST_ENDPOINT = (env: ENV = 'prd'): string =>
-  `${NOTIFICATION_API(env)}/api/v3/notifications`;
+  `${NOTIFICATION_API(env)}/api/v4/notifications`;
 
 // Marks notifications as read
 export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = (
   env: ENV = 'prd',
-): string => `${NOTIFICATION_API(env)}/api/v3/notifications/mark-as-read`;
+): string => `${NOTIFICATION_API(env)}/api/v4/notifications/mark-as-read`;
 
 /**
  * fetches notification config (accounts enabled vs disabled)
@@ -62,13 +55,16 @@ export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = (
  * @param env - the environment to use for the API call
  * NOTE the API will return addresses config with false if they have not been created before.
  * NOTE this is cached for 1s to prevent multiple update calls
- * @returns object of notification config, or null if missing
+ * @returns the config for each requested address, or `null` if the config could
+ * not be read. An empty array means the API answered and no address is
+ * subscribed; callers must not read a failure as "nothing is enabled", since
+ * acting on that would re-subscribe or unregister addresses behind the user.
  */
 export async function getNotificationsApiConfigCached(
   bearerToken: string,
   addresses: string[],
   env: ENV = 'prd',
-): Promise<{ address: string; enabled: boolean }[]> {
+): Promise<{ address: string; enabled: boolean }[] | null> {
   if (addresses.length === 0) {
     return [];
   }
@@ -83,7 +79,7 @@ export async function getNotificationsApiConfigCached(
   type RequestBody = { address: string }[];
   type Response = { address: string; enabled: boolean }[];
   const body: RequestBody = normalizedAddresses.map((address) => ({ address }));
-  const apiResponse = await makeApiCall(
+  const result = await makeApiCall(
     bearerToken,
     TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(env),
     'POST',
@@ -92,7 +88,9 @@ export async function getNotificationsApiConfigCached(
     .then<Response | null>((response) => (response.ok ? response.json() : null))
     .catch(() => null);
 
-  const result = apiResponse ?? [];
+  if (result === null) {
+    return null;
+  }
 
   if (result.length > 0) {
     notificationsConfigCache.set(result);
@@ -102,12 +100,17 @@ export async function getNotificationsApiConfigCached(
 }
 
 /**
- * updates notifications for a given addresses
+ * Creates or removes wallet-activity subscriptions for the given addresses.
+ *
+ * The endpoint is a per-address upsert-or-delete batch rather than a full
+ * replace, so two installations authenticating as the same profile do not
+ * clobber each other's subscriptions.
  *
  * @param bearerToken - jwt
- * @param addresses - list of addresses to check
+ * @param addresses - addresses to subscribe (`enabled: true`) or unsubscribe (`enabled: false`)
  * @param env - the environment to use for the API call
- * @returns void
+ * @throws if the request could not be made or the API rejected it, so callers
+ * do not report a subscription change the server never applied.
  */
 export async function updateOnChainNotifications(
   bearerToken: string,
@@ -125,14 +128,22 @@ export async function updateOnChainNotifications(
 
   type RequestBody = { address: string; enabled: boolean }[];
   const body: RequestBody = normalizedAddresses;
-  await makeApiCall(
+  const response = await makeApiCall(
     bearerToken,
     TRIGGER_API_NOTIFICATIONS_ENDPOINT(env),
     'POST',
     body,
-  )
-    .then(() => notificationsConfigCache.set(normalizedAddresses))
-    .catch(() => null);
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to update on-chain notifications: ${response.status}`,
+    );
+  }
+
+  // Seeded only once the server has accepted the change: the settings UI reads
+  // this back for the whole TTL, so a rejected write must not look applied.
+  notificationsConfigCache.set(normalizedAddresses);
 }
 
 /**
@@ -143,7 +154,7 @@ export async function updateOnChainNotifications(
  * @param locale - to generate translated notifications
  * @param platform - filter notifications for specific platforms ('extension' | 'mobile')
  * @param env - the environment to use for the API call
- * @returns A promise that resolves to an array of NormalisedAPINotification objects. If no notifications are enabled or an error occurs, it may return an empty array.
+ * @returns An array of {@link NormalisedAPINotification}. Returns an empty array on transport or parse errors.
  */
 export async function getAPINotifications(
   bearerToken: string,
@@ -157,9 +168,9 @@ export async function getAPINotifications(
   }
 
   type RequestBody =
-    Schema.paths['/api/v3/notifications']['post']['requestBody']['content']['application/json'];
+    Schema.paths['/api/v4/notifications']['post']['requestBody']['content']['application/json'];
   type APIResponse =
-    Schema.paths['/api/v3/notifications']['post']['responses']['200']['content']['application/json'];
+    Schema.paths['/api/v4/notifications']['post']['responses']['200']['content']['application/json'];
 
   const body: RequestBody = {
     addresses: addresses.map((addr) => addr.toLowerCase()),
@@ -215,7 +226,7 @@ export async function markNotificationsAsRead(
   }
 
   type ResponseBody =
-    Schema.paths['/api/v3/notifications/mark-as-read']['post']['requestBody']['content']['application/json'];
+    Schema.paths['/api/v4/notifications/mark-as-read']['post']['requestBody']['content']['application/json'];
   const body: ResponseBody = {
     ids: notificationIds,
   };

@@ -7,8 +7,8 @@ import type {
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { EIP5792ErrorCode, GetCallsStatusCode, VERSION } from '../constants';
-import type { EIP5792Messenger, GetCallsStatusResult } from '../types';
+import { EIP5792ErrorCode, GetCallsStatusCode, VERSION } from '../constants.js';
+import type { EIP5792Messenger, GetCallsStatusResult } from '../types.js';
 
 /**
  * Retrieves the status of a transaction batch by its ID.

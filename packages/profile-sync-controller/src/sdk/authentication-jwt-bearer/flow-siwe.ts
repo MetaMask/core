@@ -1,23 +1,27 @@
-import { SiweMessage } from 'siwe';
+import { SiweMessage } from '@signinwithethereum/siwe';
 
+import { ValidationError } from '../errors.js';
+import { validateLoginResponse } from '../utils/validate-login-response.js';
 import {
   SIWE_LOGIN_URL,
   authenticate,
   authorizeOIDC,
+  getCustomerServiceToken,
   getNonce,
+  getPartnerIdentityToken,
   getUserProfileLineage,
-} from './services';
+} from './services.js';
 import type {
   AuthConfig,
   AuthStorageOptions,
   AuthType,
   IBaseAuth,
   LoginResponse,
+  OidcTokenAudience,
+  OidcTokenClaims,
   UserProfile,
   UserProfileLineage,
-} from './types';
-import { ValidationError } from '../errors';
-import { validateLoginResponse } from '../utils/validate-login-response';
+} from './types.js';
 
 type JwtBearerAuth_SIWE_Options = {
   storage: AuthStorageOptions;
@@ -73,6 +77,25 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
   async getUserProfileLineage(): Promise<UserProfileLineage> {
     const accessToken = await this.getAccessToken();
     return await getUserProfileLineage(this.#config.env, accessToken);
+  }
+
+  async getCustomerServiceToken(): Promise<string> {
+    const accessToken = await this.getAccessToken();
+    return await getCustomerServiceToken(this.#config.env, accessToken);
+  }
+
+  async getPartnerIdentityToken(
+    claims: OidcTokenClaims,
+    audience: OidcTokenAudience,
+    _entropySourceId?: string,
+  ): Promise<string> {
+    const accessToken = await this.getAccessToken();
+    return await getPartnerIdentityToken(
+      this.#config.env,
+      accessToken,
+      claims,
+      audience,
+    );
   }
 
   async signMessage(message: string): Promise<string> {

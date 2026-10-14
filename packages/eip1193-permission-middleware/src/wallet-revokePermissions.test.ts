@@ -6,8 +6,8 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import { EndowmentTypes, RestrictedMethods } from './types';
-import { revokePermissionsHandler } from './wallet-revokePermissions';
+import { EndowmentTypes, RestrictedMethods } from './types.js';
+import { revokePermissionsHandler } from './wallet-revokePermissions.js';
 
 const baseRequest = {
   jsonrpc: '2.0' as const,

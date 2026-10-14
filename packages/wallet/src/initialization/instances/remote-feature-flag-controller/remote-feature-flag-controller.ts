@@ -1,0 +1,34 @@
+import { Messenger } from '@metamask/messenger';
+import {
+  RemoteFeatureFlagController,
+  RemoteFeatureFlagControllerMessenger,
+} from '@metamask/remote-feature-flag-controller';
+
+import { InitializationConfiguration } from '../../types.js';
+
+export const remoteFeatureFlagController: InitializationConfiguration<
+  RemoteFeatureFlagController,
+  RemoteFeatureFlagControllerMessenger
+> = {
+  name: 'RemoteFeatureFlagController',
+  init: ({ state, messenger, options }) =>
+    new RemoteFeatureFlagController({
+      state,
+      messenger,
+      clientConfigApiService: options.clientConfigApiService,
+      getMetaMetricsId: options.getMetaMetricsId ?? ((): string => ''),
+      getCanonicalProfileId:
+        options.getCanonicalProfileId ?? ((): string => ''),
+      metaMetricsFlags: options.metaMetricsFlags,
+      clientVersion: options.clientVersion ?? '0.0.0',
+      prevClientVersion: options.prevClientVersion,
+      fetchInterval: options.fetchInterval,
+      disabled: options.disabled,
+      defaultFeatureFlags: options.defaultFeatureFlags,
+    }),
+  getMessenger: (parent) =>
+    new Messenger({
+      namespace: 'RemoteFeatureFlagController',
+      parent,
+    }),
+};

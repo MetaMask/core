@@ -1,10 +1,20 @@
+import { TYPED_MESSAGE_SCHEMA } from '@metamask/eth-sig-util';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
-import { validate } from '@metamask/superstruct';
+import {
+  array,
+  nullable,
+  number,
+  object,
+  optional,
+  string,
+  union,
+  validate,
+} from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 
-import { parseTypedMessage } from './normalize';
-import type { WalletMiddlewareContext } from '../wallet';
+import type { WalletMiddlewareContext } from '../wallet.js';
+import { parseTypedMessage } from './normalize.js';
 
 /**
  * Validates and normalizes a keyholder address for transaction- and
@@ -137,9 +147,7 @@ function checkObjectForPrototypePollution(obj: unknown): void {
   }
 
   if (typeof obj === 'object') {
-    for (const key of Object.getOwnPropertyNames(
-      obj as Record<string, unknown>,
-    )) {
+    for (const key of Object.getOwnPropertyNames(obj)) {
       if (isDangerousProperty(key)) {
         throw rpcErrors.invalidInput();
       }
@@ -186,4 +194,129 @@ export function validateTypedDataForPrototypePollution(data: string): void {
   if (message !== undefined) {
     checkObjectForPrototypePollution(message);
   }
+}
+
+/**
+ * Validates that EIP-712 typed message data contains only keys defined in
+ * the TYPED_MESSAGE_SCHEMA from `@metamask/eth-sig-util`. Rejects messages
+ * with extraneous top-level keys.
+ *
+ * @param data - The stringified typed data to validate.
+ * @throws rpcErrors.invalidInput() if extraneous keys are detected.
+ */
+export function validateTypedMessageKeys(data: string): void {
+  const parsedData = parseTypedMessage(data);
+  const allowedKeys = new Set([
+    ...Object.keys(TYPED_MESSAGE_SCHEMA.properties),
+    'metadata',
+  ]);
+  const hasExtraneousKey = Object.keys(parsedData).some(
+    (key) => !allowedKeys.has(key),
+  );
+
+  if (hasExtraneousKey) {
+    throw rpcErrors.invalidInput();
+  }
+
+  // Advanced Permissions adds `metadata: { justification: string, origin: string }` to eth_signTypedData requests.
+  // see GatorPermissionsController.decodePermissionFromPermissionContextForOrigin for more details.
+  const { metadata } = parsedData as { metadata?: unknown };
+  if (metadata !== undefined) {
+    if (typeof metadata !== 'object' || metadata === null) {
+      throw rpcErrors.invalidInput();
+    }
+
+    const { justification, origin } = metadata as {
+      justification?: unknown;
+      origin?: unknown;
+    };
+
+    if (typeof justification !== 'string' || typeof origin !== 'string') {
+      throw rpcErrors.invalidInput();
+    }
+
+    // we only need to check the keys length, because we already checked the known keys (justification and origin).
+    if (Object.keys(metadata).length !== 2) {
+      throw rpcErrors.invalidInput();
+    }
+  }
+}
+
+// Numerical fields accept both hex strings and numbers, as some dapps send
+// numbers and `TransactionController` normalizes them downstream.
+const QuantityStruct = union([string(), number()]);
+
+export const TransactionParamsStruct = object({
+  accessList: optional(
+    nullable(
+      array(object({ address: string(), storageKeys: array(string()) })),
+    ),
+  ),
+  authorizationList: optional(
+    nullable(
+      array(
+        object({
+          address: string(),
+          chainId: optional(nullable(QuantityStruct)),
+          nonce: optional(nullable(QuantityStruct)),
+          r: optional(nullable(string())),
+          s: optional(nullable(string())),
+          yParity: optional(nullable(QuantityStruct)),
+        }),
+      ),
+    ),
+  ),
+  chainId: optional(nullable(QuantityStruct)),
+  data: optional(nullable(string())),
+  from: string(),
+  gas: optional(nullable(QuantityStruct)),
+  gasLimit: optional(nullable(QuantityStruct)),
+  gasPrice: optional(nullable(QuantityStruct)),
+  maxFeePerGas: optional(nullable(QuantityStruct)),
+  maxPriorityFeePerGas: optional(nullable(QuantityStruct)),
+  nonce: optional(nullable(QuantityStruct)),
+  to: optional(nullable(string())),
+  type: optional(nullable(string())),
+  value: optional(nullable(QuantityStruct)),
+});
+
+// Upper bound derived from the largest valid eth_sendTransaction payload:
+// EIP-3860 caps initcode at 49,152 bytes → hex-encoded in 'data' field ≈ 98 KB of JSON.
+// 200 KB is ~2× that ceiling, giving clear headroom above any protocol-legal
+// transaction while blocking the padding attacks this cap defends against.
+// TODO(CONF-1662): tighten once P99 production data is available.
+export const MAX_TRANSACTION_PARAMS_SIZE_BYTES = 200 * 1024;
+
+/**
+ * Validates `eth_sendTransaction` / `eth_signTransaction` params against the
+ * standard transaction schema and rejects payloads whose serialized size
+ * exceeds `MAX_TRANSACTION_PARAMS_SIZE_BYTES`.
+ *
+ * Guards against two attack shapes:
+ * - Size: valid-shaped but oversized payloads (e.g. `data` padded with
+ *   millions of hex zeros) that exhaust memory in downstream code. Checked
+ *   first via `JSON.stringify` so oversized input is rejected before schema
+ *   work.
+ * - Structural: extraneous top-level keys or ill-typed fields (e.g.
+ *   `{ from, to, test: { b: { b: ... × 1200 } } }`) that would crash
+ *   downstream normalization / PPOM WASM with `RangeError: Maximum call
+ *   stack size exceeded`, silently bypassing security checks. Superstruct's
+ *   `object()` rejects unknown keys by name without accessing their values,
+ *   so hostile nested subtrees are never traversed by schema validation.
+ *
+ * @param params - The transaction params object supplied by the dapp.
+ * @throws rpcErrors.invalidParams() if params is an array or exceeds the
+ * serialized size limit.
+ * @throws rpcErrors.invalidInput() if params fails schema validation
+ * (wrong type, extraneous top-level key, or malformed nested field).
+ */
+export function validateTransactionParams(params: unknown): void {
+  if (
+    new TextEncoder().encode(JSON.stringify(params)).byteLength >
+    MAX_TRANSACTION_PARAMS_SIZE_BYTES
+  ) {
+    throw rpcErrors.invalidParams('Request too large');
+  }
+
+  validateParams(params, TransactionParamsStruct);
 }

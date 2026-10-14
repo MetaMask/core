@@ -1,22 +1,70 @@
-export * from './PhishingController';
+export * from './PhishingController.js';
+export { findSimilarAddresses } from './address-poisoning.js';
 export type {
   LegacyPhishingDetectorList,
   PhishingDetectorList,
   FuzzyTolerance,
   PhishingDetectorOptions,
   PhishingDetectorConfiguration,
-} from './PhishingDetector';
-export { PhishingDetector } from './PhishingDetector';
+} from './PhishingDetector.js';
+export { PhishingDetector } from './PhishingDetector.js';
 export type {
   PhishingDetectionScanResult,
   AddressScanResult,
   BulkTokenScanResponse,
-} from './types';
-export type { TokenScanCacheData } from './types';
-export { TokenScanResultType } from './types';
+  SimilarAddressMatch,
+  SimilarityOptions,
+  ApprovalsResponse,
+  Approval,
+  Allowance,
+  ApprovalAsset,
+  Exposure,
+  Spender,
+  ApprovalFeature,
+} from './types.js';
+export type { TokenScanCacheData } from './types.js';
+export { TokenScanResultType } from './types.js';
 export {
   PhishingDetectorResultType,
   RecommendedAction,
   AddressScanResultType,
-} from './types';
-export type { CacheEntry } from './CacheManager';
+  ApprovalResultType,
+  ApprovalFeatureType,
+} from './types.js';
+export type { CacheEntry } from './CacheManager.js';
+export {
+  PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS,
+  getPhishingDetectionScanUrlParam,
+  isAddressScanSupportedChainId,
+  isPhishingDetectionPathBasedHostname,
+} from './utils.js';
+export {
+  extractSignatureAddresses,
+  DEFAULT_MAX_SIGNATURE_ADDRESSES,
+  MAX_SIGNATURE_ADDRESSES_CEILING,
+} from './signature-address-extraction.js';
+export type {
+  ExtractedSignatureAddresses,
+  ExtractSignatureAddressesOptions,
+} from './signature-address-extraction.js';
+export {
+  REQUEST_SOURCE_HEADER,
+  UNKNOWN_REQUEST_SOURCE,
+  RequestSourceFlow,
+  RequestSourcePlatform,
+  buildRequestSource,
+} from './request-source.js';
+export type { RequestSource } from './request-source.js';
+
+export type {
+  PhishingControllerMaybeUpdateStateAction,
+  PhishingControllerTestOriginAction,
+  PhishingControllerIsBlockedRequestAction,
+  PhishingControllerBypassAction,
+  PhishingControllerScanUrlAction,
+  PhishingControllerBulkScanUrlsAction,
+  PhishingControllerBulkScanTokensAction,
+  PhishingControllerScanAddressAction,
+  PhishingControllerGetApprovalsAction,
+  PhishingControllerCheckAddressPoisoningAction,
+} from './PhishingController-method-action-types.js';

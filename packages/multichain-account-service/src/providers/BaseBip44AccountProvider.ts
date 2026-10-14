@@ -4,15 +4,18 @@ import type {
   CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
-  KeyringCapabilities,
 } from '@metamask/keyring-api';
 import type {
+  Keyring as KeyringV2,
+  KeyringCapabilities,
+} from '@metamask/keyring-api/v2';
+import type {
   KeyringMetadata,
-  KeyringSelector,
+  KeyringSelectorV2,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { MultichainAccountServiceMessenger } from '../types';
+import type { MultichainAccountServiceMessenger } from '../types.js';
 
 /**
  * Asserts a keyring account is BIP-44 compatible.
@@ -38,6 +41,36 @@ export function assertAreBip44Accounts(
   accounts: KeyringAccount[],
 ): asserts accounts is Bip44Account<KeyringAccount>[] {
   accounts.forEach(assertIsBip44Account);
+}
+
+/**
+ * A single account deletion that failed during {@link Bip44AccountProvider.deleteAccounts}.
+ */
+export type DeleteAccountsFailure = {
+  id: string;
+  error: unknown;
+};
+
+/**
+ * Result of a batch {@link Bip44AccountProvider.deleteAccounts} call.
+ *
+ * Failures are expected (the operation is best-effort), so they are returned
+ * rather than thrown. `{ ok: true }` means every requested id was deleted.
+ */
+export type DeleteAccountsResult =
+  | { ok: true }
+  | { ok: false; failures: DeleteAccountsFailure[] };
+
+/**
+ * Builds a {@link DeleteAccountsResult} from the collected per-id failures.
+ *
+ * @param failures - Failures recorded during the batch, if any.
+ * @returns `{ ok: true }` when `failures` is empty, otherwise `{ ok: false, failures }`.
+ */
+export function toDeleteAccountsResult(
+  failures: DeleteAccountsFailure[],
+): DeleteAccountsResult {
+  return failures.length > 0 ? { ok: false, failures } : { ok: true };
 }
 
 export type Bip44AccountProvider<
@@ -76,6 +109,30 @@ export type Bip44AccountProvider<
    */
   createAccounts(options: CreateAccountOptions): Promise<Account[]>;
   /**
+   * Delete an account managed by this provider.
+   *
+   * Mirrors the v2 keyring `deleteAccount(accountId)` contract. Each provider
+   * implementation is responsible for resolving any extra information it needs
+   * (e.g. address for snap-based providers) and for performing the underlying
+   * keyring removal.
+   *
+   * @param id - The id of the account to delete.
+   */
+  deleteAccount(id: Account['id']): Promise<void>;
+  /**
+   * Delete many accounts managed by this provider.
+   *
+   * Providers may reorder or batch internally (e.g. the EVM provider must
+   * delete from the highest group index down). The default implementation
+   * deletes sequentially via {@link deleteAccount} and is best-effort: a
+   * failure for one id does not skip the rest. If any deletion fails, the
+   * result is `{ ok: false, failures }` with every per-id failure.
+   *
+   * @param ids - The ids of the accounts to delete.
+   * @returns Whether every requested id was deleted.
+   */
+  deleteAccounts(ids: Account['id'][]): Promise<DeleteAccountsResult>;
+  /**
    * Re-synchronize MetaMask accounts and the providers accounts if needed.
    *
    * NOTE: This is mostly required if one of the providers (keyrings or Snaps)
@@ -83,12 +140,38 @@ export type Bip44AccountProvider<
    * in-sync and use the same accounts (and same IDs).
    */
   resyncAccounts(accounts: Bip44Account<InternalAccount>[]): Promise<void>;
+  /**
+   * Check if the provider has an aligned (i.e. present and owned) account for
+   * the given entropy source and group index.
+   *
+   * Callers pre-filter the relevant account IDs from the group and pass them
+   * in so the provider needs no messenger call.
+   *
+   * @param context - The entropy source and group index to check.
+   * @param context.entropySource - The entropy source to check against.
+   * @param context.groupIndex - The group index to check against.
+   * @param accountIds - Account IDs already associated with this provider for
+   * the given group (may be empty if no alignment has happened yet).
+   * @returns `true` when `accountIds` is non-empty and every ID is in the
+   * provider's internal accounts Set.
+   */
+  isAligned(
+    context: { entropySource: EntropySourceId; groupIndex: number },
+    accountIds: Account['id'][],
+  ): boolean;
+  /**
+   * Ensures the provider is ready before any account operation is attempted:
+   * - EVM providers return immediately.
+   * - Snap providers will wait for the Snap platform and keyring to be available.
+   *
+   * @returns A promise that resolves when the provider is ready to use.
+   */
+  ensureReady(): Promise<void>;
 };
 
 export abstract class BaseBip44AccountProvider<
   Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
-> implements Bip44AccountProvider<Account>
-{
+> implements Bip44AccountProvider<Account> {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
   protected accounts: Set<Bip44Account<KeyringAccount>['id']> = new Set();
@@ -156,8 +239,22 @@ export abstract class BaseBip44AccountProvider<
     ) as unknown as Account;
   }
 
-  protected async withKeyring<SelectedKeyring, CallbackResult = void>(
-    selector: KeyringSelector,
+  /**
+   * Run an operation against a V2 keyring selected by `selector`.
+   *
+   * Forwards to `KeyringController:withKeyringV2`. Use this for keyrings
+   * that implement the unified V2 `Keyring` interface from
+   * `@metamask/keyring-api/v2`.
+   *
+   * @param selector - The selector identifying the keyring.
+   * @param operation - The operation to run with the selected keyring.
+   * @returns The result of the operation.
+   */
+  protected async withKeyringV2<
+    SelectedKeyring extends KeyringV2 = KeyringV2,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelectorV2<SelectedKeyring>,
     operation: ({
       keyring,
       metadata,
@@ -167,7 +264,7 @@ export abstract class BaseBip44AccountProvider<
     }) => Promise<CallbackResult>,
   ): Promise<CallbackResult> {
     const result = await this.messenger.call(
-      'KeyringController:withKeyring',
+      'KeyringController:withKeyringV2',
       selector,
       ({ keyring, metadata }) =>
         operation({
@@ -177,6 +274,19 @@ export abstract class BaseBip44AccountProvider<
     );
 
     return result as CallbackResult;
+  }
+
+  isAligned(
+    _context: { entropySource: EntropySourceId; groupIndex: number },
+    accountIds: Account['id'][],
+  ): boolean {
+    return (
+      accountIds.length >= 1 && accountIds.every((id) => this.accounts.has(id))
+    );
+  }
+
+  async ensureReady(): Promise<void> {
+    // No-op for non-snap providers.
   }
 
   abstract get capabilities(): KeyringCapabilities;
@@ -190,6 +300,30 @@ export abstract class BaseBip44AccountProvider<
   abstract isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
 
   abstract createAccounts(options: CreateAccountOptions): Promise<Account[]>;
+
+  abstract deleteAccount(id: Account['id']): Promise<void>;
+
+  /**
+   * Default batch deletion: sequential {@link deleteAccount} in the given
+   * order. Subclasses with extra constraints (EVM HD last-account-only)
+   * should override.
+   *
+   * @param ids - The ids of the accounts to delete.
+   * @returns Whether every requested id was deleted.
+   */
+  async deleteAccounts(ids: Account['id'][]): Promise<DeleteAccountsResult> {
+    const failures: DeleteAccountsFailure[] = [];
+
+    for (const id of ids) {
+      try {
+        await this.deleteAccount(id);
+      } catch (error) {
+        failures.push({ id, error });
+      }
+    }
+
+    return toDeleteAccountsResult(failures);
+  }
 
   abstract discoverAccounts({
     entropySource,

@@ -1,4 +1,5 @@
 import { isAddress } from '@ethersproject/address';
+import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerSelectedEvmAccountChangeEvent,
   AccountsControllerGetAccountAction,
@@ -30,10 +31,14 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { PhishingControllerBulkScanUrlsAction } from '@metamask/phishing-controller';
-import { RecommendedAction } from '@metamask/phishing-controller';
+import {
+  RecommendedAction,
+  RequestSourceFlow,
+} from '@metamask/phishing-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
@@ -43,20 +48,20 @@ import BN from 'bn.js';
 import { v4 as random } from 'uuid';
 
 import type {
-  AssetsContractControllerGetERC1155BalanceOfAction,
   AssetsContractControllerGetERC1155TokenURIAction,
   AssetsContractControllerGetERC721AssetNameAction,
   AssetsContractControllerGetERC721AssetSymbolAction,
-  AssetsContractControllerGetERC721OwnerOfAction,
   AssetsContractControllerGetERC721TokenURIAction,
-} from './AssetsContractController-method-action-types';
+} from './AssetsContractController-method-action-types.js';
 import {
   compareNftMetadata,
   getFormattedIpfsUrl,
   hasNewCollectionFields,
   reduceInBatchesSerially,
-} from './assetsUtil';
-import { Source } from './constants';
+} from './assetsUtil.js';
+import { Source } from './constants.js';
+import { getNftOwnershipForMultipleNfts } from './multicall.js';
+import type { NftOwnershipResult } from './multicall.js';
 import type {
   ApiNftContract,
   ReservoirResponse,
@@ -64,8 +69,7 @@ import type {
   Attributes,
   LastSale,
   TopBid,
-} from './NftDetectionController';
-import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
+} from './NftDetectionController.js';
 
 export type NFTStandardType = 'ERC721' | 'ERC1155';
 
@@ -304,8 +308,6 @@ export type AllowedActions =
   | AssetsContractControllerGetERC721AssetNameAction
   | AssetsContractControllerGetERC721AssetSymbolAction
   | AssetsContractControllerGetERC721TokenURIAction
-  | AssetsContractControllerGetERC721OwnerOfAction
-  | AssetsContractControllerGetERC1155BalanceOfAction
   | AssetsContractControllerGetERC1155TokenURIAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | PhishingControllerBulkScanUrlsAction;
@@ -514,9 +516,9 @@ export class NftController extends BaseController<
    */
   #updateNestedNftState<
     Key extends typeof ALL_NFTS_STATE_KEY | typeof ALL_NFTS_CONTRACTS_STATE_KEY,
-    NftCollection extends Key extends typeof ALL_NFTS_STATE_KEY
+    NftCollection extends (Key extends typeof ALL_NFTS_STATE_KEY
       ? Nft[]
-      : NftContract[],
+      : NftContract[]),
   >(
     newCollection: NftCollection,
     baseStateKey: Key,
@@ -1275,6 +1277,7 @@ export class NftController extends BaseController<
         contractAddress,
         tokenId,
         networkClientId,
+        { standard: type },
       );
       if (!isOwner) {
         throw rpcErrors.invalidInput(
@@ -1369,6 +1372,9 @@ export class NftController extends BaseController<
    * @param nftAddress - NFT contract address.
    * @param tokenId - NFT token ID.
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
+   * @param options - Optional parameters.
+   * @param options.standard - The NFT standard ('ERC721' or 'ERC1155'). When provided, only the
+   * relevant ownership check is performed, halving the number of RPC subcalls.
    * @returns Promise resolving the NFT ownership.
    */
   async isNftOwner(
@@ -1376,37 +1382,34 @@ export class NftController extends BaseController<
     nftAddress: string,
     tokenId: string,
     networkClientId: NetworkClientId,
+    { standard }: { standard?: string | null } = {},
   ): Promise<boolean> {
-    // Checks the ownership for ERC-721.
-    try {
-      const owner = await this.messenger.call(
-        'AssetsContractController:getERC721OwnerOf',
-        nftAddress,
-        tokenId,
-        networkClientId,
-      );
-      return ownerAddress.toLowerCase() === owner.toLowerCase();
-    } catch {
-      // Ignore ERC-721 contract error
-    }
-
-    // Checks the ownership for ERC-1155.
-    try {
-      const balance = await this.messenger.call(
-        'AssetsContractController:getERC1155BalanceOf',
-        ownerAddress,
-        nftAddress,
-        tokenId,
-        networkClientId,
-      );
-      return !balance.isZero();
-    } catch {
-      // Ignore ERC-1155 contract error
-    }
-
-    throw new Error(
-      `Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question.`,
+    const client = this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
     );
+    const provider = new Web3Provider(client.provider);
+    const { chainId } = client.configuration;
+
+    const [result] = await getNftOwnershipForMultipleNfts(
+      [
+        {
+          nftAddress,
+          tokenId,
+          userAddress: ownerAddress,
+          standard: standard ?? null,
+        },
+      ],
+      chainId,
+      provider,
+    );
+
+    if (result.isOwned === undefined) {
+      throw new Error(
+        `Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question.`,
+      );
+    }
+    return result.isOwned;
   }
 
   /**
@@ -1484,7 +1487,10 @@ export class NftController extends BaseController<
 
     const checksumHexAddress = toChecksumHexAddress(tokenAddress);
 
-    if (!nftMetadata) {
+    if (nftMetadata) {
+      // Sanitize provided metadata
+      nftMetadata = await this.#sanitizeNftMetadata(nftMetadata);
+    } else {
       const fetchedMetadata = await this.#getNftInformation(
         checksumHexAddress,
         tokenId,
@@ -1492,9 +1498,6 @@ export class NftController extends BaseController<
       );
       // Sanitize metadata
       nftMetadata = await this.#sanitizeNftMetadata(fetchedMetadata);
-    } else {
-      // Sanitize provided metadata
-      nftMetadata = await this.#sanitizeNftMetadata(nftMetadata);
     }
 
     const { contracts: newNftContracts } = await this.#addNftContracts(
@@ -1860,18 +1863,16 @@ export class NftController extends BaseController<
 
   /**
    * Checks whether input NFT is still owned by the user
-   * And updates the isCurrentlyOwned value on the NFT object accordingly.
+   * and updates the isCurrentlyOwned value on the NFT object accordingly.
    *
    * @param nft - The NFT object to check and update.
-   * @param batch - A boolean indicating whether this method is being called as part of a batch or single update.
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
-   * @param accountParams - The userAddress and chainId to check ownership against
+   * @param accountParams - The userAddress to check ownership against.
    * @param accountParams.userAddress - the address passed through the confirmed transaction flow to ensure assets are stored to the correct account
    * @returns the NFT with the updated isCurrentlyOwned value
    */
   async checkAndUpdateSingleNftOwnershipStatus(
     nft: Nft,
-    batch: boolean,
     networkClientId: NetworkClientId,
     { userAddress }: { userAddress?: string } = {},
   ): Promise<Nft> {
@@ -1890,6 +1891,7 @@ export class NftController extends BaseController<
         address,
         tokenId,
         networkClientId,
+        { standard: nft.standard },
       );
     } catch {
       // ignore error
@@ -1902,13 +1904,8 @@ export class NftController extends BaseController<
       isCurrentlyOwned: isOwned,
     };
 
-    if (batch) {
-      return updatedNft;
-    }
-
-    // if this is not part of a batched update we update this one NFT in state
     const { allNfts } = this.state;
-    const nfts = [...(allNfts[addressToSearch]?.[chainId] || [])];
+    const nfts = [...(allNfts[addressToSearch]?.[chainId] ?? [])];
     const indexToUpdate = nfts.findIndex(
       (item) =>
         item.tokenId === tokenId &&
@@ -1917,15 +1914,6 @@ export class NftController extends BaseController<
 
     if (indexToUpdate !== -1) {
       nfts[indexToUpdate] = updatedNft;
-      this.update((state) => {
-        state.allNfts[addressToSearch] = Object.assign(
-          {},
-          state.allNfts[addressToSearch],
-          {
-            [chainId]: nfts,
-          },
-        );
-      });
       this.#updateNestedNftState(nfts, ALL_NFTS_STATE_KEY, {
         userAddress: addressToSearch,
         chainId,
@@ -1938,6 +1926,7 @@ export class NftController extends BaseController<
   /**
    * Checks whether NFTs associated with current selectedAddress/chainId combination are still owned by the user
    * And updates the isCurrentlyOwned value on each accordingly.
+   * Uses Multicall3 to batch all ownership checks into a single RPC request when available.
    *
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @param options - an object of arguments
@@ -1952,28 +1941,40 @@ export class NftController extends BaseController<
     } = {},
   ): Promise<void> {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
-    const {
-      configuration: { chainId },
-    } = this.messenger.call(
+    const client = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
+    const { chainId } = client.configuration;
     const { allNfts } = this.state;
     const nfts = allNfts[addressToSearch]?.[chainId] || [];
-    const updatedNfts = await Promise.all(
-      nfts.map(async (nft) => {
-        return (
-          (await this.checkAndUpdateSingleNftOwnershipStatus(
-            nft,
-            true,
-            networkClientId,
-            {
-              userAddress,
-            },
-          )) ?? nft
-        );
-      }),
-    );
+
+    if (nfts.length === 0) {
+      return;
+    }
+
+    const provider = new Web3Provider(client.provider);
+
+    let ownershipResults: NftOwnershipResult[];
+    try {
+      ownershipResults = await getNftOwnershipForMultipleNfts(
+        nfts.map((nft) => ({
+          nftAddress: nft.address,
+          tokenId: nft.tokenId,
+          userAddress: addressToSearch,
+          standard: nft.standard,
+        })),
+        chainId,
+        provider,
+      );
+    } catch {
+      return;
+    }
+
+    const updatedNfts = nfts.filter((_nft, index) => {
+      const { isOwned } = ownershipResults[index];
+      return isOwned !== false;
+    });
 
     this.#updateNestedNftState(updatedNfts, ALL_NFTS_STATE_KEY, {
       userAddress: addressToSearch,
@@ -2301,6 +2302,7 @@ export class NftController extends BaseController<
           const bulkScanResponse = await this.messenger.call(
             'PhishingController:bulkScanUrls',
             batch,
+            RequestSourceFlow.NftDetection,
           );
 
           // Collect blocked URLs from this batch

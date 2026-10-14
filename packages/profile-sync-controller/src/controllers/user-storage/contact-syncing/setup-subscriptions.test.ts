@@ -1,6 +1,6 @@
-import * as ControllerIntegration from './controller-integration';
-import { setupContactSyncingSubscriptions } from './setup-subscriptions';
-import * as SyncUtils from './sync-utils';
+import * as ControllerIntegration from './controller-integration.js';
+import { setupContactSyncingSubscriptions } from './setup-subscriptions.js';
+import * as SyncUtils from './sync-utils.js';
 
 // Define a type for the contact data
 type AddressBookContactData = {

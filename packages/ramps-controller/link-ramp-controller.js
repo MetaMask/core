@@ -18,9 +18,9 @@ function pathExistsSync(filePath) {
  * This builds and copies the ramps-controller files to the mobile app's node_modules
  */
 
-const rampsControllerPath = __dirname;
+const rampsControllerPath = import.meta.dirname;
 const mobileNodeModulesPath = path.join(
-  __dirname,
+  import.meta.dirname,
   '..',
   '..',
   '..',
@@ -47,7 +47,7 @@ try {
   execSync('yarn build', {
     cwd: rampsControllerPath,
     stdio: 'inherit',
-    env: { ...process.env, FORCE_COLOR: '1' }
+    env: { ...process.env, FORCE_COLOR: '1' },
   });
   console.log('✅ ramps-controller built successfully!');
 } catch (error) {
@@ -56,7 +56,13 @@ try {
 }
 
 // Check if mobile app exists
-const mobilePath = path.join(__dirname, '..', '..', '..', 'metamask-mobile');
+const mobilePath = path.join(
+  import.meta.dirname,
+  '..',
+  '..',
+  '..',
+  'metamask-mobile',
+);
 if (!pathExistsSync(mobilePath)) {
   console.error('❌ MetaMask mobile app not found at expected location.');
   process.exit(1);
@@ -123,4 +129,6 @@ for (const entryName of INCLUDED_ENTRIES) {
 
 console.log('✅ Successfully linked ramps-controller to MetaMask mobile app!');
 console.log(`📁 Copied to: ${rampsControllerDestPath}`);
-console.log('🔄 Re-run this script when you make changes to automatically rebuild and relink.');
+console.log(
+  '🔄 Re-run this script when you make changes to automatically rebuild and relink.',
+);

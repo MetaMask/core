@@ -5,8 +5,8 @@ import type {
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
-import type { PreferencesControllerMethodActions } from './PreferencesController-method-action-types';
+import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants.js';
+import type { PreferencesControllerMethodActions } from './PreferencesController-method-action-types.js';
 
 /**
  * A type union of the name for each chain that is supported by Etherscan or

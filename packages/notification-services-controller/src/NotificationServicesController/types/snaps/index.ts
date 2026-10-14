@@ -1,1 +1,1 @@
-export type * from './snaps';
+export type * from './snaps.js';

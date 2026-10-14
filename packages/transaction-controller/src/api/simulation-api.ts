@@ -1,15 +1,18 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import {
   CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
   DELEGATION_MANAGER_ADDRESSES,
-} from '../constants';
-import { SimulationChainNotSupportedError, SimulationError } from '../errors';
-import { projectLogger } from '../logger';
-import type { GetSimulationConfig } from '../types';
+} from '../constants.js';
+import {
+  SimulationChainNotSupportedError,
+  SimulationError,
+} from '../errors.js';
+import { projectLogger } from '../logger.js';
+import type { GetSimulationConfig } from '../types.js';
 
 const log = createModuleLogger(projectLogger, 'simulation-api');
 
@@ -85,6 +88,12 @@ export type SimulationRequest = {
     /* Whether to include the gas fee of the token transfer. */
     withFeeTransfer?: boolean;
 
+    /*
+     * Whether to include a RedeemerEnforcer caveat, restricting redemption to
+     * the relay signers, in the delegation used for the EIP-7702 estimate.
+     */
+    withRedeemerEnforcer?: boolean;
+
     /* Whether to include the native transfer if available. */
     withTransfer?: boolean;
   };
@@ -142,6 +151,9 @@ export type SimulationResponseCallTrace = {
 
   /** Raw event logs created by the call. */
   logs?: SimulationResponseLog[] | null;
+
+  /** Raw return data from the call (revert hex when reverted). */
+  output?: Hex;
 };
 
 /**

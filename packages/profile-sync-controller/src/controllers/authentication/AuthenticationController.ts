@@ -4,34 +4,72 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
+import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
+import { selectHdKeyringEntropySourceIds } from '@metamask/keyring-controller';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
+  KeyringControllerWithKeyringV2UnsafeAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type {
+  SeedlessOnboardingControllerGetAccessTokenAction,
+  SeedlessOnboardingControllerGetStateAction,
+} from '@metamask/seedless-onboarding-controller';
 import type { Json } from '@metamask/utils';
 
 import {
-  createSnapPublicKeyRequest,
-  createSnapAllPublicKeysRequest,
-  createSnapSignMessageRequest,
-} from './auth-snap-requests';
-import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types';
+  BeginEnrollmentRequestStruct,
+  CompleteEnrollmentRequestStruct,
+  assertValidMfaRequest,
+  BeginVerificationRequestStruct,
+  CompleteVerificationRequestStruct,
+  GetVerificationTokenRequestStruct,
+  parseVerificationTokenClaims,
+} from '../../sdk/authentication-jwt-bearer/mfa/schemas.js';
 import type {
+  LoginIdentifierType,
   LoginResponse,
+  ProfileAlias,
+  ProfileIdentifier,
   SRPInterface,
+  SrpLoginTag,
   UserProfile,
   UserProfileLineage,
-} from '../../sdk';
+  OidcTokenAudience,
+  OidcTokenClaims,
+  BeginEnrollmentRequest,
+  CompleteEnrollmentRequest,
+  EnrolledCredential,
+  EnrollmentChallenge,
+  BeginVerificationRequest,
+  CompleteVerificationRequest,
+  VerificationToken,
+  GetVerificationTokenRequest,
+  MfaCredentialType,
+  MfaVerificationAssertion,
+  VerificationChallenge,
+} from '../../sdk/index.js';
 import {
   assertMessageStartsWithMetamask,
   AuthType,
   Env,
   JwtBearerAuth,
-} from '../../sdk';
-import type { MetaMetricsAuth } from '../../shared/types/services';
+  PairConflictError,
+  getMfaErrorCode,
+  VerificationTokenInvalidError,
+} from '../../sdk/index.js';
+import { decodeJwtPayload } from '../../sdk/utils/jwt.js';
+import { toErrorMessage } from '../../sdk/utils/to-error-message.js';
+import type { MetaMetricsAuth } from '../../shared/types/services.js';
+import { getPrimaryHdKeyringEntropySourceId } from '../../shared/utils/entropy-source.js';
+import { getHdKeyringSeed } from '../../shared/utils/hd-keyring-seed.js';
+import {
+  getMessageSigningPublicKey,
+  signMessageWithMessageSigningKey,
+} from '../../shared/utils/message-signing.js';
+import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types.js';
 
 const controllerName = 'AuthenticationController';
 
@@ -39,9 +77,43 @@ const controllerName = 'AuthenticationController';
 export type AuthenticationControllerState = {
   isSignedIn: boolean;
   srpSessionData?: Record<string, LoginResponse>;
+  /**
+   * Credentials fetched for the current profile. The controller always seeds
+   * this to an empty array; it remains optional so partial-state selectors stay
+   * assignable to the controller state type.
+   */
+  enrolledCredentials?: EnrolledCredential[];
+  /**
+   * Client gate for profile pairing. Defaults to `true` (fresh install /
+   * upgrade), set to `false` after a successful `performSignIn` pair, set
+   * back to `true` via `requestProfilePairing()` when the SRP set changes,
+   * and left `true` on pair failure so the next state shift retries.
+   *
+   * Optional in the type so partial-state selectors stay assignable to
+   * `AuthenticationControllerState`. The controller seeds it via
+   * `defaultState` at construction; consumers should read `undefined` as
+   * `true` to mirror that runtime default.
+   */
+  needsProfilePairing?: boolean;
+  /**
+   * Client gate for social identifier pairing. Defaults to `true` (fresh
+   * install / upgrade), set to `false` after a successful or 409
+   * `POST /api/v2/profile/pair/identifier`, left `true` on other failures
+   * so the next `performSignIn` retries, and cleared without an API call
+   * when the user never logged in with a social provider.
+   *
+   * Optional in the type so partial-state selectors stay assignable to
+   * `AuthenticationControllerState`. The controller seeds it via
+   * `defaultState` at construction; consumers should read `undefined` as
+   * `true` to mirror that runtime default.
+   */
+  needsSocialPairing?: boolean;
 };
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
+  enrolledCredentials: [],
+  needsProfilePairing: true,
+  needsSocialPairing: true,
 };
 const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
@@ -50,8 +122,20 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
+  needsProfilePairing: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  needsSocialPairing: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
   srpSessionData: {
-    // Remove access token from state logs
+    // Remove access token and paired identifiers from state logs
     includeInStateLogs: (srpSessionData) => {
       // Unreachable branch, included just to fix a type error for the case where this property is
       // unset. The type gets collapsed to include `| undefined` even though `undefined` is never
@@ -65,9 +149,14 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
         (sanitizedSrpSessionData, [key, value]) => {
           const { accessToken: _unused, ...tokenWithoutAccessToken } =
             value.token;
+          const {
+            pairedIdentifierIds: _unusedPairedIdentifierIds,
+            ...profileWithoutPairedIdentifierIds
+          } = value.profile;
           sanitizedSrpSessionData[key] = {
             ...value,
             token: tokenWithoutAccessToken,
+            profile: profileWithoutPairedIdentifierIds,
           };
           return sanitizedSrpSessionData;
         },
@@ -78,10 +167,47 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  enrolledCredentials: {
+    // Allow-list so new credential types cannot leak identifiers by default.
+    includeInStateLogs: (credentials) =>
+      credentials?.map(({ type, status, enrolledAt }) => ({
+        type,
+        status,
+        ...(enrolledAt === undefined ? {} : { enrolledAt }),
+      })) ?? null,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
+/**
+ * Default maximum age of a verification session that may authorize enrolling a
+ * credential. A session opened for an unrelated operation must not be able to
+ * add a factor long after the fact, while a session proven moments ago (or
+ * during the same setup flow, via `maxSessionAgeMs`) may.
+ */
+export const ENROLLMENT_MAX_SESSION_AGE_MS = 2 * 60_000;
+
+/**
+ * Key of the only verification session held today. Sessions are keyed by token
+ * audience so audience-scoped tokens can be added without reshaping storage.
+ */
+const DEFAULT_AUDIENCE = '';
+
+type VerificationSession = {
+  token: VerificationToken;
+  expiresAt: number;
+  timer: ReturnType<typeof setTimeout>;
+};
 type ControllerConfig = {
   env: Env;
+  /**
+   * When `true`, `performSignIn` attempts to attach the Google/Apple/
+   * Telegram social identifier to the primary SRP profile. Defaults to
+   * `() => false`.
+   */
+  isSocialPairingEnabled: () => boolean;
 };
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -89,8 +215,20 @@ const MESSENGER_EXPOSED_METHODS = [
   'performSignOut',
   'getBearerToken',
   'getSessionProfile',
+  'refreshCanonicalProfileId',
   'getUserProfileLineage',
+  'getCustomerServiceToken',
+  'getPartnerIdentityToken',
   'isSignedIn',
+  'requestProfilePairing',
+  'clearState',
+  'refreshEnrolledCredentials',
+  'beginCredentialEnrollment',
+  'completeCredentialEnrollment',
+  'beginCredentialVerification',
+  'completeCredentialVerification',
+  'getVerificationToken',
+  'clearVerificationSession',
 ] as const;
 
 export type Actions =
@@ -108,10 +246,27 @@ export type AuthenticationControllerStateChangeEvent =
     AuthenticationControllerState
   >;
 
-export type Events = AuthenticationControllerStateChangeEvent;
+export type ProfileSignInInfo = {
+  profileId: string;
+  profileAliases: ProfileAlias[];
+  profileIdChanged: boolean;
+};
+
+export type AuthenticationControllerProfileSignInEvent = {
+  type: `${typeof controllerName}:profileSignIn`;
+  payload: [ProfileSignInInfo];
+};
+
+export type Events =
+  | AuthenticationControllerStateChangeEvent
+  | AuthenticationControllerProfileSignInEvent;
 
 // Allowed Actions
-type AllowedActions = HandleSnapRequest | KeyringControllerGetStateAction;
+type AllowedActions =
+  | KeyringControllerGetStateAction
+  | KeyringControllerWithKeyringV2UnsafeAction
+  | SeedlessOnboardingControllerGetStateAction
+  | SeedlessOnboardingControllerGetAccessTokenAction;
 
 type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
 
@@ -135,13 +290,46 @@ export class AuthenticationController extends BaseController<
 
   readonly #auth: SRPInterface;
 
+  readonly #trace: TraceCallback;
+
   readonly #config: ControllerConfig = {
     env: Env.PRD,
+    isSocialPairingEnabled: () => false,
   };
 
   #isUnlocked = false;
 
-  #cachedPrimaryEntropySourceId?: string;
+  /**
+   * Bumped whenever the authenticated session ends, so an in-flight MFA
+   * ceremony started under the previous session cannot apply its result.
+   */
+  #authSessionEpoch = 0;
+
+  /**
+   * Verification sessions keyed by token audience. At most one session per
+   * audience; only `DEFAULT_AUDIENCE` is used until audience-scoped tokens
+   * exist.
+   */
+  readonly #verificationSessions = new Map<string, VerificationSession>();
+
+  /**
+   * Sequence number of the most recently started credentials refresh. Only
+   * that refresh may write the cache, so a slower, earlier request cannot
+   * overwrite a newer list (e.g. an explicit refresh landing after an
+   * enrollment's refresh).
+   */
+  #credentialsRefreshSeq = 0;
+
+  /**
+   * Bumped by `requestProfilePairing` and `clearState` so an in-flight
+   * `performSignIn` can't clear `needsProfilePairing` afterwards.
+   */
+  #profilePairingRequestEpoch = 0;
+
+  /**
+   * Sign-in currently running. Overlapping callers share it.
+   */
+  #ongoingSignIn?: Promise<string[]>;
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
@@ -153,7 +341,9 @@ export class AuthenticationController extends BaseController<
       });
 
       this.messenger.subscribe('KeyringController:lock', () => {
+        this.#authSessionEpoch += 1;
         this.#isUnlocked = false;
+        this.clearVerificationSession();
       });
     },
   };
@@ -163,6 +353,7 @@ export class AuthenticationController extends BaseController<
     state,
     config,
     metametrics,
+    trace,
   }: {
     messenger: AuthenticationControllerMessenger;
     state?: AuthenticationControllerState;
@@ -172,6 +363,7 @@ export class AuthenticationController extends BaseController<
      * do not want to tie this strictly to extension
      */
     metametrics: MetaMetricsAuth;
+    trace?: TraceCallback;
   }) {
     super({
       messenger,
@@ -184,12 +376,16 @@ export class AuthenticationController extends BaseController<
       throw new Error('`metametrics` field is required');
     }
 
+    // `??` per key so an explicit `undefined` keeps the default rather than
+    // clobbering it.
     this.#config = {
-      ...this.#config,
-      ...config,
+      env: config?.env ?? this.#config.env,
+      isSocialPairingEnabled:
+        config?.isSocialPairingEnabled ?? this.#config.isSocialPairingEnabled,
     };
 
     this.#metametrics = metametrics;
+    this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.#auth = new JwtBearerAuth(
       {
@@ -203,9 +399,11 @@ export class AuthenticationController extends BaseController<
           setLoginResponse: this.#setLoginResponseToState.bind(this),
         },
         signing: {
-          getIdentifier: this.#snapGetPublicKey.bind(this),
-          signMessage: this.#snapSignMessage.bind(this),
+          getIdentifier: this.#getPublicKey.bind(this),
+          signMessage: this.#signMessage.bind(this),
         },
+        getLoginTag: this.#getLoginTag.bind(this),
+        getLoginIdentifierType: this.#getLoginIdentifierType.bind(this),
         metametrics: this.#metametrics,
       },
     );
@@ -221,8 +419,7 @@ export class AuthenticationController extends BaseController<
   async #getLoginResponseFromState(
     entropySourceId?: string,
   ): Promise<LoginResponse | null> {
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     if (!this.state.srpSessionData?.[resolvedId]) {
       return null;
     }
@@ -233,19 +430,24 @@ export class AuthenticationController extends BaseController<
     loginResponse: LoginResponse,
     entropySourceId?: string,
   ) {
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     const metaMetricsId = await this.#metametrics.getMetaMetricsId();
     this.update((state) => {
       state.isSignedIn = true;
       if (!state.srpSessionData) {
         state.srpSessionData = {};
       }
+      // The API omits `paired_identifier_ids` when it fails to load them, so
+      // keep the last known value rather than wiping it.
+      const pairedIdentifierIds =
+        loginResponse.profile.pairedIdentifierIds ??
+        state.srpSessionData[resolvedId]?.profile.pairedIdentifierIds;
       state.srpSessionData[resolvedId] = {
         ...loginResponse,
         profile: {
           ...loginResponse.profile,
           metaMetricsId,
+          ...(pairedIdentifierIds ? { pairedIdentifierIds } : {}),
         },
       };
     });
@@ -257,47 +459,875 @@ export class AuthenticationController extends BaseController<
     }
   }
 
-  async #getPrimaryEntropySourceId(): Promise<string> {
-    if (this.#cachedPrimaryEntropySourceId) {
-      return this.#cachedPrimaryEntropySourceId;
-    }
-    const allPublicKeys = await this.#snapGetAllPublicKeys();
-
-    if (allPublicKeys.length === 0) {
+  #assertAuthSessionEpoch(epoch: number, methodName: string): void {
+    if (!this.#isUnlocked || this.#authSessionEpoch !== epoch) {
       throw new Error(
-        '#getPrimaryEntropySourceId - No entropy sources found from snap',
+        `${methodName} - unable to proceed, the authenticated session ended`,
       );
     }
+  }
 
-    const primaryId = allPublicKeys[0][0];
-    if (!primaryId) {
-      throw new Error(
-        '#getPrimaryEntropySourceId - Primary entropy source ID is undefined',
-      );
+  /**
+   * Reads the HD keyring entropy source IDs from KeyringController.
+   *
+   * @returns The HD keyring metadata IDs, primary first.
+   */
+  #getHdKeyringEntropySourceIds(): string[] {
+    const keyringState = this.messenger.call('KeyringController:getState');
+    return selectHdKeyringEntropySourceIds(keyringState);
+  }
+
+  /**
+   * Resolves the primary SRP's entropy source ID from KeyringController rather
+   * than the message-signing snap, so callers like `getBearerToken()` are not
+   * blocked on snap boot.
+   *
+   * @returns The primary HD keyring metadata ID.
+   * @throws If no HD keyring is available; callers must only resolve while
+   * the wallet is unlocked.
+   */
+  #getPrimaryEntropySourceId(): string {
+    const keyringState = this.messenger.call('KeyringController:getState');
+    return getPrimaryHdKeyringEntropySourceId(keyringState);
+  }
+
+  /**
+   * Resolves the SRP login tag for `raw_message`.
+   *
+   * - `primary` for the first HD entropy source
+   * - `secondary` for any other entropy source
+   *
+   * @param entropySourceId - Entropy source for this login attempt.
+   * @returns The login tag to append to the signed message.
+   */
+  async #getLoginTag(entropySourceId?: string): Promise<SrpLoginTag> {
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    const resolvedId = entropySourceId ?? primaryEntropySourceId;
+
+    return resolvedId === primaryEntropySourceId ? 'primary' : 'secondary';
+  }
+
+  /**
+   * Resolves metametrics `identifier_type` for `/srp/login`
+   * (`SRP` | `GOOGLE` | `APPLE` | `TELEGRAM`).
+   *
+   * This is the auth method for the entropy source, independent of
+   * {@link SrpLoginTag} (`primary` / `secondary`).
+   *
+   * SeedlessOnboarding currently exposes a single vault-level
+   * `authConnection`, which always backs the primary entropy source. Non-
+   * primary sources therefore return `SRP`. If social identities become
+   * per-entropy later, resolve from that metadata instead of assuming
+   * primary === social.
+   *
+   * Soft-fails to `SRP` when SeedlessOnboarding is not registered.
+   *
+   * @param entropySourceId - Entropy source for this login attempt.
+   * @returns The login identifier type.
+   */
+  async #getLoginIdentifierType(
+    entropySourceId?: string,
+  ): Promise<LoginIdentifierType> {
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    const resolvedId = entropySourceId ?? primaryEntropySourceId;
+
+    // Social vault authConnection is only associated with the primary source.
+    if (resolvedId !== primaryEntropySourceId) {
+      return 'SRP';
     }
 
-    this.#cachedPrimaryEntropySourceId = primaryId;
-    return this.#cachedPrimaryEntropySourceId;
+    return this.#resolveSocialIdentifierType();
+  }
+
+  /**
+   * Maps `SeedlessOnboardingController.state.authConnection` to a login
+   * identifier type when a social vault is present.
+   *
+   * Returns `SRP` if there is no vault, the provider is unrecognized, or
+   * SeedlessOnboardingController is unavailable on the messenger.
+   *
+   * @returns The social provider identifier type, or `SRP`.
+   */
+  #resolveSocialIdentifierType(): LoginIdentifierType {
+    try {
+      return this.#identifierTypeFromSeedlessState(
+        this.messenger.call('SeedlessOnboardingController:getState'),
+      );
+    } catch {
+      return 'SRP';
+    }
+  }
+
+  /**
+   * Maps SeedlessOnboarding vault + `authConnection` to a login identifier
+   * type. Does not catch messenger errors — callers decide whether a
+   * missing controller is `SRP` or a retryable failure.
+   *
+   * @param state - SeedlessOnboarding slice used for the mapping.
+   * @param state.vault - Encrypted social vault, if present.
+   * @param state.authConnection - Social provider id (`google` / `apple` /
+   * `telegram`).
+   * @returns The social provider identifier type, or `SRP`.
+   */
+  #identifierTypeFromSeedlessState(state: {
+    vault?: string | null;
+    authConnection?: string;
+  }): LoginIdentifierType {
+    if (state.vault === null || state.vault === undefined) {
+      return 'SRP';
+    }
+
+    // Match provider strings from SeedlessOnboarding state rather than
+    // importing AuthConnection — a value import would load that package
+    // (and its heavy deps) whenever this controller is imported.
+    switch (state.authConnection) {
+      case 'google':
+        return 'GOOGLE';
+      case 'apple':
+        return 'APPLE';
+      case 'telegram':
+        return 'TELEGRAM';
+      default:
+        return 'SRP';
+    }
   }
 
   public async performSignIn(): Promise<string[]> {
     this.#assertIsUnlocked('performSignIn');
+    if (this.#ongoingSignIn) {
+      return await this.#ongoingSignIn;
+    }
 
-    const allPublicKeys = await this.#snapGetAllPublicKeys();
-    const accessTokens = [];
+    const signIn = this.#runPerformSignIn().finally(() => {
+      if (this.#ongoingSignIn === signIn) {
+        this.#ongoingSignIn = undefined;
+      }
+    });
+
+    this.#ongoingSignIn = signIn;
+    return await signIn;
+  }
+
+  async #runPerformSignIn(): Promise<string[]> {
+    const epochAtStart = this.#profilePairingRequestEpoch;
+    const entropySourceIds = this.#getHdKeyringEntropySourceIds();
+    const accessTokens: string[] = [];
 
     // We iterate sequentially in order to be sure that the first entry
     // is the primary SRP LoginResponse.
-    for (const [entropySourceId] of allPublicKeys) {
+    for (const entropySourceId of entropySourceIds) {
       const accessToken = await this.#auth.getAccessToken(entropySourceId);
       accessTokens.push(accessToken);
+    }
+
+    if (entropySourceIds.length < 2) {
+      // Single-SRP wallet: nothing to pair.
+      this.#tryClearNeedsProfilePairing(epochAtStart);
+    } else {
+      // Pair failures must not break sign-in; the gate stays `true` for retry.
+      try {
+        await this.#doPair(accessTokens, epochAtStart);
+      } catch {
+        // noop
+      }
+    }
+
+    try {
+      await this.#trySocialPairing(accessTokens[0]);
+    } catch {
+      // noop
     }
 
     return accessTokens;
   }
 
+  /**
+   * Attaches a Google/Apple/Telegram social identifier to the primary SRP
+   * profile via `POST /api/v2/profile/pair/identifier`.
+   *
+   * Runs only when `isSocialPairingEnabled()` is true and
+   * `needsSocialPairing` is not `false` (`undefined` is treated as true).
+   * No social provider (`authConnection` unset) → clear the flag (nothing
+   * to pair). Social provider set but vault missing → skip (onboarding
+   * still in flight). Google without email → skip (API requires it).
+   * Telegram never sends `email` (the field holds a display name, not an
+   * address). Missing social JWT → skip. 409 Conflict → clear the flag
+   * (identifier already owned; retry is pointless). Other errors
+   * propagate so the caller can swallow them and leave the flag set for
+   * retry.
+   *
+   * @param primaryAccessToken - Primary SRP OIDC access token used as the
+   * Bearer credential. The profile associated with this JWT becomes the
+   * canonical owner of the social identifier.
+   */
+  async #trySocialPairing(primaryAccessToken?: string): Promise<void> {
+    if (
+      !this.#config.isSocialPairingEnabled() ||
+      this.state.needsSocialPairing === false ||
+      !primaryAccessToken
+    ) {
+      return;
+    }
+
+    let seedlessState: {
+      vault?: string | null;
+      authConnection?: string;
+      socialLoginEmail?: string;
+    };
+    try {
+      seedlessState = this.messenger.call(
+        'SeedlessOnboardingController:getState',
+      );
+    } catch {
+      // Controller missing or getState failed — retry next performSignIn.
+      return;
+    }
+
+    // `SRP` here does not describe the vault: it is the mapping's "no social
+    // identity" result, returned when there is no seedless vault or the
+    // provider is unrecognised. In both cases there is nothing to pair.
+    const identifierType = this.#identifierTypeFromSeedlessState(seedlessState);
+    if (identifierType === 'SRP') {
+      const { vault, authConnection } = seedlessState;
+      // Vault not written yet but a social provider is already known —
+      // onboarding is still in flight. Do not clear; retry next sign-in.
+      if ((vault === null || vault === undefined) && Boolean(authConnection)) {
+        return;
+      }
+      this.#clearNeedsSocialPairing();
+      return;
+    }
+
+    // Email policy follows the API contract: GOOGLE requires `email` (400
+    // without it), APPLE accepts it optionally, TELEGRAM must not send it
+    // (clients store a display name in `socialLoginEmail` for Telegram).
+    // Clients request the `email` scope for Google, so a missing value is a
+    // defensive case rather than an expected one; returning here leaves
+    // `needsSocialPairing` set so the next sign-in retries instead of
+    // sending a request that would fail.
+    const { socialLoginEmail } = seedlessState;
+    let email: string | undefined;
+    if (identifierType === 'GOOGLE') {
+      if (!socialLoginEmail) {
+        return;
+      }
+      email = socialLoginEmail;
+    } else if (identifierType === 'APPLE') {
+      email = socialLoginEmail;
+    }
+
+    const socialJwt = await this.messenger.call(
+      'SeedlessOnboardingController:getAccessToken',
+    );
+    if (socialJwt === undefined || socialJwt === '') {
+      return;
+    }
+
+    try {
+      const pairedIdentifierIds = await this.#auth.pairSocialIdentifier(
+        {
+          identifierType,
+          socialJwt,
+          ...(email ? { email } : {}),
+        },
+        primaryAccessToken,
+      );
+      this.#setPrimaryPairedIdentifierIds(pairedIdentifierIds);
+      this.#clearNeedsSocialPairing();
+    } catch (error) {
+      if (error instanceof PairConflictError) {
+        this.#clearNeedsSocialPairing();
+        return;
+      }
+      throw error;
+    }
+  }
+
+  #clearNeedsSocialPairing(): void {
+    if (this.state.needsSocialPairing !== false) {
+      this.update((state) => {
+        state.needsSocialPairing = false;
+      });
+    }
+  }
+
+  /**
+   * Marks profile pairing as needed. Clients call this when the SRP set
+   * changes (e.g. a new keyring was added) so the next auto-sign-in cycle
+   * re-runs `performSignIn` and re-pairs.
+   */
+  public requestProfilePairing(): void {
+    this.#profilePairingRequestEpoch += 1;
+    if (!this.state.needsProfilePairing) {
+      this.update((state) => {
+        state.needsProfilePairing = true;
+      });
+    }
+  }
+
+  /**
+   * Clears `needsProfilePairing` only if no `requestProfilePairing` call
+   * landed since `epochAtStart` was captured. Prevents `performSignIn`
+   * from silently overwriting a concurrent rearm.
+   *
+   * @param epochAtStart - Epoch value captured at the start of `performSignIn`.
+   */
+  #tryClearNeedsProfilePairing(epochAtStart: number): void {
+    if (this.#profilePairingRequestEpoch !== epochAtStart) {
+      return;
+    }
+    if (this.state.needsProfilePairing) {
+      this.update((state) => {
+        state.needsProfilePairing = false;
+      });
+    }
+  }
+
+  /**
+   * Pairs all SRPs via `POST /profile/pair`, propagates the canonical
+   * profile ID, clears `needsProfilePairing`, and emits
+   * `AuthenticationController:profileSignIn` when the canonical changes or
+   * new aliases are returned. Throws on failure.
+   *
+   * @param accessTokens - Per-SRP access tokens, primary first.
+   * @param epochAtStart - Pairing-request epoch captured by the caller.
+   * Used to skip the gate clear if `requestProfilePairing` ran while the
+   * pair API call was in-flight.
+   */
+  async #doPair(accessTokens: string[], epochAtStart: number): Promise<void> {
+    const previousCanonical = this.#getCanonicalProfileId();
+
+    const profileAliases = await this.#pairSrpProfiles(accessTokens);
+    const newCanonical = this.#getCanonicalProfileId();
+
+    // If somehow we cannot compute the new canonical profile ID after pairing,
+    // we just return now and do not update the `needsProfilePairing` flag.
+    if (!newCanonical) {
+      return;
+    }
+
+    this.#tryClearNeedsProfilePairing(epochAtStart);
+
+    const profileIdChanged = previousCanonical !== newCanonical;
+    const shouldEmitProfileSignInEvent =
+      profileIdChanged || profileAliases.length > 0;
+
+    if (shouldEmitProfileSignInEvent) {
+      this.messenger.publish('AuthenticationController:profileSignIn', {
+        profileId: newCanonical,
+        profileAliases,
+        profileIdChanged,
+      });
+    }
+  }
+
+  async #pairSrpProfiles(accessTokens: string[]): Promise<ProfileAlias[]> {
+    if (accessTokens.length < 2) {
+      return [];
+    }
+    const primaryAccessToken = accessTokens[0]; // Associated with primary SRP.
+    const {
+      profileAliases,
+      profile: { canonicalProfileId, pairedIdentifierIds },
+    } = await this.#auth.pairSrpProfiles(accessTokens, primaryAccessToken);
+    this.#propagateCanonical(canonicalProfileId);
+    this.#setPrimaryPairedIdentifierIds(pairedIdentifierIds);
+    return profileAliases;
+  }
+
+  /**
+   * Pair calls use the primary SRP's token, so their response only describes
+   * the primary's profile: secondaries skipped by the server are not in it.
+   *
+   * @param pairedIdentifierIds - Identifiers returned by the pair call, if any.
+   */
+  #setPrimaryPairedIdentifierIds(
+    pairedIdentifierIds: ProfileIdentifier[] | undefined,
+  ): void {
+    if (!pairedIdentifierIds) {
+      return;
+    }
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    this.update((state) => {
+      const entry = state.srpSessionData?.[primaryEntropySourceId];
+      if (entry?.profile) {
+        entry.profile.pairedIdentifierIds = pairedIdentifierIds;
+      }
+    });
+  }
+
+  #propagateCanonical(canonicalProfileId: string): void {
+    const { srpSessionData } = this.state;
+    if (!srpSessionData) {
+      return;
+    }
+
+    this.update((state) => {
+      for (const entry of Object.values(state.srpSessionData ?? {})) {
+        if (entry?.profile) {
+          entry.profile.canonicalProfileId = canonicalProfileId;
+        }
+      }
+    });
+  }
+
+  /**
+   * Returns the canonical profile id from the primary SRP's cached session.
+   * Returns `null` when no session exists yet for the primary SRP.
+   *
+   * Always reads from the primary SRP because the canonical is shared across
+   * all paired SRPs after `#propagateCanonical`.
+   *
+   * @returns The canonical profile id, or `null` if unavailable.
+   */
+  #getCanonicalProfileId(): string | null {
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    return (
+      this.state.srpSessionData?.[primaryEntropySourceId]?.profile
+        ?.canonicalProfileId ?? null
+    );
+  }
+
+  /**
+   * Runs one MFA network step inside a trace span tagged with the caller's
+   * operation and the credential type, recording the outcome and MFA error
+   * code.
+   *
+   * @param name - Span name.
+   * @param operation - Caller-supplied `reason.operation`.
+   * @param credentialType - Credential type the step concerns.
+   * @param fn - The network step.
+   * @returns The step's result.
+   */
+  async #runMfaRequest<Result>(
+    name: string,
+    operation: string,
+    credentialType: string,
+    fn: () => Promise<Result>,
+  ): Promise<Result> {
+    return await this.#trace(
+      {
+        name,
+        tags: { operation, credentialType },
+      },
+      async (context) => {
+        try {
+          const result = await fn();
+          this.#setTraceAttribute(context, 'outcome', 'success');
+          return result;
+        } catch (error) {
+          this.#setTraceAttribute(context, 'outcome', 'error');
+          const mfaCode = getMfaErrorCode(error);
+          if (mfaCode) {
+            this.#setTraceAttribute(context, 'mfaErrorCode', mfaCode);
+            if (mfaCode === 'authentication_required' && this.#isUnlocked) {
+              this.#invalidateSrpSession(this.#getPrimaryEntropySourceId());
+              // A verification session must not outlive a rejected base
+              // session.
+              this.clearVerificationSession();
+            }
+          }
+          throw error;
+        }
+      },
+    );
+  }
+
+  /**
+   * `TraceContext` is opaque in `@metamask/controller-utils`; both clients
+   * hand back a Sentry span, so attributes are set via duck typing and a
+   * non-Sentry context is a silent no-op.
+   *
+   * @param context - Span handed to the trace callback, if any.
+   * @param key - Attribute name.
+   * @param value - Attribute value.
+   */
+  #setTraceAttribute(
+    context: TraceContext | undefined,
+    key: string,
+    value: string,
+  ): void {
+    const traceSpan = context as
+      | { setAttribute?: (attribute: string, data: string) => void }
+      | undefined;
+    traceSpan?.setAttribute?.(key, value);
+  }
+
+  /**
+   * Refreshes credentials enrolled on the canonical profile.
+   *
+   * @returns The current supported credentials.
+   */
+  public async refreshEnrolledCredentials(): Promise<EnrolledCredential[]> {
+    this.#assertIsUnlocked('refreshEnrolledCredentials');
+    const sessionEpoch = this.#authSessionEpoch;
+    this.#credentialsRefreshSeq += 1;
+    const refreshSeq = this.#credentialsRefreshSeq;
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    const credentials = await this.#runMfaRequest(
+      'MFA Credentials Refresh',
+      'credentials.refresh',
+      'all',
+      async () => await this.#auth.getMfaCredentials(primaryEntropySourceId),
+    );
+    this.#assertAuthSessionEpoch(sessionEpoch, 'refreshEnrolledCredentials');
+
+    // A newer refresh started while this one was in flight; its result is at
+    // least as fresh, so defer to it rather than overwrite with older data.
+    if (refreshSeq !== this.#credentialsRefreshSeq) {
+      return this.#getEnrolledCredentials();
+    }
+
+    // Skip the write when nothing changed so subscribers are not woken up by
+    // a fresh-but-identical array.
+    if (
+      JSON.stringify(credentials) !==
+      JSON.stringify(this.#getEnrolledCredentials())
+    ) {
+      this.update((state) => {
+        state.enrolledCredentials = credentials;
+      });
+    }
+    return credentials;
+  }
+
+  /**
+   * Begins enrollment of a passkey or email OTP credential.
+   *
+   * @param request - Credential, optional email address, and trace reason.
+   * @returns A challenge for the client-owned ceremony.
+   */
+  public async beginCredentialEnrollment(
+    request: BeginEnrollmentRequest,
+  ): Promise<EnrollmentChallenge> {
+    this.#assertIsUnlocked('beginCredentialEnrollment');
+    const sessionEpoch = this.#authSessionEpoch;
+    assertValidMfaRequest(request, BeginEnrollmentRequestStruct);
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    // The server requires AAL2 to add a credential once one that proves AAL2
+    // exists: send the verification token only while a recent enough session
+    // is live and let the server decide. An older session stays open for
+    // other consumers.
+    const accessToken = this.getVerificationToken({
+      maxSessionAgeMs: request.maxSessionAgeMs ?? ENROLLMENT_MAX_SESSION_AGE_MS,
+    })?.accessToken;
+    const challenge = await this.#runMfaRequest(
+      'MFA Enroll Begin',
+      request.reason.operation,
+      request.type,
+      async () =>
+        await this.#auth.beginMfaEnrollment(request.type, {
+          email: request.email,
+          entropySourceId: primaryEntropySourceId,
+          accessToken,
+        }),
+    );
+    this.#assertAuthSessionEpoch(sessionEpoch, 'beginCredentialEnrollment');
+    return challenge;
+  }
+
+  /**
+   * Completes credential enrollment and refreshes the credential cache.
+   *
+   * The server returns an assertion for the new credential, which opens a
+   * verification session like `completeCredentialVerification`, replacing
+   * any earlier one. If that exchange fails, the earlier session is kept:
+   * the credential is enrolled either way.
+   *
+   * A cache-refresh failure does not undo successful enrollment. Email
+   * enrollment invalidates the primary SRP session *after* refresh so the
+   * credentials call can reuse the still-valid access token; the next token
+   * fetch then includes the newly verified email claim. That invalidation
+   * happens even if the session ends mid-request: the enrollment succeeded
+   * on the server, so a token cached across a lock must not be reused
+   * without the new claim.
+   *
+   * @param request - Flow identifier, platform or email proof, and trace reason.
+   * @returns The refreshed credentials, or the existing cache if refresh fails.
+   */
+  public async completeCredentialEnrollment(
+    request: CompleteEnrollmentRequest,
+  ): Promise<EnrolledCredential[]> {
+    this.#assertIsUnlocked('completeCredentialEnrollment');
+    const sessionEpoch = this.#authSessionEpoch;
+    assertValidMfaRequest(request, CompleteEnrollmentRequestStruct);
+    const { type } = request.proof;
+    const { operation } = request.reason;
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    const assertion = await this.#runMfaRequest(
+      'MFA Enroll Complete',
+      operation,
+      type,
+      async () =>
+        await this.#auth.completeMfaEnrollment(
+          request.flowId,
+          request.proof,
+          primaryEntropySourceId,
+        ),
+    );
+
+    try {
+      await this.#openVerificationSessionFromAssertion(assertion, {
+        operation,
+        type,
+        sessionEpoch,
+        methodName: 'completeCredentialEnrollment',
+      });
+    } catch {
+      // Callers see no session and verify the credential instead.
+    }
+
+    // Also catches a session that ended during the enrollment request; the
+    // exchange above then ran for nothing, and its session was never opened.
+    try {
+      this.#assertAuthSessionEpoch(
+        sessionEpoch,
+        'completeCredentialEnrollment',
+      );
+    } catch (error) {
+      if (type === 'email_otp') {
+        this.#invalidateSrpSession(primaryEntropySourceId);
+      }
+      throw error;
+    }
+
+    try {
+      return await this.refreshEnrolledCredentials();
+    } catch {
+      return this.#getEnrolledCredentials();
+    } finally {
+      if (type === 'email_otp') {
+        this.#invalidateSrpSession(primaryEntropySourceId);
+      }
+    }
+  }
+
+  /**
+   * Begins verification with an enrolled credential.
+   *
+   * @param request - Credential type and trace reason.
+   * @returns A challenge for the client-owned ceremony.
+   */
+  public async beginCredentialVerification(
+    request: BeginVerificationRequest,
+  ): Promise<VerificationChallenge> {
+    this.#assertIsUnlocked('beginCredentialVerification');
+    const sessionEpoch = this.#authSessionEpoch;
+    assertValidMfaRequest(request, BeginVerificationRequestStruct);
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    const challenge = await this.#runMfaRequest(
+      'MFA Verification Begin',
+      request.reason.operation,
+      request.type,
+      async () =>
+        await this.#auth.beginMfaVerification(
+          request.type,
+          primaryEntropySourceId,
+        ),
+    );
+    this.#assertAuthSessionEpoch(sessionEpoch, 'beginCredentialVerification');
+    return challenge;
+  }
+
+  /**
+   * Completes verification and opens a short-lived verification session.
+   *
+   * The assertion returned by the MFA service is exchanged at Hydra for an
+   * access token. Its assurance level is not checked: the services receiving
+   * the token enforce their own requirements. The token itself never enters
+   * controller state.
+   *
+   * @param request - Flow identifier, platform or email proof, and trace reason.
+   * @returns The verification token.
+   */
+  public async completeCredentialVerification(
+    request: CompleteVerificationRequest,
+  ): Promise<VerificationToken> {
+    this.#assertIsUnlocked('completeCredentialVerification');
+    const sessionEpoch = this.#authSessionEpoch;
+    assertValidMfaRequest(request, CompleteVerificationRequestStruct);
+    const { type } = request.proof;
+    const { operation } = request.reason;
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    const assertion = await this.#runMfaRequest(
+      'MFA Verification Complete',
+      operation,
+      type,
+      async () =>
+        await this.#auth.completeMfaVerification(
+          request.flowId,
+          request.proof,
+          primaryEntropySourceId,
+        ),
+    );
+    this.#assertAuthSessionEpoch(
+      sessionEpoch,
+      'completeCredentialVerification',
+    );
+    return await this.#openVerificationSessionFromAssertion(assertion, {
+      operation,
+      type,
+      sessionEpoch,
+      methodName: 'completeCredentialVerification',
+    });
+  }
+
+  /**
+   * Exchanges an MFA assertion at Hydra and opens the verification session
+   * with the resulting token.
+   *
+   * @param assertion - Assertion returned by a verify or enroll completion.
+   * @param context - Trace tags and the session the call started in.
+   * @param context.operation - Feature operation, for tracing.
+   * @param context.type - Credential type the assertion proves, for tracing.
+   * @param context.sessionEpoch - Authenticated session the call started in.
+   * @param context.methodName - Public method name, for error messages.
+   * @returns The verification token.
+   */
+  async #openVerificationSessionFromAssertion(
+    assertion: MfaVerificationAssertion,
+    {
+      operation,
+      type,
+      sessionEpoch,
+      methodName,
+    }: {
+      operation: string;
+      type: MfaCredentialType;
+      sessionEpoch: number;
+      methodName: string;
+    },
+  ): Promise<VerificationToken> {
+    const accessToken = await this.#runMfaRequest(
+      'MFA Token Exchange',
+      operation,
+      type,
+      async () => await this.#auth.exchangeMfaAssertion(assertion.token),
+    );
+    this.#assertAuthSessionEpoch(sessionEpoch, methodName);
+
+    let decodedClaims: unknown;
+    try {
+      decodedClaims = decodeJwtPayload(accessToken.accessToken);
+    } catch (error) {
+      throw new VerificationTokenInvalidError(toErrorMessage(error));
+    }
+    const claims = parseVerificationTokenClaims(decodedClaims);
+    if (!Number.isFinite(accessToken.expiresIn) || accessToken.expiresIn <= 0) {
+      throw new VerificationTokenInvalidError(
+        'Verification token has no remaining lifetime',
+      );
+    }
+
+    const token: VerificationToken = { ...accessToken, claims };
+    this.#openVerificationSession(token);
+    return token;
+  }
+
+  /**
+   * Returns the active verification token when it meets the requested
+   * freshness.
+   *
+   * Low-level: features should go through the client MFA kit
+   * (`verifyOrEnroll`), which reuses a matching session without showing any
+   * screen and checks which method proved it. Read the token directly only
+   * from code that cannot show UI, and treat `null` as "let the UI layer
+   * ask".
+   *
+   * @param request - Optional maximum session age in milliseconds, measured
+   * from when the token was obtained. Zero always requires a new ceremony.
+   * @returns A live verification token, or null when no reusable session
+   * exists.
+   */
+  public getVerificationToken(
+    request: GetVerificationTokenRequest = {},
+  ): VerificationToken | null {
+    this.#assertIsUnlocked('getVerificationToken');
+    assertValidMfaRequest(request, GetVerificationTokenRequestStruct);
+    const session = this.#verificationSessions.get(DEFAULT_AUDIENCE);
+    if (!session) {
+      return null;
+    }
+    const now = Date.now();
+    if (now >= session.expiresAt) {
+      // The hard-expiry timer has not fired yet (e.g. a suspended tab).
+      this.#dropVerificationSession(DEFAULT_AUDIENCE);
+      return null;
+    }
+    // `>=` so a zero max age always forces a fresh ceremony. Not cleared: the
+    // max age is this caller's requirement; others may still use the session.
+    const maxAge = request.maxSessionAgeMs;
+    if (maxAge !== undefined && now - session.token.obtainedAt >= maxAge) {
+      return null;
+    }
+    return session.token;
+  }
+
+  /**
+   * Opens the verification session for the lifetime the server gave the token.
+   * It is measured from `expires_in` on the local clock rather than read from
+   * `exp`, so a skewed device clock cannot shorten or extend it.
+   *
+   * @param token - The freshly exchanged verification token.
+   */
+  #openVerificationSession(token: VerificationToken): void {
+    const audience = DEFAULT_AUDIENCE;
+    this.#dropVerificationSession(audience);
+    const expiresAt = token.obtainedAt + token.expiresIn * 1000;
+    const timer = setTimeout(
+      () => this.#dropVerificationSession(audience),
+      Math.max(0, expiresAt - Date.now()),
+    );
+    // Never keep a Node process alive for the expiry timer (tests, tooling).
+    (timer as { unref?: () => void }).unref?.();
+    this.#verificationSessions.set(audience, { token, expiresAt, timer });
+  }
+
+  /**
+   * Drops one audience's verification session and its expiration timer.
+   *
+   * @param audience - Audience whose session to drop.
+   */
+  #dropVerificationSession(audience: string): void {
+    const session = this.#verificationSessions.get(audience);
+    if (session) {
+      clearTimeout(session.timer);
+      this.#verificationSessions.delete(audience);
+    }
+  }
+
+  /**
+   * Clears every in-memory verification session and its expiration timer.
+   */
+  public clearVerificationSession(): void {
+    for (const { timer } of this.#verificationSessions.values()) {
+      clearTimeout(timer);
+    }
+    this.#verificationSessions.clear();
+  }
+
+  /**
+   * Drops the cached credential list. Callers that wipe profile state must go
+   * through this so subscribers never keep credentials belonging to a profile
+   * that is no longer active.
+   */
+  #clearEnrolledCredentials(): void {
+    if (this.#getEnrolledCredentials().length === 0) {
+      return;
+    }
+    this.update((state) => {
+      state.enrolledCredentials = [];
+    });
+  }
+
+  #getEnrolledCredentials(): EnrolledCredential[] {
+    return this.state.enrolledCredentials ?? [];
+  }
+
   public performSignOut(): void {
-    this.#cachedPrimaryEntropySourceId = undefined;
+    this.#authSessionEpoch += 1;
+    this.clearVerificationSession();
+    this.#clearEnrolledCredentials();
     this.update((state) => {
       state.isSignedIn = false;
       state.srpSessionData = undefined;
@@ -305,22 +1335,42 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Will return a bearer token.
-   * Logs a user in if a user is not logged in.
-   *
-   * @returns profile for the session.
+   * Resets the controller to `defaultState`. Clients call this on wallet reset
+   * so the next wallet starts unsigned with both pairing gates re-armed.
    */
+  public clearState(): void {
+    this.#profilePairingRequestEpoch += 1;
+    this.#authSessionEpoch += 1;
+    this.clearVerificationSession();
+    this.#clearEnrolledCredentials();
+    this.update(() => ({ ...defaultState }));
+  }
 
+  /**
+   * Returns a bearer token for the specified SRP, logging in if needed.
+   *
+   * When called without `entropySourceId`, returns the primary (first) SRP's
+   * access token, which is effectively the canonical
+   * profile's token that can be used by alias-aware consumers for cross-SRP
+   * operations.
+   *
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The OIDC access token.
+   */
   public async getBearerToken(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('getBearerToken');
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getAccessToken(resolvedId);
   }
 
   /**
-   * Will return a session profile.
-   * Logs a user in if a user is not logged in.
+   * Returns the cached session profile, logging in if no session exists.
+   *
+   * The returned `canonicalProfileId` reflects the value from the most recent
+   * login or pairing. In the rare event where a canonical changed because of
+   * a pairing that happened on another device, the cached value may be stale
+   * until the next login. For guaranteed freshness, call
+   * `refreshCanonicalProfileId()` before reading `canonicalProfileId`.
    *
    * @param entropySourceId - The entropy source ID used to derive the key,
    * when multiple sources are available (Multi-SRP).
@@ -330,18 +1380,108 @@ export class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<UserProfile> {
     this.#assertIsUnlocked('getSessionProfile');
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getUserProfile(resolvedId);
+  }
+
+  /**
+   * Forces a fresh retrieval of the canonical profile ID from the server
+   * and propagates it to all cached SRP sessions.
+   *
+   * This method invalidates the primary SRP's cached session and forces a
+   * re-login. Use it before operations that require a guaranteed-fresh
+   * canonical (e.g. storage key derivation for Accounts ADR 0005). For
+   * best-effort reads, use
+   * `getSessionProfile().canonicalProfileId` instead.
+   *
+   * Only the primary SRP is re-logged-in regardless of how many SRPs exist —
+   * the server returns the current canonical for the entire pairing group
+   * from any single SRP login.
+   *
+   * @returns The refreshed canonical profile ID.
+   */
+  public async refreshCanonicalProfileId(): Promise<string> {
+    this.#assertIsUnlocked('refreshCanonicalProfileId');
+
+    const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
+    this.#invalidateSrpSession(primaryEntropySourceId);
+    await this.#auth.getAccessToken(primaryEntropySourceId);
+
+    const canonical = this.#getCanonicalProfileId();
+    if (!canonical) {
+      throw new Error(
+        'refreshCanonicalProfileId - Unable to resolve canonical profile ID',
+      );
+    }
+
+    this.#propagateCanonical(canonical);
+    return canonical;
+  }
+
+  #invalidateSrpSession(entropySourceId: string): void {
+    this.update((state) => {
+      const entry = state.srpSessionData?.[entropySourceId];
+      if (entry?.profile) {
+        // Setting canonicalProfileId to '' forces a re-fetch on the next
+        // #getAuthSession call. The falsy check (!auth.profile.canonicalProfileId)
+        // treats '' the same as undefined/null — all signal an invalid session.
+        entry.profile.canonicalProfileId = '';
+      }
+    });
   }
 
   public async getUserProfileLineage(
     entropySourceId?: string,
   ): Promise<UserProfileLineage> {
     this.#assertIsUnlocked('getUserProfileLineage');
-    const resolvedId =
-      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getUserProfileLineage(resolvedId);
+  }
+
+  /**
+   * Returns a Customer Service specific access token for the specified SRP,
+   * logging in if needed.
+   *
+   * Exchanges the OIDC access token for a short-lived token scoped to the
+   * customer-service audience. Customer Service tooling consumes this token to
+   * identify and authenticate the user.
+   *
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The customer-service access token.
+   */
+  public async getCustomerServiceToken(
+    entropySourceId?: string,
+  ): Promise<string> {
+    this.#assertIsUnlocked('getCustomerServiceToken');
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
+    return await this.#auth.getCustomerServiceToken(resolvedId);
+  }
+
+  /**
+   * Mints a partner identity token for the specified SRP, logging in if needed.
+   *
+   * Calls `POST /api/v2/oidc/token` with the Hydra login bearer and returns
+   * the minted `access_token`. Email on live tokens is under JWT `ext`.
+   * HTTP 422 throws `EmailRequiredError` when this profile has no
+   * verified email.
+   *
+   * @param claims - Claim names to embed. Only `email` is supported.
+   * @param audience - Partner audience (`kyc` or `iron`).
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The partner identity access token.
+   */
+  public async getPartnerIdentityToken(
+    claims: OidcTokenClaims,
+    audience: OidcTokenAudience,
+    entropySourceId?: string,
+  ): Promise<string> {
+    this.#assertIsUnlocked('getPartnerIdentityToken');
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
+    return await this.#auth.getPartnerIdentityToken(
+      claims,
+      audience,
+      resolvedId,
+    );
   }
 
   public isSignedIn(): boolean {
@@ -349,67 +1489,78 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Returns the auth snap public key.
+   * Reads the BIP-39 seed for an HD entropy source from KeyringController.
+   *
+   * @param entropySourceId - Entropy source ID. Defaults to the primary HD
+   * keyring.
+   * @returns The HD keyring seed.
+   */
+  async #getHdKeyringSeed(entropySourceId?: string): Promise<Uint8Array> {
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
+    return getHdKeyringSeed(this.messenger, resolvedId);
+  }
+
+  /**
+   * Returns the message-signing public key via native SIP-6 derivation
+   * (same key as `@metamask/message-signing-snap` with empty salt).
    *
    * @param entropySourceId - The entropy source ID used to derive the key,
    * when multiple sources are available (Multi-SRP).
-   * @returns The snap public key.
+   * @returns The public key hex.
    */
-  async #snapGetPublicKey(entropySourceId?: string): Promise<string> {
-    this.#assertIsUnlocked('#snapGetPublicKey');
-
-    const result = (await this.messenger.call(
-      'SnapController:handleRequest',
-      createSnapPublicKeyRequest(entropySourceId),
-    )) as string;
-
-    return result;
+  async #getPublicKey(entropySourceId?: string): Promise<string> {
+    this.#assertIsUnlocked('#getPublicKey');
+    const seed = await this.#getHdKeyringSeed(entropySourceId);
+    return getMessageSigningPublicKey(seed);
   }
 
+  #_signMessageCache: Record<string, string> = {};
+
   /**
-   * Returns a mapping of entropy source IDs to auth snap public keys.
+   * Builds a cache key scoped to a specific entropy source, so each SRP's
+   * signature stays isolated (same pattern as `UserStorageController`).
    *
-   * @returns A mapping of entropy source IDs to public keys.
+   * When `entropySourceId` is omitted (primary SRP), it is resolved to the
+   * primary HD keyring's metadata ID rather than a stable literal. Because that
+   * ID is randomly regenerated whenever the vault is recreated (e.g. on
+   * restore), the cached entry is naturally invalidated across vaults — a
+   * different SRP can never inherit the previous primary's cached signature.
+   *
+   * @param message - The tagged message used for signing.
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The scoped cache key.
    */
-  async #snapGetAllPublicKeys(): Promise<[string, string][]> {
-    this.#assertIsUnlocked('#snapGetAllPublicKeys');
-
-    const result = (await this.messenger.call(
-      'SnapController:handleRequest',
-      createSnapAllPublicKeysRequest(),
-    )) as [string, string][];
-
-    return result;
+  #scopedCacheKey(
+    message: `metamask:${string}`,
+    entropySourceId?: string,
+  ): string {
+    return `${entropySourceId ?? this.#getPrimaryEntropySourceId()}:${message}`;
   }
 
-  #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
-
   /**
-   * Signs a specific message using an underlying auth snap.
+   * Signs a `metamask:…` message with the native SIP-6 message-signing key.
    *
    * @param message - A specific tagged message to sign.
    * @param entropySourceId - The entropy source ID used to derive the key,
    * when multiple sources are available (Multi-SRP).
-   * @returns A Signature created by the snap.
+   * @returns Compact secp256k1 signature hex.
    */
-  async #snapSignMessage(
+  async #signMessage(
     message: string,
     entropySourceId?: string,
   ): Promise<string> {
     assertMessageStartsWithMetamask(message);
+    this.#assertIsUnlocked('#signMessage');
 
-    if (this.#_snapSignMessageCache[message]) {
-      return this.#_snapSignMessageCache[message];
+    const cacheKey = this.#scopedCacheKey(message, entropySourceId);
+    if (this.#_signMessageCache[cacheKey]) {
+      return this.#_signMessageCache[cacheKey];
     }
 
-    this.#assertIsUnlocked('#snapSignMessage');
+    const seed = await this.#getHdKeyringSeed(entropySourceId);
+    const result = await signMessageWithMessageSigningKey(message, seed);
 
-    const result = (await this.messenger.call(
-      'SnapController:handleRequest',
-      createSnapSignMessageRequest(message, entropySourceId),
-    )) as string;
-
-    this.#_snapSignMessageCache[message] = result;
+    this.#_signMessageCache[cacheKey] = result;
 
     return result;
   }

@@ -5,9 +5,9 @@ import { hasProperty, isObject, isValidJson } from '@metamask/utils';
 // ATTN: We must NOT use 'klona/full' here because it freezes properties on the clone.
 import { klona } from 'klona';
 
-import { MiddlewareContext } from './MiddlewareContext';
-import { stringify } from './utils';
-import type { JsonRpcRequest } from './utils';
+import { MiddlewareContext } from './MiddlewareContext.js';
+import { stringify } from './utils.js';
+import type { JsonRpcRequest } from './utils.js';
 
 // Legacy engine compatibility utils
 

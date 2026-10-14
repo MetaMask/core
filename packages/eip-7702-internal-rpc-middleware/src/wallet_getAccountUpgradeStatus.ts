@@ -6,10 +6,10 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import { DELEGATION_INDICATOR_PREFIX } from './constants';
-import type { GetAccountUpgradeStatusParams } from './types';
-import { GetAccountUpgradeStatusParamsStruct } from './types';
-import { validateParams, validateAndNormalizeAddress } from './utils';
+import { DELEGATION_INDICATOR_PREFIX } from './constants.js';
+import type { GetAccountUpgradeStatusParams } from './types.js';
+import { GetAccountUpgradeStatusParamsStruct } from './types.js';
+import { validateParams, validateAndNormalizeAddress } from './utils.js';
 
 export type WalletGetAccountUpgradeStatusHooks = {
   getCurrentChainIdForDomain: (origin: string) => Hex | null;

@@ -16,8 +16,12 @@
 
 import type { CaipAccountId } from '@metamask/utils';
 
-import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer';
-import { ProviderRouter } from '../routing/ProviderRouter';
+import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { ProviderRouter } from '../routing/ProviderRouter.js';
+import { isProviderOnTestnet } from '../services/providerNetwork.js';
+import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
   AggregatedProviderConfig,
@@ -27,6 +31,11 @@ import type {
   CancelOrderParams,
   CancelOrderResult,
   CancelOrdersResult,
+  ChaseOrder,
+  GetChaseOrderOwnershipParams,
+  ReconcileChaseOrderCancellationParams,
+  ReconcileChaseOrderCancellationResult,
+  PerpsChaseOrderOwnership,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
@@ -41,6 +50,9 @@ import type {
   GetFundingParams,
   GetHistoricalPortfolioParams,
   GetMarketsParams,
+  GetOrderCapabilitiesParams,
+  GetMarginModeLockParams,
+  GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
@@ -53,6 +65,8 @@ import type {
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   MarginResult,
   MarketInfo,
   Order,
@@ -60,6 +74,16 @@ import type {
   OrderParams,
   OrderResult,
   PerpsMarketData,
+  PerpsOrderCapabilities,
+  PerpsMarginModeLock,
+  PerpsScalePriceLadder,
+  PerpsPendingManualRecovery,
+  PerpsRecoveredDispatch,
+  AttachedOrderGroup,
+  PerpsRecoveryVenueReview,
+  ScaleOrderGroup,
+  ResolveRecoveryProtectionParams,
+  PerpsRecoveryProtectionResult,
   PerpsProviderType,
   Position,
   ReadyToTradeResult,
@@ -69,16 +93,41 @@ import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
   ToggleTestnetResult,
+  TwapOrder,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
   UserHistoryItem,
   WithdrawParams,
   WithdrawResult,
   RawLedgerUpdate,
-} from '../types';
+  PerpsReadOptions,
+  PerpsFeeResolution,
+} from '../types/index.js';
+import { ensureError } from '../utils/errorUtils.js';
+
+/** Error returned when only some providers suspend their Chase orders. */
+export class ChaseOrderSuspensionError extends Error {
+  readonly suspendedOrders: ChaseOrder[];
+
+  readonly failures: { providerId: PerpsProviderType; reason: unknown }[];
+
+  constructor(options: {
+    suspendedOrders: ChaseOrder[];
+    failures: { providerId: PerpsProviderType; reason: unknown }[];
+  }) {
+    const failedProviderIds = options.failures
+      .map(({ providerId }) => providerId)
+      .join(', ');
+    super(`Failed to suspend Chase orders for: ${failedProviderIds}`);
+    this.name = 'ChaseOrderSuspensionError';
+    this.suspendedOrders = options.suspendedOrders;
+    this.failures = options.failures;
+  }
+}
 
 /**
  * AggregatedPerpsProvider implements PerpsProvider by coordinating
@@ -95,7 +144,7 @@ import type {
  * const aggregated = new AggregatedPerpsProvider({
  *   providers: new Map([
  *     ['hyperliquid', hlProvider],
- *     ['myx', myxProvider],
+ *     ['lighter', lighterProvider],
  *   ]),
  *   defaultProvider: 'hyperliquid',
  *   infrastructure: deps,
@@ -105,11 +154,13 @@ import type {
  * const positions = await aggregated.getPositions();
  *
  * // Write: routes to specific or default provider
- * await aggregated.placeOrder({ symbol: 'BTC', providerId: 'myx', ... });
+ * await aggregated.placeOrder({ symbol: 'BTC', providerId: 'lighter', ... });
  * ```
  */
 export class AggregatedPerpsProvider implements PerpsProvider {
   readonly protocolId = 'aggregated';
+
+  readonly routesOrdersByProviderId = true;
 
   readonly #providers: Map<PerpsProviderType, PerpsProvider>;
 
@@ -118,6 +169,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   readonly #aggregationMode: AggregationMode;
 
   readonly #deps: PerpsPlatformDependencies;
+
+  readonly #isTestnet: boolean | undefined;
 
   readonly #router: ProviderRouter;
 
@@ -128,6 +181,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     this.#defaultProvider = config.defaultProvider;
     this.#aggregationMode = config.aggregationMode ?? 'all';
     this.#deps = config.infrastructure;
+    this.#isTestnet = config.isTestnet;
 
     // Initialize router with default provider
     this.#router = new ProviderRouter({
@@ -177,23 +231,39 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
-   * Get provider by ID, falling back to default if not found.
+   * Which provider a write with this route actually reaches.
+   *
+   * `protocolId` is `aggregated` and `getPositions` spans every active
+   * provider, so a caller that needs to reason about one write — pricing the
+   * positions a close can actually touch, for instance — cannot infer the route
+   * from either. This reports it explicitly.
+   *
+   * @param providerId - Explicit route, or undefined for the default.
+   * @returns The provider id the write will be submitted through.
+   */
+  getWriteProviderId(providerId?: PerpsProviderType): PerpsProviderType {
+    return providerId ?? this.#defaultProvider;
+  }
+
+  /**
+   * Get the explicit provider, or the default when no route was supplied.
    *
    * @param providerId - The provider id value.
-   * @returns The result of the operation.
+   * @returns The selected provider id and instance.
+   * @throws If an explicit provider is not registered.
    */
   #getProviderOrDefault(
     providerId?: PerpsProviderType,
   ): [PerpsProviderType, PerpsProvider] {
-    const id = providerId ?? this.#defaultProvider;
-    const provider = this.#providers.get(id);
-    if (!provider) {
-      this.#deps.debugLogger.log(
-        `[AggregatedPerpsProvider] Provider '${id}' not found, using default`,
-      );
+    if (providerId === undefined) {
       return [this.#defaultProvider, this.#getDefaultProvider()];
     }
-    return [id, provider];
+
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    return [providerId, provider];
   }
 
   /**
@@ -232,6 +302,145 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
     return this.#getDefaultProvider().getWithdrawalRoutes(params);
+  }
+
+  /**
+   * Resolve capabilities with the same explicit-provider/default-provider
+   * selection used by order placement. Unknown routes return a typed
+   * unavailable result instead of throwing a placement error.
+   *
+   * @param params - Market and optional provider route.
+   * @returns Capabilities from the selected provider.
+   */
+  async getOrderCapabilities(
+    params: GetOrderCapabilitiesParams,
+  ): Promise<PerpsOrderCapabilities> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
+    }
+    if (!provider.getOrderCapabilities) {
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
+    }
+    try {
+      const capabilities = await provider.getOrderCapabilities({
+        ...params,
+        providerId,
+      });
+      if (
+        capabilities.providerId !== undefined &&
+        capabilities.providerId !== providerId
+      ) {
+        return {
+          status: 'unavailable',
+          providerId,
+          reason: 'provider_not_routable',
+        };
+      }
+      return { ...capabilities, providerId };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Order capabilities unavailable',
+        {
+          providerId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_unavailable',
+      };
+    }
+  }
+
+  /**
+   * Resolve the margin-mode lock with the same explicit-provider/default-
+   * provider selection used by order placement.
+   *
+   * @param params - Market and optional provider route.
+   * @returns The lock reported by the selected provider.
+   */
+  async getMarginModeLock(
+    params: GetMarginModeLockParams,
+  ): Promise<PerpsMarginModeLock> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
+    }
+    if (!provider.getMarginModeLock) {
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
+    }
+    try {
+      const lock = await provider.getMarginModeLock({ ...params, providerId });
+      if (lock.providerId !== undefined && lock.providerId !== providerId) {
+        return {
+          status: 'unavailable',
+          providerId,
+          reason: 'provider_not_routable',
+        };
+      }
+      return { ...lock, providerId };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Margin mode lock unavailable',
+        {
+          providerId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_unavailable',
+      };
+    }
+  }
+
+  /**
+   * Normalize a Scale price ladder through the selected provider route.
+   *
+   * @param params - Market, ladder bounds, count, optional sizing and explicit route.
+   * @returns Provider-normalized prices with sizingPreview when supported, or a typed unavailable result.
+   * @throws When bounds or sizing violate the provider's venue rules.
+   */
+  async getScalePriceLadder(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
+    }
+    if (!provider.getScalePriceLadder) {
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
+    }
+    const result = await provider.getScalePriceLadder({
+      ...params,
+      providerId,
+    });
+    if (result.providerId !== undefined && result.providerId !== providerId) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_routable',
+      };
+    }
+    return { ...result, providerId };
   }
 
   // ============================================================================
@@ -296,10 +505,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     ).flat();
   }
 
-  async getOrderFills(params?: GetOrderFillsParams): Promise<OrderFill[]> {
+  async getOrderFills(
+    params?: GetOrderFillsParams,
+    options?: PerpsReadOptions,
+  ): Promise<OrderFill[]> {
     const results = await Promise.allSettled(
       this.#getActiveProviders().map(async ([id, provider]) => {
-        const fills = await provider.getOrderFills(params);
+        const fills = await provider.getOrderFills(params, options);
         return fills.map((fill) => ({ ...fill, providerId: id }));
       }),
     );
@@ -318,10 +530,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#extractSuccessfulResults(results, 'getOrFetchFills').flat();
   }
 
-  async getOrders(params?: GetOrdersParams): Promise<Order[]> {
+  async getOrders(
+    params?: GetOrdersParams,
+    options?: PerpsReadOptions,
+  ): Promise<Order[]> {
     const results = await Promise.allSettled(
       this.#getActiveProviders().map(async ([id, provider]) => {
-        const orders = await provider.getOrders(params);
+        const orders = await provider.getOrders(params, options);
         return orders.map((order) => ({ ...order, providerId: id }));
       }),
     );
@@ -340,10 +555,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#extractSuccessfulResults(results, 'getOpenOrders').flat();
   }
 
-  async getFunding(params?: GetFundingParams): Promise<Funding[]> {
+  async getFunding(
+    params?: GetFundingParams,
+    options?: PerpsReadOptions,
+  ): Promise<Funding[]> {
     const results = await Promise.allSettled(
       this.#getActiveProviders().map(async ([_providerId, provider]) => {
-        const funding = await provider.getFunding(params);
+        const funding = await provider.getFunding(params, options);
         // Funding type doesn't have providerId - we could add it if needed
         return funding;
       }),
@@ -375,6 +593,17 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }): Promise<RawLedgerUpdate[]> {
     // Delegate to default provider (protocol-specific)
     return this.#getDefaultProvider().getUserNonFundingLedgerUpdates(params);
+  }
+
+  /**
+   * Resolve the currently selected CAIP account identifier. Accounts are
+   * shared across sub-providers (same InternalAccountController), so the
+   * default provider's view is authoritative.
+   *
+   * @returns Resolved CAIP account id from the default sub-provider.
+   */
+  async getCurrentAccountId(): Promise<CaipAccountId> {
+    return this.#getDefaultProvider().getCurrentAccountId();
   }
 
   /**
@@ -418,6 +647,166 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
     const result = await provider.placeOrder(params);
     return { ...result, providerId };
+  }
+
+  /**
+   * Read TWAP lifecycle records from every active provider.
+   *
+   * @returns TWAP records with their provider route attached.
+   */
+  async getTwapOrders(): Promise<TwapOrder[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getTwapOrders
+          ? (await provider.getTwapOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    return this.#extractSuccessfulResults(results, 'getTwapOrders').flat();
+  }
+
+  /**
+   * Read all available snapshots, retaining successful providers on a partial failure.
+   *
+   * @returns Chase snapshots from every provider that responded successfully.
+   */
+  async getChaseOrders(): Promise<ChaseOrder[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getChaseOrders
+          ? (await provider.getChaseOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    return this.#extractSuccessfulResults(results, 'getChaseOrders').flat();
+  }
+
+  /**
+   * Route a strict local ownership read once, without aggregating partial inventories.
+   *
+   * @param input - Exact stable handle and explicit provider route.
+   * @returns That provider's durable history or an explicit unsupported result.
+   */
+  async getChaseOrderOwnership(
+    input: GetChaseOrderOwnershipParams,
+  ): Promise<PerpsChaseOrderOwnership> {
+    const params = {
+      ...input,
+      owner: input.owner ? { ...input.owner } : undefined,
+    };
+    if (!params.providerId || !params.handle) {
+      throw new Error(
+        'Chase ownership requires an exact handle and explicit provider',
+      );
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    const ownership: PerpsChaseOrderOwnership = provider.getChaseOrderOwnership
+      ? await provider.getChaseOrderOwnership(params)
+      : {
+          status: 'unsupported',
+          providerId: params.providerId,
+          handle: params.handle,
+          reason: 'Durable Chase ownership is unavailable for this provider',
+        };
+    if (this.#providers.get(params.providerId) !== provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return ownership;
+  }
+
+  /**
+   * Route observation-only reconciliation to exactly one named provider.
+   *
+   * @param input - Original handle, owner, child and cancellation identity.
+   * @returns Exact owning-provider settlement or unsupported, never ordinary cancel.
+   */
+  async reconcileChaseOrderCancellation(
+    input: ReconcileChaseOrderCancellationParams,
+  ): Promise<ReconcileChaseOrderCancellationResult> {
+    const params = {
+      ...input,
+      owner: { ...input.owner },
+      cancellation: { ...input.cancellation },
+    };
+    if (
+      !params.providerId ||
+      !params.handle ||
+      !params.clientOrderId ||
+      params.owner.providerId !== params.providerId
+    ) {
+      throw new Error(
+        'Chase cancellation reconciliation requires an exact handle, child and matching owner/provider',
+      );
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    const ownership: ReconcileChaseOrderCancellationResult =
+      provider.reconcileChaseOrderCancellation
+        ? await provider.reconcileChaseOrderCancellation(params)
+        : {
+            status: 'unsupported',
+            providerId: params.providerId,
+            handle: params.handle,
+            reason:
+              'Chase cancellation reconciliation is unavailable for this provider',
+          };
+    if (this.#providers.get(params.providerId) !== provider) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+    return ownership;
+  }
+
+  /**
+   * Attempt to suspend every provider and reject after all attempts settle if
+   * any provider could not suspend safely. Successful providers remain
+   * suspended, so callers may retry to reconcile a partial failure.
+   *
+   * @returns Chase snapshots after every provider suspends successfully.
+   * @throws ChaseOrderSuspensionError if any active provider fails. The error
+   * includes successful snapshots and each failed provider ID.
+   */
+  async suspendChaseOrders(): Promise<ChaseOrder[]> {
+    const providers = this.#getActiveProviders();
+    const results = await Promise.allSettled(
+      providers.map(async ([providerId, provider]) =>
+        provider.suspendChaseOrders
+          ? (await provider.suspendChaseOrders()).map((order) => ({
+              ...order,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+
+    const snapshots: ChaseOrder[] = [];
+    const failures: {
+      providerId: PerpsProviderType;
+      reason: unknown;
+    }[] = [];
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        snapshots.push(...result.value);
+      } else {
+        failures.push({
+          providerId: providers[index][0],
+          reason: result.reason,
+        });
+      }
+    });
+    if (failures.length > 0) {
+      throw new ChaseOrderSuspensionError({
+        suspendedOrders: snapshots,
+        failures,
+      });
+    }
+    return snapshots;
   }
 
   async editOrder(params: EditOrderParams): Promise<OrderResult> {
@@ -502,6 +891,211 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return provider.withdraw(params);
   }
 
+  /**
+   * Aggregate parked manual TP/SL recoveries from every underlying
+   * provider implementing the durable-settlement contract. Storage
+   * errors PROPAGATE — a corrupt store degrading to "nothing pending"
+   * would hide an under-protected position.
+   *
+   * @returns Pending manual-recovery entries across providers.
+   */
+  async getPendingManualRecoveries(): Promise<PerpsPendingManualRecovery[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getPendingManualRecoveries
+          ? (await provider.getPendingManualRecoveries()).map((row) => ({
+              ...row,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * Review native attached groups on providers implementing that capability.
+   *
+   * @returns Provider-labelled venue observations without financial actions.
+   */
+  async reviewAttachedOrderGroups(): Promise<AttachedOrderGroup[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        ((await provider.reviewAttachedOrderGroups?.()) ?? []).map((group) => ({
+          ...group,
+          providerId,
+        })),
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * List stored attached identities across active providers.
+   *
+   * @returns Provider-labelled groups without financial actions.
+   */
+  async getAttachedOrderGroups(): Promise<AttachedOrderGroup[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        ((await provider.getAttachedOrderGroups?.()) ?? []).map((group) => ({
+          ...group,
+          providerId,
+        })),
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * Aggregate recovered-dispatch outcomes from every underlying provider
+   * implementing the durable-settlement contract.
+   *
+   * @returns Pending recovered-dispatch outcomes across providers.
+   */
+  async getRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        provider.getRecoveredDispatches
+          ? (await provider.getRecoveredDispatches()).map((row) => ({
+              ...row,
+              providerId,
+            }))
+          : [],
+      ),
+    );
+    return results.flat();
+  }
+
+  /**
+   * List durable Scale groups from providers that expose group ownership.
+   * @returns Owned groups with their provider routes.
+   */
+  async getScaleOrderGroups(): Promise<ScaleOrderGroup[]> {
+    const groups = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) =>
+        ((await provider.getScaleOrderGroups?.()) ?? []).map((group) => ({
+          ...group,
+          providerId,
+        })),
+      ),
+    );
+    return groups.flat();
+  }
+
+  /**
+   * Review one selected provider's Scale groups without replaying placement.
+   * @param params - Explicit provider route.
+   * @param params.providerId - Owning provider.
+   * @returns Reconciled durable groups.
+   */
+  async reviewScaleOrderGroups(
+    params: { providerId?: PerpsProviderType } = {},
+  ): Promise<ScaleOrderGroup[]> {
+    if (!params.providerId) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    if (!provider.reviewScaleOrderGroups) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    return provider.reviewScaleOrderGroups(params);
+  }
+
+  /**
+   * Execute an explicit successor for one selected durable protection obligation.
+   *
+   * @param params - Owning provider, opaque source ID and new protection intent.
+   * @returns Settled, unresolved or unsupported recovery result.
+   */
+  async resolveRecoveryProtection(
+    params: ResolveRecoveryProtectionParams,
+  ): Promise<PerpsRecoveryProtectionResult> {
+    if (!params.providerId) {
+      throw new Error('Protection recovery requires an explicit provider');
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return (
+      provider.resolveRecoveryProtection?.(params) ?? {
+        status: 'unsupported',
+        providerId: params.providerId,
+        success: false,
+        error: 'Selected protection recovery is unavailable for this provider',
+      }
+    );
+  }
+
+  /**
+   * Review only the selected recovery owner, never an aggregated account snapshot.
+   *
+   * @param params - Explicit owning-provider route.
+   * @param params.providerId - Provider to review.
+   * @returns That provider's strict snapshot or unsupported capability.
+   */
+  async reviewRecoveryVenue(
+    params: { providerId?: PerpsProviderType } = {},
+  ): Promise<PerpsRecoveryVenueReview> {
+    if (!params.providerId) {
+      throw new Error('Recovery review requires an explicit provider');
+    }
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return (
+      provider.reviewRecoveryVenue?.(params) ?? {
+        status: 'unsupported',
+        providerId: params.providerId,
+        reason:
+          'Authoritative recovery review is unavailable for this provider',
+      }
+    );
+  }
+
+  /**
+   * Reconcile every active provider without financial writes. Unsupported
+   * providers contribute their local listing, or an empty list. Any failure
+   * rejects the entire result, so partial evidence is never reported as complete.
+   *
+   * @returns Newly scoped pending and recovered dispatches across providers.
+   */
+  async reconcileRecoveredDispatches(): Promise<PerpsRecoveredDispatch[]> {
+    const results = await Promise.all(
+      this.#getActiveProviders().map(async ([providerId, provider]) => {
+        const rows = provider.reconcileRecoveredDispatches
+          ? await provider.reconcileRecoveredDispatches()
+          : ((await provider.getRecoveredDispatches?.()) ?? []);
+        return rows.map((row) => ({ ...row, providerId }));
+      }),
+    );
+    return results.flat();
+  }
+
+  /**
+   * Acknowledge ONE recovered-dispatch outcome by its stable id on
+   * whichever underlying provider owns it.
+   *
+   * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+   */
+  async acknowledgeRecoveredDispatch(recoveryId: string): Promise<void> {
+    const capable = this.#getActiveProviders().filter(
+      ([, provider]) =>
+        typeof provider.acknowledgeRecoveredDispatch === 'function',
+    );
+    if (capable.length === 0) {
+      throw new Error(
+        'No perps provider has recovered dispatches to acknowledge',
+      );
+    }
+    let lastError: Error | null = null;
+    for (const [, provider] of capable) {
+      try {
+        await provider.acknowledgeRecoveredDispatch?.(recoveryId);
+        return;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+      }
+    }
+    throw lastError as Error;
+  }
+
   // ============================================================================
   // Validation (Route to specific provider)
   // ============================================================================
@@ -540,23 +1134,39 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async calculateLiquidationPrice(
     params: LiquidationPriceParams,
   ): Promise<string> {
-    return this.#getDefaultProvider().calculateLiquidationPrice(params);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return provider.calculateLiquidationPrice(params);
   }
 
   async calculateMaintenanceMargin(
     params: MaintenanceMarginParams,
   ): Promise<number> {
-    return this.#getDefaultProvider().calculateMaintenanceMargin(params);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return provider.calculateMaintenanceMargin(params);
   }
 
-  async getMaxLeverage(asset: string): Promise<number> {
-    return this.#getDefaultProvider().getMaxLeverage(asset);
+  async getMaxLeverage(
+    asset: string,
+    providerId?: PerpsProviderType,
+  ): Promise<number> {
+    const [, provider] = this.#getProviderOrDefault(providerId);
+    return provider.getMaxLeverage(asset);
   }
 
   async calculateFees(
     params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
-    return this.#getDefaultProvider().calculateFees(params);
+    const [, provider] = this.#getProviderOrDefault(params.providerId);
+    return provider.calculateFees(params);
+  }
+
+  async previewPositionModify(
+    params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult> {
+    const [, provider] = this.#getProviderOrDefault(
+      params.providerId ?? params.position.providerId,
+    );
+    return provider.previewPositionModify(params);
   }
 
   // ============================================================================
@@ -589,6 +1199,43 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#subscriptionMux.subscribeToOrders({
       ...params,
       providers: this.#getActiveProviders(),
+    });
+  }
+
+  /**
+   * Stream TWAP updates from the default provider only.
+   *
+   * Unlike `getTwapOrders`, this does not fan out: HyperLiquid is the sole
+   * venue with a native TWAP push channel today, so a mux would add
+   * multi-provider merge semantics with nothing to merge. Callers needing the
+   * aggregated view across providers keep using `getTwapOrders`.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @returns A cleanup function; a no-op when the default provider has no
+   * native TWAP push channel.
+   */
+  subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
+    const defaultProviderId = this.#defaultProvider;
+    // Read the map directly: #getDefaultProvider throws when the default is
+    // unavailable, and this method's contract is a no-op cleanup, not a throw.
+    const provider = this.#providers.get(defaultProviderId);
+    if (!provider?.subscribeToTwapOrders) {
+      return () => {
+        // No-op: default provider exposes no native TWAP push channel
+      };
+    }
+    return provider.subscribeToTwapOrders({
+      ...params,
+      // Stamp the same way getTwapOrders does, so swapping a poll for this
+      // subscription does not silently drop providerId from every schedule.
+      callback: (twapOrders, isSnapshot) =>
+        params.callback(
+          twapOrders.map((order) => ({
+            ...order,
+            providerId: defaultProviderId,
+          })),
+          isSnapshot,
+        ),
     });
   }
 
@@ -634,6 +1281,31 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
   }
 
+  setUserFeeResolution(resolution: PerpsFeeResolution | undefined): void {
+    this.#providers.forEach((provider) => {
+      if (provider.setUserFeeResolution) {
+        provider.setUserFeeResolution(resolution);
+      } else if (provider.setUserFeeDiscount) {
+        provider.setUserFeeDiscount(resolution?.discountBips);
+      }
+    });
+  }
+
+  /**
+   * Approve the dedicated subscription builder on the HyperLiquid provider.
+   *
+   * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+   * marking on the standard builder; nothing on the order path reads this.
+   * @returns Whether the builder is approved.
+   */
+  async approveSubscriptionBuilderFee(): Promise<boolean> {
+    const provider =
+      this.#providers.get('hyperliquid') ?? this.#getDefaultProvider();
+    return provider.approveSubscriptionBuilderFee
+      ? provider.approveSubscriptionBuilderFee()
+      : false;
+  }
+
   // ============================================================================
   // Lifecycle (Delegate to default provider)
   // ============================================================================
@@ -653,6 +1325,53 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   async isReadyToTrade(): Promise<ReadyToTradeResult> {
     return this.#getDefaultProvider().isReadyToTrade();
+  }
+
+  /**
+   * Prepare every provider in turn, so a hardware wallet sees one prompt at a
+   * time. A provider that throws is logged with its provider ID and counts as
+   * not ready.
+   *
+   * @returns The not-ready result of the first provider, in registration
+   * order, that is not ready; else ready.
+   */
+  async prepareTradingWallet(): Promise<ReadyToTradeResult> {
+    let notReady: ReadyToTradeResult | undefined;
+    for (const [providerId, provider] of this.#getActiveProviders()) {
+      let result: ReadyToTradeResult | undefined;
+      try {
+        result = await provider.prepareTradingWallet?.();
+      } catch (caughtError) {
+        // Providers report their own failures, so a throw here is unexpected.
+        const error = ensureError(
+          caughtError,
+          'AggregatedPerpsProvider.prepareTradingWallet',
+        );
+        // The provider's own network: Lighter can be pinned to testnet.
+        const isProviderTestnet = isProviderOnTestnet(
+          providerId,
+          this.#isTestnet,
+        );
+        this.#deps.logger.error(error, {
+          tags: {
+            feature: PERPS_CONSTANTS.FeatureName,
+            provider: providerId,
+            ...(isProviderTestnet !== undefined && {
+              network: isProviderTestnet ? 'testnet' : 'mainnet',
+            }),
+          },
+          context: {
+            name: 'AggregatedPerpsProvider',
+            data: { method: 'prepareTradingWallet', providerId },
+          },
+        });
+        result = { ready: false, error: error.message };
+      }
+      if (result && !result.ready) {
+        notReady ??= result;
+      }
+    }
+    return notReady ?? { ready: true };
   }
 
   async disconnect(): Promise<DisconnectResult> {
@@ -676,6 +1395,37 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   async ping(timeoutMs?: number): Promise<void> {
     return this.#getDefaultProvider().ping(timeoutMs);
+  }
+
+  getWebSocketConnectionState(): WebSocketConnectionState {
+    const provider = this.#getDefaultProvider();
+    if (provider.getWebSocketConnectionState) {
+      return provider.getWebSocketConnectionState();
+    }
+    return WebSocketConnectionState.Disconnected;
+  }
+
+  subscribeToConnectionState(
+    listener: (
+      state: WebSocketConnectionState,
+      reconnectionAttempt: number,
+    ) => void,
+  ): () => void {
+    const provider = this.#getDefaultProvider();
+    if (provider.subscribeToConnectionState) {
+      return provider.subscribeToConnectionState(listener);
+    }
+    listener(WebSocketConnectionState.Disconnected, 0);
+    return () => {
+      /* noop */
+    };
+  }
+
+  async reconnect(): Promise<void> {
+    const provider = this.#getDefaultProvider();
+    if (provider.reconnect) {
+      await provider.reconnect();
+    }
   }
 
   // ============================================================================

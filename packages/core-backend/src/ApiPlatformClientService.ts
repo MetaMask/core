@@ -1,8 +1,8 @@
 import type { Messenger } from '@metamask/messenger';
 
-import { ApiPlatformClient } from './api';
-import type { ApiPlatformClientOptions } from './api';
-import type { ApiPlatformClientServiceMethodActions } from './ApiPlatformClientService-method-action-types';
+import { ApiPlatformClient } from './api/index.js';
+import type { ApiPlatformClientOptions } from './api/index.js';
+import type { ApiPlatformClientServiceMethodActions } from './ApiPlatformClientService-method-action-types.js';
 
 // === GENERAL ===
 

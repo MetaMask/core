@@ -38,18 +38,18 @@ import { QueryClient } from '@tanstack/query-core';
 import type { QueryKey } from '@tanstack/query-core';
 
 // Import API clients from subfolders
-import { AccountsApiClient } from './accounts';
-import { authQueryKeys } from './base-client';
-import { PricesApiClient } from './prices';
+import { AccountsApiClient } from './accounts/index.js';
+import { authQueryKeys } from './base-client.js';
+import { PricesApiClient } from './prices/index.js';
 import {
   STALE_TIMES,
   GC_TIMES,
   shouldRetry,
   calculateRetryDelay,
-} from './shared-types';
-import type { ApiPlatformClientOptions } from './shared-types';
-import { TokenApiClient } from './token';
-import { TokensApiClient } from './tokens';
+} from './shared-types.js';
+import type { ApiPlatformClientOptions } from './shared-types.js';
+import { TokenApiClient } from './token/index.js';
+import { TokensApiClient } from './tokens/index.js';
 
 // ============================================================================
 // UNIFIED API CLIENT

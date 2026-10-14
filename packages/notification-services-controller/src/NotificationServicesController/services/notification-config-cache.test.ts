@@ -1,7 +1,7 @@
 import {
   OnChainNotificationsCache,
   NotificationConfigCacheTTL,
-} from './notification-config-cache';
+} from './notification-config-cache.js';
 
 describe('OnChainNotificationsCache', () => {
   // Create a fresh instance for each test to avoid interference

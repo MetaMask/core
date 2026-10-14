@@ -32,4 +32,8 @@ export class MockKeyring implements EthKeyring {
   async deserialize(_: unknown): Promise<void> {
     return Promise.resolve();
   }
+
+  async destroy(): Promise<void> {
+    return Promise.resolve();
+  }
 }

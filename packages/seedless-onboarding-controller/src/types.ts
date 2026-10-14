@@ -1,12 +1,11 @@
-import type { Encryptor } from '@metamask/keyring-controller';
-import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
+import type {
+  EncAccountDataType,
+  KeyPair,
+  NodeAuthTokens,
+} from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
-import type {
-  AuthConnection,
-  SecretMetadataVersion,
-  SecretType,
-} from './constants';
+import type { AuthConnection, SecretType } from './constants.js';
 
 /**
  * The backup state of the secret data.
@@ -96,6 +95,16 @@ export type RecoveryErrorData = {
   numberOfAttempts: number;
 };
 
+/**
+ * Non-sensitive type labels for each secret metadata item, in the same order
+ * as fetched secret data (after sorting). Uses `dataType` when present,
+ * otherwise falls back to `SecretType`.
+ */
+export type InvalidPrimarySecretDataTypeErrorData = (
+  | SecretType
+  | EncAccountDataType
+)[];
+
 // State
 export type SeedlessOnboardingControllerState =
   Partial<AuthenticatedUserDetails> &
@@ -175,13 +184,13 @@ export type SeedlessOnboardingControllerState =
        * Whether the user is authenticated with social login and TOPRF service.
        */
       isSeedlessOnboardingUserAuthenticated: boolean;
-    };
 
-/**
- * Encryptor interface for encrypting and decrypting seedless onboarding vault.
- */
-export type VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams> =
-  Encryptor<EncryptionKey, SupportedKeyDerivationParams>;
+      /**
+       * Tracks which seedless onboarding migrations have been applied.
+       * Used to prevent re-running migrations.
+       */
+      migrationVersion: number;
+    };
 
 /**
  * Additional key deriver for the TOPRF client.
@@ -268,30 +277,12 @@ export type DeserializedVaultData = Pick<
   VaultData,
   'accessToken' | 'revokeToken'
 > & {
-  toprfEncryptionKey: Uint8Array;
-  toprfPwEncryptionKey: Uint8Array;
+  toprfEncryptionKey: Uint8Array<ArrayBuffer>;
+  toprfPwEncryptionKey: Uint8Array<ArrayBuffer>;
   toprfAuthKeyPair: KeyPair;
 };
 
 export type SecretDataType = Uint8Array | string | number;
-
-/**
- * The constructor options for the seed phrase metadata.
- */
-export type SecretMetadataOptions = {
-  /**
-   * The timestamp when the seed phrase was created.
-   */
-  timestamp: number;
-  /**
-   * The type of the seed phrase.
-   */
-  type: SecretType;
-  /**
-   * The version of the seed phrase metadata.
-   */
-  version: SecretMetadataVersion;
-};
 
 export type DecodedNodeAuthToken = {
   /**

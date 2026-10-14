@@ -1,22 +1,21 @@
-import type EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
-import { isNativeBalanceSufficientForGas } from './balance';
-import { doesChainSupportEIP7702 } from './eip7702';
-import { getEIP7702UpgradeContractAddress } from './feature-flags';
-import type { GetGasFeeTokensRequest } from './gas-fee-tokens';
-import {
-  checkGasFeeTokenBeforePublish,
-  getGasFeeTokens,
-} from './gas-fee-tokens';
+import { simulateTransactions } from '../api/simulation-api.js';
 import type {
   GasFeeToken,
   GetSimulationConfig,
   TransactionControllerMessenger,
   TransactionMeta,
-} from '..';
-import { simulateTransactions } from '../api/simulation-api';
+} from '../index.js';
+import { isNativeBalanceSufficientForGas } from './balance.js';
+import { doesChainSupportEIP7702 } from './eip7702.js';
+import { getEIP7702UpgradeContractAddress } from './feature-flags.js';
+import type { GetGasFeeTokensRequest } from './gas-fee-tokens.js';
+import {
+  checkGasFeeTokenBeforePublish,
+  getGasFeeTokens,
+} from './gas-fee-tokens.js';
 
 jest.mock('../api/simulation-api');
 jest.mock('./eip7702');
@@ -264,14 +263,12 @@ describe('Gas Fee Tokens Utils', () => {
 
       await getGasFeeTokens(REQUEST_MOCK);
 
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(
-        CHAIN_ID_MOCK,
-        expect.objectContaining({
-          suggestFees: expect.objectContaining({
-            with7702: true,
-          }),
-        }),
-      );
+      expect(
+        simulateTransactionsMock.mock.calls[0][1].suggestFees,
+      ).toMatchObject({
+        with7702: true,
+        withRedeemerEnforcer: true,
+      });
     });
 
     it('without 7702 if isEIP7702GasFeeTokensEnabled but chain does not support EIP-7702', async () => {
@@ -291,14 +288,12 @@ describe('Gas Fee Tokens Utils', () => {
 
       await getGasFeeTokens(REQUEST_MOCK);
 
-      expect(simulateTransactionsMock).toHaveBeenCalledWith(
-        CHAIN_ID_MOCK,
-        expect.objectContaining({
-          suggestFees: expect.objectContaining({
-            with7702: false,
-          }),
-        }),
-      );
+      expect(
+        simulateTransactionsMock.mock.calls[0][1].suggestFees,
+      ).toMatchObject({
+        with7702: false,
+        withRedeemerEnforcer: false,
+      });
     });
 
     it('with authorizationList if isEIP7702GasFeeTokensEnabled and chain supports EIP-7702 and no delegation address', async () => {
@@ -400,7 +395,8 @@ describe('Gas Fee Tokens Utils', () => {
 
     beforeEach(() => {
       request = {
-        ethQuery: {} as EthQuery,
+        messenger: {} as TransactionControllerMessenger,
+        networkClientId: 'testNetworkClientId',
         fetchGasFeeTokens: jest.fn(),
         transaction: cloneDeep(TRANSACTION_META_MOCK),
         updateTransaction: jest.fn(),
@@ -411,10 +407,20 @@ describe('Gas Fee Tokens Utils', () => {
       request.transaction.isGasFeeTokenIgnoredIfBalance = true;
       request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
       request.transaction.gasFeeTokens = [];
+      request.transaction.isExternalSign = true;
+
+      jest.mocked(request.fetchGasFeeTokens).mockResolvedValueOnce([]);
 
       await expect(checkGasFeeTokenBeforePublish(request)).rejects.toThrow(
         'Gas fee token not found and insufficient native balance',
       );
+
+      jest
+        .mocked(request.updateTransaction)
+        .mock.calls[0][1](request.transaction);
+
+      expect(request.transaction.isExternalSign).toBe(false);
+      expect(request.transaction.gasFeeTokens).toStrictEqual([]);
     });
 
     it('updates gas fee tokens', async () => {
@@ -480,6 +486,36 @@ describe('Gas Fee Tokens Utils', () => {
       expect(request.transaction.txParams.nonce).toBeUndefined();
     });
 
+    it('sets external sign when native token is excluded for fees', async () => {
+      request.transaction.excludeNativeTokenForFee = true;
+      request.transaction.isGasFeeTokenIgnoredIfBalance = false;
+      request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
+      request.transaction.gasFeeTokens = [];
+      request.transaction.isExternalSign = false;
+      request.transaction.txParams.nonce = '0x1';
+
+      jest.mocked(request.fetchGasFeeTokens).mockResolvedValueOnce([
+        {
+          tokenAddress: TOKEN_ADDRESS_1_MOCK,
+        } as GasFeeToken,
+      ]);
+
+      await checkGasFeeTokenBeforePublish(request);
+
+      jest
+        .mocked(request.updateTransaction)
+        .mock.calls[0][1](request.transaction);
+
+      expect(isNativeBalanceSufficientForGasMock).not.toHaveBeenCalled();
+      expect(request.fetchGasFeeTokens).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isExternalSign: true,
+        }),
+      );
+      expect(request.transaction.isExternalSign).toBe(true);
+      expect(request.transaction.txParams.nonce).toBeUndefined();
+    });
+
     it('removes selected gas fee token if native balance sufficient', async () => {
       request.transaction.isGasFeeTokenIgnoredIfBalance = true;
       request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
@@ -503,7 +539,7 @@ describe('Gas Fee Tokens Utils', () => {
       expect(request.updateTransaction).not.toHaveBeenCalled();
     });
 
-    it('does nothing if not ignoring gas fee token when native balance sufficient', async () => {
+    it('does nothing if not ignoring gas fee token and native token is allowed for fees', async () => {
       request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
       request.transaction.isGasFeeTokenIgnoredIfBalance = false;
 

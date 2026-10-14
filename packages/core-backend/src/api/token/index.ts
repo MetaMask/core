@@ -2,9 +2,11 @@
  * Token API barrel export.
  */
 
-export { TokenApiClient } from './client';
+export { TokenApiClient } from './client.js';
 export type {
   TokenMetadata,
+  TokenListQueryOptions,
+  TokenV2SupportedNetworksResponse,
   V1TokenDescriptionResponse,
   NetworkInfo,
   TopAsset,
@@ -20,4 +22,4 @@ export type {
   TokenSecurityFees,
   TokenSecurityFinancialStats,
   TokenSecurityMetadata,
-} from './types';
+} from './types.js';

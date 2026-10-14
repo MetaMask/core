@@ -326,6 +326,13 @@ const permissionController = new PermissionController({
 
 ### Adding the permission middleware
 
+The permission middleware is created via `createPermissionMiddlewareV2` for
+`JsonRpcEngineV2`, or via the deprecated `createPermissionMiddleware` for the
+legacy `JsonRpcEngine`. Both factories take a messenger with the
+`PermissionController:executeRestrictedMethod` and
+`PermissionController:hasUnrestrictedMethod` actions, typically obtained by
+delegating them from a root messenger to a subject-scoped messenger.
+
 ```typescript
 // This should take place where a middleware stack is created for a particular
 // subject.
@@ -333,11 +340,15 @@ const permissionController = new PermissionController({
 // The subject could be a port, stream, socket, etc.
 const origin = getOrigin(subject);
 
-const engine = new JsonRpcEngine();
-engine.push(/* your various middleware*/);
-engine.push(permissionController.createPermissionMiddleware({ origin }));
-// Your middleware stack is now permissioned
-engine.push(/* your other various middleware*/);
+// `messenger` is a messenger delegated the two actions listed above, e.g.
+// via `rootMessenger.delegate({ actions: [...], messenger: subjectMessenger })`.
+const engine = JsonRpcEngineV2.create({
+  middleware: [
+    /* your various middleware */
+    createPermissionMiddlewareV2({ messenger, subject: { origin } }),
+    /* your other various middleware */
+  ],
+});
 ```
 
 ### Calling a restricted method internally

@@ -1,9 +1,24 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "resolveJsonModule": true
   },
-  "references": [{ "path": "../base-controller" }, { "path": "../messenger" }],
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../controller-utils"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

@@ -1,6 +1,6 @@
-import type { Caveat, PermissionConstraint } from '.';
-import { decorateWithCaveats, PermissionType } from '.';
-import * as errors from './errors';
+import * as errors from './errors.js';
+import type { Caveat, PermissionConstraint } from './index.js';
+import { decorateWithCaveats, PermissionType } from './index.js';
 
 describe('decorateWithCaveats', () => {
   it('decorates a method with caveat', async () => {

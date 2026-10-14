@@ -1,19 +1,19 @@
 import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
 
+import type { AccountTreeController } from '../../AccountTreeController.js';
+import type {
+  AccountWalletEntropyObject,
+  AccountWalletKeyringObject,
+} from '../../wallet.js';
+import type { BackupAndSyncContext } from '../types.js';
 import {
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
   createStateSnapshot,
   restoreStateFromSnapshot,
   getLocalGroupForEntropyWallet,
-} from './controller';
-import type { StateSnapshot } from './controller';
-import type { AccountTreeController } from '../../AccountTreeController';
-import type {
-  AccountWalletEntropyObject,
-  AccountWalletKeyringObject,
-} from '../../wallet';
-import type { BackupAndSyncContext } from '../types';
+} from './controller.js';
+import type { StateSnapshot } from './controller.js';
 
 describe('BackupAndSyncUtils - Controller', () => {
   let mockContext: BackupAndSyncContext;
@@ -27,8 +27,8 @@ describe('BackupAndSyncUtils - Controller', () => {
       state: {
         accountTree: {
           wallets: {},
-          selectedAccountGroup: '',
         },
+        selectedAccountGroup: '',
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       },
@@ -260,7 +260,7 @@ describe('BackupAndSyncUtils - Controller', () => {
         originalState.accountGroupsMetadata;
       mockController.state.accountWalletsMetadata =
         originalState.accountWalletsMetadata;
-      mockController.state.accountTree.selectedAccountGroup =
+      mockController.state.selectedAccountGroup =
         originalState.selectedAccountGroup;
       mockController.state.accountTree.wallets = originalState.wallets;
 
@@ -333,9 +333,9 @@ describe('BackupAndSyncUtils - Controller', () => {
       expect(mockController.state.accountWalletsMetadata).toStrictEqual(
         mockSnapshot.accountWalletsMetadata,
       );
-      expect(
-        mockController.state.accountTree.selectedAccountGroup,
-      ).toStrictEqual(mockSnapshot.selectedAccountGroup);
+      expect(mockController.state.selectedAccountGroup).toStrictEqual(
+        mockSnapshot.selectedAccountGroup,
+      );
       expect(mockController.state.accountTree.wallets).toStrictEqual(
         mockSnapshot.accountTreeWallets,
       );

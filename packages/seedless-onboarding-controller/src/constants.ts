@@ -13,6 +13,7 @@ export enum Web3AuthNetwork {
 export enum AuthConnection {
   Google = 'google',
   Apple = 'apple',
+  Telegram = 'telegram',
 }
 
 export enum SecretType {
@@ -20,8 +21,8 @@ export enum SecretType {
   PrivateKey = 'privateKey',
 }
 
-export enum SecretMetadataVersion {
-  V1 = 'v1',
+export enum SeedlessOnboardingMigrationVersion {
+  V1 = 1,
 }
 
 export enum SeedlessOnboardingControllerErrorMessage {
@@ -43,6 +44,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   InvalidVaultData = `${controllerName} - Invalid vault data`,
   VaultDataError = `${controllerName} - The decrypted vault has an unexpected shape.`,
   VaultError = `${controllerName} - Cannot unlock without a previous vault.`,
+  VaultAlreadyExists = `${controllerName} - Vault already exists.`,
   InvalidSecretMetadata = `${controllerName} - Invalid secret metadata`,
   MissingKeyringId = `${controllerName} - Keyring ID is required to store SRP backups.`,
   FailedToEncryptAndStoreSecretData = `${controllerName} - Failed to encrypt and store secret data`,
@@ -61,4 +63,5 @@ export enum SeedlessOnboardingControllerErrorMessage {
   FailedToFetchAuthPubKey = `${controllerName} - Failed to fetch latest auth pub key`,
   InvalidPasswordOutdatedCache = `${controllerName} - Invalid password outdated cache provided.`,
   FailedToRefreshJWTTokens = `${controllerName} - Failed to refresh JWT tokens`,
+  PrimarySrpCannotBeAddedViaAddNewSecretData = `${controllerName} - PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.`,
 }

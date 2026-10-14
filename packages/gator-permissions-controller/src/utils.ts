@@ -2,10 +2,10 @@ import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { Json } from '@metamask/utils';
 
-import { GatorPermissionsProviderError } from './errors';
-import { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
-import { utilsLog } from './logger';
-import type { GatorPermissionsSnapRpcMethod } from './types';
+import { GatorPermissionsProviderError } from './errors.js';
+import { GatorPermissionsControllerMessenger } from './GatorPermissionsController.js';
+import { utilsLog } from './logger.js';
+import type { GatorPermissionsSnapRpcMethod } from './types.js';
 
 /**
  * Executes an RPC request against a Snap and returns the typed response.

@@ -12,7 +12,7 @@ import {
   Messenger as MessengerImpl,
 } from '@metamask/messenger';
 
-import { MOCK_LOCAL_CONTACTS } from './mockContacts';
+import { MOCK_LOCAL_CONTACTS } from './mockContacts.js';
 
 /**
  * Test Utility - create a mock user storage messenger for contact syncing tests
@@ -127,7 +127,7 @@ export function mockUserStorageMessengerForContactSyncing(options?: {
         return { data: 'success' };
       }
 
-      return undefined;
+      return;
     }),
     registerActionHandler: jest.fn(),
     publish: baseMessenger.publish.bind(baseMessenger),

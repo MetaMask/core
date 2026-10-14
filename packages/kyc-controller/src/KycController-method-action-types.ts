@@ -1,0 +1,241 @@
+/**
+ * This file is auto generated.
+ * Do not edit manually.
+ */
+
+import type { KycController } from './KycController.js';
+
+/**
+ * Starts a KYC session for the given vendor and email. Reuses a latest
+ * vendor session when one exists; otherwise creates a UKYC session.
+ *
+ * @param params - The session parameters.
+ * @param params.vendor - Identity vendor for the session.
+ * @param params.email - Account email associated with the session.
+ * @param params.aal2Token - AAL2 authentication token. Required only when a
+ * UKYC session must be created, where it is sent as the Authorization bearer
+ * value. Omit it when reusing an existing session.
+ * @returns The current or newly created session status.
+ */
+export type KycControllerStartSessionAction = {
+  type: `KycController:startSession`;
+  handler: KycController['startSession'];
+};
+
+/**
+ * Stops session-status polling and restores default controller state.
+ */
+export type KycControllerResetAction = {
+  type: `KycController:reset`;
+  handler: KycController['reset'];
+};
+
+/**
+ * Restores the controller to its default state.
+ */
+export type KycControllerClearStateAction = {
+  type: `KycController:clearState`;
+  handler: KycController['clearState'];
+};
+
+/**
+ * Fetches the latest UKYC session status for a vendor.
+ *
+ * @param vendor - Identity vendor whose latest session should be queried.
+ * @returns The session status, or `null` when none exists.
+ */
+export type KycControllerGetSessionStatusForVendorAction = {
+  type: `KycController:getSessionStatusForVendor`;
+  handler: KycController['getSessionStatusForVendor'];
+};
+
+/**
+ * Returns the durable outcome of the identity-provider flow.
+ *
+ * @returns The latest provider-flow status.
+ */
+export type KycControllerGetProviderFlowStatusAction = {
+  type: `KycController:getProviderFlowStatus`;
+  handler: KycController['getProviderFlowStatus'];
+};
+
+/**
+ * Returns the session already stored on state.
+ *
+ * Starts session-status polling when `finalStatus` is not `approved`,
+ * `rejected`, or `retry`. Does not fetch status or refresh capability
+ * authorization.
+ *
+ * @returns The session status stored at call time.
+ * @throws If there is no session on state.
+ */
+export type KycControllerRefreshSessionStatusAction = {
+  type: `KycController:refreshSessionStatus`;
+  handler: KycController['refreshSessionStatus'];
+};
+
+/**
+ * Returns the persisted session status.
+ *
+ * Does not call the network and does not start session-status polling.
+ *
+ * @returns The session on state, or `null` when none is stored.
+ */
+export type KycControllerReadSessionStatusAction = {
+  type: `KycController:readSessionStatus`;
+  handler: KycController['readSessionStatus'];
+};
+
+/**
+ * Fetches `GET /sessions/{id}/status` once and writes the result onto state.
+ *
+ * Does not start the session-status polling timer.
+ *
+ * @param sessionId - UKYC session id.
+ * @returns The fetched session status.
+ */
+export type KycControllerFetchSessionStatusOnceAction = {
+  type: `KycController:fetchSessionStatusOnce`;
+  handler: KycController['fetchSessionStatusOnce'];
+};
+
+/**
+ * Starts polling `GET /sessions/{id}/status` for
+ * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
+ * the result onto state only when the payload changed. The first poll runs
+ * immediately. Each later wait starts at 10 seconds and grows by 10 seconds
+ * after every poll, including a failed one. Starting the loop again resets
+ * that delay. The loop stops once `finalStatus` is `approved`, `rejected`,
+ * or `retry`, or when {@link reset} / {@link clearState} runs.
+ *
+ * @throws If there is no current session id to poll.
+ */
+export type KycControllerStartSessionStatusPollingAction = {
+  type: `KycController:startSessionStatusPolling`;
+  handler: KycController['startSessionStatusPolling'];
+};
+
+/**
+ * Fetches the idOS + KYC-provider disclaimer catalog. Pass exactly one of
+ * `sessionId` or `country`:
+ *
+ * - `{ sessionId }` → {@link KycService.fetchSessionDisclaimersBySessionId}
+ * (`GET /sessions/{sessionId}/disclaimers`)
+ * - `{ country }` → {@link KycService.fetchSessionDisclaimersByCountry}
+ * (`GET /disclaimers?country=`)
+ *
+ * A session-id fetch also writes the catalog to `sessionDisclaimers`.
+ *
+ * @param params - The parameters. Provide exactly one of `sessionId` or
+ * `country`.
+ * @param params.sessionId - The UKYC session id.
+ * @param params.country - ISO 3166-1 alpha-3 country code.
+ * @returns The catalog. Session fetches include consent state; country
+ * fetches do not.
+ */
+export type KycControllerFetchSessionDisclaimersAction = {
+  type: `KycController:fetchSessionDisclaimers`;
+  handler: KycController['fetchSessionDisclaimers'];
+};
+
+/**
+ * Fetches the session-scoped disclaimer catalog and records consents
+ * derived from the T&C2 flags. Already-consented catalog rows are omitted
+ * from the POST. A 409 is re-checked with a GET: continue only when every
+ * accepted document is now consented, otherwise fail closed.
+ *
+ * @param params - Accepted session-disclaimer records.
+ * @param params.providerDisclaimersAccepted - Accepted Sumsub disclaimer records.
+ * @param params.idosDisclaimersAccepted - Accepted idOS disclaimer records.
+ * @param params.credentialReusabilityConsentGiven - Whether credential
+ * reuse was accepted.
+ */
+export type KycControllerRecordSessionDisclaimersAction = {
+  type: `KycController:recordSessionDisclaimers`;
+  handler: KycController['recordSessionDisclaimers'];
+};
+
+/**
+ * Fetches the current session status and reports whether consent was given.
+ *
+ * @returns Whether `consentStatus` is `given`.
+ * @throws If there is no session on state.
+ */
+export type KycControllerHasCompletedSessionDisclaimersAction = {
+  type: `KycController:hasCompletedSessionDisclaimers`;
+  handler: KycController['hasCompletedSessionDisclaimers'];
+};
+
+/**
+ * Fetches the vendor T&Cs the customer must accept before a session is
+ * created (`GET /vendors/{vendor}/disclaimers?country=`).
+ *
+ * @param params - The parameters.
+ * @param params.vendor - Identity vendor. Defaults to `moonpay`.
+ * @param params.country - ISO 3166-1 alpha-3 country code.
+ * @returns The disclaimers.
+ */
+export type KycControllerFetchVendorDisclaimersAction = {
+  type: `KycController:fetchVendorDisclaimers`;
+  handler: KycController['fetchVendorDisclaimers'];
+};
+
+/**
+ * Records vendor T&C acceptance via {@link KycService.submitVendorDisclaimers}
+ * and persists the accepted ids on state.
+ *
+ * @param params - The parameters.
+ * @param params.disclaimerIds - Accepted vendor T&C ids.
+ * @returns The vendor signing records.
+ * @throws If `vendor` is missing from state.
+ */
+export type KycControllerRecordVendorDisclaimersAction = {
+  type: `KycController:recordVendorDisclaimers`;
+  handler: KycController['recordVendorDisclaimers'];
+};
+
+/**
+ * Fetches the current vendor T&C catalog and returns whether every document
+ * is already recorded in {@link KycControllerState.vendorDisclaimersAccepted}.
+ *
+ * @returns Whether persisted acceptance covers the fetched catalog.
+ * @throws If `vendor` or `geoCountry` is missing from state.
+ */
+export type KycControllerHasCompletedVendorDisclaimersAction = {
+  type: `KycController:hasCompletedVendorDisclaimers`;
+  handler: KycController['hasCompletedVendorDisclaimers'];
+};
+
+/**
+ * Presents the identity-provider verification UI. Currently launches SumSub.
+ *
+ * @param params - Optional SDK presentation options.
+ * @param params.locale - BCP-47 locale for the SDK UI.
+ * @param params.debug - Enables SDK debug logging.
+ * @returns The durable provider-flow outcome.
+ */
+export type KycControllerLaunchProviderFlowAction = {
+  type: `KycController:launchProviderFlow`;
+  handler: KycController['launchProviderFlow'];
+};
+
+/**
+ * Union of all KycController action types.
+ */
+export type KycControllerMethodActions =
+  | KycControllerStartSessionAction
+  | KycControllerResetAction
+  | KycControllerClearStateAction
+  | KycControllerGetSessionStatusForVendorAction
+  | KycControllerGetProviderFlowStatusAction
+  | KycControllerRefreshSessionStatusAction
+  | KycControllerReadSessionStatusAction
+  | KycControllerFetchSessionStatusOnceAction
+  | KycControllerStartSessionStatusPollingAction
+  | KycControllerFetchSessionDisclaimersAction
+  | KycControllerRecordSessionDisclaimersAction
+  | KycControllerHasCompletedSessionDisclaimersAction
+  | KycControllerFetchVendorDisclaimersAction
+  | KycControllerRecordVendorDisclaimersAction
+  | KycControllerHasCompletedVendorDisclaimersAction
+  | KycControllerLaunchProviderFlowAction;

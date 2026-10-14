@@ -9,6 +9,7 @@ import type { KeyringControllerSignPersonalMessageAction } from '@metamask/keyri
 import type { Messenger } from '@metamask/messenger';
 import { bytesToHex, stringToBytes } from '@metamask/utils';
 
+import type { ClaimsControllerMethodActions } from './ClaimsController-method-action-types.js';
 import type {
   ClaimsServiceFetchClaimsConfigurationsAction,
   ClaimsServiceGenerateMessageForClaimSignatureAction,
@@ -16,13 +17,13 @@ import type {
   ClaimsServiceGetClaimsAction,
   ClaimsServiceGetClaimsApiUrlAction,
   ClaimsServiceGetRequestHeadersAction,
-} from './ClaimsService';
+} from './ClaimsService-method-action-types.js';
 import {
   ClaimsControllerErrorMessages,
   CONTROLLER_NAME,
   DEFAULT_CLAIMS_CONFIGURATIONS,
   SERVICE_NAME,
-} from './constants';
+} from './constants.js';
 import type {
   Claim,
   ClaimDraft,
@@ -30,14 +31,16 @@ import type {
   ClaimsControllerState,
   CreateClaimRequest,
   SubmitClaimConfig,
-} from './types';
+} from './types.js';
 
 export type ClaimsControllerGetStateAction = ControllerGetStateAction<
   typeof CONTROLLER_NAME,
   ClaimsControllerState
 >;
 
-export type ClaimsControllerActions = ClaimsControllerGetStateAction;
+export type ClaimsControllerActions =
+  | ClaimsControllerGetStateAction
+  | ClaimsControllerMethodActions;
 
 export type AllowedActions =
   | ClaimsServiceFetchClaimsConfigurationsAction
@@ -99,6 +102,18 @@ export function getDefaultClaimsControllerState(): ClaimsControllerState {
   };
 }
 
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchClaimsConfigurations',
+  'getSubmitClaimConfig',
+  'generateClaimSignature',
+  'getClaims',
+  'saveOrUpdateClaimDraft',
+  'getClaimDrafts',
+  'deleteClaimDraft',
+  'deleteAllClaimDrafts',
+  'clearState',
+] as const;
+
 export class ClaimsController extends BaseController<
   typeof CONTROLLER_NAME,
   ClaimsControllerState,
@@ -111,6 +126,11 @@ export class ClaimsController extends BaseController<
       name: CONTROLLER_NAME,
       state: { ...getDefaultClaimsControllerState(), ...state },
     });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**

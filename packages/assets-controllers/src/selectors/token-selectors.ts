@@ -8,20 +8,24 @@ import type { NetworkState } from '@metamask/network-controller';
 import { hexToBigInt, parseCaipAssetType } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
-import { TokenRwaData } from 'src/token-service';
 
+import { shouldIncludeNativeToken } from '../constants.js';
+import type { CurrencyRateState } from '../CurrencyRateController.js';
+import type { MultichainAssetsControllerState } from '../MultichainAssetsController/index.js';
+import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController/index.js';
+import type { MultichainBalancesControllerState } from '../MultichainBalancesController/index.js';
+import { getNativeTokenAddress } from '../token-prices-service/codefi-v2.js';
+import { TokenRwaData } from '../token-service.js';
+import type { TokenBalancesControllerState } from '../TokenBalancesController.js';
+import type {
+  Token,
+  TokenRatesControllerState,
+} from '../TokenRatesController.js';
+import type { TokensControllerState } from '../TokensController.js';
 import {
   parseBalanceWithDecimals,
   stringifyBalanceWithDecimals,
-} from './stringify-balance';
-import type { CurrencyRateState } from '../CurrencyRateController';
-import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
-import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
-import type { MultichainBalancesControllerState } from '../MultichainBalancesController';
-import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
-import type { TokenBalancesControllerState } from '../TokenBalancesController';
-import type { Token, TokenRatesControllerState } from '../TokenRatesController';
-import type { TokensControllerState } from '../TokensController';
+} from './stringify-balance.js';
 
 // Asset Tron Filters
 export const TRON_RESOURCE = {
@@ -93,6 +97,7 @@ export type Asset = (
 
 export type AssetListState = {
   accountTree: AccountTreeControllerState['accountTree'];
+  selectedAccountGroup: AccountTreeControllerState['selectedAccountGroup'];
   internalAccounts: AccountsControllerState['internalAccounts'];
   allTokens: TokensControllerState['allTokens'];
   allIgnoredTokens: TokensControllerState['allIgnoredTokens'];
@@ -138,6 +143,10 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
         for (const accountId of accounts) {
           const internalAccount = internalAccounts.accounts[accountId];
 
+          if (!internalAccount) {
+            continue;
+          }
+
           accountsMap[
             // TODO: We would not need internalAccounts if evmTokens state had the accountId
             internalAccount.type.startsWith('eip155')
@@ -175,6 +184,10 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
     for (const [chainId, chainAccounts] of Object.entries(
       accountsByChainId,
     ) as [Hex, Record<Hex, { balance: Hex | null }>][]) {
+      // Skip native tokens on Tempo networks
+      if (!shouldIncludeNativeToken(chainId)) {
+        continue;
+      }
       for (const [accountAddress, accountBalance] of Object.entries(
         chainAccounts,
       )) {
@@ -448,7 +461,11 @@ const selectAllMultichainAssets = createAssetListSelector(
   },
 );
 
-export const selectAllAssets = createAssetListSelector(
+// TS2742: The inferred type of 'selectAllAssets' cannot be named without a
+// reference to '../../../../node_modules/@metamask/account-tree-controller/dist/wallet.js'.
+// This is likely not portable. A type annotation is necessary.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const selectAllAssets: any = createAssetListSelector(
   [
     selectAllEvmAssets,
     selectAllMultichainAssets,
@@ -504,14 +521,13 @@ const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
 export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
   [
     selectAllAssets,
-    (state) => state.accountTree,
+    (state) => state.selectedAccountGroup,
     (
       _state,
       opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
     ) => opts,
   ],
-  (groupAssets, accountTree, opts) => {
-    const { selectedAccountGroup } = accountTree;
+  (groupAssets, selectedAccountGroup, opts) => {
     if (!selectedAccountGroup) {
       return {};
     }
@@ -547,15 +563,15 @@ function mergeAssets(
   ][]) {
     const existingAccountGroupAssets = existingAssets[accountGroupId];
 
-    if (!existingAccountGroupAssets) {
-      existingAssets[accountGroupId] = {};
-      for (const [network, chainAssets] of Object.entries(accountAssets)) {
-        existingAssets[accountGroupId][network] = [...chainAssets];
-      }
-    } else {
+    if (existingAccountGroupAssets) {
       for (const [network, chainAssets] of Object.entries(accountAssets)) {
         existingAccountGroupAssets[network] ??= [];
         existingAccountGroupAssets[network].push(...chainAssets);
+      }
+    } else {
+      existingAssets[accountGroupId] = {};
+      for (const [network, chainAssets] of Object.entries(accountAssets)) {
+        existingAssets[accountGroupId][network] = [...chainAssets];
       }
     }
   }
@@ -588,7 +604,7 @@ function getFiatBalanceForEvmToken(
     const currencyRate = currencyRates[nativeCurrencySymbol];
 
     if (!currencyRate?.conversionRate) {
-      return undefined;
+      return;
     }
 
     const fiatBalance =
@@ -602,13 +618,13 @@ function getFiatBalanceForEvmToken(
   }
 
   if (!tokenMarketData) {
-    return undefined;
+    return;
   }
 
   const currencyRate = currencyRates[tokenMarketData.currency];
 
   if (!currencyRate?.conversionRate) {
-    return undefined;
+    return;
   }
 
   const fiatBalance =
@@ -638,7 +654,7 @@ function getFiatBalanceForMultichainAsset(
   const assetMarketData = multichainConversionRates[assetId];
 
   if (!assetMarketData?.rate) {
-    return undefined;
+    return;
   }
 
   return {

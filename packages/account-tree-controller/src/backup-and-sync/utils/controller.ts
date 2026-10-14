@@ -5,11 +5,11 @@ import {
 } from '@metamask/account-api';
 import type { AccountWalletId } from '@metamask/account-api';
 
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountTreeControllerState } from '../../types';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import type { BackupAndSyncContext } from '../types';
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { AccountTreeControllerState } from '../../types.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import type { BackupAndSyncContext } from '../types.js';
 
 /**
  * Gets all local entropy wallets that can be synced.
@@ -22,7 +22,7 @@ export function getLocalEntropyWallets(
 ): AccountWalletEntropyObject[] {
   return Object.values(context.controller.state.accountTree.wallets).filter(
     (wallet) => wallet.type === AccountWalletType.Entropy,
-  ) as AccountWalletEntropyObject[];
+  );
 }
 
 /**
@@ -82,7 +82,7 @@ export function getLocalGroupsForEntropyWallet(
 export type StateSnapshot = {
   accountGroupsMetadata: AccountTreeControllerState['accountGroupsMetadata'];
   accountWalletsMetadata: AccountTreeControllerState['accountWalletsMetadata'];
-  selectedAccountGroup: AccountTreeControllerState['accountTree']['selectedAccountGroup'];
+  selectedAccountGroup: AccountTreeControllerState['selectedAccountGroup'];
   accountTreeWallets: AccountTreeControllerState['accountTree']['wallets'];
 };
 
@@ -103,8 +103,7 @@ export function createStateSnapshot(
     accountWalletsMetadata: JSON.parse(
       JSON.stringify(context.controller.state.accountWalletsMetadata),
     ),
-    selectedAccountGroup:
-      context.controller.state.accountTree.selectedAccountGroup,
+    selectedAccountGroup: context.controller.state.selectedAccountGroup,
     accountTreeWallets: JSON.parse(
       JSON.stringify(context.controller.state.accountTree.wallets),
     ),
@@ -126,7 +125,7 @@ export function restoreStateFromSnapshot(
   context.controllerStateUpdateFn((state) => {
     state.accountGroupsMetadata = snapshot.accountGroupsMetadata;
     state.accountWalletsMetadata = snapshot.accountWalletsMetadata;
-    state.accountTree.selectedAccountGroup = snapshot.selectedAccountGroup;
+    state.selectedAccountGroup = snapshot.selectedAccountGroup;
     state.accountTree.wallets = snapshot.accountTreeWallets;
   });
 

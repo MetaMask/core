@@ -68,7 +68,6 @@ If you're in a MetaMask client repo (e.g. `metamask-extension` or `metamask-mobi
 <summary><strong>Manual steps</strong></summary>
 
 1. In the project, open `package.json` and locate the entry in `dependencies` for the package. Take note of the major part of the version.
-
    - Note that the dependency may be patched. Patched dependencies look like this:
 
      ```json
@@ -76,7 +75,6 @@ If you're in a MetaMask client repo (e.g. `metamask-extension` or `metamask-mobi
      ```
 
      where:
-
      - `PACKAGE_NAME` is the name of the package.
      - `ESCAPED_VERSION_RANGE` is the version range, but where characters like `^` are escaped (for instance, `^` will appear as `%3A`).
      - `PATCH_NAME` is the filename for a patch. It is usually dash-separated, starts with the package name, and ends with the commit ID from which the patch was created.
@@ -111,7 +109,6 @@ If you're in a MetaMask client repo (e.g. `metamask-extension` or `metamask-mobi
    ```
 
    where:
-
    - `PACKAGE_NAME` is the name of your package
    - `VERSION_RANGE` is one of the version ranges you noted in step 2
    - `NPM_ORG` is the NPM scope that the preview build is published under (note: this is _not_ `@metamask`)
@@ -194,7 +191,6 @@ If you're in a MetaMask client repo (e.g. `metamask-extension` or `metamask-mobi
 <summary><strong>Manual steps</strong></summary>
 
 1. In the project, open `package.json`, and:
-
    - Note the name of the package.
    - Locate the `resolutions` section. If it doesn't exist, then add it (it should be an object).
    - Check to see if the dependency you're testing is patched. Patched dependencies look like this:
@@ -204,7 +200,6 @@ If you're in a MetaMask client repo (e.g. `metamask-extension` or `metamask-mobi
      ```
 
      where:
-
      - `PACKAGE_NAME` is the name of the package.
      - `ESCAPED_VERSION_RANGE` is the version range, but where characters like `^` are escaped (for instance, `^` will appear as `%3A`).
      - `PATCH_NAME` is the filename for a patch. It is usually dash-separated, starts with the package name, and ends with the commit ID from which the patch was created.
@@ -216,7 +211,6 @@ If you're in a MetaMask client repo (e.g. `metamask-extension` or `metamask-mobi
    ```
 
    where:
-
    - `ROOT_PACKAGE_NAME` is the value of the `name` field at the top of `package.json`
    - `NPM_ORG` is the NPM scope that the preview build is published under (note: this is _not_ `@metamask`)
    - `PACKAGE_NAME` is the name of your package

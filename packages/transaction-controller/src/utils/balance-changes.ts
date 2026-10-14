@@ -1,14 +1,13 @@
 import type { Fragment, LogDescription, Result } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 import { hexToBN, toHex } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { getNativeBalance } from './balance';
-import { simulateTransactions } from '../api/simulation-api';
+import { simulateTransactions } from '../api/simulation-api.js';
 import type {
   SimulationResponseLog,
   SimulationRequestTransaction,
@@ -16,18 +15,20 @@ import type {
   SimulationResponseCallTrace,
   SimulationResponseTransaction,
   SimulationRequest,
-} from '../api/simulation-api';
+} from '../api/simulation-api.js';
 import {
   ABI_SIMULATION_ERC20_WRAPPED,
   ABI_SIMULATION_ERC721_LEGACY,
-} from '../constants';
+} from '../constants.js';
 import {
   SimulationError,
   SimulationInvalidResponseError,
   SimulationRevertedError,
-} from '../errors';
-import { projectLogger } from '../logger';
+} from '../errors.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
+  Revert,
   SimulationBalanceChange,
   SimulationData,
   SimulationTokenBalanceChange,
@@ -35,8 +36,10 @@ import type {
   TransactionParams,
   NestedTransactionMetadata,
   GetSimulationConfig,
-} from '../types';
-import { SimulationTokenStandard } from '../types';
+} from '../types.js';
+import { SimulationTokenStandard } from '../types.js';
+import { getNativeBalance } from './balance.js';
+import { decodeRevert } from './revert-reason.js';
 
 export enum SupportedToken {
   ERC20 = 'erc20',
@@ -53,7 +56,8 @@ type ABI = Fragment[];
 export type GetBalanceChangesRequest = {
   blockTime?: number;
   chainId: Hex;
-  ethQuery: EthQuery;
+  messenger: TransactionControllerMessenger;
+  networkClientId: NetworkClientId;
   getSimulationConfig: GetSimulationConfig;
   nestedTransactions?: NestedTransactionMetadata[];
   txParams: TransactionParams;
@@ -118,10 +122,15 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  */
 export async function getBalanceChanges(
   request: GetBalanceChangesRequest,
-): Promise<{ simulationData: SimulationData; gasUsed?: Hex }> {
+): Promise<{
+  simulationData: SimulationData;
+  gasUsed?: Hex;
+  simulationRevert?: Revert;
+}> {
   log('Request', request);
 
   let callTraceErrors: string[] | undefined;
+  let simulationRevert: Revert | undefined;
 
   try {
     const response = await baseRequest({
@@ -134,6 +143,7 @@ export async function getBalanceChanges(
 
     const transactionResponse = response.transactions?.[0];
     callTraceErrors = extractCallTraceErrors(transactionResponse?.callTrace);
+    simulationRevert = extractRootRevert(transactionResponse?.callTrace);
     const transactionError = transactionResponse?.error;
 
     if (transactionError) {
@@ -154,7 +164,7 @@ export async function getBalanceChanges(
       tokenBalanceChanges,
     };
 
-    return { simulationData, gasUsed };
+    return { simulationData, gasUsed, simulationRevert };
   } catch (error) {
     log('Failed to get balance changes', error, request);
 
@@ -180,6 +190,7 @@ export async function getBalanceChanges(
         },
       },
       gasUsed: undefined,
+      simulationRevert,
     };
   }
 }
@@ -203,7 +214,7 @@ function getNativeBalanceChange(
   }
 
   const { txParams } = request;
-  const userAddress = txParams.from as Hex;
+  const userAddress = txParams.from.toLowerCase() as Hex;
   const { stateDiff } = transactionResponse;
   const previousBalance = stateDiff?.pre?.[userAddress]?.balance;
   const newBalance = stateDiff?.post?.[userAddress]?.balance;
@@ -212,11 +223,88 @@ function getNativeBalanceChange(
     return undefined;
   }
 
-  return getSimulationBalanceChange(
+  const gasCost = isGasCostDeductedFromSender(
+    txParams,
     previousBalance,
     newBalance,
-    transactionResponse.gasCost,
-  );
+    stateDiff,
+  )
+    ? transactionResponse.gasCost
+    : undefined;
+
+  return getSimulationBalanceChange(previousBalance, newBalance, gasCost);
+}
+
+/**
+ * Determine whether the simulated gas cost was deducted from the sender.
+ *
+ * The gas cost is reported whether or not the simulation charged it, so it can
+ * only be added back to the new balance when the sender actually paid it:
+ *
+ * - The sender is only charged when the simulated transaction specifies a fee
+ * per gas.
+ * - If the sender lost exactly the transaction value, gas was not charged.
+ * - Some chains credit the fee recipient without debiting the sender, which is
+ * detectable because it increases the total native balance.
+ *
+ * @param txParams - Parameters of the simulated transaction.
+ * @param previousBalance - Sender native balance before the simulation.
+ * @param newBalance - Sender native balance after the simulation.
+ * @param stateDiff - Native balances before and after the simulation.
+ * @returns Whether the gas cost was deducted from the sender.
+ */
+function isGasCostDeductedFromSender(
+  txParams: TransactionParams,
+  previousBalance: Hex,
+  newBalance: Hex,
+  stateDiff: SimulationResponseTransaction['stateDiff'],
+): boolean {
+  const feePerGas = (txParams.maxFeePerGas ?? txParams.gasPrice) as
+    | Hex
+    | undefined;
+
+  if (!feePerGas || hexToBN(feePerGas).isZero()) {
+    return false;
+  }
+
+  const extraLoss = hexToBN(previousBalance)
+    .sub(hexToBN(newBalance))
+    .sub(hexToBN(txParams.value ?? '0x0'));
+
+  if (extraLoss.isZero()) {
+    return false;
+  }
+
+  return !isNativeBalanceCreated(stateDiff);
+}
+
+/**
+ * Determine whether a state diff increases the total native balance.
+ *
+ * Executing a transaction cannot create native balance, so a positive total
+ * means the simulation credited an account without debiting another.
+ *
+ * @param stateDiff - Native balances before and after the simulation.
+ * @returns Whether the total native balance increased.
+ */
+function isNativeBalanceCreated(
+  stateDiff: SimulationResponseTransaction['stateDiff'],
+): boolean {
+  const previousState = stateDiff?.pre ?? {};
+  const newState = stateDiff?.post ?? {};
+  const addresses = new Set([
+    ...Object.keys(previousState),
+    ...Object.keys(newState),
+  ]);
+
+  const totalBalanceChange = [...addresses].reduce((total, address) => {
+    const previousBalance = previousState[address as Hex]?.balance ?? '0x0';
+    const newBalance = newState[address as Hex]?.balance ?? '0x0';
+
+    return total.add(hexToBN(newBalance).sub(hexToBN(previousBalance)));
+  }, new BN(0));
+
+  return totalBalanceChange.gt(new BN(0));
 }
 
 /**
@@ -227,9 +315,7 @@ function getNativeBalanceChange(
  */
 function getEvents(response: SimulationResponse): ParsedEvent[] {
   /* istanbul ignore next */
-  const logs = extractLogs(
-    response.transactions[0]?.callTrace ?? ({} as SimulationResponseCallTrace),
-  );
+  const logs = extractLogs(response.transactions[0]?.callTrace ?? {});
 
   log('Extracted logs', logs);
 
@@ -241,7 +327,7 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
 
       if (!event) {
         log('Failed to parse log', currentLog);
-        return undefined;
+        return;
       }
 
       /* istanbul ignore next */
@@ -252,12 +338,12 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
       /* istanbul ignore if */
       if (!inputs) {
         log('Failed to find inputs for event', event);
-        return undefined;
+        return;
       }
 
       if (!SUPPORTED_EVENTS.includes(event.name)) {
         log('Ignoring unsupported event', event.name, event);
-        return undefined;
+        return;
       }
 
       log('Normalizing event args', event.name, event);
@@ -272,7 +358,7 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
         abi: event.abi,
       };
     })
-    .filter((parsedEvent) => parsedEvent !== undefined) as ParsedEvent[];
+    .filter((parsedEvent) => parsedEvent !== undefined);
 }
 
 /**
@@ -376,7 +462,7 @@ async function getTokenBalanceChanges(
       );
 
       if (!balanceChange) {
-        return undefined;
+        return;
       }
 
       return {
@@ -384,7 +470,7 @@ async function getTokenBalanceChanges(
         ...balanceChange,
       };
     })
-    .filter((change) => change !== undefined) as SimulationTokenBalanceChange[];
+    .filter((change) => change !== undefined);
 }
 
 /**
@@ -659,6 +745,25 @@ function extractCallTraceErrors(call?: SimulationResponseCallTrace): string[] {
 }
 
 /**
+ * Build a `Revert` from the root call trace frame. Reads only the raw
+ * `output` hex and decodes it locally; the upstream `error` message string
+ * is never parsed. Only the root frame's output is considered, since
+ * nested frame errors may have been caught and recovered by their callers.
+ *
+ * @param call - The root call trace frame.
+ * @returns A `Revert` if the root frame reverted with output data,
+ * otherwise `undefined`.
+ */
+function extractRootRevert(
+  call?: SimulationResponseCallTrace,
+): Revert | undefined {
+  if (!call?.error) {
+    return undefined;
+  }
+  return decodeRevert(call.output, 'simulation');
+}
+
+/**
  * Generate balance change data from previous and new balances.
  *
  * @param previousBalance - The previous balance.
@@ -728,8 +833,14 @@ async function baseRequest({
   before?: SimulationRequestTransaction[];
   after?: SimulationRequestTransaction[];
 }): Promise<SimulationResponse> {
-  const { blockTime, chainId, ethQuery, getSimulationConfig, txParams } =
-    request;
+  const {
+    blockTime,
+    chainId,
+    messenger,
+    networkClientId,
+    getSimulationConfig,
+    txParams,
+  } = request;
   const { authorizationList } = txParams;
   const from = txParams.from as Hex;
 
@@ -756,7 +867,11 @@ async function baseRequest({
 
   log('Required balance', requiredBalanceHex);
 
-  const { balanceRaw } = await getNativeBalance(from, ethQuery);
+  const { balanceRaw } = await getNativeBalance(
+    from,
+    messenger,
+    networkClientId,
+  );
   const currentBalanceHex = toHex(balanceRaw);
   const currentBalanceBN = hexToBN(currentBalanceHex);
 

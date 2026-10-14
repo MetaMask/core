@@ -1,10 +1,10 @@
 import nock from 'nock';
 
-import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema.js';
 import type {
   UserStorageGenericPathWithFeatureAndKey,
   UserStorageGenericPathWithFeatureOnly,
-} from '../../../shared/storage-schema';
+} from '../../../shared/storage-schema.js';
 import {
   getMockUserStorageGetResponse,
   getMockUserStoragePutResponse,
@@ -13,7 +13,7 @@ import {
   getMockUserStorageBatchDeleteResponse,
   deleteMockUserStorageAllFeatureEntriesResponse,
   deleteMockUserStorageResponse,
-} from '../mocks/mockResponses';
+} from '../mocks/mockResponses.js';
 
 type MockReply = {
   status: nock.StatusCode;

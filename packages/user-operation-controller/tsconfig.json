@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
       "path": "../base-controller"
@@ -27,6 +24,15 @@
     },
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../approval-controller"
+    },
+    {
+      "path": "../eth-block-tracker"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

@@ -1,13 +1,13 @@
 import type { Eip1193Provider } from 'ethers';
 
-import { Env, Platform } from '../../shared/env';
-import { JwtBearerAuth } from '../authentication';
+import { Env, Platform } from '../../shared/env.js';
 import type {
   AuthSigningOptions,
   AuthStorageOptions,
-} from '../authentication-jwt-bearer/types';
-import { AuthType } from '../authentication-jwt-bearer/types';
-import { SNAP_ORIGIN } from '../utils/messaging-signing-snap-requests';
+} from '../authentication-jwt-bearer/types.js';
+import { AuthType } from '../authentication-jwt-bearer/types.js';
+import { JwtBearerAuth } from '../authentication.js';
+import { SNAP_ORIGIN } from '../utils/messaging-signing-snap-requests.js';
 
 // Alias mocking variables with ANY to test runtime safety.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

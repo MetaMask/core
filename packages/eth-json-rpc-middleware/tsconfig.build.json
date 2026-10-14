@@ -1,14 +1,10 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "./dist",
     "rootDir": "./src"
   },
   "references": [
-    {
-      "path": "../error-reporting-service/tsconfig.build.json"
-    },
     {
       "path": "../eth-block-tracker/tsconfig.build.json"
     },
@@ -20,6 +16,9 @@
     },
     {
       "path": "../message-manager/tsconfig.build.json"
+    },
+    {
+      "path": "../utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"],

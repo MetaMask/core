@@ -1,12 +1,12 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import { Json } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
-import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
-import { JsonRpcServer } from './JsonRpcServer';
-import type { MiddlewareContext } from './MiddlewareContext';
-import type { JsonRpcNotification, JsonRpcRequest } from './utils';
-import { isRequest, JsonRpcEngineError, stringify } from './utils';
+import type { JsonRpcMiddleware } from './JsonRpcEngineV2.js';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2.js';
+import { JsonRpcServer } from './JsonRpcServer.js';
+import type { MiddlewareContext } from './MiddlewareContext.js';
+import type { JsonRpcNotification, JsonRpcRequest } from './utils.js';
+import { isRequest, JsonRpcEngineError, stringify } from './utils.js';
 
 const jsonrpc = '2.0' as const;
 
@@ -367,9 +367,9 @@ describe('JsonRpcServer', () => {
   it('does not cause an unhandled rejection when onError rejects asynchronously for a request', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: (async (): Promise<never> => {
+      onError: async (): Promise<never> => {
         throw new Error('async onError failure');
-      }) as (error: unknown) => void,
+      },
     });
 
     const response = await server.handle({
@@ -392,9 +392,9 @@ describe('JsonRpcServer', () => {
   it('does not cause an unhandled rejection when onError rejects asynchronously for a notification', async () => {
     const server = new JsonRpcServer({
       engine: makeEngine(),
-      onError: (async (): Promise<never> => {
+      onError: async (): Promise<never> => {
         throw new Error('async onError failure');
-      }) as (error: unknown) => void,
+      },
     });
 
     const response = await server.handle({

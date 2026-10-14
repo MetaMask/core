@@ -4,7 +4,7 @@ import {
   cacheTypeForMethod,
   cacheIdentifierForRequest,
   canCache,
-} from './cache';
+} from './cache.js';
 
 const knownMethods = [
   'web3_clientVersion',

@@ -9,23 +9,26 @@ import type {
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
 
+import type {
+  AbstractTokenPricesService,
+  EvmAssetWithMarketData,
+} from '../token-prices-service/abstract-token-prices-service.js';
+import { fetchTokenMetadata } from '../token-service.js';
+import type { Token } from '../TokenRatesController.js';
 import {
   getDefaultTokenSearchDiscoveryDataControllerState,
   TokenSearchDiscoveryDataController,
   controllerName,
   MAX_TOKEN_DISPLAY_DATA_LENGTH,
-} from './TokenSearchDiscoveryDataController';
+} from './TokenSearchDiscoveryDataController.js';
 import type {
   TokenSearchDiscoveryDataControllerMessenger,
   TokenSearchDiscoveryDataControllerState,
-} from './TokenSearchDiscoveryDataController';
-import type { NotFoundTokenDisplayData, FoundTokenDisplayData } from './types';
+} from './TokenSearchDiscoveryDataController.js';
 import type {
-  AbstractTokenPricesService,
-  EvmAssetWithMarketData,
-} from '../token-prices-service/abstract-token-prices-service';
-import { fetchTokenMetadata } from '../token-service';
-import type { Token } from '../TokenRatesController';
+  NotFoundTokenDisplayData,
+  FoundTokenDisplayData,
+} from './types.js';
 
 jest.mock('../token-service', () => {
   const mockFetchTokenMetadata = jest.fn();
@@ -80,7 +83,7 @@ function buildFoundTokenDisplayData(
   const priceData: EvmAssetWithMarketData<Hex, string> = {
     price: 10.5,
     currency: 'USD',
-    tokenAddress: tokenAddress as Hex,
+    tokenAddress,
     chainId: '0x1',
     allTimeHigh: 20,
     allTimeLow: 5,
@@ -300,7 +303,7 @@ describe('TokenSearchDiscoveryDataController', () => {
       const mockPriceData: EvmAssetWithMarketData<Hex, string> = {
         price: 10.5,
         currency: 'USD',
-        tokenAddress: tokenAddress as Hex,
+        tokenAddress,
         chainId: '0x1',
         allTimeHigh: 20,
         allTimeLow: 5,
@@ -439,7 +442,7 @@ describe('TokenSearchDiscoveryDataController', () => {
             EvmAssetWithMarketData<Hex, string>,
             'price' | 'currency'
           > = {
-            tokenAddress: tokenAddress as Hex,
+            tokenAddress,
             chainId: '0x1',
             allTimeHigh: 20,
             allTimeLow: 5,
@@ -508,7 +511,7 @@ describe('TokenSearchDiscoveryDataController', () => {
       const mockTokenPrice: EvmAssetWithMarketData<Hex, string> = {
         price: 10.5,
         currency: 'USD',
-        tokenAddress: tokenAddress as Hex,
+        tokenAddress,
         chainId: '0x1',
         allTimeHigh: 20,
         allTimeLow: 5,

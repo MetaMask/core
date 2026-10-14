@@ -1,19 +1,24 @@
-import * as OnChainNotifications from './api-notifications';
 import {
   mockGetOnChainNotificationsConfig,
   mockUpdateOnChainNotifications,
   mockGetAPINotifications,
   mockMarkNotificationsAsRead,
-} from '../__fixtures__/mockServices';
+} from '../__fixtures__/mockServices.js';
 import {
   createMockNotificationERC20Sent,
   createMockPlatformNotification,
-} from '../mocks';
+} from '../mocks/index.js';
+import * as OnChainNotifications from './api-notifications.js';
+import { notificationsConfigCache } from './notification-config-cache.js';
 
 const MOCK_BEARER_TOKEN = 'MOCK_BEARER_TOKEN';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
 
 describe('On Chain Notifications - getAPINotificationsConfig()', () => {
+  beforeEach(() => {
+    notificationsConfigCache.clear();
+  });
+
   it('should return notification config for addresses', async () => {
     const mockEndpoint = mockGetOnChainNotificationsConfig({
       status: 200,
@@ -41,7 +46,7 @@ describe('On Chain Notifications - getAPINotificationsConfig()', () => {
     expect(result).toStrictEqual([]);
   });
 
-  it('should return [] if endpoint fails', async () => {
+  it('should return null if endpoint fails, to keep it distinct from "nothing is enabled"', async () => {
     const mockBadEndpoint = mockGetOnChainNotificationsConfig({
       status: 500,
       body: { error: 'mock api failure' },
@@ -53,18 +58,37 @@ describe('On Chain Notifications - getAPINotificationsConfig()', () => {
     );
 
     expect(mockBadEndpoint.isDone()).toBe(true);
+    expect(result).toBeNull();
+  });
+
+  it('should return [] if the endpoint reports no subscriptions', async () => {
+    const mockEndpoint = mockGetOnChainNotificationsConfig({
+      status: 200,
+      body: [],
+    });
+
+    const result = await OnChainNotifications.getNotificationsApiConfigCached(
+      MOCK_BEARER_TOKEN,
+      MOCK_ADDRESSES,
+    );
+
+    expect(mockEndpoint.isDone()).toBe(true);
     expect(result).toStrictEqual([]);
   });
 });
 
 describe('On Chain Notifications - updateOnChainNotifications()', () => {
+  beforeEach(() => {
+    notificationsConfigCache.clear();
+  });
+
   const mockAddressesWithStatus = [
     { address: '0x123', enabled: true },
     { address: '0x456', enabled: false },
     { address: '0x789', enabled: true },
   ];
 
-  it('should successfully update notification settings', async () => {
+  it('should successfully update notification subscriptions', async () => {
     const mockEndpoint = mockUpdateOnChainNotifications();
 
     await OnChainNotifications.updateOnChainNotifications(
@@ -86,30 +110,49 @@ describe('On Chain Notifications - updateOnChainNotifications()', () => {
     expect(mockEndpoint.isDone()).toBe(false); // bailed before API was called
   });
 
-  it('should handle endpoint failure gracefully', async () => {
+  it('should cache the new subscriptions once the API accepts them', async () => {
+    mockUpdateOnChainNotifications();
+
+    await OnChainNotifications.updateOnChainNotifications(
+      MOCK_BEARER_TOKEN,
+      mockAddressesWithStatus,
+    );
+
+    expect(notificationsConfigCache.get(MOCK_ADDRESSES)).toStrictEqual(
+      mockAddressesWithStatus,
+    );
+  });
+
+  it('should reject and leave the cache untouched if the API rejects the update', async () => {
     const mockBadEndpoint = mockUpdateOnChainNotifications({
       status: 500,
       body: { error: 'mock api failure' },
     });
 
-    // Should not throw error, should handle gracefully
-    await OnChainNotifications.updateOnChainNotifications(
-      MOCK_BEARER_TOKEN,
-      mockAddressesWithStatus,
-    );
+    await expect(
+      OnChainNotifications.updateOnChainNotifications(
+        MOCK_BEARER_TOKEN,
+        mockAddressesWithStatus,
+      ),
+    ).rejects.toThrow('Failed to update on-chain notifications: 500');
 
     expect(mockBadEndpoint.isDone()).toBe(true);
+    expect(notificationsConfigCache.get(MOCK_ADDRESSES)).toBeNull();
   });
 
-  it('should send addresses with enabled status in request body', async () => {
+  it('should lower-case addresses before sending them', async () => {
     const mockEndpoint = mockUpdateOnChainNotifications();
+    let requestBody: unknown;
+    mockEndpoint.on('request', (_req, _interceptor, body) => {
+      requestBody = JSON.parse(body as string);
+    });
 
-    await OnChainNotifications.updateOnChainNotifications(
-      MOCK_BEARER_TOKEN,
-      mockAddressesWithStatus,
-    );
+    await OnChainNotifications.updateOnChainNotifications(MOCK_BEARER_TOKEN, [
+      { address: '0xAbCdEf', enabled: true },
+    ]);
 
     expect(mockEndpoint.isDone()).toBe(true);
+    expect(requestBody).toStrictEqual([{ address: '0xabcdef', enabled: true }]);
   });
 });
 

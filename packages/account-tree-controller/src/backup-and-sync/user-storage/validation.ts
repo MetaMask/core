@@ -4,12 +4,12 @@ import type {
   LegacyUserStorageSyncedAccount,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
-} from '../types';
+} from '../types.js';
 import {
   UserStorageSyncedWalletSchema,
   UserStorageSyncedWalletGroupSchema,
   LegacyUserStorageSyncedAccountSchema,
-} from '../types';
+} from '../types.js';
 
 /**
  * Formats validation error messages for user storage data.

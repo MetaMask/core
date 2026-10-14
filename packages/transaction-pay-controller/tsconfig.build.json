@@ -1,25 +1,18 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "./dist",
     "rootDir": "./src"
   },
   "references": [
     {
+      "path": "../accounts-controller/tsconfig.build.json"
+    },
+    {
       "path": "../assets-controller/tsconfig.build.json"
     },
     {
-      "path": "../assets-controllers/tsconfig.build.json"
-    },
-    {
       "path": "../base-controller/tsconfig.build.json"
-    },
-    {
-      "path": "../bridge-controller/tsconfig.build.json"
-    },
-    {
-      "path": "../bridge-status-controller/tsconfig.build.json"
     },
     {
       "path": "../controller-utils/tsconfig.build.json"
@@ -31,10 +24,25 @@
       "path": "../network-controller/tsconfig.build.json"
     },
     {
+      "path": "../ramps-controller/tsconfig.build.json"
+    },
+    {
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
     },
     {
       "path": "../transaction-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../sentinel-api-service/tsconfig.build.json"
+    },
+    {
+      "path": "../utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

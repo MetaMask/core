@@ -1,10 +1,10 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { isValidSignature } from './signature';
-import { padHexToEvenLength } from './utils';
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { isValidSignature } from './signature.js';
+import { padHexToEvenLength } from './utils.js';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
@@ -12,7 +12,6 @@ const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
 const DEFAULT_BLOCK_TIME = 12 * 1000;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
-const DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS = 1000 * 60 * 4; // 4 Minutes
 const DEFAULT_SUBMIT_HISTORY_LIMIT = 100;
 const DEFAULT_TRANSACTION_HISTORY_LIMIT = 40;
 
@@ -22,7 +21,6 @@ const DEFAULT_TRANSACTION_HISTORY_LIMIT = 40;
 export enum FeatureFlag {
   EIP7702 = 'confirmations_eip_7702',
   GasBuffer = 'confirmations_gas_buffer',
-  IncomingTransactions = 'confirmations_incoming_transactions',
   Transactions = 'confirmations_transactions',
 }
 
@@ -36,6 +34,23 @@ type GasEstimateFallback = {
    * The percentage multiplier gas estimate fallback for a transaction.
    */
   percentage?: number;
+
+  /**
+   * The maximum gas limit the fallback can resolve to, representing the chain's
+   * per-transaction gas cap. Clamps the `fixed` or `percentage`-derived fallback
+   * so it can never exceed the gas limit the RPC will accept (e.g. ~33.5M on
+   * Polygon, whereas 35% of its ~140M block gas limit would otherwise be ~49M).
+   */
+  maxGasLimit?: number;
+};
+
+/** A smart contract that supports EIP-7702 batch transactions. */
+type EIP7702Contract = {
+  /** Address of the smart contract. */
+  address: Hex;
+
+  /** Signature to verify the contract is authentic. */
+  signature: Hex;
 };
 
 export type TransactionControllerFeatureFlags = {
@@ -46,16 +61,7 @@ export type TransactionControllerFeatureFlags = {
      * Keyed by chain ID.
      * First entry in each array is the contract that standard EOAs will be upgraded to.
      */
-    contracts?: Record<
-      Hex,
-      {
-        /** Address of the smart contract. */
-        address: Hex;
-
-        /** Signature to verify the contract is authentic. */
-        signature: Hex;
-      }[]
-    >;
+    contracts?: Record<Hex, EIP7702Contract[]>;
 
     /** Chains enabled for EIP-7702 batch transactions. */
     supportedChains?: Hex[];
@@ -98,15 +104,6 @@ export type TransactionControllerFeatureFlags = {
         eip7702?: number;
       };
     };
-  };
-
-  /** Incoming transaction configuration. */
-  [FeatureFlag.IncomingTransactions]?: {
-    /** Interval between requests to accounts API to retrieve incoming transactions. */
-    pollingIntervalMs?: number;
-
-    /** Whether to use WebSocket for event-driven transaction updates instead of polling. */
-    useBackendWebSocketService?: boolean;
   };
 
   /** Miscellaneous feature flags to support the transaction controller. */
@@ -189,6 +186,46 @@ export type TransactionControllerFeatureFlags = {
        */
       default?: number;
     };
+
+    /**
+     * Replacement of underpriced dapp-suggested gas fees.
+     * If enabled, dapp-suggested EIP-1559 fees with a `maxFeePerGas` below the
+     * current low estimate are replaced with the wallet's suggested fees, as
+     * they are unlikely to be included in a block before fee values change.
+     */
+    replaceUnderpricedDappGasFees?: {
+      /** Enablement on a per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: boolean;
+      };
+
+      /**
+       * Default enablement.
+       * This value is used when no specific value is found for a chain ID.
+       */
+      default?: boolean;
+    };
+
+    /**
+     * Replacement of underpriced saved (advanced) gas fee preferences.
+     * If enabled, saved custom fees with a `maxBaseFee` below the current low
+     * estimate are ignored in favour of the wallet's suggested fees, as they
+     * are unlikely to be included in a block before fee values change.
+     * Level-based saved preferences track current estimates and are never
+     * ignored.
+     */
+    replaceUnderpricedSavedGasFees?: {
+      /** Enablement on a per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: boolean;
+      };
+
+      /**
+       * Default enablement.
+       * This value is used when no specific value is found for a chain ID.
+       */
+      default?: boolean;
+    };
   };
 };
 
@@ -220,26 +257,17 @@ export function getEIP7702ContractAddresses(
   messenger: TransactionControllerMessenger,
   publicKey: Hex,
 ): Hex[] {
-  const featureFlags = getFeatureFlags(messenger);
-
-  const contracts =
-    featureFlags?.[FeatureFlag.EIP7702]?.contracts?.[
-      chainId.toLowerCase() as Hex
-    ] ?? [];
-
-  return contracts
-    .filter((contract) =>
-      isValidSignature(
-        [contract.address, padHexToEvenLength(chainId) as Hex],
-        contract.signature,
-        publicKey,
-      ),
-    )
+  return getEIP7702Contracts(chainId, messenger)
+    .filter((contract) => isContractAuthentic(contract, chainId, publicKey))
     .map((contract) => contract.address);
 }
 
 /**
  * Retrieves the EIP-7702 upgrade contract address.
+ *
+ * Equivalent to the first entry of `getEIP7702ContractAddresses`, but stops
+ * validating once an authentic contract is found rather than validating every
+ * contract for the chain.
  *
  * @param chainId - The chain ID.
  * @param messenger - The controller messenger instance.
@@ -251,7 +279,9 @@ export function getEIP7702UpgradeContractAddress(
   messenger: TransactionControllerMessenger,
   publicKey: Hex,
 ): Hex | undefined {
-  return getEIP7702ContractAddresses(chainId, messenger, publicKey)?.[0];
+  return getEIP7702Contracts(chainId, messenger).find((contract) =>
+    isContractAuthentic(contract, chainId, publicKey),
+  )?.address;
 }
 
 /**
@@ -297,10 +327,15 @@ export function getSubmitHistoryLimit(
  */
 export function getTransactionHistoryLimit(
   messenger: TransactionControllerMessenger,
-): number {
+): number | undefined {
   const featureFlags = getFeatureFlags(messenger);
+
+  if (!featureFlags) {
+    return undefined;
+  }
+
   return (
-    featureFlags?.[FeatureFlag.Transactions]?.transactionHistoryLimit ??
+    featureFlags[FeatureFlag.Transactions]?.transactionHistoryLimit ??
     DEFAULT_TRANSACTION_HISTORY_LIMIT
   );
 }
@@ -375,6 +410,7 @@ export function getGasEstimateFallback(
 ): {
   fixed?: number;
   percentage: number;
+  maxGasLimit?: number;
 } {
   const featureFlags = getFeatureFlags(messenger);
 
@@ -390,7 +426,10 @@ export function getGasEstimateFallback(
 
   const fixed = chainFlags?.fixed ?? gasEstimateFallbackFlags?.default?.fixed;
 
-  return { fixed, percentage };
+  const maxGasLimit =
+    chainFlags?.maxGasLimit ?? gasEstimateFallbackFlags?.default?.maxGasLimit;
+
+  return { fixed, percentage, maxGasLimit };
 }
 
 /**
@@ -399,19 +438,19 @@ export function getGasEstimateFallback(
  * @param request - The request object.
  * @param request.chainId - The chain ID.
  * @param request.isCustomRPC - Whether the network RPC is added by the user.
- * @param request.isUpgradeWithDataToSelf - Whether the transaction is an EIP-7702 upgrade with data to self.
+ * @param request.isUpgradeWithData - Whether the transaction is an EIP-7702 upgrade combined with a call.
  * @param request.messenger - The controller messenger instance.
  * @returns The gas buffers.
  */
 export function getGasEstimateBuffer({
   chainId,
   isCustomRPC,
-  isUpgradeWithDataToSelf,
+  isUpgradeWithData,
   messenger,
 }: {
   chainId: Hex;
   isCustomRPC: boolean;
-  isUpgradeWithDataToSelf: boolean;
+  isUpgradeWithData: boolean;
   messenger: TransactionControllerMessenger;
 }): number {
   const featureFlags = getFeatureFlags(messenger);
@@ -423,9 +462,7 @@ export function getGasEstimateBuffer({
     ? undefined
     : gasBufferFlags?.included;
 
-  const upgradeBuffer = isUpgradeWithDataToSelf
-    ? chainFlags?.eip7702
-    : undefined;
+  const upgradeBuffer = isUpgradeWithData ? chainFlags?.eip7702 : undefined;
 
   return (
     upgradeBuffer ??
@@ -439,23 +476,6 @@ export function getGasEstimateBuffer({
 
 /**
  * Retrieves the incoming transactions polling interval.
- * Defaults to 4 minutes if not set.
- *
- * @param messenger - The controller messenger instance.
- * @returns The incoming transactions polling interval in milliseconds.
- */
-export function getIncomingTransactionsPollingInterval(
-  messenger: TransactionControllerMessenger,
-): number {
-  const featureFlags = getFeatureFlags(messenger);
-
-  return (
-    featureFlags?.[FeatureFlag.IncomingTransactions]?.pollingIntervalMs ??
-    DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS
-  );
-}
-
-/**
  * Retrieves the number of attempts to wait before automatically marking a transaction as dropped
  * if it has no receipt status.
  *
@@ -479,20 +499,92 @@ export function getTimeoutAttempts(
 }
 
 /**
- * Checks if WebSocket-based transaction updates are enabled.
- * When enabled, incoming transactions are fetched via event-driven updates
- * instead of polling.
+ * Retrieves whether underpriced dapp-suggested gas fees should be replaced
+ * with the wallet's suggested fees.
  *
+ * @param chainId - The chain ID.
  * @param messenger - The controller messenger instance.
- * @returns True if WebSocket updates are enabled, false otherwise.
+ * @returns Whether the replacement is enabled.
  */
-export function isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+export function getReplaceUnderpricedDappGasFeesEnabled(
+  chainId: Hex,
   messenger: TransactionControllerMessenger,
 ): boolean {
   const featureFlags = getFeatureFlags(messenger);
+
+  const replaceUnderpricedDappGasFeesFlags =
+    featureFlags?.[FeatureFlag.Transactions]?.replaceUnderpricedDappGasFees;
+
   return (
-    featureFlags?.[FeatureFlag.IncomingTransactions]
-      ?.useBackendWebSocketService ?? false
+    replaceUnderpricedDappGasFeesFlags?.perChainConfig?.[chainId] ??
+    replaceUnderpricedDappGasFeesFlags?.default ??
+    false
+  );
+}
+
+/**
+ * Retrieves whether underpriced saved (advanced) gas fee preferences should be
+ * ignored in favour of the wallet's suggested fees.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns Whether the replacement is enabled.
+ */
+export function getReplaceUnderpricedSavedGasFeesEnabled(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): boolean {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const replaceUnderpricedSavedGasFeesFlags =
+    featureFlags?.[FeatureFlag.Transactions]?.replaceUnderpricedSavedGasFees;
+
+  return (
+    replaceUnderpricedSavedGasFeesFlags?.perChainConfig?.[chainId] ??
+    replaceUnderpricedSavedGasFeesFlags?.default ??
+    false
+  );
+}
+
+/**
+ * Retrieves the configured EIP-7702 contracts for a given chain ID, without
+ * validating their authenticity.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns The configured contracts.
+ */
+function getEIP7702Contracts(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): EIP7702Contract[] {
+  const featureFlags = getFeatureFlags(messenger);
+
+  return (
+    featureFlags?.[FeatureFlag.EIP7702]?.contracts?.[
+      chainId.toLowerCase() as Hex
+    ] ?? []
+  );
+}
+
+/**
+ * Determines whether an EIP-7702 contract is authentic by verifying its
+ * signature against the given public key.
+ *
+ * @param contract - The contract to validate.
+ * @param chainId - The chain ID the contract is configured for.
+ * @param publicKey - The public key used to validate the contract authenticity.
+ * @returns True if the contract signature is valid, false otherwise.
+ */
+function isContractAuthentic(
+  contract: EIP7702Contract,
+  chainId: Hex,
+  publicKey: Hex,
+): boolean {
+  return isValidSignature(
+    [contract.address, padHexToEvenLength(chainId) as Hex],
+    contract.signature,
+    publicKey,
   );
 }
 
@@ -504,12 +596,17 @@ export function isIncomingTransactionsUseBackendWebSocketServiceEnabled(
  */
 function getFeatureFlags(
   messenger: TransactionControllerMessenger,
-): TransactionControllerFeatureFlags {
-  const featureFlags = messenger.call(
-    'RemoteFeatureFlagController:getState',
-  ).remoteFeatureFlags;
+): TransactionControllerFeatureFlags | undefined {
+  try {
+    const featureFlags = messenger.call(
+      'RemoteFeatureFlagController:getState',
+    ).remoteFeatureFlags;
 
-  log('Retrieved feature flags', featureFlags);
+    log('Retrieved feature flags', featureFlags);
 
-  return featureFlags as TransactionControllerFeatureFlags;
+    return featureFlags;
+  } catch {
+    log('RemoteFeatureFlagController not available');
+    return undefined;
+  }
 }

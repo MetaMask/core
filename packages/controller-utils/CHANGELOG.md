@@ -7,6 +7,103 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@types/bn.js` from `^5.1.5` to `^5.2.0` ([#10362](https://github.com/MetaMask/core/pull/10362))
+- Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
+- Bump `cockatiel` from `^3.1.2` to `^3.2.1` ([#10436](https://github.com/MetaMask/core/pull/10436))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+
+## [13.0.0]
+
+### Added
+
+- Add optional `startTime` to `TraceRequest` to allow backdating a span's start time ([#9315](https://github.com/MetaMask/core/pull/9315))
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Replace `@spruceid/siwe-parser` with `@signinwithethereum/siwe-parser` ^4.2.1 ([#10049](https://github.com/MetaMask/core/pull/10049))
+  - The old package is no longer maintained. The Ethereum Identity Foundation now maintains the successor under the `@signinwithethereum` scope.
+  - The `ParsedMessage` class API is backward compatible.
+  - v4.2.1 relaxes EIP-55 address checksum enforcement: all-lowercase and all-uppercase addresses now parse successfully (with a non-fatal warning on the new `warnings: string[]` field); only mixed-case addresses with an invalid checksum still fail to parse.
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+### Deprecated
+
+- Deprecate `createServicePolicy` and related symbols ([#9418](https://github.com/MetaMask/core/pull/9418))
+  - Deprecated functions:
+    `createServicePolicy`
+  - Deprecated constants:
+    - `DEFAULT_CIRCUIT_BREAK_DURATION`
+    - `DEFAULT_DEGRADED_THRESHOLD`
+    - `DEFAULT_MAX_CONSECUTIVE_FAILURES`
+    - `DEFAULT_MAX_RETRIES`
+  - Deprecated types:
+    - `CreateServicePolicyOptions`
+    - `ServicePolicy`
+  - Deprecated re-exports from `cockatiel`:
+    - `BrokenCircuitError`
+    - `CircuitState`
+    - `CockatielEventEmitter`
+    - `CockatielEvent`
+    - `CockatielFailureReason`
+    - `ConstantBackoff`
+    - `ExponentialBackoff`
+    - `handleAll`
+    - `handleWhen`
+  - These symbols will be removed in a future major version. Please use equivalent implementations from `@metamask/base-data-service` going forward.
+
+## [12.3.0]
+
+### Added
+
+- Allow overriding `isServiceFailure` in `createServicePolicy` ([#9123](https://github.com/MetaMask/core/pull/9123))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+## [12.2.0]
+
+### Added
+
+- Add `encodeFunctionData` to improve ABI encoding speed for addresses ([#9057](https://github.com/MetaMask/core/pull/9057))
+
+## [12.1.1]
+
+### Changed
+
+- Update `NetworkNickname` to match latest client overrides ([#9005](https://github.com/MetaMask/core/pull/9005))
+
+## [12.1.0]
+
+### Added
+
+- Add `DEFAULT_INFURA_NETWORKS` with Infura network names to be enabled by default ([#8767](https://github.com/MetaMask/core/pull/8767))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** The `ServicePolicy` type's `onDegraded` event now emits `{ duration: number }` instead of `void` when the service succeeds but takes longer than the `degradedThreshold` ([#8455](https://github.com/MetaMask/core/pull/8455))
+  - `void` has been removed from the event's type union. Listeners that checked for `undefined` data should now check for the `duration` property instead.
+  - The event still emits a `FailureReason` when retries are exhausted.
+- Update `normalizeEnsName` regex to allow ENS names with 3 or more characters (previously required 7 or more) ([#8510](https://github.com/MetaMask/core/pull/8510))
+- Update default Sei Mainnet block explorer URL from `seitrace.com` to `seiscan.io` ([#8545](https://github.com/MetaMask/core/pull/8545))
+- Update `BUILT_IN_NETWORKS`, `InfuraNetworkType`, `ChainId`, `NetworksTicker`, `BlockExplorerUrl`, `NetworkNickname` to include missing Infura networks ([#8680](https://github.com/MetaMask/core/pull/8680), [#8713](https://github.com/MetaMask/core/pull/8713))
+
+## [11.20.0]
+
+### Added
+
+- Add `CHAIN_IDS_WITH_NO_NATIVE_TOKEN` with Tempo chains in `constants.ts` ([#8336](https://github.com/MetaMask/core/pull/8336))
+
 ## [11.19.0]
 
 ### Added
@@ -271,7 +368,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -281,10 +378,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `BlockExplorerUrl` object and type for looking up the block explorer URL of any Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
-- Add `NetworkNickname` object and type for looking up the common nickname for any Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
-- Add `Partialize` type for making select keys in an object type optional ([#4268](https://github.com/MetaMask/core/pull/4286))
-- `toHex` now supports converting a `bigint` into a hex string ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `BlockExplorerUrl` object and type for looking up the block explorer URL of any Infura network ([#4268](https://github.com/MetaMask/core/pull/4268))
+- Add `NetworkNickname` object and type for looking up the common nickname for any Infura network ([#4268](https://github.com/MetaMask/core/pull/4268))
+- Add `Partialize` type for making select keys in an object type optional ([#4268](https://github.com/MetaMask/core/pull/4268))
+- `toHex` now supports converting a `bigint` into a hex string ([#4268](https://github.com/MetaMask/core/pull/4268))
 
 ## [11.1.0]
 
@@ -609,7 +706,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - `src/constants.ts` (but see below)
     - `src/util.ts` (but see below)
@@ -617,7 +713,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `NetworkType` and `NetworkChainsId` from `src/network/NetworkController.ts` (via `types.ts`)
   - `ESTIMATE_GAS_ERROR`, which used to be exported by `src/constants.ts`, is now available via the `@metamask/gas-fee-controller` package.
   - A number of functions and types that were previously exported by `src/util.ts` are now available via other packages. Here's a breakdown of these exports and their new locations:
-
     - `@metamask/assets-controllers`:
       - `SupportedTokenDetectionNetworks`
       - `addUrlProtocolPrefix`
@@ -647,7 +742,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.3.0...@metamask/controller-utils@13.0.0
+[12.3.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.2.0...@metamask/controller-utils@12.3.0
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.1.1...@metamask/controller-utils@12.2.0
+[12.1.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.1.0...@metamask/controller-utils@12.1.1
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.0.0...@metamask/controller-utils@12.1.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.20.0...@metamask/controller-utils@12.0.0
+[11.20.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...@metamask/controller-utils@11.20.0
 [11.19.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.18.0...@metamask/controller-utils@11.19.0
 [11.18.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.17.0...@metamask/controller-utils@11.18.0
 [11.17.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.16.0...@metamask/controller-utils@11.17.0

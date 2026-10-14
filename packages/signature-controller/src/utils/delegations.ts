@@ -4,11 +4,11 @@ import type {
 } from '@metamask/gator-permissions-controller';
 import { isHexAddress, isStrictHexString } from '@metamask/utils';
 
-import type { SignatureControllerMessenger } from '../SignatureController';
+import type { SignatureControllerMessenger } from '../SignatureController.js';
 import type {
   MessageParamsTypedData,
   MessageParamsTypedDataWithMetadata,
-} from '../types';
+} from '../types.js';
 
 const DELEGATION_PRIMARY_TYPE = 'Delegation';
 
@@ -68,12 +68,10 @@ export function decodePermissionFromRequest({
   if (
     !(
       // isHexAddress requires a lowercase hex string
-      (
-        isHexAddress(delegate?.toLowerCase()) &&
-        isHexAddress(delegator?.toLowerCase()) &&
-        isStrictHexString(authority) &&
-        caveats
-      )
+      isHexAddress(delegate?.toLowerCase()) &&
+      isHexAddress(delegator?.toLowerCase()) &&
+      isStrictHexString(authority) &&
+      caveats
     )
   ) {
     return undefined;

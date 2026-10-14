@@ -6,25 +6,32 @@ export type {
   GeolocationControllerEvents,
   GeolocationControllerMessenger,
   GeolocationControllerOptions,
-} from './GeolocationController';
+} from './GeolocationController.js';
 export type {
   GeolocationControllerGetGeolocationAction,
+  GeolocationControllerGetGeolocationDataAction,
   GeolocationControllerRefreshGeolocationAction,
-} from './GeolocationController-method-action-types';
-export type { GeolocationRequestStatus } from './types';
-export { Env } from './types';
+} from './GeolocationController-method-action-types.js';
+export type { GeolocationRequestStatus } from './types.js';
+export { Env } from './types.js';
 export {
   GeolocationController,
   getDefaultGeolocationControllerState,
-} from './GeolocationController';
+} from './GeolocationController.js';
 export {
   GeolocationApiService,
+  getUnknownGeolocationData,
+  toLocationCode,
   UNKNOWN_LOCATION,
-} from './geolocation-api-service/geolocation-api-service';
+} from './geolocation-api-service/geolocation-api-service.js';
 export type {
   GeolocationApiServiceMessenger,
   GeolocationApiServiceActions,
   GeolocationApiServiceEvents,
   FetchGeolocationOptions,
-} from './geolocation-api-service/geolocation-api-service';
-export type { GeolocationApiServiceFetchGeolocationAction } from './geolocation-api-service/geolocation-api-service-method-action-types';
+  GeolocationData,
+} from './geolocation-api-service/geolocation-api-service.js';
+export type {
+  GeolocationApiServiceFetchGeolocationAction,
+  GeolocationApiServiceFetchGeolocationDataAction,
+} from './geolocation-api-service/geolocation-api-service-method-action-types.js';

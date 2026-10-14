@@ -5,15 +5,15 @@ import type {
   JsonRpcSuccess,
 } from '@metamask/utils';
 
-import { asLegacyMiddleware } from './asLegacyMiddleware';
-import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
-import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import {
   getExtraneousKeys,
   makeRequest,
   makeRequestMiddleware,
-} from '../../tests/utils';
-import { JsonRpcEngine } from '../JsonRpcEngine';
+} from '../../tests/utils.js';
+import { JsonRpcEngine } from '../JsonRpcEngine.js';
+import { asLegacyMiddleware } from './asLegacyMiddleware.js';
+import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2.js';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2.js';
 
 describe('asLegacyMiddleware', () => {
   it('converts a v2 engine to a legacy middleware', () => {

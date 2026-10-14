@@ -1,0 +1,445 @@
+/**
+ * This file is auto generated.
+ * Do not edit manually.
+ */
+
+import type { SocialService } from './SocialService.js';
+
+/**
+ * Fetches the leaderboard of top traders.
+ *
+ * Calls `GET ${baseUrl}/leaderboard`.
+ *
+ * @param options - Optional query parameters for sorting, chain filtering, and limit.
+ * @returns The leaderboard response with ranked traders.
+ */
+export type SocialServiceFetchLeaderboardAction = {
+  type: `SocialService:fetchLeaderboard`;
+  handler: SocialService['fetchLeaderboard'];
+};
+
+/**
+ * Fetches a trader's profile by address or profile ID.
+ *
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/profile`.
+ *
+ * @param options - Options bag.
+ * @param options.addressOrId - Wallet address or Clicker profile ID.
+ * @returns The trader profile response.
+ */
+export type SocialServiceFetchTraderProfileAction = {
+  type: `SocialService:fetchTraderProfile`;
+  handler: SocialService['fetchTraderProfile'];
+};
+
+/**
+ * Fetches a trader's open positions.
+ *
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/positions/open`.
+ *
+ * @param options - Options bag.
+ * @param options.addressOrId - Wallet address or Clicker profile ID.
+ * @param options.chain - Filter by chain.
+ * @param options.sort - Sort by 'value' or 'latest'.
+ * @param options.limit - Number of results per page.
+ * @param options.page - Page number (1-based).
+ * @returns The positions response.
+ */
+export type SocialServiceFetchOpenPositionsAction = {
+  type: `SocialService:fetchOpenPositions`;
+  handler: SocialService['fetchOpenPositions'];
+};
+
+/**
+ * Fetches a trader's closed positions.
+ *
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/positions/closed`.
+ *
+ * @param options - Options bag.
+ * @param options.addressOrId - Wallet address or Clicker profile ID.
+ * @param options.chain - Filter by chain.
+ * @param options.sort - Sort by 'value' or 'latest'.
+ * @param options.limit - Number of results per page.
+ * @param options.page - Page number (1-based).
+ * @returns The positions response.
+ */
+export type SocialServiceFetchClosedPositionsAction = {
+  type: `SocialService:fetchClosedPositions`;
+  handler: SocialService['fetchClosedPositions'];
+};
+
+/**
+ * Fetches a trader's MetaMask followers.
+ *
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/followers`. Pass
+ * `mutuals: true` to append `?mutuals=true` (profiles that follow both this
+ * trader and the authenticated user; `count` is the mutual total). Requires a
+ * bearer token; the trader is identified by `addressOrId`, not the JWT
+ * subject (see {@link fetchMyFollowers} for the current user's inbound list).
+ *
+ * @param options - Options bag.
+ * @param options.addressOrId - Wallet address or Clicker profile ID.
+ * @param options.mutuals - When true, request mutual followers only.
+ * @returns The followers response.
+ */
+export type SocialServiceFetchFollowersAction = {
+  type: `SocialService:fetchFollowers`;
+  handler: SocialService['fetchFollowers'];
+};
+
+/**
+ * Fetches the list of traders a profile follows.
+ *
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/following`. Requires a bearer
+ * token; the trader is identified by `addressOrId`, not the JWT subject (see
+ * {@link fetchFollowing} for the current user's outbound list).
+ *
+ * @param options - Options bag.
+ * @param options.addressOrId - Wallet address or Clicker profile ID.
+ * @returns The following response.
+ */
+export type SocialServiceFetchTraderFollowingAction = {
+  type: `SocialService:fetchTraderFollowing`;
+  handler: SocialService['fetchTraderFollowing'];
+};
+
+/**
+ * Fetches a single position by its unique ID.
+ *
+ * Calls `GET ${baseUrl}/traders/position/${positionId}`.
+ *
+ * @param options - Options bag.
+ * @param options.positionId - Unique position ID (UUID).
+ * @returns The position.
+ */
+export type SocialServiceFetchPositionByIdAction = {
+  type: `SocialService:fetchPositionById`;
+  handler: SocialService['fetchPositionById'];
+};
+
+/**
+ * Fetches a page of the trader-activity feed.
+ *
+ * Calls `GET ${baseUrl}/feed`. For the `following` scope the current user is
+ * identified server-side from the JWT sub claim carried in the Authorization
+ * header; the `leaderboard` scope is generic and shared by all users.
+ *
+ * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+ * from a prior response back as `olderThan` to load older items, and
+ * `pagination.newerCursor` as `newerThan` to fetch newer items.
+ *
+ * @param options - Options bag.
+ * @param options.scope - `following` (default) or `leaderboard`.
+ * @param options.chains - Filter by one or more chains.
+ * @param options.limit - Number of results per page.
+ * @param options.olderThan - Cursor for older items (scroll down).
+ * @param options.newerThan - Cursor for newer items (refresh).
+ * @returns The feed response with items and pagination cursors.
+ */
+export type SocialServiceFetchFeedAction = {
+  type: `SocialService:fetchFeed`;
+  handler: SocialService['fetchFeed'];
+};
+
+/**
+ * Fetches a page of one trader's activity as feed items.
+ *
+ * Calls `GET ${baseUrl}/traders/${addressOrId}/feed`. Unlike {@link fetchFeed},
+ * this is scoped to a single profile (open and closed positions in the feed)
+ * and does not accept `scope` or `chains`. Set `commentedOnly` to only return
+ * positions that carry an author comment.
+ *
+ * The route is public, but the Authorization header is still sent so the
+ * social-api can hydrate `authorComment.engagement.userReaction` for the
+ * signed-in viewer.
+ *
+ * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+ * from a prior response back as `olderThan` to load older items, and
+ * `pagination.newerCursor` as `newerThan` to fetch newer items.
+ *
+ * @param options - Options bag.
+ * @param options.addressOrId - Wallet address or Clicker profile ID.
+ * @param options.commentedOnly - When true, only positions with a comment.
+ * @param options.limit - Number of results per page.
+ * @param options.olderThan - Cursor for older items (scroll down).
+ * @param options.newerThan - Cursor for newer items (refresh).
+ * @returns The feed response with items and pagination cursors.
+ */
+export type SocialServiceFetchTraderFeedAction = {
+  type: `SocialService:fetchTraderFeed`;
+  handler: SocialService['fetchTraderFeed'];
+};
+
+/**
+ * Fetches a page of positions in one token, most recently traded first.
+ *
+ * Calls `GET ${baseUrl}/tokens/${chain}/${contractAddress}/feed`. Unlike
+ * {@link fetchFeed}, this is scoped to a single token and does not accept
+ * `scope` or `chains`. Omit `status` to include both open and recently
+ * closed positions.
+ *
+ * The route is public, but the Authorization header is still sent so the
+ * social-api can hydrate `authorComment.engagement.userReaction` for the
+ * signed-in viewer.
+ *
+ * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+ * from a prior response back as `olderThan` to load older items, and
+ * `pagination.newerCursor` as `newerThan` to fetch newer items.
+ *
+ * @param options - Options bag.
+ * @param options.chain - Chain name where the token is deployed (`TokenFeedChain`).
+ * @param options.contractAddress - Token contract address.
+ * @param options.status - `open`, `closed`, or omit for both.
+ * @param options.limit - Number of results per page.
+ * @param options.olderThan - Cursor for older items (scroll down).
+ * @param options.newerThan - Cursor for newer items (refresh).
+ * @returns The feed response with items and pagination cursors.
+ */
+export type SocialServiceFetchTokenFeedAction = {
+  type: `SocialService:fetchTokenFeed`;
+  handler: SocialService['fetchTokenFeed'];
+};
+
+/**
+ * Adds or replaces the current user's reaction on a swap comment (Call).
+ *
+ * Calls `PUT ${baseUrl}/swap-comment/${commentId}/reaction`. One emotion per
+ * user per comment: a later PUT replaces the previous emotion.
+ *
+ * @param options - Options bag.
+ * @param options.commentId - `authorComment.uid` from a feed item.
+ * @param options.emotion - Emoji or short code to store.
+ * @returns Refreshed per-emotion counts and the caller's `userReaction`.
+ */
+export type SocialServiceReactToCommentAction = {
+  type: `SocialService:reactToComment`;
+  handler: SocialService['reactToComment'];
+};
+
+/**
+ * Removes the current user's reaction on a swap comment (Call).
+ *
+ * Calls `DELETE ${baseUrl}/swap-comment/${commentId}/reaction`. Idempotent
+ * when the caller has never reacted.
+ *
+ * @param options - Options bag.
+ * @param options.commentId - `authorComment.uid` from a feed item.
+ * @returns Refreshed per-emotion counts and a null `userReaction`.
+ */
+export type SocialServiceRemoveCommentReactionAction = {
+  type: `SocialService:removeCommentReaction`;
+  handler: SocialService['removeCommentReaction'];
+};
+
+/**
+ * Creates an author Call (user post) on one of the current user's swaps.
+ *
+ * Calls `POST ${baseUrl}/swap-comments`. Identify the swap with
+ * `positionUid` (the `positionId` of a feed item or position) or, for a
+ * trade too recent to be indexed, `tradeInFlight`. Provide exactly one of
+ * those two fields.
+ *
+ * @param options - Options bag.
+ * @param options.commentText - Message body of the post. May include a
+ * `https://static.klipy.com/...gif` file URL; social-api rejects other links.
+ * @param options.source - Free-form origin label stored on the comment.
+ * @param options.positionUid - Position UUID (`positionId` / feed item id).
+ * @param options.tradeInFlight - Hash, chain, and token of a swap in flight.
+ * @returns The created swap comment.
+ */
+export type SocialServiceCreateSwapCommentAction = {
+  type: `SocialService:createSwapComment`;
+  handler: SocialService['createSwapComment'];
+};
+
+/**
+ * Fetches the list of traders the current user is following.
+ *
+ * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * Prefer {@link fetchMyFollowing} in new code (pairs with
+ * {@link fetchMyFollowers}). This method is unchanged and remains the
+ * `/users/me/following` read.
+ *
+ * @returns The following response.
+ */
+export type SocialServiceFetchFollowingAction = {
+  type: `SocialService:fetchFollowing`;
+  handler: SocialService['fetchFollowing'];
+};
+
+/**
+ * Fetches the list of traders the current user is following.
+ *
+ * Alias of {@link fetchFollowing}. Calls `GET ${baseUrl}/users/me/following`.
+ * Preferred name in new code so `/users/me` reads are both `fetchMy*`.
+ *
+ * @returns The following response.
+ */
+export type SocialServiceFetchMyFollowingAction = {
+  type: `SocialService:fetchMyFollowing`;
+  handler: SocialService['fetchMyFollowing'];
+};
+
+/**
+ * Fetches the list of traders following the current user.
+ *
+ * Calls `GET ${baseUrl}/users/me/followers`. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @returns The followers response.
+ */
+export type SocialServiceFetchMyFollowersAction = {
+  type: `SocialService:fetchMyFollowers`;
+  handler: SocialService['fetchMyFollowers'];
+};
+
+/**
+ * Follows one or more traders on behalf of the current user.
+ *
+ * Calls `PUT ${baseUrl}/users/me/follows`. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag.
+ * @param options.targets - Array of wallet addresses or profile IDs to follow.
+ * @returns The follow response with confirmed follows.
+ */
+export type SocialServiceFollowAction = {
+  type: `SocialService:follow`;
+  handler: SocialService['follow'];
+};
+
+/**
+ * Unfollows one or more traders on behalf of the current user.
+ *
+ * Calls `DELETE ${baseUrl}/users/me/follows?targets=...`. Targets are sent
+ * as query params because Fastify does not parse request bodies on DELETE
+ * requests per RFC 9110. The caller is identified server-side from the JWT
+ * sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag.
+ * @param options.targets - Array of wallet addresses or profile IDs to unfollow.
+ * @returns The unfollow response with confirmed unfollows.
+ */
+export type SocialServiceUnfollowAction = {
+  type: `SocialService:unfollow`;
+  handler: SocialService['unfollow'];
+};
+
+/**
+ * Opts the current user out of the PnL leaderboard.
+ */
+export type SocialServiceOptOutOfLeaderboardAction = {
+  type: `SocialService:optOutOfLeaderboard`;
+  handler: SocialService['optOutOfLeaderboard'];
+};
+
+/**
+ * Opts the current user back into the PnL leaderboard.
+ */
+export type SocialServiceOptInToLeaderboardAction = {
+  type: `SocialService:optInToLeaderboard`;
+  handler: SocialService['optInToLeaderboard'];
+};
+
+/**
+ * Asks the social-api to refresh its cached copy of the current user's
+ * notification preferences.
+ *
+ * Calls `POST ${baseUrl}/notifications/preferences/cache-refresh`. The caller
+ * is identified server-side from the JWT sub claim carried in the
+ * Authorization header, so it can only ever refresh its own entry.
+ *
+ * The client calls this immediately after writing a preference change to
+ * Authenticated User Storage (AUS), which is the source of truth. The social
+ * api re-reads from AUS and repopulates its cache so the change is honoured
+ * near-instantly rather than after the cache TTL lapses. It is a pure
+ * optimisation on top of that bounded TTL: the write has already succeeded by
+ * the time this runs, so callers should treat it as best-effort and must not
+ * roll back the AUS write if it fails.
+ */
+export type SocialServiceRefreshNotificationPreferencesCacheAction = {
+  type: `SocialService:refreshNotificationPreferencesCache`;
+  handler: SocialService['refreshNotificationPreferencesCache'];
+};
+
+/**
+ * Blocks a trader, swap comment, or reply for the current user.
+ *
+ * Calls `PUT ${baseUrl}/moderation/block`. Provide exactly one of
+ * `profileId`, `commentId`, or `replyId`. Blocking the same target again
+ * replaces `reason` when one is given. The caller is identified server-side
+ * from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag. Exactly one target, plus an optional reason.
+ * @param options.profileId - Profile id (UUID) of the trader to block.
+ * @param options.commentId - Swap comment to block.
+ * @param options.replyId - Comment reply to block.
+ * @param options.reason - Free-form reason stored on the block.
+ */
+export type SocialServiceBlockAction = {
+  type: `SocialService:block`;
+  handler: SocialService['block'];
+};
+
+/**
+ * Fetches traders the current user has blocked.
+ *
+ * Calls `GET ${baseUrl}/moderation/blocks/profiles`. Results are most
+ * recently blocked first, 250 per page. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag.
+ * @param options.cursor - Cursor from the previous page. Omit for the first page.
+ * @returns The blocked profiles page.
+ */
+export type SocialServiceFetchBlockedProfilesAction = {
+  type: `SocialService:fetchBlockedProfiles`;
+  handler: SocialService['fetchBlockedProfiles'];
+};
+
+/**
+ * Fetches comments and replies the current user has blocked.
+ *
+ * Calls `GET ${baseUrl}/moderation/blocks/content`. Results are most
+ * recently blocked first, 250 per page. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @param options - Options bag.
+ * @param options.cursor - Cursor from the previous page. Omit for the first page.
+ * @returns The blocked content page.
+ */
+export type SocialServiceFetchBlockedContentAction = {
+  type: `SocialService:fetchBlockedContent`;
+  handler: SocialService['fetchBlockedContent'];
+};
+
+/**
+ * Union of all SocialService action types.
+ */
+export type SocialServiceMethodActions =
+  | SocialServiceFetchLeaderboardAction
+  | SocialServiceFetchTraderProfileAction
+  | SocialServiceFetchOpenPositionsAction
+  | SocialServiceFetchClosedPositionsAction
+  | SocialServiceFetchFollowersAction
+  | SocialServiceFetchTraderFollowingAction
+  | SocialServiceFetchPositionByIdAction
+  | SocialServiceFetchFeedAction
+  | SocialServiceFetchTraderFeedAction
+  | SocialServiceFetchTokenFeedAction
+  | SocialServiceReactToCommentAction
+  | SocialServiceRemoveCommentReactionAction
+  | SocialServiceCreateSwapCommentAction
+  | SocialServiceFetchFollowingAction
+  | SocialServiceFetchMyFollowingAction
+  | SocialServiceFetchMyFollowersAction
+  | SocialServiceFollowAction
+  | SocialServiceUnfollowAction
+  | SocialServiceOptOutOfLeaderboardAction
+  | SocialServiceOptInToLeaderboardAction
+  | SocialServiceRefreshNotificationPreferencesCacheAction
+  | SocialServiceBlockAction
+  | SocialServiceFetchBlockedProfilesAction
+  | SocialServiceFetchBlockedContentAction;

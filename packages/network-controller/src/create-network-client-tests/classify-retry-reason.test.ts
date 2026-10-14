@@ -1,7 +1,7 @@
 import { HttpError } from '@metamask/controller-utils';
 import { FetchError } from 'node-fetch';
 
-import { classifyRetryReason } from '../create-network-client';
+import { classifyRetryReason } from '../create-network-client.js';
 
 describe('classifyRetryReason', () => {
   it('returns "connection_failed" for FetchError connection failures', () => {

@@ -1,5 +1,5 @@
-import { testsForRpcMethodsThatCheckForBlockHashInResponse } from '../../../tests/network-client/block-hash-in-response';
-import { NetworkClientType } from '../../types';
+import { testsForRpcMethodsThatCheckForBlockHashInResponse } from '../../../tests/network-client/block-hash-in-response.js';
+import { NetworkClientType } from '../../types.js';
 
 describe('createNetworkClient - methods included in the Ethereum JSON-RPC spec - methods with block hashes in their result', () => {
   for (const networkClientType of Object.values(NetworkClientType)) {

@@ -1,6 +1,6 @@
 # `@metamask/delegation-controller`
 
-Centralized place to store and sign delegations.
+Signs delegations via the keyring using the Delegation Framework typed-data format.
 
 ## Installation
 

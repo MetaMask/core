@@ -2,7 +2,7 @@ import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { blockTagParamIndex } from './utils/cache';
+import { blockTagParamIndex } from './utils/cache.js';
 
 type BlockRefRewriteMiddlewareOptions = {
   blockTracker?: PollingBlockTracker;

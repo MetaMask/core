@@ -1,5 +1,6 @@
 export type {
   Address,
+  AssetFetchEntry,
   AssetsBalanceState,
   ChainId,
   GetProviderFunction,
@@ -9,8 +10,11 @@ export type {
   TokenListState,
   BalanceFetchResult,
   TokenDetectionResult,
-} from './types';
-export { MulticallClient, type MulticallClientConfig } from './clients';
+} from './types/index.js';
+export {
+  MulticallClient,
+  type MulticallClientConfig,
+} from './clients/index.js';
 export {
   BalanceFetcher,
   TokenDetector,
@@ -25,5 +29,5 @@ export {
   type OnBalanceUpdateCallback,
   type OnDetectionUpdateCallback,
   type OnStakedBalanceUpdateCallback,
-} from './services';
-export { divideIntoBatches, reduceInBatchesSerially } from './utils';
+} from './services/index.js';
+export { divideIntoBatches, reduceInBatchesSerially } from './utils/index.js';

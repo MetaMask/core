@@ -3,17 +3,17 @@ import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex } from '@metamask/utils';
 
-import {
-  PRIMARY_TYPE_DELEGATION,
-  validatePersonalSignatureRequest,
-  validateTypedSignatureRequest,
-} from './validation';
 import type {
   MessageParams,
   MessageParamsPersonal,
   MessageParamsTyped,
   OriginalRequest,
-} from '../types';
+} from '../types.js';
+import {
+  PRIMARY_TYPE_DELEGATION,
+  validatePersonalSignatureRequest,
+  validateTypedSignatureRequest,
+} from './validation.js';
 
 const CHAIN_ID_MOCK = '0x1';
 const ORIGIN_MOCK = 'test.com';
@@ -128,7 +128,7 @@ describe('Validation Utils', () => {
             messageData: {
               data: [],
               from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-            } as MessageParamsTyped,
+            },
             request: REQUEST_MOCK,
             version: SignTypedDataVersion.V1,
           }),
@@ -176,7 +176,7 @@ describe('Validation Utils', () => {
               messageData: {
                 data: 'uh oh',
                 from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-              } as MessageParamsTyped,
+              },
               request: REQUEST_MOCK,
               version,
             }),

@@ -1,13 +1,13 @@
 import nock from 'nock';
 
 import {
-  getMockUpdateOnChainNotifications,
   getMockOnChainNotificationsConfig,
+  getMockUpdateOnChainNotifications,
   getMockFeatureAnnouncementResponse,
   getMockListNotificationsResponse,
   getMockMarkNotificationsAsReadResponse,
   getMockCreatePerpOrderNotification,
-} from '../mocks/mockResponses';
+} from '../mocks/mockResponses.js';
 
 type MockReply = {
   status: nock.StatusCode;
@@ -27,11 +27,11 @@ export const mockFetchFeatureAnnouncementNotifications = (
   return mockEndpoint;
 };
 
-export const mockUpdateOnChainNotifications = (
+export const mockGetOnChainNotificationsConfig = (
   mockReply?: MockReply,
 ): nock.Scope => {
-  const mockResponse = getMockUpdateOnChainNotifications();
-  const reply = mockReply ?? { status: 204 };
+  const mockResponse = getMockOnChainNotificationsConfig();
+  const reply = mockReply ?? { status: 200, body: mockResponse.response };
 
   const mockEndpoint = nock(mockResponse.url)
     .post('')
@@ -40,11 +40,11 @@ export const mockUpdateOnChainNotifications = (
   return mockEndpoint;
 };
 
-export const mockGetOnChainNotificationsConfig = (
+export const mockUpdateOnChainNotifications = (
   mockReply?: MockReply,
 ): nock.Scope => {
-  const mockResponse = getMockOnChainNotificationsConfig();
-  const reply = mockReply ?? { status: 200, body: mockResponse.response };
+  const mockResponse = getMockUpdateOnChainNotifications();
+  const reply = mockReply ?? { status: 204 };
 
   const mockEndpoint = nock(mockResponse.url)
     .post('')

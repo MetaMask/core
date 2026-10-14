@@ -1,16 +1,21 @@
-import {
-  assertValidUserStorageWallet,
-  assertValidUserStorageGroup,
-  assertValidLegacyUserStorageAccount,
-} from './validation';
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import type { AccountWalletEntropyObject } from '../../wallet';
+import { mask } from '@metamask/superstruct';
+
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
 import type {
   BackupAndSyncContext,
   LegacyUserStorageSyncedAccount,
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
-} from '../types';
+} from '../types.js';
+import { UserStorageSyncedWalletGroupSchema } from '../types.js';
+import { toErrorMessage } from '../utils/errors.js';
+import {
+  assertValidUserStorageWallet,
+  assertValidUserStorageGroup,
+  assertValidLegacyUserStorageAccount,
+} from './validation.js';
 
 /**
  * Formats the wallet for user storage usage.
@@ -51,11 +56,26 @@ export const formatGroupForUserStorageUsage = (
   // This can be null if the user has not manually set a name, pinned or hidden the group
   const persistedGroupMetadata =
     context.controller.state.accountGroupsMetadata[group.id];
+  const { groupIndex } = group.metadata.entropy;
 
-  return {
-    ...(persistedGroupMetadata ?? {}),
-    groupIndex: group.metadata.entropy.groupIndex,
-  };
+  try {
+    // We mask and we try catch, since `mask` will throw if the persisted metadata has
+    // fields with wrong types.
+    return mask(
+      {
+        ...(persistedGroupMetadata ?? {}),
+        groupIndex,
+      },
+      UserStorageSyncedWalletGroupSchema,
+    );
+  } catch (error) {
+    backupAndSyncLogger(
+      `Error trying to format group for user storage usage: ${toErrorMessage(error)}`,
+    );
+
+    // If anything goes wrong with this group, we use blank metadata for it.
+    return { groupIndex };
+  }
 };
 
 /**
@@ -76,7 +96,7 @@ export const parseWalletFromUserStorageResponse = (
     return walletData;
   } catch (error: unknown) {
     throw new Error(
-      `Error trying to parse wallet from user storage response: ${error instanceof Error ? error.message : String(error)}`,
+      `Error trying to parse wallet from user storage response: ${toErrorMessage(error)}`,
     );
   }
 };
@@ -99,7 +119,7 @@ export const parseGroupFromUserStorageResponse = (
     return groupData;
   } catch (error: unknown) {
     throw new Error(
-      `Error trying to parse group from user storage response: ${error instanceof Error ? error.message : String(error)}`,
+      `Error trying to parse group from user storage response: ${toErrorMessage(error)}`,
     );
   }
 };
@@ -122,7 +142,7 @@ export const parseLegacyAccountFromUserStorageResponse = (
     return accountData;
   } catch (error: unknown) {
     throw new Error(
-      `Error trying to parse legacy account from user storage response: ${error instanceof Error ? error.message : String(error)}`,
+      `Error trying to parse legacy account from user storage response: ${toErrorMessage(error)}`,
     );
   }
 };

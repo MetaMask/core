@@ -6,28 +6,46 @@ import {
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
 import { isEvmAccountType } from '@metamask/keyring-api';
+import type { EntropySourceId } from '@metamask/keyring-api';
+import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AccountGroupObjectOf } from '../group';
-import { BaseRule } from '../rule';
-import type { Rule, RuleResult } from '../rule';
-import type { AccountWalletObjectOf } from '../wallet';
+import type { AccountGroupObjectOf } from '../group.js';
+import { BaseRule } from '../rule.js';
+import type { Rule, RuleResult } from '../rule.js';
+import type { AccountWalletObjectOf } from '../wallet.js';
 
 export class EntropyRule
   extends BaseRule
-  implements Rule<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
+  implements
+    Rule<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
 {
   readonly walletType = AccountWalletType.Entropy;
 
   readonly groupType = AccountGroupType.MultichainAccount;
 
   getEntropySourceIndex(entropySource: string) {
+    return this.#getHdKeyrings().findIndex(
+      (keyring) => keyring.metadata.id === entropySource,
+    );
+  }
+
+  /**
+   * The primary entropy source is the first HD keyring.
+   *
+   * @returns The primary HD keyring's entropy source ID, or `undefined` if none exists.
+   */
+  getPrimaryEntropySource(): EntropySourceId | undefined {
+    return this.#getHdKeyrings()[0]?.metadata.id;
+  }
+
+  #getHdKeyrings(): KeyringObject[] {
     const { keyrings } = this.messenger.call('KeyringController:getState');
 
-    return keyrings
-      .filter((keyring) => keyring.type === (KeyringTypes.hd as string))
-      .findIndex((keyring) => keyring.metadata.id === entropySource);
+    return keyrings.filter(
+      (keyring) => keyring.type === (KeyringTypes.hd as string),
+    );
   }
 
   match(
@@ -74,6 +92,7 @@ export class EntropyRule
           },
           pinned: false,
           hidden: false,
+          lastSelected: 0,
         },
       },
     };

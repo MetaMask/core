@@ -113,6 +113,11 @@ export type PermissionInfo<TPermission extends PermissionTypes> = Omit<
 >;
 
 /**
+ * Lifecycle status of a granted permission for UI and sync.
+ */
+export type GatorPermissionStatus = 'Active' | 'Revoked' | 'Expired';
+
+/**
  * Granted permission with metadata (siteOrigin, optional revocationMetadata).
  *
  * @template TPermission - The type of the permission provided.
@@ -122,6 +127,10 @@ export type PermissionInfoWithMetadata<
 > = {
   permissionResponse: PermissionInfo<TPermission>;
   siteOrigin: string;
+  /**
+   * Whether the permission is active, revoked (off-chain and/or on-chain), or expired by time rule.
+   */
+  status: GatorPermissionStatus;
   revocationMetadata?: RevocationMetadata;
 };
 
@@ -176,3 +185,22 @@ export type PendingRevocationParams = {
  * Permission type identifier: the `type` field of standard ERC-7715 permissions.
  */
 export type SupportedPermissionType = PermissionTypes['type'];
+
+/**
+ * Narrower typing for the delegator contract address mapping exported from @metamask/delegation-deployments.
+ */
+export type DelegationDeploymentsEnforcerAddressesByName = Record<
+  | 'ERC20StreamingEnforcer'
+  | 'ERC20PeriodTransferEnforcer'
+  | 'NativeTokenStreamingEnforcer'
+  | 'NativeTokenPeriodTransferEnforcer'
+  | 'ApprovalRevocationEnforcer'
+  | 'ExactCalldataEnforcer'
+  | 'ValueLteEnforcer'
+  | 'TimestampEnforcer'
+  | 'NonceEnforcer'
+  | 'AllowedCalldataEnforcer'
+  | 'AllowedTargetsEnforcer'
+  | 'RedeemerEnforcer',
+  Hex
+>;

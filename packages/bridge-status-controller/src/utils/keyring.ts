@@ -1,7 +1,7 @@
 import type { Intent } from '@metamask/bridge-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 
-import type { BridgeStatusControllerMessenger } from '../types';
+import type { BridgeStatusControllerMessenger } from '../types.js';
 
 export const signTypedMessage = async ({
   messenger,

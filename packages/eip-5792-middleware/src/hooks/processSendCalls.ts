@@ -11,7 +11,7 @@ import type {
 import { TransactionEnvelopeType } from '@metamask/transaction-controller';
 import type { Hex, JsonRpcRequest } from '@metamask/utils';
 import { add0x, bytesToHex } from '@metamask/utils';
-import { groupBy } from 'lodash';
+import { groupBy } from 'lodash-es';
 import { parse, v4 as uuid } from 'uuid';
 
 import {
@@ -21,14 +21,14 @@ import {
   MessageType,
   SupportedCapabilities,
   VERSION,
-} from '../constants';
+} from '../constants.js';
 import type {
   EIP5792Messenger,
   SendCallsPayload,
   SendCallsRequiredAssetsParam,
   SendCallsResult,
-} from '../types';
-import { getAccountKeyringType } from '../utils';
+} from '../types.js';
+import { getAccountKeyringType } from '../utils.js';
 
 /**
  * Type definition for required controller hooks and utilities of {@link processSendCalls}

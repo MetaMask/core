@@ -3,7 +3,7 @@ import PortStream from 'extension-port-stream';
 import type { Duplex } from 'stream';
 import type { Runtime } from 'webextension-polyfill-ts';
 
-import { createStreamMiddleware, createEngineStream } from '.';
+import { createStreamMiddleware, createEngineStream } from './index.js';
 
 const artificialDelay = async (time = 0): Promise<unknown> =>
   new Promise((resolve) => setTimeout(resolve, time));
@@ -161,9 +161,7 @@ describe('retry logic in middleware connected to a port', () => {
       },
     };
 
-    const connectionStream = new PortStream(
-      extensionPort as unknown as Runtime.Port,
-    );
+    const connectionStream = new PortStream(extensionPort);
 
     // connect both
     const clientSideStream = jsonRpcConnection.stream;

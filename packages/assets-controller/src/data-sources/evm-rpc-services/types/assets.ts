@@ -1,6 +1,6 @@
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { AccountId, Address, AssetType, ChainId } from './core';
+import type { AccountId, Address, AssetType, ChainId } from './core.js';
 
 /**
  * Core asset definition.
@@ -46,8 +46,8 @@ export type AssetBalance = {
   balance: string;
   /** Human-readable balance (balance / 10^decimals) */
   formattedBalance: string;
-  /** Token decimals used for formatting */
-  decimals: number;
+  /** Token decimals used for formatting; omitted when unknown (raw `balance` only; resolved downstream). */
+  decimals?: number;
   /** Block number when balance was fetched */
   blockNumber?: number;
   /** Timestamp when balance was fetched */

@@ -1,4 +1,4 @@
-import { MiddlewareContext } from './MiddlewareContext';
+import { MiddlewareContext } from './MiddlewareContext.js';
 
 describe('MiddlewareContext', () => {
   it('can be constructed with entries', () => {

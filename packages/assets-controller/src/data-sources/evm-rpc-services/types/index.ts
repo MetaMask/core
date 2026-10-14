@@ -5,10 +5,10 @@ export type {
   AssetType,
   CaipAssetType,
   ChainId,
-} from './core';
+} from './core.js';
 
 // Asset types
-export type { Asset, AssetBalance } from './assets';
+export type { Asset, AssetBalance } from './assets.js';
 
 // State types
 export type {
@@ -16,19 +16,18 @@ export type {
   TokenChainsCacheEntry,
   TokenListEntry,
   TokenListState,
-} from './state';
+} from './state.js';
 
 // Config types
-export type { GetProviderFunction, Provider } from './config';
+export type { GetProviderFunction, Provider } from './config.js';
 
 // Multicall types
-export type { BalanceOfRequest, BalanceOfResponse } from './multicall';
+export type { BalanceOfRequest, BalanceOfResponse } from './multicall.js';
 
 // Service types
 export type {
-  BalanceFetchOptions,
+  AssetFetchEntry,
   BalanceFetchResult,
   TokenDetectionOptions,
   TokenDetectionResult,
-  TokenFetchInfo,
-} from './services';
+} from './services.js';

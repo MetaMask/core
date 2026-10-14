@@ -1,12 +1,12 @@
-import { createModuleLogger, projectLogger } from '../logger';
+import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
   NameProvider,
   NameProviderMetadata,
   NameProviderRequest,
   NameProviderResult,
-} from '../types';
-import { NameType } from '../types';
-import { handleFetch } from '../util';
+} from '../types.js';
+import { NameType } from '../types.js';
+import { handleFetch } from '../util.js';
 
 const ID = 'token';
 const LABEL = 'Blockchain (Token Name)';

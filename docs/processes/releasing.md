@@ -4,6 +4,7 @@ Have changes that you need to release? There are a few things to understand:
 
 - The responsibility of maintenance is not the only thing shared among multiple teams at MetaMask; releases are as well. That means **if you work on a team that has codeownership over a package, you are free to create a new release without needing the Wallet Framework team to do so.**
 - Unlike clients, releases are not issued on a schedule; **anyone may create a release at any time**. Because of this, you may wish to review the Pull Requests tab on GitHub and ensure that no one else has a release candidate already in progress. If not, then you are free to start the process.
+- Release PRs on `release/*` branches that sit inactive for **3 hours** are automatically closed, with the branch deleted, so abandoned releases do not block others. Add the `release:keep-open` label if you need a longer-lived release PR in exceptional cases.
 - The release process is a work in progress. Further improvements to simplify the process are planned, but in the meantime, if you encounter any issues, please reach out to the Wallet Framework team.
 - Breaking changes take special consideration. [Read the guide](./breaking-changes.md) on how to prepare and handle them effectively.
 
@@ -26,7 +27,6 @@ This option provides a visual interface to streamline the release process:
 2. **Select packages to release.**
 
    The UI will show all packages with changes since their last release. For each package:
-
    - Choose whether to include it in the release
    - Select an appropriate version bump (patch, minor, or major) following SemVer rules
    - The UI will automatically validate your selections and identify dependencies that need to be included
@@ -34,12 +34,10 @@ This option provides a visual interface to streamline the release process:
 3. **Review and resolve dependency requirements.**
 
    The UI automatically analyzes your selections and identifies potential dependency issues that need to be addressed before proceeding. You'll need to review and resolve these issues by either:
-
    - Including the suggested additional packages
    - Confirming that you want to skip certain packages (if you're certain they don't need to be updated)
 
    Common types of dependency issues you might encounter:
-
    - **Missing dependencies**: If you're releasing Package A that depends on Package B, the UI will prompt you to include Package B
    - **Breaking change impacts**: If you're releasing Package B with breaking changes, the UI will identify packages that have peer dependencies on Package B that need to be updated
    - **Version incompatibilities**: The UI will flag if your selected version bumps don't follow semantic versioning rules relative to dependent packages
@@ -49,7 +47,6 @@ This option provides a visual interface to streamline the release process:
 4. **Confirm your selections.**
 
    Once you're satisfied with your package selections and version bumps, confirm them in the UI. This will:
-
    - Create a new branch named `release/<new release version>`
    - Update the version in each package's `package.json`
    - Add a new section to each package's `CHANGELOG.md` for the new version
@@ -57,7 +54,6 @@ This option provides a visual interface to streamline the release process:
 5. **Review and update changelogs.**
 
    Each selected package will have a new changelog section. Review these entries to ensure they are helpful for consumers:
-
    - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines. Ensure that no changes are listed under "Uncategorized".
    - Remove changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
    - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
@@ -107,12 +103,10 @@ If you prefer more direct control over the release process:
 3. **Review and resolve dependency requirements.**
 
    The tool automatically analyzes your selections and identifies potential dependency issues that need to be addressed before proceeding. You'll need to review and resolve these issues by either:
-
    - Including the suggested additional packages
    - Confirming that you want to skip certain packages (if you're certain they don't need to be updated)
 
    Common types of dependency issues you might encounter:
-
    - **Missing dependencies**: If you're releasing Package A that depends on Package B, the UI will prompt you to include Package B
    - **Breaking change impacts**: If you're releasing Package B with breaking changes, the UI will identify packages that have peer dependencies on Package B that need to be updated
    - **Version incompatibilities**: The UI will flag if your selected version bumps don't follow semantic versioning rules relative to dependent packages
@@ -122,12 +116,10 @@ If you prefer more direct control over the release process:
 4. **Review and update changelogs for relevant packages.**
 
    Once the tool proceeds without issue, you will be on the new release branch. In addition, each package you intend to release has been updated in two ways:
-
    - The version in `package.json` has been bumped.
    - A new section has been added at the top of `CHANGELOG` for the new version.
 
    At this point, you need to review the changelog entries and ensure that they are helpful for consumers:
-
    - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines. Ensure that no changes are listed under "Uncategorized".
    - Remove changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
    - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).

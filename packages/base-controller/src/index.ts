@@ -10,5 +10,6 @@ export type {
   StatePropertyMetadataConstraint,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-} from './BaseController';
-export { BaseController, deriveStateFromMetadata } from './BaseController';
+  ControllerStateChangedEvent,
+} from './BaseController.js';
+export { BaseController, deriveStateFromMetadata } from './BaseController.js';

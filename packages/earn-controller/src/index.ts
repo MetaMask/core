@@ -11,14 +11,14 @@ export type {
   EarnControllerActions,
   EarnControllerEvents,
   EarnControllerMessenger,
-} from './EarnController';
+} from './EarnController.js';
 
 export {
   controllerName,
   getDefaultEarnControllerState,
   DEFAULT_TRON_STAKING_STATE,
   EarnController,
-} from './EarnController';
+} from './EarnController.js';
 
 export type {
   EarnControllerRefreshPooledStakesAction,
@@ -29,7 +29,6 @@ export type {
   EarnControllerRefreshPooledStakingDataAction,
   EarnControllerRefreshLendingMarketsAction,
   EarnControllerRefreshLendingPositionsAction,
-  EarnControllerRefreshLendingEligibilityAction,
   EarnControllerRefreshLendingDataAction,
   EarnControllerRefreshTronStakingApyAction,
   EarnControllerGetTronStakingApyAction,
@@ -41,7 +40,7 @@ export type {
   EarnControllerGetLendingTokenAllowanceAction,
   EarnControllerGetLendingTokenMaxWithdrawAction,
   EarnControllerGetLendingTokenMaxDepositAction,
-} from './EarnController-method-action-types';
+} from './EarnController-method-action-types.js';
 
 export {
   selectLendingMarkets,
@@ -63,7 +62,7 @@ export {
   selectLendingMarketsByChainIdAndTokenAddress,
   selectTronStaking,
   selectTronStakingApy,
-} from './selectors';
+} from './selectors.js';
 
 export {
   CHAIN_ID_TO_AAVE_POOL_CONTRACT,

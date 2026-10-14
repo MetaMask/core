@@ -1,4 +1,4 @@
-import { Caip25Errors } from './errors';
+import { Caip25Errors } from './errors.js';
 
 describe('Caip25Errors', () => {
   it('requestedChainsNotSupportedError', () => {

@@ -7,4 +7,123 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/MetaMask/core/
+### Changed
+
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+
+## [2.1.0]
+
+### Added
+
+- Add `executeMutation` protected method to `BaseDataService` to allow for making server-state-mutating requests ([#9324](https://github.com/MetaMask/core/pull/9324))
+  - These kinds of requests are never retried, unlike queries.
+  - To use this, create a method in your data service class which takes whatever arguments you need, plus a optional final argument called `globalId`; then call `executeMutation` with a `mutationKey`, `globalId`, and `mutationFn`. See `ExampleDataService` in this package for an example.
+  - A `MutationKey` type is also available.
+- Add protected `cancelQueries` so subclasses can abort in-flight reads before a forced refresh ([#10454](https://github.com/MetaMask/core/pull/10454))
+
+### Changed
+
+- The payload for `:cacheUpdated` and `:cacheUpdated:${hash}` events now includes an `objectType` property, which is either "query" or "mutation" ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Add `uuid` `^11.1.1` as a dependency ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `cockatiel` from `^3.1.2` to `^3.2.1` ([#10436](https://github.com/MetaMask/core/pull/10436))
+- Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/storage-service` from `^1.0.2` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+### Fixed
+
+- Allow `QueryKey` to be not only mutable, but also readonly ([#9445](https://github.com/MetaMask/core/pull/9445))
+  - This allows the `queryKey` argument to `fetchQuery` or `fetchInfiniteQuery` to be extracted to its own variable (as long as `as const` is used to type the query key).
+
+## [1.0.0]
+
+### Added
+
+- Add support for cache persistence ([#9445](https://github.com/MetaMask/core/pull/9445))
+  - Persistence can be configured by passing a `persistenceConfig` option to the constructor.
+- Add `createServicePolicy` and related symbols, copied from `@metamask/controller-utils` ([#9418](https://github.com/MetaMask/core/pull/9418))
+  - Added functions:
+    `createServicePolicy`
+  - Added constants:
+    - `DEFAULT_CIRCUIT_BREAK_DURATION`
+    - `DEFAULT_DEGRADED_THRESHOLD`
+    - `DEFAULT_MAX_CONSECUTIVE_FAILURES`
+    - `DEFAULT_MAX_RETRIES`
+  - Added types:
+    - `CreateServicePolicyOptions`
+    - `ServicePolicy`
+  - Added re-exports from `cockatiel`:
+    - `BrokenCircuitError`
+    - `CircuitState`
+    - `CockatielEventEmitter`
+    - `CockatielEvent`
+    - `CockatielFailureReason`
+    - `ConstantBackoff`
+    - `ExponentialBackoff`
+    - `handleAll`
+    - `handleWhen`
+- Export types `DataServiceActions` and `DataServiceEvents` ([#9475](https://github.com/MetaMask/core/pull/9475))
+- Add `responseStruct` option to `fetchQuery` and `fetchInfiniteQuery` for validating query responses using Superstruct ([#9540](https://github.com/MetaMask/core/pull/9540))
+  - When provided, the struct is used to validate the response and for inferring the return type of the query
+
+### Changed
+
+- **BREAKING:** Remove `TPageData` type parameter from `invalidateQueries` method ([#9526](https://github.com/MetaMask/core/pull/9526))
+  - This is technically a breaking change, but this was not used in any of our codebases
+- **BREAKING:** Bump `@tanstack/query-core` from `^4.43.0` to `^5.62.16` ([#9712](https://github.com/MetaMask/core/pull/9712))
+  - The option types accepted by `fetchQuery`, `fetchInfiniteQuery`, and `invalidateQueries` now follow the query-core v5 API. Subclasses need to rename `cacheTime` to `gcTime`.
+  - `fetchInfiniteQuery` now requires `initialPageParam` and `getNextPageParam`, matching query-core's options for infinite queries. This also lets `TPageParam` be inferred instead of spelled out in the type parameters.
+- **BREAKING:** `fetchQuery` and `fetchInfiniteQuery` now take one more type parameter: `TDataStruct` is the third parameter and the others have been shifted up ([#9540](https://github.com/MetaMask/core/pull/9540))
+- **BREAKING:** Improve type safety of constructor by ensuring the messenger has required actions/events ([#9525](https://github.com/MetaMask/core/pull/9525))
+  - No change needed, unless the messenger being passed into the constructor was typed incorrectly.
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Add dependency `cockatiel` (`^3.1.2`) ([#9418](https://github.com/MetaMask/core/pull/9418))
+
+## [0.1.3]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [0.1.2]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^12.0.0` ([#8344](https://github.com/MetaMask/core/pull/8344), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+
+## [0.1.1]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [0.1.0]
+
+### Added
+
+- Initial release ([#8039](https://github.com/MetaMask/core/pull/8039), [#8292](https://github.com/MetaMask/core/pull/8292))
+
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@2.0.0...@metamask/base-data-service@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@1.0.0...@metamask/base-data-service@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.3...@metamask/base-data-service@1.0.0
+[0.1.3]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.2...@metamask/base-data-service@0.1.3
+[0.1.2]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.1...@metamask/base-data-service@0.1.2
+[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.0...@metamask/base-data-service@0.1.1
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/base-data-service@0.1.0

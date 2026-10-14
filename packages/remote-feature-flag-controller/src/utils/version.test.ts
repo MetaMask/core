@@ -1,6 +1,6 @@
 import type { SemVerVersion } from '@metamask/utils';
 
-import { isVersionFeatureFlag, getVersionData } from './version';
+import { isVersionFeatureFlag, getVersionData } from './version.js';
 
 describe('isVersionFeatureFlag', () => {
   it('returns true for valid multi-version feature flag', () => {

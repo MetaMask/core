@@ -9,7 +9,6 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
-import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerPrepareUserOperationAction,
@@ -22,41 +21,40 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { errorCodes } from '@metamask/rpc-errors';
-import { determineTransactionType } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import type {
   TransactionMeta,
   TransactionParams,
-  TransactionType,
 } from '@metamask/transaction-controller';
 import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import { v1 as random } from 'uuid';
 
-import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants';
-import { Bundler } from './helpers/Bundler';
-import { PendingUserOperationTracker } from './helpers/PendingUserOperationTracker';
-import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount';
-import { projectLogger as log } from './logger';
+import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants.js';
+import { Bundler } from './helpers/Bundler.js';
+import { PendingUserOperationTracker } from './helpers/PendingUserOperationTracker.js';
+import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount.js';
+import { projectLogger as log } from './logger.js';
 import type {
   SmartContractAccount,
   UserOperation,
   UserOperationMetadata,
-} from './types';
-import { UserOperationStatus } from './types';
-import type { UserOperationControllerMethodActions } from './UserOperationController-method-action-types';
-import { updateGas } from './utils/gas';
-import { updateGasFees } from './utils/gas-fees';
-import { getTransactionMetadata } from './utils/transaction';
+} from './types.js';
+import { UserOperationStatus } from './types.js';
+import type { UserOperationControllerMethodActions } from './UserOperationController-method-action-types.js';
+import { updateGasFees } from './utils/gas-fees.js';
+import { updateGas } from './utils/gas.js';
+import { getTransactionMetadata } from './utils/transaction.js';
 import {
   validateAddUserOperationOptions,
   validateAddUserOperationRequest,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
-} from './utils/validation';
+} from './utils/validation.js';
 
 const controllerName = 'UserOperationController';
 
@@ -235,7 +233,7 @@ export class UserOperationController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
-    this.hub = new EventEmitter() as UserOperationControllerEventEmitter;
+    this.hub = new EventEmitter();
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -377,7 +375,7 @@ export class UserOperationController extends BaseController<
           throw error;
         }
 
-        return undefined;
+        return;
       }
     })();
 
@@ -509,7 +507,6 @@ export class UserOperationController extends BaseController<
 
     const transactionType = await this.#getTransactionType(
       transaction,
-      provider,
       options,
     );
 
@@ -764,7 +761,6 @@ export class UserOperationController extends BaseController<
 
   async #getTransactionType(
     transaction: TransactionParams | undefined,
-    provider: Provider,
     options: AddUserOperationOptions,
   ): Promise<TransactionType | undefined> {
     if (!transaction) {
@@ -775,10 +771,7 @@ export class UserOperationController extends BaseController<
       return options.type;
     }
 
-    const ethQuery = new EthQuery(provider);
-    const result = determineTransactionType(transaction, ethQuery);
-
-    return (await result).type;
+    return TransactionType.contractInteraction;
   }
 
   async #getProvider(

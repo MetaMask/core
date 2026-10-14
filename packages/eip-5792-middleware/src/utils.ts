@@ -4,8 +4,8 @@ import type { Struct, StructError } from '@metamask/superstruct';
 import { validate } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 
-import { EIP5792ErrorCode } from './constants';
-import type { EIP5792Messenger } from './types';
+import { EIP5792ErrorCode } from './constants.js';
+import type { EIP5792Messenger } from './types.js';
 
 /**
  * Retrieves the keyring type for a given account address.

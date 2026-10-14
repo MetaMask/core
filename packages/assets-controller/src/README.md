@@ -31,7 +31,7 @@ The `AssetsController` is a unified asset management system that provides real-t
 │  On-demand data fetch                Process incoming updates                │
 │  (forceUpdate: true)                 (enrichment only)                       │
 │                                                                              │
-│  Subscription Sources: BackendWebsocket, AccountsApi, Snap, RPC              │
+│  Subscription Sources: AccountActivity, AccountsApi, Snap, RPC              │
 │  Push updates via: AssetsController:assetsUpdate action                      │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -69,12 +69,14 @@ get selectedAccounts(): InternalAccount[]
 
 #### 1.3 Subscribe to External Events
 
-| Event                                              | Handler                          | Purpose               |
-| -------------------------------------------------- | -------------------------------- | --------------------- |
-| `AccountTreeController:selectedAccountGroupChange` | `handleAccountGroupChanged()`    | Track active accounts |
-| `NetworkEnablementController:stateChange`          | `handleEnabledNetworksChanged()` | Track enabled chains  |
-| `KeyringController:unlock`                         | `start()`                        | Start subscriptions   |
-| `KeyringController:lock`                           | `stop()`                         | Stop subscriptions    |
+| Event                                              | Handler                          | Purpose                                |
+| -------------------------------------------------- | -------------------------------- | -------------------------------------- |
+| `AccountTreeController:selectedAccountGroupChange` | `handleAccountGroupChanged()`    | Refresh when the user switches groups  |
+| `AccountTreeController:initialized`                | `updateActive()`                 | Start tracking once the tree is built  |
+| `AccountTreeController:uninitialized`              | `updateActive()`                 | Stop tracking when the tree is cleared |
+| `NetworkEnablementController:stateChange`          | `handleEnabledNetworksChanged()` | Track enabled chains                   |
+| `KeyringController:unlock`                         | `start()`                        | Start subscriptions                    |
+| `KeyringController:lock`                           | `stop()`                         | Stop subscriptions                     |
 
 #### 1.4 Register Action Handlers
 
@@ -90,7 +92,7 @@ registerActionHandlers()
 
 #### 1.5 Balance data source priority
 
-Built-in balance data sources are fixed and processed in priority order: BackendWebsocketDataSource, AccountsApiDataSource, SnapDataSource, RpcDataSource. Earlier sources get first pick for chain assignment; later sources act as fallbacks. Data sources report active chains via the `onActiveChainsUpdated` callback passed at construction.
+Built-in balance data sources are fixed and processed in priority order: AccountActivityDataSource, AccountsApiDataSource, SnapDataSource, RpcDataSource. Earlier sources get first pick for chain assignment; later sources act as fallbacks. Data sources report active chains via the `onActiveChainsUpdated` callback passed at construction.
 
 #### 1.6 Middleware Chains
 
@@ -297,8 +299,8 @@ destroy()
   // Per-account balances
   assetsBalance: {
     "account-uuid-1": {
-      "eip155:1/slip44:60": { amount: "1000000000000000000" },
-      "eip155:1/erc20:0xA0b8...": { amount: "1000000" },
+      "eip155:1/slip44:60": { amount: "1" },
+      "eip155:1/erc20:0xA0b8...": { amount: "1" },
     },
     "account-uuid-2": { ... },
   },
@@ -409,7 +411,7 @@ const balances = await messenger.call(
 Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
 
 interface AssetBalance {
-  amount: string; // Raw amount as string (e.g., "1000000000000000000" for 1 ETH)
+  amount: string; // Converted amount (e.g., "1" for 1 ETH)
 }
 ```
 
@@ -425,7 +427,7 @@ const balances = await messenger.call(
   },
 );
 
-// Get raw ETH balance
+// Get ETH balance
 const ethBalance = balances[accountId]['eip155:1/slip44:60'].amount;
 ```
 
@@ -506,7 +508,7 @@ messenger.call(
 // Data source reports its active chains
 messenger.call(
   'AssetsController:activeChainsUpdate',
-  'BackendWebsocketDataSource',
+  'AccountActivityDataSource',
   ['eip155:1', 'eip155:137', 'eip155:42161'],
 );
 ```
@@ -534,11 +536,11 @@ await messenger.call(
   {
     assetsBalance: {
       'account-uuid-1': {
-        'eip155:1/slip44:60': { amount: '1000000000000000000' },
+        'eip155:1/slip44:60': { amount: '1' },
       },
     },
   },
-  'BackendWebsocketDataSource',
+  'AccountActivityDataSource',
 );
 ```
 
@@ -587,8 +589,8 @@ messenger.subscribe('AssetsController:balanceChanged', (event) => {
 {
   accountId: AccountId; // Account UUID
   assetId: Caip19AssetId; // "eip155:1/slip44:60"
-  previousAmount: string; // "1000000000000000000"
-  newAmount: string; // "2000000000000000000"
+  previousAmount: string; // "1"
+  newAmount: string; // "2"
 }
 ```
 
@@ -653,7 +655,7 @@ type Caip19AssetId = string;
 // - Native ETH: "eip155:1/slip44:60"
 // - USDC on Ethereum: "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
 // - SOL: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501"
-// - SPL Token: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/spl:EPjFWdd5..."
+// - SPL Token: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5..."
 
 // CAIP-2 chain identifier
 type ChainId = string;
@@ -795,12 +797,12 @@ const multiChainAssets = await messenger.call(
 
 ### Primary Data Sources (Balance Providers)
 
-| Order | Data Source                | Update Mechanism         | Chains                |
-| ----- | -------------------------- | ------------------------ | --------------------- |
-| 1     | BackendWebsocketDataSource | Real-time WebSocket push | API-supported EVM     |
-| 2     | AccountsApiDataSource      | HTTP polling             | API-supported chains  |
-| 3     | SnapDataSource             | Snap keyring events      | Solana, Bitcoin, Tron |
-| 4     | RpcDataSource              | Direct RPC polling       | Any EVM chain         |
+| Order | Data Source               | Update Mechanism         | Chains                |
+| ----- | ------------------------- | ------------------------ | --------------------- |
+| 1     | AccountActivityDataSource | Real-time WebSocket push | API-supported EVM     |
+| 2     | AccountsApiDataSource     | HTTP polling             | API-supported chains  |
+| 3     | SnapDataSource            | Snap keyring events      | Solana, Bitcoin, Tron |
+| 4     | RpcDataSource             | Direct RPC polling       | Any EVM chain         |
 
 **Fallback behavior**: Data sources are processed in registration order. Earlier sources get first pick for chain assignment; later sources handle remaining chains.
 
@@ -831,11 +833,11 @@ flowchart TB
 
     subgraph AssetsControllerInit["AssetsController (with queryApiClient)"]
         AC[AssetsController]
-        AC --> WS & API & SNAP & RPC & TOK & PRICE & DET
+        AC --> AA & API & SNAP & RPC & TOK & PRICE & DET
     end
 
     subgraph DataSources["Data Source Instances - Order 1-4"]
-        WS[BackendWebsocketDS - Order 1]
+        AA[AccountActivityDS - Order 1]
         API[AccountsApiDS - Order 2]
         SNAP[SnapDataSource - Order 3]
         RPC[RpcDataSource - Order 4]
@@ -849,7 +851,7 @@ flowchart TB
         ATC[AccountTreeController]
         NEC[NetworkEnablementController]
         KC[KeyringController]
-        BWSS[BackendWebSocketService]
+        AAS[AccountActivityService]
         BAC[BackendApiClient / ApiPlatformClient]
         SC[SnapController]
     end
@@ -858,7 +860,7 @@ flowchart TB
     ACI --> AC
 
     RPC -.-> NC
-    WS -.-> BWSS
+    AA -.-> AAS
     API -.-> BAC
     SNAP -.-> SC
     TOK -.-> BAC

@@ -1,0 +1,71 @@
+export const serviceName = 'SocialService';
+
+export const controllerName = 'SocialController';
+
+export const SocialServiceErrorMessage = {
+  FETCH_LEADERBOARD_FAILED: 'SocialService: Leaderboard request failed',
+  FETCH_LEADERBOARD_INVALID_RESPONSE:
+    'SocialService: Leaderboard returned invalid response',
+  FETCH_TRADER_PROFILE_FAILED: 'SocialService: Trader profile request failed',
+  FETCH_TRADER_PROFILE_INVALID_RESPONSE:
+    'SocialService: Trader profile returned invalid response',
+  FETCH_OPEN_POSITIONS_FAILED: 'SocialService: Open positions request failed',
+  FETCH_OPEN_POSITIONS_INVALID_RESPONSE:
+    'SocialService: Open positions returned invalid response',
+  FETCH_CLOSED_POSITIONS_FAILED:
+    'SocialService: Closed positions request failed',
+  FETCH_CLOSED_POSITIONS_INVALID_RESPONSE:
+    'SocialService: Closed positions returned invalid response',
+  FETCH_FOLLOWERS_FAILED: 'SocialService: Followers request failed',
+  FETCH_FOLLOWERS_INVALID_RESPONSE:
+    'SocialService: Followers returned invalid response',
+  FETCH_FOLLOWING_FAILED: 'SocialService: Following request failed',
+  FETCH_FOLLOWING_INVALID_RESPONSE:
+    'SocialService: Following returned invalid response',
+  FETCH_TRADER_FOLLOWING_FAILED:
+    'SocialService: Trader following request failed',
+  FETCH_TRADER_FOLLOWING_INVALID_RESPONSE:
+    'SocialService: Trader following returned invalid response',
+  FETCH_MY_FOLLOWERS_FAILED: 'SocialService: My followers request failed',
+  FETCH_MY_FOLLOWERS_INVALID_RESPONSE:
+    'SocialService: My followers returned invalid response',
+  FOLLOW_FAILED: 'SocialService: Follow request failed',
+  FOLLOW_INVALID_RESPONSE: 'SocialService: Follow returned invalid response',
+  UNFOLLOW_FAILED: 'SocialService: Unfollow request failed',
+  UNFOLLOW_INVALID_RESPONSE:
+    'SocialService: Unfollow returned invalid response',
+  FETCH_POSITION_BY_ID_FAILED: 'SocialService: Position request failed',
+  FETCH_POSITION_BY_ID_INVALID_RESPONSE:
+    'SocialService: Position returned invalid response',
+  LEADERBOARD_OPT_OUT_FAILED:
+    'SocialService: Leaderboard opt-out request failed',
+  LEADERBOARD_OPT_IN_FAILED: 'SocialService: Leaderboard opt-in request failed',
+  FETCH_FEED_FAILED: 'SocialService: Feed request failed',
+  FETCH_FEED_INVALID_RESPONSE: 'SocialService: Feed returned invalid response',
+  FETCH_TRADER_FEED_FAILED: 'SocialService: Trader feed request failed',
+  FETCH_TRADER_FEED_INVALID_RESPONSE:
+    'SocialService: Trader feed returned invalid response',
+  FETCH_TOKEN_FEED_FAILED: 'SocialService: Token feed request failed',
+  FETCH_TOKEN_FEED_INVALID_RESPONSE:
+    'SocialService: Token feed returned invalid response',
+  REACT_TO_COMMENT_FAILED: 'SocialService: Comment reaction request failed',
+  REACT_TO_COMMENT_INVALID_RESPONSE:
+    'SocialService: Comment reaction returned invalid response',
+  REMOVE_COMMENT_REACTION_FAILED:
+    'SocialService: Comment reaction removal request failed',
+  REMOVE_COMMENT_REACTION_INVALID_RESPONSE:
+    'SocialService: Comment reaction removal returned invalid response',
+  CREATE_SWAP_COMMENT_FAILED: 'SocialService: Swap comment request failed',
+  CREATE_SWAP_COMMENT_INVALID_RESPONSE:
+    'SocialService: Swap comment returned invalid response',
+  NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED:
+    'SocialService: Notification preferences cache refresh request failed',
+  BLOCK_FAILED: 'SocialService: Block request failed',
+  FETCH_BLOCKED_PROFILES_FAILED:
+    'SocialService: Blocked profiles request failed',
+  FETCH_BLOCKED_PROFILES_INVALID_RESPONSE:
+    'SocialService: Blocked profiles returned invalid response',
+  FETCH_BLOCKED_CONTENT_FAILED: 'SocialService: Blocked content request failed',
+  FETCH_BLOCKED_CONTENT_INVALID_RESPONSE:
+    'SocialService: Blocked content returned invalid response',
+} as const;

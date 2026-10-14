@@ -7,15 +7,15 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import type { TokenDisplayData } from './types';
-import { formatIconUrlWithProxy } from '../assetsUtil';
-import type { GetCurrencyRateState } from '../CurrencyRateController';
-import type { AbstractTokenPricesService } from '../token-prices-service';
+import { formatIconUrlWithProxy } from '../assetsUtil.js';
+import type { CurrencyRateControllerGetStateAction } from '../CurrencyRateController.js';
+import type { AbstractTokenPricesService } from '../token-prices-service/index.js';
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
-} from '../token-service';
-import type { TokenListToken } from '../TokenListController';
+} from '../token-service.js';
+import type { TokenListToken } from '../TokenListController.js';
+import type { TokenDisplayData } from './types.js';
 
 // === GENERAL ===
 
@@ -61,7 +61,7 @@ export type TokenSearchDiscoveryDataControllerActions =
 /**
  * All actions that {@link TokenSearchDiscoveryDataController} calls internally.
  */
-export type AllowedActions = GetCurrencyRateState;
+export type AllowedActions = CurrencyRateControllerGetStateAction;
 
 /**
  * The event that {@link TokenSearchDiscoveryDataController} publishes when updating
@@ -185,14 +185,7 @@ export class TokenSearchDiscoveryDataController extends BaseController<
     );
 
     let tokenDisplayData: TokenDisplayData;
-    if (!tokenMetadata) {
-      tokenDisplayData = {
-        found: false,
-        address,
-        chainId,
-        currency: currentCurrency,
-      };
-    } else {
+    if (tokenMetadata) {
       const priceData = await this.#fetchPriceData(chainId, address);
       tokenDisplayData = {
         found: true,
@@ -208,6 +201,13 @@ export class TokenSearchDiscoveryDataController extends BaseController<
           }),
         },
         price: priceData,
+      };
+    } else {
+      tokenDisplayData = {
+        found: false,
+        address,
+        chainId,
+        currency: currentCurrency,
       };
     }
 

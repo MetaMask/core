@@ -3,7 +3,7 @@ import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine/v2';
 import { hasProperty } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { projectLogger, createModuleLogger } from './logging-utils';
+import { projectLogger, createModuleLogger } from './logging-utils.js';
 
 const log = createModuleLogger(projectLogger, 'block-tracker-inspector');
 const futureBlockRefRequests: readonly string[] = [

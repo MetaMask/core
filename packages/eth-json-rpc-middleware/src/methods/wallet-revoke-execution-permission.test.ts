@@ -1,12 +1,12 @@
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona';
 
+import type { WalletMiddlewareParams } from '../wallet.js';
 import type {
   ProcessRevokeExecutionPermissionHook,
   RevokeExecutionPermissionRequestParams,
-} from './wallet-revoke-execution-permission';
-import { createWalletRevokeExecutionPermissionHandler } from './wallet-revoke-execution-permission';
-import type { WalletMiddlewareParams } from '../wallet';
+} from './wallet-revoke-execution-permission.js';
+import { createWalletRevokeExecutionPermissionHandler } from './wallet-revoke-execution-permission.js';
 
 const HEX_MOCK = '0x123abc';
 
@@ -74,7 +74,7 @@ describe('wallet_revokeExecutionPermission', () => {
   });
 
   it('throws if missing properties', async () => {
-    (request as JsonRpcRequest).params = {} as never;
+    (request as JsonRpcRequest).params = {};
 
     await expect(callMethod()).rejects.toThrow('Invalid params');
   });

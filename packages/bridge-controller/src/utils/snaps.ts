@@ -2,8 +2,8 @@ import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
-import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../constants/bridge';
-import type { BridgeControllerMessenger } from '../types';
+import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../constants/bridge.js';
+import type { BridgeControllerMessenger } from '../types.js';
 
 export const getMinimumBalanceForRentExemptionRequest = (snapId: string) => {
   return {

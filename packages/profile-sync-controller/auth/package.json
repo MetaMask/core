@@ -4,6 +4,6 @@
   "description": "",
   "license": "MIT",
   "sideEffects": false,
-  "main": "../dist/controllers/authentication/index.cjs",
-  "types": "../dist/controllers/authentication/index.d.cts"
+  "main": "../dist/controllers/authentication/index.js",
+  "types": "../dist/controllers/authentication/index.d.ts"
 }

@@ -5,14 +5,14 @@ export type {
   MultichainAssetsRatesControllerGetStateAction,
   MultichainAssetsRatesControllerStateChange,
   MultichainAssetsRatesControllerMessenger,
-} from './MultichainAssetsRatesController';
+} from './MultichainAssetsRatesController.js';
 export type {
   MultichainAssetsRatesControllerUpdateAssetsRatesAction,
   MultichainAssetsRatesControllerFetchHistoricalPricesForAssetAction,
-} from './MultichainAssetsRatesController-method-action-types';
+} from './MultichainAssetsRatesController-method-action-types.js';
 
 export {
   MultichainAssetsRatesController,
   getDefaultMultichainAssetsRatesControllerState,
-} from './MultichainAssetsRatesController';
-export { MAP_CAIP_CURRENCIES } from './constant';
+} from './MultichainAssetsRatesController.js';
+export { MAP_CAIP_CURRENCIES } from './constant.js';

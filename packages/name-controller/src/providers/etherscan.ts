@@ -1,15 +1,15 @@
 import { Mutex } from 'async-mutex';
 
-import { ETHERSCAN_SUPPORTED_NETWORKS } from '../constants';
-import { createModuleLogger, projectLogger } from '../logger';
+import { ETHERSCAN_SUPPORTED_NETWORKS } from '../constants.js';
+import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
   NameProvider,
   NameProviderMetadata,
   NameProviderRequest,
   NameProviderResult,
-} from '../types';
-import { NameType } from '../types';
-import { handleFetch, assertIsError } from '../util';
+} from '../types.js';
+import { NameType } from '../types.js';
+import { handleFetch, assertIsError } from '../util.js';
 
 const ID = 'etherscan';
 const LABEL = 'Etherscan (Verified Contract Name)';

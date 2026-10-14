@@ -1,0 +1,1726 @@
+import { RewardsIntegrationService } from '../../../src/services/RewardsIntegrationService.js';
+import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
+/* eslint-disable */
+import {
+  createMockEvmAccount,
+  createMockInfrastructure,
+  createMockMessenger,
+  callMissingFrom,
+  createPartiallyDelegatedMessenger,
+} from '../../helpers/serviceMocks.js';
+
+describe('RewardsIntegrationService', () => {
+  let mockDeps: jest.Mocked<PerpsPlatformDependencies>;
+  let mockMessenger: ReturnType<typeof createMockMessenger>;
+  let service: RewardsIntegrationService;
+  const mockEvmAccount = createMockEvmAccount();
+
+  /**
+   * Helper to set up mockMessenger.call with standard defaults,
+   * plus optional overrides for specific actions.
+   */
+  const setupMessengerDefaults = (overrides: Record<string, unknown> = {}) => {
+    (mockMessenger.call as jest.Mock).mockImplementation(
+      (action: string, ...args: unknown[]) => {
+        if (action in overrides) {
+          const val = overrides[action];
+          return typeof val === 'function'
+            ? (val as (...a: unknown[]) => unknown)(...args)
+            : val;
+        }
+        if (
+          action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
+        ) {
+          return [mockEvmAccount];
+        }
+        if (action === 'NetworkController:getState') {
+          return { selectedNetworkClientId: 'mainnet' };
+        }
+        if (action === 'NetworkController:getNetworkClientById') {
+          return { configuration: { chainId: '0x1' } };
+        }
+        return undefined;
+      },
+    );
+  };
+
+  beforeEach(() => {
+    mockDeps = createMockInfrastructure();
+    mockMessenger = createMockMessenger();
+    service = new RewardsIntegrationService(mockDeps, mockMessenger);
+
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  describe('calculateUserFeeDiscount', () => {
+    it('calculates fee discount successfully with valid discount', async () => {
+      const mockDiscountBips = 6500; // 65%
+
+      setupMessengerDefaults();
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(mockDiscountBips);
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBe(6500);
+      expect(mockDeps.rewards.getPerpsDiscountForAccount).toHaveBeenCalledWith(
+        expect.stringMatching(/^eip155:1:0x/),
+        10,
+      );
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        'RewardsIntegrationService: Fee discount calculated',
+        expect.objectContaining({
+          discountBips: 6500,
+          discountPercentage: 65,
+        }),
+      );
+    });
+
+    it('returns 0 when no discount available', async () => {
+      setupMessengerDefaults();
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBe(0);
+    });
+
+    it('returns undefined when rewards subscription state has not hydrated yet', async () => {
+      setupMessengerDefaults();
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        'RewardsIntegrationService: Fee discount unavailable (subscription state not hydrated)',
+        expect.objectContaining({
+          caipAccountId: expect.any(String),
+        }),
+      );
+    });
+
+    it('returns undefined when no EVM account found', async () => {
+      setupMessengerDefaults({
+        'AccountTreeController:getAccountsFromSelectedAccountGroup': [],
+      });
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        'RewardsIntegrationService: No EVM account found for fee discount',
+      );
+      expect(
+        mockDeps.rewards.getPerpsDiscountForAccount,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('returns undefined when chain ID not found', async () => {
+      setupMessengerDefaults({
+        'NetworkController:getNetworkClientById': () => {
+          throw new Error('Network client not found');
+        },
+      });
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(
+        mockDeps.rewards.getPerpsDiscountForAccount,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('returns undefined when getFeeDiscount throws error', async () => {
+      const mockError = new Error('Rewards API error');
+
+      setupMessengerDefaults();
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockRejectedValue(mockError);
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        mockError,
+        expect.objectContaining({
+          context: expect.objectContaining({
+            name: 'RewardsIntegrationService.calculateUserFeeDiscount',
+          }),
+        }),
+      );
+    });
+
+    it('returns undefined when NetworkController throws error', async () => {
+      const mockError = new Error('Network error');
+
+      setupMessengerDefaults({
+        'NetworkController:getState': () => {
+          throw mockError;
+        },
+      });
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalled();
+    });
+
+    it('handles different chain IDs correctly', async () => {
+      const chains = [
+        { chainId: '0x1', name: 'Mainnet' },
+        { chainId: '0x89', name: 'Polygon' },
+        { chainId: '0xa4b1', name: 'Arbitrum' },
+      ];
+
+      for (const chain of chains) {
+        jest.clearAllMocks();
+        mockDeps = createMockInfrastructure();
+        mockMessenger = createMockMessenger();
+        service = new RewardsIntegrationService(mockDeps, mockMessenger);
+
+        (mockMessenger.call as jest.Mock).mockImplementation(
+          (action: string) => {
+            if (
+              action ===
+              'AccountTreeController:getAccountsFromSelectedAccountGroup'
+            ) {
+              return [mockEvmAccount];
+            }
+            if (action === 'NetworkController:getState') {
+              return { selectedNetworkClientId: chain.name.toLowerCase() };
+            }
+            if (action === 'NetworkController:getNetworkClientById') {
+              return { configuration: { chainId: chain.chainId } };
+            }
+            return undefined;
+          },
+        );
+        (
+          mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+        ).mockResolvedValue(5000);
+
+        const result = await service.calculateUserFeeDiscount();
+
+        expect(result).toBe(5000);
+      }
+    });
+
+    it('calculates discount percentage correctly in logs', async () => {
+      const testCases = [
+        { bips: 6500, percentage: 65 },
+        { bips: 5000, percentage: 50 },
+        { bips: 2500, percentage: 25 },
+        { bips: 1000, percentage: 10 },
+        { bips: 0, percentage: 0 },
+      ];
+
+      for (const testCase of testCases) {
+        jest.clearAllMocks();
+
+        setupMessengerDefaults();
+        (
+          mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+        ).mockResolvedValue(testCase.bips);
+
+        await service.calculateUserFeeDiscount();
+
+        expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+          'RewardsIntegrationService: Fee discount calculated',
+          expect.objectContaining({
+            discountBips: testCase.bips,
+            discountPercentage: testCase.percentage,
+          }),
+        );
+      }
+    });
+  });
+
+  describe('unified fee resolver', () => {
+    // 10 bips = BUILDER_FEE_CONFIG.MaxFeeDecimal (0.001) * BASIS_POINTS_DIVISOR
+    const DEFAULT_FEE_BIPS = 10;
+    const FRESH_MS = 60_000;
+    const MAX_STALE_MS = 10 * 60 * 1000;
+    const NOW = 1_700_000_000_000;
+
+    /**
+     * Build a benefits payload that passes the eligibility gate by default.
+     *
+     * @param waiverOverrides - Fields to override on `perpsFeeWaiver`.
+     * @param overrides - Fields to override on the benefits payload itself.
+     * @returns A benefits payload.
+     */
+    const createBenefits = (
+      waiverOverrides: Record<string, unknown> = {},
+      overrides: Record<string, unknown> = {},
+    ) =>
+      ({
+        status: 'active',
+        perpsFeeWaiver: {
+          entitled: true,
+          usage: 'available',
+          remainingNotionalUsd: 5000,
+          ...waiverOverrides,
+        },
+        ...overrides,
+      }) as never;
+
+    /**
+     * Build a `SubscriptionController:getBenefits` response.
+     *
+     * This is the controller's real contract: allowances in micro-USD, and
+     * eligibility on the response rather than a `status` string.
+     *
+     * @param perpsOverrides - Fields to override on the perps product block.
+     * @param overrides - Fields to override on the response itself.
+     * @returns A benefits response.
+     */
+    const createBenefitsResponse = (
+      perpsOverrides: Record<string, unknown> = {},
+      overrides: Record<string, unknown> = {},
+    ) =>
+      ({
+        eligible: true,
+        billingPeriodId: 'bp-1',
+        products: {
+          swaps: {
+            feeBips: null,
+            remainingMicroUsd: null,
+            exhausted: false,
+          },
+          perps: {
+            builderFeeBips: null,
+            builderCode: null,
+            // 5000 USD, reported in micro-USD as the controller does.
+            remainingMicroUsd: 5_000_000_000,
+            exhausted: false,
+            ...perpsOverrides,
+          },
+          predict: {
+            builderCode: null,
+            remainingTxCount: null,
+            exhausted: false,
+          },
+        },
+        ...overrides,
+      }) as never;
+
+    /**
+     * Wire a subscription benefits source onto the mocked dependencies.
+     *
+     * @param getPerpsBenefits - The mocked benefits reader.
+     * @returns The same mock, for convenience.
+     */
+    const wireSubscription = (getPerpsBenefits: jest.Mock) => {
+      (mockDeps as { subscription?: unknown }).subscription = {
+        getPerpsBenefits,
+      };
+      return getPerpsBenefits;
+    };
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(NOW);
+      setupMessengerDefaults();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('returns the lowest fee bips across the default, rewards and subscription sources', async () => {
+      // Rewards unresolved and no subscription source: nothing beats the
+      // default fee, and the discount stays undefined (not "no discount").
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      expect(await service.resolveFee()).toMatchObject({
+        feeBips: DEFAULT_FEE_BIPS,
+        discountBips: undefined,
+        source: 'default',
+      });
+
+      // A resolved 0% rewards discount still wins the tie over `default`, so a
+      // known "no discount" answer stays distinguishable from an unknown one.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      expect(await service.resolveFee()).toMatchObject({
+        feeBips: DEFAULT_FEE_BIPS,
+        discountBips: 0,
+        source: 'rewards',
+      });
+
+      // A 65% VIP/season discount undercuts the default fee.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(6500);
+      expect(await service.resolveFee()).toMatchObject({
+        feeBips: 3.5,
+        discountBips: 6500,
+        source: 'rewards',
+      });
+
+      // Subscription undercuts everything once the cached gate passes.
+      const getPerpsBenefits = wireSubscription(
+        jest.fn().mockResolvedValue(createBenefits()),
+      );
+      await service.refreshSubscriptionBenefits();
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+      expect(await service.resolveFee(1000)).toMatchObject({
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription',
+      });
+
+      // ...including when the rewards source has not hydrated at all.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      expect(await service.resolveFee(1000)).toMatchObject({
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription',
+      });
+    });
+
+    it('resolves the subscription source to a 0 bips fee only when the eligibility gate passes', async () => {
+      const cases = [
+        { benefits: createBenefits(), eligible: true, reason: 'eligible' },
+        {
+          benefits: createBenefits({}, { status: 'canceled' }),
+          eligible: false,
+          reason: 'inactive',
+        },
+        {
+          benefits: createBenefits({ entitled: false }),
+          eligible: false,
+          reason: 'not-entitled',
+        },
+        {
+          benefits: createBenefits({ usage: undefined }),
+          eligible: false,
+          reason: 'not-entitled',
+        },
+        {
+          benefits: createBenefits({ usage: 'exhausted' }),
+          eligible: false,
+          reason: 'exhausted',
+        },
+        {
+          benefits: createBenefits({ exhausted: true }),
+          eligible: false,
+          reason: 'exhausted',
+        },
+        // `null` is "no subscription to report", not "subscription inactive".
+        { benefits: null, eligible: false, reason: 'no-subscription' },
+      ];
+
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      for (const testCase of cases) {
+        mockDeps = createMockInfrastructure();
+        mockMessenger = createMockMessenger();
+        setupMessengerDefaults();
+        (
+          mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+        ).mockResolvedValue(0);
+        wireSubscription(jest.fn().mockResolvedValue(testCase.benefits));
+        service = new RewardsIntegrationService(mockDeps, mockMessenger);
+        await service.refreshSubscriptionBenefits();
+
+        const resolution = await service.resolveFee(1000);
+
+        expect(resolution.subscription).toStrictEqual(
+          expect.objectContaining({
+            eligible: testCase.eligible,
+            reason: testCase.reason,
+          }),
+        );
+        expect(resolution.source).toBe(
+          testCase.eligible ? 'subscription' : 'rewards',
+        );
+        expect(resolution.feeBips).toBe(
+          testCase.eligible ? 0 : DEFAULT_FEE_BIPS,
+        );
+      }
+    });
+
+    it('does not claim the subscription source when the blend quantizes to the full fee', async () => {
+      // A cent of allowance against a $1000 order blends to 9.9999 bips:
+      // cheaper than the 10-bip default in arithmetic, identical to it once the
+      // venue quantizes the builder fee to integer tenths of a basis point (a
+      // 0-bip discount either way). Claiming
+      // `source: 'subscription'` here would label a full-price order as waived
+      // and disagree with the cloid marker, which already gates on the
+      // quantized fee.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 0.01 })),
+      );
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('default');
+      expect(resolution.discountBips).toBeUndefined();
+      expect(resolution.subscriptionWaiverKind).toBeUndefined();
+    });
+
+    it('still claims the subscription source when the blend survives quantization', async () => {
+      // $500 of the same $1000 order halves the fee to 5 bips, which is a real
+      // reduction on the wire, so subscription legitimately wins here.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 500 })),
+      );
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('subscription');
+      expect(resolution.feeBips).toBe(5);
+      expect(resolution.subscriptionWaiverKind).toBe('partial');
+    });
+
+    it('does not start a benefits network read on the fee resolution path', async () => {
+      const getPerpsBenefits = wireSubscription(
+        jest.fn().mockResolvedValue(createBenefits()),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(2500);
+
+      const resolution = await service.resolveFee();
+
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.discountBips).toBe(2500);
+      expect(resolution.subscription).toStrictEqual({
+        eligible: false,
+        reason: 'not-hydrated',
+      });
+      expect(getPerpsBenefits).not.toHaveBeenCalled();
+    });
+
+    it('serves a stale snapshot without refreshing on the cache-read path', async () => {
+      const getPerpsBenefits = wireSubscription(
+        jest.fn().mockResolvedValue(createBenefits()),
+      );
+      await service.refreshSubscriptionBenefits();
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+
+      // Inside the freshness window: served from cache, no revalidation.
+      jest.setSystemTime(NOW + FRESH_MS - 1);
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: true,
+        reason: 'eligible',
+        remainingNotionalUsd: 5000,
+      });
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+
+      // Past it: the stale snapshot is still served without a request.
+      jest.setSystemTime(NOW + FRESH_MS + 1);
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: true,
+        reason: 'eligible',
+        remainingNotionalUsd: 5000,
+      });
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+
+      // Preview/lifecycle hydration owns the refresh explicitly.
+      await service.refreshSubscriptionBenefits();
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
+    });
+
+    it('falls back to the next-lowest source when the cached benefits snapshot is hard-stale', async () => {
+      const getPerpsBenefits = wireSubscription(
+        jest.fn().mockResolvedValue(createBenefits()),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(6500);
+      await service.refreshSubscriptionBenefits();
+
+      // Beyond the ceiling the snapshot can no longer be trusted to grant the
+      // waiver, even though it says the cap is available.
+      jest.setSystemTime(NOW + MAX_STALE_MS + 1);
+      getPerpsBenefits.mockImplementation(
+        async () => new Promise(() => undefined),
+      );
+
+      const resolution = await service.resolveFee();
+
+      expect(resolution.subscription).toStrictEqual({
+        eligible: false,
+        reason: 'stale',
+      });
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBe(3.5);
+    });
+
+    it('falls back to the next-lowest source when the benefits read is unreachable', async () => {
+      wireSubscription(
+        jest.fn().mockRejectedValue(new Error('benefits endpoint unreachable')),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(6500);
+
+      // The refresh swallows the failure rather than rejecting into callers.
+      await expect(
+        service.refreshSubscriptionBenefits(),
+      ).resolves.toBeUndefined();
+
+      const resolution = await service.resolveFee();
+
+      expect(resolution.subscription).toStrictEqual({
+        eligible: false,
+        reason: 'not-hydrated',
+      });
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.discountBips).toBe(6500);
+      expect(mockDeps.logger.error).toHaveBeenCalled();
+    });
+
+    it('honors exhausted=true from the backend on the next cache refresh', async () => {
+      const getPerpsBenefits = wireSubscription(
+        jest.fn().mockResolvedValue(createBenefits()),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      await service.refreshSubscriptionBenefits();
+      expect(await service.resolveFee(1000)).toMatchObject({
+        source: 'subscription',
+        feeBips: 0,
+      });
+
+      // The backend crosses the cap. No client-side release is needed: the
+      // next refresh simply stops passing the gate.
+      getPerpsBenefits.mockResolvedValue(
+        createBenefits({ exhausted: true, remainingNotionalUsd: 0 }),
+      );
+      jest.setSystemTime(NOW + FRESH_MS + 1);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee();
+
+      expect(resolution.subscription).toStrictEqual({
+        eligible: false,
+        reason: 'exhausted',
+        remainingNotionalUsd: 0,
+      });
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBe(DEFAULT_FEE_BIPS);
+      expect(resolution.discountBips).toBe(0);
+    });
+
+    it('reports no subscription source when the dependency is not wired', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      const resolution = await service.resolveFee();
+
+      expect(resolution.subscription).toStrictEqual({
+        eligible: false,
+        reason: 'no-source',
+      });
+      expect(resolution.source).toBe('rewards');
+    });
+
+    it('deduplicates concurrent benefits refreshes', async () => {
+      const getPerpsBenefits = wireSubscription(
+        jest.fn().mockResolvedValue(createBenefits()),
+      );
+
+      await Promise.all([
+        service.refreshSubscriptionBenefits(),
+        service.refreshSubscriptionBenefits(),
+        service.refreshSubscriptionBenefits(),
+      ]);
+
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps pure cache reads off the network after a failed refresh', async () => {
+      // A failing read never advances the snapshot timestamp, so without an
+      // attempt-based throttle every caller would start a new request.
+      const getPerpsBenefits = wireSubscription(
+        jest.fn().mockRejectedValue(new Error('benefits endpoint down')),
+      );
+
+      await service.refreshSubscriptionBenefits();
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+
+      // Ten fee previews inside the freshness window: still one request.
+      for (let i = 0; i < 10; i++) {
+        expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+          eligible: false,
+          reason: 'not-hydrated',
+        });
+      }
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+
+      // Past the window, cache reads still cannot retry on their own.
+      jest.setSystemTime(NOW + FRESH_MS + 1);
+      service.getSubscriptionFeeWaiverStatus();
+      service.getSubscriptionFeeWaiverStatus();
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+
+      await service.refreshSubscriptionBenefits();
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
+    });
+
+    it('invalidates the cached benefits snapshot on demand', async () => {
+      const getPerpsBenefits = wireSubscription(
+        jest.fn().mockResolvedValue(createBenefits()),
+      );
+      await service.refreshSubscriptionBenefits();
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+
+      // Sign-out / profile switch: the snapshot must stop answering for the
+      // previous profile immediately, not at the next freshness boundary.
+      service.invalidateSubscriptionBenefits();
+
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'not-hydrated',
+      });
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+      await service.refreshSubscriptionBenefits();
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
+    });
+
+    it('discards an in-flight benefits read that resolves after invalidation', async () => {
+      // Profile A's read is still in flight when the client signs out. Without
+      // an epoch fence it would repopulate the cache — and mark it fresh —
+      // granting profile A's waiver to profile B.
+      let releaseProfileA: (value: unknown) => void = () => undefined;
+      const getPerpsBenefits = wireSubscription(
+        jest.fn(
+          async () =>
+            new Promise((resolve) => {
+              releaseProfileA = resolve;
+            }),
+        ),
+      );
+
+      const inFlight = service.refreshSubscriptionBenefits();
+      service.invalidateSubscriptionBenefits();
+      releaseProfileA(createBenefits());
+      await inFlight;
+
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'not-hydrated',
+      });
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+    });
+
+    it('starts a fresh read when the next caller arrives while a fenced read is still in flight', async () => {
+      // Profile A's read is still in flight at sign-out, so the epoch fence can
+      // only discard it. Deduping profile B onto it would leave the cache
+      // unhydrated instead of fetching for the new identity.
+      const releases: ((value: unknown) => void)[] = [];
+      const getPerpsBenefits = wireSubscription(
+        jest.fn(
+          async () =>
+            new Promise((resolve) => {
+              releases.push(resolve);
+            }),
+        ),
+      );
+
+      const profileARead = service.refreshSubscriptionBenefits();
+      service.invalidateSubscriptionBenefits();
+
+      // Status remains a pure read after invalidation.
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'not-hydrated',
+      });
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
+
+      // Preview/lifecycle hydration starts profile B's independent read.
+      const profileBRead = service.refreshSubscriptionBenefits();
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
+      releases.forEach((release) => release(createBenefits()));
+      await Promise.all([profileARead, profileBRead]);
+
+      expect(getPerpsBenefits).toHaveBeenCalledTimes(2);
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+    });
+
+    it('uses a background refresh that lands during the rewards round trip', async () => {
+      const getPerpsBenefits = wireSubscription(
+        jest.fn().mockResolvedValue(createBenefits()),
+      );
+      // The rewards read resolves only after the benefits refresh has landed,
+      // which is exactly the window a pre-await snapshot would miss.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockImplementation(async () => {
+        await service.refreshSubscriptionBenefits();
+        return 6500;
+      });
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(getPerpsBenefits).toHaveBeenCalled();
+      expect(resolution.subscription.eligible).toBe(true);
+      expect(resolution.source).toBe('subscription');
+      expect(resolution.feeBips).toBe(0);
+    });
+
+    it('keeps calculateUserFeeDiscount returning the resolved discount bips', async () => {
+      wireSubscription(jest.fn().mockResolvedValue(createBenefits()));
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(6500);
+      await service.refreshSubscriptionBenefits();
+
+      expect(await service.calculateUserFeeDiscount(1000)).toBe(10000);
+    });
+
+    it('waives the whole fee when the remaining allowance covers the order notional', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 5000 })),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('subscription');
+      expect(resolution.feeBips).toBe(0);
+      expect(resolution.discountBips).toBe(10000);
+      expect(resolution.subscriptionWaiverKind).toBe('full');
+      expect(resolution.subscriptionCoveredNotionalUsd).toBe(1000);
+    });
+
+    it('waives the whole fee when the remaining allowance exactly equals the order notional', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 1000 })),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('subscription');
+      expect(resolution.feeBips).toBe(0);
+      expect(resolution.subscriptionWaiverKind).toBe('full');
+    });
+
+    it('blends the fee by the uncovered share when the allowance is smaller than the order notional', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 250 })),
+      );
+      // Rewards resolved but worthless, so only the blend can beat the default.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      // 10 bips * (1 - 250/1000) = 7.5 bips, i.e. a 25% discount.
+      expect(resolution.source).toBe('subscription');
+      expect(resolution.feeBips).toBeCloseTo(7.5, 10);
+      expect(resolution.discountBips).toBe(2500);
+      expect(resolution.subscriptionWaiverKind).toBe('partial');
+      expect(resolution.subscriptionCoveredNotionalUsd).toBe(250);
+    });
+
+    it('lets a rewards discount beat a partial subscription blend', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 100 })),
+      );
+      // A partial blend of 10 * (1 - 100/1000) = 9 bips, against a VIP/season
+      // discount worth 6.5 bips. The blend has to lose.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(3500);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBeCloseTo(6.5, 10);
+      expect(resolution.subscriptionWaiverKind).toBeUndefined();
+      // The gate still passed — subscription simply lost on price.
+      expect(resolution.subscription.eligible).toBe(true);
+    });
+
+    it('leaves a blend that only ties a rewards discount to rewards', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 500 })),
+      );
+      // A blend of 10 * (1 - 500/1000) = 5 bips against a 50% VIP/season
+      // discount worth the same 5 bips. Claiming the tie would mark the cloid
+      // and spend the allowance for a rate rewards already gives away.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(5000);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBeCloseTo(5, 10);
+      expect(resolution.subscriptionWaiverKind).toBeUndefined();
+      expect(resolution.subscriptionCoveredNotionalUsd).toBeUndefined();
+      expect(resolution.subscription.eligible).toBe(true);
+    });
+
+    it('leaves a full waiver tying an already-free rewards rate to rewards', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 5000 })),
+      );
+      // Rewards already charges nothing, so the waiver cannot make the order
+      // cheaper — it can only consume the remaining allowance.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(10000);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBe(0);
+      expect(resolution.subscriptionWaiverKind).toBeUndefined();
+    });
+
+    it('lets a partial subscription blend win when it undercuts rewards', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 900 })),
+      );
+      // Blend is 10 * (1 - 900/1000) = 1 bip, cheaper than the 6.5 bips VIP.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(3500);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('subscription');
+      expect(resolution.feeBips).toBeCloseTo(1, 10);
+      expect(resolution.subscriptionWaiverKind).toBe('partial');
+    });
+
+    it('withholds the waiver when the allowance is exhausted', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(
+            createBenefits({ usage: 'exhausted', remainingNotionalUsd: 0 }),
+          ),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBe(DEFAULT_FEE_BIPS);
+      expect(resolution.subscription.reason).toBe('exhausted');
+      expect(resolution.subscriptionWaiverKind).toBeUndefined();
+    });
+
+    it('withholds the waiver when an eligible gate reports a spent allowance', async () => {
+      // The gate can pass while the reported allowance is already zero; the
+      // blend would otherwise charge the full fee under a `subscription` label.
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 0 })),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBe(DEFAULT_FEE_BIPS);
+      expect(resolution.subscriptionWaiverKind).toBeUndefined();
+    });
+
+    it('withholds the blend when the cached snapshot is hard-stale', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 250 })),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      await service.refreshSubscriptionBenefits();
+
+      jest.setSystemTime(NOW + MAX_STALE_MS + 1);
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.subscription.reason).toBe('stale');
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBe(DEFAULT_FEE_BIPS);
+    });
+
+    it('withholds a bounded allowance when no order notional is supplied', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 250 })),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      await service.refreshSubscriptionBenefits();
+
+      // A rate-only preview has nothing to measure the cap against, so granting
+      // a full waiver would quote free trading and over-consume the allowance.
+      const resolution = await service.resolveFee();
+
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBe(DEFAULT_FEE_BIPS);
+      expect(resolution.subscriptionWaiverKind).toBeUndefined();
+      // The gate still passed; only the rate was withheld.
+      expect(resolution.subscription.eligible).toBe(true);
+    });
+
+    it('still waives an unbounded allowance with no order notional', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(
+            createBenefits({ remainingNotionalUsd: undefined }),
+          ),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee();
+
+      expect(resolution.source).toBe('subscription');
+      expect(resolution.feeBips).toBe(0);
+      expect(resolution.subscriptionWaiverKind).toBe('full');
+    });
+
+    it('drops the subscription source when the remote feature flag disables it', async () => {
+      setupMessengerDefaults({
+        'RemoteFeatureFlagController:getState': {
+          remoteFeatureFlags: { perpsSubscriptionFeeWaiverEnabled: false },
+        },
+      });
+      wireSubscription(jest.fn().mockResolvedValue(createBenefits()));
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(3500);
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.subscription).toStrictEqual({
+        eligible: false,
+        reason: 'no-source',
+      });
+      // Only subscription is killed: rewards and default are untouched.
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBeCloseTo(6.5, 10);
+    });
+
+    it('keeps the subscription source when the remote flag is enabled or absent', async () => {
+      setupMessengerDefaults({
+        'RemoteFeatureFlagController:getState': {
+          remoteFeatureFlags: { perpsSubscriptionFeeWaiverEnabled: true },
+        },
+      });
+      wireSubscription(jest.fn().mockResolvedValue(createBenefits()));
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(3500);
+      await service.refreshSubscriptionBenefits();
+
+      expect(await service.resolveFee(1000)).toMatchObject({
+        source: 'subscription',
+        feeBips: 0,
+      });
+    });
+
+    it('reads benefits through the SubscriptionController action when one is registered', async () => {
+      const messengerBenefits = jest
+        .fn()
+        .mockResolvedValue(
+          createBenefitsResponse({ remainingMicroUsd: 250_000_000 }),
+        );
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': messengerBenefits,
+      });
+      const diBenefits = wireSubscription(
+        jest.fn().mockResolvedValue(createBenefits()),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      await service.refreshSubscriptionBenefits();
+      const resolution = await service.resolveFee(1000);
+
+      expect(messengerBenefits).toHaveBeenCalled();
+      expect(diBenefits).not.toHaveBeenCalled();
+      expect(resolution.subscriptionWaiverKind).toBe('partial');
+    });
+
+    it('hydrates and grants the waiver for a messenger-only client', async () => {
+      // The ADR 0064 target configuration: SubscriptionController is registered
+      // and the legacy DI callback is not. Gating hydration on the DI callback
+      // made this configuration resolve `no-source` and never grant a waiver.
+      const messengerBenefits = jest
+        .fn()
+        .mockResolvedValue(
+          createBenefitsResponse({ remainingMicroUsd: 250_000_000 }),
+        );
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': messengerBenefits,
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      expect(mockDeps.subscription).toBeUndefined();
+
+      await service.refreshSubscriptionBenefits();
+
+      expect(messengerBenefits).toHaveBeenCalled();
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: true,
+        reason: 'eligible',
+        remainingNotionalUsd: 250,
+      });
+
+      // And the waiver actually reaches the resolution, blended by notional.
+      const resolution = await service.resolveFee(1000);
+      expect(resolution.source).toBe('subscription');
+      expect(resolution.feeBips).toBeCloseTo(7.5, 10);
+      expect(resolution.subscriptionWaiverKind).toBe('partial');
+    });
+
+    it('keeps a cached snapshot when a messenger-only benefits read rejects', async () => {
+      // With no DI fallback the rejection is the whole result. Swallowing it
+      // would store `null` as a successful "no subscription" snapshot and erase
+      // a waiver the user is still entitled to.
+      const messengerBenefits = jest
+        .fn()
+        .mockResolvedValueOnce(
+          createBenefitsResponse({ remainingMicroUsd: 250_000_000 }),
+        );
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': messengerBenefits,
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      expect(mockDeps.subscription).toBeUndefined();
+
+      await service.refreshSubscriptionBenefits();
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+
+      // The next read fails outright.
+      messengerBenefits.mockRejectedValue(new Error('benefits endpoint down'));
+      jest.setSystemTime(NOW + FRESH_MS + 1);
+      await expect(
+        service.refreshSubscriptionBenefits(),
+      ).resolves.toBeUndefined();
+
+      // The previous snapshot survives rather than being replaced by null.
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: true,
+        reason: 'eligible',
+        remainingNotionalUsd: 250,
+      });
+      expect(mockDeps.logger.error).toHaveBeenCalled();
+    });
+
+    it('keeps a cached snapshot when a benefits handler throws synchronously', async () => {
+      // A handler that has answered before exists, so a synchronous throw is a
+      // real failure — not an unregistered action — and must not fall through
+      // to `null` and erase the cached waiver.
+      let failSynchronously = false;
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': () => {
+          if (failSynchronously) {
+            throw new Error('benefits handler exploded');
+          }
+          return Promise.resolve(
+            createBenefitsResponse({ remainingMicroUsd: 250_000_000 }),
+          );
+        },
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      await service.refreshSubscriptionBenefits();
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+
+      failSynchronously = true;
+      jest.setSystemTime(NOW + FRESH_MS + 1);
+      await expect(
+        service.refreshSubscriptionBenefits(),
+      ).resolves.toBeUndefined();
+
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: true,
+        reason: 'eligible',
+        remainingNotionalUsd: 250,
+      });
+    });
+
+    it('drops a cached waiver when the profile is definitively not subscribed', async () => {
+      // `UserNotSubscribed` is an answer, not an outage: the controller clears
+      // its own benefits state on that path. Preserving the cached snapshot
+      // would keep granting the waiver for the rest of the staleness window
+      // after entitlement ended.
+      const messengerBenefits = jest
+        .fn()
+        .mockResolvedValueOnce(
+          createBenefitsResponse({ remainingMicroUsd: 250_000_000 }),
+        );
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': messengerBenefits,
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      await service.refreshSubscriptionBenefits();
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+
+      messengerBenefits.mockRejectedValue(
+        new Error('SubscriptionController - User is not subscribed'),
+      );
+      jest.setSystemTime(NOW + FRESH_MS + 1);
+      await service.refreshSubscriptionBenefits();
+
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'no-subscription',
+      });
+    });
+
+    it('withholds the waiver when the perps block reports no benefit', async () => {
+      // `products.perps` is always present on the response, so its existence
+      // proves nothing. A block with no builder fee, no allowance and no cap
+      // describes a profile with no perps benefit even when the response is
+      // eligible for other products.
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': jest.fn().mockResolvedValue(
+          createBenefitsResponse({
+            builderFeeBips: null,
+            remainingMicroUsd: null,
+            capMicroUsd: undefined,
+          }),
+        ),
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      await service.refreshSubscriptionBenefits();
+
+      expect(service.getSubscriptionFeeWaiverStatus()).toMatchObject({
+        eligible: false,
+        reason: 'not-entitled',
+      });
+    });
+
+    it('keeps the waiver when the perps block reports a builder fee but no cap', async () => {
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': jest.fn().mockResolvedValue(
+          createBenefitsResponse({
+            builderFeeBips: '0',
+            remainingMicroUsd: null,
+          }),
+        ),
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      await service.refreshSubscriptionBenefits();
+
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+    });
+
+    it('does not cache a first-call handler failure as no subscription', async () => {
+      // Before this fix a synchronous throw on the very first call looked like
+      // an unregistered action, so a real handler failure was stored as a
+      // successful "no subscription" result.
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': () => {
+          throw new Error('benefits handler exploded');
+        },
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      expect(mockDeps.subscription).toBeUndefined();
+
+      await expect(
+        service.refreshSubscriptionBenefits(),
+      ).resolves.toBeUndefined();
+
+      // Not hydrated, rather than a cached "no subscription" answer.
+      expect(service.getSubscriptionFeeWaiverStatus().reason).not.toBe(
+        'no-subscription',
+      );
+      expect(mockDeps.logger.error).toHaveBeenCalled();
+    });
+
+    it('still reports no source when neither wiring is present', async () => {
+      setupMessengerDefaults();
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      await service.refreshSubscriptionBenefits();
+
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'no-source',
+      });
+    });
+
+    it('falls back to the injected benefits source when no SubscriptionController action is registered', async () => {
+      const diBenefits = wireSubscription(
+        jest.fn().mockResolvedValue(createBenefits()),
+      );
+
+      await service.refreshSubscriptionBenefits();
+
+      expect(diBenefits).toHaveBeenCalled();
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+    });
+
+    it('registers the trading address once per address and again after a reset', async () => {
+      // `SubscriptionController` exposes no address-registration action, so this
+      // runs through the injected dependency until one exists.
+      const registerTradingAddress = jest.fn().mockResolvedValue(undefined);
+      setupMessengerDefaults();
+      (mockDeps as { subscription?: unknown }).subscription = {
+        getPerpsBenefits: jest.fn().mockResolvedValue(null),
+        registerTradingAddress,
+      };
+
+      await service.registerTradingAddress(mockEvmAccount.address);
+      await service.registerTradingAddress(mockEvmAccount.address);
+
+      expect(registerTradingAddress).toHaveBeenCalledTimes(1);
+      // HyperLiquid mainnet (`eip155:999`), not the wallet's selected network.
+      expect(registerTradingAddress).toHaveBeenCalledWith(
+        expect.stringMatching(/^eip155:999:0x/u),
+      );
+
+      // Account switch: the new address has to announce itself.
+      service.resetRegisteredTradingAddresses();
+      await service.registerTradingAddress(mockEvmAccount.address);
+
+      expect(registerTradingAddress).toHaveBeenCalledTimes(2);
+    });
+
+    it('registers against the HyperLiquid chain rather than the selected network', async () => {
+      // The address is announced so a fill decoded off the HyperLiquid fan-out
+      // can be matched to a profile, and that fill names eip155:999 /
+      // eip155:998. Registering under the wallet's selected network would
+      // produce an identifier no fill can ever match.
+      const registerTradingAddress = jest.fn().mockResolvedValue(undefined);
+      setupMessengerDefaults();
+      (mockDeps as { subscription?: unknown }).subscription = {
+        getPerpsBenefits: jest.fn().mockResolvedValue(null),
+        registerTradingAddress,
+      };
+
+      await service.registerTradingAddress(mockEvmAccount.address, {
+        isTestnet: true,
+      });
+
+      expect(registerTradingAddress).toHaveBeenCalledWith(
+        expect.stringMatching(/^eip155:998:0x/u),
+      );
+
+      service.resetRegisteredTradingAddresses();
+      await service.registerTradingAddress(mockEvmAccount.address, {
+        isTestnet: false,
+      });
+
+      expect(registerTradingAddress).toHaveBeenLastCalledWith(
+        expect.stringMatching(/^eip155:999:0x/u),
+      );
+    });
+
+    it('registers through SubscriptionController for messenger-only clients', async () => {
+      const registerAddress = jest.fn().mockResolvedValue(undefined);
+      setupMessengerDefaults({
+        'SubscriptionController:registerAddress': registerAddress,
+      });
+
+      await service.registerTradingAddress(mockEvmAccount.address, {
+        isTestnet: true,
+      });
+
+      expect(registerAddress).toHaveBeenCalledWith(
+        expect.stringMatching(/^eip155:998:0x/u),
+      );
+    });
+
+    it('does not cache a registration that an invalidation superseded', async () => {
+      // A registration issued for profile A must not mark itself complete after
+      // the profile changed: the new profile would then skip its own
+      // registration and leave its fills unattributable.
+      let releaseRegistration: () => void = () => undefined;
+      const registerTradingAddress = jest
+        .fn()
+        // Only the first call blocks; the re-registration below resolves at
+        // once so the assertion does not depend on releasing it too.
+        .mockImplementationOnce(
+          async () =>
+            await new Promise<void>((resolve) => {
+              releaseRegistration = resolve;
+            }),
+        )
+        .mockResolvedValue(undefined);
+      setupMessengerDefaults();
+      (mockDeps as { subscription?: unknown }).subscription = {
+        getPerpsBenefits: jest.fn().mockResolvedValue(null),
+        registerTradingAddress,
+      };
+
+      const pending = service.registerTradingAddress(mockEvmAccount.address);
+
+      // Profile switch lands while the registration is still in flight.
+      service.invalidateSubscriptionBenefits();
+      releaseRegistration();
+      await pending;
+
+      expect(registerTradingAddress).toHaveBeenCalledTimes(1);
+
+      // The new profile must register the same address for itself.
+      await service.registerTradingAddress(mockEvmAccount.address);
+
+      expect(registerTradingAddress).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports the gap when the client has no registration hook', async () => {
+      // A messenger-only client hydrates benefits but cannot register an
+      // address, so its fills go unattributed. Nothing is raised — it is a
+      // wiring gap, not a failure — but it must not be silent either.
+      setupMessengerDefaults();
+      wireSubscription(jest.fn().mockResolvedValue(createBenefits()));
+
+      await expect(
+        service.registerTradingAddress(mockEvmAccount.address),
+      ).resolves.toBeUndefined();
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        'RewardsIntegrationService: No trading-address registration hook wired; fills will be unattributed',
+        { address: mockEvmAccount.address },
+      );
+    });
+
+    it('never throws when address registration is unavailable', async () => {
+      setupMessengerDefaults();
+      (mockDeps as { subscription?: unknown }).subscription = {
+        getPerpsBenefits: jest.fn().mockResolvedValue(createBenefits()),
+        registerTradingAddress: jest
+          .fn()
+          .mockRejectedValue(new Error('address index unavailable')),
+      };
+
+      await expect(
+        service.registerTradingAddress(mockEvmAccount.address),
+      ).resolves.toBeUndefined();
+    });
+
+    it('each instance uses its own deps', async () => {
+      const mockDeps2 = createMockInfrastructure();
+      const mockMessenger2 = createMockMessenger();
+      const service2 = new RewardsIntegrationService(mockDeps2, mockMessenger2);
+
+      // First service - no EVM account
+      (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
+        if (
+          action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
+        ) {
+          return [];
+        }
+        return undefined;
+      });
+      await service.calculateUserFeeDiscount();
+
+      // Second service - no EVM account
+      (mockMessenger2.call as jest.Mock).mockImplementation(
+        (action: string) => {
+          if (
+            action ===
+            'AccountTreeController:getAccountsFromSelectedAccountGroup'
+          ) {
+            return [];
+          }
+          return undefined;
+        },
+      );
+      await service2.calculateUserFeeDiscount();
+
+      // Each instance should use its own logger: one "no account" log plus the
+      // resolver's outcome log.
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledTimes(2);
+      expect(mockDeps2.debugLogger.log).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('host messenger without optional actions', () => {
+    const accountHandlers = {
+      'AccountTreeController:getAccountsFromSelectedAccountGroup': () => [
+        mockEvmAccount,
+      ],
+    };
+    const networkHandlers = {
+      'NetworkController:getState': () => ({
+        selectedNetworkClientId: 'mainnet',
+      }),
+      'NetworkController:getNetworkClientById': () => ({
+        configuration: { chainId: '0x1' },
+      }),
+    };
+
+    it('reads no subscription benefits without logging an error when getBenefits is not delegated', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger(),
+      );
+
+      await service.refreshSubscriptionBenefits();
+
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'no-source',
+      });
+    });
+
+    it('reports the missing registration hook when registerAddress is not delegated', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger(),
+      );
+
+      await service.registerTradingAddress(mockEvmAccount.address);
+
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        'RewardsIntegrationService: No trading-address registration hook wired; fills will be unattributed',
+        { address: mockEvmAccount.address },
+      );
+    });
+
+    it.each([
+      ['NetworkController:getState', {}],
+      [
+        'NetworkController:getNetworkClientById',
+        {
+          'NetworkController:getState':
+            networkHandlers['NetworkController:getState'],
+        },
+      ],
+    ])(
+      'resolves no rewards discount without logging an error when %s is not delegated',
+      async (_action, extraHandlers) => {
+        service = new RewardsIntegrationService(
+          mockDeps,
+          createPartiallyDelegatedMessenger({
+            ...accountHandlers,
+            ...extraHandlers,
+          }),
+        );
+
+        const result = await service.calculateUserFeeDiscount();
+
+        expect(result).toBeUndefined();
+        expect(mockDeps.logger.error).not.toHaveBeenCalled();
+        expect(
+          mockDeps.rewards.getPerpsDiscountForAccount,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('still logs an error when a delegated NetworkController handler fails on a missing dependency of its own', async () => {
+      const nested =
+        'A handler for SelectedNetworkController:getState has not been delegated to NetworkController';
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          ...accountHandlers,
+          ...networkHandlers,
+          'NetworkController:getState': () =>
+            callMissingFrom(
+              'NetworkController',
+              'SelectedNetworkController:getState',
+            ),
+        }),
+      );
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: nested }),
+        expect.anything(),
+      );
+    });
+
+    // A nested call inside NetworkController's own namespace reports "has not
+    // been registered"; it names the other action, so it is still a failure.
+    it('still logs an error when a delegated getState handler misses getNetworkClientById', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          ...accountHandlers,
+          ...networkHandlers,
+          'NetworkController:getState': () =>
+            callMissingFrom(
+              'NetworkController',
+              'NetworkController:getNetworkClientById',
+            ),
+        }),
+      );
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message:
+            'A handler for NetworkController:getNetworkClientById has not been registered',
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('reports the cause when a delegated getNetworkClientById handler misses getState', async () => {
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          ...accountHandlers,
+          ...networkHandlers,
+          'NetworkController:getNetworkClientById': () =>
+            callMissingFrom('NetworkController', 'NetworkController:getState'),
+        }),
+      );
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Chain ID not found for fee discount calculation',
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: {
+              selectedNetworkClientId: 'mainnet',
+              error:
+                'A handler for NetworkController:getState has not been registered',
+            },
+          }),
+        }),
+      );
+    });
+
+    it('still logs an error when the injected rewards source fails on a missing NetworkController handler', async () => {
+      const nested =
+        'A handler for NetworkController:getState has not been delegated to RewardsController';
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          ...accountHandlers,
+          ...networkHandlers,
+        }),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockRejectedValue(new Error(nested));
+
+      const result = await service.calculateUserFeeDiscount();
+
+      expect(result).toBeUndefined();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: nested }),
+        expect.anything(),
+      );
+    });
+
+    it('skips and retries a registration whose delegated handler throws, with no injected fallback', async () => {
+      const registerAddress = jest.fn(() => {
+        throw new Error('registration exploded');
+      });
+      service = new RewardsIntegrationService(
+        mockDeps,
+        createPartiallyDelegatedMessenger({
+          'SubscriptionController:registerAddress': registerAddress,
+        }),
+      );
+
+      await service.registerTradingAddress(mockEvmAccount.address);
+      await service.registerTradingAddress(mockEvmAccount.address);
+
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        'RewardsIntegrationService: Trading address registration skipped',
+        { address: mockEvmAccount.address, error: 'registration exploded' },
+      );
+      // Not cached as registered, so the next preview tries again.
+      expect(registerAddress).toHaveBeenCalledTimes(2);
+    });
+  });
+});

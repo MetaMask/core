@@ -1,9 +1,10 @@
-import * as allExports from '.';
+import * as allExports from './index.js';
 
 describe('@metamask/controller-utils', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       [
+        "encodeFunctionData",
         "BrokenCircuitError",
         "CircuitState",
         "CockatielEventEmitter",
@@ -51,6 +52,7 @@ describe('@metamask/controller-utils', () => {
         "DAY",
         "DAYS",
         "NETWORKS_BYPASSING_VALIDATION",
+        "CHAIN_IDS_WITH_NO_NATIVE_TOKEN",
         "BNToHex",
         "convertHexToDecimal",
         "fetchWithErrorHandling",
@@ -80,15 +82,16 @@ describe('@metamask/controller-utils', () => {
         "weiHexToGweiDec",
         "isEqualCaseInsensitive",
         "InfuraNetworkType",
+        "DEFAULT_INFURA_NETWORKS",
         "CustomNetworkType",
         "NetworkType",
-        "isNetworkType",
-        "isInfuraNetworkType",
         "BuiltInNetworkName",
         "ChainId",
         "NetworksTicker",
         "BlockExplorerUrl",
         "NetworkNickname",
+        "isNetworkType",
+        "isInfuraNetworkType",
         "parseDomainParts",
         "isValidSIWEOrigin",
         "detectSIWE",

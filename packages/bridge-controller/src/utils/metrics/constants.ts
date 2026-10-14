@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 export const UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY = 'Unified SwapBridge';
+export const BATCH_SELL_EVENT_CATEGORY = 'Batch Sell';
 
 /**
  * These event names map to events defined in the segment-schema: https://github.com/Consensys/segment-schema/tree/main/libraries/events/metamask-cross-chain-swaps
@@ -8,6 +9,7 @@ export enum UnifiedSwapBridgeEventName {
   ButtonClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Button Clicked`,
   PageViewed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Page Viewed`,
   InputChanged = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Input Changed`,
+  FiatCryptoToggleClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Fiat Crypto Toggle Clicked`,
   InputSourceDestinationSwitched = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Source Destination Switched`,
   QuotesRequested = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Requested`,
   QuotesReceived = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Received`,
@@ -25,8 +27,21 @@ export enum UnifiedSwapBridgeEventName {
   PollingStatusUpdated = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Polling Status Updated`,
 }
 
+export enum BatchSellMetricsEventName {
+  BatchSellTokenPageViewed = `${BATCH_SELL_EVENT_CATEGORY} Token Page Viewed`,
+  BatchSellTokenPageContinueClicked = `${BATCH_SELL_EVENT_CATEGORY} Token Page Continue Clicked`,
+  BatchSellQuotePageViewed = `${BATCH_SELL_EVENT_CATEGORY} Quote Page Viewed`,
+  BatchSellQuotePageReviewClicked = `${BATCH_SELL_EVENT_CATEGORY} Quote Page Review Clicked`,
+  BatchSellReviewModalSubmitted = `${BATCH_SELL_EVENT_CATEGORY} Review Modal Submitted`,
+}
+
+export type BridgeControllerMetricsEventName =
+  | UnifiedSwapBridgeEventName
+  | BatchSellMetricsEventName;
+
 export enum PollingStatus {
   MaxPollingReached = 'max_polling_reached',
+  InvalidTransactionHash = 'invalid_transaction_hash',
   ManuallyRestarted = 'manually_restarted',
 }
 
@@ -35,6 +50,7 @@ export enum AbortReason {
   QuoteRequestUpdated = 'Quote Request Updated',
   ResetState = 'Reset controller state',
   TransactionSubmitted = 'Transaction submitted',
+  GaslessTxBatchFetched = 'Gasless transaction batch fetched',
 }
 
 /**
@@ -47,7 +63,26 @@ export enum MetaMetricsSwapsEventSource {
   TokenView = 'Token View',
   TrendingExplore = 'Trending Explore',
   Rewards = 'Rewards',
+  FollowTradingTokenScreen = 'Follow Trading Token Screen',
+  FollowTradingFeedScreen = 'Follow Trading Feed Screen',
+  ActivityTabEmptyState = 'Activity Tab Empty State',
+  TransactionShield = 'Transaction Shield',
+  TransactionDetails = 'Transaction Details',
+  DeepLink = 'Deep Link',
+  Unknown = 'Unknown',
+  BottomNavBar = 'Bottom Nav Bar',
 }
+
+export enum BatchSellMetricsLocation {
+  TradeMenu = 'trade_menu',
+  Deeplink = 'deeplink',
+  AssetPicker = 'asset_picker',
+  Unknown = 'Unknown',
+}
+
+export type BridgeControllerMetricsLocation =
+  | MetaMetricsSwapsEventSource
+  | BatchSellMetricsLocation;
 
 export enum InputAmountPreset {
   PERCENT_25 = '25%',
@@ -69,4 +104,29 @@ export enum MetricsActionType {
 export enum MetricsSwapType {
   SINGLE = 'single_chain',
   CROSSCHAIN = 'crosschain',
+}
+
+/**
+ * When a SwapBridge attempt failed. Derived from the failing code path plus
+ * hash presence — never from `error_message` text.
+ */
+export enum FailurePhase {
+  Quote = 'quote',
+  Broadcast = 'broadcast',
+  SourceExecution = 'source_execution',
+  DestinationExecution = 'destination_execution',
+  Poll = 'poll',
+  Unknown = 'unknown',
+}
+
+/**
+ * Stable Mixpanel reason for a SwapBridge failure. Independent of free-text
+ * `error_message`.
+ */
+export enum SwapBridgeErrorCode {
+  QuoteFetchFailed = 'quote_fetch_failed',
+  MissingErrorObject = 'missing_error_object',
+  NonErrorRejection = 'non_error_rejection',
+  StatusFailedWithoutReason = 'status_failed_without_reason',
+  Unknown = 'unknown',
 }

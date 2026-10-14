@@ -1,4 +1,4 @@
-export { MultichainBalancesController } from './MultichainBalancesController';
+export { MultichainBalancesController } from './MultichainBalancesController.js';
 export type {
   MultichainBalancesControllerState,
   MultichainBalancesControllerGetStateAction,
@@ -6,4 +6,4 @@ export type {
   MultichainBalancesControllerActions,
   MultichainBalancesControllerEvents,
   MultichainBalancesControllerMessenger,
-} from './MultichainBalancesController';
+} from './MultichainBalancesController.js';

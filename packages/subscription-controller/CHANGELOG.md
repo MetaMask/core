@@ -7,6 +7,348 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
+
+## [14.0.0]
+
+### Changed
+
+- **BREAKING:** `SubscriptionDelegationServiceMessenger` now requires `SubscriptionController:isUserEligibleForTrial` ([#10795](https://github.com/MetaMask/core/pull/10795))
+  - Clients that construct this messenger must delegate `SubscriptionController:isUserEligibleForTrial`.
+- Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
+- Require `Subscription.currentPeriodStart`, `currentPeriodEnd`, `cancelType`, and `isEligibleForSupport` in the subscription response and runtime validation. ([#10765](https://github.com/MetaMask/core/pull/10765))
+- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+
+### Fixed
+
+- Fixed Money Account Plus checkout requesting a trial for a user `isUserEligibleForTrial` rejects ([#10795](https://github.com/MetaMask/core/pull/10795))
+- `SubscriptionController:unCancelSubscription` refreshes subscriptions after a successful uncancel. ([#10802](https://github.com/MetaMask/core/pull/10802))
+  - The stored subscription is replaced with the uncancel response instead of merged with it, so optional fields the response omits (such as `cancelAtPeriodEnd` and `canceledAt`) no longer keep stale values, including when the subscription refresh fails.
+
+## [13.0.0]
+
+### Added
+
+- Add optional `isEligibleForRefund` on `StartSubscriptionRequest` and `StartCryptoSubscriptionRequest` ([#10674](https://github.com/MetaMask/core/pull/10674))
+  - When the caller provides it, `SubscriptionController` sends that value and skips the geolocation check.
+  - When omitted, the controller sets it from geolocation (EU 27 + EEA), or `false` if the lookup fails.
+
+### Changed
+
+- **BREAKING:** `SubscriptionControllerMessenger` now requires `GeolocationController:getGeolocationData` so `startSubscriptionWithCard` and `startSubscriptionWithCrypto` can resolve refund eligibility ([#10674](https://github.com/MetaMask/core/pull/10674))
+  - Clients that construct this messenger must delegate `GeolocationController:getGeolocationData` before calling those actions.
+- Add `@metamask/geolocation-controller` `^2.0.0` as a dependency ([#10674](https://github.com/MetaMask/core/pull/10674))
+- **BREAKING:** `SubscriptionDelegationService:startSubscriptionWithDelegation` no longer requests an approval. Callers must obtain consent and initiate funding (for example, a `membershipSubscription` transaction) before calling. ([#10666](https://github.com/MetaMask/core/pull/10666))
+  - `skipApproval` is removed from `StartSubscriptionWithDelegationRequest`.
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.2` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756))
+- Bump `@metamask/seedless-onboarding-controller` from `^11.0.1` to `^12.0.0` ([#10756](https://github.com/MetaMask/core/pull/10756))
+
+### Removed
+
+- **BREAKING:** Remove the subscription delegation approval contracts. ([#10666](https://github.com/MetaMask/core/pull/10666))
+  - Remove `SUBSCRIPTION_DELEGATION_APPROVAL_TYPE`, `SubscriptionFundingRequest`, and `SubscriptionDelegationApprovalResult`.
+  - Remove `ApprovalResultMissing` and `InvalidFundingTransactionHash` from `SubscriptionDelegationServiceErrorMessage`.
+  - `SubscriptionDelegationServiceMessenger` no longer allows `ApprovalController:addRequest`. Clients that construct this messenger must stop delegating that action.
+- Remove the `@metamask/approval-controller` dependency. ([#10666](https://github.com/MetaMask/core/pull/10666))
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^33.0.0` to `^34.0.0` ([#10662](https://github.com/MetaMask/core/pull/10662))
+
+## [12.0.0]
+
+### Added
+
+- **BREAKING:** Add `SubscriptionController:isUserEligibleForTrial` to report whether a user can start a trial for a product ([#10622](https://github.com/MetaMask/core/pull/10622))
+  - Clients must grant `SubscriptionControllerMessenger` access to `SeedlessOnboardingController:getIsUserAuthenticated` in order to call `SubscriptionController:isUserEligibleForTrial`.
+
+### Changed
+
+- Bump `@metamask/money-account-balance-service` from `^3.1.1` to `^3.1.2` ([#10624](https://github.com/MetaMask/core/pull/10624))
+- Bump `@metamask/chomp-api-service` from `^6.0.0` to `^6.0.1` ([#10626](https://github.com/MetaMask/core/pull/10626))
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.1.0` ([#10652](https://github.com/MetaMask/core/pull/10652))
+
+## [11.0.0]
+
+### Added
+
+- Add `SubscriptionDelegationService:startSubscriptionWithDelegation` to orchestrate one immutable approval for MM Pay funding, recurring-payment delegation signing, CHOMP registration, and subscription creation ([#10339](https://github.com/MetaMask/core/pull/10339))
+  - Before the approval, call `MoneyAccountUpgradeController:forceUpgradeAccount` with the payer address so the Money Account vault delegations and CHOMP intents exist; the Subscription API validates them server-side.
+  - Add exported approval, funding, and prepared-bundle contracts.
+  - Bind recurring permissions to the token, amount, period, start, and zero native value, and verify reusable delegation hashes with CHOMP.
+  - Derive trial timing from authoritative subscription state.
+  - Add optional `skipApproval` to `StartSubscriptionWithDelegationRequest` to bypass the `ApprovalController:addRequest` consent and funding step; the caller is then responsible for consent and funding.
+- Add `SUBSCRIPTION_STATUSES.awaitingFunds` (`awaiting_funds`) for crypto subscriptions that are waiting for the payer to fund the first invoice ([#10566](https://github.com/MetaMask/core/pull/10566))
+  - `SubscriptionController:submitSubscriptionCryptoApproval` treats it like `past_due` / `unpaid`: a new approval updates the existing subscription's payment method.
+
+### Changed
+
+- **BREAKING:** `StartCryptoSubscriptionResponse` (returned by `SubscriptionService:startSubscriptionWithCrypto`, `SubscriptionController:startSubscriptionWithCrypto`, and `SubscriptionDelegationService:startSubscriptionWithDelegation`) is now the created `Subscription` instead of `{ subscriptionId, status }`, matching what `POST /subscriptions/crypto` actually returns ([#10566](https://github.com/MetaMask/core/pull/10566))
+  - Read `response.id` instead of `response.subscriptionId`. `response.status` is unchanged.
+  - Previously the response failed validation on every successful call, so the crypto start flow always threw.
+- **BREAKING:** Widen `SubscriptionDelegationServiceMessenger` so `SubscriptionDelegationService:startSubscriptionWithDelegation` can call the actions it needs ([#10339](https://github.com/MetaMask/core/pull/10339))
+  - The messenger must now allow `ApprovalController:addRequest`, `MoneyAccountUpgradeController:forceUpgradeAccount`, `SubscriptionController:getState`, `SubscriptionController:getSubscriptions`, and `SubscriptionController:startSubscriptionWithCrypto`.
+  - Clients that construct this messenger must delegate those actions before calling `startSubscriptionWithDelegation`. A messenger typed against the previous `SubscriptionDelegationServiceMessenger` is no longer assignable.
+- Restrict cash-subscription delegations created by `SubscriptionDelegationService:prepareDelegation` so the ERC-20 `transfer` recipient must be the pricing chain `paymentAddress` (subscription treasury), via an `AllowedCalldataEnforcer` caveat. ([#10427](https://github.com/MetaMask/core/pull/10427))
+  - The caveat pins calldata from offset 0 to the `transfer(address,uint256)` selector followed by the ABI-encoded treasury address, matching the terms CHOMP expects.
+  - `prepareDelegation` throws when the pricing `paymentAddress` is not a valid address.
+  - Stored delegations without a matching recipient caveat are no longer reused; a new delegation is created and signed instead.
+- Stop adding the `ValueLteEnforcer` caveat to cash-subscription delegations created by `SubscriptionDelegationService:prepareDelegation`, because CHOMP only accepts `ERC20PeriodTransferEnforcer` and `AllowedCalldataEnforcer` for this intent type. ([#10427](https://github.com/MetaMask/core/pull/10427))
+  - Stored delegations that still include a `ValueLteEnforcer` caveat are no longer reused; a new delegation is created and signed instead.
+- Add `@ethersproject/abi` `^5.7.0` as a dependency ([#10427](https://github.com/MetaMask/core/pull/10427))
+- Add `@metamask/money-account-upgrade-controller` `^5.1.0` as a dependency ([#10339](https://github.com/MetaMask/core/pull/10339))
+- Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
+- Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
+- Bump `@metamask/money-account-balance-service` from `^3.0.0` to `^3.1.1` ([#10502](https://github.com/MetaMask/core/pull/10502), [#10544](https://github.com/MetaMask/core/pull/10544))
+- Bump `@metamask/chomp-api-service` from `^5.0.0` to `^6.0.0` ([#10505](https://github.com/MetaMask/core/pull/10505))
+- Bump `@metamask/money-account-utils` from `^2.0.1` to `^2.1.0` ([#10505](https://github.com/MetaMask/core/pull/10505))
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
+
+### Fixed
+
+- Stop rejecting Subscription API responses whose `lastInvoice` omits `updatedAt` or whose card payment method omits `displayBrand`; both fields are optional in the API and are now optional on `SubscriptionInvoice` and `SubscriptionCardPaymentMethod` ([#10566](https://github.com/MetaMask/core/pull/10566))
+  - Previously a subscription with a `lastInvoice` failed validation and `getSubscriptions` threw.
+
+## [10.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.3.1` to `^33.0.0` ([#10459](https://github.com/MetaMask/core/pull/10459))
+
+## [10.0.0]
+
+### Added
+
+- Add `INVOICE_PAYMENT_STATUSES` / `InvoicePaymentStatus` for typed invoice
+  payment status values. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add `CRYPTO_PAYMENT_ERRORS` / `CryptoPaymentError` and optional `Subscription.lastInvoice` (`SubscriptionInvoice`) for Subscription API crypto payment-execution failures. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add `selectIsPaymentFailed`, `selectPaymentFailureReason`, `selectIsRenewalNeeded`, and `selectIsDelegationExhausted` selectors keyed by subscription product. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add `UpdateDelegationPaymentMethodCryptoRequest` so `updatePaymentMethod` can rotate an active crypto subscription with `cryptoAuthMethod` and `delegationHash`. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add optional `forceNew` to `SubscriptionDelegationService:prepareDelegation` to create a replacement delegation instead of reusing a matching stored one. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add optional `TokenPaymentInfo.vault` and the `VaultName` type plus `VAULT_NAMES` constants, for the named vault a vault-share settlement token belongs to. `VaultName` is an open `string` because the set of vaults is server-driven. ([#10416](https://github.com/MetaMask/core/pull/10416))
+- Add `isVaultShareToken` to identify a yield-bearing vault-share settlement token, replacing the removed `isVaultShare` flag. ([#10416](https://github.com/MetaMask/core/pull/10416))
+
+### Changed
+
+- **BREAKING:** Remove `TokenPaymentInfo.isVaultShare`, which the Subscription API no longer sends. A vault share is now identified by the presence of `accountantAddress` — use `isVaultShareToken`. Leaving the field in place made `getPricing` reject every vault-share token and fail the whole pricing response. ([#10416](https://github.com/MetaMask/core/pull/10416))
+- **BREAKING:** Make `Subscription.currentPeriodStart`, `currentPeriodEnd`, `cancelType`, and `isEligibleForSupport` optional so paused or failed crypto subscriptions can validate. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Refresh the access token when Money Account Plus subscription snapshots change, including payment-failure state while status remains active. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Prefer the latest period `startDate` when `prepareDelegation` reuses a matching stored cash-subscription delegation, so a `forceNew` replacement is chosen over an older equivalent record. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Bump `@metamask/profile-sync-controller` from `^32.1.1` to `^32.3.1` ([#10348](https://github.com/MetaMask/core/pull/10348), [#10409](https://github.com/MetaMask/core/pull/10409), [#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/transaction-controller` from `^70.1.0` to `^72.0.0` ([#10386](https://github.com/MetaMask/core/pull/10386), [#10423](https://github.com/MetaMask/core/pull/10423))
+- Bump `@metamask/authenticated-user-storage` from `^4.0.0` to `^4.1.0` ([#10400](https://github.com/MetaMask/core/pull/10400))
+- Bump `@tanstack/query-core` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Bump `@metamask/money-account-utils` from `^2.0.0` to `^2.0.1` ([#10423](https://github.com/MetaMask/core/pull/10423))
+
+## [9.1.0]
+
+### Added
+
+- Add `SubscriptionDelegationService` for Money Account Plus cash-subscription delegation setup. ([#10130](https://github.com/MetaMask/core/pull/10130))
+  - New messenger action `SubscriptionDelegationService:prepareDelegation` orchestrates periodic caveat construction, signing, CHOMP verification, Authenticated User Storage persistence, and CHOMP intent registration.
+  - Returns a verified `delegationHash` with `disposition: 'created' | 'reused'` for `SubscriptionController.startSubscriptionWithCrypto`; the controller does not depend on this service.
+  - `prepareDelegation` accepts the product, recurring interval, payer address, trial selection, optional balance-check flag, and optional `skipChompInteractions` flag; it resolves plan, token, and delegate data through `SubscriptionController:getPricing`.
+  - When `skipChompInteractions` is true, CHOMP verify and intent registration are skipped; the returned hash is computed locally and AUS persistence still occurs.
+  - Resolves the chain from `moneyAccountVaultConfig` and Delegation Framework v1.3.0 enforcers from `@metamask/delegation-deployments`.
+  - Uses pricing `delegateAddress` as both the delegation `delegate` and the RedeemerEnforcer redeemer.
+  - Offsets the period-transfer `startDate` by pricing `trialPeriodDays` only when the trial is selected.
+  - New messenger action `SubscriptionDelegationService:checkMoneyAccountBalance` compares Money Account convertible mUSD balance against pricing `unitAmount × minBillingCyclesForBalance`; `prepareDelegation` can gate on it via `checkBalance`.
+  - Exports `CASH_SUBSCRIPTION_DELEGATION_TYPE` (`'cash-subscription'`) for AUS metadata (and for CHOMP intent metadata once chomp-api-service supports that type).
+  - Only Money Account Plus is supported; Shield continues to use ERC-20 approval.
+- Add stable cancellation reason codes and optional free-text feedback to the subscription cancellation request ([#10189](https://github.com/MetaMask/core/pull/10189))
+
+### Changed
+
+- Refresh subscriptions, product entitlements, and benefits after a successful subscription cancellation ([#10189](https://github.com/MetaMask/core/pull/10189))
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262))
+
+## [9.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
+## [9.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/polling-controller` from `^16.0.9` to `^17.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/profile-sync-controller` from `^30.0.0` to `^31.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/transaction-controller` from `^69.8.1` to `^70.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [8.1.0]
+
+### Added
+
+- Add `selectIsActiveSubscriber` to check whether a product has an active, trialing, or provisional subscription. ([#10017](https://github.com/MetaMask/core/pull/10017))
+- Add product-scoped entitlements to `SubscriptionController` state and export type-safe `selectHasEntitlement` and `selectIsUsageAvailable` selectors for Money Account Plus and Shield ([#10017](https://github.com/MetaMask/core/pull/10017))
+- Add `getBenefits` to fetch and persist Money Account Plus subscription benefits. ([#10103](https://github.com/MetaMask/core/pull/10103))
+  - New persisted `SubscriptionControllerState.benefits` field and `SubscriptionController:getBenefits` messenger action.
+  - Requires an active `MONEY_ACCOUNT_PLUS` subscription; otherwise throws `UserNotSubscribed` without calling the service.
+  - Lifecycle refreshes after entitlement polling, crypto subscribe, cancel, and uncancel are best-effort and do not fail the primary operation.
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.1` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080), [#10124](https://github.com/MetaMask/core/pull/10124))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Add `fast-deep-equal` `^3.1.3` as a dependency.
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
+## [8.0.1]
+
+### Changed
+
+- Bump `@tanstack/query-core` from `^4.43.0` to `^5.62.16` ([#9712](https://github.com/MetaMask/core/pull/9712))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
+
+## [8.0.0]
+
+### Added
+
+- Add multi-product and delegation-based crypto subscription types and pricing fields. ([#9866](https://github.com/MetaMask/core/pull/9866))
+  - `PRODUCT_TYPES.MONEY_ACCOUNT_PLUS`
+  - `CRYPTO_AUTH_METHODS` (`erc20_approval`, `delegation`) and `CryptoAuthMethod`
+  - `StartErc20CryptoSubscriptionRequest` and `StartDelegationCryptoSubscriptionRequest`
+  - `PricingCardPaymentMethod` and `PricingCryptoPaymentMethod` variants, with optional `products` and (crypto only) `cryptoAuthMethod`
+  - Optional `ChainPaymentInfo.delegateAddress`
+  - `SpotTokenPaymentInfo` and `VaultTokenPaymentInfo` variants, with optional `sources`; vault shares require `accountantAddress`
+
+### Changed
+
+- **BREAKING:** Model `PricingPaymentMethod` as a discriminated union of card vs crypto. `chains` and `cryptoAuthMethod` exist only on the crypto variant; narrow with `type === 'crypto'` before reading them. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- **BREAKING:** Model `TokenPaymentInfo` as a discriminated union of vault vs spot. `accountantAddress` is required when `isVaultShare` is true and is not present on spot tokens; narrow with `isVaultShare === true` before reading `accountantAddress`. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- **BREAKING:** Rename `startShieldSubscriptionWithCard` to `startSubscriptionWithCard`. ([#9866](https://github.com/MetaMask/core/pull/9866))
+  - Rename `SubscriptionController.startShieldSubscriptionWithCard` to `startSubscriptionWithCard`.
+  - Rename the messenger action `SubscriptionController:startShieldSubscriptionWithCard` to `SubscriptionController:startSubscriptionWithCard`.
+  - Rename the exported action type `SubscriptionControllerStartShieldSubscriptionWithCardAction` to `SubscriptionControllerStartSubscriptionWithCardAction`.
+- **BREAKING:** Rename `submitShieldSubscriptionCryptoApproval` to `submitSubscriptionCryptoApproval` and take a request object instead of positional arguments. ([#9866](https://github.com/MetaMask/core/pull/9866))
+  - Rename `SubscriptionController.submitShieldSubscriptionCryptoApproval` to `submitSubscriptionCryptoApproval`.
+  - Rename the messenger action `SubscriptionController:submitShieldSubscriptionCryptoApproval` to `SubscriptionController:submitSubscriptionCryptoApproval`.
+  - Rename the exported action type `SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction` to `SubscriptionControllerSubmitSubscriptionCryptoApprovalAction`.
+  - Callers pass `{ productType, txMeta, isSponsored?, rewardAccountId? }` (`SubmitSubscriptionCryptoApprovalRequest`).
+  - This handler is Shield ERC-20 approve only. `productType` is typed as `typeof PRODUCT_TYPES.SHIELD` (not `ProductType`); `txMeta.type` must be `TransactionType.shieldSubscriptionApprove`. Other products should use `startSubscriptionWithCrypto`.
+- **BREAKING:** Make `TokenPaymentInfo.conversionRate` optional. Consumers that access `.conversionRate.usd` without optional chaining will fail typecheck. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- **BREAKING:** Change `SubscriptionControllerState.lastSelectedPaymentMethod` from `Record<ProductType, CachedLastSelectedPaymentMethod>` to `Partial<Record<ProductType, CachedLastSelectedPaymentMethod>>`. Product keys may be absent; consumers must handle missing entries. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- **BREAKING:** `SubscriptionController.cacheLastSelectedPaymentMethod` now takes a request object instead of positional arguments. ([#9866](https://github.com/MetaMask/core/pull/9866))
+  - Callers pass `{ product, paymentMethod }` (`CacheLastSelectedPaymentMethodRequest`).
+- **BREAKING:** Model `StartCryptoSubscriptionRequest` as a discriminated union of ERC-20 approval vs delegation. ([#9866](https://github.com/MetaMask/core/pull/9866))
+  - ERC-20: required `rawTransaction`; optional `cryptoAuthMethod: 'erc20_approval'` (the default when omitted).
+  - Delegation: required `cryptoAuthMethod: 'delegation'` and `delegationHash`.
+  - Combining or omitting both auth fields is a type error. Runtime validation in `startSubscriptionWithCrypto` remains for unsound callers.
+  - New exports: `StartErc20CryptoSubscriptionRequest`, `StartDelegationCryptoSubscriptionRequest`.
+- Generalize subscription controller flows for multiple products: product-scoped crypto payment-method lookup, and trial requests derived from `trialPeriodDays` plus `trialedProducts`. ([#9866](https://github.com/MetaMask/core/pull/9866))
+- Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Refactor subscription API access behind a messenger-backed `SubscriptionService` ([#9598](https://github.com/MetaMask/core/pull/9598))
+  - `SubscriptionService` now extends `BaseDataService`, authenticates via `AuthenticationController:getBearerToken`, exposes all endpoint methods as `SubscriptionService:*` messenger actions, validates responses with `@metamask/superstruct`, and scopes query keys by `profileId` from `AuthenticationController:getSessionProfile`.
+  - New exports: `SubscriptionServiceOptions`, `SubscriptionServiceMessenger`, service action/event types, and `subscriptionServiceName`. Construct `SubscriptionService` with `{ messenger, fetchFunction?, env?, captureException?, queryClientConfig?, policyOptions? }`.
+  - `fetchFunction` is optional and defaults to `globalThis.fetch`.
+  - `SubscriptionController` no longer constructs or accepts a `SubscriptionService` instance. `SubscriptionControllerOptions` now accepts only `{ messenger, state?, pollingInterval? }`, and the controller calls `SubscriptionService:*` messenger actions instead of invoking a service directly.
+  - Removed `SubscriptionControllerServiceOptions`, `SubscriptionServiceConfig`, and direct `auth: AuthUtils` construction.
+  - Removed the `AuthenticationController:stateChange` event from `SubscriptionControllerMessenger` (and the `AllowedEvents` type export); the controller never subscribed to this event.
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.1` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798))
+
+## [6.2.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.4.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/polling-controller` from `^16.0.8` to `^16.0.9` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/profile-sync-controller` from `^28.3.0` to `^29.0.0` ([#9779](https://github.com/MetaMask/core/pull/9779))
+
+## [6.2.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.3.0` ([#9119](https://github.com/MetaMask/core/pull/9119), [#9463](https://github.com/MetaMask/core/pull/9463))
+- Bump `@metamask/transaction-controller` from `^68.0.0` to `^69.0.0` ([#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203), [#9218](https://github.com/MetaMask/core/pull/9218), [#9253](https://github.com/MetaMask/core/pull/9253), [#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349), [#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.8` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [6.2.0]
+
+### Added
+
+- Expose missing `SubscriptionController:stopAllPolling` action through its messenger ([#9061](https://github.com/MetaMask/core/pull/9061))
+  - Corresponding action type is available as well.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.2.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.1` ([#8783](https://github.com/MetaMask/core/pull/8783), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^68.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848), [#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027), [#9066](https://github.com/MetaMask/core/pull/9066), [#9089](https://github.com/MetaMask/core/pull/9089))
+- Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+
+## [6.1.3]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^65.3.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613), [#8691](https://github.com/MetaMask/core/pull/8691), [#8722](https://github.com/MetaMask/core/pull/8722), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/polling-controller` from `^16.0.4` to `^16.0.5` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [6.1.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/profile-sync-controller` from `^28.0.1` to `^28.0.2` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+
+## [6.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/polling-controller` from `^16.0.3` to `^16.0.4` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/profile-sync-controller` from `^28.0.0` to `^28.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/transaction-controller` from `^63.2.0` to `^63.3.1` ([#8313](https://github.com/MetaMask/core/pull/8313), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [6.1.0]
+
+### Added
+
+- Expose all public `SubscriptionController` methods through its messenger ([#8219](https://github.com/MetaMask/core/pull/8219))
+  - `SubscriptionController:getSubscriptionsEligibilities`
+  - `SubscriptionController:unCancelSubscription`
+  - `SubscriptionController:submitUserEvent`
+  - `SubscriptionController:assignUserToCohort`
+  - `SubscriptionController:getTokenApproveAmount`
+  - `SubscriptionController:getTokenMinimumBalanceAmount`
+  - `SubscriptionController:clearState`
+  - `SubscriptionController:triggerAccessTokenRefresh`
+  - Corresponding action types are now exported (e.g. `SubscriptionControllerGetPricingAction`)
+
+### Changed
+
+- Normalized payment token addresses before the comparison in `getCryptoApproveTransactionParams` method. ([#8297](https://github.com/MetaMask/core/pull/8297))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.2.0` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301))
+
 ## [6.0.2]
 
 ### Changed
@@ -308,7 +650,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@13.0.0...@metamask/subscription-controller@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@12.0.1...@metamask/subscription-controller@13.0.0
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@12.0.0...@metamask/subscription-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@11.0.0...@metamask/subscription-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@10.0.1...@metamask/subscription-controller@11.0.0
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@10.0.0...@metamask/subscription-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.1.0...@metamask/subscription-controller@10.0.0
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.0.1...@metamask/subscription-controller@9.1.0
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.0.0...@metamask/subscription-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@8.1.0...@metamask/subscription-controller@9.0.0
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@8.0.1...@metamask/subscription-controller@8.1.0
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@8.0.0...@metamask/subscription-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@7.0.0...@metamask/subscription-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.2...@metamask/subscription-controller@7.0.0
+[6.2.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.1...@metamask/subscription-controller@6.2.2
+[6.2.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.2.0...@metamask/subscription-controller@6.2.1
+[6.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.1.3...@metamask/subscription-controller@6.2.0
+[6.1.3]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.1.2...@metamask/subscription-controller@6.1.3
+[6.1.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.1.1...@metamask/subscription-controller@6.1.2
+[6.1.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.1.0...@metamask/subscription-controller@6.1.1
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.0.2...@metamask/subscription-controller@6.1.0
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.0.1...@metamask/subscription-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.0.0...@metamask/subscription-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.2...@metamask/subscription-controller@6.0.0

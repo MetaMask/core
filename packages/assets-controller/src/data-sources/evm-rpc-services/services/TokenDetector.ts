@@ -1,7 +1,13 @@
+import {
+  ChainId as ControllerChainId,
+  convertHexToDecimal,
+} from '@metamask/controller-utils';
+import type { TokenApiClient } from '@metamask/core-backend';
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { MulticallClient } from '../clients';
+import { projectLogger, createModuleLogger } from '../../../logger.js';
+import type { MulticallClient } from '../clients/index.js';
 import type {
   AccountId,
   Address,
@@ -13,18 +19,52 @@ import type {
   TokenDetectionOptions,
   TokenDetectionResult,
   TokenListEntry,
-  TokenListState,
-} from '../types';
-import { reduceInBatchesSerially } from '../utils';
-
-const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
+} from '../types/index.js';
+import { reduceInBatchesSerially } from '../utils/index.js';
 
 /**
- * Minimal messenger interface for TokenDetector.
+ * Fallback `occurrenceFloor` when `/v1/suggestedOccurrenceFloors` has no entry
+ * for the chain, or the floors request fails.
  */
-export type TokenDetectorMessenger = {
-  call: (action: 'TokenListController:getState') => TokenListState;
+const DEFAULT_OCCURRENCE_FLOOR = 3;
+
+/** How long to keep `/v2/supportedNetworks` cached. */
+const SUPPORTED_NETWORKS_CACHE_TTL_MS = 60 * 60_000;
+
+/** How long to keep `/v1/suggestedOccurrenceFloors` cached. */
+const SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS = 60 * 60_000;
+
+/**
+ * Token-list cache window used when the caller shares a QueryClient.
+ * Without one, the list is refetched on every call.
+ */
+const TOKEN_LIST_STALE_TIME_MS = 5 * 60_000;
+const TOKEN_LIST_GC_TIME_MS = 60 * 60_000;
+
+type ApiTokenListItem = {
+  address: string;
+  symbol?: string;
+  name?: string;
+  decimals?: number;
+  occurrences?: number;
+  aggregators?: string[];
+  iconUrl?: string;
 };
+
+/**
+ * Token-list calls TokenDetector makes. `TokenApiClient` satisfies this, and
+ * tests can pass an object with only these methods.
+ */
+type TokenListApi = Pick<
+  TokenApiClient,
+  | 'fetchV2SupportedNetworks'
+  | 'fetchV1SuggestedOccurrenceFloors'
+  | 'fetchTokenList'
+>;
+
+const log = createModuleLogger(projectLogger, 'TokenDetector');
+
+const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
 
 export type TokenDetectorConfig = {
   /** Function returning whether token detection is enabled (avoids stale value) */
@@ -56,25 +96,34 @@ export type OnDetectionUpdateCallback = (result: TokenDetectionResult) => void;
 
 /**
  * TokenDetector - Detects tokens with non-zero balances via multicall.
+ * Fetches the token list from the Tokens API and uses multicall to check balances.
  * Extends StaticIntervalPollingControllerOnly for built-in polling support.
  */
 export class TokenDetector extends StaticIntervalPollingControllerOnly<DetectionPollingInput>() {
   readonly #multicallClient: MulticallClient;
 
-  readonly #messenger: TokenDetectorMessenger;
+  readonly #tokenApi: TokenListApi;
 
   readonly #config: Required<Omit<TokenDetectorConfig, 'pollingInterval'>>;
+
+  readonly #tokenListCache: Map<ChainId, TokenListEntry[]> = new Map();
+
+  /**
+   * Last successful `/v2/supportedNetworks` CAIP chain IDs.
+   * A failed refresh leaves this in place so detection can continue.
+   */
+  #supportedChainIds: Set<string> | undefined;
 
   #onDetectionUpdate: OnDetectionUpdateCallback | undefined;
 
   constructor(
     multicallClient: MulticallClient,
-    messenger: TokenDetectorMessenger,
+    tokenApi: TokenListApi,
     config?: TokenDetectorConfig,
   ) {
     super();
     this.#multicallClient = multicallClient;
-    this.#messenger = messenger;
+    this.#tokenApi = tokenApi;
     this.#config = {
       tokenDetectionEnabled:
         config?.tokenDetectionEnabled ?? ((): boolean => true),
@@ -83,7 +132,6 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
       defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
     };
 
-    // Set the polling interval
     this.setIntervalLength(
       config?.pollingInterval ?? DEFAULT_DETECTION_INTERVAL,
     );
@@ -105,51 +153,53 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
    * @param input - The polling input.
    */
   async _executePoll(input: DetectionPollingInput): Promise<void> {
-    // Check if token list is available for this chain
-    const tokensToCheck = this.getTokensToCheck(input.chainId);
+    try {
+      const result = await this.detectTokens(
+        input.chainId,
+        input.accountId,
+        input.accountAddress,
+      );
 
-    if (tokensToCheck.length === 0) {
-      // No tokens in list for chain, will retry on next poll
-      return;
-    }
-
-    const result = await this.detectTokens(
-      input.chainId,
-      input.accountId,
-      input.accountAddress,
-    );
-
-    if (this.#onDetectionUpdate && result.detectedAssets.length > 0) {
-      this.#onDetectionUpdate(result);
+      if (this.#onDetectionUpdate && result.detectedAssets.length > 0) {
+        this.#onDetectionUpdate(result);
+      }
+    } catch (error) {
+      log('Token detection poll failed', { chainId: input.chainId, error });
     }
   }
 
-  getTokensToCheck(chainId: ChainId): Address[] {
-    const tokenListState = this.#messenger.call('TokenListController:getState');
+  /**
+   * Fetch the list of token addresses to check for the given chain.
+   * Calls the Tokens API and caches the result for metadata lookups.
+   *
+   * @param chainId - Chain ID in hex format.
+   * @returns Array of token contract addresses.
+   */
+  async getTokensToCheck(chainId: ChainId): Promise<Address[]> {
+    const tokenList = await this.fetchAndCacheTokenList(chainId);
+    return tokenList.map((entry) => entry.address as Address);
+  }
 
-    // Defensive check for tokensChainsCache
-    if (!tokenListState?.tokensChainsCache) {
-      return [];
+  /**
+   * Fetch the mapped token list for a chain and keep it for metadata lookups.
+   *
+   * @param chainId - Chain ID in hex format.
+   * @returns Token list entries, including fields the address list drops.
+   */
+  async fetchAndCacheTokenList(chainId: ChainId): Promise<TokenListEntry[]> {
+    try {
+      const list = await this.#fetchTokenList(chainId);
+      this.#tokenListCache.set(chainId, list);
+      return list;
+    } catch (error) {
+      const cached = this.#tokenListCache.get(chainId);
+      log('Failed to fetch token list; using stale cache', {
+        chainId,
+        cachedCount: cached?.length ?? 0,
+        error,
+      });
+      return cached ?? [];
     }
-
-    // Try direct lookup first
-    let chainCacheEntry = tokenListState.tokensChainsCache[chainId];
-
-    // If not found, try normalizing the chain ID (e.g., 0x0a -> 0xa)
-    if (!chainCacheEntry) {
-      const normalizedChainId: ChainId = `0x${parseInt(chainId, 16).toString(
-        16,
-      )}`;
-      chainCacheEntry = tokenListState.tokensChainsCache[normalizedChainId];
-    }
-
-    const chainTokenList = chainCacheEntry?.data;
-
-    if (!chainTokenList) {
-      return [];
-    }
-
-    return Object.keys(chainTokenList) as Address[];
   }
 
   async detectTokens(
@@ -177,7 +227,7 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     const batchSize = options?.batchSize ?? this.#config.defaultBatchSize;
     const timestamp = Date.now();
 
-    const tokensToCheck = this.getTokensToCheck(chainId);
+    const tokensToCheck = await this.getTokensToCheck(chainId);
 
     if (tokensToCheck.length === 0) {
       return {
@@ -292,9 +342,12 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
       );
       detectedAssets.push(asset);
 
-      const decimals = tokenMetadata?.decimals ?? 18;
-      const formattedBalance = this.#formatBalance(balance, decimals);
+      if (tokenMetadata?.decimals === undefined) {
+        continue;
+      }
 
+      const { decimals } = tokenMetadata;
+      const formattedBalance = this.#formatBalance(balance, decimals);
       detectedBalances.push({
         assetId: asset.assetId,
         accountId,
@@ -334,33 +387,139 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     }
   }
 
+  /**
+   * Load the ERC-20 list for a chain from `@metamask/core-backend`
+   * `TokenApiClient`:
+   * - `GET /v2/supportedNetworks`
+   * - `GET /v1/suggestedOccurrenceFloors`
+   * - `GET /tokens/{chainId}`
+   *
+   * Returns `[]` when the chain is unsupported, supported networks have never
+   * loaded, or the token-list request fails. A failed refresh of
+   * `/v2/supportedNetworks` reuses the last successful list. Linea mainnet
+   * keeps entries flagged by `lineaTeam` or seen by at least 3 aggregators.
+   *
+   * @param hexChainId - Chain ID in hex format (for example `'0x1'`).
+   * @returns Token list entries, or an empty array.
+   */
+  async #fetchTokenList(hexChainId: ChainId): Promise<TokenListEntry[]> {
+    if (!(await this.#isSupportedChain(hexChainId))) {
+      return [];
+    }
+
+    return this.#fetchTokenListEntries(hexChainId);
+  }
+
+  async #isSupportedChain(hexChainId: ChainId): Promise<boolean> {
+    const caipChainId = `eip155:${convertHexToDecimal(hexChainId)}`;
+    try {
+      const data = await this.#tokenApi.fetchV2SupportedNetworks({
+        staleTime: SUPPORTED_NETWORKS_CACHE_TTL_MS,
+        gcTime: SUPPORTED_NETWORKS_CACHE_TTL_MS,
+        retry: false,
+      });
+      this.#supportedChainIds = new Set([
+        ...(data.fullSupport ?? []),
+        ...(data.partialSupport ?? []),
+      ]);
+    } catch {
+      // Leave `#supportedChainIds` unchanged. The first failure has no list yet.
+    }
+    return this.#supportedChainIds?.has(caipChainId) ?? false;
+  }
+
+  async #getOccurrenceFloor(hexChainId: ChainId): Promise<number> {
+    try {
+      const data = await this.#tokenApi.fetchV1SuggestedOccurrenceFloors({
+        staleTime: SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS,
+        gcTime: SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS,
+        retry: false,
+      });
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        const decimalChainId = String(convertHexToDecimal(hexChainId));
+        return data[decimalChainId] ?? DEFAULT_OCCURRENCE_FLOOR;
+      }
+    } catch {
+      // Fall through to the default floor.
+    }
+    return DEFAULT_OCCURRENCE_FLOOR;
+  }
+
+  async #fetchTokenListEntries(hexChainId: ChainId): Promise<TokenListEntry[]> {
+    const decimalChainId = convertHexToDecimal(hexChainId);
+    const occurrenceFloor = await this.#getOccurrenceFloor(hexChainId);
+
+    try {
+      const raw = await this.#tokenApi.fetchTokenList(
+        decimalChainId,
+        {
+          occurrenceFloor,
+          includeNativeAssets: false,
+          includeTokenFees: false,
+          includeAssetType: false,
+          includeERC20Permit: false,
+          includeStorage: false,
+          includeRwaData: true,
+        },
+        {
+          staleTime: TOKEN_LIST_STALE_TIME_MS,
+          gcTime: TOKEN_LIST_GC_TIME_MS,
+          retry: false,
+        },
+      );
+      const items: ApiTokenListItem[] = Array.isArray(raw) ? raw : [];
+      return this.#applyChainSpecificFilters(hexChainId, items).map((item) => ({
+        address: item.address,
+        symbol: item.symbol ?? '',
+        name: item.name ?? '',
+        decimals: item.decimals ?? 18,
+        iconUrl: item.iconUrl,
+        aggregators: item.aggregators,
+        occurrences: item.occurrences,
+      }));
+    } catch (error) {
+      console.error(
+        `Tokens API request failed for chain ${hexChainId}:`,
+        error,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Apply chain-specific filters, mirroring `fetchTokenListByChainId` in
+   * `assets-controllers/src/token-service.ts`.
+   *
+   * @param hexChainId - Hex chain ID.
+   * @param items - Raw items from the API response.
+   * @returns Items after chain-specific filtering.
+   */
+  #applyChainSpecificFilters(
+    hexChainId: ChainId,
+    items: ApiTokenListItem[],
+  ): ApiTokenListItem[] {
+    if (hexChainId === ControllerChainId['linea-mainnet']) {
+      return items.filter((item) => {
+        const aggregators = item.aggregators ?? [];
+        return aggregators.includes('lineaTeam') || aggregators.length >= 3;
+      });
+    }
+    return items;
+  }
+
   #getTokenMetadata(
     chainId: ChainId,
     tokenAddress: Address,
   ): TokenListEntry | undefined {
-    const tokenListState = this.#messenger.call('TokenListController:getState');
-    if (!tokenListState?.tokensChainsCache) {
-      return undefined;
-    }
-
-    const chainCacheEntry = tokenListState.tokensChainsCache[chainId];
-    const chainTokenList = chainCacheEntry?.data;
-    if (!chainTokenList) {
-      return undefined;
-    }
-
-    if (chainTokenList[tokenAddress]) {
-      return chainTokenList[tokenAddress];
-    }
-
+    const list = this.#tokenListCache.get(chainId) ?? [];
     const lowerAddress = tokenAddress.toLowerCase();
-    for (const [address, metadata] of Object.entries(chainTokenList)) {
-      if (address.toLowerCase() === lowerAddress) {
-        return metadata;
-      }
+
+    const exact = list.find((entry) => entry.address === tokenAddress);
+    if (exact) {
+      return exact;
     }
 
-    return undefined;
+    return list.find((entry) => entry.address.toLowerCase() === lowerAddress);
   }
 
   #createAsset(

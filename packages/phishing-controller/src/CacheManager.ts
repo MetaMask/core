@@ -1,4 +1,4 @@
-import { fetchTimeNow } from './utils';
+import { fetchTimeNow } from './utils.js';
 
 /**
  * Generic cache entry type that wraps the data with a timestamp

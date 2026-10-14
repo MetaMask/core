@@ -22,19 +22,63 @@ import type {
 } from 'cockatiel';
 
 export {
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
   BrokenCircuitError,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
   CockatielEventEmitter,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
   CircuitState,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
   ConstantBackoff,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
   ExponentialBackoff,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent function from
+   * `@metamask/base-data-service`.
+   */
   handleAll,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent function from
+   * `@metamask/base-data-service`.
+   */
   handleWhen,
 };
 
-export type { CockatielEvent, FailureReason as CockatielFailureReason };
+export type {
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
+  CockatielEvent,
+  /**
+   * @deprecated This is deprecated and will be removed in a future major
+   * version. Please use the equivalent type from `@metamask/base-data-service`.
+   */
+  FailureReason as CockatielFailureReason,
+};
 
 /**
  * The options for `createServicePolicy`.
+ *
+ * @deprecated This is deprecated and will be removed in a future major version.
+ * Please use the equivalent type from `@metamask/base-data-service`.
  */
 export type CreateServicePolicyOptions = {
   /**
@@ -53,6 +97,10 @@ export type CreateServicePolicyOptions = {
    * regarded as degraded (affecting when `onDegraded` is called).
    */
   degradedThreshold?: number;
+  /**
+   * Predicate function for when an error should be considered a service failure.
+   */
+  isServiceFailure?: (error: unknown) => boolean;
   /**
    * The maximum number of times that the service is allowed to fail before
    * pausing further retries.
@@ -74,6 +122,9 @@ export type CreateServicePolicyOptions = {
 
 /**
  * The service policy object.
+ *
+ * @deprecated This is deprecated and will be removed in a future major
+ * version. Please use the equivalent type from `@metamask/base-data-service`.
  */
 export type ServicePolicy = IPolicy & {
   /**
@@ -117,7 +168,7 @@ export type ServicePolicy = IPolicy & {
    * never succeeds before the retry policy gives up and before the maximum
    * number of consecutive failures has been reached.
    */
-  onDegraded: CockatielEvent<FailureReason<unknown> | void>;
+  onDegraded: CockatielEvent<FailureReason<unknown> | { duration: number }>;
   /**
    * A function which is called when the service succeeds for the first time,
    * or when the service fails enough times to cause the circuit to break and
@@ -166,6 +217,9 @@ type AvailabilityStatus =
 /**
  * The maximum number of times that a failing service should be re-run before
  * giving up.
+ *
+ * @deprecated This is deprecated and will be removed in a future major version.
+ * Please use the equivalent variable from `@metamask/base-data-service`.
  */
 export const DEFAULT_MAX_RETRIES = 3;
 
@@ -174,22 +228,31 @@ export const DEFAULT_MAX_RETRIES = 3;
  * pausing further retries. This is set to a value such that if given a
  * service that continually fails, the policy needs to be executed 3 times
  * before further retries are paused.
+ *
+ * @deprecated This is deprecated and will be removed in a future major version.
+ * Please use the equivalent variable from `@metamask/base-data-service`.
  */
 export const DEFAULT_MAX_CONSECUTIVE_FAILURES = (1 + DEFAULT_MAX_RETRIES) * 3;
 
 /**
  * The default length of time (in milliseconds) to temporarily pause retries of
  * the service after enough consecutive failures.
+ *
+ * @deprecated This is deprecated and will be removed in a future major version.
+ * Please use the equivalent variable from `@metamask/base-data-service`.
  */
 export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
 
 /**
  * The default length of time (in milliseconds) that governs when the service is
  * regarded as degraded (affecting when `onDegraded` is called).
+ *
+ * @deprecated This is deprecated and will be removed in a future major version.
+ * Please use the equivalent variable from `@metamask/base-data-service`.
  */
 export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
-const isServiceFailure = (error: unknown): boolean => {
+const defaultIsServiceFailure = (error: unknown): boolean => {
   if (
     typeof error === 'object' &&
     error !== null &&
@@ -199,8 +262,9 @@ const isServiceFailure = (error: unknown): boolean => {
     return error.httpStatus >= 500;
   }
 
-  // If the error is not an object, or doesn't have a numeric code property,
-  // consider it a service failure (e.g., network errors, timeouts, etc.)
+  // If the error is not an object, or doesn't have a numeric httpStatus
+  // property, consider it a service failure (e.g., network errors, timeouts,
+  // etc.)
   return true;
 };
 
@@ -272,6 +336,9 @@ function getInternalCircuitState(state: CircuitState): InternalCircuitState {
  *   }
  * }
  * ```
+ *
+ * @deprecated This is deprecated and will be removed in a future major version.
+ * Please use the equivalent function from `@metamask/base-data-service`.
  */
 export function createServicePolicy(
   options: CreateServicePolicyOptions = {},
@@ -283,6 +350,7 @@ export function createServicePolicy(
     circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
     degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
     backoff = new ExponentialBackoff(),
+    isServiceFailure = defaultIsServiceFailure,
   } = options;
 
   let availabilityStatus: AvailabilityStatus = AVAILABILITY_STATUSES.Unknown;
@@ -321,8 +389,9 @@ export function createServicePolicy(
   });
   const onBreak = circuitBreakerPolicy.onBreak.bind(circuitBreakerPolicy);
 
-  const onDegradedEventEmitter =
-    new CockatielEventEmitter<FailureReason<unknown> | void>();
+  const onDegradedEventEmitter = new CockatielEventEmitter<
+    FailureReason<unknown> | { duration: number }
+  >();
   const onDegraded = onDegradedEventEmitter.addListener;
 
   const onAvailableEventEmitter = new CockatielEventEmitter<void>();
@@ -338,7 +407,7 @@ export function createServicePolicy(
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
       if (duration > degradedThreshold) {
         availabilityStatus = AVAILABILITY_STATUSES.Degraded;
-        onDegradedEventEmitter.emit();
+        onDegradedEventEmitter.emit({ duration });
       } else if (availabilityStatus !== AVAILABILITY_STATUSES.Available) {
         availabilityStatus = AVAILABILITY_STATUSES.Available;
         onAvailableEventEmitter.emit();

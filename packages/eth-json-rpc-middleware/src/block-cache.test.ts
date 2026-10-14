@@ -4,12 +4,12 @@ import {
 } from '@metamask/json-rpc-engine/v2';
 import type { Hex, Json } from '@metamask/utils';
 
-import { createBlockCacheMiddleware } from '.';
 import {
   createProviderAndBlockTracker,
   createRequest,
   stubProviderRequests,
-} from '../test/util/helpers';
+} from '../test/util/helpers.js';
+import { createBlockCacheMiddleware } from './index.js';
 
 describe('block cache middleware', () => {
   let provider: ReturnType<typeof createProviderAndBlockTracker>['provider'];

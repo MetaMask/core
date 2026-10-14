@@ -1,8 +1,94 @@
 /**
  * Test result states for SDK validation
  */
-import { OrderType } from '.';
-import { CandlePeriod } from '../constants/chartConfig';
+import { CandlePeriod } from '../constants/chartConfig.js';
+
+/**
+ * Order type enumeration (placement type).
+ *
+ * - `market` / `limit`: immediate placement.
+ * - `stop_*` / `take_profit_*`: trigger placement — the order rests off-book until
+ *   `OrderParams.triggerPrice` is reached, then executes as a market or limit order
+ *   according to the suffix.
+ * - `twap` / `scale` / `chase`: strategy placement — one request expands into an
+ *   execution schedule rather than a single resting order. See `StrategyOrderType`.
+ *
+ * Provider-agnostic by design: no protocol vocabulary (HyperLiquid's `tpsl`,
+ * `triggerPx`, `isMarket`) appears in the params model.
+ */
+export type OrderType =
+  | 'market'
+  | 'limit'
+  | 'stop_market'
+  | 'stop_limit'
+  | 'take_profit_market'
+  | 'take_profit_limit'
+  | 'twap'
+  | 'scale'
+  | 'chase';
+
+/**
+ * The subset of `OrderType` values that require a trigger price.
+ *
+ * Spelled out rather than derived with `Exclude`: every order type added to
+ * `OrderType` that is neither `market` nor `limit` would otherwise be pulled in
+ * here automatically and start demanding a trigger price it has no concept of.
+ */
+export type TriggerOrderType =
+  | 'stop_market'
+  | 'stop_limit'
+  | 'take_profit_market'
+  | 'take_profit_limit';
+
+/**
+ * The subset of `OrderType` values that describe an execution *strategy* rather
+ * than a single order.
+ *
+ * - `twap`: slice the size over `OrderParams.twapDuration` minutes. Placed and
+ *   cancelled through the venue's own TWAP endpoints, not the order book.
+ * - `scale`: fan out `OrderParams.scaleNumOrders` limit orders between
+ *   `OrderParams.scaleMinPrice` and `OrderParams.scaleMaxPrice`, evenly sized
+ *   unless `OrderParams.scaleSkew` weights them along the ladder.
+ * - `chase`: rest a post-only order at the near touch and re-price it as the
+ *   touch moves, until it fills or the chase window closes.
+ *
+ * A strategy placement returns a *handle* in `OrderResult.orderId` — a venue
+ * TWAP id, or a client-generated group/session id — which is what
+ * `CancelOrderParams` takes together with the matching `orderType`.
+ */
+export type StrategyOrderType = 'twap' | 'scale' | 'chase';
+
+/**
+ * Every `OrderType` that resolves to a single order the exchange can be handed
+ * directly — market, limit, and the four trigger placements.
+ *
+ * Derived with `Exclude` on purpose, the safe direction: it *shrinks* as
+ * `StrategyOrderType` grows, so a strategy added later is kept out of the
+ * single-order helpers automatically rather than silently falling through them.
+ */
+export type OrdinaryOrderType = Exclude<OrderType, StrategyOrderType>;
+
+/**
+ * Whether a triggered order executes as a market or a limit order.
+ */
+export type OrderExecution = 'market' | 'limit';
+
+/**
+ * How an attached TP/SL relates to what it protects.
+ *
+ * - `none`: the order carries no attached TP/SL.
+ * - `order`: the TP/SL belongs to this order and is cancelled with it.
+ * - `position`: the TP/SL belongs to the resulting position and covers all of it.
+ *
+ * Provider-agnostic replacement for the HyperLiquid-shaped `OrderParams.grouping`.
+ */
+export type TpslLinkage = 'none' | 'order' | 'position';
+
+/**
+ * Which side of the mark price a trigger order fires on.
+ * `stop` protects against adverse moves, `take_profit` realizes gains.
+ */
+export type TriggerDirection = 'stop' | 'take_profit';
 
 export type TestResultStatus =
   | 'idle'
@@ -55,9 +141,24 @@ export type CandleData = {
   candles: CandleStick[];
 };
 
-// Export all configuration types directly
-export type * from './config';
-export type * from './token';
+// Configuration types
+export type {
+  HyperLiquidEndpoints,
+  AssetNetworkConfig,
+  HyperLiquidAssetConfigs,
+  BridgeContractConfig,
+  HyperLiquidBridgeContracts,
+  TransportReconnectConfig,
+  TransportKeepAliveConfig,
+  HyperLiquidTransportConfig,
+  TradingAmountConfig,
+  TradingDefaultsConfig,
+  FeeRatesConfig,
+  HyperLiquidNetwork,
+} from './config.js';
+
+// Token types
+export type { PerpsToken } from './token.js';
 
 /**
  * Order form state for the Perps order view
@@ -119,4 +220,18 @@ export type ExtendedPerpDex = {
   deployerFeeScale?: string;
   /** ISO timestamp of last fee scale change */
   lastDeployerFeeScaleChangeTime?: string;
+};
+
+/**
+ * Unified DEX discovery state — single source of truth for all perpDexs() derivatives.
+ * Replaces three separate caches (#cachedAllPerpDexs, #cachedValidatedDexs, #perpDexsCache)
+ * to eliminate desync bugs by construction.
+ */
+export type DexDiscoveryState = {
+  /** perpDexs() API response (raw objects with deployerFeeScale etc.) */
+  raw: (ExtendedPerpDex | null)[];
+  /** Feature-flag-filtered DEX names (null = main DEX, strings = HIP-3 DEXs) */
+  validated: (string | null)[];
+  /** When raw was fetched — used for fee-scale TTL checks */
+  timestamp: number;
 };

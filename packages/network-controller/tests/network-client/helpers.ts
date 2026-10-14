@@ -10,19 +10,20 @@ import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 import nock, { isDone as nockIsDone } from 'nock';
 import type { Scope as NockScope } from 'nock';
 
-import { createNetworkClient } from '../../src/create-network-client';
+import { createNetworkClient } from '../../src/create-network-client.js';
 import type {
   NetworkClientId,
   NetworkControllerOptions,
-} from '../../src/NetworkController';
-import type { RpcServiceOptions } from '../../src/rpc-service/rpc-service';
-import type { NetworkClientConfiguration, Provider } from '../../src/types';
-import { NetworkClientType } from '../../src/types';
-import type { RootMessenger } from '../helpers';
+} from '../../src/NetworkController.js';
+import type { RpcServiceOptions } from '../../src/rpc-service/rpc-service.js';
+import type { RpcFailoverMode } from '../../src/selectors.js';
+import type { NetworkClientConfiguration, Provider } from '../../src/types.js';
+import { NetworkClientType } from '../../src/types.js';
+import type { RootMessenger } from '../helpers.js';
 import {
   buildNetworkControllerMessenger,
   buildRootMessenger,
-} from '../helpers';
+} from '../helpers.js';
 
 /**
  * A dummy value for the `infuraProjectId` option that `createInfuraClient`
@@ -333,7 +334,7 @@ export type MockOptions = {
   expectedHeaders?: Record<string, string>;
   messenger?: RootMessenger;
   networkClientId?: NetworkClientId;
-  isRpcFailoverEnabled?: boolean;
+  rpcFailoverMode?: RpcFailoverMode;
 };
 
 export type MockCommunications = {
@@ -480,8 +481,8 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers<Type>(
  * @param options.getBlockTrackerOptions - Block tracker options factory.
  * @param options.messenger - The root messenger to use in tests.
  * @param options.networkClientId - The ID of the new network client.
- * @param options.isRpcFailoverEnabled - Whether or not the RPC failover
- * functionality is enabled.
+ * @param options.rpcFailoverMode - The RPC failover mode to apply, defaults to
+ * `disabled`.
  * @param fn - A function which will be called with an object that allows
  * interaction with the network client.
  * @returns The return value of the given function.
@@ -501,7 +502,7 @@ export async function withNetworkClient<Type>(
     getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({}),
     messenger = buildRootMessenger(),
     networkClientId = 'some-network-client-id',
-    isRpcFailoverEnabled = false,
+    rpcFailoverMode = 'disabled',
   }: MockOptions,
   fn: (client: MockNetworkClient) => Promise<Type>,
 ): Promise<Type> {
@@ -553,7 +554,7 @@ export async function withNetworkClient<Type>(
     getRpcServiceOptions,
     getBlockTrackerOptions,
     messenger: networkControllerMessenger,
-    isRpcFailoverEnabled,
+    rpcFailoverMode,
   });
   /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;

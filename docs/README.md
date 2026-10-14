@@ -22,7 +22,6 @@ Hi! Welcome to the contributor documentation for the `core` monorepo.
 - [Building packages](./processes/building.md)
 - [Adding new packages to the monorepo](./processes/adding-new-packages.md)
 - [Migrating external packages to the monorepo](./processes/package-migration-process-guide.md)
-  - [Migrating tags](./processes/migrate-tags.md)
 
 ## Code guidelines
 

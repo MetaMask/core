@@ -1,5 +1,3 @@
-// Nonce/Key Sizes
-export const ALGORITHM_NONCE_SIZE = 12; // 12 bytes
 export const ALGORITHM_KEY_SIZE = 16; // 16 bytes
 
 // Scrypt settings

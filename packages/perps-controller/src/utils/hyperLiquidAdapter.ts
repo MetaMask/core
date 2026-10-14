@@ -1,34 +1,72 @@
-import { Hex, isHexString } from '@metamask/utils';
+import { hasProperty, Hex, isHexString } from '@metamask/utils';
 
 import {
-  countSignificantFigures,
-  roundToSignificantFigures,
-} from './significantFigures';
-import { HIP3_ASSET_ID_CONFIG } from '../constants/hyperLiquidConfig';
-import { DECIMAL_PRECISION_CONFIG } from '../constants/perpsConfig';
+  BASIS_POINTS_DIVISOR,
+  HIP3_ASSET_ID_CONFIG,
+} from '../constants/hyperLiquidConfig.js';
+import {
+  DECIMAL_PRECISION_CONFIG,
+  ORDER_SLIPPAGE_CONFIG,
+} from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import type {
+  AssetPosition,
+  FrontendOrder,
+  ClearinghouseStateResponse,
+  MetaResponse,
+  SDKOrderParams,
+} from '../types/hyperliquid-types.js';
 import type {
   AccountState,
   MarketInfo,
   Order,
   OrderParams as PerpsOrderParams,
   Position,
+  PositionTriggerOrder,
   RawLedgerUpdate,
   UserHistoryItem,
-} from '../types';
-import type {
-  AssetPosition,
-  FrontendOrder,
-  ClearinghouseStateResponse,
-  SpotClearinghouseStateResponse,
-  MetaResponse,
-  SDKOrderParams,
-} from '../types/hyperliquid-types';
+} from '../types/index.js';
+import type { TpslLinkage, TriggerOrderType } from '../types/perps-types.js';
+import {
+  buildTriggerOrderType,
+  classifyTriggerDirection,
+  getTriggerDirection,
+  getTriggerExecution,
+  isLimitExecutionOrderType,
+  isTriggerOrderType,
+  toSDKTimeInForce,
+} from './orderTypes.js';
+import {
+  countSignificantFigures,
+  roundToSignificantFigures,
+} from './significantFigures.js';
 
 type FrontendOrderWithParentTpsl = FrontendOrder & {
   takeProfitPrice?: unknown;
   stopLossPrice?: unknown;
   takeProfitOrderId?: unknown;
   stopLossOrderId?: unknown;
+};
+
+export const HYPERLIQUID_SCALE_CLOID_MARKER = '4d4d5343';
+
+/**
+ * Recover the Scale group shared by MetaMask-generated rung CLOIDs.
+ *
+ * @param clientOrderId - HyperLiquid client order ID.
+ * @returns The Scale handle, or undefined for an unrelated order.
+ */
+export const readScaleGroupId = (
+  clientOrderId: string | null | undefined,
+): string | undefined => {
+  const normalized = clientOrderId?.toLowerCase();
+  if (
+    normalized?.length !== 34 ||
+    !normalized.startsWith(`0x${HYPERLIQUID_SCALE_CLOID_MARKER}`)
+  ) {
+    return undefined;
+  }
+  return `scale:${normalized.slice(2, -2)}`;
 };
 
 const readOptionalString = (value: unknown): string | undefined =>
@@ -95,22 +133,115 @@ export function adaptOrderToSDK(
   return {
     a: assetId,
     b: order.isBuy,
-    p: order.price ?? '0',
+    p: order.price ?? resolveTriggerCapPrice(order) ?? '0',
     s: order.size,
     r: order.reduceOnly ?? false,
-    t:
-      order.orderType === 'limit'
-        ? {
-            limit: { tif: 'Gtc' },
-          }
-        : {
-            limit: { tif: 'FrontendMarket' },
-          },
+    t: adaptOrderTypeToSDK(order),
     c:
       order.clientOrderId && isHexString(order.clientOrderId)
-        ? (order.clientOrderId as Hex)
+        ? order.clientOrderId
         : undefined,
   };
+}
+
+/**
+ * Derive the slippage cap a market-on-trigger order submits as its price.
+ *
+ * A `stop_market` / `take_profit_market` order legitimately carries no limit
+ * price, but the SDK still requires a positive `p` — it is the cap the order
+ * fills against once the trigger fires, not a resting price. Sending `'0'`
+ * fails SDK validation before the request is ever made.
+ *
+ * The cap follows the order's own tolerance, matching `calculateOrderPriceAndSize`
+ * on the `placeOrder` path, so the same order priced through either route gets
+ * the same execution bound.
+ *
+ * @param order - Order params carrying the placement type, trigger price, and
+ * slippage tolerance.
+ * @returns The formatted cap price, or undefined when the order needs no cap.
+ */
+function resolveTriggerCapPrice(order: PerpsOrderParams): string | undefined {
+  if (
+    !isTriggerOrderType(order.orderType) ||
+    isLimitExecutionOrderType(order.orderType) ||
+    !order.triggerPrice
+  ) {
+    return undefined;
+  }
+
+  const triggerPrice = parseFloat(order.triggerPrice);
+  if (!Number.isFinite(triggerPrice)) {
+    return undefined;
+  }
+
+  // Accept the deprecated decimal `slippage` too, normalizing it to bps the way
+  // `placeOrder` does, so neither spelling silently falls back to the default.
+  const effectiveBps =
+    order.maxSlippageBps ??
+    (typeof order.slippage === 'number'
+      ? Math.round(order.slippage * BASIS_POINTS_DIVISOR)
+      : undefined) ??
+    ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps;
+
+  // Buying pays up to the cap, selling accepts down to it.
+  const slippage = effectiveBps / BASIS_POINTS_DIVISOR;
+  const capPrice = order.isBuy
+    ? triggerPrice * (1 + slippage)
+    : triggerPrice * (1 - slippage);
+
+  return capPrice.toString();
+}
+
+/**
+ * Map a placement type onto the SDK's order-type field.
+ *
+ * @param order - Order params carrying the placement type and trigger price
+ * @returns The SDK order-type field
+ */
+function adaptOrderTypeToSDK(order: PerpsOrderParams): SDKOrderParams['t'] {
+  if (isTriggerOrderType(order.orderType)) {
+    if (order.timeInForce !== undefined) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED);
+    }
+    if (!order.triggerPrice) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_REQUIRED);
+    }
+
+    return {
+      trigger: {
+        isMarket: !isLimitExecutionOrderType(order.orderType),
+        triggerPx: order.triggerPrice,
+        tpsl: getTriggerDirection(order.orderType) === 'stop' ? 'sl' : 'tp',
+      },
+    };
+  }
+
+  if (order.orderType === 'limit') {
+    return { limit: { tif: toSDKTimeInForce(order.timeInForce) } };
+  }
+  if (order.timeInForce !== undefined) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_TIME_IN_FORCE_NOT_SUPPORTED);
+  }
+  return { limit: { tif: 'FrontendMarket' } };
+}
+
+/**
+ * Map the provider-agnostic TP/SL linkage onto HyperLiquid's grouping vocabulary.
+ *
+ * @param linkage - How the attached TP/SL is linked.
+ * @returns The HyperLiquid grouping value.
+ */
+export function adaptTpslLinkageToGrouping(
+  linkage: TpslLinkage,
+): 'na' | 'normalTpsl' | 'positionTpsl' {
+  switch (linkage) {
+    case 'position':
+      return 'positionTpsl';
+    case 'order':
+      return 'normalTpsl';
+    default:
+      return 'na';
+  }
 }
 
 export function adaptPositionFromSDK(assetPosition: AssetPosition): Position {
@@ -143,20 +274,28 @@ export function adaptOrderFromSDK(
 ): Order {
   // TODO: Remove this widened boundary type when FrontendOrder includes
   // takeProfitPrice/stopLossPrice and takeProfitOrderId/stopLossOrderId.
-  const parentTpslMetadata = getParentTpslMetadata(
-    rawOrder as FrontendOrderWithParentTpsl,
-  );
+  const parentTpslMetadata = getParentTpslMetadata(rawOrder);
 
   // Extract basic fields with appropriate conversions
-  const orderId = rawOrder.oid.toString();
+  const orderId = rawOrder.oid?.toString() || '';
   const symbol = rawOrder.coin;
   const side: 'buy' | 'sell' = rawOrder.side === 'B' ? 'buy' : 'sell';
   const detailedOrderType = rawOrder.orderType;
   const { isTrigger } = rawOrder;
   const { reduceOnly } = rawOrder;
 
+  const triggerOrderType = adaptTriggerOrderTypeFromSDK(detailedOrderType);
+
   let orderType: 'limit' | 'market' = 'market';
-  if (detailedOrderType.toLowerCase().includes('limit') || rawOrder.limitPx) {
+  if (triggerOrderType) {
+    // Trigger orders always carry a limitPx (the slippage cap for
+    // market-on-trigger execution), so the placement type is the only reliable
+    // source for how the order actually executes.
+    orderType = getTriggerExecution(triggerOrderType);
+  } else if (
+    detailedOrderType?.toLowerCase().includes('limit') ||
+    rawOrder.limitPx
+  ) {
     orderType = 'limit';
   }
 
@@ -185,10 +324,12 @@ export function adaptOrderFromSDK(
 
   // TODO: We assume that there can only be 1 TP and 1 SL as children but there can be several TPSLs as children
   if (rawOrder.children && rawOrder.children.length > 0) {
-    rawOrder.children.forEach((childUnknown) => {
-      const child = childUnknown as FrontendOrder;
+    rawOrder.children.forEach((child) => {
       if (child.isTrigger && child.orderType) {
         if (child.orderType.includes('Take Profit')) {
+          // HyperLiquid represents "no trigger price" as an empty string, not
+          // null/undefined, so `||` (not `??`) is required to fall back to
+          // limitPx when triggerPx is ''.
           takeProfitPrice = child.triggerPx || child.limitPx;
           takeProfitOrderId = child.oid.toString();
         } else if (child.orderType.includes('Stop')) {
@@ -223,6 +364,11 @@ export function adaptOrderFromSDK(
     reduceOnly,
   };
 
+  const strategyGroupId = readScaleGroupId(rawOrder.cloid);
+  if (strategyGroupId) {
+    order.strategyGroupId = strategyGroupId;
+  }
+
   if (typeof rawOrder.isPositionTpsl === 'boolean') {
     order.isPositionTpsl = rawOrder.isPositionTpsl;
   }
@@ -239,7 +385,94 @@ export function adaptOrderFromSDK(
     order.triggerPrice = rawOrder.triggerPx;
   }
 
+  if (triggerOrderType) {
+    order.triggerOrderType = triggerOrderType;
+  }
+
   return order;
+}
+
+/**
+ * Map HyperLiquid's human-readable order type string onto the provider-agnostic
+ * trigger placement type.
+ *
+ * @param detailedOrderType - HyperLiquid `orderType` string (e.g. `'Stop Limit'`)
+ * @returns The normalized trigger placement type, or undefined for non-trigger orders
+ */
+export function adaptTriggerOrderTypeFromSDK(
+  detailedOrderType: string | undefined,
+): TriggerOrderType | undefined {
+  if (!detailedOrderType) {
+    return undefined;
+  }
+
+  const isTakeProfit = detailedOrderType.includes('Take Profit');
+  const isStop = detailedOrderType.includes('Stop');
+
+  if (!isTakeProfit && !isStop) {
+    return undefined;
+  }
+
+  return buildTriggerOrderType({
+    direction: isTakeProfit ? 'take_profit' : 'stop',
+    execution: detailedOrderType.includes('Limit') ? 'limit' : 'market',
+  });
+}
+
+/**
+ * Build the position-state view of a trigger order attached to a position.
+ *
+ * HyperLiquid encodes "the whole position" as size `0` for position-bound TP/SL,
+ * which is resolved here against the position size so consumers always see a
+ * concrete quantity and can tell partial triggers apart.
+ *
+ * @param params - Mapping parameters
+ * @param params.rawOrder - Raw HyperLiquid frontend order
+ * @param params.positionSize - Signed or unsigned position size
+ * @param params.entryPrice - Entry price, used to classify a trigger the exchange left unnamed
+ * @returns The normalized trigger order, or undefined when the order is not a trigger
+ */
+export function adaptPositionTriggerOrderFromSDK(params: {
+  rawOrder: Pick<
+    FrontendOrder,
+    'oid' | 'orderType' | 'triggerPx' | 'limitPx' | 'sz' | 'reduceOnly'
+  >;
+  positionSize: string;
+  entryPrice?: string;
+}): PositionTriggerOrder | undefined {
+  const { rawOrder, positionSize, entryPrice } = params;
+
+  const orderType = adaptTriggerOrderTypeFromSDK(rawOrder.orderType);
+
+  // HyperLiquid uses '' for "no trigger price", so `||` (not `??`) is required.
+  const triggerPrice = rawOrder.triggerPx || rawOrder.limitPx || '0';
+
+  // Same rule as the WebSocket path: an unnamed trigger keeps its recoverable
+  // direction and leaves its execution mode unstated, so both transports
+  // report the same set of orders.
+  const direction = orderType
+    ? getTriggerDirection(orderType)
+    : classifyTriggerDirection({ triggerPrice, entryPrice, positionSize });
+
+  if (!direction) {
+    return undefined;
+  }
+  const absolutePositionSize = Math.abs(parseFloat(positionSize || '0'));
+  const rawSize = Math.abs(parseFloat(rawOrder.sz || '0'));
+
+  // Position-bound TP/SL carries size 0, meaning the whole position.
+  const size = rawSize > 0 ? rawSize : absolutePositionSize;
+
+  return {
+    orderId: rawOrder.oid.toString(),
+    direction,
+    orderType,
+    triggerPrice,
+    size: size.toString(),
+    isPartial:
+      rawSize > 0 && absolutePositionSize > 0 && rawSize < absolutePositionSize,
+    reduceOnly: Boolean(rawOrder.reduceOnly),
+  };
 }
 
 export function adaptMarketFromSDK(
@@ -251,13 +484,17 @@ export function adaptMarketFromSDK(
     maxLeverage: sdkMarket.maxLeverage,
     marginTableId: sdkMarket.marginTableId,
     onlyIsolated: sdkMarket.onlyIsolated,
+    marginMode: sdkMarket.marginMode,
     isDelisted: sdkMarket.isDelisted,
   };
 }
 
+// Perps-only account adapter. Spot balances are layered on afterwards by
+// addSpotBalanceToAccountState, which enforces the USDC-only policy via
+// SPOT_COLLATERAL_COINS. Keeping spot logic out of here preserves a single
+// source of truth for spot balance math.
 export function adaptAccountStateFromSDK(
   perpsState: ClearinghouseStateResponse,
-  spotState?: SpotClearinghouseStateResponse | null,
 ): AccountState {
   const { totalUnrealizedPnl, weightedReturnOnEquity } =
     perpsState.assetPositions.reduce(
@@ -288,20 +525,11 @@ export function adaptAccountStateFromSDK(
 
   const perpsBalance = parseFloat(perpsState.marginSummary.accountValue);
 
-  let spotBalance = 0;
-  if (spotState?.balances && Array.isArray(spotState.balances)) {
-    spotBalance = spotState.balances.reduce(
-      (sum: number, balance: { total?: string }) =>
-        sum + parseFloat(balance.total ?? '0'),
-      0,
-    );
-  }
-
-  const totalBalance = (spotBalance + perpsBalance).toString();
-
+  const withdrawable = perpsState.withdrawable || '0';
   const accountState: AccountState = {
-    availableBalance: perpsState.withdrawable || '0',
-    totalBalance: totalBalance || '0',
+    spendableBalance: withdrawable,
+    withdrawableBalance: withdrawable,
+    totalBalance: perpsBalance.toString() || '0',
     marginUsed: perpsState.marginSummary.totalMarginUsed || '0',
     unrealizedPnl: totalUnrealizedPnl.toString() || '0',
     returnOnEquity: totalReturnOnEquityPercentage || '0',
@@ -400,6 +628,33 @@ export function calculateHip3AssetId(
   );
 }
 
+/**
+ * Build the provider-neutral execution id for a HyperLiquid fill.
+ *
+ * HyperLiquid's `tid` is a 50-bit hash, and the venue documents
+ * `(block_time, coin, tid)` as a trade's global identity, so all three go into
+ * the id. REST and websocket fills report the same `time`, `coin` and `tid` for
+ * one execution, so both transports yield the same id.
+ *
+ * @param fill - The raw HyperLiquid fill.
+ * @param fill.coin - Venue asset name, including any HIP-3 dex prefix.
+ * @param fill.time - Fill block time in milliseconds.
+ * @param fill.tid - Venue trade id.
+ * @returns The id, or `undefined` when the payload carries no `tid`. Omitting
+ * it, rather than stringifying a missing value, keeps malformed fills from
+ * sharing one id.
+ */
+export function buildHyperLiquidFillId(fill: {
+  coin: string;
+  time: number;
+  tid?: number | null;
+}): string | undefined {
+  if (fill.tid === undefined || fill.tid === null) {
+    return undefined;
+  }
+  return `${fill.coin}:${fill.time}:${fill.tid}`;
+}
+
 export function parseAssetName(assetName: string): {
   dex: string | null;
   symbol: string;
@@ -438,10 +693,13 @@ export function adaptHyperLiquidLedgerUpdateToUserHistoryItem(
       let amount = '0';
       let asset = 'USDC';
 
-      if ('usdc' in update.delta && update.delta.usdc) {
+      if (hasProperty(update.delta, 'usdc') && update.delta.usdc) {
         amount = Math.abs(parseFloat(update.delta.usdc)).toString();
       }
-      if ('coin' in update.delta && typeof update.delta.coin === 'string') {
+      if (
+        hasProperty(update.delta, 'coin') &&
+        typeof update.delta.coin === 'string'
+      ) {
         asset = update.delta.coin;
       }
 

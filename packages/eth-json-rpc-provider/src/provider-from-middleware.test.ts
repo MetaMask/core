@@ -6,7 +6,7 @@ import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import {
   providerFromMiddleware,
   providerFromMiddlewareV2,
-} from './provider-from-middleware';
+} from './provider-from-middleware.js';
 
 describe('providerFromMiddleware', () => {
   it('handle a successful request', async () => {
