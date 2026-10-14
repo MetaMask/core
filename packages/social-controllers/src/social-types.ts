@@ -432,6 +432,75 @@ export type SwapCommentResponse = {
   metrics: CommentEngagement;
 };
 
+// ---------------------------------------------------------------------------
+// Copy-trade intents
+// ---------------------------------------------------------------------------
+
+/**
+ * Social resource a copy trade was started from. Only comments are supported.
+ */
+export type CopyTradeOrigin = {
+  kind: 'comment';
+  /** Comment UUID. */
+  id: string;
+};
+
+/**
+ * Trade being copied. Swaps are identified by their Bridge quote id, perps by
+ * the Hyperliquid order id returned on submission.
+ */
+export type CopyTradeExecution =
+  | { product: 'swaps'; quoteId: string }
+  | { product: 'perps'; oid: string };
+
+/**
+ * Options for `POST /v1/copy-trade-intents`.
+ */
+export type CreateCopyTradeIntentOptions = {
+  origin: CopyTradeOrigin;
+  copierAccount: {
+    /**
+     * CAIP-10 id of the account placing the trade. The social-api verifies it
+     * belongs to the authenticated profile.
+     */
+    caip10: string;
+  };
+  execution: CopyTradeExecution;
+};
+
+/**
+ * Account on a copy-trade intent response.
+ */
+export type CopyTradeAccount = {
+  profileId: string;
+  caip10: string;
+};
+
+/**
+ * Payout eligibility snapshotted when the intent is created. `reason` is one
+ * of `comment_source`, `source_account_unavailable`, or `unknown_reason`;
+ * newer social-api builds may add more.
+ */
+export type CopyTradePayoutEligibility = {
+  status: 'payable' | 'non_payable';
+  reason: string;
+};
+
+/**
+ * Response from `POST /v1/copy-trade-intents`. The endpoint is idempotent, so
+ * a retry returns the existing intent.
+ */
+export type CopyTradeIntentResponse = {
+  id: string;
+  origin: CopyTradeOrigin;
+  copierAccount: CopyTradeAccount;
+  sourceAccount: CopyTradeAccount | null;
+  execution: CopyTradeExecution;
+  payoutEligibility: CopyTradePayoutEligibility;
+  /** ISO 8601 timestamp. */
+  createdAt: string;
+};
+
 /**
  * Cursor pagination for the feed. Pass `olderCursor` back as `olderThan` to
  * load older items (infinite scroll), and `newerCursor` as `newerThan` to
