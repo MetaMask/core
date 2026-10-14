@@ -52,10 +52,8 @@ import {
   getPredictWithdrawFeeTokenAccount,
   getPredictWithdrawSafeAddress,
 } from '../../utils/polymarket/withdraw.js';
-import {
-  estimateSourceGas,
-  reservePostQuoteGas,
-} from '../../utils/post-quote.js';
+import { reservePostQuoteGas } from '../../utils/post-quote.js';
+import { estimateSourceGas } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import { resolveNonAtomicRecipient } from '../../utils/second-leg.js';
 import {
