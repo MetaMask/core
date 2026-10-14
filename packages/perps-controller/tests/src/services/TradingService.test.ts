@@ -931,6 +931,58 @@ describe('TradingService', () => {
       );
     });
 
+    it('preserves raw errors and adds normalized slippage analytics', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        trackingData: {
+          totalFee: 0,
+          marketPrice: 50_000,
+          maxSlippageBps: 300,
+          maxSlippageSource: 'user_configured',
+          estimatedSlippageBps: 125,
+        },
+      };
+      const mockOrderResult: OrderResult = {
+        success: false,
+        error: 'Price moved too much: 336 bps (max: 300 bps)',
+        errorCode: PERPS_ERROR_CODES.PRICE_MOVED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PRICE_MOVED,
+          priceDeltaBps: 336,
+          maxSlippageBps: 300,
+          expectedPrice: 50_000,
+          currentPrice: 51_680,
+        },
+      };
+
+      mockProvider.placeOrder.mockResolvedValue(mockOrderResult);
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.TradeTransaction,
+        expect.objectContaining({
+          error_message: mockOrderResult.error,
+          failure_reason: PERPS_ERROR_CODES.PRICE_MOVED,
+          max_slippage_pct: 3,
+          max_slippage_source: 'user_configured',
+          estimated_slippage_pct: 1.25,
+          price_delta_bps: 336,
+        }),
+      );
+    });
+
     it('reports order to data lake on success (fire-and-forget)', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',
@@ -2337,6 +2389,34 @@ describe('TradingService', () => {
         expect.objectContaining({
           status: 'failed',
           error_message: 'Insufficient liquidity',
+        }),
+      );
+    });
+
+    it('classifies a thrown partial close from the requested size', async () => {
+      // A thrown close has no OrderResult, so close_type must come from the
+      // requested size. Closing 0.25 of a 1-unit position is 25%, not a full close.
+      mockGetPositions.mockResolvedValue([{ ...mockPosition, size: '1' }]);
+      mockProvider.closePosition.mockRejectedValue(new Error('route removed'));
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await expect(
+        tradingService.closePosition({
+          provider: mockProvider,
+          params: { symbol: 'BTC', size: '0.25' },
+          context: { ...mockContext, getPositions: mockGetPositions },
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        }),
+      ).rejects.toThrow('route removed');
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.PositionCloseTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          close_type: 'partial',
+          percentage_closed: 25,
         }),
       );
     });

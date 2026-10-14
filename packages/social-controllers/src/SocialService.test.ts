@@ -48,6 +48,7 @@ const mockPosition = {
   soldUsd: 0,
   realizedPnl: 0,
   costBasis: 3000,
+  copyCount: 2,
   trades: [mockTrade],
   lastTradeAt: 1700000000,
   tokenImageUrl: 'https://assets.daylight.xyz/images/token-eth.png',
@@ -1013,6 +1014,34 @@ describe('SocialService', () => {
         SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
       );
     });
+
+    it('always fetches fresh data on repeated calls (staleTime: 0)', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowersResponse),
+      });
+
+      const service = createService();
+      await service.fetchFollowers({ addressOrId: '0x1234' });
+      await service.fetchFollowers({ addressOrId: '0x1234' });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('always fetches fresh data on repeated mutuals calls (staleTime: 0)', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowersResponse),
+      });
+
+      const service = createService();
+      await service.fetchFollowers({ addressOrId: '0x1234', mutuals: true });
+      await service.fetchFollowers({ addressOrId: '0x1234', mutuals: true });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('fetchTraderFollowing', () => {
@@ -1066,6 +1095,20 @@ describe('SocialService', () => {
       ).rejects.toThrow(
         SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_INVALID_RESPONSE,
       );
+    });
+
+    it('always fetches fresh data on repeated calls (staleTime: 0)', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowingResponse),
+      });
+
+      const service = createService();
+      await service.fetchTraderFollowing({ addressOrId: '0x1234' });
+      await service.fetchTraderFollowing({ addressOrId: '0x1234' });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -1396,6 +1439,7 @@ describe('SocialService', () => {
       expect(result.items[0]?.actor.followerCount).toBe(12);
       expect(result.items[0]?.commentCount).toBe(1);
       expect(result.items[0]?.replyCount).toBe(3);
+      expect(result.items[0]?.copyCount).toBe(2);
       expect(result.items[0]?.firstTradeAt).toBe(1_699_999_000);
       expect(result.items[0]?.holdTimeMs).toBe(28_800_000);
       expect(result.items[0]?.entryPriceUsd).toBe(2500);
@@ -2203,6 +2247,184 @@ describe('SocialService', () => {
         }),
       ).rejects.toThrow(
         SocialServiceErrorMessage.CREATE_SWAP_COMMENT_INVALID_RESPONSE,
+      );
+    });
+  });
+
+  describe('createCopyTradeIntent', () => {
+    const origin = {
+      kind: 'comment' as const,
+      id: '7f1a9c2e-5b8d-4e3f-9a6c-1d2e3f4a5b6c',
+    };
+    const copierAccount = {
+      caip10: 'eip155:8453:0x1234567890abcdef1234567890abcdef12345678',
+    };
+    const swapsExecution = {
+      product: 'swaps' as const,
+      quoteId: 'quote-request-1',
+    };
+    const perpsExecution = { product: 'perps' as const, oid: '123456789' };
+
+    const buildIntentResponse = (
+      execution: typeof swapsExecution | typeof perpsExecution,
+    ): Record<string, unknown> => ({
+      id: '3c2b1a09-8f7e-4d6c-b5a4-938271605f4e',
+      origin,
+      copierAccount: {
+        profileId: 'profile-copier',
+        caip10: copierAccount.caip10,
+      },
+      sourceAccount: {
+        profileId: 'profile-source',
+        caip10: 'eip155:8453:0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      },
+      execution,
+      payoutEligibility: { status: 'payable', reason: 'comment_source' },
+      createdAt: '2026-10-14T10:00:00.000Z',
+    });
+
+    it('sends POST with a swaps execution to /copy-trade-intents', async () => {
+      const intent = buildIntentResponse(swapsExecution);
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve(intent),
+      });
+
+      const service = createService();
+      const result = await service.createCopyTradeIntent({
+        origin,
+        copierAccount,
+        execution: swapsExecution,
+      });
+
+      expect(result).toStrictEqual(intent);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/copy-trade-intents`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          origin,
+          copierAccount,
+          execution: swapsExecution,
+        }),
+      });
+    });
+
+    it('sends POST with a perps execution to /copy-trade-intents', async () => {
+      const intent = buildIntentResponse(perpsExecution);
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve(intent),
+      });
+
+      const service = createService();
+      const result = await service.createCopyTradeIntent({
+        origin,
+        copierAccount,
+        execution: perpsExecution,
+      });
+
+      expect(result).toStrictEqual(intent);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/copy-trade-intents`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          origin,
+          copierAccount,
+          execution: perpsExecution,
+        }),
+      });
+    });
+
+    it('resolves with the existing intent when the API answers 200', async () => {
+      const intent = {
+        ...buildIntentResponse(swapsExecution),
+        sourceAccount: null,
+        payoutEligibility: {
+          status: 'non_payable',
+          reason: 'source_account_unavailable',
+        },
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(intent),
+      });
+
+      const service = createService();
+      const result = await service.createCopyTradeIntent({
+        origin,
+        copierAccount,
+        execution: swapsExecution,
+      });
+
+      expect(result).toStrictEqual(intent);
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = createService();
+
+      await expect(
+        service.createCopyTradeIntent({
+          origin,
+          copierAccount,
+          execution: swapsExecution,
+        }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.CREATE_COPY_TRADE_INTENT_FAILED}: 404`,
+      );
+    });
+
+    it('throws when the execution does not match a known product', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: () =>
+          Promise.resolve({
+            ...buildIntentResponse(swapsExecution),
+            execution: { product: 'swaps', oid: '123' },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.createCopyTradeIntent({
+          origin,
+          copierAccount,
+          execution: swapsExecution,
+        }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.CREATE_COPY_TRADE_INTENT_INVALID_RESPONSE,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve({ id: 1 }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.createCopyTradeIntent({
+          origin,
+          copierAccount,
+          execution: perpsExecution,
+        }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.CREATE_COPY_TRADE_INTENT_INVALID_RESPONSE,
       );
     });
   });

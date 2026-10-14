@@ -86,7 +86,9 @@ export type StateKeys = {
 export type ServiceState = {
   [entropySource: StateKeys['entropySource']]: {
     [groupIndex: string]: {
-      [providerName: StateKeys['providerName']]: Bip44Account<KeyringAccount>['id'][];
+      [
+        providerName: StateKeys['providerName']
+      ]: Bip44Account<KeyringAccount>['id'][];
     };
   };
 };

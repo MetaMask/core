@@ -253,6 +253,27 @@ export type SocialServiceCreateSwapCommentAction = {
 };
 
 /**
+ * Records that the current user is copying a trade from a social post, so
+ * the copy can be detected and attributed to the post's author.
+ *
+ * Calls `POST ${baseUrl}/copy-trade-intents`. Send swaps before submission
+ * with the Bridge quote id, and perps right after submission with the
+ * returned order id. The endpoint is idempotent per profile, origin, and
+ * execution id: it answers 201 for a new intent and 200 with the existing
+ * one on a retry.
+ *
+ * @param options - Options bag.
+ * @param options.origin - Comment the trade was copied from.
+ * @param options.copierAccount - CAIP-10 account placing the trade.
+ * @param options.execution - Swap quote id or perps order id.
+ * @returns The created or existing copy-trade intent.
+ */
+export type SocialServiceCreateCopyTradeIntentAction = {
+  type: `SocialService:createCopyTradeIntent`;
+  handler: SocialService['createCopyTradeIntent'];
+};
+
+/**
  * Fetches the list of traders the current user is following.
  *
  * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
@@ -432,6 +453,7 @@ export type SocialServiceMethodActions =
   | SocialServiceReactToCommentAction
   | SocialServiceRemoveCommentReactionAction
   | SocialServiceCreateSwapCommentAction
+  | SocialServiceCreateCopyTradeIntentAction
   | SocialServiceFetchFollowingAction
   | SocialServiceFetchMyFollowingAction
   | SocialServiceFetchMyFollowersAction

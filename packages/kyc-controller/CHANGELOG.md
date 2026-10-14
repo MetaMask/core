@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0]
+
+### Added
+
+- Add `@metamask/authenticated-user-storage` `^4.1.0` as a dependency ([#10452](https://github.com/MetaMask/core/pull/10452))
+
+### Changed
+
+- **BREAKING:** `KycController` now requires messenger actions `AuthenticatedUserStorageService:putIdentitySharingConsent` and `AuthenticationController:getPartnerIdentityToken` ([#10452](https://github.com/MetaMask/core/pull/10452))
+- **BREAKING:** `KycService.createVendorCustomer` and `KycService.createMoonpaySession` take `partnerIdentityToken` instead of a plaintext `email` ([#10452](https://github.com/MetaMask/core/pull/10452))
+  - `POST /vendors/{vendor}/customers` sends `{ partnerIdentityToken }`
+  - `POST /vendors/moonpay/sessions` sends `partnerIdentityToken` instead of `email`
+  - `KycController.startSession` forwards the token minted by `AuthenticationController:getPartnerIdentityToken`
+- Remove the `email` parameter from `KycController.startSession` and the `KycController:startSession` messenger action ([#10452](https://github.com/MetaMask/core/pull/10452))
+  - Email is resolved from a partner identity token. The token's `ext.email` is used only when `ext.email_verified` is `true`
+  - If that request returns HTTP 422 (`EmailRequiredError`), `startSession` throws when it must create a vendor customer or the controller has no stored email
+- `KycService.createUkycSession` no longer sends a `jwtToken` field on `POST /sessions` ([#10630](https://github.com/MetaMask/core/pull/10630))
+
+## [0.9.0]
+
 ### Added
 
 - Add `KycService.resetWrappingKeys`, which posts `POST /sessions/{sessionId}/wrapping-keys` with `sessionClientPublicKey` and returns `UkycSessionResponse` ([#10692](https://github.com/MetaMask/core/pull/10692))
@@ -148,7 +168,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.10.0...HEAD
+[0.10.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.9.0...@metamask/kyc-controller@0.10.0
+[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.8.0...@metamask/kyc-controller@0.9.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.7.0...@metamask/kyc-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.1...@metamask/kyc-controller@0.7.0
 [0.6.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.0...@metamask/kyc-controller@0.6.1
