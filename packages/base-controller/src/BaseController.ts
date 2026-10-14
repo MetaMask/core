@@ -466,16 +466,15 @@ export type ValidatableController<
  * type is narrowed to the type of the struct's contents.
  *
  * @param name - The name of the controller.
- * @param controller - The static controller.
+ * @param controllerConstructor - The controller class, which defines a static
+ * `struct` property.
  * @param state - The unvalidated state of the controller.
  * @param mode - The validation mode ('strict').
  * @returns The validated controller state.
  */
-export function validateControllerState<
-  ValidatedState extends StateConstraint,
->(
+export function validateControllerState<ValidatedState extends StateConstraint>(
   name: string,
-  controller: ValidatableController<unknown, ValidatedState>,
+  controllerConstructor: ValidatableController<unknown, ValidatedState>,
   state: unknown,
   mode: 'strict',
 ): ValidatedState;
@@ -489,7 +488,8 @@ export function validateControllerState<
  * struct's contents or the type of the given state.
  *
  * @param name - The name of the controller.
- * @param controller - The static controller.
+ * @param controllerConstructor - The controller class, which defines a static
+ * `struct` property.
  * @param state - The unvalidated state of the controller.
  * @param mode - The validation mode ('lenient').
  * @param captureException - A utility function for reporting an error to Sentry.
@@ -500,7 +500,7 @@ export function validateControllerState<
   UnvalidatedState,
 >(
   name: string,
-  controller: ValidatableController<unknown, ValidatedState>,
+  controllerConstructor: ValidatableController<unknown, ValidatedState>,
   state: UnvalidatedState,
   mode: 'lenient',
   captureException?: (error: Error) => void,
@@ -511,12 +511,15 @@ export function validateControllerState<
   UnvalidatedState,
 >(
   name: string,
-  controller: ValidatableController<unknown, ValidatedState>,
+  controllerConstructor: ValidatableController<unknown, ValidatedState>,
   state: UnvalidatedState,
   mode: 'strict' | 'lenient',
   captureException?: (error: Error) => void,
 ): ValidatedState | UnvalidatedState {
-  const [validationError, result] = validate(state, controller.struct);
+  const [validationError, result] = validate(
+    state,
+    controllerConstructor.struct,
+  );
 
   if (!validationError) {
     return result;
