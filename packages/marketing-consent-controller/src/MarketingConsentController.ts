@@ -149,15 +149,20 @@ function isConsentSyncReady(
 // === CONTROLLER ===
 
 /**
- * Keeps the decided marketing consent in sync with the signed-in user's
- * Authenticated User Storage (AUS) profile.
+ * Keeps the user's marketing consent (held locally by `AnalyticsController`)
+ * in sync with their Authenticated User Storage (AUS) profile. AUS is the
+ * source of truth.
  *
+ * - Clients change consent with
+ * {@link MarketingConsentController.setMarketingConsent}, which resolves once
+ * AUS has saved the change.
  * - On sign-in, unlock or {@link MarketingConsentController.refresh}, consent
  * is read from AUS and applied locally.
- * - A local change made before the AUS read wins and is written to AUS.
- * - If AUS has no record, the local value is written to it.
- * - Before every opt-out write, AUS "marketing" notification channels are
- * turned off, so AUS never has consent off with a channel on.
+ * - A local change not yet saved (e.g. made while signed out) wins at the next
+ * sync and is written to AUS. If AUS has no record, the local value is
+ * written to it.
+ * - Whenever consent is off, the AUS "marketing" notification channels are
+ * turned off too, including when another client revoked consent.
  */
 export class MarketingConsentController extends BaseController<
   typeof controllerName,
