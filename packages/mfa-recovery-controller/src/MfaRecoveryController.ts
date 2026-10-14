@@ -43,7 +43,8 @@ import {
   pendingPayloadHasIdentifiers,
   pendingPayloadHasRecoverySecret,
 } from './pending-operation-validation.js';
-import { assertAbortAllowed, getRecoveryPhase } from './state-machine.js';
+import type { RecoveryEvent } from './state-machine.js';
+import { assertTransition, getRecoveryPhase } from './state-machine.js';
 import type {
   AuthControllerToken,
   EcPublicJwk,
@@ -478,8 +479,12 @@ export class MfaRecoveryController extends BaseController<
    * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
    *
    * Cancels an in-flight operation that has not started writing to escrows.
+   *
+   * @param options - Abort options.
+   * @param options.discardUnreadable - Also clear a pending record that cannot
+   * be decrypted or validated. The record is cleared without being read.
    */
-  async abort(): Promise<void> {
+  async abort(options: { discardUnreadable?: boolean } = {}): Promise<void> {
     if (this.#inFlight?.applying) {
       throw new MfaRecoveryError(
         'Cannot abort while a mutation is being written',
@@ -489,31 +494,43 @@ export class MfaRecoveryController extends BaseController<
     this.#abortGeneration += 1;
     this.#inFlight?.controller.abort();
     await this.#withLock(async () => {
-      const pending = await this.#loadPending();
-      assertAbortAllowed(pending);
-      if (pending) {
-        await this.#clearPending();
+      let pending: PendingOperation | null;
+      try {
+        pending = await this.#loadPending();
+      } catch (error) {
+        if (options.discardUnreadable === true && isPendingUnreadable(error)) {
+          await this.#transition('discardUnreadable', 'unreadable', null);
+          return;
+        }
+        throw error;
       }
+      await this.#transition('abort', getRecoveryPhase(pending), null);
     });
   }
 
   /**
-   * @returns Current recovery phase.
+   * @returns Current recovery phase. `unreadable` when the persisted pending
+   * record cannot be decrypted or validated.
    */
   async getPhase(): Promise<RecoveryPhase> {
-    return getRecoveryPhase(await this.#loadPending());
+    try {
+      return getRecoveryPhase(await this.#loadPending());
+    } catch (error) {
+      if (isPendingUnreadable(error)) {
+        return 'unreadable';
+      }
+      throw error;
+    }
   }
 
   async #mutate(params: MutateParams): Promise<void> {
     const { operation, payload, identifier, epoch } = params;
     await this.#withInFlightOperation(async (inFlight) => {
       const { signal } = inFlight.controller;
-      if (await this.#loadPending(signal)) {
-        throw new MfaRecoveryError(
-          'A pending mutation must be resumed or aborted first',
-          'pending_mutation',
-        );
-      }
+      assertTransition(
+        'start',
+        getRecoveryPhase(await this.#loadPending(signal)),
+      );
 
       const profileId = await withTimeout(
         (childSignal) =>
@@ -544,7 +561,7 @@ export class MfaRecoveryController extends BaseController<
         payload,
         identifier,
       };
-      await this.#persistPending(pending, signal);
+      await this.#transition('start', 'idle', pending, signal);
 
       const authControllerToken = await this.#authorizeMutation(
         mutation,
@@ -560,6 +577,7 @@ export class MfaRecoveryController extends BaseController<
           dispatchedEscrowIds: [],
         },
         inFlight,
+        'authorizing',
       );
     });
   }
@@ -607,23 +625,30 @@ export class MfaRecoveryController extends BaseController<
           dispatchedEscrowIds: [],
         },
         inFlight,
+        'authorizing',
       );
       return;
     }
 
     // writing phase
-    await this.#replicateMutation(pending, inFlight);
+    await this.#replicateMutation(pending, inFlight, 'writing');
   }
 
+  /**
+   * @param pending - Pending record to replicate, with `writing` phase fields.
+   * @param inFlight - Operation that owns this replication.
+   * @param from - Persisted phase before this replication started.
+   */
   async #replicateMutation(
     pending: WritingPendingOperation,
     inFlight: InFlightOperation,
+    from: 'authorizing' | 'writing',
   ): Promise<void> {
     const { signal } = inFlight.controller;
     const { mutation, payload, identifier } = pending;
     const remainingEscrows = this.#getRemainingEscrows(pending);
     if (remainingEscrows.length === 0) {
-      await this.#clearPending();
+      await this.#transition('complete', from, null);
       return;
     }
 
@@ -677,7 +702,7 @@ export class MfaRecoveryController extends BaseController<
       this.#payloadForEscrow(writing, escrow),
     );
 
-    await this.#persistPending(writing, signal);
+    await this.#transition('write', from, writing, signal);
     throwIfAborted(signal);
     inFlight.applying = true;
     const results = await Promise.allSettled(
@@ -705,10 +730,10 @@ export class MfaRecoveryController extends BaseController<
         firstSendIds,
       });
     if (rejection) {
-      await this.#clearPending();
+      await this.#transition('reject', 'writing', null);
       throw rejection;
     }
-    await this.#persistPending({ ...writing, receipts });
+    await this.#transition('write', 'writing', { ...writing, receipts });
 
     if (hasInvalidReceipt) {
       throw new MfaRecoveryError('Invalid mutation receipt', 'invalid_receipt');
@@ -720,7 +745,7 @@ export class MfaRecoveryController extends BaseController<
     ) {
       throw new IncompleteMutationError(mutation.id);
     }
-    await this.#clearPending();
+    await this.#transition('complete', 'writing', null);
   }
 
   #getRemainingEscrows(
@@ -982,12 +1007,25 @@ export class MfaRecoveryController extends BaseController<
     if (pendingOperation === null) {
       return null;
     }
-    const pending = (await withTimeout(
-      async () => await this.#encryptor.decrypt(pendingOperation),
-      { ms: this.#requestTimeoutMs, signal, kind: 'request' },
-    )) as unknown;
-    await this.#assertPending(pending);
-    const loaded = pending as PendingOperation;
+    let loaded: PendingOperation;
+    try {
+      const pending = (await withTimeout(
+        async () => await this.#encryptor.decrypt(pendingOperation),
+        { ms: this.#requestTimeoutMs, signal, kind: 'request' },
+      )) as unknown;
+      await this.#assertPending(pending);
+      loaded = pending as PendingOperation;
+    } catch (error) {
+      // Timeouts and aborts are transient, so the record is kept as it is.
+      if (isTransientLoadError(error)) {
+        throw error;
+      }
+      throw new MfaRecoveryError(
+        'Pending mutation cannot be read; call abort({ discardUnreadable: true })',
+        'pending_unreadable',
+        { cause: error },
+      );
+    }
     if (
       loaded.phase === 'writing' &&
       loaded.dispatchedEscrowIds === undefined
@@ -1026,6 +1064,30 @@ export class MfaRecoveryController extends BaseController<
       pending,
       this.#escrows.map((escrow) => escrow.id),
     );
+  }
+
+  /**
+   * Persists the next pending record, or clears it, for one recovery event.
+   * Every persisted phase change goes through here so that the transition
+   * table in `state-machine.ts` decides whether the change is allowed.
+   *
+   * @param event - Event that changes the phase.
+   * @param from - Persisted phase before the event.
+   * @param next - Record to store, or `null` to clear pending state.
+   * @param signal - Cancels the write before it is stored, if given.
+   */
+  async #transition(
+    event: RecoveryEvent,
+    from: RecoveryPhase,
+    next: PendingOperation | null,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    assertTransition(event, from);
+    if (next === null) {
+      await this.#clearPending();
+      return;
+    }
+    await this.#persistPending(next, signal);
   }
 
   async #clearPending(): Promise<void> {
@@ -1084,6 +1146,27 @@ function assertValidTimeout(value: number): void {
  * @param signal - Operation signal, if any.
  * @throws `operation_aborted` when `signal` has been aborted.
  */
+/**
+ * @param error - Error thrown while loading pending state.
+ * @returns Whether the error means the record is unreadable.
+ */
+function isPendingUnreadable(error: unknown): boolean {
+  return (
+    error instanceof MfaRecoveryError && error.code === 'pending_unreadable'
+  );
+}
+
+/**
+ * @param error - Error thrown while loading pending state.
+ * @returns Whether the error is a timeout or abort, which keeps the record.
+ */
+function isTransientLoadError(error: unknown): boolean {
+  return (
+    error instanceof MfaRecoveryError &&
+    (error.code === 'request_timeout' || error.code === 'operation_aborted')
+  );
+}
+
 function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
     throw new MfaRecoveryError('Operation aborted', 'operation_aborted');

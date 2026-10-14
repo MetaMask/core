@@ -19,12 +19,19 @@
  *   `authorizing` pending to `idle`.
  * - `abort_not_allowed` — {@link MfaRecoveryController.abort} while escrow apply
  *   may have started; finish with {@link MfaRecoveryController.resume}.
+ * - `pending_unreadable` — the persisted pending record cannot be decrypted or
+ *   validated (for example, the encryption key or escrow set changed). The
+ *   original error is available as `cause`. {@link MfaRecoveryController.getPhase}
+ *   reports `unreadable`; {@link MfaRecoveryController.abort} with
+ *   `discardUnreadable: true` clears the record without reading it.
+ * - `invalid_transition` — an internal phase change was not allowed by the
+ *   transition table. This indicates a bug in the controller.
  */
 export class MfaRecoveryError extends Error {
   readonly code: string;
 
-  constructor(message: string, code: string) {
-    super(message);
+  constructor(message: string, code: string, options?: { cause?: unknown }) {
+    super(message, options);
     this.name = 'MfaRecoveryError';
     this.code = code;
     Object.setPrototypeOf(this, new.target.prototype);

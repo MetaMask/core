@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Forward cooperative `AbortSignal` values to injected auth, identifier, and escrow providers; `CubistEscrowProvider` skips new `policyInvoke` calls when already aborted but cannot cancel an in-flight SDK request
   - `getPhase` and `getRecoverySecret` do not wait for the mutation lock and may run while a mutation is authorizing or writing
   - `abort()` aborts in-flight authorizing work, clears `authorizing` pending, and rejects operations queued before the abort with `operation_aborted`; rejects immediately with `abort_not_allowed` once escrow apply may have started (`writing` must `resume()`). A resume of persisted `writing` state may be cancelled during pre-apply work but still rejects `abort()` and leaves the pending mutation unchanged
+  - `abort` accepts `{ discardUnreadable?: boolean }`; when set, it clears a persisted pending record that cannot be decrypted or validated, without reading it
+  - `getPhase` returns the new `unreadable` phase (added to `RecoveryPhase`) instead of throwing when the persisted pending record cannot be read
+  - Unreadable pending records fail with `pending_unreadable`, with the original error available as `cause`; timeouts and aborts while reading still throw their own codes and keep the record
+  - Adds `invalid_transition` for internal phase changes that the transition table does not allow
 
 ### Changed
 

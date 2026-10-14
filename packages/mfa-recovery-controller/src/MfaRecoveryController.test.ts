@@ -1329,9 +1329,13 @@ describe('MfaRecoveryController', () => {
           messenger: getMessenger(getRootMessenger()),
           state: { pendingOperation: writing },
         });
-        await expect(controller.resume()).rejects.toThrow(
-          'Persisted mutation audiences do not match configured escrows',
-        );
+        const error = await controller
+          .resume()
+          .catch((caught: unknown) => caught);
+        expect(error).toMatchObject({ code: 'pending_unreadable' });
+        expect((error as MfaRecoveryError).cause).toMatchObject({
+          code: 'audience_mismatch',
+        });
       });
     });
 
@@ -1367,9 +1371,13 @@ describe('MfaRecoveryController', () => {
           messenger: getMessenger(getRootMessenger()),
           state: { pendingOperation: writing },
         });
-        await expect(controller.resume()).rejects.toThrow(
-          'Pending payload does not match mutation',
-        );
+        const error = await controller
+          .resume()
+          .catch((caught: unknown) => caught);
+        expect(error).toMatchObject({ code: 'pending_unreadable' });
+        expect((error as MfaRecoveryError).cause).toMatchObject({
+          code: 'payload_mismatch',
+        });
       });
     });
 
@@ -1596,9 +1604,13 @@ describe('MfaRecoveryController', () => {
           state: { pendingOperation: 'null' },
         });
 
-        await expect(controller.resume()).rejects.toThrow(
-          'Invalid pending operation',
-        );
+        const error = await controller
+          .resume()
+          .catch((caught: unknown) => caught);
+        expect(error).toMatchObject({ code: 'pending_unreadable' });
+        expect((error as MfaRecoveryError).cause).toMatchObject({
+          code: 'invalid_pending_operation',
+        });
 
         expect(auth).not.toHaveBeenCalled();
         expect(availabilityA).not.toHaveBeenCalled();
@@ -1883,7 +1895,11 @@ describe('MfaRecoveryController', () => {
             state: { pendingOperation: JSON.stringify(pending) },
           });
 
-          await expect(controller.resume()).rejects.toMatchObject({
+          const error = await controller
+            .resume()
+            .catch((caught: unknown) => caught);
+          expect(error).toMatchObject({ code: 'pending_unreadable' });
+          expect((error as MfaRecoveryError).cause).toMatchObject({
             code: 'invalid_pending_operation',
           });
 
@@ -2327,6 +2343,204 @@ describe('MfaRecoveryController', () => {
     });
   });
 
+  describe('unreadable pending state', () => {
+    const failingDecrypt = async (): Promise<never> => {
+      throw new Error('Key not found');
+    };
+
+    const UNREADABLE_CASES = [
+      {
+        name: 'the encryption key is lost',
+        build: async (): Promise<MfaRecoveryController> => {
+          const [escrowA, escrowB] = createEscrowPair();
+          return new MfaRecoveryController({
+            ...getOptions(escrowA, escrowB),
+            messenger: getMessenger(getRootMessenger()),
+            pendingOperationEncryptor: {
+              ...passthroughEncryptor,
+              decrypt: failingDecrypt,
+            },
+            state: { pendingOperation: 'ciphertext-from-lost-key' },
+          });
+        },
+      },
+      {
+        name: 'the escrow order changed',
+        build: async (): Promise<MfaRecoveryController> => {
+          // The pending record was written under the old order [a, b]. The
+          // reconfigured escrows (order [b, a]) must also expect [b, a].
+          const [escrowA, escrowB] = createEscrowPair();
+          const pending = await getValidWritingPending([escrowA, escrowB]);
+          const [newA, newB] = createEscrowPair(['escrow-b', 'escrow-a']);
+          return createControllerWithPending(getOptions(newB, newA), pending);
+        },
+      },
+      {
+        name: 'an identifier type was removed',
+        build: async (): Promise<MfaRecoveryController> => {
+          const [escrowA, escrowB] = createEscrowPair();
+          const pending = await getValidWritingPending([escrowA, escrowB]);
+          pending.identifier = { ...PASSKEY, type: 'retired-type' };
+          return createControllerWithPending(
+            getOptions(escrowA, escrowB),
+            pending,
+          );
+        },
+      },
+      {
+        name: 'the AuthController token format changed',
+        build: async (): Promise<MfaRecoveryController> => {
+          const [escrowA, escrowB] = createEscrowPair();
+          const pending = await getValidWritingPending([escrowA, escrowB]);
+          pending.authControllerToken = 'not-a-jwt';
+          return createControllerWithPending(
+            getOptions(escrowA, escrowB),
+            pending,
+          );
+        },
+      },
+    ];
+
+    it.each(UNREADABLE_CASES)(
+      'reports an unreadable phase when $name',
+      async ({ build }) => {
+        const controller = await build();
+
+        expect(await controller.getPhase()).toBe('unreadable');
+        const resumeError = await controller
+          .resume()
+          .catch((caught: unknown) => caught);
+        expect(resumeError).toMatchObject({ code: 'pending_unreadable' });
+        expect((resumeError as Error).cause).toBeDefined();
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toMatchObject({ code: 'pending_unreadable' });
+        await expect(controller.abort()).rejects.toMatchObject({
+          code: 'pending_unreadable',
+        });
+      },
+    );
+
+    it.each(UNREADABLE_CASES)(
+      'discards the unreadable record and allows a new register when $name',
+      async ({ build }) => {
+        const controller = await build();
+
+        await controller.abort({ discardUnreadable: true });
+        expect(await controller.getPhase()).toBe('idle');
+
+        await controller.register(SECRET, IDENTIFIERS);
+        expect(await controller.getPhase()).toBe('idle');
+      },
+    );
+
+    it('keeps the record and rethrows a transient decrypt timeout', async () => {
+      const [escrowA, escrowB] = createEscrowPair();
+      const controller = new MfaRecoveryController({
+        ...getOptions(escrowA, escrowB),
+        messenger: getMessenger(getRootMessenger()),
+        requestTimeoutMs: 20,
+        pendingOperationEncryptor: {
+          ...passthroughEncryptor,
+          decrypt: async (): Promise<never> =>
+            await new Promise<never>(() => undefined),
+        },
+        state: { pendingOperation: 'ciphertext' },
+      });
+
+      await expect(controller.getPhase()).rejects.toMatchObject({
+        code: 'request_timeout',
+      });
+      await expect(
+        controller.abort({ discardUnreadable: true }),
+      ).rejects.toMatchObject({ code: 'request_timeout' });
+      expect(controller.state.pendingOperation).toBe('ciphertext');
+    });
+
+    it('refuses to discard a readable writing record', async () => {
+      const [escrowA, escrowB] = createEscrowPair();
+      const pending = await getValidWritingPending([escrowA, escrowB]);
+      const controller = createControllerWithPending(
+        getOptions(escrowA, escrowB),
+        pending,
+      );
+      const before = controller.state.pendingOperation;
+
+      await expect(
+        controller.abort({ discardUnreadable: true }),
+      ).rejects.toMatchObject({ code: 'abort_not_allowed' });
+      expect(controller.state.pendingOperation).toBe(before);
+    });
+
+    it('clears a readable authorizing record with discardUnreadable', async () => {
+      const [escrowA, escrowB] = createEscrowPair();
+      const pending = await getValidWritingPending([escrowA, escrowB]);
+      const controller = createControllerWithPending(
+        getOptions(escrowA, escrowB),
+        {
+          phase: 'authorizing',
+          mutation: pending.mutation,
+          payload: pending.payload,
+          identifier: pending.identifier,
+        },
+      );
+
+      await controller.abort({ discardUnreadable: true });
+      expect(await controller.getPhase()).toBe('idle');
+      expect(controller.state.pendingOperation).toBeNull();
+    });
+
+    it('does nothing when idle', async () => {
+      const [escrowA, escrowB] = createEscrowPair();
+      const controller = new MfaRecoveryController(
+        getOptions(escrowA, escrowB),
+      );
+
+      await controller.abort({ discardUnreadable: true });
+      expect(await controller.getPhase()).toBe('idle');
+      expect(controller.state.pendingOperation).toBeNull();
+    });
+
+    it('rejects discard while applyMutation is hung', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.applyMutationHang.enabled = true;
+        const mutation = controller.updateRecoverySecret(
+          PASSKEY,
+          SECRET_2,
+          REGISTERED_EPOCH,
+        );
+        await waitForHang(escrowA.applyMutationHang);
+
+        await expect(
+          raceWithDeadline(controller.abort({ discardUnreadable: true }), 100),
+        ).rejects.toMatchObject({ code: 'abort_not_allowed' });
+
+        escrowA.applyMutationHang.release();
+        await mutation;
+      });
+    });
+
+    it('accepts discardUnreadable through the messenger', async () => {
+      const controllerMessenger = getMessenger(getRootMessenger());
+      const [escrowA, escrowB] = createEscrowPair();
+      const controller = new MfaRecoveryController({
+        ...getOptions(escrowA, escrowB),
+        messenger: controllerMessenger,
+        pendingOperationEncryptor: {
+          ...passthroughEncryptor,
+          decrypt: failingDecrypt,
+        },
+        state: { pendingOperation: 'ciphertext' },
+      });
+
+      await controllerMessenger.call('MfaRecoveryController:abort', {
+        discardUnreadable: true,
+      });
+      expect(controller.state.pendingOperation).toBeNull();
+    });
+  });
+
   describe('identifier registry', () => {
     it('rejects unknown identifier types', async () => {
       await withController(async ({ controller }) => {
@@ -2439,6 +2653,34 @@ async function getValidWritingPending(
     receipts: [],
     dispatchedEscrowIds: escrows.map((escrow) => escrow.id),
   };
+}
+
+function createEscrowPair(
+  replicaIds = ['escrow-a', 'escrow-b'],
+): [StubEscrowProvider, StubEscrowProvider] {
+  return [
+    new StubEscrowProvider('escrow-a', generateSigningKey(), replicaIds),
+    new StubEscrowProvider('escrow-b', generateSigningKey(), replicaIds),
+  ];
+}
+
+/**
+ * Builds a controller whose persisted state is the JSON-encoded `pending`
+ * value, read back through the passthrough encryptor.
+ *
+ * @param options - Controller options; the messenger and state are replaced.
+ * @param pending - Value to store as the pending operation.
+ * @returns A controller with the given pending state.
+ */
+function createControllerWithPending(
+  options: MfaRecoveryControllerOptions,
+  pending: unknown,
+): MfaRecoveryController {
+  return new MfaRecoveryController({
+    ...options,
+    messenger: getMessenger(getRootMessenger()),
+    state: { pendingOperation: JSON.stringify(pending) },
+  });
 }
 
 /**

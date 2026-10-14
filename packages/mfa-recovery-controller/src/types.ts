@@ -210,7 +210,12 @@ export type PendingOperation =
   | AuthorizingPendingOperation
   | WritingPendingOperation;
 
-export type RecoveryPhase = 'idle' | PendingOperation['phase'];
+/**
+ * Recovery phase reported by `getPhase`. `unreadable` means the persisted
+ * pending record cannot be decrypted or validated; call
+ * `abort({ discardUnreadable: true })` to clear it.
+ */
+export type RecoveryPhase = 'idle' | 'unreadable' | PendingOperation['phase'];
 
 /**
  * Encoded ciphertext of {@link PendingOperation}. Wallet secure storage

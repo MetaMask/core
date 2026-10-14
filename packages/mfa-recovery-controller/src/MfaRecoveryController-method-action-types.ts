@@ -79,6 +79,10 @@ export type MfaRecoveryControllerResumeAction = {
  * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
  *
  * Cancels an in-flight operation that has not started writing to escrows.
+ *
+ * @param options - Abort options.
+ * @param options.discardUnreadable - Also clear a pending record that cannot
+ * be decrypted or validated. The record is cleared without being read.
  */
 export type MfaRecoveryControllerAbortAction = {
   type: `MfaRecoveryController:abort`;
@@ -86,7 +90,8 @@ export type MfaRecoveryControllerAbortAction = {
 };
 
 /**
- * @returns Current recovery phase.
+ * @returns Current recovery phase. `unreadable` when the persisted pending
+ * record cannot be decrypted or validated.
  */
 export type MfaRecoveryControllerGetPhaseAction = {
   type: `MfaRecoveryController:getPhase`;

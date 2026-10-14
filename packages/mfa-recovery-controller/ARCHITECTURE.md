@@ -56,12 +56,17 @@ Public surface: `register`, `updateRecoverySecret`, `updateIdentifiers`,
 ## State machine
 
 Persisted phase is derived from decrypted pending state: no pending → `idle`.
+If the persisted record cannot be decrypted or validated, `getPhase` reports
+`unreadable` instead.
 
 ```mermaid
 stateDiagram-v2
   [*] --> idle
   idle --> authorizing: register / updateRecoverySecret / updateIdentifiers
   authorizing --> idle: abort()
+  authorizing --> unreadable: record cannot be read
+  writing --> unreadable: record cannot be read
+  unreadable --> idle: abort({ discardUnreadable: true })
   authorizing --> writing: pre-apply authorization and escrow checks succeed
   writing --> writing: more receipts, still missing replicas
   writing --> idle: every configured escrow has a valid receipt
@@ -81,6 +86,16 @@ Rules:
   persisted `writing` mutation before its next apply, `abort()` may cancel that
   pre-apply work but still rejects with `abort_not_allowed` after the persisted
   phase check; the `writing` mutation remains unchanged.
+- Every persisted phase change goes through the event table in
+  `src/state-machine.ts` (`start`, `write`, `complete`, `reject`, `abort`,
+  `discardUnreadable`). A transition the table does not allow throws before
+  anything is stored.
+- **`abort({ discardUnreadable: true })`** also clears a record that cannot be
+  read. The record is cleared without decrypting it, so this works after a lost
+  encryption key or an escrow reorder. A readable `writing` record is still
+  refused. Transient timeouts and aborts while reading keep the record.
+  Escrows may then hold different versions; `getRecoverySecret` returns the
+  highest consistent one.
 - `writing` is persisted before the **first escrow apply** after identifier
   authorization succeeds, so an ambiguous apply failure remains resumable while
   pre-write authorization failures stay abortable.
@@ -282,13 +297,15 @@ authorization or replication is pending elsewhere.
 
 ### Controller error codes (timeouts and cancellation)
 
-| Code                | Typical cause                                                           | Pending phase / recovery                                                                                                                      |
-| ------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `invalid_timeout`   | Non-integer or non-positive `*TimeoutMs` option                         | Controller not constructed; fix options and retry                                                                                             |
-| `prompt_timeout`    | User-facing prompt exceeded `promptTimeoutMs`                           | Often `authorizing` with pending stored; `abort()` or `resume()`                                                                              |
-| `request_timeout`   | Network/storage call exceeded `requestTimeoutMs`                        | Depends on step: pre-write may leave `authorizing`; after writing is persisted, may leave `writing` (treat like ambiguous apply — `resume()`) |
-| `operation_aborted` | `abort()`, parent signal aborted, or stale queue after abort generation | Allowed `abort()` clears pending → `idle`; otherwise same as the step that was cancelled                                                      |
-| `abort_not_allowed` | `abort()` while `applying` or pending is `writing`                      | Pending unchanged; call `resume()`                                                                                                            |
+| Code                 | Typical cause                                                                                                           | Pending phase / recovery                                                                                                                                              |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `invalid_timeout`    | Non-integer or non-positive `*TimeoutMs` option                                                                         | Controller not constructed; fix options and retry                                                                                                                     |
+| `prompt_timeout`     | User-facing prompt exceeded `promptTimeoutMs`                                                                           | Often `authorizing` with pending stored; `abort()` or `resume()`                                                                                                      |
+| `request_timeout`    | Network/storage call exceeded `requestTimeoutMs`                                                                        | Depends on step: pre-write may leave `authorizing`; after writing is persisted, may leave `writing` (treat like ambiguous apply — `resume()`)                         |
+| `operation_aborted`  | `abort()`, parent signal aborted, or stale queue after abort generation                                                 | Allowed `abort()` clears pending → `idle`; otherwise same as the step that was cancelled                                                                              |
+| `pending_unreadable` | Pending record cannot be decrypted or validated (lost key, reordered escrows, retired identifier type, malformed token) | `getPhase` returns `unreadable`; mutations, `resume`, and `abort()` reject with the original error as `cause`; `abort({ discardUnreadable: true })` clears the record |
+| `invalid_transition` | An internal phase change the transition table does not allow                                                            | Controller bug; nothing is stored                                                                                                                                     |
+| `abort_not_allowed`  | `abort()` while `applying` or pending is `writing`                                                                      | Pending unchanged; call `resume()`                                                                                                                                    |
 
 An apply `request_timeout` is ambiguous (the escrow may or may not have applied).
 The pending mutation stays in `writing` with any verified receipts; `resume()`
