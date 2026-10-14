@@ -507,6 +507,26 @@ describe('NftDetectionController', () => {
     );
   });
 
+  it('should not call the NFT API when every chain id is filtered out', async () => {
+    const mockAddNfts = jest.fn();
+    const selectedAddress = '0xNonEvm';
+
+    await withController(
+      {
+        options: { addNfts: mockAddNfts, disabled: false },
+      },
+      async ({ controller }) => {
+        await controller.detectNfts(['0x0'], { userAddress: selectedAddress });
+
+        expect(mockAddNfts).toHaveBeenCalledWith(
+          [],
+          selectedAddress,
+          Source.Detected,
+        );
+      },
+    );
+  });
+
   it('should detect and add NFTs correctly when blockaid result is not included in response', async () => {
     const mockAddNfts = jest.fn();
     const selectedAddress = '0x1';
@@ -1250,6 +1270,104 @@ describe('NftDetectionController', () => {
         options: {
           removeNft: mockRemoveNft,
           getNftState: getDefaultNftControllerState,
+        },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await jestAdvanceTime({ duration: 1 });
+        mockRemoveNft.mockReset();
+
+        await controller.detectNfts(['0x1']);
+
+        expect(mockRemoveNft).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it('should skip spam NFTs with no chain id or that do not match an NFT in state', async () => {
+    const mockRemoveNft = jest.fn();
+    const selectedAddress = '0xSpamDetectPartialMatch';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+    const knownContract = '0xKnownContract';
+
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              contract: '0xNoChainContract',
+              tokenId: '1',
+              isSpam: true,
+            },
+          },
+          {
+            token: {
+              chainId: 1,
+              contract: '0xMissingContract',
+              tokenId: '1',
+              isSpam: true,
+            },
+          },
+          {
+            token: {
+              chainId: 1,
+              contract: knownContract,
+              tokenId: '2',
+              isSpam: true,
+            },
+          },
+          {
+            token: {
+              chainId: 137,
+              contract: '0xPolygonSpam',
+              tokenId: '5',
+              isSpam: true,
+            },
+          },
+        ],
+      });
+
+    const mockGetNftState = jest.fn().mockReturnValue({
+      ...getDefaultNftControllerState(),
+      allNfts: {
+        [selectedAddress]: {
+          '0x1': [
+            {
+              address: knownContract,
+              tokenId: '1',
+              name: 'Known NFT',
+              favorite: false,
+              isCurrentlyOwned: true,
+            },
+            {
+              address: '0xOtherContract',
+              tokenId: '999',
+              name: 'Other NFT',
+              favorite: false,
+              isCurrentlyOwned: true,
+            },
+          ],
+        },
+      },
+    });
+
+    await withController(
+      {
+        options: {
+          removeNft: mockRemoveNft,
+          getNftState: mockGetNftState,
         },
         mockPreferencesState: {},
         mockGetSelectedAccount,
