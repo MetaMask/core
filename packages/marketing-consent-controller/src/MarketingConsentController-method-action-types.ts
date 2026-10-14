@@ -6,13 +6,22 @@
 import type { MarketingConsentController } from './MarketingConsentController.js';
 
 /**
- * Confirms the requested consent was saved to AUS.
+ * Sets the user's marketing consent and saves it to AUS.
  *
- * @param expectedConsent - The consent value the caller asked to save.
+ * Turning consent off also turns off the AUS marketing notification
+ * channels, before consent is saved.
+ *
+ * While the wallet is locked or signed out, the change is applied locally
+ * and saved to AUS on the next unlock and sign-in; the call resolves
+ * without waiting for that.
+ *
+ * @param enabled - Whether the user consents to marketing.
+ * @throws If AUS did not save the change. AUS is the source of truth, so
+ * the change is then dropped and local consent is re-read from AUS.
  */
-export type MarketingConsentControllerWaitForSyncAction = {
-  type: `MarketingConsentController:waitForSync`;
-  handler: MarketingConsentController['waitForSync'];
+export type MarketingConsentControllerSetMarketingConsentAction = {
+  type: `MarketingConsentController:setMarketingConsent`;
+  handler: MarketingConsentController['setMarketingConsent'];
 };
 
 /**
@@ -28,5 +37,5 @@ export type MarketingConsentControllerRefreshAction = {
  * Union of all MarketingConsentController action types.
  */
 export type MarketingConsentControllerMethodActions =
-  | MarketingConsentControllerWaitForSyncAction
+  | MarketingConsentControllerSetMarketingConsentAction
   | MarketingConsentControllerRefreshAction;

@@ -63,7 +63,7 @@ export function getDefaultMarketingConsentControllerState(): MarketingConsentCon
 
 // === MESSENGER ===
 
-const MESSENGER_EXPOSED_METHODS = ['waitForSync', 'refresh'] as const;
+const MESSENGER_EXPOSED_METHODS = ['setMarketingConsent', 'refresh'] as const;
 
 export type MarketingConsentControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -219,17 +219,85 @@ export class MarketingConsentController extends BaseController<
   }
 
   /**
+   * Sets the user's marketing consent and saves it to AUS.
+   *
+   * Turning consent off also turns off the AUS marketing notification
+   * channels, before consent is saved.
+   *
+   * While the wallet is locked or signed out, the change is applied locally
+   * and saved to AUS on the next unlock and sign-in; the call resolves
+   * without waiting for that.
+   *
+   * @param enabled - Whether the user consents to marketing.
+   * @throws If AUS did not save the change. AUS is the source of truth, so
+   * the change is then dropped and local consent is re-read from AUS.
+   */
+  async setMarketingConsent(enabled: boolean): Promise<void> {
+    await this.#applyLocalConsent(enabled);
+
+    // Checked after applying: the change applies locally either way, and a
+    // first decision is what makes syncing possible. When locked or signed
+    // out, the change stays pending until the next unlock and sign-in.
+    if (!this.#isReady()) {
+      return;
+    }
+
+    try {
+      await this.#waitForSync(enabled);
+    } catch (error) {
+      await this.#revertToAus(enabled);
+      throw error;
+    }
+  }
+
+  /**
+   * Drops a consent change AUS did not save and re-applies the AUS value
+   * locally, without writing anything to AUS.
+   *
+   * @param failedValue - The consent value that was not saved.
+   */
+  async #revertToAus(failedValue: boolean): Promise<void> {
+    // Signed out or locked mid-save: like a change made while signed out, it
+    // stays pending and is saved at the next unlock and sign-in.
+    if (!this.#isReady()) {
+      return;
+    }
+    // A newer change made meanwhile is still the user's latest choice.
+    if (this.state.pendingMarketingConsent === failedValue) {
+      this.#setPendingConsent(null);
+    }
+    this.#session.remoteStale = true;
+    try {
+      await this.#settleSync();
+    } catch (error) {
+      // AUS is unreachable; the next unlock, refresh or sign-in re-reads it.
+      console.error('Failed to re-read marketing consent from AUS:', error);
+    }
+  }
+
+  /**
+   * Applies a consent choice locally and queues it to be written to AUS.
+   *
+   * @param enabled - Whether the user consents to marketing.
+   */
+  async #applyLocalConsent(enabled: boolean): Promise<void> {
+    if (enabled) {
+      await this.messenger.call('AnalyticsController:optInToMarketing');
+    } else {
+      this.messenger.call('AnalyticsController:optOutOfMarketing');
+    }
+    // An explicit choice is written to AUS even when it matches local consent,
+    // so it wins over a different value AUS may hold.
+    this.#setPendingConsent(enabled);
+    this.#startSync();
+  }
+
+  /**
    * Confirms the requested consent was saved to AUS.
    *
    * @param expectedConsent - The consent value the caller asked to save.
    */
-  async waitForSync(expectedConsent: boolean): Promise<void> {
-    // A skipped sync must not be reported as a successful save.
-    if (!this.#isReady()) {
-      throw new Error(
-        'Marketing consent requires an unlocked, signed-in wallet',
-      );
-    }
+  async #waitForSync(expectedConsent: boolean): Promise<void> {
     const expectedSession = this.#session;
     await this.#settleSync();
 

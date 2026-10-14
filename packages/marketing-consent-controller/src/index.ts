@@ -12,5 +12,5 @@ export {
 } from './MarketingConsentController.js';
 export type {
   MarketingConsentControllerRefreshAction,
-  MarketingConsentControllerWaitForSyncAction,
+  MarketingConsentControllerSetMarketingConsentAction,
 } from './MarketingConsentController-method-action-types.js';
