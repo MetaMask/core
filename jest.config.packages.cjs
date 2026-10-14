@@ -20,10 +20,8 @@ module.exports = {
 
   // Indicates whether the coverage information should be collected while executing the test
   //
-  // The monorepo-wide run (`yarn test`) sets `COLLECT_COVERAGE=false` to skip
-  // this, because collecting coverage for every package at once is slow. Reading
-  // it here rather than passing a CLI flag keeps the root script runner-agnostic,
-  // as `vitest.config.packages.mts` reads the same variable.
+  // `yarn test` sets `COLLECT_COVERAGE=false`, as does the Vitest config, so the
+  // root script need not know which runner a package uses.
   collectCoverage: process.env.COLLECT_COVERAGE !== 'false',
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected

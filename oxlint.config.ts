@@ -11,15 +11,9 @@ import { fileURLToPath } from 'node:url';
 const monorepoRoot = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * The two test runners need separate overrides while the monorepo migrates from
- * Jest to Vitest, and a file must only match one of them: each config declares
- * its runner's globals, so a test file that matches both would have its explicit
- * `vitest` imports flagged as shadowing Jest's globals.
- *
- * A package is on Vitest once it has a `vitest.config.mts`, so the split is read
- * off disk rather than hand-maintained. Once every package has migrated, both
- * overrides collapse into the single `**\/*.test.ts` one that
- * `metamask-module-template` uses.
+ * The two runners need separate overrides, and a file must match only one of
+ * them: each config declares its runner's globals, so a file matching both has
+ * its explicit `vitest` imports flagged as shadowing Jest's.
  */
 const packageNames = readdirSync(path.join(monorepoRoot, 'packages'), {
   withFileTypes: true,
@@ -108,8 +102,7 @@ export default createConfig({
         'jest.config.packages.cjs',
         'jest.config.scripts.cjs',
         'vitest.config.packages.mts',
-        // These import their test-runner globals explicitly, so they need only
-        // the Node environment.
+        // These import their globals explicitly.
         'tests/helpers.ts',
         'tests/matchers.ts',
         'tests/scripts-setup.ts',

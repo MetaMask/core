@@ -1,13 +1,7 @@
 /**
- * Shared Vitest configuration for packages in `packages/`.
- *
- * This is the Vitest counterpart to `jest.config.packages.cjs`. Packages that
- * have been migrated extend this from their own `vitest.config.mts`; packages
- * that have not yet been migrated keep using `jest.config.cjs`.
- *
- * Like `metamask-module-template`, this deliberately does not enable
- * `globals: true` — test files import `describe`, `it`, `expect`, `vi` and the
- * hooks from `vitest` explicitly.
+ * Shared Vitest configuration for packages in `packages/`, the counterpart to
+ * `jest.config.packages.cjs`. Like `metamask-module-template`, it does not
+ * enable `globals: true`.
  */
 
 import { existsSync } from 'node:fs';
@@ -20,15 +14,9 @@ const monorepoRoot = path.dirname(fileURLToPath(import.meta.url));
 const packagesDir = path.join(monorepoRoot, 'packages');
 
 /**
- * Resolves `@metamask/*` imports to the uncompiled source code for packages that
- * live in this repo, falling back to the published versions in `node_modules`
- * for those that do not.
- *
- * This replaces the `moduleNameMapper` entries in `jest.config.packages.cjs`.
- * `resolve.alias` cannot express it, because Jest's array form tries each target
- * in turn whereas an alias always wins; a `resolveId` hook can decline to
- * resolve, which gives us the same "workspace first, then `node_modules`"
- * behaviour.
+ * Resolves `@metamask/*` to this repo's uncompiled source, falling back to
+ * `node_modules`. `resolve.alias` cannot express the fallback, as an alias
+ * always wins, whereas a `resolveId` hook can decline.
  *
  * NOTE: This must be synchronized with the `paths` option in
  * `tsconfig.packages.json`.
@@ -80,16 +68,14 @@ export default defineConfig({
   plugins: [resolveWorkspaceSources()],
 
   test: {
-    // Vitest enables watch mode by default. We disable it here, so it can be
-    // explicitly enabled with `yarn test:watch`.
+    // On by default in Vitest; `yarn test:watch` opts back in.
     watch: false,
 
     include: ['{src,tests}/**/*.test.ts', '{src,tests}/**/*.test.tsx'],
 
     environment: 'node',
 
-    // Jest splits these into `setupFiles` (before the test framework) and
-    // `setupFilesAfterEach` (after it); Vitest has a single hook for both.
+    // Jest's `setupFiles` and `setupFilesAfterEach`, which Vitest merges.
     setupFiles: [
       path.join(monorepoRoot, 'tests/vitest/setup.ts'),
       path.join(monorepoRoot, 'tests/vitest/setup-after-env.ts'),
@@ -100,18 +86,11 @@ export default defineConfig({
     restoreMocks: true,
 
     fakeTimers: {
-      // Under Jest these tests each passed
-      // `doNotFake: ['nextTick', 'queueMicrotask']`. Vitest's fake-timer options
-      // have no `doNotFake`, and it sets no default for `toFake` either, so
-      // @sinonjs/fake-timers would otherwise fake everything it can - including
-      // the two we need left alone. Stating the inclusive list here once keeps
-      // the behaviour identical without repeating it at every call site.
-      //
-      // This is everything @sinonjs/fake-timers can fake except `nextTick` and
-      // `queueMicrotask`. `Intl` matters: Jest was faking it, so leaving it out
-      // would quietly stop `Intl.DateTimeFormat` following mocked time. The
-      // browser-only entries are absent from the Node global and are ignored
-      // there, but do apply under the jsdom environment.
+      // Everything @sinonjs/fake-timers can fake except `nextTick` and
+      // `queueMicrotask`, which the call sites used to exclude one by one with
+      // Jest's `doNotFake`. Vitest has no `doNotFake` and no default `toFake`,
+      // so the list has to be inclusive. Dropping `Intl` would quietly stop
+      // `Intl.DateTimeFormat` following mocked time.
       toFake: [
         'Intl',
         'setTimeout',
@@ -131,10 +110,8 @@ export default defineConfig({
     },
 
     coverage: {
-      // The monorepo-wide run (`yarn test`) sets `COLLECT_COVERAGE=false` to skip
-      // this, because collecting coverage for every package at once is slow.
-      // `jest.config.packages.cjs` reads the same variable, which is what lets
-      // the root script stay runner-agnostic.
+      // `yarn test` sets `COLLECT_COVERAGE=false`, as does the Jest config, so
+      // the root script need not know which runner a package uses.
       enabled: process.env.COLLECT_COVERAGE !== 'false',
 
       // `istanbul` is both more stable than `v8` and closer to the `babel`

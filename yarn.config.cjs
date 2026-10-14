@@ -11,10 +11,9 @@
 
 /** @type {import('@yarnpkg/types')} */
 const { defineConfig } = require('@yarnpkg/types');
-const { existsSync } = require('fs');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
-const { basename, join, resolve } = require('path');
+const { basename, resolve } = require('path');
 const semver = require('semver');
 const { inspect } = require('util');
 
@@ -72,6 +71,119 @@ const DOCSITE_PACKAGES = ['@metamask/wallet-framework-docs'];
  * during `yarn install` (Yarn runs with `enableScripts: false`).
  */
 const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = ['@metamask/wallet-cli'];
+
+/**
+ * These packages still run their tests under Jest. Everything else uses Vitest.
+ *
+ * Do not add to this list: new packages are expected to use Vitest. Entries
+ * leave it as packages are migrated, and the list and the Jest scripts it
+ * selects go away together once it is empty.
+ */
+const PACKAGES_ON_JEST = new Set([
+  '@metamask/account-tree-controller',
+  '@metamask/accounts-controller',
+  '@metamask/address-book-controller',
+  '@metamask/advanced-chart-core',
+  '@metamask/ai-controllers',
+  '@metamask/analytics-controller',
+  '@metamask/analytics-data-regulation-controller',
+  '@metamask/announcement-controller',
+  '@metamask/app-metadata-controller',
+  '@metamask/approval-controller',
+  '@metamask/assets-controller',
+  '@metamask/assets-controllers',
+  '@metamask/authenticated-user-storage',
+  '@metamask/base-controller',
+  '@metamask/base-data-service',
+  '@metamask/bitcoin-regtest-up',
+  '@metamask/bridge-controller',
+  '@metamask/bridge-status-controller',
+  '@metamask/build-utils',
+  '@metamask/chain-agnostic-permission',
+  '@metamask/chomp-api-service',
+  '@metamask/claims-controller',
+  '@metamask/client-controller',
+  '@metamask/client-utils',
+  '@metamask/compliance-controller',
+  '@metamask/composable-controller',
+  '@metamask/config-registry-controller',
+  '@metamask/connectivity-controller',
+  '@metamask/controller-utils',
+  '@metamask/core-backend',
+  '@metamask/cryptography',
+  '@metamask/delegation-controller',
+  '@metamask/earn-controller',
+  '@metamask/eip-5792-middleware',
+  '@metamask/eip-7702-internal-rpc-middleware',
+  '@metamask/eip1193-permission-middleware',
+  '@metamask/eth-block-tracker',
+  '@metamask/eth-json-rpc-middleware',
+  '@metamask/eth-json-rpc-provider',
+  '@metamask/foundryup',
+  '@metamask/gas-fee-controller',
+  '@metamask/gator-permissions-controller',
+  '@metamask/geolocation-controller',
+  '@metamask/java-tron-up',
+  '@metamask/json-rpc-engine',
+  '@metamask/json-rpc-middleware-stream',
+  '@metamask/keyring-controller',
+  '@metamask/kyc-controller',
+  '@metamask/local-node-utils',
+  '@metamask/logging-controller',
+  '@metamask/message-manager',
+  '@metamask/messenger',
+  '@metamask/messenger-cli',
+  '@metamask/money-account-api-data-service',
+  '@metamask/money-account-balance-service',
+  '@metamask/money-account-controller',
+  '@metamask/money-account-upgrade-controller',
+  '@metamask/money-account-utils',
+  '@metamask/multichain-account-service',
+  '@metamask/multichain-api-middleware',
+  '@metamask/multichain-network-controller',
+  '@metamask/multichain-transactions-controller',
+  '@metamask/name-controller',
+  '@metamask/network-connection-banner-controller',
+  '@metamask/network-controller',
+  '@metamask/network-enablement-controller',
+  '@metamask/notification-services-controller',
+  '@metamask/package-template',
+  '@metamask/passkey-controller',
+  '@metamask/permission-controller',
+  '@metamask/permission-log-controller',
+  '@metamask/perps-controller',
+  '@metamask/phishing-controller',
+  '@metamask/platform-api-docs',
+  '@metamask/polling-controller',
+  '@metamask/preferences-controller',
+  '@metamask/profile-controller',
+  '@metamask/profile-metrics-controller',
+  '@metamask/profile-sync-controller',
+  '@metamask/ramps-controller',
+  '@metamask/rate-limit-controller',
+  '@metamask/react-data-query',
+  '@metamask/remote-feature-flag-controller',
+  '@metamask/sample-controllers',
+  '@metamask/seedless-onboarding-controller',
+  '@metamask/selected-network-controller',
+  '@metamask/sentinel-api-service',
+  '@metamask/shield-controller',
+  '@metamask/signature-controller',
+  '@metamask/smart-transactions-controller',
+  '@metamask/snap-account-service',
+  '@metamask/social-controllers',
+  '@metamask/solana-test-validator-up',
+  '@metamask/stellar-quickstart-up',
+  '@metamask/storage-service',
+  '@metamask/subscription-controller',
+  '@metamask/transaction-controller',
+  '@metamask/transaction-pay-controller',
+  '@metamask/user-operation-controller',
+  '@metamask/utils',
+  '@metamask/wallet',
+  '@metamask/wallet-cli',
+  '@metamask/wallet-framework-docs',
+]);
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
@@ -684,34 +796,6 @@ function expectCorrectWorkspaceChangelogScripts(workspace) {
 }
 
 /**
- * The test scripts a workspace is expected to define, keyed by test runner.
- *
- * Packages are migrating from Jest to Vitest one at a time; a package is
- * considered migrated when it has a `vitest.config.mts`. Both sets use the same
- * script names, so the monorepo's `foreach` orchestration does not care which
- * runner a given package uses.
- */
-const TEST_SCRIPTS_BY_RUNNER = {
-  jest: {
-    run: 'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-    clean: 'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
-    verbose: 'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
-    watch: 'NODE_OPTIONS=--experimental-vm-modules jest --watch',
-  },
-  vitest: {
-    run: 'vitest run --reporter=dot',
-    // Vitest has no equivalent of `jest --clearCache`, so clear its cache
-    // directly. `vitest run --no-cache` would bypass the cache and run the whole
-    // suite rather than clearing it and exiting, which would make the root
-    // `test:clean` (every workspace's `test:clean`, then `yarn test`) run
-    // migrated packages twice.
-    clean: 'rimraf node_modules/.vite',
-    verbose: 'vitest run --reporter=verbose',
-    watch: 'vitest watch',
-  },
-};
-
-/**
  * Expect that the workspace has scripts for running tests.
  *
  * If the workspace has a `test:types` script (i.e. it runs type tests in
@@ -724,17 +808,83 @@ const TEST_SCRIPTS_BY_RUNNER = {
  * @param {Workspace} workspace - The workspace to check.
  */
 function expectTestScripts(workspace) {
-  const runner = existsSync(join(__dirname, workspace.cwd, 'vitest.config.mts'))
-    ? 'vitest'
-    : 'jest';
-  const scripts = TEST_SCRIPTS_BY_RUNNER[runner];
+  // Delete this block, and PACKAGES_ON_JEST, once no package is on Jest.
+  if (PACKAGES_ON_JEST.has(workspace.ident)) {
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:watch',
+      'NODE_OPTIONS=--experimental-vm-modules jest --watch',
+    );
 
-  expectWorkspaceField(workspace, 'scripts.test:watch', scripts.watch);
+    if (workspace.manifest.scripts['test:types'] === undefined) {
+      expectWorkspaceField(
+        workspace,
+        'scripts.test',
+        'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:clean',
+        'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:verbose',
+        'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+      );
+    } else {
+      expectWorkspaceField(
+        workspace,
+        'scripts.test',
+        'yarn test:unit && yarn test:types',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:clean',
+        'yarn test:unit:clean && yarn test:types',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:verbose',
+        'yarn test:unit:verbose && yarn test:types',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:unit',
+        'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:unit:clean',
+        'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:unit:verbose',
+        'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+      );
+    }
+    return;
+  }
+
+  expectWorkspaceField(workspace, 'scripts.test:watch', 'vitest watch');
 
   if (workspace.manifest.scripts['test:types'] === undefined) {
-    expectWorkspaceField(workspace, 'scripts.test', scripts.run);
-    expectWorkspaceField(workspace, 'scripts.test:clean', scripts.clean);
-    expectWorkspaceField(workspace, 'scripts.test:verbose', scripts.verbose);
+    expectWorkspaceField(
+      workspace,
+      'scripts.test',
+      'vitest run --reporter=dot',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:clean',
+      'rimraf node_modules/.vite',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:verbose',
+      'vitest run --reporter=verbose',
+    );
   } else {
     expectWorkspaceField(
       workspace,
@@ -751,12 +901,20 @@ function expectTestScripts(workspace) {
       'scripts.test:verbose',
       'yarn test:unit:verbose && yarn test:types',
     );
-    expectWorkspaceField(workspace, 'scripts.test:unit', scripts.run);
-    expectWorkspaceField(workspace, 'scripts.test:unit:clean', scripts.clean);
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit',
+      'vitest run --reporter=dot',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit:clean',
+      'rimraf node_modules/.vite',
+    );
     expectWorkspaceField(
       workspace,
       'scripts.test:unit:verbose',
-      scripts.verbose,
+      'vitest run --reporter=verbose',
     );
   }
 }

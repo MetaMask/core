@@ -11,5 +11,5 @@
       "path": "../utils"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "../../tests", "./src"]
 }

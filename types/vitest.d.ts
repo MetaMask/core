@@ -1,18 +1,11 @@
-// Types for the custom matchers in `tests/matchers.ts`, which
-// `tests/vitest/setup-after-env.ts` registers. The Jest side of the same
-// declaration lives in `types/jest.d.ts`.
-//
-// The `export {}` is what makes this file a module, which in turn makes the
-// `declare module` below an augmentation. Without it, TypeScript would treat the
-// block as an ambient declaration of `vitest` itself and every other export of
-// the package, `vi` included, would disappear.
+// Types for the custom matchers in `tests/matchers.ts`; `types/jest.d.ts` is the
+// Jest side. `export {}` makes this a module, and so the block below an
+// augmentation rather than a replacement of `vitest` that would wipe out `vi`.
 export {};
 
 declare module 'vitest' {
-  // The type parameters have to mirror Vitest's own declaration exactly, and
-  // Vitest 5 changed them from `<T = any>` to `<Result, Actual>`, so this has to
-  // be kept in step across major versions. `Result` is what the assertion
-  // returns, which for both of these matchers the caller awaits.
+  // These parameters have to mirror Vitest's own declaration exactly, and it
+  // changed them in 5, so they need checking on a major bump.
   /* oxlint-disable-next-line typescript/consistent-type-definitions */
   interface Matchers<
     Result extends void | Promise<void> = void | Promise<void>,

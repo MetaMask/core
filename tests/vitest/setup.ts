@@ -5,16 +5,11 @@ import nodeFetch, {
 } from 'node-fetch';
 
 /**
- * Node.js v24's native `fetch` uses undici, which nock cannot intercept, so we
- * replace it with `node-fetch`, which is http-based and therefore
- * nock-compatible.
- *
- * NOTE: `tests/setup.ts` does the same thing by deleting the native globals and
- * importing `isomorphic-fetch` for its side effect of filling them back in. That
- * only works because ts-jest emits the `require` call in source order. These
- * tests run as real ESM, where every static `import` is evaluated before any
- * statement in the module body, so the globals are assigned explicitly here
- * instead.
+ * Node's native `fetch` uses undici, which nock cannot intercept, so swap in
+ * `node-fetch`. Assigned explicitly rather than by deleting the globals and
+ * importing `isomorphic-fetch` the way `tests/setup.ts` does: that relies on
+ * ts-jest emitting the `require` in source order, and under real ESM the import
+ * runs first, leaving no `fetch` at all.
  */
 globalThis.fetch = nodeFetch as unknown as typeof globalThis.fetch;
 globalThis.Headers = NodeFetchHeaders as unknown as typeof globalThis.Headers;
