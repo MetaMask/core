@@ -186,11 +186,6 @@ function evaluateStaleEligibility({
     return { eligible: false };
   }
 
-  // Only an active merge queue counts as a merge in progress. Enabled
-  // auto-merge is deliberately not exempt: it only means "merge once conditions
-  // pass", which can stall indefinitely (pending check, pending approval,
-  // out-of-date branch) and is exactly the stale case we want to close. Closing
-  // the PR disables its auto-merge automatically.
   if (pullRequest.isInMergeQueue) {
     core.info(`Skipping #${pullRequest.number} (${ref}): merge in progress`);
     return { eligible: false };
