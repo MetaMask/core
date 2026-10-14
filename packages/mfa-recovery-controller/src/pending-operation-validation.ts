@@ -118,7 +118,8 @@ export async function assertValidPendingOperation(
     ((mutation.operation === 'register' ||
       mutation.operation === 'updateIdentifiers') &&
       token.ext.identifiersHash === undefined) ||
-    !isMutationReceiptArray(pending.receipts)
+    !isMutationReceiptArray(pending.receipts) ||
+    !isDispatchedEscrowIds(pending.dispatchedEscrowIds, escrowIds)
   ) {
     throwInvalidPendingOperation();
   }
@@ -210,6 +211,31 @@ function isMutationReceiptArray(value: unknown): value is MutationReceipt[] {
       return false;
     }
     escrowIds.add(receipt.escrowId);
+  }
+  return true;
+}
+
+/**
+ * Checks the optional `dispatchedEscrowIds` field. A missing field is valid;
+ * the controller normalizes it when loading.
+ *
+ * @param value - Stored `dispatchedEscrowIds` value.
+ * @param escrowIds - Build-configured escrow ids.
+ * @returns Whether the value is absent or a list of unique configured ids.
+ */
+function isDispatchedEscrowIds(value: unknown, escrowIds: string[]): boolean {
+  if (value === undefined) {
+    return true;
+  }
+  if (!Array.isArray(value)) {
+    return false;
+  }
+  const seen = new Set<string>();
+  for (const id of value) {
+    if (typeof id !== 'string' || !escrowIds.includes(id) || seen.has(id)) {
+      return false;
+    }
+    seen.add(id);
   }
   return true;
 }

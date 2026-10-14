@@ -119,8 +119,13 @@ sequenceDiagram
 | `updateRecoverySecret` | the identifier argument | 2FA              | secret               |
 | `updateIdentifiers`    | the identifier argument | 2FA, identifiers | identifiers          |
 
-If `applyMutation` fails, the controller keeps the pending mutation and throws
-`incomplete_mutation`; call `resume()` to finish it.
+If an escrow refuses the mutation (`MutationRejectedError`) on its first send,
+and every replica does the same, the controller clears the pending mutation. A
+refusal on a retry clears it only when the escrow's status call reports the
+mutation was not applied; the Cubist provider has no status call yet, so a
+retry refusal keeps the mutation in `writing`. A transport failure or a partial
+receipt also keeps it and throws `incomplete_mutation`; call `resume()` to
+finish that write.
 
 ## Proof of possession
 

@@ -9,7 +9,6 @@ import type {
 } from '@metamask/messenger';
 import { bytesToHex } from '@metamask/utils';
 import { randomBytes } from 'node:crypto';
-import process from 'node:process';
 
 import { CubistEscrowProvider } from '../src/escrow-providers/cubist-escrow-provider.js';
 import { MfaRecoveryController } from '../src/MfaRecoveryController.js';

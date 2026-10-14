@@ -55,8 +55,11 @@ export function decodeAuthControllerToken(
     return undefined;
   }
   const { sub, exp, ext } = claims;
-  const { aal, request_hash: requestHash, identifiers_hash: identifiersHash } =
-    ext;
+  const {
+    aal,
+    request_hash: requestHash,
+    identifiers_hash: identifiersHash,
+  } = ext;
   if (
     typeof sub !== 'string' ||
     typeof exp !== 'number' ||

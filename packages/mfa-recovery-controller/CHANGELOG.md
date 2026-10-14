@@ -24,9 +24,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mutations require idle pending state (`resume()` / `abort()` first). `abort()` drops `authorizing` only; `writing` must be finished with `resume()`
   - `CubistEscrowProvider` invokes Cubist escrow commands through `@cubist-labs/cubesigner-sdk` `policyInvoke` (`ping`, `generateChallenge`, `applyMutation`, `getSecret` on `cubist_secret_escrow`) and verifies receipts with a pinned receipt public key
   - `authenticateIdentifier` returns an in-memory `IdentifierSession` for key-bound recovery-secret reads
+  - Optional `RecoveryEscrowProvider.getMutationStatus` reports whether an escrow applied a mutation; the controller calls it only for refusals on a retry
+  - Persisted `writing` state records `dispatchedEscrowIds`; records without it are treated as sent to every escrow
+  - Configurable `promptTimeoutMs` (default `300000`) and `requestTimeoutMs` (default `30000`); each must be a positive integer or construction fails with `invalid_timeout`
+  - Bound authorization, identifier, escrow, and pending-state encrypt/decrypt calls; user prompts use `prompt_timeout`, network and storage use `request_timeout` when a limit is exceeded
+  - Forward cooperative `AbortSignal` values to injected auth, identifier, and escrow providers; `CubistEscrowProvider` skips new `policyInvoke` calls when already aborted but cannot cancel an in-flight SDK request
+  - `getPhase` and `getRecoverySecret` do not wait for the mutation lock and may run while a mutation is authorizing or writing
+  - `abort()` aborts in-flight authorizing work, clears `authorizing` pending, and rejects operations queued before the abort with `operation_aborted`; rejects immediately with `abort_not_allowed` once escrow apply may have started (`writing` must `resume()`). A resume of persisted `writing` state may be cancelled during pre-apply work but still rejects `abort()` and leaves the pending mutation unchanged
+  - `abort` accepts `{ discardUnreadable?: boolean }`; when set, it clears a persisted pending record that cannot be decrypted or validated, without reading it
+  - `getPhase` returns the new `unreadable` phase (added to `RecoveryPhase`) instead of throwing when the persisted pending record cannot be read
+  - Unreadable pending records fail with `pending_unreadable`, with the original error available as `cause`; timeouts and aborts while reading still throw their own codes and keep the record
+  - Adds `invalid_transition` for internal phase changes that the transition table does not allow
 
 ### Changed
 
 - **BREAKING:** `getRecoverySecret` now accepts an `IdentifierSession` returned by `authenticateIdentifier` instead of an `Identifier`
+
+### Fixed
+
+- Clear a pending mutation only when every escrow proves it was not applied: a refusal on the first send to that escrow, or a refusal that `getMutationStatus` reports as not applied. A stale-epoch update or a second `register` on the first send still clears. Other refusals on a retry keep the mutation in `writing`; `resume()` still finishes it, and `abort()` still refuses a `writing` mutation that may have been applied
 
 [Unreleased]: https://github.com/MetaMask/core/

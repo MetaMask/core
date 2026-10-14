@@ -198,13 +198,24 @@ export type WritingPendingOperation = PendingOperationBase & {
   phase: 'writing';
   authControllerToken: AuthControllerToken;
   receipts: MutationReceipt[];
+  /**
+   * Escrow ids that have been sent `applyMutation` for this mutation, including
+   * sends whose outcome is unknown. Records persisted without this field are
+   * normalized to every configured escrow when loaded.
+   */
+  dispatchedEscrowIds: string[];
 };
 
 export type PendingOperation =
   | AuthorizingPendingOperation
   | WritingPendingOperation;
 
-export type RecoveryPhase = 'idle' | PendingOperation['phase'];
+/**
+ * Recovery phase reported by `getPhase`. `unreadable` means the persisted
+ * pending record cannot be decrypted or validated; call
+ * `abort({ discardUnreadable: true })` to clear it.
+ */
+export type RecoveryPhase = 'idle' | 'unreadable' | PendingOperation['phase'];
 
 /**
  * Encoded ciphertext of {@link PendingOperation}. Wallet secure storage
@@ -236,12 +247,15 @@ export type RecoveredSecret = {
  * Authenticates the MetaMask profile and issues request-bound attestations.
  */
 export type RecoveryAuthProvider = {
-  getAuthenticatedProfileId: () => Promise<string>;
+  getAuthenticatedProfileId: (options?: {
+    signal?: AbortSignal;
+  }) => Promise<string>;
   authorizeRecoveryRequest: (params: {
     requestHash: string;
     audiences: string[];
     requireTwoFactor?: boolean;
     identifiers?: Identifier[];
+    signal?: AbortSignal;
   }) => Promise<AuthControllerToken>;
 };
 
@@ -253,6 +267,7 @@ export type RecoveryIdentifierAuthProvider = {
     identifier: Identifier;
     proofPublicKey: string;
     requestHash: string;
+    signal?: AbortSignal;
   }) => Promise<KeyBoundIdentifierToken>;
 };
 
@@ -272,19 +287,32 @@ export type RecoveryEscrowProvider = {
    * the corresponding wrap private key.
    */
   readonly wrapPublicKey: string;
-  isAvailable: () => Promise<boolean>;
-  generateChallenge: () => Promise<PoPChallenge>;
+  isAvailable: (options?: { signal?: AbortSignal }) => Promise<boolean>;
+  generateChallenge: (options?: {
+    signal?: AbortSignal;
+  }) => Promise<PoPChallenge>;
   getSecret: (
     authorization: IdentifierAuthorization,
     requestId: string,
     pkE: EcPublicJwk,
+    options?: { signal?: AbortSignal },
   ) => Promise<GetRecoverySecretResponse>;
   applyMutation: (
     mutation: Mutation,
     authControllerToken: AuthControllerToken,
     identifierAuthorization: IdentifierAuthorization | null,
     payload: MutationPayload,
+    options?: { signal?: AbortSignal },
   ) => Promise<MutationReceipt>;
+  /**
+   * Optional. Reports whether this escrow has applied `mutation`. The
+   * controller calls it only after an apply was rejected following an earlier
+   * send to this escrow. Without it, such a rejection is treated as ambiguous.
+   */
+  getMutationStatus?: (
+    mutation: Mutation,
+    options?: { signal?: AbortSignal },
+  ) => Promise<MutationStatus>;
   /**
    * Verifies a receipt cryptographically using the build-pinned receipt key
    * and confirms it targets the expected escrow.
@@ -299,6 +327,13 @@ export type RecoveryEscrowProvider = {
     expectedEscrowId: string,
   ) => boolean;
 };
+
+/**
+ * Whether an escrow has applied a mutation, as reported by its status call.
+ */
+export type MutationStatus =
+  | { applied: false }
+  | { applied: true; receipt: MutationReceipt };
 
 /**
  * Encrypts pending mutation state using wallet secure storage.

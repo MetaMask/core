@@ -5,12 +5,8 @@ import type {
 } from '@cubist-labs/cubesigner-sdk';
 import { bytesToString, hexToBytes } from '@metamask/utils';
 
-import {
-  hashMutationReceipt,
-  verifySignature,
-  wrapKeyId,
-} from '../crypto.js';
-import { MfaRecoveryError } from '../errors.js';
+import { hashMutationReceipt, verifySignature, wrapKeyId } from '../crypto.js';
+import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
 import { isMutationReceipt } from '../escrow-utils.js';
 import type {
   AuthControllerToken,
@@ -87,11 +83,12 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   }
 
   /**
+   * @param options - Optional cancellation signal.
    * @returns Whether a ping of the escrow C2F is allowed and reports ok.
    */
-  async isAvailable(): Promise<boolean> {
+  async isAvailable(options?: { signal?: AbortSignal }): Promise<boolean> {
     try {
-      await this.#invoke('ping', {}, parsePing);
+      await this.#invoke('ping', {}, parsePing, false, options?.signal);
       return true;
     } catch {
       return false;
@@ -99,22 +96,33 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   }
 
   /**
+   * @param options - Optional cancellation signal.
    * @returns A proof-of-possession challenge for this escrow.
    */
-  async generateChallenge(): Promise<PoPChallenge> {
-    return await this.#invoke('generateChallenge', {}, parseChallenge);
+  async generateChallenge(options?: {
+    signal?: AbortSignal;
+  }): Promise<PoPChallenge> {
+    return await this.#invoke(
+      'generateChallenge',
+      {},
+      parseChallenge,
+      false,
+      options?.signal,
+    );
   }
 
   /**
    * @param authorization - Identifier proof for this read.
    * @param requestId - Client request id bound into the read hash.
    * @param pkE - Ephemeral wrap public key for the response.
+   * @param options - Optional cancellation signal.
    * @returns The wrapped recovery secret and its version.
    */
   async getSecret(
     authorization: IdentifierAuthorization,
     requestId: string,
     pkE: EcPublicJwk,
+    options?: { signal?: AbortSignal },
   ): Promise<GetRecoverySecretResponse> {
     return await this.#invoke(
       'getSecret',
@@ -124,6 +132,8 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
         pkE,
       },
       parseGetSecretResponse,
+      false,
+      options?.signal,
     );
   }
 
@@ -132,6 +142,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
    * @param authControllerToken - Request-bound AuthController token.
    * @param identifierAuthorization - Identifier proof. `null` for register.
    * @param payload - Per-escrow mutation payload.
+   * @param options - Optional cancellation signal.
    * @returns The escrow's mutation receipt.
    */
   async applyMutation(
@@ -139,6 +150,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     authControllerToken: AuthControllerToken,
     identifierAuthorization: IdentifierAuthorization | null,
     payload: MutationPayload,
+    options?: { signal?: AbortSignal },
   ): Promise<MutationReceipt> {
     return await this.#invoke(
       'applyMutation',
@@ -149,6 +161,8 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
         payload,
       },
       parseReceipt,
+      true, // a policy Deny did not apply the mutation
+      options?.signal,
     );
   }
 
@@ -192,7 +206,10 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     cmd: string,
     body: Record<string, unknown>,
     parse: (value: unknown) => Result,
+    denyIsRejection: boolean,
+    signal?: AbortSignal,
   ): Promise<Result> {
+    signal?.throwIfAborted();
     let invocation: InvokePolicyResponse;
     try {
       invocation = await this.#client.apiClient.policyInvoke(
@@ -208,6 +225,9 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     }
     const policy = invocation.response;
     if (policy.response !== 'Allow') {
+      if (denyIsRejection && policy.response === 'Deny') {
+        throw new MutationRejectedError(policy.reason);
+      }
       throw new MfaRecoveryError(
         policy.response === 'Deny' ? policy.reason : policy.error,
         'escrow_request_failed',

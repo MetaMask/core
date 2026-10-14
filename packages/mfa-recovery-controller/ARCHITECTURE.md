@@ -30,13 +30,13 @@ flowchart LR
   Ctrl --> EB
 ```
 
-| Piece                    | Role                                                                      |
-| ------------------------ | ------------------------------------------------------------------------- |
-| `pendingOperation`       | Only persisted field: encrypted `authorizing` / `writing` blob, or `null` |
-| `escrows[]`              | Build-time replica set; mutations require **all** of them                 |
-| `authProvider`           | Profile id + request-bound AuthController token                           |
-| `identifierAuthProvider` | Key-bound IdP assertion (passkey / OIDC / SIWE)                           |
-| `#withLock`              | Serializes public methods so two mutations cannot interleave              |
+| Piece                    | Role                                                                                            |
+| ------------------------ | ----------------------------------------------------------------------------------------------- |
+| `pendingOperation`       | Only persisted field: encrypted `authorizing` / `writing` blob, or `null`                       |
+| `escrows[]`              | Build-time replica set; mutations require **all** of them                                       |
+| `authProvider`           | Profile id + request-bound AuthController token                                                 |
+| `identifierAuthProvider` | Key-bound IdP assertion (passkey / OIDC / SIWE)                                                 |
+| `#withLock`              | Serializes mutations, resume, and abort cleanup; `getPhase` / `getRecoverySecret` are lock-free |
 
 Identifier types pick the auth mode from a trusted table, not a client flag:
 `passkey` / `oidc` / `siwe` → key-bound. `emailOtp` / `smsOtp` escrow-challenge
@@ -56,13 +56,18 @@ Public surface: `register`, `updateRecoverySecret`, `updateIdentifiers`,
 ## State machine
 
 Persisted phase is derived from decrypted pending state: no pending → `idle`.
+If the persisted record cannot be decrypted or validated, `getPhase` reports
+`unreadable` instead.
 
 ```mermaid
 stateDiagram-v2
   [*] --> idle
   idle --> authorizing: register / updateRecoverySecret / updateIdentifiers
   authorizing --> idle: abort()
-  authorizing --> writing: identifier auth succeeds, before first apply
+  authorizing --> unreadable: record cannot be read
+  writing --> unreadable: record cannot be read
+  unreadable --> idle: abort({ discardUnreadable: true })
+  authorizing --> writing: pre-apply authorization and escrow checks succeed
   writing --> writing: more receipts, still missing replicas
   writing --> idle: every configured escrow has a valid receipt
   writing --> writing: resume() retries only missing receipts
@@ -71,7 +76,26 @@ stateDiagram-v2
 
 Rules:
 
-- **`abort()`** drops `authorizing` only. `writing` must `resume()`.
+- **`abort()`** drops `authorizing` only. It aborts the in-flight
+  `AbortController`, clears persisted pending when allowed, and bumps an
+  **abort generation** so mutations or `resume()` queued behind the lock fail
+  with `operation_aborted` before any new external work. Once
+  `inFlight.applying` is true (writing persisted and escrow apply may have
+  started), `abort()` rejects immediately with `abort_not_allowed`; the
+  `writing` mutation must `resume()`. When `resume()` is processing an already
+  persisted `writing` mutation before its next apply, `abort()` may cancel that
+  pre-apply work but still rejects with `abort_not_allowed` after the persisted
+  phase check; the `writing` mutation remains unchanged.
+- Every persisted phase change goes through the event table in
+  `src/state-machine.ts` (`start`, `write`, `complete`, `reject`, `abort`,
+  `discardUnreadable`). A transition the table does not allow throws before
+  anything is stored.
+- **`abort({ discardUnreadable: true })`** also clears a record that cannot be
+  read. The record is cleared without decrypting it, so this works after a lost
+  encryption key or an escrow reorder. A readable `writing` record is still
+  refused. Transient timeouts and aborts while reading keep the record.
+  Escrows may then hold different versions; `getRecoverySecret` returns the
+  highest consistent one.
 - `writing` is persisted before the **first escrow apply** after identifier
   authorization succeeds, so an ambiguous apply failure remains resumable while
   pre-write authorization failures stay abortable.
@@ -92,10 +116,10 @@ sequenceDiagram
   C->>M: register / updateRecoverySecret / updateIdentifiers
   M->>M: lock; reject if a mutation is already pending
   M->>A: getAuthenticatedProfileId
-  M->>E: require every escrow available
   M->>M: expectedVersion from caller epoch (register uses 0)
   M->>M: persist pending = authorizing
   M->>A: authorizeRecoveryRequest (AuthController token)
+  M->>E: require every escrow available
   alt not register
     M->>E: identifier auth per escrow
   end
@@ -106,6 +130,9 @@ sequenceDiagram
   M->>M: persist receipts
   alt all receipts valid
     M->>M: clear pending → idle
+  else every escrow proves it did not apply and none has a receipt
+    M->>M: clear pending → idle
+    M-->>C: MutationRejectedError (start a new mutation)
   else some replicas missing
     M-->>C: IncompleteMutationError (call resume)
   end
@@ -127,6 +154,24 @@ Versioning:
 `resume()` is the same write path without creating a new mutation: authorizing
 pending gets a fresh token then replicates; writing pending retries only
 escrows that do not already have a stored receipt.
+
+## Rejections on retry
+
+An escrow refusal (`MutationRejectedError`) does not always mean "not applied".
+An escrow can commit a mutation and lose the response, so a retry of the same
+mutation can be refused even though the state already changed. The controller
+therefore persists `dispatchedEscrowIds` (the escrows sent `applyMutation`)
+before each apply, and classifies every refusal:
+
+- **First send** to that escrow: not applied.
+- **Retry**: the optional `getMutationStatus` call decides. `applied: false`
+  means not applied. A returned receipt is verified and stored. An error, a
+  timeout, or a missing status call is ambiguous.
+
+The pending mutation is cleared only when every escrow is not applied and no
+receipt exists. Otherwise it stays in `writing`, `resume()` finishes it, and
+`abort()` is refused. A `writing` record without `dispatchedEscrowIds` loads as
+sent to every escrow.
 
 ## Cubist store sequence
 
@@ -159,9 +204,9 @@ sequenceDiagram
 
   Caller->>Ctrl: register(secret, identifiers)
   Ctrl->>Auth: getAuthenticatedProfileId
-  Ctrl->>Escrow: isAvailable
   Ctrl->>Ctrl: persist authorizing
   Ctrl->>Auth: authorizeRecoveryRequest
+  Ctrl->>Escrow: isAvailable
   Note over Auth: stub may set signature to the SRP token
   Ctrl->>Ctrl: wrap secret, persist writing
   Ctrl->>Escrow: applyMutation
@@ -222,9 +267,49 @@ sequenceDiagram
 ephemeral private keys needed for the read. The controller does not persist or
 store the session; callers must keep it in memory and must not log it.
 
-`getRecoverySecret` does not block on a pending mutation. During `writing`,
-replicas may hold different versions; the read takes the highest one. The
-next mutation still requires `resume()` first.
+`getPhase` and `getRecoverySecret` do not wait for the mutation lock. During
+`writing`, replicas may hold different versions; the read takes the highest
+one. The next mutation still requires `resume()` first.
+
+## Timeouts and cancellation
+
+The controller bounds every injected authorization, identifier, escrow, and
+pending-state encrypt/decrypt call.
+
+| Option             | Default (ms) | Applies to                                                            |
+| ------------------ | ------------ | --------------------------------------------------------------------- |
+| `promptTimeoutMs`  | `300000`     | AuthController authorization and identifier IdP prompts (prompt kind) |
+| `requestTimeoutMs` | `30000`      | Profile lookup, escrow I/O, pending-state encryption (request kind)   |
+
+Both constructor options must be **positive integers**; otherwise construction
+throws `invalid_timeout`.
+
+Provider calls receive a child `AbortSignal` where supported. Cancellation is
+**cooperative**: injected providers should honor `signal.aborted` promptly.
+`CubistEscrowProvider` checks the signal before `policyInvoke` but cannot
+cancel an SDK request that is already in flight; controller-side
+`requestTimeoutMs` still bounds how long the caller waits.
+
+**`abort()`** (see state-machine rules) aborts the in-flight controller while
+phase is `authorizing` or pre-apply work is running. **`getPhase`** and
+**`getRecoverySecret`** never take the mutation lock; they may run while
+authorization or replication is pending elsewhere.
+
+### Controller error codes (timeouts and cancellation)
+
+| Code                 | Typical cause                                                                                                           | Pending phase / recovery                                                                                                                                              |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `invalid_timeout`    | Non-integer or non-positive `*TimeoutMs` option                                                                         | Controller not constructed; fix options and retry                                                                                                                     |
+| `prompt_timeout`     | User-facing prompt exceeded `promptTimeoutMs`                                                                           | Often `authorizing` with pending stored; `abort()` or `resume()`                                                                                                      |
+| `request_timeout`    | Network/storage call exceeded `requestTimeoutMs`                                                                        | Depends on step: pre-write may leave `authorizing`; after writing is persisted, may leave `writing` (treat like ambiguous apply — `resume()`)                         |
+| `operation_aborted`  | `abort()`, parent signal aborted, or stale queue after abort generation                                                 | Allowed `abort()` clears pending → `idle`; otherwise same as the step that was cancelled                                                                              |
+| `pending_unreadable` | Pending record cannot be decrypted or validated (lost key, reordered escrows, retired identifier type, malformed token) | `getPhase` returns `unreadable`; mutations, `resume`, and `abort()` reject with the original error as `cause`; `abort({ discardUnreadable: true })` clears the record |
+| `invalid_transition` | An internal phase change the transition table does not allow                                                            | Controller bug; nothing is stored                                                                                                                                     |
+| `abort_not_allowed`  | `abort()` while `applying` or pending is `writing`                                                                      | Pending unchanged; call `resume()`                                                                                                                                    |
+
+An apply `request_timeout` is ambiguous (the escrow may or may not have applied).
+The pending mutation stays in `writing` with any verified receipts; `resume()`
+retries missing escrows only.
 
 ## Identifier auth (inside writes and reads)
 
