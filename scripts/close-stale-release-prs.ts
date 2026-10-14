@@ -142,21 +142,6 @@ function isReleasePrCandidate(pullRequest: ListedPullRequest): boolean {
 }
 
 /**
- * Whether the PR is actively being merged by the merge queue.
- *
- * Enabled auto-merge is deliberately not treated as a merge in progress: it only
- * means "merge once conditions pass", which can stall indefinitely (pending
- * check, pending approval, out-of-date branch) and is exactly the stale case we
- * want to close. Closing the PR disables its auto-merge automatically.
- *
- * @param pullRequest - GraphQL pull request snapshot.
- * @returns True when a merge is already in progress.
- */
-function isMergeInProgress(pullRequest: PullRequestSnapshot): boolean {
-  return pullRequest.isInMergeQueue;
-}
-
-/**
  * Evaluate whether a PR snapshot is eligible to close as stale.
  *
  * Skip-label is re-checked so a label added after the initial list filter still
@@ -201,7 +186,12 @@ function evaluateStaleEligibility({
     return { eligible: false };
   }
 
-  if (isMergeInProgress(pullRequest)) {
+  // Only an active merge queue counts as a merge in progress. Enabled
+  // auto-merge is deliberately not exempt: it only means "merge once conditions
+  // pass", which can stall indefinitely (pending check, pending approval,
+  // out-of-date branch) and is exactly the stale case we want to close. Closing
+  // the PR disables its auto-merge automatically.
+  if (pullRequest.isInMergeQueue) {
     core.info(`Skipping #${pullRequest.number} (${ref}): merge in progress`);
     return { eligible: false };
   }
