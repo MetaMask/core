@@ -34,9 +34,6 @@ const PULL_REQUEST_SNAPSHOT_QUERY = `
         state
         updatedAt
         isInMergeQueue
-        autoMergeRequest {
-          enabledAt
-        }
         labels(first: 100) {
           nodes {
             name
@@ -59,7 +56,6 @@ type PullRequestSnapshot = {
   state: string;
   updatedAt: string;
   isInMergeQueue: boolean;
-  autoMergeRequest: { enabledAt: string } | null;
   labels: { nodes: { name: string }[] };
   headRefName: string;
   headRefOid: string;
@@ -146,16 +142,6 @@ function isReleasePrCandidate(pullRequest: ListedPullRequest): boolean {
 }
 
 /**
- * Whether merge-queue or auto-merge is active for the PR.
- *
- * @param pullRequest - GraphQL pull request snapshot.
- * @returns True when a merge is already in progress.
- */
-function isMergeInProgress(pullRequest: PullRequestSnapshot): boolean {
-  return pullRequest.isInMergeQueue || pullRequest.autoMergeRequest !== null;
-}
-
-/**
  * Evaluate whether a PR snapshot is eligible to close as stale.
  *
  * Skip-label is re-checked so a label added after the initial list filter still
@@ -200,7 +186,7 @@ function evaluateStaleEligibility({
     return { eligible: false };
   }
 
-  if (isMergeInProgress(pullRequest)) {
+  if (pullRequest.isInMergeQueue) {
     core.info(`Skipping #${pullRequest.number} (${ref}): merge in progress`);
     return { eligible: false };
   }
