@@ -34,9 +34,6 @@ const PULL_REQUEST_SNAPSHOT_QUERY = `
         state
         updatedAt
         isInMergeQueue
-        autoMergeRequest {
-          enabledAt
-        }
         labels(first: 100) {
           nodes {
             name
@@ -59,7 +56,6 @@ type PullRequestSnapshot = {
   state: string;
   updatedAt: string;
   isInMergeQueue: boolean;
-  autoMergeRequest: { enabledAt: string } | null;
   labels: { nodes: { name: string }[] };
   headRefName: string;
   headRefOid: string;
@@ -146,13 +142,18 @@ function isReleasePrCandidate(pullRequest: ListedPullRequest): boolean {
 }
 
 /**
- * Whether merge-queue or auto-merge is active for the PR.
+ * Whether the PR is actively being merged by the merge queue.
+ *
+ * Enabled auto-merge is deliberately not treated as a merge in progress: it only
+ * means "merge once conditions pass", which can stall indefinitely (pending
+ * check, pending approval, out-of-date branch) and is exactly the stale case we
+ * want to close. Closing the PR disables its auto-merge automatically.
  *
  * @param pullRequest - GraphQL pull request snapshot.
  * @returns True when a merge is already in progress.
  */
 function isMergeInProgress(pullRequest: PullRequestSnapshot): boolean {
-  return pullRequest.isInMergeQueue || pullRequest.autoMergeRequest !== null;
+  return pullRequest.isInMergeQueue;
 }
 
 /**
