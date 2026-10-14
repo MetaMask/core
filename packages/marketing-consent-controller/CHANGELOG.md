@@ -7,4 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Initial release ([#10821](https://github.com/MetaMask/core/pull/10821))
+  - Add `MarketingConsentController`, which keeps marketing consent in sync with Authenticated User Storage and turns off marketing notification channels before an opt-out is saved
+
 [Unreleased]: https://github.com/MetaMask/core/
