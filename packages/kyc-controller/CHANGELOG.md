@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Session creation and capability-authorization refresh throw a short, displayable error when fetching issuer signing keys fails or an encryption schema's `jwtChain` does not verify. The original error is preserved on `cause`
+
 ## [0.9.0]
 
 ### Added

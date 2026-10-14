@@ -13,7 +13,10 @@ import {
 import type { KycControllerMessenger } from './KycController.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import type { KycConsentRecord, KycSessionDisclaimers } from './types.js';
-import { verifyJwtChain } from './ukyc/jwtChain.js';
+import {
+  assertAttestedServerPublicKey,
+  verifyJwtChain,
+} from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 
 jest.mock('./ukyc/jwtChain', () => {
@@ -35,6 +38,10 @@ jest.mock('./ukyc/wrapEncryptionKey', () => {
 const mockVerifyJwtChain = verifyJwtChain as jest.MockedFunction<
   typeof verifyJwtChain
 >;
+const mockAssertAttestedServerPublicKey =
+  assertAttestedServerPublicKey as jest.MockedFunction<
+    typeof assertAttestedServerPublicKey
+  >;
 const mockWrapEncryptionKey = wrapEncryptionKey as jest.MockedFunction<
   typeof wrapEncryptionKey
 >;
@@ -476,6 +483,56 @@ describe('KycController', () => {
           }),
         ).rejects.toThrow('customer failed');
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
+
+    it('throws a readable error when fetching signing keys fails', async () => {
+      const fetchError = new Error(
+        "Fetching 'https://idos.example/.well-known/jwks.json' failed with status '500'",
+      );
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        handlers.fetchIdosEnclaveJwks.mockRejectedValueOnce(fetchError);
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          message:
+            'Unable to fetch the signing keys needed to verify this session. Please try again.',
+          cause: fetchError,
+        });
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
+
+    it('throws a readable error when encryption-key verification fails', async () => {
+      const verificationError = new Error(
+        'UKYC: jwtChain signature verification failed against JWKS.',
+      );
+      mockAssertAttestedServerPublicKey.mockImplementationOnce(() => {
+        throw verificationError;
+      });
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            email: 'a@b.co',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          message:
+            'Unable to verify the session encryption keys. Please try again.',
+          cause: verificationError,
+        });
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
         expect(controller.state.sessionStatus).toBeNull();
       });
     });
