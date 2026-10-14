@@ -45,6 +45,9 @@
       "path": "../keyring-controller/tsconfig.lint.json"
     },
     {
+      "path": "../logging-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../network-controller/tsconfig.lint.json"
     },
     {

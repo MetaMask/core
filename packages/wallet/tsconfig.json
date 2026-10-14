@@ -35,6 +35,9 @@
       "path": "../keyring-controller"
     },
     {
+      "path": "../logging-controller"
+    },
+    {
       "path": "../messenger"
     },
     {
