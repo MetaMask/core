@@ -52,6 +52,7 @@ import type {
   Mutation,
   MutationPayload,
   MutationReceipt,
+  MutationStatus,
   PendingMutationPayload,
   PendingOperation,
   PendingOperationEncryptor,
@@ -556,6 +557,7 @@ export class MfaRecoveryController extends BaseController<
           phase: 'writing',
           authControllerToken,
           receipts: [],
+          dispatchedEscrowIds: [],
         },
         inFlight,
       );
@@ -602,6 +604,7 @@ export class MfaRecoveryController extends BaseController<
             signal,
           ),
           receipts: [],
+          dispatchedEscrowIds: [],
         },
         inFlight,
       );
@@ -640,7 +643,18 @@ export class MfaRecoveryController extends BaseController<
       claims && claims.exp > this.#now()
         ? pending.authControllerToken
         : await this.#authorizeMutation(mutation, payload, signal);
-    const writing = { ...pending, authControllerToken };
+    const remainingIds = remainingEscrows.map((escrow) => escrow.id);
+    const previouslyDispatched = new Set(pending.dispatchedEscrowIds);
+    const firstSendIds = new Set(
+      remainingIds.filter((id) => !previouslyDispatched.has(id)),
+    );
+    const writing = {
+      ...pending,
+      authControllerToken,
+      dispatchedEscrowIds: [
+        ...new Set([...pending.dispatchedEscrowIds, ...remainingIds]),
+      ],
+    };
     const authorizedEscrows =
       mutation.operation === 'register'
         ? null
@@ -682,13 +696,14 @@ export class MfaRecoveryController extends BaseController<
       ),
     );
 
-    const { receipts, hasInvalidReceipt } = this.#collectMutationReceipts(
-      results,
-      remainingEscrows,
-      mutation,
-      writing.receipts,
-    );
-    const rejection = unanimousMutationRejection(results, writing.receipts);
+    const { receipts, hasInvalidReceipt, rejection } =
+      await this.#classifyApplyResults({
+        results,
+        escrows: remainingEscrows,
+        mutation,
+        existingReceipts: writing.receipts,
+        firstSendIds,
+      });
     if (rejection) {
       await this.#clearPending();
       throw rejection;
@@ -740,29 +755,118 @@ export class MfaRecoveryController extends BaseController<
     return remainingEscrows;
   }
 
-  #collectMutationReceipts(
-    results: PromiseSettledResult<MutationReceipt>[],
-    escrows: RecoveryEscrowProvider[],
-    mutation: Mutation,
-    existingReceipts: MutationReceipt[],
-  ): { receipts: MutationReceipt[]; hasInvalidReceipt: boolean } {
+  /**
+   * Turns settled apply results into receipts and a final decision.
+   *
+   * A refusal clears the pending mutation only when it proves the mutation was
+   * not applied: the first send to that escrow, or a status probe reporting it
+   * was not applied. Any other refusal, or a failed probe, is ambiguous.
+   *
+   * @param params - Settled apply results and context.
+   * @param params.results - Settled `applyMutation` results.
+   * @param params.escrows - Escrows that were sent the mutation, in order.
+   * @param params.mutation - Mutation being applied.
+   * @param params.existingReceipts - Receipts stored before this attempt.
+   * @param params.firstSendIds - Escrow ids that were first sent in this attempt.
+   * @returns Receipts to store, whether any receipt was invalid, and the
+   * rejection to throw when every escrow proves it did not apply the mutation.
+   */
+  async #classifyApplyResults({
+    results,
+    escrows,
+    mutation,
+    existingReceipts,
+    firstSendIds,
+  }: {
+    results: PromiseSettledResult<MutationReceipt>[];
+    escrows: RecoveryEscrowProvider[];
+    mutation: Mutation;
+    existingReceipts: MutationReceipt[];
+    firstSendIds: Set<string>;
+  }): Promise<{
+    receipts: MutationReceipt[];
+    hasInvalidReceipt: boolean;
+    rejection: MutationRejectedError | undefined;
+  }> {
+    const outcomes = await Promise.all(
+      results.map(
+        async (result, index) =>
+          await this.#resolveApplyOutcome({
+            result,
+            escrow: escrows[index],
+            mutation,
+            firstSend: firstSendIds.has(escrows[index].id),
+          }),
+      ),
+    );
     const receipts = [...existingReceipts];
     let hasInvalidReceipt = false;
-    results.forEach((result, index) => {
-      if (!isFulfilledResult(result)) {
-        return;
-      }
-      const escrow = escrows[index];
-      if (
-        !isMutationReceipt(result.value) ||
-        !verifyMutationReceipt(result.value, mutation, escrow)
-      ) {
+    const rejections: MutationRejectedError[] = [];
+    for (const outcome of outcomes) {
+      if (outcome.kind === 'receipt') {
+        receipts.push(outcome.receipt);
+      } else if (outcome.kind === 'invalid') {
         hasInvalidReceipt = true;
-        return;
+      } else if (outcome.kind === 'notApplied') {
+        rejections.push(outcome.rejection);
       }
-      receipts.push(result.value);
-    });
-    return { receipts, hasInvalidReceipt };
+    }
+    const [firstRejection] = rejections;
+    const allNotApplied =
+      existingReceipts.length === 0 && rejections.length === outcomes.length;
+    return {
+      receipts,
+      hasInvalidReceipt,
+      rejection: allNotApplied ? firstRejection : undefined,
+    };
+  }
+
+  /**
+   * @param params - Settled apply result for one escrow.
+   * @param params.result - The settled `applyMutation` result.
+   * @param params.escrow - The escrow that was sent the mutation.
+   * @param params.mutation - Mutation being applied.
+   * @param params.firstSend - Whether this attempt was the first send to escrow.
+   * @returns What the result proves about this escrow.
+   */
+  async #resolveApplyOutcome({
+    result,
+    escrow,
+    mutation,
+    firstSend,
+  }: {
+    result: PromiseSettledResult<MutationReceipt>;
+    escrow: RecoveryEscrowProvider;
+    mutation: Mutation;
+    firstSend: boolean;
+  }): Promise<ApplyOutcome> {
+    if (isFulfilledResult(result)) {
+      return toReceiptOutcome(result.value, mutation, escrow);
+    }
+    const reason: unknown = result.reason;
+    if (!(reason instanceof MutationRejectedError)) {
+      return { kind: 'ambiguous' };
+    }
+    if (firstSend) {
+      return { kind: 'notApplied', rejection: reason };
+    }
+    const probe = escrow.getMutationStatus?.bind(escrow);
+    if (probe === undefined) {
+      return { kind: 'ambiguous' };
+    }
+    let status: MutationStatus;
+    try {
+      status = await withTimeout((signal) => probe(mutation, { signal }), {
+        ms: this.#requestTimeoutMs,
+        kind: 'request',
+      });
+    } catch {
+      return { kind: 'ambiguous' };
+    }
+    if (!status.applied) {
+      return { kind: 'notApplied', rejection: reason };
+    }
+    return toReceiptOutcome(status.receipt, mutation, escrow);
   }
 
   async #authorizeEscrows({
@@ -883,7 +987,18 @@ export class MfaRecoveryController extends BaseController<
       { ms: this.#requestTimeoutMs, signal, kind: 'request' },
     )) as unknown;
     await this.#assertPending(pending);
-    return pending as PendingOperation;
+    const loaded = pending as PendingOperation;
+    if (
+      loaded.phase === 'writing' &&
+      loaded.dispatchedEscrowIds === undefined
+    ) {
+      // Records written before send tracking: assume every escrow was sent.
+      return {
+        ...loaded,
+        dispatchedEscrowIds: this.#escrows.map((escrow) => escrow.id),
+      };
+    }
+    return loaded;
   }
 
   /**
@@ -976,28 +1091,30 @@ function throwIfAborted(signal?: AbortSignal): void {
 }
 
 /**
- * Every remaining escrow refused the mutation, and none has a receipt.
- *
- * @param results - Settled apply results for the remaining escrows.
- * @param existingReceipts - Receipts already stored for this mutation.
- * @returns The first refusal, or `null` when the write may have been applied.
+ * What one escrow's apply result proves about the mutation.
  */
-function unanimousMutationRejection(
-  results: PromiseSettledResult<MutationReceipt>[],
-  existingReceipts: MutationReceipt[],
-): MutationRejectedError | null {
-  if (existingReceipts.length > 0 || results.length === 0) {
-    return null;
+type ApplyOutcome =
+  | { kind: 'receipt'; receipt: MutationReceipt }
+  | { kind: 'invalid' }
+  | { kind: 'notApplied'; rejection: MutationRejectedError }
+  | { kind: 'ambiguous' };
+
+/**
+ * @param value - Value returned by an escrow or its status call.
+ * @param mutation - Mutation the receipt must acknowledge.
+ * @param escrow - Escrow the receipt must come from.
+ * @returns A receipt outcome when the value verifies, otherwise `invalid`.
+ */
+function toReceiptOutcome(
+  value: unknown,
+  mutation: Mutation,
+  escrow: RecoveryEscrowProvider,
+): ApplyOutcome {
+  if (
+    !isMutationReceipt(value) ||
+    !verifyMutationReceipt(value, mutation, escrow)
+  ) {
+    return { kind: 'invalid' };
   }
-  let rejection: MutationRejectedError | null = null;
-  for (const result of results) {
-    if (
-      result.status !== 'rejected' ||
-      !(result.reason instanceof MutationRejectedError)
-    ) {
-      return null;
-    }
-    rejection ??= result.reason;
-  }
-  return rejection;
+  return { kind: 'receipt', receipt: value };
 }

@@ -223,6 +223,28 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
   failNextApplyCount = 0;
 
+  /**
+   * Number of upcoming applies that commit and then lose the response
+   * (the caller sees a transport error after the state changed).
+   */
+  dropNextApplyResponseCount = 0;
+
+  /**
+   * Number of upcoming applies that refuse with a {@link MutationRejectedError}
+   * before committing anything.
+   */
+  rejectNextApplyCount = 0;
+
+  /**
+   * `answer` reports the true state; `error` makes the status probe fail;
+   * `invalid` returns a receipt with a bad signature.
+   */
+  statusProbeMode: 'answer' | 'error' | 'invalid' = 'answer';
+
+  readonly getMutationStatusHang = new HangSwitch();
+
+  lastGetMutationStatusSignal: AbortSignal | undefined;
+
   failGetSecret = false;
 
   invalidReceipts = false;
@@ -373,6 +395,10 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   ): Promise<MutationReceipt> {
     this.lastApplyMutationSignal = options?.signal;
     await this.applyMutationHang.wait(options?.signal);
+    if (this.rejectNextApplyCount > 0) {
+      this.rejectNextApplyCount -= 1;
+      throw new MutationRejectedError('Injected rejection');
+    }
     if (this.failNextApplyCount > 0) {
       this.failNextApplyCount -= 1;
       throw new MfaRecoveryError('Injected apply failure', 'apply_failed');
@@ -380,12 +406,17 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
     this.#applyCommitted = false;
     try {
-      return await this.#applyMutation(
+      const receipt = await this.#applyMutation(
         mutation,
         authControllerToken,
         identifierAuthorization,
         payload,
       );
+      if (this.dropNextApplyResponseCount > 0) {
+        this.dropNextApplyResponseCount -= 1;
+        throw new MfaRecoveryError('Injected dropped response', 'apply_failed');
+      }
+      return receipt;
     } catch (error) {
       if (!this.#applyCommitted && error instanceof MfaRecoveryError) {
         throw new MutationRejectedError(error.message);
@@ -520,6 +551,35 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       version: mutation.newVersion,
     };
     return await this.#signReceipt(mutation);
+  }
+
+  async getMutationStatus(
+    mutation: Mutation,
+    options?: { signal?: AbortSignal },
+  ): Promise<{ applied: false } | { applied: true; receipt: MutationReceipt }> {
+    this.lastGetMutationStatusSignal = options?.signal;
+    await this.getMutationStatusHang.wait(options?.signal);
+    if (this.statusProbeMode === 'error') {
+      throw new MfaRecoveryError('Injected status failure', 'status_failed');
+    }
+    const applied = this.#records.get(mutation.profileId)?.appliedMutations[
+      mutation.id
+    ];
+    if (
+      applied === undefined ||
+      applied.requestHash !== mutation.requestHash ||
+      applied.version !== mutation.newVersion
+    ) {
+      return { applied: false };
+    }
+    const receipt = await this.#signReceipt(mutation);
+    return {
+      applied: true,
+      receipt:
+        this.statusProbeMode === 'invalid'
+          ? { ...receipt, signature: 'bad-signature' }
+          : receipt,
+    };
   }
 
   verifyReceipt(

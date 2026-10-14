@@ -115,7 +115,7 @@ sequenceDiagram
   M->>M: persist receipts
   alt all receipts valid
     M->>M: clear pending → idle
-  else every escrow rejects and none has a receipt
+  else every escrow proves it did not apply and none has a receipt
     M->>M: clear pending → idle
     M-->>C: MutationRejectedError (start a new mutation)
   else some replicas missing
@@ -139,6 +139,24 @@ Versioning:
 `resume()` is the same write path without creating a new mutation: authorizing
 pending gets a fresh token then replicates; writing pending retries only
 escrows that do not already have a stored receipt.
+
+## Rejections on retry
+
+An escrow refusal (`MutationRejectedError`) does not always mean "not applied".
+An escrow can commit a mutation and lose the response, so a retry of the same
+mutation can be refused even though the state already changed. The controller
+therefore persists `dispatchedEscrowIds` (the escrows sent `applyMutation`)
+before each apply, and classifies every refusal:
+
+- **First send** to that escrow: not applied.
+- **Retry**: the optional `getMutationStatus` call decides. `applied: false`
+  means not applied. A returned receipt is verified and stored. An error, a
+  timeout, or a missing status call is ambiguous.
+
+The pending mutation is cleared only when every escrow is not applied and no
+receipt exists. Otherwise it stays in `writing`, `resume()` finishes it, and
+`abort()` is refused. A `writing` record without `dispatchedEscrowIds` loads as
+sent to every escrow.
 
 ## Cubist store sequence
 

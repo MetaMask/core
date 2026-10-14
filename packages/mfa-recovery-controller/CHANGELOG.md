@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mutations require idle pending state (`resume()` / `abort()` first). `abort()` drops `authorizing` only; `writing` must be finished with `resume()`
   - `CubistEscrowProvider` invokes Cubist escrow commands through `@cubist-labs/cubesigner-sdk` `policyInvoke` (`ping`, `generateChallenge`, `applyMutation`, `getSecret` on `cubist_secret_escrow`) and verifies receipts with a pinned receipt public key
   - `authenticateIdentifier` returns an in-memory `IdentifierSession` for key-bound recovery-secret reads
+  - Optional `RecoveryEscrowProvider.getMutationStatus` reports whether an escrow applied a mutation; the controller calls it only for refusals on a retry
+  - Persisted `writing` state records `dispatchedEscrowIds`; records without it are treated as sent to every escrow
   - Configurable `promptTimeoutMs` (default `300000`) and `requestTimeoutMs` (default `30000`); each must be a positive integer or construction fails with `invalid_timeout`
   - Bound authorization, identifier, escrow, and pending-state encrypt/decrypt calls; user prompts use `prompt_timeout`, network and storage use `request_timeout` when a limit is exceeded
   - Forward cooperative `AbortSignal` values to injected auth, identifier, and escrow providers; `CubistEscrowProvider` skips new `policyInvoke` calls when already aborted but cannot cancel an in-flight SDK request
@@ -36,6 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Clear a pending mutation when every escrow rejects it before applying, so a second `register` or an update with a stale epoch does not stay in `writing`. `resume()` still retries an incomplete write, and `abort()` still refuses a `writing` mutation that may have been applied
+- Clear a pending mutation only when every escrow proves it was not applied: a refusal on the first send to that escrow, or a refusal that `getMutationStatus` reports as not applied. A stale-epoch update or a second `register` on the first send still clears. Other refusals on a retry keep the mutation in `writing`; `resume()` still finishes it, and `abort()` still refuses a `writing` mutation that may have been applied
 
 [Unreleased]: https://github.com/MetaMask/core/

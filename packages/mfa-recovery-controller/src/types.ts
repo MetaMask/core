@@ -198,6 +198,12 @@ export type WritingPendingOperation = PendingOperationBase & {
   phase: 'writing';
   authControllerToken: AuthControllerToken;
   receipts: MutationReceipt[];
+  /**
+   * Escrow ids that have been sent `applyMutation` for this mutation, including
+   * sends whose outcome is unknown. Records persisted without this field are
+   * normalized to every configured escrow when loaded.
+   */
+  dispatchedEscrowIds: string[];
 };
 
 export type PendingOperation =
@@ -294,6 +300,15 @@ export type RecoveryEscrowProvider = {
     options?: { signal?: AbortSignal },
   ) => Promise<MutationReceipt>;
   /**
+   * Optional. Reports whether this escrow has applied `mutation`. The
+   * controller calls it only after an apply was rejected following an earlier
+   * send to this escrow. Without it, such a rejection is treated as ambiguous.
+   */
+  getMutationStatus?: (
+    mutation: Mutation,
+    options?: { signal?: AbortSignal },
+  ) => Promise<MutationStatus>;
+  /**
    * Verifies a receipt cryptographically using the build-pinned receipt key
    * and confirms it targets the expected escrow.
    *
@@ -307,6 +322,13 @@ export type RecoveryEscrowProvider = {
     expectedEscrowId: string,
   ) => boolean;
 };
+
+/**
+ * Whether an escrow has applied a mutation, as reported by its status call.
+ */
+export type MutationStatus =
+  | { applied: false }
+  | { applied: true; receipt: MutationReceipt };
 
 /**
  * Encrypts pending mutation state using wallet secure storage.

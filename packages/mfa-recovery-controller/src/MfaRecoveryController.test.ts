@@ -757,6 +757,296 @@ describe('MfaRecoveryController', () => {
       );
     });
 
+    describe('rejections on retry', () => {
+      const REQUEST_TIMEOUT_MS = 5_000;
+
+      it('keeps the mutation when a retry is rejected and the status probe fails', async () => {
+        await withController(async ({ controller, escrowA, escrowB }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.dropNextApplyResponseCount = 1;
+          escrowB.dropNextApplyResponseCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          escrowA.rejectNextApplyCount = 1;
+          escrowB.rejectNextApplyCount = 1;
+          escrowA.statusProbeMode = 'error';
+          escrowB.statusProbeMode = 'error';
+
+          await expect(controller.resume()).rejects.toBeInstanceOf(
+            IncompleteMutationError,
+          );
+          expect(await controller.getPhase()).toBe('writing');
+          await expect(controller.abort()).rejects.toThrow(
+            'Cannot abort a mutation that may have been applied',
+          );
+        });
+      });
+
+      it('completes the mutation when the status probe reports it was already applied', async () => {
+        await withController(async ({ controller, escrowA, escrowB }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.dropNextApplyResponseCount = 1;
+          escrowB.dropNextApplyResponseCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          escrowA.rejectNextApplyCount = 1;
+          escrowB.rejectNextApplyCount = 1;
+
+          await controller.resume();
+
+          expect(await controller.getPhase()).toBe('idle');
+          expect(
+            bytesToHex((await recover(controller, PASSKEY)).recoverySecret),
+          ).toBe(bytesToHex(SECRET_2));
+        });
+      });
+
+      it('clears the mutation when the retry is rejected and the status probe reports it was not applied', async () => {
+        await withController(async ({ controller, escrowA, escrowB }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.failNextApplyCount = 1;
+          escrowB.failNextApplyCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          escrowA.rejectNextApplyCount = 1;
+          escrowB.rejectNextApplyCount = 1;
+
+          await expect(controller.resume()).rejects.toBeInstanceOf(
+            MutationRejectedError,
+          );
+          expect(await controller.getPhase()).toBe('idle');
+          await controller.updateRecoverySecret(
+            PASSKEY,
+            SECRET_2,
+            REGISTERED_EPOCH,
+          );
+          expect(await controller.getPhase()).toBe('idle');
+        });
+      });
+
+      it('rejects a status probe receipt that fails verification', async () => {
+        await withController(async ({ controller, escrowA, escrowB }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.dropNextApplyResponseCount = 1;
+          escrowB.dropNextApplyResponseCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          escrowA.rejectNextApplyCount = 1;
+          escrowB.rejectNextApplyCount = 1;
+          escrowA.statusProbeMode = 'invalid';
+          escrowB.statusProbeMode = 'invalid';
+
+          await expect(controller.resume()).rejects.toThrow(
+            'Invalid mutation receipt',
+          );
+          expect(await controller.getPhase()).toBe('writing');
+        });
+      });
+
+      it('treats a rejection as ambiguous when the escrow has no status call', async () => {
+        await withController(async ({ controller, escrowA, escrowB }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          escrowA.dropNextApplyResponseCount = 1;
+          escrowB.dropNextApplyResponseCount = 1;
+          await expect(
+            controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          escrowA.rejectNextApplyCount = 1;
+          escrowB.rejectNextApplyCount = 1;
+          Object.defineProperty(escrowA, 'getMutationStatus', {
+            value: undefined,
+          });
+
+          await expect(controller.resume()).rejects.toBeInstanceOf(
+            IncompleteMutationError,
+          );
+          expect(await controller.getPhase()).toBe('writing');
+        });
+      });
+
+      it('keeps the mutation when the status probe times out', async () => {
+        jest.useFakeTimers();
+        try {
+          await withController(async ({ escrowA, escrowB }) => {
+            const controller = new MfaRecoveryController({
+              ...getOptions(escrowA, escrowB),
+              messenger: getMessenger(getRootMessenger()),
+              requestTimeoutMs: REQUEST_TIMEOUT_MS,
+            });
+            await controller.register(SECRET, IDENTIFIERS);
+            escrowA.dropNextApplyResponseCount = 1;
+            escrowB.dropNextApplyResponseCount = 1;
+            await expect(
+              controller.updateRecoverySecret(
+                PASSKEY,
+                SECRET_2,
+                REGISTERED_EPOCH,
+              ),
+            ).rejects.toBeInstanceOf(IncompleteMutationError);
+            escrowA.rejectNextApplyCount = 1;
+            escrowB.rejectNextApplyCount = 1;
+            escrowA.getMutationStatusHang.enabled = true;
+            escrowB.getMutationStatusHang.enabled = true;
+
+            const resumed = controller.resume().then(
+              () => 'resolved',
+              (error: unknown) => error,
+            );
+            await waitForHang(escrowA.getMutationStatusHang);
+            await waitForHang(escrowB.getMutationStatusHang);
+            await jest.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS + 1);
+
+            expect(await resumed).toBeInstanceOf(IncompleteMutationError);
+            expect(await controller.getPhase()).toBe('writing');
+          });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      it('keeps the mutation when a timed-out first send is rejected on retry', async () => {
+        jest.useFakeTimers();
+        try {
+          await withController(async ({ escrowA, escrowB }) => {
+            const controller = new MfaRecoveryController({
+              ...getOptions(escrowA, escrowB),
+              messenger: getMessenger(getRootMessenger()),
+              requestTimeoutMs: REQUEST_TIMEOUT_MS,
+            });
+            await controller.register(SECRET, IDENTIFIERS);
+            escrowA.applyMutationHang.enabled = true;
+            escrowB.applyMutationHang.enabled = true;
+            const mutation = controller
+              .updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH)
+              .then(
+                () => 'resolved',
+                (error: unknown) => error,
+              );
+            await waitForHang(escrowA.applyMutationHang);
+            await waitForHang(escrowB.applyMutationHang);
+            await jest.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS + 1);
+            expect(await mutation).toBeInstanceOf(IncompleteMutationError);
+
+            escrowA.applyMutationHang.enabled = false;
+            escrowB.applyMutationHang.enabled = false;
+            escrowA.rejectNextApplyCount = 1;
+            escrowB.rejectNextApplyCount = 1;
+            escrowA.statusProbeMode = 'error';
+            escrowB.statusProbeMode = 'error';
+
+            const resumed = controller.resume().then(
+              () => 'resolved',
+              (error: unknown) => error,
+            );
+            expect(await resumed).toBeInstanceOf(IncompleteMutationError);
+            expect(await controller.getPhase()).toBe('writing');
+          });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      it('treats a writing record without dispatchedEscrowIds as dispatched to every escrow', async () => {
+        await withController(
+          async ({ controller, escrowA, escrowB, options }) => {
+            await controller.register(SECRET, IDENTIFIERS);
+            const legacy: Record<string, unknown> = {
+              ...(await getValidWritingPending([escrowA, escrowB], 0)),
+            };
+            delete legacy.dispatchedEscrowIds;
+            escrowA.statusProbeMode = 'error';
+            escrowB.statusProbeMode = 'error';
+            const resumed = new MfaRecoveryController({
+              ...options,
+              messenger: getMessenger(getRootMessenger()),
+              state: { pendingOperation: JSON.stringify(legacy) },
+            });
+
+            await expect(resumed.resume()).rejects.toBeInstanceOf(
+              IncompleteMutationError,
+            );
+            expect(await resumed.getPhase()).toBe('writing');
+          },
+        );
+      });
+    });
+
+    it.each([
+      {
+        name: 'a non-array value',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.dispatchedEscrowIds = 'escrow-a';
+        },
+      },
+      {
+        name: 'an unknown escrow id',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.dispatchedEscrowIds = ['unknown-escrow'];
+        },
+      },
+      {
+        name: 'a duplicate escrow id',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.dispatchedEscrowIds = ['escrow-a', 'escrow-a'];
+        },
+      },
+      {
+        name: 'a non-string escrow id',
+        mutate: (pending: Record<string, unknown>): void => {
+          pending.dispatchedEscrowIds = [42];
+        },
+      },
+    ])(
+      'rejects persisted state with $name in dispatchedEscrowIds before external calls',
+      async ({ mutate }) => {
+        await withController(async ({ escrowA, options }) => {
+          const pending = JSON.parse(
+            JSON.stringify(await getValidWritingPending(options.escrows)),
+          ) as Record<string, unknown>;
+          mutate(pending);
+          const auth = jest.spyOn(
+            options.authProvider,
+            'authorizeRecoveryRequest',
+          );
+          const applyA = jest.spyOn(escrowA, 'applyMutation');
+          const controller = new MfaRecoveryController({
+            ...options,
+            messenger: getMessenger(getRootMessenger()),
+            state: { pendingOperation: JSON.stringify(pending) },
+          });
+
+          await expect(controller.resume()).rejects.toThrow(/./u);
+
+          expect(auth).not.toHaveBeenCalled();
+          expect(applyA).not.toHaveBeenCalled();
+        });
+      },
+    );
+
     it('keeps a writing mutation that one escrow already acknowledged', async () => {
       await withController(async ({ controller, escrowA }) => {
         await controller.register(SECRET, IDENTIFIERS);
@@ -991,6 +1281,7 @@ describe('MfaRecoveryController', () => {
           ];
           const writing = await passthroughEncryptor.encrypt({
             phase: 'writing',
+            dispatchedEscrowIds: ['escrow-a', 'escrow-b'],
             mutation,
             authControllerToken: createAuthControllerToken({
               sub: 'profile-1',
@@ -1048,6 +1339,7 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ options }) => {
         const writing = await passthroughEncryptor.encrypt({
           phase: 'writing',
+          dispatchedEscrowIds: ['escrow-a', 'escrow-b'],
           mutation: {
             id: '0xmut',
             profileId: 'profile-1',
@@ -1109,6 +1401,7 @@ describe('MfaRecoveryController', () => {
         });
         const writing = await passthroughEncryptor.encrypt({
           phase: 'writing',
+          dispatchedEscrowIds: ['escrow-a', 'escrow-b'],
           mutation,
           authControllerToken: createAuthControllerToken({
             sub: 'profile-1',
@@ -1169,6 +1462,7 @@ describe('MfaRecoveryController', () => {
         });
         const writing = await passthroughEncryptor.encrypt({
           phase: 'writing',
+          dispatchedEscrowIds: ['escrow-a', 'escrow-b'],
           mutation,
           authControllerToken: createAuthControllerToken({
             sub: 'profile-1',
@@ -2143,6 +2437,7 @@ async function getValidWritingPending(
     payload,
     identifier: PASSKEY,
     receipts: [],
+    dispatchedEscrowIds: escrows.map((escrow) => escrow.id),
   };
 }
 
