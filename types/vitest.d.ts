@@ -1,6 +1,6 @@
 // Types for the custom matchers in `tests/matchers.ts`, which
 // `tests/vitest/setup-after-env.ts` registers. The Jest side of the same
-// declaration lives in `types/global.d.ts`.
+// declaration lives in `types/jest.d.ts`.
 //
 // The `export {}` is what makes this file a module, which in turn makes the
 // `declare module` below an augmentation. Without it, TypeScript would treat the
