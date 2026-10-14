@@ -1,4 +1,5 @@
-// See `tests/setupAfterEnv.ts` for the implementation for these matchers.
+// See `tests/matchers.ts` for the implementation of these matchers, and
+// `tests/setupAfterEnv/matchers.ts` for where they are registered.
 
 declare namespace jest {
   // We're using `interface` here so that we can extend and not override it.

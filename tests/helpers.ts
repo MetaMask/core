@@ -1,4 +1,5 @@
 import { getKnownPropertyNames } from '@metamask/utils';
+import { setImmediate as realSetImmediate } from 'node:timers';
 
 /**
  * Advances the provided fake timer by a specified duration in incremental steps.
@@ -34,10 +35,13 @@ export async function jestAdvanceTime({
  * This method is used for async tests that use fake timers.
  * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
  *
+ * `setImmediate` comes from `node:timers` so that it is the real one even
+ * while fake timers are installed.
+ *
  * TODO: migrate this to @metamask/utils
  */
 export async function flushPromises(): Promise<void> {
-  await new Promise(jest.requireActual('timers').setImmediate);
+  await new Promise(realSetImmediate);
 }
 
 /**
@@ -63,7 +67,7 @@ export async function flushPromises(): Promise<void> {
  * @returns The complete version of the object.
  */
 export function buildTestObject<Type extends Record<PropertyKey, unknown>>(
-  defaults: { [K in keyof Type]: () => Type[K] },
+  defaults: { [Key in keyof Type]: () => Type[Key] },
   overrides: Partial<Type>,
   finalizeObject?: (object: Type) => Type,
 ): Type {
