@@ -462,8 +462,11 @@ export type ValidatableController<
   Controller,
   ControllerState extends StateConstraint,
 > =
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (new (...args: any[]) => Controller) & {
+  // `never[]` accepts a class with any constructor signature, because
+  // parameters are contravariant and every type accepts `never`. The trade-off
+  // is that this type can't be used to call the constructor, but only the
+  // static `struct` is needed.
+  (new (...args: never[]) => Controller) & {
     struct: Pick<Struct<ControllerState>, 'validate'>;
   };
 
