@@ -423,7 +423,7 @@ describe('MarketingConsentController', () => {
         'extension',
       );
       expect(mocks.optInToMarketing).not.toHaveBeenCalled();
-      expect(await controller.waitForSync(true)).toBeUndefined();
+      expect(controller.state.pendingMarketingConsent).toBeNull();
     });
 
     it('does not reconcile an undecided local value', async () => {
@@ -461,7 +461,7 @@ describe('MarketingConsentController', () => {
           { marketingConsentEnabled: localConsent },
           'extension',
         );
-        expect(await controller.waitForSync(localConsent)).toBeUndefined();
+        expect(controller.state.pendingMarketingConsent).toBeNull();
       },
     );
 
@@ -962,65 +962,69 @@ describe('MarketingConsentController', () => {
     });
   });
 
-  describe('waitForSync', () => {
-    it('is exposed as a messenger action', async () => {
-      const { rootMessenger } = setup({
+  describe('setMarketingConsent', () => {
+    it('saves an opt-in to AUS', async () => {
+      const { controller, mocks } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+
+      expect(await controller.setMarketingConsent(true)).toBeUndefined();
+
+      expect(mocks.optInToMarketing).toHaveBeenCalledTimes(1);
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: true },
+        'extension',
+      );
+      expect(mocks.getNotificationPreferences).not.toHaveBeenCalled();
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
+    it('turns off marketing channels before saving an opt-out', async () => {
+      const order: string[] = [];
+      const { controller, mocks, setAnalyticsState } = setup({
         analyticsState: OPTED_IN,
         isSignedIn: true,
         remoteConsent: { marketingConsentEnabled: true },
       });
-
-      expect(
-        await rootMessenger.call(
-          'MarketingConsentController:waitForSync',
-          true,
-        ),
-      ).toBeUndefined();
-    });
-
-    it('rejects when the wallet is not signed in', async () => {
-      const { controller } = setup({ analyticsState: OPTED_IN });
-
-      await expect(controller.waitForSync(true)).rejects.toThrow(
-        'Marketing consent requires an unlocked, signed-in wallet',
-      );
-    });
-
-    it('rejects when AUS holds a different consent', async () => {
-      const { controller } = setup({
-        analyticsState: OPTED_OUT,
-        isSignedIn: true,
-        remoteConsent: { marketingConsentEnabled: false },
-      });
-
-      await expect(controller.waitForSync(true)).rejects.toThrow(
-        'Marketing consent was not saved to AUS',
-      );
-    });
-
-    it('rejects when the session ends during the wait', async () => {
-      const put = createDeferred<void>();
-      const { controller, setAnalyticsState, setSignedIn } = setup({
-        analyticsState: OPTED_OUT,
-        isSignedIn: true,
-        remoteConsent: { marketingConsentEnabled: false },
-        putConsent: async () => put.promise,
-      });
       await flushPromises();
+      mocks.optOutOfMarketing.mockImplementation(() => {
+        order.push('optOut');
+        setAnalyticsState(OPTED_OUT);
+      });
+      mocks.getNotificationPreferences.mockImplementation(async () => {
+        order.push('getPreferences');
+        return NOTIFICATION_PREFERENCES;
+      });
+      mocks.putNotificationPreferences.mockImplementation(async () => {
+        order.push('putPreferences');
+      });
+      mocks.putMarketingConsent.mockImplementation(async () => {
+        order.push('putConsent');
+      });
 
-      setAnalyticsState(OPTED_IN);
-      const waiting = controller.waitForSync(true);
-      setSignedIn(false);
-      put.resolve();
+      expect(await controller.setMarketingConsent(false)).toBeUndefined();
 
-      await expect(waiting).rejects.toThrow(
-        'Marketing consent was not saved to AUS',
+      expect(order).toStrictEqual([
+        'optOut',
+        'getPreferences',
+        'putPreferences',
+        'getPreferences',
+        'putConsent',
+      ]);
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'extension',
       );
+      expect(controller.state.pendingMarketingConsent).toBeNull();
     });
 
     it('waits for the consent write before resolving', async () => {
       const put = createDeferred<void>();
-      const { controller, setAnalyticsState } = setup({
+      const { controller } = setup({
         analyticsState: OPTED_OUT,
         isSignedIn: true,
         remoteConsent: { marketingConsentEnabled: false },
@@ -1028,19 +1032,69 @@ describe('MarketingConsentController', () => {
       });
       await flushPromises();
 
-      setAnalyticsState(OPTED_IN);
-      const onSynced = jest.fn();
-      const waiting = controller.waitForSync(true).then(onSynced);
+      const onSaved = jest.fn();
+      const saving = controller.setMarketingConsent(true).then(onSaved);
       await flushPromises();
-      expect(onSynced).not.toHaveBeenCalled();
+      expect(onSaved).not.toHaveBeenCalled();
 
       put.resolve();
-      await waiting;
-      expect(onSynced).toHaveBeenCalledTimes(1);
+      await saving;
+      expect(onSaved).toHaveBeenCalledTimes(1);
     });
 
-    it('rejects when the write fails and retries the latest decision', async () => {
-      const { controller, mocks, setAnalyticsState } = setup({
+    it('applies the change locally and resolves without waiting when signed out', async () => {
+      const { controller, mocks } = setup({ analyticsState: OPTED_IN });
+
+      expect(await controller.setMarketingConsent(false)).toBeUndefined();
+
+      expect(mocks.optOutOfMarketing).toHaveBeenCalledTimes(1);
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+      expect(controller.state.pendingMarketingConsent).toBe(false);
+    });
+
+    it('applies the change locally and resolves without waiting when locked', async () => {
+      const { controller, mocks } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        isUnlocked: false,
+      });
+
+      expect(await controller.setMarketingConsent(true)).toBeUndefined();
+
+      expect(mocks.optInToMarketing).toHaveBeenCalledTimes(1);
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+      expect(controller.state.pendingMarketingConsent).toBe(true);
+    });
+
+    it('rejects and applies the AUS value locally when the write fails', async () => {
+      const { controller, mocks, rootMessenger } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+      mocks.putMarketingConsent.mockImplementation(async () => {
+        throw new Error('AUS unavailable');
+      });
+
+      await expect(controller.setMarketingConsent(true)).rejects.toThrow(
+        'AUS unavailable',
+      );
+
+      expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(1);
+      expect(mocks.optOutOfMarketing).toHaveBeenCalledTimes(1);
+      expect(
+        rootMessenger.call('AnalyticsController:getState').optedInToMarketing,
+      ).toBe(false);
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+
+      await flushPromises();
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([true]);
+    });
+
+    it('saves the choice again after a failed attempt', async () => {
+      const { controller, mocks } = setup({
         analyticsState: OPTED_OUT,
         isSignedIn: true,
         remoteConsent: { marketingConsentEnabled: false },
@@ -1052,20 +1106,171 @@ describe('MarketingConsentController', () => {
         })
         .mockImplementation(async () => undefined);
 
-      setAnalyticsState(OPTED_IN);
-      await expect(controller.waitForSync(true)).rejects.toThrow(
+      await expect(controller.setMarketingConsent(true)).rejects.toThrow(
         'AUS unavailable',
       );
-      await controller.waitForSync(true);
+      expect(await controller.setMarketingConsent(true)).toBeUndefined();
 
-      expect(mocks.putMarketingConsent).toHaveBeenCalledTimes(2);
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([
+        true,
+        true,
+      ]);
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
+    it('keeps a newer change made during a failed save pending and writes it', async () => {
+      const firstWrite = createDeferred<void>();
+      const { controller, mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+      mocks.putMarketingConsent
+        .mockImplementationOnce(async () => firstWrite.promise)
+        .mockImplementation(async () => undefined);
+
+      const saving = controller.setMarketingConsent(true);
+      await flushPromises();
+      setAnalyticsState(OPTED_OUT);
+      expect(controller.state.pendingMarketingConsent).toBe(false);
+      firstWrite.reject(new Error('AUS unavailable'));
+
+      await expect(saving).rejects.toThrow('AUS unavailable');
+
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([
+        true,
+        false,
+      ]);
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
+    it('logs a failed AUS re-read, rethrows the save error and reconciles on the next refresh', async () => {
+      const { controller, mocks, rootMessenger } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+      mocks.putMarketingConsent.mockImplementation(async () => {
+        throw new Error('AUS unavailable');
+      });
+      mocks.getMarketingConsent.mockImplementationOnce(async () => {
+        throw new Error('AUS read failed');
+      });
+
+      await expect(controller.setMarketingConsent(true)).rejects.toThrow(
+        'AUS unavailable',
+      );
+
+      expect(consoleError).toHaveBeenCalledWith(
+        'Failed to re-read marketing consent from AUS:',
+        expect.objectContaining({ message: 'AUS read failed' }),
+      );
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+      expect(
+        rootMessenger.call('AnalyticsController:getState').optedInToMarketing,
+      ).toBe(true);
+
+      controller.refresh();
+      await flushPromises();
+
+      expect(mocks.optOutOfMarketing).toHaveBeenCalledTimes(1);
+      expect(
+        rootMessenger.call('AnalyticsController:getState').optedInToMarketing,
+      ).toBe(false);
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([true]);
+    });
+
+    it('rejects when the session ends during the wait, even if AUS saved the change', async () => {
+      const put = createDeferred<void>();
+      const { controller, mocks, setSignedIn } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+        putConsent: async () => put.promise,
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+
+      const saving = controller.setMarketingConsent(true);
+      await flushPromises();
+      setSignedIn(false);
+      put.resolve();
+
+      await expect(saving).rejects.toThrow(
+        'Marketing consent was not saved to AUS',
+      );
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
+    });
+
+    it('keeps an unsaved change pending when the session ends during the wait, and saves it at the next sign-in', async () => {
+      const put = createDeferred<void>();
+      let failNextPut = true;
+      const { controller, mocks, setSignedIn } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+        putConsent: async () => {
+          if (failNextPut) {
+            failNextPut = false;
+            return put.promise;
+          }
+          return Promise.resolve();
+        },
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+
+      const saving = controller.setMarketingConsent(true);
+      await flushPromises();
+      setSignedIn(false);
+      put.reject(new Error('AUS unavailable'));
+
+      await expect(saving).rejects.toThrow('AUS unavailable');
+      expect(controller.state.pendingMarketingConsent).toBe(true);
+      expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
+
+      setSignedIn(true);
+      await flushPromises();
+
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([
+        true,
+        true,
+      ]);
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
+    it('writes an unchanged value to AUS so it wins over a differing AUS value', async () => {
+      const read = createDeferred<RemoteConsent>();
+      const { controller, mocks } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        getConsent: async () => read.promise,
+      });
+      await flushPromises();
+
+      const saving = controller.setMarketingConsent(true);
+      read.resolve({ marketingConsentEnabled: false });
+
+      expect(await saving).toBeUndefined();
+      expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: true },
+        'extension',
+      );
       expect(controller.state.pendingMarketingConsent).toBeNull();
     });
 
     it('keeps waiting when an older session run hands off to a new run', async () => {
       const firstRead = createDeferred<RemoteConsent>();
       let reads = 0;
-      const { controller, setSignedIn } = setup({
+      const { controller, mocks, setSignedIn } = setup({
         analyticsState: OPTED_IN,
         isSignedIn: true,
         getConsent: async () => {
@@ -1077,10 +1282,36 @@ describe('MarketingConsentController', () => {
 
       setSignedIn(false);
       setSignedIn(true);
-      const waiting = controller.waitForSync(true);
+      const saving = controller.setMarketingConsent(true);
       firstRead.resolve(null);
 
-      expect(await waiting).toBeUndefined();
+      expect(await saving).toBeUndefined();
+      expect(reads).toBe(2);
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([
+        true,
+        true,
+      ]);
+    });
+
+    it('is exposed as a messenger action', async () => {
+      const { controller, mocks, rootMessenger } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+
+      expect(
+        await rootMessenger.call(
+          'MarketingConsentController:setMarketingConsent',
+          true,
+        ),
+      ).toBeUndefined();
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: true },
+        'extension',
+      );
+      expect(controller.state.pendingMarketingConsent).toBeNull();
     });
   });
 
@@ -1120,6 +1351,7 @@ describe('MarketingConsentController', () => {
         'invalidate',
         'getPreferences',
         'putPreferences',
+        'getPreferences',
         'putConsent',
       ]);
       expect(mocks.invalidateQueries).toHaveBeenCalledWith({
@@ -1137,6 +1369,50 @@ describe('MarketingConsentController', () => {
         },
         'extension',
       );
+    });
+
+    it('re-reads preferences after turning channels off', async () => {
+      const { mocks, setAnalyticsState } = setup({
+        ...signedInOptedIn,
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+      });
+      await flushPromises();
+
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+
+      expect(mocks.getNotificationPreferences).toHaveBeenCalledTimes(2);
+      expect(
+        mocks.getNotificationPreferences.mock.invocationCallOrder[1],
+      ).toBeGreaterThan(
+        mocks.putNotificationPreferences.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('logs a failed preferences re-read and still saves the opt-out', async () => {
+      const { controller, mocks, setAnalyticsState } = setup({
+        ...signedInOptedIn,
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+      });
+      await flushPromises();
+      mocks.getNotificationPreferences
+        .mockImplementationOnce(async () => NOTIFICATION_PREFERENCES)
+        .mockImplementationOnce(async () => {
+          throw new Error('AUS unavailable');
+        });
+
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+
+      expect(consoleError).toHaveBeenCalledWith(
+        'Failed to refresh notification preferences:',
+        expect.any(Error),
+      );
+      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
+        { marketingConsentEnabled: false },
+        'extension',
+      );
+      expect(controller.state.pendingMarketingConsent).toBeNull();
     });
 
     it('turns off channels when only one marketing channel is on', async () => {
@@ -1183,6 +1459,7 @@ describe('MarketingConsentController', () => {
       await flushPromises();
 
       expect(mocks.putNotificationPreferences).not.toHaveBeenCalled();
+      expect(mocks.getNotificationPreferences).toHaveBeenCalledTimes(1);
       expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
         { marketingConsentEnabled: false },
         'extension',
@@ -1233,6 +1510,7 @@ describe('MarketingConsentController', () => {
         getPreferences: async () => NOTIFICATION_PREFERENCES,
       });
       await flushPromises();
+      jest.clearAllMocks();
 
       setAnalyticsState(OPTED_IN);
       await flushPromises();
@@ -1240,7 +1518,7 @@ describe('MarketingConsentController', () => {
       expect(mocks.getNotificationPreferences).not.toHaveBeenCalled();
     });
 
-    it('does not touch channels when applying an opt-out from AUS', async () => {
+    it('turns off channels after applying an opt-out from AUS', async () => {
       const { mocks } = setup({
         ...signedInOptedIn,
         remoteConsent: { marketingConsentEnabled: false },
@@ -1249,7 +1527,78 @@ describe('MarketingConsentController', () => {
       await flushPromises();
 
       expect(mocks.optOutOfMarketing).toHaveBeenCalled();
-      expect(mocks.getNotificationPreferences).not.toHaveBeenCalled();
+      expect(
+        mocks.putNotificationPreferences.mock.invocationCallOrder[0],
+      ).toBeGreaterThan(mocks.optOutOfMarketing.mock.invocationCallOrder[0]);
+      expect(mocks.putNotificationPreferences).toHaveBeenCalledWith(
+        expect.objectContaining({
+          marketing: {
+            pushNotificationsEnabled: false,
+            inAppNotificationsEnabled: false,
+          },
+        }),
+        'extension',
+      );
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+    });
+
+    it('turns off channels when AUS consent is off and matches local consent', async () => {
+      const { mocks } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+      });
+      await flushPromises();
+
+      expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
+      expect(mocks.putNotificationPreferences).toHaveBeenCalledTimes(1);
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+    });
+
+    it('does not write preferences for an AUS opt-out when channels are already off', async () => {
+      const { mocks } = setup({
+        ...signedInOptedIn,
+        remoteConsent: { marketingConsentEnabled: false },
+        getPreferences: async () => ({
+          ...NOTIFICATION_PREFERENCES,
+          marketing: {
+            pushNotificationsEnabled: false,
+            inAppNotificationsEnabled: false,
+          },
+        }),
+      });
+      await flushPromises();
+
+      expect(mocks.optOutOfMarketing).toHaveBeenCalled();
+      expect(mocks.getNotificationPreferences).toHaveBeenCalledTimes(1);
+      expect(mocks.putNotificationPreferences).not.toHaveBeenCalled();
+    });
+
+    it('retries turning channels off on the next refresh when it fails for an AUS opt-out', async () => {
+      const { controller, mocks } = setup({
+        ...signedInOptedIn,
+        remoteConsent: { marketingConsentEnabled: false },
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+      });
+      mocks.putNotificationPreferences
+        .mockImplementationOnce(async () => {
+          throw new Error('AUS unavailable');
+        })
+        .mockImplementation(async () => undefined);
+      await flushPromises();
+
+      expect(consoleError).toHaveBeenCalledWith(
+        'Failed to synchronize marketing consent with AUS:',
+        expect.any(Error),
+      );
+
+      controller.refresh();
+      await flushPromises();
+
+      expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(2);
+      expect(mocks.putNotificationPreferences).toHaveBeenCalledTimes(2);
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
     });
 
     it('turns off channels at the next sign-in for an opt-out made while signed out', async () => {
@@ -1311,9 +1660,11 @@ describe('MarketingConsentController', () => {
       await flushPromises();
 
       setAnalyticsState(OPTED_OUT);
+      await flushPromises();
 
-      await expect(controller.waitForSync(false)).rejects.toThrow(
-        'AUS unavailable',
+      expect(consoleError).toHaveBeenCalledWith(
+        'Failed to synchronize marketing consent with AUS:',
+        expect.any(Error),
       );
       expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
       expect(controller.state.pendingMarketingConsent).toBe(false);
@@ -1332,13 +1683,12 @@ describe('MarketingConsentController', () => {
         .mockImplementation(async () => undefined);
 
       setAnalyticsState(OPTED_OUT);
-      await expect(controller.waitForSync(false)).rejects.toThrow(
-        'AUS unavailable',
-      );
+      await flushPromises();
       expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
       expect(controller.state.pendingMarketingConsent).toBe(false);
 
-      await controller.waitForSync(false);
+      controller.refresh();
+      await flushPromises();
 
       expect(mocks.putNotificationPreferences).toHaveBeenCalledTimes(2);
       expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
