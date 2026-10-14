@@ -52,6 +52,22 @@ export type InitFunctionArguments<Instance, InstanceMessenger> = {
   options: InstanceOptions<Instance>;
 };
 
+/**
+ * The class of a stateful instance, which may define a static `struct`
+ * describing its state.
+ *
+ * Every stateful instance's initialization configuration has a reference to
+ * its class, but only some classes define a `struct`. When one is present,
+ * `initialize` uses it to validate the instance's state before passing the
+ * state to `init`.
+ */
+export type InstanceReference<Instance, State extends StateConstraint> =
+  // `never[]` accepts a class with any constructor signature, because
+  // parameters are contravariant and every type accepts `never`.
+  (new (...args: never[]) => Instance) & {
+    struct?: ValidatableController<Instance, State>['struct'];
+  };
+
 export type InitializationConfiguration<Instance, InstanceMessenger> = {
   name: InstanceName<Instance>;
   init(args: InitFunctionArguments<Instance, InstanceMessenger>): Instance;
@@ -60,9 +76,7 @@ export type InitializationConfiguration<Instance, InstanceMessenger> = {
   ): InstanceMessenger;
 } & (InstanceState<Instance> extends StateConstraint
   ? {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      reference: (new (...args: any[]) => Instance) &
-        Partial<ValidatableController<Instance, InstanceState<Instance>>>;
+      reference: InstanceReference<Instance, InstanceState<Instance>>;
     }
   : { reference?: undefined });
 

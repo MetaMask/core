@@ -11,6 +11,7 @@ import type {
   DefaultInstances,
 } from './defaults.js';
 import { defaultConfigurations, RootMessenger } from './defaults.js';
+import type { InstanceReference } from './types.js';
 
 type InitializeOptions = WalletOptions & {
   messenger: RootMessenger<DefaultActions, DefaultEvents>;
@@ -23,7 +24,7 @@ type InitializeOptions = WalletOptions & {
  * @returns Whether the reference has the metadata required to validate state.
  */
 function isInstanceValidatable(
-  reference: Partial<ValidatableController<unknown, StateConstraint>>,
+  reference: InstanceReference<unknown, StateConstraint>,
 ): reference is ValidatableController<unknown, StateConstraint> {
   return reference.struct !== undefined;
 }
