@@ -323,6 +323,14 @@ const NetworkMetadataStruct = superstructObject({
  */
 export type NetworkMetadata = Infer<typeof NetworkMetadataStruct>;
 
+const NetworksMetadataStruct = record(string(), NetworkMetadataStruct);
+
+/**
+ * Extra information about each network, such as whether it is accessible or
+ * blocked and whether it supports EIP-1559, keyed by network client ID.
+ */
+export type NetworksMetadata = Infer<typeof NetworksMetadataStruct>;
+
 /**
  * A custom RPC endpoint in a new network configuration, meant to be used in
  * conjunction with `AddNetworkFields`.
@@ -406,43 +414,33 @@ function isErrorWithCode(error: unknown): error is { code: string | number } {
   return typeof error === 'object' && error !== null && 'code' in error;
 }
 
-/**
- * Extra information about each network, such as whether it is accessible or
- * blocked and whether it supports EIP-1559, keyed by network client ID.
- */
-export type NetworksMetadata = Record<NetworkClientId, NetworkMetadata>;
-
-/**
- * The state that NetworkController stores.
- */
-export type NetworkState = {
+const NetworkStateStruct = superstructObject({
   /**
    * The ID of the network client that the proxies returned by
    * `getSelectedNetworkClient` currently point to.
    */
-  selectedNetworkClientId: NetworkClientId;
+  selectedNetworkClientId: string(),
   /**
    * The registry of networks and corresponding RPC endpoints that the
    * controller can use to make requests for various chains.
    *
    * @see {@link NetworkConfiguration}
    */
-  networkConfigurationsByChainId: Record<Hex, NetworkConfiguration>;
-  /**
-   * Extra information about each network, such as whether it is accessible or
-   * blocked and whether it supports EIP-1559, keyed by network client ID.
-   */
-  networksMetadata: NetworksMetadata;
-};
-
-const NetworkStateStruct = superstructObject({
-  selectedNetworkClientId: string(),
   networkConfigurationsByChainId: record(
     StrictHexStruct,
     NetworkConfigurationStruct,
   ),
-  networksMetadata: record(string(), NetworkMetadataStruct),
+  /**
+   * Extra information about each network, such as whether it is accessible or
+   * blocked and whether it supports EIP-1559, keyed by network client ID.
+   */
+  networksMetadata: NetworksMetadataStruct,
 });
+
+/**
+ * The state that NetworkController stores.
+ */
+export type NetworkState = Infer<typeof NetworkStateStruct>;
 
 const controllerName = 'NetworkController';
 
