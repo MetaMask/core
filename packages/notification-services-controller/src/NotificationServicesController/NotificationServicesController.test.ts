@@ -2568,6 +2568,11 @@ describe('NotificationServicesController', () => {
             mockPreferences({ marketing }),
           ),
         ).rejects.toThrow(MarketingConsentRequiredError);
+        await expect(
+          controller.updateNotificationPreferences(
+            mockPreferences({ marketing }),
+          ),
+        ).rejects.toMatchObject({ code: 'MARKETING_CONSENT_REQUIRED' });
         expect(mockPutNotificationPreferences).not.toHaveBeenCalled();
       },
     );

@@ -411,8 +411,14 @@ export type NotificationServicesControllerMessenger = Messenger<
 /**
  * Thrown when marketing notifications are turned on without marketing
  * consent. Ask the user for consent first, then retry.
+ *
+ * Match on `code` rather than `instanceof`: the class does not survive being
+ * passed between processes, e.g. the extension background and UI, where the
+ * original error's properties are kept under `data.cause`.
  */
 export class MarketingConsentRequiredError extends Error {
+  readonly code = 'MARKETING_CONSENT_REQUIRED';
+
   constructor() {
     super('Marketing notifications require marketing consent');
     this.name = 'MarketingConsentRequiredError';
