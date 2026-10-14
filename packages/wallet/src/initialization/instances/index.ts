@@ -9,6 +9,7 @@ export { configRegistryController } from './config-registry-controller/config-re
 export { connectivityController } from './connectivity-controller/connectivity-controller.js';
 export { gasFeeController } from './gas-fee-controller/gas-fee-controller.js';
 export { keyringController } from './keyring-controller/keyring-controller.js';
+export { loggingController } from './logging-controller/logging-controller.js';
 export { networkController } from './network-controller/network-controller.js';
 export { passkeyController } from './passkey-controller/passkey-controller.js';
 export { permissionController } from './permission-controller/permission-controller.js';
