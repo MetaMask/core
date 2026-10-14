@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor(transaction-pay-controller): decouple Polymarket withdraw helpers from the Relay strategy ([#10799](https://github.com/MetaMask/core/pull/10799))
+
 ## [30.1.0]
 
 ### Added
