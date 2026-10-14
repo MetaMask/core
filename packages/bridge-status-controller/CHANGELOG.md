@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [76.4.0]
+
 ### Changed
 
 - Pass the swap/bridge `sourceAssetId` and `destAssetId` to Tron, Solana, and Bitcoin Snap `signAndSendTransaction` requests. ([#10775](https://github.com/MetaMask/core/pull/10775))
@@ -1655,7 +1657,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.4.0...HEAD
+[76.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.5...@metamask/bridge-status-controller@76.4.0
 [76.3.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.4...@metamask/bridge-status-controller@76.3.5
 [76.3.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.3...@metamask/bridge-status-controller@76.3.4
 [76.3.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.2...@metamask/bridge-status-controller@76.3.3
