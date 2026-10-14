@@ -225,6 +225,10 @@ export type NotificationServicesControllerSendPerpPlaceOrderNotificationAction =
  * consent off turns marketing channels off on its own (see
  * `MarketingConsentController`).
  *
+ * Read preferences from `AuthenticatedUserStorageService:getNotificationPreferences`
+ * (e.g. through `@metamask/react-data-query`), whose cache keeps UIs up to
+ * date; write them through this method so the consent rule is enforced.
+ *
  * @param preferences - The full notification preferences to save.
  * @throws {MarketingConsentRequiredError} If a marketing channel is on
  * without marketing consent.
