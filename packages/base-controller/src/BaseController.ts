@@ -458,38 +458,79 @@ export type ValidatableController<
   };
 
 /**
- * Validate the state of a controller against its struct. Returning the optionally coerced state if valid and otherwise throwing.
+ * Validate the state of a controller against its struct.
+ *
+ * This overload is for "strict" mode: if the state matches the struct, returns
+ * the (optionally coerced) state, otherwise throws. Because validation passing
+ * proves that the state has the shape described by the struct, the return
+ * type is narrowed to the type of the struct's contents.
  *
  * @param name - The name of the controller.
  * @param controller - The static controller.
- * @param state - The state of the controller.
- * @param mode - The validation mode, if the mode is `lenient`  validation errors are logged and not thrown.
- * @param captureException - A utility function for reporting an error to Sentry.
+ * @param state - The unvalidated state of the controller.
+ * @param mode - The validation mode ('strict').
  * @returns The validated controller state.
  */
 export function validateControllerState<
-  ControllerState extends StateConstraint,
+  ValidatedState extends StateConstraint,
 >(
   name: string,
-  controller: ValidatableController<unknown, ControllerState>,
+  controller: ValidatableController<unknown, ValidatedState>,
   state: unknown,
+  mode: 'strict',
+): ValidatedState;
+
+/**
+ * Validate the state of a controller against its struct.
+ *
+ * This overload is for "lenient" mode: it always returns the state, but if the
+ * state does not match the struct, it logs and reports an error. Because
+ * validation may have failed, the return type is either the type of the
+ * struct's contents or the type of the given state.
+ *
+ * @param name - The name of the controller.
+ * @param controller - The static controller.
+ * @param state - The unvalidated state of the controller.
+ * @param mode - The validation mode ('lenient').
+ * @param captureException - A utility function for reporting an error to Sentry.
+ * @returns The validated controller state, or the given state if invalid.
+ */
+export function validateControllerState<
+  ValidatedState extends StateConstraint,
+  UnvalidatedState,
+>(
+  name: string,
+  controller: ValidatableController<unknown, ValidatedState>,
+  state: UnvalidatedState,
+  mode: 'lenient',
+  captureException?: (error: Error) => void,
+): ValidatedState | UnvalidatedState;
+
+export function validateControllerState<
+  ValidatedState extends StateConstraint,
+  UnvalidatedState,
+>(
+  name: string,
+  controller: ValidatableController<unknown, ValidatedState>,
+  state: UnvalidatedState,
   mode: 'strict' | 'lenient',
   captureException?: (error: Error) => void,
-): ControllerState {
+): ValidatedState | UnvalidatedState {
   const [validationError, result] = validate(state, controller.struct);
 
-  if (mode === 'strict' && validationError) {
-    throw validationError;
-  } else if (mode === 'lenient' && validationError) {
-    const error = new Error(
-      `Validation of "${name}" state failed. Not throwing because strict mode is not enabled. The reported error is: ${validationError.message}`,
-      { cause: validationError },
-    );
-
-    captureException?.(error);
-    console.warn(error);
-    return state as ControllerState;
+  if (!validationError) {
+    return result;
   }
 
-  return result as ControllerState;
+  if (mode === 'strict') {
+    throw validationError;
+  }
+
+  const error = new Error(
+    `Validation of "${name}" state failed. Not throwing because strict mode is not enabled. The reported error is: ${validationError.message}`,
+    { cause: validationError },
+  );
+  captureException?.(error);
+  console.warn(error);
+  return state;
 }
