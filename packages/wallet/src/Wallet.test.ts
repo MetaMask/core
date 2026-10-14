@@ -1,12 +1,18 @@
 import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
 import { getDefaultClaimsControllerState } from '@metamask/claims-controller';
+import {
+  ClientController,
+  getDefaultClientControllerState,
+} from '@metamask/client-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
+import { LoggingController, LogType } from '@metamask/logging-controller';
 import { Messenger } from '@metamask/messenger';
 import {
   PermissionController,
   SubjectMetadataController,
   SubjectType,
 } from '@metamask/permission-controller';
+import { SelectedNetworkController } from '@metamask/selected-network-controller';
 import {
   getDefaultShieldControllerState,
   ShieldController,
@@ -43,6 +49,9 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
     },
     networkController: {
       infuraProjectId: 'fake-infura-project-id',
+    },
+    selectedNetworkController: {
+      domainProxyMap: new Map(),
     },
     storageService: {
       storage: new InMemoryStorageAdapter(),
@@ -487,6 +496,91 @@ describe('Wallet', () => {
           metadata.origin,
         ),
       ).toStrictEqual(metadata);
+    });
+  });
+
+  describe('SelectedNetworkController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('SelectedNetworkController')).toBeInstanceOf(
+        SelectedNetworkController,
+      );
+      expect(
+        wallet.messenger.call('SelectedNetworkController:getState'),
+      ).toStrictEqual({ domains: {} });
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+      const { selectedNetworkClientId } = messenger.call(
+        'NetworkController:getState',
+      );
+
+      expect(
+        messenger.call(
+          'SelectedNetworkController:getNetworkClientIdForDomain',
+          'https://example.com',
+        ),
+      ).toBe(selectedNetworkClientId);
+    });
+  });
+
+  describe('ClientController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('ClientController')).toBeInstanceOf(
+        ClientController,
+      );
+      expect(wallet.messenger.call('ClientController:getState')).toStrictEqual(
+        getDefaultClientControllerState(),
+      );
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      messenger.call('ClientController:setUiOpen', true);
+
+      expect(messenger.call('ClientController:getState')).toStrictEqual({
+        isUiOpen: true,
+      });
+    });
+  });
+
+  describe('LoggingController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('LoggingController')).toBeInstanceOf(
+        LoggingController,
+      );
+      expect(wallet.messenger.call('LoggingController:getState')).toStrictEqual(
+        { logs: {} },
+      );
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      messenger.call('LoggingController:add', {
+        type: LogType.GenericLog,
+        data: 'test',
+      });
+
+      expect(
+        Object.values(messenger.call('LoggingController:getState').logs),
+      ).toHaveLength(1);
+
+      messenger.call('LoggingController:clear');
+
+      expect(messenger.call('LoggingController:getState').logs).toStrictEqual(
+        {},
+      );
     });
   });
 
