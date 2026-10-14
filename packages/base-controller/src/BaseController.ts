@@ -5,7 +5,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { Struct, validate } from '@metamask/superstruct';
+import type { Struct } from '@metamask/superstruct';
 import type { Json, PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
@@ -448,13 +448,23 @@ export function deriveStateFromMetadata<
   }, {} as never);
 }
 
+/**
+ * A controller class that defines a static `struct` describing its state.
+ *
+ * This is used by `validateControllerState` to validate state at runtime.
+ * Only the struct's `validate` method is required. Unlike a full `Struct`,
+ * which is invariant in the type it describes, this makes the type covariant
+ * in `ControllerState`, so a controller whose struct describes a specific
+ * state can be used wherever a controller with a more general state is
+ * expected.
+ */
 export type ValidatableController<
   Controller,
   ControllerState extends StateConstraint,
 > =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (new (...args: any[]) => Controller) & {
-    struct: Struct<ControllerState>;
+    struct: Pick<Struct<ControllerState>, 'validate'>;
   };
 
 /**
@@ -516,10 +526,8 @@ export function validateControllerState<
   mode: 'strict' | 'lenient',
   captureException?: (error: Error) => void,
 ): ValidatedState | UnvalidatedState {
-  const [validationError, result] = validate(
-    state,
-    controllerConstructor.struct,
-  );
+  const [validationError, result] =
+    controllerConstructor.struct.validate(state);
 
   if (!validationError) {
     return result;
