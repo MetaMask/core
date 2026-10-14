@@ -4302,11 +4302,6 @@
       "count": 3
     }
   },
-  "packages/network-controller/src/create-network-client.ts": {
-    "no-undef": {
-      "count": 2
-    }
-  },
   "packages/network-controller/src/rpc-service/rpc-service-chain.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 13

@@ -515,14 +515,6 @@ export async function withNetworkClient<Type>(
 
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
 
-  // The JSON-RPC client wraps `eth_estimateGas` so that it takes 2 seconds longer
-  // than it usually would to complete. Or at least it should — this doesn't
-  // appear to be working correctly. Unset `IN_TEST` on `process.env` to prevent
-  // this behavior.
-  /* eslint-disable-next-line n/no-process-env */
-  const inTest = process.env.IN_TEST;
-  /* eslint-disable-next-line n/no-process-env */
-  delete process.env.IN_TEST;
   const networkClientConfiguration: NetworkClientConfiguration =
     providerType === 'infura'
       ? {
@@ -556,8 +548,6 @@ export async function withNetworkClient<Type>(
     messenger: networkControllerMessenger,
     rpcFailoverMode,
   });
-  /* eslint-disable-next-line n/no-process-env */
-  process.env.IN_TEST = inTest;
 
   const { provider, blockTracker } = networkClient;
 

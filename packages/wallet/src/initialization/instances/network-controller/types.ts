@@ -1,4 +1,7 @@
-import type { NetworkControllerAnalyticsOptions } from '@metamask/network-controller';
+import type {
+  NetworkControllerAnalyticsOptions,
+  NetworkControllerOptions,
+} from '@metamask/network-controller';
 import { Hex } from '@metamask/utils';
 
 /**
@@ -13,6 +16,10 @@ export type NetworkControllerInstanceOptions = {
    * An optional map of available failover URLs for each chain ID.
    */
   failoverUrls?: Record<Hex, string[]>;
+  /**
+   * Customize block trackers per RPC endpoint and network client configuration.
+   */
+  getBlockTrackerOptions?: NetworkControllerOptions['getBlockTrackerOptions'];
   /**
    * Configuration for the analytics events the controller emits when an RPC
    * endpoint becomes unavailable or degraded. Optional; omitted properties fall
