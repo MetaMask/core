@@ -3775,16 +3775,7 @@
   },
   "packages/money-account-controller/src/MoneyAccountController.test.ts": {
     "n/no-callback-literal": {
-      "count": 6
-    },
-    "typescript/no-unsafe-assignment": {
       "count": 1
-    },
-    "typescript/no-unsafe-call": {
-      "count": 6
-    },
-    "typescript/no-unsafe-return": {
-      "count": 6
     }
   },
   "packages/money-account-controller/src/MoneyAccountController.ts": {

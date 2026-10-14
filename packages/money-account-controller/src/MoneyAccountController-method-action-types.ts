@@ -18,6 +18,12 @@ export type MoneyAccountControllerInitAction = {
  * Creates a money account for the given entropy source. If an account
  * already exists for that entropy source, it is returned as-is (idempotent).
  *
+ * The entropy source identifies the backing keyring:
+ * - `entropy:mpc:_`: the MPC keyring, which is created and
+ * initialized if it does not exist yet.
+ * - Any other entropy source: the `MoneyKeyring` for that entropy source, which
+ * is created if it does not exist yet.
+ *
  * @param entropySource - The entropy source ID to create the money account for.
  * @returns The money account.
  */
@@ -27,12 +33,22 @@ export type MoneyAccountControllerCreateMoneyAccountAction = {
 };
 
 /**
- * Gets a money account by its associated entropy source ID. If no ID is
- * provided, the primary entropy source will be used.
+ * Sets the default money account.
+ *
+ * @param id - The id of the money account to use as the default.
+ */
+export type MoneyAccountControllerSetDefaultMoneyAccountAction = {
+  type: `MoneyAccountController:setDefaultMoneyAccount`;
+  handler: MoneyAccountController['setDefaultMoneyAccount'];
+};
+
+/**
+ * Gets a money account by id, by entropy source, or the default one.
  *
  * @param selector - Selector options for getting the money account.
- * @param selector.entropySource - The entropy source ID to get the money account for. If not provided, the primary entropy source will be used.
- * @returns The money account, or `undefined` if no account exists for the given entropy source.
+ * @param selector.id - The account id to look up. Takes precedence over `entropySource`.
+ * @param selector.entropySource - The entropy source ID to get the money account for.
+ * @returns The money account, or `undefined` if none matches.
  */
 export type MoneyAccountControllerGetMoneyAccountAction = {
   type: `MoneyAccountController:getMoneyAccount`;
@@ -57,5 +73,6 @@ export type MoneyAccountControllerClearStateAction = {
 export type MoneyAccountControllerMethodActions =
   | MoneyAccountControllerInitAction
   | MoneyAccountControllerCreateMoneyAccountAction
+  | MoneyAccountControllerSetDefaultMoneyAccountAction
   | MoneyAccountControllerGetMoneyAccountAction
   | MoneyAccountControllerClearStateAction;
