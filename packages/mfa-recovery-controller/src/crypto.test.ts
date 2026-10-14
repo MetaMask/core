@@ -112,6 +112,19 @@ describe('crypto', () => {
     it('orders a shorter identifier before its extension', () => {
       expect(sortedValues(['abc', 'ab'])).toStrictEqual(['ab', 'abc']);
     });
+
+    it('orders identical identifiers the same regardless of input order', () => {
+      expect(sortedValues(['ab', 'aa', 'ab'])).toStrictEqual([
+        'aa',
+        'ab',
+        'ab',
+      ]);
+      expect(sortedValues(['ab', 'ab', 'aa'])).toStrictEqual([
+        'aa',
+        'ab',
+        'ab',
+      ]);
+    });
   });
 
   it('round-trips wrap encryption to a wrap public key', () => {

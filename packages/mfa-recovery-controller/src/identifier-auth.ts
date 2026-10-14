@@ -9,6 +9,7 @@ import type {
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
 } from './types.js';
+import { withTimeout } from './with-timeout.js';
 
 /**
  * Minimum identifier count for register and updateIdentifiers.
@@ -55,23 +56,34 @@ export type AuthorizedEscrow = {
  * @param params.identifier - Identifier to authenticate.
  * @param params.requestHash - Request hash bound to the authorization.
  * @param params.identifierAuthProvider - Provider for key-bound assertions.
+ * @param params.signal - Optional parent cancellation signal.
+ * @param params.timeoutMs - Maximum time to wait for the identifier provider.
  * @returns Key-bound identifier token and its proof private key.
  */
 export async function requestKeyBoundIdentifierToken({
   identifier,
   requestHash,
   identifierAuthProvider,
+  signal,
+  timeoutMs,
 }: {
   identifier: Identifier;
   requestHash: string;
   identifierAuthProvider: RecoveryIdentifierAuthProvider;
+  signal?: AbortSignal;
+  timeoutMs: number;
 }): Promise<KeyBoundCredential> {
   const proofKey = generateSigningKey();
-  const token = await identifierAuthProvider.getKeyBoundIdentifierToken({
-    identifier,
-    proofPublicKey: proofKey.publicKey,
-    requestHash,
-  });
+  const token = await withTimeout(
+    (childSignal) =>
+      identifierAuthProvider.getKeyBoundIdentifierToken({
+        identifier,
+        proofPublicKey: proofKey.publicKey,
+        requestHash,
+        signal: childSignal,
+      }),
+    { ms: timeoutMs, signal, kind: 'prompt' },
+  );
   return { token, proofPrivateKey: proofKey.privateKey };
 }
 
@@ -81,19 +93,31 @@ export async function requestKeyBoundIdentifierToken({
  * @param params - Escrow authorization parameters.
  * @param params.escrows - Escrows to authorize.
  * @param params.credential - Key-bound identifier credential.
+ * @param params.signal - Optional parent cancellation signal.
+ * @param params.timeoutMs - Maximum time to wait for escrow challenges.
  * @returns Successful escrow authorizations.
  */
 export async function authorizeEscrowsWithToken({
   escrows,
   credential,
+  signal,
+  timeoutMs,
 }: {
   escrows: RecoveryEscrowProvider[];
   credential: KeyBoundCredential;
+  signal?: AbortSignal;
+  timeoutMs: number;
 }): Promise<AuthorizedEscrow[]> {
   const { token, proofPrivateKey } = credential;
   const challengeResults = await Promise.allSettled(
-    escrows.map((escrow) => escrow.generateChallenge()),
+    escrows.map((escrow) =>
+      withTimeout(
+        (childSignal) => escrow.generateChallenge({ signal: childSignal }),
+        { ms: timeoutMs, signal, kind: 'request' },
+      ),
+    ),
   );
+  throwIfOperationAborted(signal, challengeResults);
   const challenges = challengeResults.flatMap((result, index) =>
     isFulfilledResult(result)
       ? [{ escrow: escrows[index], challenge: result.value }]
@@ -119,6 +143,24 @@ export async function authorizeEscrowsWithToken({
   return authorizationResults
     .filter(isFulfilledResult)
     .map((result) => result.value);
+}
+
+function throwIfOperationAborted(
+  signal: AbortSignal | undefined,
+  results: PromiseSettledResult<unknown>[],
+): void {
+  if (signal?.aborted) {
+    throw new MfaRecoveryError('Operation aborted', 'operation_aborted');
+  }
+  for (const result of results) {
+    if (
+      result.status === 'rejected' &&
+      result.reason instanceof MfaRecoveryError &&
+      result.reason.code === 'operation_aborted'
+    ) {
+      throw result.reason;
+    }
+  }
 }
 
 /**

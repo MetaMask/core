@@ -5,9 +5,10 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { bytesToHex } from '@metamask/utils';
+import { bytesToBase64, bytesToHex, stringToBytes } from '@metamask/utils';
 
 import {
+  HangSwitch,
   StubAuthProvider,
   StubEscrowProvider,
   StubIdentifierAuthProvider,
@@ -22,6 +23,7 @@ import {
 } from './crypto.js';
 import {
   IncompleteMutationError,
+  MfaRecoveryError,
   MutationRejectedError,
 } from './errors.js';
 import type {
@@ -508,7 +510,8 @@ describe('MfaRecoveryController', () => {
           SECRET_2,
           REGISTERED_EPOCH,
         );
-        expect(generateChallenge).toHaveBeenCalledWith();
+        expect(generateChallenge).toHaveBeenCalled();
+        expect(escrowA.lastGenerateChallengeSignal).toBeInstanceOf(AbortSignal);
         const recovered = await recover(controller, PASSKEY);
         expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET_2));
       });
@@ -728,24 +731,30 @@ describe('MfaRecoveryController', () => {
     });
 
     it('clears a persisted writing mutation that every escrow rejects', async () => {
-      await withController(async ({ controller, escrowA, escrowB, options }) => {
-        await controller.register(SECRET, IDENTIFIERS);
-        const pending = await getValidWritingPending([escrowA, escrowB], 0);
-        const resumed = new MfaRecoveryController({
-          ...options,
-          messenger: getMessenger(getRootMessenger()),
-          state: {
-            pendingOperation: await passthroughEncryptor.encrypt(pending),
-          },
-        });
+      await withController(
+        async ({ controller, escrowA, escrowB, options }) => {
+          await controller.register(SECRET, IDENTIFIERS);
+          const pending = await getValidWritingPending([escrowA, escrowB], 0);
+          const resumed = new MfaRecoveryController({
+            ...options,
+            messenger: getMessenger(getRootMessenger()),
+            state: {
+              pendingOperation: await passthroughEncryptor.encrypt(pending),
+            },
+          });
 
-        await expect(resumed.resume()).rejects.toBeInstanceOf(
-          MutationRejectedError,
-        );
-        expect(await resumed.getPhase()).toBe('idle');
-        await resumed.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH);
-        expect(await resumed.getPhase()).toBe('idle');
-      });
+          await expect(resumed.resume()).rejects.toBeInstanceOf(
+            MutationRejectedError,
+          );
+          expect(await resumed.getPhase()).toBe('idle');
+          await resumed.updateRecoverySecret(
+            PASSKEY,
+            SECRET_2,
+            REGISTERED_EPOCH,
+          );
+          expect(await resumed.getPhase()).toBe('idle');
+        },
+      );
     });
 
     it('keeps a writing mutation that one escrow already acknowledged', async () => {
@@ -781,9 +790,7 @@ describe('MfaRecoveryController', () => {
 
         expect(await controller.getPhase()).toBe('idle');
         expect(
-          bytesToHex(
-            (await recover(controller, PASSKEY)).recoverySecret,
-          ),
+          bytesToHex((await recover(controller, PASSKEY)).recoverySecret),
         ).toBe(bytesToHex(SECRET_2));
       });
     });
@@ -898,9 +905,7 @@ describe('MfaRecoveryController', () => {
         await controller.resume();
         expect(await controller.getPhase()).toBe('idle');
         expect(
-          bytesToHex(
-            (await recover(controller, PASSKEY)).recoverySecret,
-          ),
+          bytesToHex((await recover(controller, PASSKEY)).recoverySecret),
         ).toBe(bytesToHex(SECRET));
       });
     });
@@ -1535,6 +1540,497 @@ describe('MfaRecoveryController', () => {
         });
       },
     );
+
+    it.each([
+      {
+        name: 'is not a compact JWT',
+        createToken: (): string => 'not-a-jwt',
+      },
+      {
+        name: 'has claims without step-up bindings',
+        createToken: (): string =>
+          `${encodeJwtSegment({ alg: 'none' })}.${encodeJwtSegment({
+            sub: 'profile-1',
+            exp: unixNow() + 60,
+          })}.stub-signature`,
+      },
+      {
+        name: 'has a non-numeric assurance level',
+        createToken: (requestHash: string): string =>
+          createAuthControllerToken({
+            sub: 'profile-1',
+            exp: unixNow() + 60,
+            requestHash,
+            aal: '2' as unknown as number,
+          }),
+      },
+      {
+        name: 'has no assurance level for an update',
+        createToken: (requestHash: string): string =>
+          createAuthControllerToken({
+            sub: 'profile-1',
+            exp: unixNow() + 60,
+            requestHash,
+          }),
+      },
+    ])(
+      'rejects a writing mutation whose AuthController token $name',
+      async ({ createToken }) => {
+        await withController(async ({ escrowA, escrowB, options }) => {
+          const pending = await getValidWritingPending(options.escrows);
+          pending.authControllerToken = createToken(
+            pending.mutation.requestHash,
+          );
+          const availabilityA = jest.spyOn(escrowA, 'isAvailable');
+          const availabilityB = jest.spyOn(escrowB, 'isAvailable');
+          const controller = new MfaRecoveryController({
+            ...options,
+            messenger: getMessenger(getRootMessenger()),
+            state: { pendingOperation: JSON.stringify(pending) },
+          });
+
+          await expect(controller.resume()).rejects.toMatchObject({
+            code: 'invalid_pending_operation',
+          });
+
+          expect(availabilityA).not.toHaveBeenCalled();
+          expect(availabilityB).not.toHaveBeenCalled();
+        });
+      },
+    );
+  });
+
+  describe('hang resilience', () => {
+    const PROMPT_TIMEOUT_MS = 30_000;
+    const REQUEST_TIMEOUT_MS = 5_000;
+
+    type MfaRecoveryControllerTimeoutOptions = MfaRecoveryControllerOptions & {
+      promptTimeoutMs?: number;
+      requestTimeoutMs?: number;
+    };
+
+    function createControllerWithTimeouts(
+      escrowA: StubEscrowProvider,
+      escrowB: StubEscrowProvider,
+      overrides: Partial<MfaRecoveryControllerTimeoutOptions> = {},
+    ): {
+      controller: MfaRecoveryController;
+      authProvider: StubAuthProvider;
+      identifierAuthProvider: StubIdentifierAuthProvider;
+    } {
+      const authProvider = new StubAuthProvider();
+      const identifierAuthProvider = new StubIdentifierAuthProvider();
+      const controller = new MfaRecoveryController({
+        messenger: getMessenger(getRootMessenger()),
+        authProvider,
+        identifierAuthProvider,
+        escrows: [escrowA, escrowB],
+        pendingOperationEncryptor: passthroughEncryptor,
+        ...overrides,
+      });
+      return { controller, authProvider, identifierAuthProvider };
+    }
+
+    it('resolves getPhase while authorizeRecoveryRequest is hung', async () => {
+      await withController(async ({ escrowA, escrowB }) => {
+        const { controller, authProvider } = createControllerWithTimeouts(
+          escrowA,
+          escrowB,
+        );
+        authProvider.authorizeRecoveryRequestHang.enabled = true;
+        const mutation = controller.register(SECRET, IDENTIFIERS);
+        try {
+          await waitForHang(authProvider.authorizeRecoveryRequestHang);
+
+          const phase = await raceWithDeadline(controller.getPhase(), 100);
+          expect(phase).toBe('authorizing');
+        } finally {
+          authProvider.authorizeRecoveryRequestHang.release();
+          await mutation;
+        }
+      });
+    });
+
+    it('resolves getRecoverySecret while authorizeRecoveryRequest is hung', async () => {
+      await withController(async ({ escrowA, escrowB }) => {
+        const { controller, authProvider } = createControllerWithTimeouts(
+          escrowA,
+          escrowB,
+        );
+        await controller.register(SECRET, IDENTIFIERS);
+        authProvider.authorizeRecoveryRequestHang.enabled = true;
+        const mutation = controller.updateRecoverySecret(
+          PASSKEY,
+          SECRET_2,
+          REGISTERED_EPOCH,
+        );
+        try {
+          await waitForHang(authProvider.authorizeRecoveryRequestHang);
+
+          const recovered = await raceWithDeadline(
+            recover(controller, PASSKEY),
+            100,
+          );
+          expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
+          expect(recovered.epoch).toBe(REGISTERED_EPOCH);
+        } finally {
+          authProvider.authorizeRecoveryRequestHang.release();
+          await mutation;
+        }
+      });
+    });
+
+    it('aborts a hung authorizeRecoveryRequest through AbortSignal', async () => {
+      await withController(async ({ escrowA, escrowB }) => {
+        const { controller, authProvider } = createControllerWithTimeouts(
+          escrowA,
+          escrowB,
+        );
+        authProvider.authorizeRecoveryRequestHang.enabled = true;
+        const mutation = controller.register(SECRET, IDENTIFIERS);
+        await waitForHang(authProvider.authorizeRecoveryRequestHang);
+
+        await raceWithDeadline(controller.abort(), 100);
+        await expect(
+          raceWithDeadline(mutation, 100, 'mutation'),
+        ).rejects.toMatchObject({
+          code: 'operation_aborted',
+        });
+        expect(await raceWithDeadline(controller.getPhase(), 100)).toBe('idle');
+        expect(authProvider.lastAuthorizeRecoveryRequestSignal?.aborted).toBe(
+          true,
+        );
+      });
+    });
+
+    it('cancels a resume queued behind a hung authorizing mutation on abort', async () => {
+      await withController(async ({ escrowA, escrowB }) => {
+        const { controller, authProvider } = createControllerWithTimeouts(
+          escrowA,
+          escrowB,
+          { promptTimeoutMs: PROMPT_TIMEOUT_MS },
+        );
+        const authorizeSpy = jest.spyOn(
+          authProvider,
+          'authorizeRecoveryRequest',
+        );
+        const applyASpy = jest.spyOn(escrowA, 'applyMutation');
+        const applyBSpy = jest.spyOn(escrowB, 'applyMutation');
+        authProvider.authorizeRecoveryRequestHang.enabled = true;
+        const mutation = controller.register(SECRET, IDENTIFIERS);
+        const mutationSettled = mutation.catch((error: unknown) => error);
+        await waitForHang(authProvider.authorizeRecoveryRequestHang);
+        const resumePromise = controller.resume();
+        const resumeSettled = resumePromise.catch((error: unknown) => error);
+
+        try {
+          await raceWithDeadline(controller.abort(), 100);
+          expect(await raceWithDeadline(mutationSettled, 100)).toMatchObject({
+            code: 'operation_aborted',
+          });
+          expect(await raceWithDeadline(resumeSettled, 100)).toMatchObject({
+            code: 'operation_aborted',
+          });
+          expect(authorizeSpy).toHaveBeenCalledTimes(1);
+          expect(applyASpy).not.toHaveBeenCalled();
+          expect(applyBSpy).not.toHaveBeenCalled();
+          expect(await raceWithDeadline(controller.getPhase(), 100)).toBe(
+            'idle',
+          );
+        } finally {
+          authProvider.authorizeRecoveryRequestHang.release();
+          await mutationSettled;
+          await resumeSettled;
+        }
+      });
+    });
+
+    it('cancels a hung identifier prompt on abort but rejects abort while writing', async () => {
+      await withController(async ({ controller, escrowA, options }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+
+        const identifierAuthProvider =
+          options.identifierAuthProvider as StubIdentifierAuthProvider;
+        identifierAuthProvider.getKeyBoundIdentifierTokenHang.enabled = true;
+        const resumePromise = controller.resume();
+        const resumeSettled = resumePromise.catch(() => undefined);
+        try {
+          await waitForHang(
+            identifierAuthProvider.getKeyBoundIdentifierTokenHang,
+          );
+
+          await expect(
+            raceWithDeadline(controller.abort(), 100),
+          ).rejects.toMatchObject({
+            code: 'abort_not_allowed',
+          });
+          expect(
+            identifierAuthProvider.lastGetKeyBoundIdentifierTokenSignal
+              ?.aborted,
+          ).toBe(true);
+          expect(await raceWithDeadline(controller.getPhase(), 100)).toBe(
+            'writing',
+          );
+        } finally {
+          identifierAuthProvider.getKeyBoundIdentifierTokenHang.release();
+          await resumeSettled;
+        }
+      });
+    });
+
+    it('cancels a hung escrow availability check on abort without writing', async () => {
+      await withController(async ({ controller, escrowA, escrowB }) => {
+        const applyA = jest.spyOn(escrowA, 'applyMutation');
+        const applyB = jest.spyOn(escrowB, 'applyMutation');
+        escrowA.isAvailableHang.enabled = true;
+        const mutation = controller.register(SECRET, IDENTIFIERS);
+        const mutationSettled = mutation.catch((error: unknown) => error);
+        try {
+          await waitForHang(escrowA.isAvailableHang);
+
+          await raceWithDeadline(controller.abort(), 100);
+          expect(await raceWithDeadline(mutationSettled, 100)).toMatchObject({
+            code: 'operation_aborted',
+          });
+          expect(escrowA.lastIsAvailableSignal?.aborted).toBe(true);
+          expect(applyA).not.toHaveBeenCalled();
+          expect(applyB).not.toHaveBeenCalled();
+          expect(await controller.getPhase()).toBe('idle');
+        } finally {
+          escrowA.isAvailableHang.release();
+          await mutationSettled;
+        }
+      });
+    });
+
+    it('cancels a hung escrow challenge on abort without writing', async () => {
+      await withController(async ({ controller, escrowA, escrowB }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        const applyA = jest.spyOn(escrowA, 'applyMutation');
+        const applyB = jest.spyOn(escrowB, 'applyMutation');
+        const challengeHang = new HangSwitch();
+        challengeHang.enabled = true;
+        const generateChallenge = escrowA.generateChallenge.bind(escrowA);
+        const challengeSpy = jest
+          .spyOn(escrowA, 'generateChallenge')
+          .mockImplementation(async (challengeOptions) => {
+            await challengeHang.wait(challengeOptions?.signal);
+            return await generateChallenge(challengeOptions);
+          });
+        const mutation = controller.updateRecoverySecret(
+          PASSKEY,
+          SECRET_2,
+          REGISTERED_EPOCH,
+        );
+        const mutationSettled = mutation.catch((error: unknown) => error);
+        try {
+          await waitForHang(challengeHang);
+
+          await raceWithDeadline(controller.abort(), 100);
+          expect(await raceWithDeadline(mutationSettled, 100)).toMatchObject({
+            code: 'operation_aborted',
+          });
+          expect(challengeSpy.mock.calls[0][0]?.signal?.aborted).toBe(true);
+          expect(applyA).not.toHaveBeenCalled();
+          expect(applyB).not.toHaveBeenCalled();
+          expect(await controller.getPhase()).toBe('idle');
+        } finally {
+          challengeHang.release();
+          await mutationSettled;
+        }
+      });
+    });
+
+    it('rejects abort immediately while applyMutation is hung', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.applyMutationHang.enabled = true;
+        const mutation = controller.updateRecoverySecret(
+          PASSKEY,
+          SECRET_2,
+          REGISTERED_EPOCH,
+        );
+        await waitForHang(escrowA.applyMutationHang);
+
+        await expect(
+          raceWithDeadline(controller.abort(), 100),
+        ).rejects.toMatchObject({
+          code: 'abort_not_allowed',
+        });
+        expect(escrowA.lastApplyMutationSignal?.aborted).not.toBe(true);
+
+        escrowA.applyMutationHang.release();
+        await mutation;
+      });
+    });
+
+    describe('timeouts', () => {
+      it('rejects identifier prompts that exceed promptTimeoutMs', async () => {
+        jest.useFakeTimers();
+        try {
+          await withController(async ({ escrowA, escrowB }) => {
+            const { controller, identifierAuthProvider } =
+              createControllerWithTimeouts(escrowA, escrowB, {
+                promptTimeoutMs: PROMPT_TIMEOUT_MS,
+              });
+            await controller.register(SECRET, IDENTIFIERS);
+            identifierAuthProvider.getKeyBoundIdentifierTokenHang.enabled = true;
+            const mutation = controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            );
+            await waitForHang(
+              identifierAuthProvider.getKeyBoundIdentifierTokenHang,
+            );
+
+            await jest.advanceTimersByTimeAsync(PROMPT_TIMEOUT_MS + 1);
+            await expect(
+              raceWithDeadline(mutation, 100, 'mutation'),
+            ).rejects.toMatchObject({
+              code: 'prompt_timeout',
+            });
+            expect(await raceWithDeadline(controller.getPhase(), 100)).toBe(
+              'authorizing',
+            );
+
+            identifierAuthProvider.getKeyBoundIdentifierTokenHang.release();
+            await jest.advanceTimersByTimeAsync(100);
+            await mutation.catch(() => undefined);
+          });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      it('treats hung isAvailable as unavailable after requestTimeoutMs', async () => {
+        jest.useFakeTimers();
+        try {
+          await withController(async ({ escrowA, escrowB }) => {
+            const { controller } = createControllerWithTimeouts(
+              escrowA,
+              escrowB,
+              { requestTimeoutMs: REQUEST_TIMEOUT_MS },
+            );
+            escrowA.isAvailableHang.enabled = true;
+            escrowB.isAvailableHang.enabled = true;
+            const mutation = controller.register(SECRET, IDENTIFIERS);
+            await waitForHang(escrowA.isAvailableHang);
+
+            await jest.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS + 1);
+            await expect(
+              raceWithDeadline(mutation, 100, 'mutation'),
+            ).rejects.toMatchObject({
+              code: 'escrow_unavailable',
+            });
+            expect(await raceWithDeadline(controller.getPhase(), 100)).toBe(
+              'authorizing',
+            );
+
+            escrowA.isAvailableHang.release();
+            escrowB.isAvailableHang.release();
+            await jest.advanceTimersByTimeAsync(100);
+            await mutation.catch(() => undefined);
+          });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      it('surfaces IncompleteMutationError when applyMutation hangs past requestTimeoutMs', async () => {
+        jest.useFakeTimers();
+        try {
+          await withController(async ({ escrowA, escrowB }) => {
+            const { controller } = createControllerWithTimeouts(
+              escrowA,
+              escrowB,
+              { requestTimeoutMs: REQUEST_TIMEOUT_MS },
+            );
+            await controller.register(SECRET, IDENTIFIERS);
+            escrowA.applyMutationHang.enabled = true;
+            const mutation = controller.updateRecoverySecret(
+              PASSKEY,
+              SECRET_2,
+              REGISTERED_EPOCH,
+            );
+            await waitForHang(escrowA.applyMutationHang);
+
+            await jest.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS + 1);
+            await expect(
+              raceWithDeadline(mutation, 100, 'mutation'),
+            ).rejects.toBeInstanceOf(IncompleteMutationError);
+            expect(await raceWithDeadline(controller.getPhase(), 100)).toBe(
+              'writing',
+            );
+
+            escrowA.applyMutationHang.release();
+            await jest.advanceTimersByTimeAsync(100);
+            await mutation.catch(() => undefined);
+          });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+
+      it('surfaces read_failed when getSecret hangs past requestTimeoutMs', async () => {
+        jest.useFakeTimers();
+        try {
+          await withController(async ({ escrowA, escrowB }) => {
+            const { controller } = createControllerWithTimeouts(
+              escrowA,
+              escrowB,
+              { requestTimeoutMs: REQUEST_TIMEOUT_MS },
+            );
+            await controller.register(SECRET, IDENTIFIERS);
+            escrowA.getSecretHang.enabled = true;
+            escrowB.getSecretHang.enabled = true;
+            const read = recover(controller, PASSKEY);
+
+            await waitForHang(escrowA.getSecretHang);
+            await jest.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS + 1);
+            await expect(
+              raceWithDeadline(read, 100, 'read'),
+            ).rejects.toMatchObject({
+              code: 'read_failed',
+            });
+
+            escrowA.getSecretHang.release();
+            escrowB.getSecretHang.release();
+            await jest.advanceTimersByTimeAsync(100);
+            await read.catch(() => undefined);
+          });
+        } finally {
+          jest.useRealTimers();
+        }
+      });
+    });
+  });
+
+  describe('constructor timeout options', () => {
+    it.each([
+      ['requestTimeoutMs', 0],
+      ['promptTimeoutMs', -1],
+      ['promptTimeoutMs', Number.NaN],
+    ] as const)('throws when %s is invalid', (option, value) => {
+      const rootMessenger = getRootMessenger();
+      const escrowA = new StubEscrowProvider('escrow-a');
+      const escrowB = new StubEscrowProvider('escrow-b');
+      expect(
+        () =>
+          new MfaRecoveryController({
+            messenger: getMessenger(rootMessenger),
+            authProvider: new StubAuthProvider(),
+            identifierAuthProvider: new StubIdentifierAuthProvider(),
+            escrows: [escrowA, escrowB],
+            pendingOperationEncryptor: passthroughEncryptor,
+            [option]: value,
+          }),
+      ).toThrow(MfaRecoveryError);
+    });
   });
 
   describe('identifier registry', () => {
@@ -1648,6 +2144,47 @@ async function getValidWritingPending(
     identifier: PASSKEY,
     receipts: [],
   };
+}
+
+/**
+ * @param value - JSON value to encode.
+ * @returns The value as an unpadded base64url JWT segment.
+ */
+function encodeJwtSegment(value: unknown): string {
+  return bytesToBase64(stringToBytes(JSON.stringify(value)))
+    .replace(/\+/gu, '-')
+    .replace(/\//gu, '_')
+    .replace(/[=]+$/u, '');
+}
+
+async function waitForHang(hang: HangSwitch): Promise<void> {
+  const deadline = Date.now() + 5_000;
+  while (!hang.isWaiting) {
+    if (Date.now() >= deadline) {
+      throw new Error('Timed out waiting for hang switch');
+    }
+    await Promise.resolve();
+  }
+}
+
+async function raceWithDeadline<Result>(
+  promise: Promise<Result>,
+  deadlineMs: number,
+  label = 'operation',
+): Promise<Result> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`${label} blocked past ${deadlineMs}ms`)),
+      deadlineMs,
+    );
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+    promise.catch(() => undefined);
+  }
 }
 
 async function withController<ReturnValue>(

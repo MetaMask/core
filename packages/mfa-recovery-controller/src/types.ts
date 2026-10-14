@@ -236,12 +236,15 @@ export type RecoveredSecret = {
  * Authenticates the MetaMask profile and issues request-bound attestations.
  */
 export type RecoveryAuthProvider = {
-  getAuthenticatedProfileId: () => Promise<string>;
+  getAuthenticatedProfileId: (options?: {
+    signal?: AbortSignal;
+  }) => Promise<string>;
   authorizeRecoveryRequest: (params: {
     requestHash: string;
     audiences: string[];
     requireTwoFactor?: boolean;
     identifiers?: Identifier[];
+    signal?: AbortSignal;
   }) => Promise<AuthControllerToken>;
 };
 
@@ -253,6 +256,7 @@ export type RecoveryIdentifierAuthProvider = {
     identifier: Identifier;
     proofPublicKey: string;
     requestHash: string;
+    signal?: AbortSignal;
   }) => Promise<KeyBoundIdentifierToken>;
 };
 
@@ -272,18 +276,22 @@ export type RecoveryEscrowProvider = {
    * the corresponding wrap private key.
    */
   readonly wrapPublicKey: string;
-  isAvailable: () => Promise<boolean>;
-  generateChallenge: () => Promise<PoPChallenge>;
+  isAvailable: (options?: { signal?: AbortSignal }) => Promise<boolean>;
+  generateChallenge: (options?: {
+    signal?: AbortSignal;
+  }) => Promise<PoPChallenge>;
   getSecret: (
     authorization: IdentifierAuthorization,
     requestId: string,
     pkE: EcPublicJwk,
+    options?: { signal?: AbortSignal },
   ) => Promise<GetRecoverySecretResponse>;
   applyMutation: (
     mutation: Mutation,
     authControllerToken: AuthControllerToken,
     identifierAuthorization: IdentifierAuthorization | null,
     payload: MutationPayload,
+    options?: { signal?: AbortSignal },
   ) => Promise<MutationReceipt>;
   /**
    * Verifies a receipt cryptographically using the build-pinned receipt key

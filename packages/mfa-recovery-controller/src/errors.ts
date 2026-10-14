@@ -1,5 +1,24 @@
 /**
  * Errors thrown by `MfaRecoveryController`.
+ *
+ * The {@link MfaRecoveryError.code} string identifies the failure for
+ * programmatic handling. Timeout and cancellation codes introduced for bounded
+ * external calls:
+ *
+ * - `invalid_timeout` — `promptTimeoutMs` or `requestTimeoutMs` is not a
+ *   positive integer (thrown from the constructor).
+ * - `prompt_timeout` — a user-facing authorization or identifier prompt exceeded
+ *   `promptTimeoutMs`; a pending mutation often remains in `authorizing` until
+ *   {@link MfaRecoveryController.abort} or {@link MfaRecoveryController.resume}.
+ * - `request_timeout` — a bounded network or pending-state request exceeded
+ *   `requestTimeoutMs`; recovery depends on whether writing was already
+ *   persisted (use {@link MfaRecoveryController.getPhase} and `resume()` when
+ *   in `writing`).
+ * - `operation_aborted` — cooperative cancellation (`abort()`, aborted signal,
+ *   or an operation queued after an allowed abort); allowed abort clears
+ *   `authorizing` pending to `idle`.
+ * - `abort_not_allowed` — {@link MfaRecoveryController.abort} while escrow apply
+ *   may have started; finish with {@link MfaRecoveryController.resume}.
  */
 export class MfaRecoveryError extends Error {
   readonly code: string;

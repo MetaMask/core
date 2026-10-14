@@ -55,6 +55,59 @@ type StoredPoPChallenge = PoPChallenge & { consumed: boolean };
 const CHALLENGE_TTL_SECS = 5 * 60;
 
 /**
+ * Test-only gate that blocks until {@link HangSwitch.release} or `signal` aborts.
+ */
+export class HangSwitch {
+  enabled = false;
+
+  #release?: () => void;
+
+  get isWaiting(): boolean {
+    return this.#release !== undefined;
+  }
+
+  /**
+   * Blocks while {@link HangSwitch.enabled} is true.
+   *
+   * @param signal - Optional abort signal from the controller under test.
+   */
+  async wait(signal?: AbortSignal): Promise<void> {
+    if (!this.enabled) {
+      return;
+    }
+    await new Promise<void>((resolve, reject) => {
+      let cleanup = (): void => undefined;
+      const getAbortError = (reason: unknown): Error =>
+        reason instanceof Error ? reason : new Error('Aborted');
+      const onAbort = (): void => {
+        cleanup();
+        reject(getAbortError(signal?.reason));
+      };
+      cleanup = (): void => {
+        signal?.removeEventListener('abort', onAbort);
+        this.#release = undefined;
+      };
+      if (signal?.aborted) {
+        reject(getAbortError(signal.reason));
+        return;
+      }
+      signal?.addEventListener('abort', onAbort);
+      this.#release = (): void => {
+        cleanup();
+        resolve();
+      };
+    });
+  }
+
+  /**
+   * Unblocks a caller waiting in {@link HangSwitch.wait}.
+   */
+  release(): void {
+    this.#release?.();
+  }
+}
+
+/**
  * Builds an unsigned compact JWT carrying the claims the controller reads from
  * an AuthController (Hydra) access token.
  *
@@ -100,15 +153,23 @@ export class StubAuthProvider implements RecoveryAuthProvider {
 
   now: () => number = unixNow;
 
+  readonly authorizeRecoveryRequestHang = new HangSwitch();
+
+  lastAuthorizeRecoveryRequestSignal: AbortSignal | undefined;
+
   async getAuthenticatedProfileId(): Promise<string> {
     return this.profileId;
   }
 
-  async authorizeRecoveryRequest(params: {
-    requestHash: string;
-    requireTwoFactor?: boolean;
-    identifiers?: Identifier[];
-  }): Promise<AuthControllerToken> {
+  async authorizeRecoveryRequest(
+    params: {
+      requestHash: string;
+      requireTwoFactor?: boolean;
+      identifiers?: Identifier[];
+    } & { signal?: AbortSignal },
+  ): Promise<AuthControllerToken> {
+    this.lastAuthorizeRecoveryRequestSignal = params.signal;
+    await this.authorizeRecoveryRequestHang.wait(params.signal);
     return createAuthControllerToken({
       sub: this.profileId,
       exp: this.now() + 60 * 60,
@@ -127,11 +188,19 @@ export class StubAuthProvider implements RecoveryAuthProvider {
  * In-memory identifier IdP used in tests.
  */
 export class StubIdentifierAuthProvider implements RecoveryIdentifierAuthProvider {
-  async getKeyBoundIdentifierToken(params: {
-    identifier: Identifier;
-    proofPublicKey: string;
-    requestHash: string;
-  }): Promise<KeyBoundIdentifierToken> {
+  readonly getKeyBoundIdentifierTokenHang = new HangSwitch();
+
+  lastGetKeyBoundIdentifierTokenSignal: AbortSignal | undefined;
+
+  async getKeyBoundIdentifierToken(
+    params: {
+      identifier: Identifier;
+      proofPublicKey: string;
+      requestHash: string;
+    } & { signal?: AbortSignal },
+  ): Promise<KeyBoundIdentifierToken> {
+    this.lastGetKeyBoundIdentifierTokenSignal = params.signal;
+    await this.getKeyBoundIdentifierTokenHang.wait(params.signal);
     return {
       identifier: params.identifier,
       proofPublicKey: params.proofPublicKey,
@@ -157,6 +226,20 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   failGetSecret = false;
 
   invalidReceipts = false;
+
+  readonly isAvailableHang = new HangSwitch();
+
+  readonly applyMutationHang = new HangSwitch();
+
+  readonly getSecretHang = new HangSwitch();
+
+  lastIsAvailableSignal: AbortSignal | undefined;
+
+  lastApplyMutationSignal: AbortSignal | undefined;
+
+  lastGetSecretSignal: AbortSignal | undefined;
+
+  lastGenerateChallengeSignal: AbortSignal | undefined;
 
   now: () => number = unixNow;
 
@@ -200,11 +283,16 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     this.#replicaIds = [...replicaIds];
   }
 
-  async isAvailable(): Promise<boolean> {
+  async isAvailable(options?: { signal?: AbortSignal }): Promise<boolean> {
+    this.lastIsAvailableSignal = options?.signal;
+    await this.isAvailableHang.wait(options?.signal);
     return this.available;
   }
 
-  async generateChallenge(): Promise<PoPChallenge> {
+  async generateChallenge(options?: {
+    signal?: AbortSignal;
+  }): Promise<PoPChallenge> {
+    this.lastGenerateChallengeSignal = options?.signal;
     const challenge: StoredPoPChallenge = {
       id: `${this.id}-pop-${this.#popChallenges.size + 1}`,
       escrowId: this.id,
@@ -239,7 +327,10 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     authorization: IdentifierAuthorization,
     requestId: string,
     pkE: EcPublicJwk,
+    options?: { signal?: AbortSignal },
   ): Promise<GetRecoverySecretResponse> {
+    this.lastGetSecretSignal = options?.signal;
+    await this.getSecretHang.wait(options?.signal);
     if (this.failGetSecret) {
       throw new MfaRecoveryError(
         'Injected getSecret failure',
@@ -278,7 +369,10 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     authControllerToken: AuthControllerToken,
     identifierAuthorization: IdentifierAuthorization | null,
     payload: MutationPayload,
+    options?: { signal?: AbortSignal },
   ): Promise<MutationReceipt> {
+    this.lastApplyMutationSignal = options?.signal;
+    await this.applyMutationHang.wait(options?.signal);
     if (this.failNextApplyCount > 0) {
       this.failNextApplyCount -= 1;
       throw new MfaRecoveryError('Injected apply failure', 'apply_failed');

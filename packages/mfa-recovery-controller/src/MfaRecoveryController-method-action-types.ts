@@ -77,6 +77,8 @@ export type MfaRecoveryControllerResumeAction = {
 
 /**
  * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
+ *
+ * Cancels an in-flight operation that has not started writing to escrows.
  */
 export type MfaRecoveryControllerAbortAction = {
   type: `MfaRecoveryController:abort`;

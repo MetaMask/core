@@ -115,6 +115,16 @@ describe('CubistEscrowProvider', () => {
   });
 
   describe('generateChallenge', () => {
+    it('does not invoke policyInvoke when the signal is already aborted', async () => {
+      const controller = new AbortController();
+      controller.abort();
+      const { provider, invoke } = createProvider();
+      await expect(
+        provider.generateChallenge({ signal: controller.signal }),
+      ).rejects.toMatchObject({ name: 'AbortError' });
+      expect(invoke).not.toHaveBeenCalled();
+    });
+
     it('invokes generateChallenge and returns the challenge from stdout', async () => {
       const { provider, invoke } = createProvider({
         stdout: CHALLENGE,
@@ -128,7 +138,9 @@ describe('CubistEscrowProvider', () => {
     it('invokes a caller-specified function version', async () => {
       const { provider, invoke } = createProvider({ version: 'v0' });
       await provider.generateChallenge();
-      expect(invoke.mock.calls[0]?.[1]).toBe('v0');
+      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'v0', {
+        request: { cmd: 'generateChallenge' },
+      });
     });
 
     it.each([
@@ -296,7 +308,7 @@ describe('CubistEscrowProvider', () => {
       const { provider } = createProvider({
         invoke: async () => {
           // Cover the non-Error rejection path in `#invoke`.
-          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          // eslint-disable-next-line @typescript-eslint/only-throw-error, no-throw-literal
           throw 0;
         },
       });

@@ -66,8 +66,13 @@ import type {
   WrappedSecret,
   WritingPendingOperation,
 } from './types.js';
+import { withTimeout } from './with-timeout.js';
 
 const CONTROLLER_NAME = 'MfaRecoveryController';
+
+const DEFAULT_PROMPT_TIMEOUT_MS = 300_000;
+
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
 const MESSENGER_EXPOSED_METHODS = [
   'register',
@@ -169,6 +174,23 @@ export type MfaRecoveryControllerOptions = {
    * Defaults to {@link unixNow}.
    */
   now?: () => number;
+
+  /**
+   * Upper bound for user-facing prompts (AuthController authorization and
+   * identifier IdP prompts), in milliseconds. Defaults to 5 minutes.
+   */
+  promptTimeoutMs?: number;
+
+  /**
+   * Upper bound for each network or storage request (escrow calls, profile
+   * lookup, pending-state encryption), in milliseconds. Defaults to 30 seconds.
+   */
+  requestTimeoutMs?: number;
+};
+
+type InFlightOperation = {
+  controller: AbortController;
+  applying: boolean;
 };
 
 type MutateParams = {
@@ -209,7 +231,19 @@ export class MfaRecoveryController extends BaseController<
 
   readonly #now: () => number;
 
+  readonly #promptTimeoutMs: number;
+
+  readonly #requestTimeoutMs: number;
+
   #lock: Promise<void> = Promise.resolve();
+
+  #inFlight: InFlightOperation | null = null;
+
+  /**
+   * Advanced by {@link abort}. Operations queued under an older generation
+   * fail before starting external work.
+   */
+  #abortGeneration = 0;
 
   constructor({
     messenger,
@@ -219,7 +253,11 @@ export class MfaRecoveryController extends BaseController<
     escrows,
     pendingOperationEncryptor,
     now = unixNow,
+    promptTimeoutMs = DEFAULT_PROMPT_TIMEOUT_MS,
+    requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
   }: MfaRecoveryControllerOptions) {
+    assertValidTimeout(promptTimeoutMs);
+    assertValidTimeout(requestTimeoutMs);
     if (escrows.length === 0) {
       throw new MfaRecoveryError(
         'At least one escrow is required',
@@ -246,6 +284,8 @@ export class MfaRecoveryController extends BaseController<
     this.#escrows = [...escrows];
     this.#encryptor = pendingOperationEncryptor;
     this.#now = now;
+    this.#promptTimeoutMs = promptTimeoutMs;
+    this.#requestTimeoutMs = requestTimeoutMs;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -345,6 +385,7 @@ export class MfaRecoveryController extends BaseController<
       identifier,
       requestHash,
       identifierAuthProvider: this.#identifierAuthProvider,
+      timeoutMs: this.#promptTimeoutMs,
     });
     return {
       ...credential,
@@ -366,77 +407,86 @@ export class MfaRecoveryController extends BaseController<
   async getRecoverySecret(
     session: IdentifierSession,
   ): Promise<RecoveredSecret> {
-    return await this.#withLock(async () => {
-      const { token, requestId, pkE } = session;
-      this.#assertKnownIdentifierTypes([token.identifier]);
-      const requestHash = hash({
-        operation: 'getRecoverySecret',
-        requestId,
-        pkE,
-      });
-      if (token.requestHash !== requestHash) {
-        throw new MfaRecoveryError(
-          'Invalid identifier session',
-          'invalid_identifier_session',
-        );
-      }
-      const available = await this.#getAvailableEscrows();
-      if (available.length === 0) {
-        throw new MfaRecoveryError(
-          'No escrow is available',
-          'no_available_escrow',
-        );
-      }
-      const authorizedEscrows = await authorizeEscrowsWithToken({
-        escrows: available,
-        credential: session,
-      });
-      const results = await Promise.allSettled(
-        authorizedEscrows.map(async ({ escrow, authorization }) => {
-          const response = await escrow.getSecret(
-            authorization,
-            requestId,
-            pkE,
-          );
-          if (response.wrapKeyId !== wrapKeyId(escrow.wrapPublicKey)) {
-            throw new MfaRecoveryError(
-              'Unexpected wrap key',
-              'wrap_key_mismatch',
-            );
-          }
-          return {
-            escrowId: escrow.id,
-            recoverySecret: decryptFromPublic(
-              session.ephemeralPrivateKey,
-              escrow.wrapPublicKey,
-              response.recoverySecret.ciphertext,
-            ),
-            version: response.version,
-            lastMutationId: response.lastMutationId,
-          };
-        }),
-      );
-      const selected = selectHighestConsistentVersion(results);
-      return {
-        recoverySecret: selected.recoverySecret,
-        epoch: selected.version,
-      };
+    const { token, requestId, pkE } = session;
+    this.#assertKnownIdentifierTypes([token.identifier]);
+    const requestHash = hash({
+      operation: 'getRecoverySecret',
+      requestId,
+      pkE,
     });
+    if (token.requestHash !== requestHash) {
+      throw new MfaRecoveryError(
+        'Invalid identifier session',
+        'invalid_identifier_session',
+      );
+    }
+    const available = await this.#getAvailableEscrows();
+    if (available.length === 0) {
+      throw new MfaRecoveryError(
+        'No escrow is available',
+        'no_available_escrow',
+      );
+    }
+    const authorizedEscrows = await authorizeEscrowsWithToken({
+      escrows: available,
+      credential: session,
+      timeoutMs: this.#requestTimeoutMs,
+    });
+    const results = await Promise.allSettled(
+      authorizedEscrows.map(async ({ escrow, authorization }) => {
+        const response = await withTimeout(
+          (signal) =>
+            escrow.getSecret(authorization, requestId, pkE, { signal }),
+          { ms: this.#requestTimeoutMs, kind: 'request' },
+        );
+        if (response.wrapKeyId !== wrapKeyId(escrow.wrapPublicKey)) {
+          throw new MfaRecoveryError(
+            'Unexpected wrap key',
+            'wrap_key_mismatch',
+          );
+        }
+        return {
+          escrowId: escrow.id,
+          recoverySecret: decryptFromPublic(
+            session.ephemeralPrivateKey,
+            escrow.wrapPublicKey,
+            response.recoverySecret.ciphertext,
+          ),
+          version: response.version,
+          lastMutationId: response.lastMutationId,
+        };
+      }),
+    );
+    const selected = selectHighestConsistentVersion(results);
+    return {
+      recoverySecret: selected.recoverySecret,
+      epoch: selected.version,
+    };
   }
 
   /**
    * Completes a persisted pending mutation, if any.
    */
   async resume(): Promise<void> {
-    await this.#withLock(async () => {
-      await this.#repairPendingMutation();
+    await this.#withInFlightOperation(async (inFlight) => {
+      await this.#repairPendingMutation(inFlight);
     });
   }
 
   /**
    * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
+   *
+   * Cancels an in-flight operation that has not started writing to escrows.
    */
   async abort(): Promise<void> {
+    if (this.#inFlight?.applying) {
+      throw new MfaRecoveryError(
+        'Cannot abort while a mutation is being written',
+        'abort_not_allowed',
+      );
+    }
+    this.#abortGeneration += 1;
+    this.#inFlight?.controller.abort();
     await this.#withLock(async () => {
       const pending = await this.#loadPending();
       assertAbortAllowed(pending);
@@ -450,22 +500,25 @@ export class MfaRecoveryController extends BaseController<
    * @returns Current recovery phase.
    */
   async getPhase(): Promise<RecoveryPhase> {
-    return await this.#withLock(async () =>
-      getRecoveryPhase(await this.#loadPending()),
-    );
+    return getRecoveryPhase(await this.#loadPending());
   }
 
   async #mutate(params: MutateParams): Promise<void> {
     const { operation, payload, identifier, epoch } = params;
-    await this.#withLock(async () => {
-      if (await this.#loadPending()) {
+    await this.#withInFlightOperation(async (inFlight) => {
+      const { signal } = inFlight.controller;
+      if (await this.#loadPending(signal)) {
         throw new MfaRecoveryError(
           'A pending mutation must be resumed or aborted first',
           'pending_mutation',
         );
       }
 
-      const profileId = await this.#authProvider.getAuthenticatedProfileId();
+      const profileId = await withTimeout(
+        (childSignal) =>
+          this.#authProvider.getAuthenticatedProfileId({ signal: childSignal }),
+        { ms: this.#requestTimeoutMs, signal, kind: 'request' },
+      );
       const audiences = this.#escrows.map((escrow) => escrow.id);
       const currentVersion = this.#resolveCurrentRecoveryVersion(epoch);
       const payloadHash = hash(payload);
@@ -490,59 +543,80 @@ export class MfaRecoveryController extends BaseController<
         payload,
         identifier,
       };
-      await this.#persistPending(pending);
+      await this.#persistPending(pending, signal);
 
       const authControllerToken = await this.#authorizeMutation(
         mutation,
         payload,
+        signal,
       );
-      await this.#replicateMutation({
-        ...pending,
-        phase: 'writing',
-        authControllerToken,
-        receipts: [],
-      });
+      await this.#replicateMutation(
+        {
+          ...pending,
+          phase: 'writing',
+          authControllerToken,
+          receipts: [],
+        },
+        inFlight,
+      );
     });
   }
 
   async #authorizeMutation(
     mutation: Mutation,
     payload: PendingMutationPayload,
+    signal: AbortSignal,
   ): Promise<AuthControllerToken> {
-    return await this.#authProvider.authorizeRecoveryRequest({
-      requestHash: mutation.requestHash,
-      audiences: this.#escrows.map((escrow) => escrow.authAudience),
-      ...(mutation.operation === 'register' ? {} : { requireTwoFactor: true }),
-      ...(pendingPayloadHasIdentifiers(payload)
-        ? { identifiers: payload.identifiers }
-        : {}),
-    });
+    return await withTimeout(
+      (childSignal) =>
+        this.#authProvider.authorizeRecoveryRequest({
+          requestHash: mutation.requestHash,
+          audiences: this.#escrows.map((escrow) => escrow.authAudience),
+          ...(mutation.operation === 'register'
+            ? {}
+            : { requireTwoFactor: true }),
+          ...(pendingPayloadHasIdentifiers(payload)
+            ? { identifiers: payload.identifiers }
+            : {}),
+          signal: childSignal,
+        }),
+      { ms: this.#promptTimeoutMs, signal, kind: 'prompt' },
+    );
   }
 
-  async #repairPendingMutation(): Promise<void> {
-    const pending = await this.#loadPending();
+  async #repairPendingMutation(inFlight: InFlightOperation): Promise<void> {
+    const { signal } = inFlight.controller;
+    const pending = await this.#loadPending(signal);
     if (!pending) {
       return;
     }
 
     if (pending.phase === 'authorizing') {
-      await this.#replicateMutation({
-        ...pending,
-        phase: 'writing',
-        authControllerToken: await this.#authorizeMutation(
-          pending.mutation,
-          pending.payload,
-        ),
-        receipts: [],
-      });
+      await this.#replicateMutation(
+        {
+          ...pending,
+          phase: 'writing',
+          authControllerToken: await this.#authorizeMutation(
+            pending.mutation,
+            pending.payload,
+            signal,
+          ),
+          receipts: [],
+        },
+        inFlight,
+      );
       return;
     }
 
     // writing phase
-    await this.#replicateMutation(pending);
+    await this.#replicateMutation(pending, inFlight);
   }
 
-  async #replicateMutation(pending: WritingPendingOperation): Promise<void> {
+  async #replicateMutation(
+    pending: WritingPendingOperation,
+    inFlight: InFlightOperation,
+  ): Promise<void> {
+    const { signal } = inFlight.controller;
     const { mutation, payload, identifier } = pending;
     const remainingEscrows = this.#getRemainingEscrows(pending);
     if (remainingEscrows.length === 0) {
@@ -550,7 +624,10 @@ export class MfaRecoveryController extends BaseController<
       return;
     }
 
-    const availableEscrows = await this.#getAvailableEscrows(remainingEscrows);
+    const availableEscrows = await this.#getAvailableEscrows(
+      remainingEscrows,
+      signal,
+    );
     if (availableEscrows.length !== remainingEscrows.length) {
       throw new MfaRecoveryError(
         'All configured escrows are required for mutation',
@@ -562,7 +639,7 @@ export class MfaRecoveryController extends BaseController<
     const authControllerToken =
       claims && claims.exp > this.#now()
         ? pending.authControllerToken
-        : await this.#authorizeMutation(mutation, payload);
+        : await this.#authorizeMutation(mutation, payload, signal);
     const writing = { ...pending, authControllerToken };
     const authorizedEscrows =
       mutation.operation === 'register'
@@ -571,6 +648,7 @@ export class MfaRecoveryController extends BaseController<
             escrows: remainingEscrows,
             identifier: identifier as Identifier,
             requestHash: mutation.requestHash,
+            signal,
           });
     if (
       authorizedEscrows !== null &&
@@ -585,14 +663,21 @@ export class MfaRecoveryController extends BaseController<
       this.#payloadForEscrow(writing, escrow),
     );
 
-    await this.#persistPending(writing);
+    await this.#persistPending(writing, signal);
+    throwIfAborted(signal);
+    inFlight.applying = true;
     const results = await Promise.allSettled(
       remainingEscrows.map((escrow, index) =>
-        escrow.applyMutation(
-          mutation,
-          writing.authControllerToken,
-          authorizedEscrows?.[index]?.authorization ?? null,
-          payloads[index],
+        withTimeout(
+          (applySignal) =>
+            escrow.applyMutation(
+              mutation,
+              writing.authControllerToken,
+              authorizedEscrows?.[index]?.authorization ?? null,
+              payloads[index],
+              { signal: applySignal },
+            ),
+          { ms: this.#requestTimeoutMs, kind: 'request' },
         ),
       ),
     );
@@ -684,18 +769,27 @@ export class MfaRecoveryController extends BaseController<
     escrows,
     identifier,
     requestHash,
+    signal,
   }: {
     escrows: RecoveryEscrowProvider[];
     identifier: Identifier;
     requestHash: string;
+    signal: AbortSignal;
   }): Promise<AuthorizedEscrow[]> {
     getIdentifierAuthMode(identifier.type);
     const credential = await requestKeyBoundIdentifierToken({
       identifier,
       requestHash,
       identifierAuthProvider: this.#identifierAuthProvider,
+      signal,
+      timeoutMs: this.#promptTimeoutMs,
     });
-    return await authorizeEscrowsWithToken({ escrows, credential });
+    return await authorizeEscrowsWithToken({
+      escrows,
+      credential,
+      signal,
+      timeoutMs: this.#requestTimeoutMs,
+    });
   }
 
   #payloadForEscrow(
@@ -730,13 +824,18 @@ export class MfaRecoveryController extends BaseController<
 
   async #getAvailableEscrows(
     escrows: RecoveryEscrowProvider[] = this.#escrows,
+    signal?: AbortSignal,
   ): Promise<RecoveryEscrowProvider[]> {
     const flags = await Promise.allSettled(
       escrows.map(async (escrow) => ({
         escrow,
-        available: await escrow.isAvailable(),
+        available: await withTimeout(
+          (childSignal) => escrow.isAvailable({ signal: childSignal }),
+          { ms: this.#requestTimeoutMs, signal, kind: 'request' },
+        ),
       })),
     );
+    throwIfAborted(signal);
     return flags.flatMap((result) =>
       isFulfilledResult(result) && result.value.available
         ? [result.value.escrow]
@@ -774,21 +873,34 @@ export class MfaRecoveryController extends BaseController<
     };
   }
 
-  async #loadPending(): Promise<PendingOperation | null> {
+  async #loadPending(signal?: AbortSignal): Promise<PendingOperation | null> {
     const { pendingOperation } = this.state;
     if (pendingOperation === null) {
       return null;
     }
-    const pending = (await this.#encryptor.decrypt(
-      pendingOperation,
+    const pending = (await withTimeout(
+      async () => await this.#encryptor.decrypt(pendingOperation),
+      { ms: this.#requestTimeoutMs, signal, kind: 'request' },
     )) as unknown;
     await this.#assertPending(pending);
     return pending as PendingOperation;
   }
 
-  async #persistPending(operation: PendingOperation): Promise<void> {
+  /**
+   * @param operation - Pending operation to encrypt and store.
+   * @param signal - Cancels the write before it is stored. Omit once escrow
+   * writes may have started, so cancellation cannot drop a writing record.
+   */
+  async #persistPending(
+    operation: PendingOperation,
+    signal?: AbortSignal,
+  ): Promise<void> {
     await this.#assertPending(operation);
-    const encrypted = await this.#encryptor.encrypt(operation);
+    const encrypted = await withTimeout(
+      async () => await this.#encryptor.encrypt(operation),
+      { ms: this.#requestTimeoutMs, signal, kind: 'request' },
+    );
+    throwIfAborted(signal);
     this.update((state) => {
       state.pendingOperation = encrypted;
     });
@@ -816,6 +928,50 @@ export class MfaRecoveryController extends BaseController<
       () => undefined,
     );
     return await run;
+  }
+
+  async #withInFlightOperation<ReturnValue>(
+    fn: (inFlight: InFlightOperation) => Promise<ReturnValue>,
+  ): Promise<ReturnValue> {
+    const generation = this.#abortGeneration;
+    return await this.#withLock(async () => {
+      if (generation !== this.#abortGeneration) {
+        throw new MfaRecoveryError('Operation aborted', 'operation_aborted');
+      }
+      const inFlight: InFlightOperation = {
+        controller: new AbortController(),
+        applying: false,
+      };
+      this.#inFlight = inFlight;
+      try {
+        return await fn(inFlight);
+      } finally {
+        this.#inFlight = null;
+      }
+    });
+  }
+}
+
+/**
+ * @param value - Timeout option in milliseconds.
+ * @throws If `value` is not a positive integer.
+ */
+function assertValidTimeout(value: number): void {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new MfaRecoveryError(
+      'Timeout must be a positive integer',
+      'invalid_timeout',
+    );
+  }
+}
+
+/**
+ * @param signal - Operation signal, if any.
+ * @throws `operation_aborted` when `signal` has been aborted.
+ */
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw new MfaRecoveryError('Operation aborted', 'operation_aborted');
   }
 }
 

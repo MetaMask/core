@@ -30,13 +30,13 @@ flowchart LR
   Ctrl --> EB
 ```
 
-| Piece                    | Role                                                                      |
-| ------------------------ | ------------------------------------------------------------------------- |
-| `pendingOperation`       | Only persisted field: encrypted `authorizing` / `writing` blob, or `null` |
-| `escrows[]`              | Build-time replica set; mutations require **all** of them                 |
-| `authProvider`           | Profile id + request-bound AuthController token                           |
-| `identifierAuthProvider` | Key-bound IdP assertion (passkey / OIDC / SIWE)                           |
-| `#withLock`              | Serializes public methods so two mutations cannot interleave              |
+| Piece                    | Role                                                                                            |
+| ------------------------ | ----------------------------------------------------------------------------------------------- |
+| `pendingOperation`       | Only persisted field: encrypted `authorizing` / `writing` blob, or `null`                       |
+| `escrows[]`              | Build-time replica set; mutations require **all** of them                                       |
+| `authProvider`           | Profile id + request-bound AuthController token                                                 |
+| `identifierAuthProvider` | Key-bound IdP assertion (passkey / OIDC / SIWE)                                                 |
+| `#withLock`              | Serializes mutations, resume, and abort cleanup; `getPhase` / `getRecoverySecret` are lock-free |
 
 Identifier types pick the auth mode from a trusted table, not a client flag:
 `passkey` / `oidc` / `siwe` → key-bound. `emailOtp` / `smsOtp` escrow-challenge
@@ -62,7 +62,7 @@ stateDiagram-v2
   [*] --> idle
   idle --> authorizing: register / updateRecoverySecret / updateIdentifiers
   authorizing --> idle: abort()
-  authorizing --> writing: identifier auth succeeds, before first apply
+  authorizing --> writing: pre-apply authorization and escrow checks succeed
   writing --> writing: more receipts, still missing replicas
   writing --> idle: every configured escrow has a valid receipt
   writing --> writing: resume() retries only missing receipts
@@ -71,7 +71,16 @@ stateDiagram-v2
 
 Rules:
 
-- **`abort()`** drops `authorizing` only. `writing` must `resume()`.
+- **`abort()`** drops `authorizing` only. It aborts the in-flight
+  `AbortController`, clears persisted pending when allowed, and bumps an
+  **abort generation** so mutations or `resume()` queued behind the lock fail
+  with `operation_aborted` before any new external work. Once
+  `inFlight.applying` is true (writing persisted and escrow apply may have
+  started), `abort()` rejects immediately with `abort_not_allowed`; the
+  `writing` mutation must `resume()`. When `resume()` is processing an already
+  persisted `writing` mutation before its next apply, `abort()` may cancel that
+  pre-apply work but still rejects with `abort_not_allowed` after the persisted
+  phase check; the `writing` mutation remains unchanged.
 - `writing` is persisted before the **first escrow apply** after identifier
   authorization succeeds, so an ambiguous apply failure remains resumable while
   pre-write authorization failures stay abortable.
@@ -92,10 +101,10 @@ sequenceDiagram
   C->>M: register / updateRecoverySecret / updateIdentifiers
   M->>M: lock; reject if a mutation is already pending
   M->>A: getAuthenticatedProfileId
-  M->>E: require every escrow available
   M->>M: expectedVersion from caller epoch (register uses 0)
   M->>M: persist pending = authorizing
   M->>A: authorizeRecoveryRequest (AuthController token)
+  M->>E: require every escrow available
   alt not register
     M->>E: identifier auth per escrow
   end
@@ -162,9 +171,9 @@ sequenceDiagram
 
   Caller->>Ctrl: register(secret, identifiers)
   Ctrl->>Auth: getAuthenticatedProfileId
-  Ctrl->>Escrow: isAvailable
   Ctrl->>Ctrl: persist authorizing
   Ctrl->>Auth: authorizeRecoveryRequest
+  Ctrl->>Escrow: isAvailable
   Note over Auth: stub may set signature to the SRP token
   Ctrl->>Ctrl: wrap secret, persist writing
   Ctrl->>Escrow: applyMutation
@@ -225,9 +234,47 @@ sequenceDiagram
 ephemeral private keys needed for the read. The controller does not persist or
 store the session; callers must keep it in memory and must not log it.
 
-`getRecoverySecret` does not block on a pending mutation. During `writing`,
-replicas may hold different versions; the read takes the highest one. The
-next mutation still requires `resume()` first.
+`getPhase` and `getRecoverySecret` do not wait for the mutation lock. During
+`writing`, replicas may hold different versions; the read takes the highest
+one. The next mutation still requires `resume()` first.
+
+## Timeouts and cancellation
+
+The controller bounds every injected authorization, identifier, escrow, and
+pending-state encrypt/decrypt call.
+
+| Option             | Default (ms) | Applies to                                                            |
+| ------------------ | ------------ | --------------------------------------------------------------------- |
+| `promptTimeoutMs`  | `300000`     | AuthController authorization and identifier IdP prompts (prompt kind) |
+| `requestTimeoutMs` | `30000`      | Profile lookup, escrow I/O, pending-state encryption (request kind)   |
+
+Both constructor options must be **positive integers**; otherwise construction
+throws `invalid_timeout`.
+
+Provider calls receive a child `AbortSignal` where supported. Cancellation is
+**cooperative**: injected providers should honor `signal.aborted` promptly.
+`CubistEscrowProvider` checks the signal before `policyInvoke` but cannot
+cancel an SDK request that is already in flight; controller-side
+`requestTimeoutMs` still bounds how long the caller waits.
+
+**`abort()`** (see state-machine rules) aborts the in-flight controller while
+phase is `authorizing` or pre-apply work is running. **`getPhase`** and
+**`getRecoverySecret`** never take the mutation lock; they may run while
+authorization or replication is pending elsewhere.
+
+### Controller error codes (timeouts and cancellation)
+
+| Code                | Typical cause                                                           | Pending phase / recovery                                                                                                                      |
+| ------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `invalid_timeout`   | Non-integer or non-positive `*TimeoutMs` option                         | Controller not constructed; fix options and retry                                                                                             |
+| `prompt_timeout`    | User-facing prompt exceeded `promptTimeoutMs`                           | Often `authorizing` with pending stored; `abort()` or `resume()`                                                                              |
+| `request_timeout`   | Network/storage call exceeded `requestTimeoutMs`                        | Depends on step: pre-write may leave `authorizing`; after writing is persisted, may leave `writing` (treat like ambiguous apply — `resume()`) |
+| `operation_aborted` | `abort()`, parent signal aborted, or stale queue after abort generation | Allowed `abort()` clears pending → `idle`; otherwise same as the step that was cancelled                                                      |
+| `abort_not_allowed` | `abort()` while `applying` or pending is `writing`                      | Pending unchanged; call `resume()`                                                                                                            |
+
+An apply `request_timeout` is ambiguous (the escrow may or may not have applied).
+The pending mutation stays in `writing` with any verified receipts; `resume()`
+retries missing escrows only.
 
 ## Identifier auth (inside writes and reads)
 
