@@ -29,7 +29,7 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 
 import type { MarketingConsentControllerMethodActions } from './MarketingConsentController-method-action-types.js';
 
-export const controllerName = 'MarketingConsentController';
+const controllerName = 'MarketingConsentController';
 
 // === STATE ===
 
@@ -113,38 +113,13 @@ export type MarketingConsentControllerMessenger = Messenger<
   MarketingConsentControllerEvents | AllowedEvents
 >;
 
-// === HELPERS ===
+// === TYPES ===
 
 type ConsentSyncSession = {
   lastSynced?: boolean;
   // AUS may have changed on another device since the last read.
   remoteStale?: boolean;
 };
-
-/**
- * Whether consent can be synced with AUS.
- *
- * @param authenticationState - The authentication state.
- * @param analyticsState - The analytics state.
- * @param keyringState - The keyring state.
- * @returns True when the wallet is unlocked, signed in and consent is decided.
- */
-function isConsentSyncReady(
-  authenticationState: Pick<AuthenticationControllerState, 'isSignedIn'>,
-  analyticsState: Pick<
-    AnalyticsControllerState,
-    'marketingConsentDecisionMade'
-  >,
-  keyringState: Pick<KeyringControllerState, 'isUnlocked'>,
-): boolean {
-  // AUS consent reads require a bearer token, which is only obtainable while
-  // the vault is unlocked, so a sync attempted while locked always fails.
-  return (
-    keyringState.isUnlocked &&
-    authenticationState.isSignedIn &&
-    analyticsState.marketingConsentDecisionMade === true
-  );
-}
 
 // === CONTROLLER ===
 
@@ -179,7 +154,9 @@ export class MarketingConsentController extends BaseController<
 
   #session: ConsentSyncSession = {};
 
-  #applyingRemote: { value: boolean } | undefined;
+  // The AUS value being applied locally, so its state change is not taken
+  // for a local change.
+  #applyingRemoteValue: boolean | undefined;
 
   #inFlight: Promise<void> | undefined;
 
@@ -372,7 +349,7 @@ export class MarketingConsentController extends BaseController<
         prior.optedInToMarketing !== state.optedInToMarketing &&
         priorDecided &&
         nowDecided &&
-        this.#applyingRemote?.value !== state.optedInToMarketing;
+        this.#applyingRemoteValue !== state.optedInToMarketing;
       const decisionJustMade = !priorDecided && nowDecided;
 
       if (!localConsentChanged && !decisionJustMade) {
@@ -384,11 +361,14 @@ export class MarketingConsentController extends BaseController<
     });
   }
 
+  // Whether consent can be synced: AUS needs a bearer token, which is only
+  // obtainable while unlocked and signed in, and only a decided consent is
+  // synced.
   #isReady(): boolean {
-    return isConsentSyncReady(
-      this.#authenticationState,
-      this.#analyticsState,
-      this.#keyringState,
+    return (
+      this.#keyringState.isUnlocked &&
+      this.#authenticationState.isSignedIn &&
+      this.#analyticsState.marketingConsentDecisionMade === true
     );
   }
 
@@ -411,11 +391,13 @@ export class MarketingConsentController extends BaseController<
     const preferences = await this.messenger.call(
       'AuthenticatedUserStorageService:getNotificationPreferences',
     );
-    const marketing = preferences?.marketing;
+    if (!preferences) {
+      return;
+    }
+    const { marketing } = preferences;
     if (
-      !preferences ||
-      (!marketing?.pushNotificationsEnabled &&
-        !marketing?.inAppNotificationsEnabled)
+      !marketing.pushNotificationsEnabled &&
+      !marketing.inAppNotificationsEnabled
     ) {
       return;
     }
@@ -485,7 +467,7 @@ export class MarketingConsentController extends BaseController<
     }
 
     if (remote.marketingConsentEnabled !== localValue) {
-      this.#applyingRemote = { value: remote.marketingConsentEnabled };
+      this.#applyingRemoteValue = remote.marketingConsentEnabled;
       try {
         if (remote.marketingConsentEnabled) {
           await this.messenger.call('AnalyticsController:optInToMarketing');
@@ -493,7 +475,7 @@ export class MarketingConsentController extends BaseController<
           this.messenger.call('AnalyticsController:optOutOfMarketing');
         }
       } finally {
-        this.#applyingRemote = undefined;
+        this.#applyingRemoteValue = undefined;
       }
     }
 

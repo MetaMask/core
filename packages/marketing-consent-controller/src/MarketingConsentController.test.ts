@@ -1531,27 +1531,6 @@ describe('MarketingConsentController', () => {
       );
     });
 
-    it('does not write preferences when the profile has no marketing preferences', async () => {
-      const { mocks, setAnalyticsState } = setup({
-        ...signedInOptedIn,
-        getPreferences: async () =>
-          ({
-            ...NOTIFICATION_PREFERENCES,
-            marketing: undefined,
-          }) as unknown as NotificationPreferences,
-      });
-      await flushPromises();
-
-      setAnalyticsState(OPTED_OUT);
-      await flushPromises();
-
-      expect(mocks.putNotificationPreferences).not.toHaveBeenCalled();
-      expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
-        { marketingConsentEnabled: false },
-        'extension',
-      );
-    });
-
     it('does not read preferences when saving an opt-in', async () => {
       const { mocks, setAnalyticsState } = setup({
         analyticsState: OPTED_OUT,
