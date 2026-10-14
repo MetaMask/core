@@ -495,13 +495,10 @@ export class MarketingConsentController extends BaseController<
   }
 
   async #run(session: ConsentSyncSession): Promise<void> {
-    if (this.state.pendingMarketingConsent !== null) {
-      session.remoteStale = false;
-    } else if (
-      session.lastSynced === undefined ||
-      session.remoteStale === true
-    ) {
-      session.remoteStale = false;
+    // Every run starts from a pending local change, a new session or a
+    // refresh, so without a pending change AUS is always read.
+    session.remoteStale = false;
+    if (this.state.pendingMarketingConsent === null) {
       await this.#reconcileWithAus(session);
     }
 
