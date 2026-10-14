@@ -7,6 +7,7 @@ import {
   SubjectMetadataController,
   SubjectType,
 } from '@metamask/permission-controller';
+import { SelectedNetworkController } from '@metamask/selected-network-controller';
 import {
   getDefaultShieldControllerState,
   ShieldController,
@@ -490,6 +491,34 @@ describe('Wallet', () => {
           metadata.origin,
         ),
       ).toStrictEqual(metadata);
+    });
+  });
+
+  describe('SelectedNetworkController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(wallet.getInstance('SelectedNetworkController')).toBeInstanceOf(
+        SelectedNetworkController,
+      );
+      expect(
+        wallet.messenger.call('SelectedNetworkController:getState'),
+      ).toStrictEqual({ domains: {} });
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+      const { selectedNetworkClientId } = messenger.call(
+        'NetworkController:getState',
+      );
+
+      expect(
+        messenger.call(
+          'SelectedNetworkController:getNetworkClientIdForDomain',
+          'https://example.com',
+        ),
+      ).toBe(selectedNetworkClientId);
     });
   });
 
