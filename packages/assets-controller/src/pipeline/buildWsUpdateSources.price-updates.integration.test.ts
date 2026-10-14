@@ -2,6 +2,12 @@ import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
 
 import {
+  RESPONSE_DETECTED_ASSETS_SURFACE,
+  RESPONSE_METADATA_SURFACE,
+  RESPONSE_PRICES_SURFACE,
+  responseBalancesSurface,
+} from '../__fixtures__/assetSurfaces.js';
+import {
   createMockMessengers,
   registerAccountMocks,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
@@ -29,7 +35,6 @@ import {
   buildEthHeldUnpricedState,
   buildUsdcHeldAndPricedState,
   buildWsAccount,
-  getIgnoringCase,
 } from '../__fixtures__/ws-price-updates/wsWallet.js';
 import { AccountActivityDataSource } from '../data-sources/AccountActivityDataSource.js';
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
@@ -59,36 +64,10 @@ import { executeAssetsPipeline } from './executeAssetsPipeline.js';
 
 type UpdateLane = 'v5' | 'v6';
 
-type ResponseSurface = {
-  surface: string;
-  lookUp: (response: DataResponse, assetId: string) => unknown;
-};
-
-const BALANCES: ResponseSurface = {
-  surface: 'balances',
-  lookUp: (response, assetId) =>
-    getIgnoringCase(response.assetsBalance?.[WS_ACCOUNT_ID] ?? {}, assetId),
-};
-
-const METADATA: ResponseSurface = {
-  surface: 'metadata',
-  lookUp: (response, assetId) =>
-    getIgnoringCase(response.assetsInfo ?? {}, assetId),
-};
-
-const PRICES: ResponseSurface = {
-  surface: 'prices',
-  lookUp: (response, assetId) =>
-    getIgnoringCase(response.assetsPrice ?? {}, assetId),
-};
-
-const DETECTED_ASSETS: ResponseSurface = {
-  surface: 'detected assets',
-  lookUp: (response, assetId) =>
-    Object.values(response.detectedAssets ?? {})
-      .flat()
-      .find((detectedId) => detectedId.toLowerCase() === assetId.toLowerCase()),
-};
+const BALANCES = responseBalancesSurface(WS_ACCOUNT_ID);
+const METADATA = RESPONSE_METADATA_SURFACE;
+const PRICES = RESPONSE_PRICES_SURFACE;
+const DETECTED_ASSETS = RESPONSE_DETECTED_ASSETS_SURFACE;
 
 /** A completed websocket update pass. */
 type WsUpdatePassResult = {

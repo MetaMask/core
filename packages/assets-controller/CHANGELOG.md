@@ -9,13 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- RPC token detection now loads supported networks, occurrence floors, and per-chain token lists through `queryApiClient.token` (`GET /v2/supportedNetworks`, `GET /v1/suggestedOccurrenceFloors`, `GET /tokens/{chainId}`), replacing the local `TokensApiClient` ([#10672](https://github.com/MetaMask/core/pull/10672))
-  - **BREAKING:** `RpcDataSource` requires `queryApiClient` and no longer accepts `queryClient`. `AssetsController` passes its existing `queryApiClient`.
+- Bump `@metamask/keyring-api` from `^24.1.0` to `^24.2.0` ([#10792](https://github.com/MetaMask/core/pull/10792))
+- Bump `@metamask/keyring-internal-api` from `^12.1.0` to `^12.1.1` ([#10792](https://github.com/MetaMask/core/pull/10792))
+- Bump `@metamask/keyring-snap-client` from `^10.0.0` to `^10.0.1` ([#10792](https://github.com/MetaMask/core/pull/10792))
+- Bump `@metamask/phishing-controller` from `^18.2.0` to `^18.2.1` ([#10813](https://github.com/MetaMask/core/pull/10813))
+
+## [19.0.0]
+
+### Added
+
+- Add a transient, non-persisted per-account assets loading state (`assetsLoadingStatus`) that marks an account as `loading` from its first user-visible assets fetch until that fetch settles, and never re-marks it on later refreshes, with selectors to read it ([#10230](https://github.com/MetaMask/core/pull/10230))
+
+### Changed
+
+- **BREAKING:** `RpcDataSource` requires `queryApiClient` and no longer accepts `queryClient`. `AssetsController` passes its existing `queryApiClient` ([#10672](https://github.com/MetaMask/core/pull/10672))
+  - RPC token detection now loads supported networks, occurrence floors, and per-chain token lists through `queryApiClient.token` (`GET /v2/supportedNetworks`, `GET /v1/suggestedOccurrenceFloors`, `GET /tokens/{chainId}`), replacing the local `TokensApiClient`.
 - Bump `@metamask/account-tree-controller` from `^11.0.0` to `^11.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/assets-controllers` from `^112.1.1` to `^112.1.2` ([#10662](https://github.com/MetaMask/core/pull/10662))
-- Bump `@metamask/core-backend` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
+- Bump `@metamask/core-backend` from `^12.0.0` to `^12.1.0` ([#10662](https://github.com/MetaMask/core/pull/10662), [#10788](https://github.com/MetaMask/core/pull/10788))
 - Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.0` ([#10733](https://github.com/MetaMask/core/pull/10733))
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
+- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.1.0` ([#10717](https://github.com/MetaMask/core/pull/10717))
 
 ## [18.0.1]
 
@@ -1145,7 +1160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@18.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@18.0.1...@metamask/assets-controller@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@18.0.0...@metamask/assets-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@17.0.0...@metamask/assets-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.2...@metamask/assets-controller@17.0.0

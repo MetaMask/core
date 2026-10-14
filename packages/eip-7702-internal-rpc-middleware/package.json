@@ -49,7 +49,7 @@
   },
   "dependencies": {
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/rpc-errors": "^7.0.2",
+    "@metamask/rpc-errors": "^7.0.3",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.0"
   },

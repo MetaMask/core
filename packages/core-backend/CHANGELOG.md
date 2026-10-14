@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.1.0]
+
 ### Added
 
 - Add `occurrenceFloor`, `includeNativeAssets`, and `includeRwaData` query options to `TokenApiClient.fetchTokenList` (`GET /tokens/{chainId}`) ([#10672](https://github.com/MetaMask/core/pull/10672))
@@ -15,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
+- `BackendWebSocketService` routes notifications by exact channel name and `subscriptionId`. Account-activity chain-wildcard matching, stale-subscription channel fallback, and nested payload unwrapping have been removed ([#10754](https://github.com/MetaMask/core/pull/10754))
 
 ## [12.0.1]
 
@@ -492,7 +495,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.1.0...HEAD
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.1...@metamask/core-backend@12.1.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.0...@metamask/core-backend@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@11.0.0...@metamask/core-backend@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.1...@metamask/core-backend@11.0.0

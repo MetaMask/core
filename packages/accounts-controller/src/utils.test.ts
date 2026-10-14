@@ -13,6 +13,7 @@ import {
   isSimpleKeyringType,
   isSkippedKeyringType,
   isSnapKeyringV2Type,
+  isWatchOnlyKeyringType,
   keyringTypeToName,
 } from './utils.js';
 
@@ -28,6 +29,7 @@ describe('utils', () => {
       [KeyringTypes.qr, 'QR'],
       [KeyringTypes.snap, 'Snap Account'],
       [KeyringType.Snap, 'Snap Account'],
+      [KeyringType.WatchOnly, 'Watch-only Account'],
       [KeyringTypes.money, 'Money'],
       [KeyringTypes.mpc, 'MPC'],
     ])('returns "%s" for %s keyring type', (keyringType, expectedName) => {
@@ -147,6 +149,20 @@ describe('utils', () => {
       expect(isSnapKeyringV2Type(KeyringTypes.hd)).toBe(false);
       expect(isSnapKeyringV2Type(KeyringTypes.simple)).toBe(false);
       expect(isSnapKeyringV2Type(KeyringTypes.trezor)).toBe(false);
+    });
+  });
+
+  describe('isWatchOnlyKeyringType', () => {
+    it('returns true for KeyringType.WatchOnly', () => {
+      expect(isWatchOnlyKeyringType(KeyringType.WatchOnly)).toBe(true);
+    });
+
+    it('returns false for non-watch-only keyring types', () => {
+      expect(isWatchOnlyKeyringType(KeyringTypes.hd)).toBe(false);
+      expect(isWatchOnlyKeyringType(KeyringTypes.simple)).toBe(false);
+      expect(isWatchOnlyKeyringType(KeyringTypes.snap)).toBe(false);
+      expect(isWatchOnlyKeyringType(KeyringType.Snap)).toBe(false);
+      expect(isWatchOnlyKeyringType(KeyringTypes.money)).toBe(false);
     });
   });
 

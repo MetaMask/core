@@ -48,8 +48,14 @@ import {
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
+import {
+  getPolymarketDepositWalletOverrides,
+  getPredictWithdrawFeeTokenAccount,
+  getPredictWithdrawSafeAddress,
+} from '../../utils/polymarket/withdraw.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
+import { resolveNonAtomicRecipient } from '../../utils/second-leg.js';
 import {
   getNativeToken,
   getTokenFiatRate,
@@ -58,12 +64,8 @@ import {
 } from '../../utils/token.js';
 import { getQuotePricing } from '../../utils/trade-type.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
+import { hasRelayDepositStep } from './deposit-step.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
-import {
-  applyPolymarketDepositWalletOverrides,
-  getPredictWithdrawSafeAddress,
-  isPredictWithdraw,
-} from './polymarket/withdraw.js';
 import { fetchRelayQuote } from './relay-api.js';
 import {
   getRelayMaxQuote,
@@ -362,11 +364,17 @@ async function getSingleQuote(
     };
 
     if (effectiveRequest.isPolymarketDepositWallet) {
-      await applyPolymarketDepositWalletOverrides(
-        body,
-        effectiveRequest,
+      const overrides = await getPolymarketDepositWalletOverrides(
+        from,
         messenger,
       );
+      const { depositWallet } = overrides;
+
+      body.originCurrency = overrides.sourceTokenAddress;
+      body.user = depositWallet;
+      body.refundTo = depositWallet;
+      body.useDepositAddress = true;
+      body.strict = true;
     }
 
     const isAtomic = effectiveRequest.atomic !== false;
@@ -436,54 +444,6 @@ function normalizeAuthorizationList(
     s: a.s as Hex,
     yParity: Number(a.yParity),
   }));
-}
-
-/**
- * Derives the Relay quote recipient for non-atomic flows, where the second leg
- * runs after settlement so funds must land directly on the account submitting
- * that leg.
- *
- * Post-quote flows (e.g. Perps/Predict withdraw to Money Account) ask the
- * client `getPaymentOverrideData` callback, which knows the Money Account
- * address that cannot be derived from the request. Non-post-quote flows (e.g.
- * max-amount Money Account deposit) use the parent transaction's own `from`,
- * which is the Money Account rather than the funding EOA in `request.from`.
- *
- * @param transaction - Transaction metadata.
- * @param request - Quote request.
- * @param messenger - Controller messenger.
- * @returns The recipient address, or `undefined` for atomic flows.
- */
-async function resolveNonAtomicRecipient(
-  transaction: TransactionMeta,
-  request: QuoteRequest,
-  messenger: TransactionPayControllerMessenger,
-): Promise<Hex | undefined> {
-  if (request.atomic !== false) {
-    return undefined;
-  }
-
-  if (!request.isPostQuote) {
-    return (transaction.txParams?.from as Hex | undefined) ?? request.from;
-  }
-
-  const { transactionData: transactionDataList } = messenger.call(
-    'TransactionPayController:getState',
-  );
-
-  const transactionData = transactionDataList[transaction.id];
-  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
-
-  const { recipient } = await messenger.call(
-    'TransactionPayController:getPaymentOverrideData',
-    {
-      amount: amountHuman,
-      transaction,
-      transactionData,
-    },
-  );
-
-  return recipient;
 }
 
 /**
@@ -571,13 +531,11 @@ async function processTransactions(
     requestBody.refundTo = request.from;
   }
 
-  const fundingRecipient = (transaction.txParams?.from as Hex) ?? request.from;
-
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
       data: buildTokenTransferData(
-        fundingRecipient,
+        transaction.txParams.from as Hex,
         request.targetAmountMinimum,
       ),
       value: '0x0',
@@ -917,15 +875,18 @@ async function calculateSourceNetworkCost(
 > {
   const { from, sourceChainId, sourceTokenAddress } = request;
 
-  // Neither flow bills origin gas to the user: the execute flow has a relayer
-  // redeem a signed delegation, and a HyperLiquid withdrawal's "deposit" step
-  // is an off-chain HL sendAsset signature rather than an on-chain
-  // transaction.
+  // None of these flows bill origin gas to the user: the execute flow has a
+  // relayer redeem a signed delegation, a HyperLiquid withdrawal's "deposit"
+  // step is an off-chain HL sendAsset signature rather than an on-chain
+  // transaction, and a Polymarket deposit-wallet withdraw is submitted by the
+  // Polymarket relayer.
   const isExecuteFlow = Boolean(quote.metamask?.isExecute);
   const isHyperliquidWithdrawal = Boolean(request.isHyperliquidSource);
+  const isPolymarketDepositWallet = Boolean(request.isPolymarketDepositWallet);
 
   const gasPayment = resolveGasPayment({
-    isDelegated: isExecuteFlow || isHyperliquidWithdrawal,
+    isDelegated:
+      isExecuteFlow || isHyperliquidWithdrawal || isPolymarketDepositWallet,
     sourceTokenAddress,
     sponsorship: {
       accountSupports7702,
@@ -938,6 +899,7 @@ async function calculateSourceNetworkCost(
     log('Zeroing network fees as the user does not pay origin gas', {
       isExecuteFlow,
       isHyperliquidWithdrawal,
+      isPolymarketDepositWallet,
     });
 
     return {
@@ -971,8 +933,6 @@ async function calculateSourceNetworkCost(
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
     relayParams[0];
 
-  const isPredictWithdrawFlow = isPredictWithdraw(request, transaction);
-
   // `fromOverride = Safe proxy` is only valid for deposit-style Relay routes
   // where the deposit contract reads the user's source-token balance directly.
   // Same-chain destinations route through DEX swap aggregators that frequently
@@ -983,8 +943,8 @@ async function calculateSourceNetworkCost(
   // EOA `from` so simulation succeeds.
   const fromOverride = getPredictWithdrawSafeAddress(
     request,
-    quote.steps,
     transaction,
+    hasRelayDepositStep(quote.steps),
   );
 
   // For post-quote flows the original transaction will be prepended to the
@@ -1044,9 +1004,10 @@ async function calculateSourceNetworkCost(
   // return nothing and force users to hold POL.
   // (`useFromOverride` only governs the gas-estimation `from` address, where
   // swap-style routes need EOA because DEX routers reject contract callers.)
-  const proxyFeeTokenAccount = isPredictWithdrawFlow
-    ? request.refundTo
-    : undefined;
+  const proxyFeeTokenAccount = getPredictWithdrawFeeTokenAccount(
+    request,
+    transaction,
+  );
 
   const gasStationCost = await resolveGasStationCost({
     accountSupports7702,
