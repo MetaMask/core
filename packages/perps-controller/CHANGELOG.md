@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `PERPS_EVENT_VALUE.SECTION_NAME.EXPLORE` (`explore`) and `RECENTLY_ADDED` (`recently_added`) so home impressions for the Explore table and the Recently added rail use controller constants
 - Add `PERPS_ERROR_CODES.PRICE_MOVED` and optional `errorCode` and `errorDetails` on `OrderResult`, so a failed placement can be localized without parsing `OrderResult.error` ([#10385](https://github.com/MetaMask/core/pull/10385))
   - Export `isPerpsErrorCode`, `PriceMovedErrorDetails`, and `PerpsErrorDetails`. `PriceMovedErrorDetails` carries unformatted `priceDeltaBps`, `maxSlippageBps`, `expectedPrice`, and `currentPrice`
   - `createErrorResult` copies `errorCode` and `errorDetails` when the failure is a structured controller error. HyperLiquid mapped rejections, including an immediate-match rejection (`IOC_CANCEL`) and `EXCHANGE_ACCOUNT_NOT_FOUND`, now set `errorCode`; `OrderResult.error` stays the same message
