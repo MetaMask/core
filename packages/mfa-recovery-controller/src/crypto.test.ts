@@ -3,6 +3,7 @@ import { bytesToHex } from '@metamask/utils';
 import {
   canonicalize,
   canonicalizeIdentifiers,
+  compareUtf8,
   decodeHex,
   decryptFromPublic,
   encryptToPublic,
@@ -111,6 +112,14 @@ describe('crypto', () => {
 
     it('orders a shorter identifier before its extension', () => {
       expect(sortedValues(['abc', 'ab'])).toStrictEqual(['ab', 'abc']);
+    });
+
+    it('compares UTF-8 bytes, treating a shared prefix as shorter', () => {
+      expect(compareUtf8('ab', 'abc')).toBeLessThan(0);
+      expect(compareUtf8('abc', 'ab')).toBeGreaterThan(0);
+      expect(compareUtf8('abc', 'abc')).toBe(0);
+      expect(compareUtf8('a', 'b')).toBeLessThan(0);
+      expect(compareUtf8('b', 'a')).toBeGreaterThan(0);
     });
   });
 

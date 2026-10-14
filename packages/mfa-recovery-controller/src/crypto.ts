@@ -46,12 +46,12 @@ export function hash(value: unknown): Hex {
  * @param right - Second string.
  * @returns Negative, zero, or positive like `Array.prototype.sort` expects.
  */
-function compareUtf8(left: string, right: string): number {
+export function compareUtf8(left: string, right: string): number {
   const leftBytes = stringToBytes(left);
   const rightBytes = stringToBytes(right);
   const shared = Math.min(leftBytes.length, rightBytes.length);
   for (let index = 0; index < shared; index += 1) {
-    const difference = (leftBytes[index] ?? 0) - (rightBytes[index] ?? 0);
+    const difference = leftBytes[index] - rightBytes[index];
     if (difference !== 0) {
       return difference;
     }
@@ -207,9 +207,7 @@ export function hashMutationReceipt(receipt: {
  * @returns Raw bytes.
  */
 export function decodeHex(hexString: string): Uint8Array {
-  return hexToBytes(
-    (hexString.startsWith('0x') ? hexString : `0x${hexString}`),
-  );
+  return hexToBytes(hexString.startsWith('0x') ? hexString : `0x${hexString}`);
 }
 
 /**

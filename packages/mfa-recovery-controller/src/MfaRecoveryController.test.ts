@@ -1477,6 +1477,17 @@ describe('MfaRecoveryController', () => {
         },
       },
       {
+        name: 'an AuthController token without step-up assurance',
+        mutate: (pending: Record<string, unknown>): void => {
+          const mutation = pending.mutation as Record<string, unknown>;
+          pending.authControllerToken = createAuthControllerToken({
+            sub: 'profile-1',
+            exp: unixNow() + 60,
+            requestHash: mutation.requestHash as string,
+          });
+        },
+      },
+      {
         name: 'an invalid receipt array',
         mutate: (pending: Record<string, unknown>): void => {
           pending.receipts = null;
