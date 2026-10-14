@@ -78,7 +78,7 @@ export type InitializationConfiguration<Instance, InstanceMessenger> = {
   ? {
       reference: InstanceReference<Instance, InstanceState<Instance>>;
     }
-  : { reference?: undefined });
+  : { reference?: never });
 
 /**
  * An initialization configuration for an instance of any kind.
