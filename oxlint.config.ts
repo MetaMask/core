@@ -37,7 +37,6 @@ const jestPackages = packageNames.filter(
 function testFilesIn(names: string[]): string[] {
   return names.flatMap((name) => [
     `packages/${name}/**/*.test.ts`,
-    `packages/${name}/**/*.test.tsx`,
     `packages/${name}/**/test/**`,
     `packages/${name}/**/tests/**`,
   ]);
