@@ -313,6 +313,9 @@
       "path": "./packages/transaction-pay-controller"
     },
     {
+      "path": "./packages/transaction-pay-middleware"
+    },
+    {
       "path": "./packages/user-operation-controller"
     },
     {
