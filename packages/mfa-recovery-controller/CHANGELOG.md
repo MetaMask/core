@@ -9,28 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `MfaRecoveryController` for replicating an MFA recovery secret across injected escrow replicas ([#10022](https://github.com/MetaMask/core/pull/10022))
-  - Public methods: `register`, `updateRecoverySecret`, `updateIdentifiers`, `authenticateIdentifier`, `getRecoverySecret`, `resume`, `abort`, and `getPhase`
-  - Inject `RecoveryAuthProvider`, `RecoveryIdentifierAuthProvider`, `RecoveryEscrowProvider[]`, and `PendingOperationEncryptor`
-  - Persist only an encrypted `authorizing` / `writing` pending mutation (`idle` when `pendingOperation` is `null`)
-  - `register` and `updateIdentifiers` require at least two distinct identifiers (`MIN_IDENTIFIERS`)
-  - Identifier types `passkey`, `oidc`, and `siwe` are key-bound; `emailOtp` / `smsOtp` are not wired yet
-  - `getRecoverySecret` returns `{ recoverySecret, epoch }`; pass that `epoch` into later `updateRecoverySecret` / `updateIdentifiers` calls (register uses `0`). Does not block on a pending mutation; returns the highest consistent version across available escrows
-  - Mutation `payloadHash` is the hash of the logical pending payload (`identifiers` and/or `0x`-hex secret). At apply, each escrow receives `{ pkE, ciphertext }` wrapped to its own wrap key with escrow-wrap-v1
-  - `getSecret` request hashes bind the client's ephemeral `pkE`; responses are `{ ciphertext }` plus `wrapKeyId`
-  - `Mutation.audiences` is the configured replica-id list, in that order. Each replica should require an exact match
-  - `MutationReceipt` includes `receiptKeyId`. `RecoveryEscrowProvider.verifyReceipt` takes the expected escrow id, verifies with that replica's receipt key, and returns a `Promise<boolean>`
-  - `AuthControllerToken.expiresAt` and `PoPChallenge.expiresAt` are Unix seconds
-  - Mutations require idle pending state (`resume()` / `abort()` first). `abort()` drops `authorizing` only; `writing` must be finished with `resume()`
-  - `CubistEscrowProvider` invokes Cubist escrow commands through `@cubist-labs/cubesigner-sdk` `policyInvoke` (`ping`, `generateChallenge`, `applyMutation`, `getSecret` on `cubist_secret_escrow`) and verifies receipts with a pinned receipt public key
-  - `authenticateIdentifier` returns an in-memory `IdentifierSession` for key-bound recovery-secret reads
-
-### Changed
-
-- **BREAKING:** `getRecoverySecret` now accepts an `IdentifierSession` returned by `authenticateIdentifier` instead of an `Identifier`
-
-### Fixed
-
-- Clear a pending mutation when every escrow rejects it before applying, so a second `register` or an update with a stale epoch does not stay in `writing`. `resume()` still retries an incomplete write, and `abort()` still refuses a `writing` mutation that may have been applied
+- Initial release ([#10022](https://github.com/MetaMask/core/pull/10022))
 
 [Unreleased]: https://github.com/MetaMask/core/
