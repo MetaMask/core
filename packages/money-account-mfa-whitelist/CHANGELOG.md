@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: initialize money-account-mfa-whitelist package ([#10840](https://github.com/MetaMask/core/pull/10840))
+
 ### Added
 
 - Initial release ([#10841](https://github.com/MetaMask/core/pull/10841))
