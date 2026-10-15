@@ -4,10 +4,10 @@ import { vi } from 'vitest';
 /**
  * Test helpers for packages on Vitest, the counterpart to `tests/helpers.ts`.
  *
- * `advanceTime` is bound to Vitest, but `flushPromises` is identical to the Jest
- * one. A module under `tests/` cannot be shared, as it would not belong to the
- * importing package's tsconfig project, so it is repeated here until it moves to
- * `@metamask/utils`.
+ * `flushPromises` is identical to the Jest one. Importing it from a third module
+ * under `tests/` would make that module part of the importing package's
+ * program, which no package tsconfig includes, and `tsc --build` reports TS6307
+ * for it. It is duplicated until it moves to `@metamask/utils`.
  */
 
 /**
