@@ -17,7 +17,7 @@ AUS is the source of truth. When the two disagree and there is no unsaved local 
 
 The controller only calls AUS when it is **ready**: the wallet is unlocked, the user is signed in (`AuthenticationController.isSignedIn`), and a consent decision has been made. Locking the wallet signs the user out, and sign-in happens after unlock, so the wallet can be unlocked but not signed in yet (for example during onboarding).
 
-A **session** is one signed-in period. A new session starts whenever the signed-in status changes. Each sync run belongs to the session it started in, and its results are dropped if the session changes or the controller stops being ready while it runs.
+A **session** is one signed-in period. A new session starts whenever the signed-in status changes. Each sync run belongs to the session it started in. If the session changes or the controller stops being ready while it reads AUS, the result of the read is dropped. A write that has started is not cancelled, but once the wallet locks, the next AUS call fails, because AUS calls need an unlocked wallet.
 
 ## Pending change
 
