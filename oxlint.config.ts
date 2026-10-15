@@ -91,6 +91,15 @@ export default createConfig({
     },
 
     {
+      // Plain data, with no imports or exports to make it unambiguously a
+      // module.
+      files: ['test-runners.cjs'],
+      rules: {
+        'import/unambiguous': 'off',
+      },
+    },
+
+    {
       files: [
         '.github/**',
         'yarn.config.cjs',
