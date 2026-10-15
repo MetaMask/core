@@ -489,7 +489,8 @@ export function validateControllerState<
  * struct's contents or the type of the given state.
  *
  * @param name - The name of the controller.
- * @param controller - The static controller.
+ * @param controller - The controller class, which defines a static
+ * `struct` property.
  * @param state - The unvalidated state of the controller.
  * @param mode - The validation mode ('lenient').
  * @param captureException - A utility function for reporting an error to Sentry.
