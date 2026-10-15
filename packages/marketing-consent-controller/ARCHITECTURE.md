@@ -101,4 +101,4 @@ When saving an opt-out, the controller:
 
 The channels go off before consent is written, so AUS never has consent off while a marketing channel is on. If step 2 or 4 fails, the sequence stops and both are retried together. Steps 1 to 3 also run when a sync reads "off" from AUS, because another client may have revoked consent without turning the channels off.
 
-Turning a marketing channel on is the reverse rule, and it is enforced by `NotificationServicesController:updateNotificationPreferences`, which rejects marketing channels that are on without consent.
+Turning a marketing channel on is the reverse rule, and it is enforced by `NotificationServicesController:updateNotificationPreferences`, which rejects marketing channels that are on without consent. When notification preferences are created for the first time, `NotificationServicesController` sets both marketing channels (push, and in-app feature announcements) from marketing consent.
