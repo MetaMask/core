@@ -534,7 +534,6 @@ export class MarketingConsentController extends BaseController<
       {
         ...preferences,
         marketing: {
-          ...marketing,
           pushNotificationsEnabled: false,
           inAppNotificationsEnabled: false,
         },
