@@ -577,7 +577,8 @@ export class MarketingConsentController extends BaseController<
    * @param session - The session the read belongs to.
    */
   async #reconcileWithAus(session: ConsentSyncSession): Promise<void> {
-    // AUS caches this query across profiles, so fetch fresh consent per session.
+    // Read fresh: AUS caches this query for a minute, and another device may
+    // have changed consent since.
     await this.messenger.call(
       'AuthenticatedUserStorageService:invalidateQueries',
       { queryKey: ['AuthenticatedUserStorageService:getMarketingConsent'] },
