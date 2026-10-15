@@ -1,6 +1,9 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  MetamaskPaySolanaExecution,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import { parseCaipAccountId, parseCaipAssetType } from '@metamask/utils';
 import type { Draft } from 'immer';
 import { noop } from 'lodash-es';
@@ -10,16 +13,37 @@ import { updatePaymentToken } from './actions/update-payment-token.js';
 import {
   CONTROLLER_NAME,
   isTransactionPayStrategy,
+  PaymentOverride,
   TransactionPayStrategy,
 } from './constants.js';
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
+import { RELAY_SOLANA_CHAIN_ID } from './strategy/relay/constants.js';
+import {
+  fetchRelaySolanaQuote,
+  getRelayStatus,
+  notifyRelayTransaction,
+} from './strategy/relay/relay-api.js';
+import {
+  buildRelaySolanaQuoteRequest,
+  deriveSolanaPayOutcome,
+  getInitialSolanaPayExecution,
+  getRelaySolanaTransaction,
+  isSolanaPayProductTransaction,
+  mapRelayStatus,
+  normalizeSolanaPayPreflight,
+} from './strategy/relay/solana-pay.js';
 import type {
   GetAmountDataCallback,
   GetBalanceCallback,
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
+  GetSolanaPayQuoteRequest,
   PolymarketCallbacks,
   SetPaySourceRequest,
+  SolanaPayCallbacks,
+  SolanaPayQuote,
+  SolanaPayStatus,
+  SolanaPaySubmissionResult,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -27,13 +51,19 @@ import type {
   TransactionPayFiatOptions,
   TransactionPayControllerOptions,
   TransactionPayControllerState,
+  TransactionPaySource,
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types.js';
-import { getStrategyOrder } from './utils/feature-flags.js';
+import {
+  getRelayPollingInterval,
+  getRelayPollingTimeout,
+  getStrategyOrder,
+} from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
+  getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
   updateTransaction,
@@ -44,11 +74,16 @@ const MESSENGER_EXPOSED_METHODS = [
   'getDelegationTransaction',
   'getFiatOptions',
   'getPaymentOverrideData',
+  'getSolanaPayQuote',
   'getStrategy',
   'polymarketGetDepositWalletAddress',
+  'reconcileSolanaPay',
+  'recoverSolanaPayStatus',
+  'notifyRelayOfSolanaTransaction',
   'polymarketSubmitDepositWalletBatch',
   'setPaySource',
   'setTransactionConfig',
+  'submitSolanaPay',
   'updateFiatPayment',
   'updatePaymentToken',
 ] as const;
@@ -65,6 +100,103 @@ const stateMetadata: StateMetadata<TransactionPayControllerState> = {
 const getDefaultState = (): TransactionPayControllerState => ({
   transactionData: {},
 });
+
+type PromiseResult<Value> =
+  | { status: 'fulfilled'; value: Value }
+  | { status: 'rejected' };
+
+function observePromise<Value>(
+  promise: Promise<Value>,
+): Promise<PromiseResult<Value>> {
+  return promise.then(
+    (value) => ({ status: 'fulfilled', value }),
+    () => ({ status: 'rejected' }),
+  );
+}
+
+function getExecutionSourceTransactionId(
+  execution: MetamaskPaySolanaExecution,
+): string | undefined {
+  if (execution.phase !== 'submitted' && execution.phase !== 'unknown') {
+    return undefined;
+  }
+
+  return execution.sourceTransactionId;
+}
+
+function isTerminalSolanaPayOutcome(status: SolanaPayStatus): boolean {
+  return [
+    'succeeded',
+    'user-rejected',
+    'source-failed',
+    'relay-failed',
+    'refunded',
+    'follow-up-failed',
+  ].includes(status.outcome);
+}
+
+function getSolanaPayStatus(
+  execution: MetamaskPaySolanaExecution,
+): SolanaPayStatus {
+  let submissionOutcome: SolanaPayStatus['submissionOutcome'];
+
+  if (execution.phase === 'submitted') {
+    submissionOutcome = 'submitted';
+  } else if (
+    execution.phase === 'user-rejected' ||
+    execution.phase === 'not-submitted'
+  ) {
+    submissionOutcome = execution.phase;
+  } else if (execution.phase === 'unknown') {
+    submissionOutcome = 'ambiguous';
+  }
+
+  return {
+    followUpStatus: execution.followUpStatus,
+    followUpTransactionId: execution.followUpTransactionId,
+    notificationStatus: execution.notificationStatus,
+    outcome: deriveSolanaPayOutcome(execution),
+    phase: execution.phase,
+    relayFailureReason: execution.relayFailureReason,
+    relayStatus: execution.relayStatus,
+    requestId: execution.requestId,
+    sourceFailureReason: execution.sourceFailureReason,
+    sourceStatus: execution.sourceStatus,
+    sourceTransactionId: getExecutionSourceTransactionId(execution),
+    submissionOutcome,
+    targetTransactionId: execution.targetTransactionId,
+  };
+}
+
+function getFollowUpStatusFromSubmission(
+  outcome: SolanaPaySubmissionResult['outcome'],
+): MetamaskPaySolanaExecution['followUpStatus'] {
+  if (outcome === 'submitted') {
+    return 'submitted';
+  }
+
+  return outcome === 'ambiguous' ? 'unknown' : 'failed';
+}
+
+function getSolanaPayFailure(status: SolanaPayStatus): string | undefined {
+  if (status.outcome === 'source-failed') {
+    return status.sourceFailureReason ?? 'Solana source transaction failed';
+  }
+
+  if (status.outcome === 'relay-failed') {
+    return status.relayFailureReason ?? 'Relay settlement failed';
+  }
+
+  if (status.outcome === 'refunded') {
+    return status.relayFailureReason ?? 'Relay settlement refunded';
+  }
+
+  if (status.outcome === 'follow-up-failed') {
+    return 'Solana pay non-atomic follow-up failed';
+  }
+
+  return undefined;
+}
 
 export class TransactionPayController extends BaseController<
   typeof CONTROLLER_NAME,
@@ -91,6 +223,8 @@ export class TransactionPayController extends BaseController<
 
   readonly #polymarket?: PolymarketCallbacks;
 
+  readonly #solana?: SolanaPayCallbacks;
+
   constructor({
     fiatOptions,
     getAmountData,
@@ -101,6 +235,7 @@ export class TransactionPayController extends BaseController<
     getStrategies,
     messenger,
     polymarket,
+    solana,
     state,
   }: TransactionPayControllerOptions) {
     super({
@@ -118,6 +253,7 @@ export class TransactionPayController extends BaseController<
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
+    this.#solana = solana;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -145,14 +281,11 @@ export class TransactionPayController extends BaseController<
   }
 
   /**
-   * Persists chain-agnostic Pay source metadata on the target transaction.
+   * Persists validated chain-agnostic Pay source metadata on the transaction.
    *
-   * The CAIP-10 account and CAIP-19 asset must identify the same chain.
-   * Legacy EVM-only Pay metadata is preserved unchanged.
-   *
-   * @param request - Pay source metadata and target transaction ID.
-   * @param request.source - Chain-agnostic payment source metadata.
-   * @param request.transactionId - ID of the target transaction.
+   * @param request - Pay source and target transaction ID.
+   * @param request.source - Validated CAIP source metadata.
+   * @param request.transactionId - Target transaction ID.
    */
   setPaySource({ transactionId, source }: SetPaySourceRequest): void {
     const accountChainId = parseCaipAccountId(source.sourceAccountId).chainId;
@@ -173,6 +306,363 @@ export class TransactionPayController extends BaseController<
         transaction.metamaskPay.source = { ...source };
       },
     );
+  }
+
+  /**
+   * Builds an executable Solana quote and its initial durable checkpoint.
+   *
+   * @param request - Immutable source snapshot and target transaction ID.
+   * @returns Prepared Solana quote.
+   */
+  async getSolanaPayQuote(
+    request: GetSolanaPayQuoteRequest,
+  ): Promise<SolanaPayQuote> {
+    const transaction = this.#requireTransaction(request.transactionId);
+    const source = this.#requireSolanaPaySource(transaction);
+    const transactionData = this.state.transactionData[request.transactionId];
+
+    if (!transactionData) {
+      throw new Error('TransactionPayController: Transaction data missing');
+    }
+
+    if (transaction.metamaskPay?.solanaExecution) {
+      throw new Error(
+        'TransactionPayController: Solana execution already exists',
+      );
+    }
+
+    const quoteRequest = await buildRelaySolanaQuoteRequest(
+      source,
+      request.sourceAmountRaw,
+      transaction,
+      transactionData,
+      this.messenger,
+    );
+    const providerQuote = await fetchRelaySolanaQuote(
+      this.messenger,
+      quoteRequest,
+    );
+    const sourceTransaction = getRelaySolanaTransaction(providerQuote);
+    const sourceAmountRaw = providerQuote.details.currencyIn.amount;
+
+    if (
+      quoteRequest.tradeType === 'EXACT_INPUT' &&
+      sourceAmountRaw !== quoteRequest.amount
+    ) {
+      throw new Error(
+        'TransactionPayController: Relay Solana source amount mismatch',
+      );
+    }
+
+    const sourceChainId = parseCaipAccountId(source.sourceAccountId).chainId;
+    const preflightData = await this.#requireSolanaCallbacks().getPreflight({
+      accountId: request.sourceWalletAccountId,
+      caipAccountId: source.sourceAccountId,
+      requestId: providerQuote.requestId,
+      scope: sourceChainId,
+      sourceAmountRaw,
+      sourceAssetId: source.sourceAssetId,
+      transaction: sourceTransaction,
+    });
+    const atomicProductActionIncluded = Boolean(quoteRequest.txs?.length);
+    const requiresNonAtomicFollowUp =
+      transactionData.atomic === false &&
+      transactionData.paymentOverride === PaymentOverride.MoneyAccount;
+    const execution = getInitialSolanaPayExecution({
+      atomicProductActionIncluded,
+      atomicProductActionRequired:
+        isSolanaPayProductTransaction(transaction) &&
+        !requiresNonAtomicFollowUp,
+      requestId: providerQuote.requestId,
+      requiresNonAtomicFollowUp,
+      sourceAmountRaw,
+      sourceChainId,
+      sourceWalletAccountId: request.sourceWalletAccountId,
+    });
+    const quote: SolanaPayQuote = {
+      preflight: normalizeSolanaPayPreflight(
+        source,
+        sourceAmountRaw,
+        preflightData,
+      ),
+      providerQuote,
+      route: {
+        atomicProductActionIncluded,
+        recipient: quoteRequest.recipient,
+        targetAmountMinimum: transactionData.tokens[0].amountRaw,
+        tradeType: quoteRequest.tradeType,
+      },
+    };
+
+    this.#persistSolanaExecution(
+      request.transactionId,
+      execution,
+      'Set executable Solana pay checkpoint',
+    );
+    this.#updateTransactionData(request.transactionId, (data) => {
+      data.solanaPayQuote = quote;
+    });
+
+    return quote;
+  }
+
+  /**
+   * Performs at most one client-owned Solana sign-and-broadcast attempt.
+   *
+   * The `attempting` checkpoint is persisted before invoking the callback.
+   * The callback must resolve with a discriminated completion outcome; only an
+   * explicit ambiguous outcome becomes `unknown`. The source signing callback is
+   * never invoked again for this execution.
+   *
+   * @param transactionId - Target TransactionController transaction ID.
+   * @returns The latest independent source, notification, and Relay statuses.
+   */
+  async submitSolanaPay(transactionId: string): Promise<SolanaPayStatus> {
+    const { execution, source } = this.#requireSolanaExecution(transactionId);
+
+    if (execution.phase !== 'ready') {
+      return await this.reconcileSolanaPay(transactionId);
+    }
+
+    const quote = this.state.transactionData[transactionId]?.solanaPayQuote;
+
+    if (quote?.providerQuote.requestId !== execution.requestId) {
+      throw new Error('TransactionPayController: Missing Solana Pay quote');
+    }
+
+    if (!quote.preflight.affordability.isAffordable) {
+      throw new Error(
+        'TransactionPayController: Solana source is not affordable',
+      );
+    }
+
+    this.#persistSolanaExecution(
+      transactionId,
+      { ...execution, phase: 'attempting' },
+      'Start one Solana source attempt',
+    );
+
+    const submission =
+      await this.#requireSolanaCallbacks().signAndSendTransaction({
+        accountId: execution.sourceWalletAccountId,
+        caipAccountId: source.sourceAccountId,
+        preparedTransaction: quote.preflight.preparedTransaction,
+        preparationId: quote.preflight.preparationId,
+        requestId: execution.requestId,
+        scope: execution.sourceChainId,
+      });
+
+    if (submission.outcome !== 'submitted') {
+      const phase =
+        submission.outcome === 'ambiguous' ? 'unknown' : submission.outcome;
+      this.#persistSolanaExecution(
+        transactionId,
+        {
+          ...execution,
+          phase,
+          sourceFailureReason:
+            submission.outcome === 'user-rejected'
+              ? undefined
+              : submission.reason,
+          sourceStatus:
+            submission.outcome === 'ambiguous' ? 'unknown' : 'not-observed',
+        },
+        `Record Solana source outcome: ${submission.outcome}`,
+      );
+
+      return submission.outcome === 'ambiguous'
+        ? await this.reconcileSolanaPay(transactionId)
+        : this.#getSolanaPayStatus(transactionId);
+    }
+
+    this.#persistSolanaExecution(
+      transactionId,
+      {
+        ...execution,
+        notificationStatus: 'not-attempted',
+        phase: 'submitted',
+        sourceStatus: 'pending',
+        sourceTransactionId: submission.transactionId,
+      },
+      'Record submitted Solana source transaction',
+    );
+
+    await this.notifyRelayOfSolanaTransaction(transactionId);
+    return await this.reconcileSolanaPay(transactionId);
+  }
+
+  /**
+   * Notifies Relay indexing about an existing Solana signature only.
+   *
+   * @param transactionId - Target transaction ID.
+   * @returns Latest durable status.
+   */
+  async notifyRelayOfSolanaTransaction(
+    transactionId: string,
+  ): Promise<SolanaPayStatus> {
+    const { execution } = this.#requireSolanaExecution(transactionId);
+    const sourceTransactionId = getExecutionSourceTransactionId(execution);
+
+    if (!sourceTransactionId) {
+      throw new Error(
+        'TransactionPayController: Missing Solana notification correlation',
+      );
+    }
+
+    this.#persistSolanaExecution(
+      transactionId,
+      { ...execution, notificationStatus: 'pending' },
+      'Start Relay indexing notification',
+    );
+
+    const notification = await observePromise(
+      notifyRelayTransaction({
+        chainId: String(RELAY_SOLANA_CHAIN_ID),
+        requestId: execution.requestId,
+        txHash: sourceTransactionId,
+      }),
+    );
+
+    this.#updateSolanaExecution(
+      transactionId,
+      (current) => ({
+        ...current,
+        notificationStatus:
+          notification.status === 'fulfilled' ? 'success' : 'failure',
+      }),
+      'Record Relay indexing notification result',
+    );
+
+    return this.#getSolanaPayStatus(transactionId);
+  }
+
+  /**
+   * Observes source and Relay status without signing or source resubmission.
+   *
+   * @param transactionId - Target transaction ID.
+   * @returns Latest durable status.
+   */
+  async reconcileSolanaPay(transactionId: string): Promise<SolanaPayStatus> {
+    const { execution: initialExecution, source } =
+      this.#requireSolanaExecution(transactionId);
+    const relayResult = await observePromise(
+      getRelayStatus(initialExecution.requestId),
+    );
+
+    this.#updateSolanaExecution(
+      transactionId,
+      (current) => {
+        if (relayResult.status === 'rejected') {
+          return {
+            ...current,
+            relayStatus: ['success', 'failure', 'refund'].includes(
+              current.relayStatus,
+            )
+              ? current.relayStatus
+              : 'unknown',
+          };
+        }
+
+        const [observedSourceTransactionId] = relayResult.value.inTxHashes;
+        const sourceTransactionId =
+          getExecutionSourceTransactionId(current) ??
+          observedSourceTransactionId;
+        const [targetTransactionId] = relayResult.value.txHashes.slice(-1);
+        const updated = {
+          ...current,
+          relayFailureReason:
+            relayResult.value.failReason ?? relayResult.value.refundFailReason,
+          relayStatus: mapRelayStatus(relayResult.value.status),
+          targetTransactionId,
+        };
+
+        return sourceTransactionId
+          ? {
+              ...updated,
+              notificationStatus:
+                current.notificationStatus === 'not-ready'
+                  ? 'not-attempted'
+                  : current.notificationStatus,
+              phase: 'submitted',
+              sourceStatus:
+                current.sourceStatus === 'not-observed'
+                  ? 'pending'
+                  : current.sourceStatus,
+              sourceTransactionId,
+            }
+          : updated;
+      },
+      'Observe Relay Solana status',
+    );
+
+    const { execution } = this.#requireSolanaExecution(transactionId);
+    const sourceTransactionId = getExecutionSourceTransactionId(execution);
+
+    if (
+      sourceTransactionId &&
+      execution.sourceStatus !== 'confirmed' &&
+      execution.sourceStatus !== 'failed'
+    ) {
+      const sourceResult = await observePromise(
+        this.#requireSolanaCallbacks().getTransactionStatus({
+          accountId: execution.sourceWalletAccountId,
+          caipAccountId: source.sourceAccountId,
+          scope: execution.sourceChainId,
+          transactionId: sourceTransactionId,
+        }),
+      );
+
+      this.#updateSolanaExecution(
+        transactionId,
+        (current) => ({
+          ...current,
+          sourceStatus:
+            sourceResult.status === 'fulfilled'
+              ? sourceResult.value
+              : 'unknown',
+        }),
+        'Observe Solana source status',
+      );
+    }
+
+    await this.#advanceNonAtomicFollowUp(transactionId);
+
+    const status = this.#getSolanaPayStatus(transactionId);
+    this.#updateSolanaParentLifecycle(transactionId, status);
+    return status;
+  }
+
+  /**
+   * Scans persisted TransactionController records and observes non-terminal
+   * Solana execution status. This method never signs, broadcasts, or notifies.
+   *
+   * @returns Latest statuses keyed by target transaction ID.
+   */
+  async recoverSolanaPayStatus(): Promise<Record<string, SolanaPayStatus>> {
+    const results: Record<string, SolanaPayStatus> = {};
+    const { transactions } = this.messenger.call(
+      'TransactionController:getState',
+    );
+
+    for (const transaction of transactions) {
+      const execution = transaction.metamaskPay?.solanaExecution;
+
+      if (!execution) {
+        continue;
+      }
+
+      const status = getSolanaPayStatus(execution);
+
+      if (isTerminalSolanaPayOutcome(status)) {
+        continue;
+      }
+
+      results[transaction.id] = await this.#recoverSolanaPayExecution(
+        transaction.id,
+      );
+    }
+
+    return results;
   }
 
   /**
@@ -343,11 +833,254 @@ export class TransactionPayController extends BaseController<
     return this.#requirePolymarket().submitDepositWalletBatch(...args);
   }
 
+  async #recoverSolanaPayExecution(
+    transactionId: string,
+  ): Promise<SolanaPayStatus> {
+    const startTime = Date.now();
+
+    while (true) {
+      const status = await this.reconcileSolanaPay(transactionId);
+
+      if (isTerminalSolanaPayOutcome(status)) {
+        return status;
+      }
+
+      const timeout = getRelayPollingTimeout(this.messenger);
+
+      if (timeout && Date.now() - startTime >= timeout) {
+        return status;
+      }
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, getRelayPollingInterval(this.messenger)),
+      );
+    }
+  }
+
+  async #advanceNonAtomicFollowUp(transactionId: string): Promise<void> {
+    let { execution, transaction } =
+      this.#requireSolanaExecution(transactionId);
+
+    if (
+      !execution.requiresNonAtomicFollowUp ||
+      execution.relayStatus !== 'success' ||
+      execution.sourceStatus !== 'confirmed'
+    ) {
+      return;
+    }
+
+    if (execution.followUpStatus === 'not-started') {
+      const submitFollowUp =
+        this.#requireSolanaCallbacks().submitNonAtomicFollowUp;
+
+      if (!submitFollowUp) {
+        throw new Error(
+          'TransactionPayController: Non-atomic follow-up callback missing',
+        );
+      }
+
+      this.#persistSolanaExecution(
+        transactionId,
+        { ...execution, followUpStatus: 'attempting' },
+        'Start one sponsored Money Account destination follow-up',
+      );
+
+      const result = await submitFollowUp({
+        requestId: execution.requestId,
+        relayTransactionId: execution.targetTransactionId,
+        transaction,
+      });
+      const followUpStatus = getFollowUpStatusFromSubmission(result.outcome);
+
+      this.#updateSolanaExecution(
+        transactionId,
+        (current) => ({
+          ...current,
+          followUpStatus,
+          followUpTransactionId:
+            result.outcome === 'submitted' ? result.transactionId : undefined,
+        }),
+        `Record Money Account destination follow-up: ${result.outcome}`,
+      );
+
+      ({ execution, transaction } =
+        this.#requireSolanaExecution(transactionId));
+    }
+
+    if (
+      execution.followUpTransactionId &&
+      ['submitted', 'pending', 'unknown'].includes(execution.followUpStatus)
+    ) {
+      const getFollowUpStatus =
+        this.#requireSolanaCallbacks().getNonAtomicFollowUpStatus;
+
+      if (!getFollowUpStatus) {
+        throw new Error(
+          'TransactionPayController: Non-atomic follow-up status callback missing',
+        );
+      }
+
+      const result = await observePromise(
+        getFollowUpStatus({
+          transaction,
+          transactionId: execution.followUpTransactionId,
+        }),
+      );
+
+      this.#updateSolanaExecution(
+        transactionId,
+        (current) => ({
+          ...current,
+          followUpStatus:
+            result.status === 'fulfilled' ? result.value : 'unknown',
+        }),
+        'Observe Money Account destination follow-up',
+      );
+    }
+  }
+
+  #updateSolanaParentLifecycle(
+    transactionId: string,
+    status: SolanaPayStatus,
+  ): void {
+    const transaction = getTransaction(transactionId, this.messenger);
+
+    if (transaction?.status !== 'submitted' || !transaction.isExternalPublish) {
+      return;
+    }
+
+    const failure = getSolanaPayFailure(status);
+
+    if (failure) {
+      this.messenger.call(
+        'TransactionController:failTransaction',
+        transactionId,
+        new Error(failure),
+      );
+      return;
+    }
+
+    if (status.outcome !== 'succeeded') {
+      return;
+    }
+
+    updateTransaction(
+      {
+        transactionId,
+        messenger: this.messenger,
+        note: 'Complete external Solana pay execution',
+      },
+      (current) => {
+        current.isIntentComplete = true;
+      },
+    );
+    this.messenger.call(
+      'TransactionController:confirmTransaction',
+      transactionId,
+    );
+  }
+
   #requirePolymarket(): PolymarketCallbacks {
     if (!this.#polymarket) {
       throw new Error('TransactionPayController: Polymarket callbacks missing');
     }
     return this.#polymarket;
+  }
+
+  #requireSolanaCallbacks(): SolanaPayCallbacks {
+    if (!this.#solana) {
+      throw new Error('TransactionPayController: Solana callbacks missing');
+    }
+    return this.#solana;
+  }
+
+  #requireTransaction(transactionId: string): TransactionMeta {
+    const transaction = getTransaction(transactionId, this.messenger);
+
+    if (!transaction) {
+      throw new Error(`Transaction not found: ${transactionId}`);
+    }
+
+    return transaction;
+  }
+
+  #requireSolanaPaySource(transaction: TransactionMeta): TransactionPaySource {
+    const source = transaction.metamaskPay?.source;
+
+    if (!source) {
+      throw new Error('TransactionPayController: Solana Pay source missing');
+    }
+
+    const accountChainId = parseCaipAccountId(source.sourceAccountId).chainId;
+    const assetChainId = parseCaipAssetType(source.sourceAssetId).chainId;
+
+    if (
+      accountChainId !== assetChainId ||
+      !accountChainId.startsWith('solana:')
+    ) {
+      throw new Error('TransactionPayController: Invalid Solana Pay source');
+    }
+
+    return source;
+  }
+
+  #requireSolanaExecution(transactionId: string): {
+    execution: MetamaskPaySolanaExecution;
+    source: TransactionPaySource;
+    transaction: TransactionMeta;
+  } {
+    const transaction = this.#requireTransaction(transactionId);
+    const source = this.#requireSolanaPaySource(transaction);
+    const execution = transaction.metamaskPay?.solanaExecution;
+
+    if (!execution) {
+      throw new Error('TransactionPayController: Solana execution missing');
+    }
+
+    const sourceChainId = parseCaipAccountId(source.sourceAccountId).chainId;
+
+    if (execution.sourceChainId !== sourceChainId) {
+      throw new Error(
+        'TransactionPayController: Solana execution chain mismatch',
+      );
+    }
+
+    return { execution, source, transaction };
+  }
+
+  #getSolanaPayStatus(transactionId: string): SolanaPayStatus {
+    return getSolanaPayStatus(
+      this.#requireSolanaExecution(transactionId).execution,
+    );
+  }
+
+  #updateSolanaExecution(
+    transactionId: string,
+    updateExecution: (
+      execution: MetamaskPaySolanaExecution,
+    ) => MetamaskPaySolanaExecution,
+    note: string,
+  ): void {
+    const { execution } = this.#requireSolanaExecution(transactionId);
+    this.#persistSolanaExecution(
+      transactionId,
+      updateExecution(execution),
+      note,
+    );
+  }
+
+  #persistSolanaExecution(
+    transactionId: string,
+    execution: MetamaskPaySolanaExecution,
+    note: string,
+  ): void {
+    updateTransaction(
+      { transactionId, messenger: this.messenger, note },
+      (transaction) => {
+        transaction.metamaskPay ??= {};
+        transaction.metamaskPay.solanaExecution = { ...execution };
+      },
+    );
   }
 
   #removeTransactionData(transactionId: string): void {

@@ -6067,7 +6067,7 @@
       "count": 7
     },
     "typescript/no-unsafe-assignment": {
-      "count": 70
+      "count": 72
     },
     "typescript/no-unsafe-call": {
       "count": 10
@@ -6205,7 +6205,7 @@
       "count": 6
     },
     "typescript/unbound-method": {
-      "count": 11
+      "count": 12
     }
   },
   "packages/transaction-controller/src/helpers/PendingTransactionTracker.ts": {
@@ -6446,10 +6446,13 @@
   },
   "packages/transaction-pay-controller/src/TransactionPayController.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 9
+      "count": 12
+    },
+    "typescript/no-unsafe-call": {
+      "count": 3
     },
     "typescript/no-unsafe-member-access": {
-      "count": 2
+      "count": 8
     }
   },
   "packages/transaction-pay-controller/src/actions/update-fiat-payment.test.ts": {
@@ -6477,17 +6480,14 @@
     }
   },
   "packages/transaction-pay-controller/src/helpers/TransactionPayPublishHook.test.ts": {
-    "no-unused-vars": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
       "count": 4
     },
     "typescript/no-unsafe-call": {
-      "count": 12
+      "count": 16
     },
     "typescript/no-unsafe-member-access": {
-      "count": 13
+      "count": 17
     },
     "typescript/no-unsafe-return": {
       "count": 1
@@ -6710,6 +6710,20 @@
       "count": 18
     },
     "typescript/no-unsafe-return": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/solana-pay.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 9
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-call": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
       "count": 2
     }
   },

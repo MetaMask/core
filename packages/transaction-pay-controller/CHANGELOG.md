@@ -9,11 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add validated chain-agnostic Pay source metadata to persisted transaction records while keeping ordinary Pay selection state transient ([#10272](https://github.com/MetaMask/core/pull/10272))
+- Add a persisted, versioned Pay intent model with canonical CAIP source identity, one-attempt execution checkpoints, and provider correlation, mirrored to transaction metadata for restart recovery.
+- Add a client-consumable Solana Pay path for Relay `/quote/v2` SOL/SPL quotes, Core-derived destination/trade policy and atomic Perps/Predict calls, instruction and lookup-table preparation, normalized fee/rent/reserve affordability, one discriminated Snap sign-and-send callback attempt, and restart-safe source and Relay status reconciliation.
+- Add durable non-atomic Money Account follow-up checkpoints and eventful parent transaction outcomes for success, rejection, source failure, Relay failure, refund, and unknown status.
 
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
+
+### Fixed
+
+- Use the immutable Solana execution source amount for exact-input routes instead of transient EVM source-amount projections ([#10273](https://github.com/MetaMask/core/pull/10273))
 
 ## [30.1.0]
 
