@@ -11,7 +11,7 @@
 
 /** @type {import('@yarnpkg/types')} */
 const { defineConfig } = require('@yarnpkg/types');
-const testRunners = require('./test-runners.cjs');
+const { PACKAGES_ON_JEST } = require('./test-runners.cjs');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
 const { basename, resolve } = require('path');
@@ -72,8 +72,6 @@ const DOCSITE_PACKAGES = ['@metamask/wallet-framework-docs'];
  * during `yarn install` (Yarn runs with `enableScripts: false`).
  */
 const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = ['@metamask/wallet-cli'];
-
-const PACKAGES_ON_JEST = new Set(testRunners.PACKAGES_ON_JEST);
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.

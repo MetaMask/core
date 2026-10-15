@@ -1,5 +1,5 @@
 // Do not add to this list: new packages are expected to use Vitest.
-const PACKAGES_ON_JEST = [
+const PACKAGES_ON_JEST = new Set([
   '@metamask/account-tree-controller',
   '@metamask/accounts-controller',
   '@metamask/address-book-controller',
@@ -105,6 +105,6 @@ const PACKAGES_ON_JEST = [
   '@metamask/wallet',
   '@metamask/wallet-cli',
   '@metamask/wallet-framework-docs',
-];
+]);
 
 module.exports = { PACKAGES_ON_JEST };

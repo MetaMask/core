@@ -14,7 +14,7 @@ const monorepoRoot = path.dirname(fileURLToPath(import.meta.url));
 // CommonJS, so `yarn.config.cjs` can read the same list.
 const { PACKAGES_ON_JEST } = createRequire(import.meta.url)(
   './test-runners.cjs',
-) as { PACKAGES_ON_JEST: string[] };
+) as { PACKAGES_ON_JEST: Set<string> };
 
 /**
  * The two runners need separate overrides, and a file must match only one of
@@ -28,7 +28,7 @@ const packageNames = readdirSync(path.join(monorepoRoot, 'packages'), {
   .map((entry) => entry.name);
 
 const packagesOnJest = new Set(
-  PACKAGES_ON_JEST.map((ident) => ident.replace('@metamask/', '')),
+  [...PACKAGES_ON_JEST].map((ident) => ident.replace('@metamask/', '')),
 );
 const jestPackages = packageNames.filter((name) => packagesOnJest.has(name));
 const vitestPackages = packageNames.filter((name) => !packagesOnJest.has(name));
