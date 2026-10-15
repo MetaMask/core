@@ -6,13 +6,6 @@ import typescript from '@metamask/oxlint-config-typescript';
 import vitest from '@metamask/oxlint-config-vitest';
 import { createRequire } from 'node:module';
 
-/**
- * The two runners need separate overrides, and a file must match only one of
- * them: each config declares its runner's globals, so a file matching both has
- * its explicit `vitest` imports flagged as shadowing Jest's.
- *
- * CommonJS, so `yarn.config.cjs` can read the same source of truth.
- */
 const { getTestRunnerWorkspaces } = createRequire(import.meta.url)(
   './test-runner-package-map.cjs',
 ) as {

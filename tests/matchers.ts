@@ -1,6 +1,6 @@
 /**
- * Custom matcher implementations. The setup files register them, since `expect`
- * is a global under Jest but an import under Vitest.
+ * Custom matcher implementations. `tests/setupAfterEnv/matchers.ts` registers
+ * them.
  */
 
 type MatcherResult = {
