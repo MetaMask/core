@@ -7002,6 +7002,11 @@
       "count": 1
     }
   },
+  "packages/transaction-pay-middleware/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
   "packages/user-operation-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
