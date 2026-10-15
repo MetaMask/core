@@ -382,6 +382,13 @@
 /packages/messenger-cli/tsconfig.*      @MetaMask/core-platform
 /packages/messenger-cli/typedoc.json    @MetaMask/core-platform
 
+### mfa-recovery-controller
+/packages/mfa-recovery-controller                 @MetaMask/web3auth
+/packages/mfa-recovery-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/web3auth
+/packages/mfa-recovery-controller/package.json    @MetaMask/core-platform @MetaMask/web3auth
+/packages/mfa-recovery-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/web3auth
+/packages/mfa-recovery-controller/typedoc.json    @MetaMask/core-platform @MetaMask/web3auth
+
 ### money-account-api-data-service
 /packages/money-account-api-data-service                 @MetaMask/earn
 /packages/money-account-api-data-service/CHANGELOG.md    @MetaMask/core-platform @MetaMask/earn
