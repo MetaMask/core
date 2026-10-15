@@ -15,7 +15,7 @@ Manually creating a new monorepo package can be a tedious, even frustrating proc
 4. Open a new Pull Request to merge your new package scaffolding into the monorepo.
    - It should contain no functional changes beyond the addition of the new package structure.
    - See [Why two PRs are recommended](#why-two-prs-are-recommended).
-5. Add your dependencies.
+5. Add the remaining code and dependencies for your new package.
    - Do this as normal using `yarn`.
    - Remember, if you are adding other monorepo packages as dependents, don't forget to add them to the `references` array in your package's `tsconfig.json` and `tsconfig.build.json`.
 
