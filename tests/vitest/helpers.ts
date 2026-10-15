@@ -2,15 +2,6 @@ import { setImmediate as realSetImmediate } from 'node:timers';
 import { vi } from 'vitest';
 
 /**
- * Test helpers for packages on Vitest, the counterpart to `tests/helpers.ts`.
- *
- * `flushPromises` is identical to the Jest one. Importing it from a third module
- * under `tests/` would make that module part of the importing package's
- * program, which no package tsconfig includes, and `tsc --build` reports TS6307
- * for it. It is duplicated until it moves to `@metamask/utils`.
- */
-
-/**
  * Advances the provided fake timer by a specified duration in incremental steps.
  * Between each step, any enqueued promises are processed. However, any setTimeouts created
  * by those promises will not have their timers advanced until the next incremental step.
