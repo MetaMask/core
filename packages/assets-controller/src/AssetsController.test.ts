@@ -652,7 +652,7 @@ describe('AssetsController', () => {
         // Action handlers should be registered
         expect(() => {
           (messenger as unknown as { call: LifecyclePublish }).call(
-            'AssetsController:getCustomAssets',
+            'AssetsController:getAssets',
             MOCK_ACCOUNT_ID,
           );
         }).not.toThrow();
@@ -1052,42 +1052,6 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('getCustomAssets', () => {
-    it('returns empty array for account with no custom assets', async () => {
-      await withController(({ controller }) => {
-        const customAssets = controller.getCustomAssets(MOCK_ACCOUNT_ID);
-
-        expect(customAssets).toStrictEqual([]);
-      });
-    });
-
-    it('returns custom assets for an account', async () => {
-      await withController(async ({ controller }) => {
-        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-
-        const customAssets = controller.getCustomAssets(MOCK_ACCOUNT_ID);
-
-        expect(customAssets).toStrictEqual([MOCK_ASSET_ID]);
-      });
-    });
-
-    it('returns custom assets for specific account only', async () => {
-      const secondAccountId = 'mock-account-id-2' as AccountId;
-
-      await withController(async ({ controller }) => {
-        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-
-        const customAssetsFirstAccount =
-          controller.getCustomAssets(MOCK_ACCOUNT_ID);
-        const customAssetsSecondAccount =
-          controller.getCustomAssets(secondAccountId);
-
-        expect(customAssetsFirstAccount).toStrictEqual([MOCK_ASSET_ID]);
-        expect(customAssetsSecondAccount).toStrictEqual([]);
-      });
-    });
-  });
-
   describe('unhideAsset', () => {
     it('force-fetches the unhidden token as an includeAssetId on v6', async () => {
       const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
@@ -1139,40 +1103,6 @@ describe('AssetsController', () => {
           }
         },
       );
-    });
-  });
-
-  describe('getAssetMetadata', () => {
-    it('returns metadata for existing asset', async () => {
-      const initialState: Partial<AssetsControllerState> = {
-        assetsInfo: {
-          [MOCK_ASSET_ID]: {
-            type: 'erc20',
-            symbol: 'USDC',
-            name: 'USD Coin',
-            decimals: 6,
-          },
-        },
-      };
-
-      await withController({ state: initialState }, ({ controller }) => {
-        const metadata = controller.getAssetMetadata(MOCK_ASSET_ID);
-
-        expect(metadata).toStrictEqual({
-          type: 'erc20',
-          symbol: 'USDC',
-          name: 'USD Coin',
-          decimals: 6,
-        });
-      });
-    });
-
-    it('returns undefined for non-existent asset', async () => {
-      await withController(({ controller }) => {
-        const metadata = controller.getAssetMetadata(MOCK_ASSET_ID);
-
-        expect(metadata).toBeUndefined();
-      });
     });
   });
 
@@ -1801,7 +1731,7 @@ describe('AssetsController', () => {
           controller.hideAsset(customToken);
 
           // The pin is preserved so the import is remembered.
-          expect(controller.getCustomAssets(MOCK_ACCOUNT_ID)).toContain(
+          expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
             customToken,
           );
 
@@ -2795,28 +2725,6 @@ describe('AssetsController', () => {
       expect(rpcMiddlewareGetter).not.toHaveBeenCalled();
 
       rpcMiddlewareGetter.mockRestore();
-    });
-  });
-
-  describe('getAssetsBalance', () => {
-    it('returns balance data for accounts', async () => {
-      await withController(async ({ controller }) => {
-        const accounts = [createMockInternalAccount()];
-        const balances = await controller.getAssetsBalance(accounts);
-
-        expect(Object.keys(balances[MOCK_ACCOUNT_ID])).toStrictEqual([]);
-      });
-    });
-  });
-
-  describe('getAssetsPrice', () => {
-    it('returns price data for assets', async () => {
-      await withController(async ({ controller }) => {
-        const accounts = [createMockInternalAccount()];
-        const prices = await controller.getAssetsPrice(accounts);
-
-        expect(prices).toStrictEqual({});
-      });
     });
   });
 
@@ -4397,68 +4305,6 @@ describe('AssetsController', () => {
 
         getAssetsSpy.mockRestore();
       });
-    });
-
-    it('publishes balanceChanged event when balance updates', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const balanceChangedHandler = jest.fn();
-        messenger.subscribe(
-          'AssetsController:balanceChanged',
-          balanceChangedHandler,
-        );
-
-        await controller.handleAssetsUpdate(
-          {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_ASSET_ID]: { amount: '1000000' },
-              },
-            },
-          },
-          'TestSource',
-        );
-
-        expect(balanceChangedHandler).toHaveBeenCalledWith({
-          accountId: MOCK_ACCOUNT_ID,
-          assetId: MOCK_ASSET_ID,
-          previousAmount: '0',
-          newAmount: '1000000',
-        });
-      });
-    });
-
-    it('does not publish balanceChanged when balance unchanged', async () => {
-      const initialState: Partial<AssetsControllerState> = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: {
-            [MOCK_ASSET_ID]: { amount: '1000000' },
-          },
-        },
-      };
-
-      await withController(
-        { state: initialState },
-        async ({ controller, messenger }) => {
-          const balanceChangedHandler = jest.fn();
-          messenger.subscribe(
-            'AssetsController:balanceChanged',
-            balanceChangedHandler,
-          );
-
-          await controller.handleAssetsUpdate(
-            {
-              assetsBalance: {
-                [MOCK_ACCOUNT_ID]: {
-                  [MOCK_ASSET_ID]: { amount: '1000000' },
-                },
-              },
-            },
-            'TestSource',
-          );
-
-          expect(balanceChangedHandler).not.toHaveBeenCalled();
-        },
-      );
     });
 
     it('does not emit stateChange when a data source re-reports the same balance', async () => {

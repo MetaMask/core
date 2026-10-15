@@ -32,7 +32,7 @@ The `AssetsController` is a unified asset management system that provides real-t
 │  (forceUpdate: true)                 (enrichment only)                       │
 │                                                                              │
 │  Subscription Sources: AccountActivity, AccountsApi, Snap, RPC              │
-│  Push updates via: AssetsController:assetsUpdate action                      │
+│  Push updates via: onAssetsUpdate callback                                   │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -83,11 +83,10 @@ get selectedAccounts(): InternalAccount[]
 ```typescript
 registerActionHandlers()
 ├── AssetsController:getAssets
-├── AssetsController:getAssetsBalance
-├── AssetsController:getAssetMetadata
-├── AssetsController:getAssetsPrice
-├── AssetsController:activeChainsUpdate   // Data sources report chain changes
-└── AssetsController:assetsUpdate         // Data sources push asset updates
+├── AssetsController:getExchangeRatesForBridge
+├── AssetsController:getStateForTransactionPay
+├── AssetsController:addCustomAsset
+└── AssetsController:setSelectedCurrency
 ```
 
 #### 1.5 Balance data source priority
@@ -105,9 +104,8 @@ executeMiddlewares([
   AccountsApiDataSource:getAssetsMiddleware,  // Balance from API
   SnapDataSource:getAssetsMiddleware,         // Balance from Snaps
   RpcDataSource:getAssetsMiddleware,          // Balance from RPC
-  DetectionMiddleware:getAssetsMiddleware,    // Marks assets without metadata
-  TokenDataSource:getAssetsMiddleware,        // Enriches with token metadata
-  PriceDataSource:getAssetsMiddleware,        // Fetches USD prices
+  TokenDataSource:getAssetsMiddleware,        // Metadata missing from state
+  PriceDataSource:getAssetsMiddleware,        // Prices missing from state
 ])
 ```
 
@@ -115,13 +113,12 @@ executeMiddlewares([
 
 ```typescript
 executeMiddlewares([
-  DetectionMiddleware:getAssetsMiddleware,    // Marks assets without metadata
-  TokenDataSource:getAssetsMiddleware,        // Fetches missing metadata
-  PriceDataSource:getAssetsMiddleware,        // Fetches prices for detected assets
+  TokenDataSource:getAssetsMiddleware,        // Metadata missing from state
+  PriceDataSource:getAssetsMiddleware,        // Prices missing from state
 ])
 ```
 
-**Order matters**: Middlewares are stacked with `reduceRight`, so Detection runs first (populates `detectedAssets`), then Token enriches metadata, then Price fetches prices.
+**Order matters**: Middlewares are stacked with `reduceRight`. Token and Price run in parallel after balances. Each fetches only when its own state is missing the asset: metadata when `assetsInfo` has no image, prices when `assetsPrice` has no entry.
 
 ---
 
@@ -152,9 +149,8 @@ start()  // Called by KeyringController:unlock
         ├── AccountsApiDataSource fetches balances from API
         ├── SnapDataSource handles solana:*, bip122:*...
         ├── RpcDataSource handles any remaining EVM chains
-        ├── DetectionMiddleware marks assets without metadata
-        ├── TokenDataSource enriches metadata
-        └── PriceDataSource fetches prices for discovered assets
+        ├── TokenDataSource fetches metadata missing from state
+        └── PriceDataSource fetches prices missing from state
 ```
 
 ---
@@ -177,10 +173,10 @@ async getAssets(accounts, { chainIds, forceUpdate })
 
 #### 3.2 Async Subscriptions
 
-Data sources push updates via the `AssetsController:assetsUpdate` action. All data types (balance, metadata, price) flow through the same unified handler:
+Data sources push updates through the `onAssetsUpdate` callback passed when the controller subscribes. All data types (balance, metadata, price) flow through the same unified handler:
 
 ```
-DataSource calls: messenger.call('AssetsController:assetsUpdate', response, sourceId)
+DataSource calls: onAssetsUpdate(response, sourceId)
 │
 └── handleAssetsUpdate(response, sourceId)
     │
@@ -190,9 +186,8 @@ DataSource calls: messenger.call('AssetsController:assetsUpdate', response, sour
     │   └── assetsPrice     - Price updates
     │
     ├── executeMiddlewares(Event Stack, request, response)
-    │   ├── DetectionMiddleware - Marks assets without metadata
-    │   ├── TokenDataSource - Fetches missing metadata
-    │   └── PriceDataSource - Fetches prices for detected assets
+    │   ├── TokenDataSource - Fetches metadata missing from assetsInfo
+    │   └── PriceDataSource - Fetches prices missing from assetsPrice
     │
     └── updateState(enrichedResponse)
         ├── Normalize asset IDs (checksum EVM addresses)
@@ -202,8 +197,7 @@ DataSource calls: messenger.call('AssetsController:assetsUpdate', response, sour
         ├── Update in-memory price cache (assetsPrice)
         │
         └── Publish events:
-            ├── AssetsController:stateChange
-            └── AssetsController:assetsDetected (if assets without metadata)
+            └── AssetsController:stateChange
 ```
 
 #### 3.3 Chain Assignment Algorithm
@@ -275,11 +269,10 @@ destroy()
 │
 └── Unregister action handlers
     ├── AssetsController:getAssets
-    ├── AssetsController:getAssetsBalance
-    ├── AssetsController:getAssetMetadata
-    ├── AssetsController:getAssetsPrice
-    ├── AssetsController:activeChainsUpdate
-    └── AssetsController:assetsUpdate
+    ├── AssetsController:getExchangeRatesForBridge
+    ├── AssetsController:getStateForTransactionPay
+    ├── AssetsController:addCustomAsset
+    └── AssetsController:setSelectedCurrency
 ```
 
 ---
@@ -393,103 +386,6 @@ console.log(`ETH Balance: ${ethAsset.fiatValue} USD`);
 
 ---
 
-#### `AssetsController:getAssetsBalance`
-
-Get only balance data (lighter query).
-
-```typescript
-const balances = await messenger.call(
-  'AssetsController:getAssetsBalance',
-  accounts,
-  options?
-);
-```
-
-**Return Type:**
-
-```typescript
-Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
-
-interface AssetBalance {
-  amount: string; // Converted amount (e.g., "1" for 1 ETH)
-}
-```
-
-**Example:**
-
-```typescript
-const balances = await messenger.call(
-  'AssetsController:getAssetsBalance',
-  accounts,
-  {
-    chainIds: ['eip155:1', 'eip155:137'],
-    forceUpdate: true,
-  },
-);
-
-// Get ETH balance
-const ethBalance = balances[accountId]['eip155:1/slip44:60'].amount;
-```
-
----
-
-#### `AssetsController:getAssetMetadata`
-
-Get metadata for a specific asset (symbol, name, decimals, image, etc.). This is a synchronous call.
-
-```typescript
-const metadata = messenger.call(
-  'AssetsController:getAssetMetadata',
-  'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC on Ethereum
-);
-```
-
-**Return Type:**
-
-```typescript
-AssetMetadata | undefined;
-
-interface AssetMetadata {
-  type: 'native' | 'erc20' | 'erc721' | 'erc1155' | 'spl' | string;
-  symbol: string; // "ETH", "USDC"
-  name: string; // "Ethereum", "USD Coin"
-  decimals: number; // 18, 6, etc.
-  image?: string; // Logo URL
-  isSpam?: boolean; // Spam detection flag
-  verified?: boolean; // Verification status
-}
-```
-
----
-
-#### `AssetsController:getAssetsPrice`
-
-Get only price data.
-
-```typescript
-const prices = await messenger.call(
-  'AssetsController:getAssetsPrice',
-  accounts,
-  options?
-);
-```
-
-**Return Type:**
-
-```typescript
-Record<Caip19AssetId, AssetPrice>;
-
-interface AssetPrice {
-  price: number; // Current price in USD
-  priceChange24h?: number; // 24h change percentage
-  lastUpdated: number; // Timestamp
-  marketCap?: number;
-  volume24h?: number;
-}
-```
-
----
-
 #### `AssetsController:activeChainsUpdate`
 
 Called by data sources to report when their active chains change.
@@ -515,37 +411,6 @@ messenger.call(
 
 ---
 
-#### `AssetsController:assetsUpdate`
-
-Called by data sources to push asset updates (balance, metadata, price).
-
-```typescript
-await messenger.call(
-  'AssetsController:assetsUpdate',
-  response, // DataResponse - The asset data to update
-  sourceId, // string - The data source ID reporting the update
-);
-```
-
-**Example:**
-
-```typescript
-// Data source pushes balance updates
-await messenger.call(
-  'AssetsController:assetsUpdate',
-  {
-    assetsBalance: {
-      'account-uuid-1': {
-        'eip155:1/slip44:60': { amount: '1' },
-      },
-    },
-  },
-  'AccountActivityDataSource',
-);
-```
-
----
-
 ### Published Events
 
 Subscribe to these events for real-time updates.
@@ -566,78 +431,6 @@ messenger.subscribe('AssetsController:stateChange', (state) => {
 {
   assetsInfo: { [assetId: string]: AssetMetadata };
   assetsBalance: { [accountId: string]: { [assetId: string]: AssetBalance } };
-}
-```
-
----
-
-#### `AssetsController:balanceChanged`
-
-Emitted when a specific asset balance changes.
-
-```typescript
-messenger.subscribe('AssetsController:balanceChanged', (event) => {
-  console.log(`Balance changed for ${event.accountId}`);
-  console.log(`Asset: ${event.assetId}`);
-  console.log(`${event.previousAmount} → ${event.newAmount}`);
-});
-```
-
-**Payload:**
-
-```typescript
-{
-  accountId: AccountId; // Account UUID
-  assetId: Caip19AssetId; // "eip155:1/slip44:60"
-  previousAmount: string; // "1"
-  newAmount: string; // "2"
-}
-```
-
----
-
-#### `AssetsController:priceChanged`
-
-Emitted when asset prices are updated. Includes full price data for easy access.
-
-```typescript
-messenger.subscribe('AssetsController:priceChanged', (event) => {
-  console.log('Prices updated:', event.prices);
-  // Access specific price: event.prices['eip155:1/slip44:60']
-});
-```
-
-**Payload:**
-
-```typescript
-{
-  prices: Record<Caip19AssetId, AssetPrice>;
-  // Example:
-  // {
-  //   "eip155:1/slip44:60": { price: 2500, priceChange24h: 2.5, lastUpdated: 1234567890 },
-  //   "eip155:1/erc20:0x...": { price: 1, priceChange24h: 0.01, lastUpdated: 1234567890 }
-  // }
-}
-```
-
----
-
-#### `AssetsController:assetsDetected`
-
-Emitted when assets without metadata are detected for an account.
-
-```typescript
-messenger.subscribe('AssetsController:assetsDetected', (event) => {
-  console.log(`New assets detected for ${event.accountId}:`, event.assetIds);
-});
-```
-
-**Payload:**
-
-```typescript
-{
-  accountId: AccountId;
-  assetIds: Caip19AssetId[];
 }
 ```
 
@@ -687,11 +480,6 @@ type DataType = 'balance' | 'metadata' | 'price';
 class MyController {
   constructor({ messenger }) {
     this.messenger = messenger;
-
-    // Subscribe to balance changes
-    messenger.subscribe('AssetsController:balanceChanged', (event) => {
-      this.handleBalanceChange(event);
-    });
   }
 
   async getAccountValue(account: InternalAccount): Promise<number> {
@@ -736,25 +524,6 @@ export const selectAssetsForAccount = (state, accountId) => {
     };
   });
 };
-
-// React hook for subscribing to balance changes
-function useBalanceChanges(accountId) {
-  const [lastChange, setLastChange] = useState(null);
-
-  useEffect(() => {
-    const unsubscribe = messenger.subscribe(
-      'AssetsController:balanceChanged',
-      (event) => {
-        if (event.accountId === accountId) {
-          setLastChange(event);
-        }
-      },
-    );
-    return unsubscribe;
-  }, [accountId]);
-
-  return lastChange;
-}
 ```
 
 #### Force Refresh Pattern
@@ -810,11 +579,10 @@ const multiChainAssets = await messenger.call(
 
 These middlewares process responses after primary data sources fetch balance data:
 
-| Middleware          | Purpose                                            | When It Runs              |
-| ------------------- | -------------------------------------------------- | ------------------------- |
-| DetectionMiddleware | Identifies assets without metadata                 | After balance fetch       |
-| TokenDataSource     | Enriches with token metadata (symbol, name, image) | After detection           |
-| PriceDataSource     | Fetches USD prices for assets                      | After metadata enrichment |
+| Middleware      | Purpose                                    | When It Runs        |
+| --------------- | ------------------------------------------ | ------------------- |
+| TokenDataSource | Fetches metadata missing from `assetsInfo` | After balance fetch |
+| PriceDataSource | Fetches prices missing from `assetsPrice`  | After balance fetch |
 
 All middlewares are part of the unified `subscribeAssets` flow—there are no separate subscription mechanisms.
 
@@ -833,7 +601,7 @@ flowchart TB
 
     subgraph AssetsControllerInit["AssetsController (with queryApiClient)"]
         AC[AssetsController]
-        AC --> AA & API & SNAP & RPC & TOK & PRICE & DET
+        AC --> AA & API & SNAP & RPC & TOK & PRICE
     end
 
     subgraph DataSources["Data Source Instances - Order 1-4"]
@@ -843,7 +611,6 @@ flowchart TB
         RPC[RpcDataSource - Order 4]
         TOK[TokenDataSource]
         PRICE[PriceDataSource]
-        DET[DetectionMiddleware]
     end
 
     subgraph ExternalDeps["External Dependencies"]
@@ -889,7 +656,7 @@ flowchart LR
         S1[subscribeAssets]
         S2[assignChainsToDataSources]
         S3[Call DataSource:subscribe]
-        S4[DataSource calls AssetsController:assetsUpdate]
+        S4[DataSource calls onAssetsUpdate]
         S5[handleAssetsUpdate]
         S6[Execute Event Stack]
         S7[updateState]
@@ -929,33 +696,8 @@ const assets = await messenger.call('AssetsController:getAssets', accounts, {
   forceUpdate: true,
 });
 
-// Get just balances (lighter)
-const balances = await messenger.call(
-  'AssetsController:getAssetsBalance',
-  accounts,
-);
-
 // Get state directly
 const state = messenger.call('AssetsController:getState');
-```
-
-### Event Subscriptions (UI)
-
-```typescript
-// Balance changes (real-time updates)
-messenger.subscribe('AssetsController:balanceChanged', (event) => {
-  console.log(`${event.assetId}: ${event.previousAmount} → ${event.newAmount}`);
-});
-
-// New asset detection
-messenger.subscribe('AssetsController:assetsDetected', (event) => {
-  showNotification(`Found ${event.assetIds.length} new tokens!`);
-});
-
-// Price updates (includes full price data)
-messenger.subscribe('AssetsController:priceChanged', ({ prices }) => {
-  refreshPriceDisplay(prices);
-});
 ```
 
 ### Cleanup

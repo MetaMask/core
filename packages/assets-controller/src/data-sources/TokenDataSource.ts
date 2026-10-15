@@ -149,6 +149,93 @@ function getOccurrenceFloorForAsset(
   }
 }
 
+type MetadataWithImage = { image?: string };
+
+/**
+ * Index metadata by lower-cased asset ID so checksummed state keys match the
+ * lower-case IDs account-activity and some RPCs deliver.
+ *
+ * @param record - Metadata keyed by CAIP-19 asset ID.
+ * @returns The same entries keyed by lower-cased asset ID.
+ */
+function indexMetadataByLowerId(
+  record: Record<string, unknown> | undefined,
+): Map<string, MetadataWithImage> {
+  const indexed = new Map<string, MetadataWithImage>();
+  for (const [assetId, metadata] of Object.entries(record ?? {})) {
+    indexed.set(assetId.toLowerCase(), metadata as MetadataWithImage);
+  }
+  return indexed;
+}
+
+/**
+ * Collect every lower-cased asset ID that already has a balance in state.
+ *
+ * @param balances - Per-account balances from controller state.
+ * @returns Lower-cased CAIP-19 asset IDs.
+ */
+function collectKnownBalanceIds(
+  balances: Record<string, Record<string, unknown>> | undefined,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const accountBalances of Object.values(balances ?? {})) {
+    for (const assetId of Object.keys(accountBalances)) {
+      ids.add(assetId.toLowerCase());
+    }
+  }
+  return ids;
+}
+
+/**
+ * Asset IDs this pipeline pass might need metadata for: native assets, response
+ * balances, RPC-detected assets, and each involved account's custom assets.
+ *
+ * @param options - The response and the accounts whose custom assets to include.
+ * @param options.response - The pipeline response.
+ * @param options.requestAccountIds - Accounts on the request.
+ * @param options.customAssets - Custom assets from controller state.
+ * @param options.nativeAssetIds - Native asset IDs for enabled chains.
+ * @returns Candidate CAIP-19 asset IDs.
+ */
+function collectMetadataCandidates({
+  response,
+  requestAccountIds,
+  customAssets,
+  nativeAssetIds,
+}: {
+  response: DataResponse;
+  requestAccountIds: string[];
+  customAssets: AssetsControllerState['customAssets'] | undefined;
+  nativeAssetIds: string[];
+}): string[] {
+  const candidates = new Set<string>(nativeAssetIds);
+
+  for (const accountBalances of Object.values(response.assetsBalance ?? {})) {
+    for (const assetId of Object.keys(accountBalances)) {
+      candidates.add(assetId);
+    }
+  }
+
+  for (const assetIds of Object.values(response.detectedAssets ?? {})) {
+    for (const assetId of assetIds) {
+      candidates.add(assetId);
+    }
+  }
+
+  const accountIds = new Set<string>([
+    ...Object.keys(response.assetsBalance ?? {}),
+    ...Object.keys(response.detectedAssets ?? {}),
+    ...requestAccountIds,
+  ]);
+  for (const accountId of accountIds) {
+    for (const assetId of customAssets?.[accountId] ?? []) {
+      candidates.add(assetId);
+    }
+  }
+
+  return [...candidates];
+}
+
 function cleanResponseSpam(
   spamAssetIds: Set<string>,
   response: DataResponse,
@@ -195,12 +282,12 @@ function cleanResponseSpam(
  * TokenDataSource enriches responses with token metadata from the Tokens API.
  *
  * This middleware-based data source:
- * - Checks detected assets for missing metadata/images
- * - Also checks `assetsBalance` entries missing metadata/images (heal path)
- * - Fetches metadata from Tokens API v3 for assets needing enrichment
+ * - Fetches metadata for response balances, RPC-detected assets, custom assets,
+ *   and native asset IDs that do not already have an image in `assetsInfo`
  * - Filters EVM ERC-20 spam using per-chain floors from Token API
- *   `/v1/suggestedOccurrenceFloors` (default floor 3) for newly detected
- *   assets only; balance-only heals are enriched without spam-filtering
+ *   `/v1/suggestedOccurrenceFloors` (default floor 3) for assets that are not
+ *   already in state; assets already in `assetsBalance` or `assetsInfo` are
+ *   enriched without spam-filtering
  * - Merges fetched metadata into the response
  *
  * Pass the same {@link AssetsControllerMessenger} as other data sources for Blockaid
@@ -394,13 +481,13 @@ export class TokenDataSource {
   }
 
   /**
-   * Middleware that runs BEFORE DetectionMiddleware for account-activity
-   * (websocket) updates. New-to-state EVM ERC-20 balances are enriched with
+   * Middleware that runs on account-activity (websocket) updates before
+   * metadata enrichment. New-to-state EVM ERC-20 balances are enriched with
    * their Token API occurrence counts first, and tokens below the per-chain
    * suggested occurrence floor are dropped from the response (balances and
-   * stub metadata) so spam airdrops never reach detection, metadata
-   * enrichment, pricing, or state. Custom assets and mUSD are exempt, and
-   * assets unknown to the Token API are kept (fail open), mirroring
+   * stub metadata) so spam airdrops never reach metadata enrichment, pricing,
+   * or state. Custom assets and mUSD are exempt, and assets unknown to the
+   * Token API are kept (fail open), mirroring
    * {@link TokenDataSource.assetsMiddleware} filtering semantics.
    *
    * @returns The middleware function for the assets pipeline.
@@ -428,9 +515,8 @@ export class TokenDataSource {
         Object.keys(stateMetadata).map((id) => id.toLowerCase()),
       );
 
-      // Candidates: EVM ERC-20s that are genuinely new (absent from state
-      // balances and metadata) — the same assets DetectionMiddleware would
-      // mark as newly detected right after this middleware.
+      // Candidates: EVM ERC-20s absent from state balances and metadata.
+      // Holdings already in state are balance updates, not new airdrops.
       const candidateByLowerId = new Map<string, string>();
       for (const [accountId, accountBalances] of Object.entries(
         response.assetsBalance ?? {},
@@ -527,30 +613,30 @@ export class TokenDataSource {
    * Get the middleware for enriching responses with token metadata.
    *
    * This middleware:
-   * 1. Extracts the response from context
-   * 2. Fetches metadata for detected assets and balances missing metadata
+   * 1. Collects assets from the response balances, RPC `detectedAssets`, custom
+   *    assets, and native asset IDs
+   * 2. Fetches metadata for any of those that do not already have an image in
+   *    state or on the response
    * 3. Enriches the response with fetched metadata
    * 4. Calls next() at the end to continue the middleware chain
    *
-   * Spam filtering (EVM occurrence floors / non-EVM Blockaid) applies only to
-   * newly `detectedAssets`. Balance-only heals — assets already present in
-   * `assetsBalance` but missing `assetsInfo`, which DetectionMiddleware skips —
-   * are enriched without being filtered out of balances.
+   * Spam filtering (EVM occurrence floors / non-EVM Blockaid) applies to assets
+   * that are not already in state. Assets already present in `assetsBalance` or
+   * `assetsInfo`, and custom assets, are enriched without being filtered out
+   * of balances.
    *
    * @returns The middleware function for the assets pipeline.
    */
   get assetsMiddleware(): Middleware {
     return forDataTypes(['metadata'], async (ctx, next) => {
-      // Extract response from context
-      const { response } = ctx;
+      const { request, response } = ctx;
+      const state = this.#getAssetsState();
+      const stateMetadata = state?.assetsInfo;
+      const customAssets = state?.customAssets;
 
-      const { assetsInfo: stateMetadata, customAssets } =
-        this.#getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
-      // Newly detected asset IDs (lowercase) — subject to spam filtering.
-      const detectedAssetIds = new Set<string>();
-      // Balance-only heals (in assetsBalance, not newly detected) — enrich
-      // metadata but do not spam-filter / delete holdings.
+      // Assets already in state that are only missing an image. Enrich them
+      // without spam-filtering holdings the user already has.
       const balanceHealAssetIds = new Set<string>();
 
       // Custom assets are user-imported — exempt from spam filtering.
@@ -563,64 +649,43 @@ export class TokenDataSource {
           .map((id) => id.toLowerCase()),
       );
 
-      // Always include native asset IDs from NetworkEnablementController
       const nativeAssetIdsList = this.#getNativeAssetIds();
       const nativeAssetIds = new Set(
         nativeAssetIdsList.map((id) => id.toLowerCase()),
       );
-      for (const nativeAssetId of nativeAssetIdsList) {
-        assetIdsNeedingMetadata.add(nativeAssetId);
-      }
+      const responseMetadataByLowerId = indexMetadataByLowerId(
+        response.assetsInfo,
+      );
+      const stateMetadataByLowerId = indexMetadataByLowerId(stateMetadata);
+      const knownBalanceIds = collectKnownBalanceIds(state?.assetsBalance);
 
-      // Also fetch metadata for detected assets that are missing it
-      if (response.detectedAssets) {
-        for (const detectedIds of Object.values(response.detectedAssets)) {
-          for (const assetId of detectedIds) {
-            // Skip if response already has metadata with image
-            const responseMetadata = response.assetsInfo?.[assetId];
-            if (responseMetadata?.image) {
-              continue;
-            }
-
-            // Skip if state already has metadata with image
-            const existingMetadata = stateMetadata[assetId];
-            if (existingMetadata?.image) {
-              continue;
-            }
-
-            // Skip staking contracts; we use built-in metadata and do not fetch from the tokens API
-            if (isStakingContractAssetId(assetId)) {
-              continue;
-            }
-
-            detectedAssetIds.add(assetId.toLowerCase());
-            assetIdsNeedingMetadata.add(assetId);
-          }
+      for (const assetId of collectMetadataCandidates({
+        response,
+        requestAccountIds: request.accountsWithSupportedChains.map(
+          ({ account }) => account.id,
+        ),
+        customAssets,
+        nativeAssetIds: nativeAssetIdsList,
+      })) {
+        const lowerId = assetId.toLowerCase();
+        if (responseMetadataByLowerId.get(lowerId)?.image) {
+          continue;
         }
-      }
+        if (stateMetadataByLowerId.get(lowerId)?.image) {
+          continue;
+        }
+        // Skip staking contracts; we use built-in metadata and do not fetch from the tokens API
+        if (isStakingContractAssetId(assetId)) {
+          continue;
+        }
 
-      // Also fetch metadata for balances that are missing it
-      if (response.assetsBalance) {
-        for (const accountBalances of Object.values(response.assetsBalance)) {
-          for (const assetId of Object.keys(
-            accountBalances,
-          ) as Caip19AssetId[]) {
-            if (response.assetsInfo?.[assetId]?.image) {
-              continue;
-            }
-            if (stateMetadata[assetId]?.image) {
-              continue;
-            }
-            if (isStakingContractAssetId(assetId)) {
-              continue;
-            }
-            assetIdsNeedingMetadata.add(assetId);
-            // Only treat as a heal when DetectionMiddleware did not queue it
-            // as newly detected — those remain subject to spam filtering.
-            if (!detectedAssetIds.has(assetId.toLowerCase())) {
-              balanceHealAssetIds.add(assetId.toLowerCase());
-            }
-          }
+        assetIdsNeedingMetadata.add(assetId);
+        if (
+          knownBalanceIds.has(lowerId) ||
+          stateMetadataByLowerId.has(lowerId) ||
+          customAssetIds.has(lowerId)
+        ) {
+          balanceHealAssetIds.add(lowerId);
         }
       }
 

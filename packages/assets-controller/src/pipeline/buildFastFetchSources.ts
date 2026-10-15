@@ -12,31 +12,29 @@ export type FastFetchSources = {
   accountsApiDataSource: AssetsDataSource;
   customAssetGraduationMiddleware: AssetsDataSource;
   rpcFallbackMiddleware: AssetsDataSource;
-  detectionMiddleware: AssetsDataSource;
   tokenDataSource: AssetsDataSource;
   priceDataSource: AssetsDataSource;
 };
 
 /**
- * Compose the fast fetch lane: Accounts API balances → custom-asset graduation →
- * RPC fallback → detection → token metadata and prices in parallel.
+ * Compose the fast fetch lane: balances in parallel → custom-asset graduation →
+ * RPC fallback → token metadata and prices in parallel.
  *
  * Snap and RPC balance sources are deliberately absent — the controller runs
  * those in a background lane because of their latency.
  *
- * Ordering carries two invariants:
- * - Graduation runs BEFORE the RPC fallback so it only ever sees Accounts
- *   API / websocket balances. RPC intentionally carries custom assets and must
- *   never trigger graduation.
- * - Detection runs before token and price enrichment, which both read
- *   `response.detectedAssets`.
+ * Ordering carries one invariant: graduation runs BEFORE the RPC fallback so
+ * it only ever sees Accounts API / websocket balances. RPC intentionally
+ * carries custom assets and must never trigger graduation.
+ *
+ * Token and price enrichment decide for themselves whether to fetch: an asset
+ * is fetched when it is on the response (or is a custom/native asset) and is
+ * missing from `assetsInfo` or `assetsPrice`.
  *
  * @param sources - The sources to place into the lane.
  * @param options - Lane options.
- * @param options.isBasicFunctionality - When false, the lane is empty. No
- * balance source runs here, so detection would have nothing to scan and no
- * token or price source to feed. The RPC background lane fetches balances and
- * runs detection after them.
+ * @param options.isBasicFunctionality - When false, only the staking balance
+ * runs; no network-backed source is used.
  * @param options.includeCustomAssetGraduation - `true` on the Accounts API v5
  * lane. The v6 lane never graduates custom assets: it sends the pins to the
  * endpoint as `includeAssetIds`, and a chain that comes back without all of
@@ -54,7 +52,6 @@ export function buildFastFetchSources(
     accountsApiDataSource,
     customAssetGraduationMiddleware,
     rpcFallbackMiddleware,
-    detectionMiddleware,
     tokenDataSource,
     priceDataSource,
   } = sources;
@@ -69,7 +66,6 @@ export function buildFastFetchSources(
       ? [customAssetGraduationMiddleware]
       : []),
     rpcFallbackMiddleware,
-    detectionMiddleware,
     createParallelMiddleware([tokenDataSource, priceDataSource]),
   ];
 }
