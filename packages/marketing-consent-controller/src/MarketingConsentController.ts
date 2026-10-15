@@ -503,10 +503,26 @@ export class MarketingConsentController extends BaseController<
   }
 
   /**
+   * Throws if the session changed or the controller stopped being ready, so a
+   * multi-step write stops before writing to a profile that signed in since.
+   *
+   * @param session - The session the write belongs to.
+   */
+  #assertCurrentSession(session: ConsentSyncSession): void {
+    if (session !== this.#session || !this.#isReady()) {
+      throw new Error('Marketing consent sync session ended');
+    }
+  }
+
+  /**
    * Turns off the AUS marketing notification channels (push and in-app), which
    * rely on marketing consent. Writes nothing when they are already off.
+   *
+   * @param session - The session the write belongs to.
    */
-  async #turnOffMarketingNotifications(): Promise<void> {
+  async #turnOffMarketingNotifications(
+    session: ConsentSyncSession,
+  ): Promise<void> {
     await this.messenger.call(
       'AuthenticatedUserStorageService:invalidateQueries',
       {
@@ -529,6 +545,7 @@ export class MarketingConsentController extends BaseController<
       return;
     }
 
+    this.#assertCurrentSession(session);
     await this.messenger.call(
       'AuthenticatedUserStorageService:putNotificationPreferences',
       {
@@ -557,11 +574,16 @@ export class MarketingConsentController extends BaseController<
    * leaves both to retry.
    *
    * @param value - The consent to write.
+   * @param session - The session the write belongs to.
    */
-  async #writeConsent(value: boolean): Promise<void> {
+  async #writeConsent(
+    value: boolean,
+    session: ConsentSyncSession,
+  ): Promise<void> {
     if (!value) {
-      await this.#turnOffMarketingNotifications();
+      await this.#turnOffMarketingNotifications(session);
     }
+    this.#assertCurrentSession(session);
     await this.messenger.call(
       'AuthenticatedUserStorageService:putMarketingConsent',
       { marketingConsentEnabled: value },
@@ -601,7 +623,7 @@ export class MarketingConsentController extends BaseController<
     const localValue = this.#getLocalConsent().optedIn;
 
     if (remote === null) {
-      await this.#writeConsent(localValue);
+      await this.#writeConsent(localValue, session);
       session.lastSynced = localValue;
       return;
     }
@@ -622,7 +644,7 @@ export class MarketingConsentController extends BaseController<
     // Another client may have revoked consent without turning the marketing
     // channels off; a no-op when they already are.
     if (!remote.marketingConsentEnabled) {
-      await this.#turnOffMarketingNotifications();
+      await this.#turnOffMarketingNotifications(session);
     }
 
     session.lastSynced = remote.marketingConsentEnabled;
@@ -641,7 +663,7 @@ export class MarketingConsentController extends BaseController<
     }
 
     // On failure the pending change stays in state and is retried.
-    await this.#writeConsent(value);
+    await this.#writeConsent(value, session);
 
     session.lastSynced = value;
     // A newer local change made during the write is flushed next.
@@ -713,8 +735,13 @@ export class MarketingConsentController extends BaseController<
     this.#inFlight = this.#run(startedFor).then(
       () => afterRun(true),
       (error: unknown) => {
+        const handedOff = this.#session !== startedFor;
         afterRun(false);
-        throw error;
+        // A run whose session ended hands off to the next session's run, so
+        // its error says nothing about whether the change will be saved.
+        if (!handedOff) {
+          throw error;
+        }
       },
     );
 

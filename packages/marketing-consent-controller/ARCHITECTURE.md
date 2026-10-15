@@ -15,9 +15,9 @@ AUS is the source of truth. When the two disagree and there is no unsaved local 
 
 ## Readiness and sessions
 
-The controller only calls AUS when it is **ready**: the wallet is unlocked, the user is signed in (`AuthenticationController.isSignedIn`), and a consent decision has been made. Locking the wallet signs the user out, and sign-in happens after unlock, so the wallet can be unlocked but not signed in yet (for example during onboarding).
+The controller only calls AUS when it is **ready**: the wallet is unlocked, the user is signed in (`AuthenticationController.isSignedIn`), and a consent decision has been made. Sign-in happens after unlock, so the wallet can be unlocked but not signed in yet (for example during onboarding). Whether locking signs the user out depends on the client: the extension signs out on lock, mobile stays signed in, so the controller tracks the lock state itself.
 
-A **session** is one signed-in period. A new session starts whenever the signed-in status changes. Each sync run belongs to the session it started in. If the session changes or the controller stops being ready while it reads AUS, the result of the read is dropped. A write that has started is not cancelled, but once the wallet locks, the next AUS call fails, because AUS calls need an unlocked wallet.
+A **session** is one signed-in period. A new session starts whenever the signed-in status changes. Each sync run belongs to the session it started in. If the session changes or the controller stops being ready while it reads AUS, the result of the read is dropped. Before each AUS write the run checks again and stops if either changed, so a multi-step write never finishes on a profile that signed in since; an unsaved change stays pending for the new session. A write request already sent is not cancelled.
 
 ## Pending change
 
@@ -99,6 +99,6 @@ When saving an opt-out, the controller:
 3. Re-reads the preferences, so UIs bound to the AUS cache through `@metamask/react-data-query` see the change.
 4. Writes consent off to AUS.
 
-The channels go off before consent is written, so AUS never has consent off while a marketing channel is on. If step 2 or 4 fails, the sequence stops and both are retried together. Steps 1 to 3 also run when a sync reads "off" from AUS, because another client may have revoked consent without turning the channels off.
+The channels go off before consent is written, so AUS never has consent off while a marketing channel is on. If step 2 or 4 fails, or the session changes before either, the sequence stops and both are retried together. Steps 1 to 3 also run when a sync reads "off" from AUS, because another client may have revoked consent without turning the channels off.
 
 Turning a marketing channel on is the reverse rule, and it is enforced by `NotificationServicesController:updateNotificationPreferences`, which rejects marketing channels that are on without consent. When notification preferences are created for the first time, `NotificationServicesController` sets both marketing channels (push, and in-app feature announcements) from marketing consent.

@@ -1323,7 +1323,9 @@ describe('MarketingConsentController', () => {
       setSignedIn(false);
       put.reject(new Error('AUS unavailable'));
 
-      await expect(saving).rejects.toThrow('AUS unavailable');
+      await expect(saving).rejects.toThrow(
+        'Marketing consent was not saved to AUS',
+      );
       expect(controller.state.pendingMarketingConsent).toBe(true);
       expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
 
@@ -1377,11 +1379,10 @@ describe('MarketingConsentController', () => {
       firstRead.resolve(null);
 
       expect(await saving).toBeUndefined();
-      expect(reads).toBe(2);
-      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([
-        true,
-        true,
-      ]);
+      // The older session's run stops before writing; the new one writes the
+      // pending change without reading AUS first.
+      expect(reads).toBe(1);
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([true]);
     });
 
     it('is exposed as a messenger action', async () => {
@@ -1460,6 +1461,87 @@ describe('MarketingConsentController', () => {
         },
         'extension',
       );
+    });
+
+    it('stops an opt-out when the session changes during the preferences read', async () => {
+      const firstRead = createDeferred<NotificationPreferences>();
+      const order: string[] = [];
+      const { mocks, setAnalyticsState, setSignedIn } = setup({
+        ...signedInOptedIn,
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+      let reads = 0;
+      mocks.getNotificationPreferences.mockImplementation(async () => {
+        reads += 1;
+        order.push(`getPreferences${reads}`);
+        return reads === 1 ? firstRead.promise : NOTIFICATION_PREFERENCES;
+      });
+      mocks.putNotificationPreferences.mockImplementation(async () => {
+        order.push('putPreferences');
+      });
+      mocks.putMarketingConsent.mockImplementation(async () => {
+        order.push('putConsent');
+      });
+
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+      setSignedIn(false);
+      setSignedIn(true);
+      firstRead.resolve(NOTIFICATION_PREFERENCES);
+      await flushPromises();
+      await flushPromises();
+
+      expect(order).toStrictEqual([
+        'getPreferences1',
+        'getPreferences2',
+        'putPreferences',
+        'getPreferences3',
+        'putConsent',
+      ]);
+    });
+
+    it('stops an opt-out when the session changes during the preferences write', async () => {
+      const firstWrite = createDeferred<void>();
+      const order: string[] = [];
+      const { mocks, setAnalyticsState, setSignedIn } = setup({
+        ...signedInOptedIn,
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+      let writes = 0;
+      mocks.getNotificationPreferences.mockImplementation(async () => {
+        order.push('getPreferences');
+        return NOTIFICATION_PREFERENCES;
+      });
+      mocks.putNotificationPreferences.mockImplementation(async () => {
+        writes += 1;
+        order.push(`putPreferences${writes}`);
+        return writes === 1 ? firstWrite.promise : undefined;
+      });
+      mocks.putMarketingConsent.mockImplementation(async () => {
+        order.push('putConsent');
+      });
+
+      setAnalyticsState(OPTED_OUT);
+      await flushPromises();
+      setSignedIn(false);
+      setSignedIn(true);
+      firstWrite.resolve();
+      await flushPromises();
+      await flushPromises();
+
+      expect(order).toStrictEqual([
+        'getPreferences',
+        'putPreferences1',
+        'getPreferences',
+        'getPreferences',
+        'putPreferences2',
+        'getPreferences',
+        'putConsent',
+      ]);
     });
 
     it('re-reads preferences after turning channels off', async () => {
