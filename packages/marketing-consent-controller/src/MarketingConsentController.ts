@@ -578,8 +578,6 @@ export class MarketingConsentController extends BaseController<
    * @param session - The session the read belongs to.
    */
   async #reconcileWithAus(session: ConsentSyncSession): Promise<void> {
-    const localValue = this.#getLocalConsent().optedIn;
-
     // AUS caches this query across profiles, so fetch fresh consent per session.
     await this.messenger.call(
       'AuthenticatedUserStorageService:invalidateQueries',
@@ -598,6 +596,9 @@ export class MarketingConsentController extends BaseController<
     if (this.state.pendingMarketingConsent !== null) {
       return;
     }
+
+    // Read after the checks, so it reflects any change made during the read.
+    const localValue = this.#getLocalConsent().optedIn;
 
     if (remote === null) {
       await this.#writeConsent(localValue);
