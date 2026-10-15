@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.8.0]
+
 ### Added
 
 - Add `createCopyTradeIntent` method to `SocialService` (and the `SocialService:createCopyTradeIntent` messenger action). Calls `POST /v1/copy-trade-intents` with the comment origin, the copier's CAIP-10 account, and the execution (a swaps `quoteId` or a perps `oid`), and returns the validated `CopyTradeIntentResponse`. Both 201 (created) and 200 (existing intent) resolve ([#10823](https://github.com/MetaMask/core/pull/10823))
@@ -280,7 +282,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.8.0...HEAD
+[3.8.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.7.0...@metamask/social-controllers@3.8.0
 [3.7.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.6.0...@metamask/social-controllers@3.7.0
 [3.6.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.5.0...@metamask/social-controllers@3.6.0
 [3.5.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.4.0...@metamask/social-controllers@3.5.0
