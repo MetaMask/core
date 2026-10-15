@@ -994,6 +994,39 @@ describe('MarketingConsentController', () => {
   });
 
   describe('setMarketingConsent', () => {
+    it('resolves a call overtaken by a consent change from other code, without reverting', async () => {
+      const put = createDeferred<void>();
+      let firstPut = true;
+      const { controller, mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      jest.clearAllMocks();
+      mocks.putMarketingConsent.mockImplementation(async () => {
+        if (firstPut) {
+          firstPut = false;
+          return put.promise;
+        }
+        return Promise.resolve();
+      });
+
+      const saving = controller.setMarketingConsent(true);
+      await flushPromises();
+      // Other code opts out through AnalyticsController while "on" is saving.
+      setAnalyticsState(OPTED_OUT);
+      put.resolve();
+
+      expect(await saving).toBeUndefined();
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([
+        true,
+        false,
+      ]);
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
     it('resolves a call overtaken by a newer one, without reverting', async () => {
       const { controller, mocks } = setup({
         analyticsState: OPTED_OUT,
@@ -1168,7 +1201,7 @@ describe('MarketingConsentController', () => {
       expect(controller.state.pendingMarketingConsent).toBeNull();
     });
 
-    it('keeps a newer change made during a failed save pending and writes it', async () => {
+    it('resolves a failed save overtaken by a consent change from other code, and saves the newer change on the next trigger', async () => {
       const firstWrite = createDeferred<void>();
       const { controller, mocks, setAnalyticsState } = setup({
         analyticsState: OPTED_OUT,
@@ -1187,9 +1220,17 @@ describe('MarketingConsentController', () => {
       expect(controller.state.pendingMarketingConsent).toBe(false);
       firstWrite.reject(new Error('AUS unavailable'));
 
-      await expect(saving).rejects.toThrow('AUS unavailable');
+      expect(await saving).toBeUndefined();
+      await flushPromises();
 
+      // The failed run doesn't retry on its own; the newer change waits.
       expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([true]);
+      expect(controller.state.pendingMarketingConsent).toBe(false);
+
+      controller.refresh();
+      await flushPromises();
+
       expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([
         true,
         false,

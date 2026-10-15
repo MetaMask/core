@@ -311,8 +311,9 @@ export class MarketingConsentController extends BaseController<
    * locally and saved to AUS once the wallet is unlocked and signed in; the
    * call resolves without waiting for that.
    *
-   * A call overtaken by a newer one resolves without waiting; the newer call
-   * reports the outcome.
+   * A call overtaken by a newer choice (a newer call, or other code changing
+   * consent in AnalyticsController) resolves without waiting; the newer
+   * choice is saved on its own.
    *
    * @param enabled - Whether the user consents to marketing.
    * @throws If AUS did not save the change. AUS is the source of truth, so
@@ -334,10 +335,15 @@ export class MarketingConsentController extends BaseController<
     try {
       await this.#waitForSync(enabled);
     } catch (error) {
-      if (request !== this.#latestConsentRequest) {
+      // Overtaken by a newer choice, from a newer call or from other code
+      // changing AnalyticsController; that choice is saved on its own.
+      if (
+        request !== this.#latestConsentRequest ||
+        this.#getLocalConsent().optedIn !== enabled
+      ) {
         return;
       }
-      await this.#revertToAus(enabled);
+      await this.#revertToAus();
       throw error;
     }
   }
@@ -346,18 +352,16 @@ export class MarketingConsentController extends BaseController<
    * Drops a consent change AUS did not save and re-applies the AUS value
    * locally, without writing anything to AUS.
    *
-   * @param failedValue - The consent value that was not saved.
    */
-  async #revertToAus(failedValue: boolean): Promise<void> {
+  async #revertToAus(): Promise<void> {
     // Locked or signed out mid-save: like a change made before sign-in, it
     // stays pending and is saved after the next unlock and sign-in.
     if (!this.#isReady()) {
       return;
     }
-    // A newer change made meanwhile is still the user's latest choice.
-    if (this.state.pendingMarketingConsent === failedValue) {
-      this.#setPendingConsent(null);
-    }
+    // Any pending change is this call's: a newer choice returns before the
+    // revert (see setMarketingConsent).
+    this.#setPendingConsent(null);
     this.#session.remoteStale = true;
     try {
       await this.#settleSync();
@@ -395,13 +399,11 @@ export class MarketingConsentController extends BaseController<
     const expectedSession = this.#session;
     await this.#settleSync();
 
-    const localConsent = this.#getLocalConsent();
     if (
       expectedSession !== this.#session ||
       this.state.pendingMarketingConsent !== null ||
       this.#session.lastSynced !== expectedConsent ||
-      !localConsent.decided ||
-      localConsent.optedIn !== expectedConsent
+      this.#getLocalConsent().optedIn !== expectedConsent
     ) {
       throw new Error('Marketing consent was not saved to AUS');
     }

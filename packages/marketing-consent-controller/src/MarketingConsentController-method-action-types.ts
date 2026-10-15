@@ -15,8 +15,9 @@ import type { MarketingConsentController } from './MarketingConsentController.js
  * locally and saved to AUS once the wallet is unlocked and signed in; the
  * call resolves without waiting for that.
  *
- * A call overtaken by a newer one resolves without waiting; the newer call
- * reports the outcome.
+ * A call overtaken by a newer choice (a newer call, or other code changing
+ * consent in AnalyticsController) resolves without waiting; the newer
+ * choice is saved on its own.
  *
  * @param enabled - Whether the user consents to marketing.
  * @throws If AUS did not save the change. AUS is the source of truth, so
