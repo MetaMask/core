@@ -33,7 +33,7 @@ import { formatChange } from '../utils/marketDataTransform.js';
 import { clonePerpsMarketData } from '../utils/marketUtils.js';
 
 const VALID_MARKET_TYPES = new Set<string>(Object.values(MarketCategory));
-const GLOBAL_SNAPSHOT_SCHEMA_VERSION = 3;
+const GLOBAL_SNAPSHOT_SCHEMA_VERSION = 4;
 const GLOBAL_SNAPSHOT_CONSUMER_MAX_AGE_MS = 30_000;
 const GLOBAL_SNAPSHOT_MAX_PAYLOAD_BYTES = 1_048_576;
 const GLOBAL_SNAPSHOT_PERCENT_TOLERANCE = 0.01;
@@ -43,7 +43,7 @@ const DECIMAL_PATTERN = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 const NON_NEGATIVE_DECIMAL_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 const DEX_PATTERN = /^(?:main|[a-z0-9][a-z0-9-]*)$/u;
 
-const GlobalSnapshotMarketStruct = object({
+const GlobalSnapshotMarketStruct = type({
   id: string(),
   symbol: string(),
   network: string(),
@@ -60,6 +60,10 @@ const GlobalSnapshotMarketStruct = object({
   oraclePrice: string(),
   change24h: string(),
   changePercent24h: number(),
+  change5m: nullable(string()),
+  changePercent5m: nullable(number()),
+  change1h: nullable(string()),
+  changePercent1h: nullable(number()),
   funding: string(),
   volume24h: string(),
   openInterest: string(),
@@ -70,7 +74,7 @@ const GlobalSnapshotMarketStruct = object({
   trend: array(tuple([number(), string()])),
 });
 
-const GlobalSnapshotStruct = object({
+const GlobalSnapshotStruct = type({
   schemaVersion: number(),
   provider: string(),
   network: string(),
@@ -218,7 +222,7 @@ export class TerminalMarketService {
   }
 
   /**
-   * Fetch, authenticate by exact identity, and map a schema-v3 atomic market
+   * Fetch, authenticate by exact identity, and map a schema-v4 atomic market
    * snapshot. Accepted entries remain inside the source freshness window;
    * rejected responses are never cached.
    *
@@ -529,6 +533,12 @@ export class TerminalMarketService {
     if (market.midPrice !== null) {
       decimalFields.push(['midPrice', market.midPrice, true]);
     }
+    if (market.change5m !== null) {
+      decimalFields.push(['change5m', market.change5m, false]);
+    }
+    if (market.change1h !== null) {
+      decimalFields.push(['change1h', market.change1h, false]);
+    }
     for (const [field, value, nonNegative] of decimalFields) {
       const pattern = nonNegative
         ? NON_NEGATIVE_DECIMAL_PATTERN
@@ -561,6 +571,18 @@ export class TerminalMarketService {
     ) {
       throw invalid('changePercent24h coherence');
     }
+    this.#validateRollingPair(
+      market.change5m,
+      market.changePercent5m,
+      'change5m',
+      invalid,
+    );
+    this.#validateRollingPair(
+      market.change1h,
+      market.changePercent1h,
+      'change1h',
+      invalid,
+    );
     for (const [field, values] of [
       ['keywords', market.keywords],
       ['tags', market.tags],
@@ -613,6 +635,16 @@ export class TerminalMarketService {
     const openInterest = Number(market.openInterest);
     const isHip3 = market.dex !== 'main';
     const marketType = this.#marketTypeFor(market.dex, market.category);
+    const change5m = this.#mapRollingWindow(
+      market.change5m,
+      market.changePercent5m,
+      formatters,
+    );
+    const change1h = this.#mapRollingWindow(
+      market.change1h,
+      market.changePercent1h,
+      formatters,
+    );
 
     return {
       id: market.id,
@@ -627,6 +659,10 @@ export class TerminalMarketService {
       }),
       change24h: formatChange(change24h, formatters),
       change24hPercent: formatters.formatPercentage(market.changePercent24h),
+      change5m: change5m.change,
+      changePercent5m: change5m.percent,
+      change1h: change1h.change,
+      changePercent1h: change1h.percent,
       volume: formatters.formatVolume(volume),
       openInterest: formatters.formatVolume(openInterest),
       fundingRate: Number(market.funding),
@@ -641,6 +677,37 @@ export class TerminalMarketService {
       trend: market.trend,
       dataSource: 'terminal-global-snapshot-mark',
       sourceExpiresAt,
+    };
+  }
+
+  #validateRollingPair(
+    absolute: string | null,
+    percent: number | null,
+    field: string,
+    invalid: (name: string) => Error,
+  ): void {
+    if (
+      (absolute === null) !== (percent === null) ||
+      (percent !== null && !Number.isFinite(percent))
+    ) {
+      throw invalid(`${field} pair`);
+    }
+  }
+
+  #mapRollingWindow(
+    absolute: string | null,
+    percent: number | null,
+    formatters: PerpsPlatformDependencies['marketDataFormatters'],
+  ): { change: string; percent: string } {
+    if (absolute === null || percent === null) {
+      return {
+        change: PERPS_CONSTANTS.FallbackDataDisplay,
+        percent: PERPS_CONSTANTS.FallbackPercentageDisplay,
+      };
+    }
+    return {
+      change: formatChange(Number(absolute), formatters),
+      percent: formatters.formatPercentage(percent),
     };
   }
 

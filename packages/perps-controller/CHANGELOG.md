@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `change5m`, `changePercent5m`, `change1h`, and `changePercent1h` on `PerpsMarketData`, mapped from the v4 Terminal global snapshot. A null wire pair is `--` and `--%`, which means that window is unavailable. Disk hydration replaces a stored rolling change with those same placeholders, as it already does for the 24h change.
+
+### Changed
+
+- **BREAKING:** `TerminalMarketService.fetchGlobalSnapshot` requires Terminal global snapshot schema version 4 and rejects schema version 3
+  - Point `terminalApi.globalSnapshotUrl` at `GET /v4/perpetuals` before upgrading. A v3 URL fails validation on every request and falls back to the provider path.
+- Ignore unknown fields on the Terminal global snapshot envelope and on each market instead of rejecting the snapshot
+
 ## [20.1.0]
 
 ### Added
