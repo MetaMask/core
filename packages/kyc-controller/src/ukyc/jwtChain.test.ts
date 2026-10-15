@@ -109,9 +109,7 @@ describe('UKYC assertAttestedServerPublicKey', () => {
   };
 
   it('accepts a schema whose public key matches the attested jwtChain payload', async () => {
-    expect(
-      await assertAttestedServerPublicKey([JWK], schema),
-    ).toBeUndefined();
+    expect(await assertAttestedServerPublicKey([JWK], schema)).toBeUndefined();
   });
 
   it('rejects a schema whose public key does not match the attested jwtChain payload', async () => {
