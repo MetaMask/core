@@ -66,6 +66,7 @@ import { getQuotePricing } from '../../utils/trade-type.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { hasRelayDepositStep } from './deposit-step.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
+import { applyHyperliquidMaxBuffer } from './hyperliquid-max-buffer.js';
 import { fetchRelayQuote } from './relay-api.js';
 import {
   getRelayMaxQuote,
@@ -129,9 +130,14 @@ export async function getRelayQuotes(
         .map((singleRequest) =>
           normalizeRequest(singleRequest, request.transaction),
         )
-        .map((normalizedRequest) =>
+        .map(async (normalizedRequest) =>
           applyHyperliquidActivationFee(
-            normalizedRequest,
+            await applyHyperliquidMaxBuffer(
+              normalizedRequest,
+              request.messenger,
+              request.transaction,
+              request.signal,
+            ),
             request.messenger,
             request.transaction,
             request.signal,

@@ -153,7 +153,13 @@ function calculatePostQuoteSourceAmounts(
       return true;
     })
     .map((token) => {
-      const sourceBalanceRaw = balanceOverride?.balanceRaw ?? token.balanceRaw;
+      // A HyperLiquid source has no on-chain balance: `token.balanceRaw` is
+      // the user's Arbitrum wallet USDC from the placeholder transfer. When
+      // the client cannot resolve the HyperLiquid balance, treat it as zero
+      // rather than sending the unrelated wallet balance to HyperLiquid.
+      const fallbackBalanceRaw = isHyperliquidSource ? '0' : token.balanceRaw;
+      const sourceBalanceRaw =
+        balanceOverride?.balanceRaw ?? fallbackBalanceRaw;
 
       // On max, the batch funds the source account with the amount encoded in
       // the original transaction, which is prepended ahead of the Relay

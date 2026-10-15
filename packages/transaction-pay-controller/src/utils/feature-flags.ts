@@ -49,6 +49,8 @@ export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
 export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD = 1;
+export const DEFAULT_HYPERLIQUID_MAX_BUFFER_NOTIONAL_PERCENT = 0.5;
+export const DEFAULT_HYPERLIQUID_MAX_BUFFER_MINIMUM_USD = 0.1;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
 export const DEFAULT_SERVER_BASE_URL = SERVER_URL_BASE;
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
@@ -122,8 +124,15 @@ type HyperliquidActivationFeeFlag = {
   amountUsd?: number;
 };
 
+type HyperliquidMaxBufferFlag = {
+  enabled?: boolean;
+  notionalPercent?: number;
+  minimumUsd?: number;
+};
+
 type PostQuoteConfig = {
   hyperliquidActivationFee?: HyperliquidActivationFeeFlag;
+  hyperliquidMaxBuffer?: HyperliquidMaxBufferFlag;
 };
 
 type PostQuoteFeatureFlags = {
@@ -134,6 +143,12 @@ type PostQuoteFeatureFlags = {
 export type HyperliquidActivationFeeConfig = {
   enabled: boolean;
   amountUsd: number;
+};
+
+export type HyperliquidMaxBufferConfig = {
+  enabled: boolean;
+  notionalPercent: number;
+  minimumUsd: number;
 };
 
 type StrategyRoutingConfig = {
@@ -1179,6 +1194,48 @@ export function getHyperliquidActivationFeeConfig(
       typeof amountUsd === 'number' && amountUsd > 0
         ? amountUsd
         : DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+  };
+}
+
+/**
+ * Get the HyperLiquid Max-withdrawal buffer configuration from the
+ * `confirmations_pay_post_quote` feature flag for a transaction type.
+ *
+ * Resolves `overrides.<transactionType>.hyperliquidMaxBuffer`, falling back
+ * to `default.hyperliquidMaxBuffer`. Defaults to disabled, reserving 0.5% of
+ * open notional with a $0.10 floor.
+ *
+ * @param messenger - Controller messenger.
+ * @param transactionType - Parent transaction type used to resolve overrides.
+ * @returns The Max-withdrawal buffer configuration.
+ */
+export function getHyperliquidMaxBufferConfig(
+  messenger: TransactionPayControllerMessenger,
+  transactionType?: string,
+): HyperliquidMaxBufferConfig {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags = state.remoteFeatureFlags
+    ?.confirmations_pay_post_quote as PostQuoteFeatureFlags | undefined;
+
+  const override = transactionType
+    ? featureFlags?.overrides?.[transactionType]
+    : undefined;
+  const config =
+    override?.hyperliquidMaxBuffer ??
+    featureFlags?.default?.hyperliquidMaxBuffer;
+
+  const { notionalPercent, minimumUsd } = config ?? {};
+
+  return {
+    enabled: config?.enabled ?? false,
+    notionalPercent:
+      typeof notionalPercent === 'number' && notionalPercent >= 0
+        ? notionalPercent
+        : DEFAULT_HYPERLIQUID_MAX_BUFFER_NOTIONAL_PERCENT,
+    minimumUsd:
+      typeof minimumUsd === 'number' && minimumUsd >= 0
+        ? minimumUsd
+        : DEFAULT_HYPERLIQUID_MAX_BUFFER_MINIMUM_USD,
   };
 }
 
