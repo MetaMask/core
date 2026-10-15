@@ -5,7 +5,7 @@ export {};
 
 declare module 'vitest' {
   // The parameter names have to match Vitest's own declaration, or the two do
-  // not merge (TS2428). Vitest changed them in 5, so check on a major bump.
+  // not merge (TS2428).
   /* oxlint-disable id-length */
   /* oxlint-disable-next-line typescript/consistent-type-definitions */
   interface Matchers<
