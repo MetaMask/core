@@ -25,6 +25,8 @@ import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
 
 import MockEncryptor, {
   DECRYPTION_ERROR,
@@ -70,9 +72,9 @@ type RootMessenger = Messenger<
   AllKeyringControllerEvents
 >;
 
-jest.mock('uuid', () => {
+vi.mock('uuid', async () => {
   return {
-    ...jest.requireActual('uuid'),
+    ...(await vi.importActual<typeof import('uuid')>('uuid')),
     v4: (): string => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
   };
 });
@@ -137,7 +139,7 @@ function createVault(keyrings: SerializedKeyring[] = defaultKeyrings): string {
 
 describe('KeyringController', () => {
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('constructor', () => {
@@ -374,7 +376,7 @@ describe('KeyringController', () => {
 
     it('should throw instead of returning undefined', async () => {
       await withController(async ({ controller }) => {
-        jest.spyOn(controller, 'getKeyringsByType').mockReturnValueOnce([
+        vi.spyOn(controller, 'getKeyringsByType').mockReturnValueOnce([
           {
             getAccounts: async (): Promise<[undefined, undefined]> => [
               undefined,
@@ -391,9 +393,9 @@ describe('KeyringController', () => {
 
     it('should throw error if the account is duplicated', async () => {
       const mockAddress: Hex = '0x123';
-      const addAccountsSpy = jest.spyOn(HdKeyring.prototype, 'addAccounts');
-      const getAccountsSpy = jest.spyOn(HdKeyring.prototype, 'getAccounts');
-      const serializeSpy = jest.spyOn(HdKeyring.prototype, 'serialize');
+      const addAccountsSpy = vi.spyOn(HdKeyring.prototype, 'addAccounts');
+      const getAccountsSpy = vi.spyOn(HdKeyring.prototype, 'getAccounts');
+      const serializeSpy = vi.spyOn(HdKeyring.prototype, 'serialize');
 
       addAccountsSpy.mockResolvedValue([mockAddress]);
       getAccountsSpy.mockResolvedValue([mockAddress]);
@@ -453,8 +455,7 @@ describe('KeyringController', () => {
               MockShallowKeyring.type,
             )[0] as EthKeyring;
 
-            jest
-              .spyOn(mockKeyring, 'serialize')
+            vi.spyOn(mockKeyring, 'serialize')
               .mockResolvedValueOnce({ numberOfAccounts: 1 })
               .mockResolvedValueOnce({ numberOfAccounts: 2 });
 
@@ -600,7 +601,7 @@ describe('KeyringController', () => {
 
     it('should call encryptor.encrypt with the same keyrings if old seedWord is used', async () => {
       await withController(async ({ controller, encryptor }) => {
-        const encryptSpy = jest.spyOn(encryptor, 'encryptWithKey');
+        const encryptSpy = vi.spyOn(encryptor, 'encryptWithKey');
         const serializedKeyring = await controller.withKeyring(
           { type: 'HD Key Tree' },
           async ({ keyring }) => keyring.serialize(),
@@ -736,7 +737,7 @@ describe('KeyringController', () => {
       });
 
       it('should throw error if the first account is not found on the keyring', async () => {
-        jest.spyOn(HdKeyring.prototype, 'getAccounts').mockResolvedValue([]);
+        vi.spyOn(HdKeyring.prototype, 'getAccounts').mockResolvedValue([]);
         await withController(
           { skipVaultCreation: true },
           async ({ controller }) => {
@@ -844,7 +845,7 @@ describe('KeyringController', () => {
 
     it('should emit KeyringController:lock event', async () => {
       await withController(async ({ controller, messenger }) => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         messenger.subscribe('KeyringController:lock', listener);
         await controller.setLocked();
         expect(listener).toHaveBeenCalled();
@@ -911,9 +912,9 @@ describe('KeyringController', () => {
       describe('when wrong password is provided', () => {
         it('should export seed phrase', async () => {
           await withController(async ({ controller, encryptor }) => {
-            jest
-              .spyOn(encryptor, 'decrypt')
-              .mockRejectedValueOnce(new Error('Invalid password'));
+            vi.spyOn(encryptor, 'decrypt').mockRejectedValueOnce(
+              new Error('Invalid password'),
+            );
             await expect(
               controller.exportSeedPhrase({ password: '' }),
             ).rejects.toThrow('Invalid password');
@@ -924,9 +925,9 @@ describe('KeyringController', () => {
           await withController(
             async ({ controller, encryptor, initialState }) => {
               const keyringId = initialState.keyrings[0].metadata.id;
-              jest
-                .spyOn(encryptor, 'decrypt')
-                .mockRejectedValueOnce(new Error('Invalid password'));
+              vi.spyOn(encryptor, 'decrypt').mockRejectedValueOnce(
+                new Error('Invalid password'),
+              );
               await expect(
                 controller.exportSeedPhrase({ password: '' }, keyringId),
               ).rejects.toThrow('Invalid password');
@@ -986,9 +987,9 @@ describe('KeyringController', () => {
         it('should throw the decryption error', async () => {
           await withController(async ({ controller, encryptor }) => {
             const encryptionKey = await controller.exportEncryptionKey();
-            jest
-              .spyOn(encryptor, 'decryptWithKey')
-              .mockRejectedValueOnce(new Error('Invalid key'));
+            vi.spyOn(encryptor, 'decryptWithKey').mockRejectedValueOnce(
+              new Error('Invalid key'),
+            );
             await expect(
               controller.exportSeedPhrase({ encryptionKey }),
             ).rejects.toThrow('Invalid key');
@@ -1060,9 +1061,9 @@ describe('KeyringController', () => {
           await withController(
             async ({ controller, initialState, encryptor }) => {
               const account = initialState.keyrings[0].accounts[0];
-              jest
-                .spyOn(encryptor, 'decrypt')
-                .mockRejectedValueOnce(new Error('Invalid password'));
+              vi.spyOn(encryptor, 'decrypt').mockRejectedValueOnce(
+                new Error('Invalid password'),
+              );
               await expect(
                 controller.exportAccount({ password: '' }, account),
               ).rejects.toThrow('Invalid password');
@@ -1091,9 +1092,9 @@ describe('KeyringController', () => {
             async ({ controller, initialState, encryptor }) => {
               const account = initialState.keyrings[0].accounts[0];
               const encryptionKey = await controller.exportEncryptionKey();
-              jest
-                .spyOn(encryptor, 'decryptWithKey')
-                .mockRejectedValueOnce(new Error('Invalid key'));
+              vi.spyOn(encryptor, 'decryptWithKey').mockRejectedValueOnce(
+                new Error('Invalid key'),
+              );
               await expect(
                 controller.exportAccount({ encryptionKey }, account),
               ).rejects.toThrow('Invalid key');
@@ -1745,7 +1746,7 @@ describe('KeyringController', () => {
             AccountImportStrategy.privateKey,
             [privateKey],
           );
-          const listener = jest.fn();
+          const listener = vi.fn();
           messenger.subscribe('KeyringController:accountRemoved', listener);
 
           const removedAccount = '0x51253087e6f8358b5f10c0a94315d69db3357859';
@@ -1827,7 +1828,7 @@ describe('KeyringController', () => {
 
           override type = 'Async Remove Account Keyring';
 
-          removeAccount = jest.fn(async () => {
+          removeAccount = vi.fn(async () => {
             // Simulate async operation with a delay
             await new Promise((resolve) => setTimeout(resolve, 10));
             removeAccountCompleted = true;
@@ -2557,9 +2558,9 @@ describe('KeyringController', () => {
               },
             ];
             await controller.withKeyring({ id }, async ({ keyring }) => {
-              jest
-                .spyOn(keyring, 'prepareUserOperation')
-                .mockResolvedValueOnce(baseUserOp);
+              vi.spyOn(keyring, 'prepareUserOperation').mockResolvedValueOnce(
+                baseUserOp,
+              );
 
               const result = await controller.prepareUserOperation(
                 address,
@@ -2647,9 +2648,9 @@ describe('KeyringController', () => {
               paymasterAndData: '0x1234',
             };
             await controller.withKeyring({ id }, async ({ keyring }) => {
-              jest
-                .spyOn(keyring, 'patchUserOperation')
-                .mockResolvedValueOnce(patch);
+              vi.spyOn(keyring, 'patchUserOperation').mockResolvedValueOnce(
+                patch,
+              );
 
               const result = await controller.patchUserOperation(
                 address,
@@ -2759,9 +2760,9 @@ describe('KeyringController', () => {
             };
             const signature = '0x1234';
             await controller.withKeyring({ id }, async ({ keyring }) => {
-              jest
-                .spyOn(keyring, 'signUserOperation')
-                .mockResolvedValueOnce(signature);
+              vi.spyOn(keyring, 'signUserOperation').mockResolvedValueOnce(
+                signature,
+              );
 
               const result = await controller.signUserOperation(
                 address,
@@ -2845,7 +2846,7 @@ describe('KeyringController', () => {
     it('should encrypt the vault with the new password', async () => {
       await withController(async ({ controller, encryptor }) => {
         const newPassword = 'new-password';
-        const keyFromPasswordSpy = jest.spyOn(encryptor, 'keyFromPassword');
+        const keyFromPasswordSpy = vi.spyOn(encryptor, 'keyFromPassword');
 
         await controller.changePassword(newPassword);
 
@@ -2905,7 +2906,7 @@ describe('KeyringController', () => {
 
     it('should emit KeyringController:unlock event', async () => {
       await withController(async ({ controller, messenger }) => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         messenger.subscribe('KeyringController:unlock', listener);
         await controller.submitPassword(password);
         expect(listener).toHaveBeenCalled();
@@ -2975,7 +2976,7 @@ describe('KeyringController', () => {
           } as KeyringControllerState,
         },
         async ({ controller, encryptor }) => {
-          jest.spyOn(encryptor, 'decryptWithDetail').mockResolvedValueOnce({
+          vi.spyOn(encryptor, 'decryptWithDetail').mockResolvedValueOnce({
             vault: defaultKeyrings,
             // @ts-expect-error we are testing a broken encryptor
             exportedKeyString: undefined,
@@ -3035,10 +3036,7 @@ describe('KeyringController', () => {
           },
         },
       ]);
-      const hdKeyringSerializeSpy = jest.spyOn(
-        HdKeyring.prototype,
-        'serialize',
-      );
+      const hdKeyringSerializeSpy = vi.spyOn(HdKeyring.prototype, 'serialize');
       await withController(
         {
           state: {
@@ -3047,7 +3045,7 @@ describe('KeyringController', () => {
           skipVaultCreation: true,
         },
         async ({ controller, encryptor }) => {
-          const encryptWithKeySpy = jest.spyOn(encryptor, 'encryptWithKey');
+          const encryptWithKeySpy = vi.spyOn(encryptor, 'encryptWithKey');
           hdKeyringSerializeSpy.mockResolvedValue({
             // @ts-expect-error we are assigning a mock value
             accounts: ['0x123'],
@@ -3137,7 +3135,7 @@ describe('KeyringController', () => {
           ],
         },
         async ({ controller, encryptor }) => {
-          const encryptWithKeySpy = jest.spyOn(encryptor, 'encryptWithKey');
+          const encryptWithKeySpy = vi.spyOn(encryptor, 'encryptWithKey');
 
           await controller.submitPassword(password);
 
@@ -3177,9 +3175,9 @@ describe('KeyringController', () => {
           keyringBuilders: [keyringBuilderFactory(MockKeyring)],
         },
         async ({ controller, encryptor, messenger }) => {
-          const unlockListener = jest.fn();
+          const unlockListener = vi.fn();
           messenger.subscribe('KeyringController:unlock', unlockListener);
-          jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
+          vi.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
 
           await controller.submitPassword(password);
 
@@ -3205,8 +3203,8 @@ describe('KeyringController', () => {
           },
         },
         async ({ controller, encryptor }) => {
-          jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
-          jest.spyOn(encryptor, 'encrypt').mockRejectedValue(new Error());
+          vi.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
+          vi.spyOn(encryptor, 'encrypt').mockRejectedValue(new Error());
 
           await controller.submitPassword(password);
 
@@ -3236,7 +3234,7 @@ describe('KeyringController', () => {
           keyringBuilders: [keyringBuilderFactory(MockKeyring)],
         },
         async ({ controller, messenger }) => {
-          const unlockListener = jest.fn();
+          const unlockListener = vi.fn();
           messenger.subscribe('KeyringController:unlock', unlockListener);
 
           await controller.submitPassword(password);
@@ -3263,8 +3261,8 @@ describe('KeyringController', () => {
           },
         },
         async ({ controller, encryptor }) => {
-          jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
-          const encryptSpy = jest.spyOn(encryptor, 'encryptWithKey');
+          vi.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
+          const encryptSpy = vi.spyOn(encryptor, 'encryptWithKey');
 
           await controller.submitPassword(password);
 
@@ -3289,8 +3287,8 @@ describe('KeyringController', () => {
           },
         },
         async ({ controller, encryptor }) => {
-          jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(true);
-          const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+          vi.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(true);
+          const encryptSpy = vi.spyOn(encryptor, 'encrypt');
 
           // TODO actually this does trigger re-encryption. The catch is
           // that this test is run with cacheEncryptionKey enabled, so
@@ -3323,8 +3321,8 @@ describe('KeyringController', () => {
           },
         },
         async ({ controller, encryptor }) => {
-          jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(true);
-          const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+          vi.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(true);
+          const encryptSpy = vi.spyOn(encryptor, 'encrypt');
 
           await controller.submitPassword(password);
 
@@ -3387,10 +3385,10 @@ describe('KeyringController', () => {
           },
         },
         async ({ controller, encryptor }) => {
-          jest.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
-          jest
-            .spyOn(encryptor, 'exportKey')
-            .mockRejectedValue(new Error('Error'));
+          vi.spyOn(encryptor, 'isVaultUpdated').mockReturnValue(false);
+          vi.spyOn(encryptor, 'exportKey').mockRejectedValue(
+            new Error('Error'),
+          );
 
           await controller.submitPassword(password);
 
@@ -3439,7 +3437,7 @@ describe('KeyringController', () => {
     });
 
     it('should update the vault if new metadata is created while unlocking', async () => {
-      jest.spyOn(HdKeyring.prototype, 'serialize').mockResolvedValue({
+      vi.spyOn(HdKeyring.prototype, 'serialize').mockResolvedValue({
         // @ts-expect-error we are assigning a mock value
         accounts: ['0x123'],
       });
@@ -3459,7 +3457,7 @@ describe('KeyringController', () => {
           },
         },
         async ({ controller, initialState, encryptor }) => {
-          const encryptWithKeySpy = jest.spyOn(encryptor, 'encryptWithKey');
+          const encryptWithKeySpy = vi.spyOn(encryptor, 'encryptWithKey');
 
           await controller.submitEncryptionKey(
             MOCK_ENCRYPTION_KEY,
@@ -3487,7 +3485,7 @@ describe('KeyringController', () => {
     });
 
     it('should suppress errors if new metadata is created while unlocking and the vault update fails', async () => {
-      jest.spyOn(HdKeyring.prototype, 'serialize').mockResolvedValue({
+      vi.spyOn(HdKeyring.prototype, 'serialize').mockResolvedValue({
         // @ts-expect-error we are assigning a mock value
         accounts: ['0x123'],
       });
@@ -3507,10 +3505,10 @@ describe('KeyringController', () => {
           },
         },
         async ({ controller, initialState, encryptor }) => {
-          const encryptWithKeySpy = jest.spyOn(encryptor, 'encryptWithKey');
-          jest
-            .spyOn(encryptor, 'encryptWithKey')
-            .mockRejectedValueOnce(new Error('Error'));
+          const encryptWithKeySpy = vi.spyOn(encryptor, 'encryptWithKey');
+          vi.spyOn(encryptor, 'encryptWithKey').mockRejectedValueOnce(
+            new Error('Error'),
+          );
 
           await controller.submitEncryptionKey(
             MOCK_ENCRYPTION_KEY,
@@ -3539,7 +3537,7 @@ describe('KeyringController', () => {
 
     it('should throw error if vault unlocked has an unexpected shape', async () => {
       await withController(async ({ controller, initialState, encryptor }) => {
-        jest.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
+        vi.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce([
           {
             foo: 'bar',
           },
@@ -3728,9 +3726,9 @@ describe('KeyringController', () => {
     describe('when wrong password is provided', () => {
       it('should throw an error', async () => {
         await withController(async ({ controller, encryptor }) => {
-          jest
-            .spyOn(encryptor, 'decrypt')
-            .mockRejectedValue(new Error('Incorrect password'));
+          vi.spyOn(encryptor, 'decrypt').mockRejectedValue(
+            new Error('Incorrect password'),
+          );
 
           await expect(controller.verifyPassword('12341234')).rejects.toThrow(
             'Incorrect password',
@@ -3778,7 +3776,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by type', () => {
       it('should call the given function with the selected keyring', async () => {
         await withController(async ({ controller }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           const selector = { type: KeyringTypes.hd };
           const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
           const { metadata } = controller.state.keyrings[0];
@@ -3817,7 +3815,7 @@ describe('KeyringController', () => {
         it('should throw an error if the keyring is not found and `createIfMissing` is false', async () => {
           await withController(async ({ controller }) => {
             const selector = { type: 'foo' };
-            const fn = jest.fn();
+            const fn = vi.fn();
 
             await expect(controller.withKeyring(selector, fn)).rejects.toThrow(
               KeyringControllerErrorMessage.KeyringNotFound,
@@ -3831,7 +3829,7 @@ describe('KeyringController', () => {
             { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
             async ({ controller }) => {
               const selector = { type: MockKeyring.type };
-              const fn = jest.fn();
+              const fn = vi.fn();
 
               await controller.withKeyring(selector, fn, {
                 createIfMissing: true,
@@ -3852,15 +3850,12 @@ describe('KeyringController', () => {
               const selector = { type: MockKeyring.type };
 
               await controller.addNewKeyring(MockKeyring.type);
-              const serializeSpy = jest.spyOn(
-                MockKeyring.prototype,
-                'serialize',
-              );
+              const serializeSpy = vi.spyOn(MockKeyring.prototype, 'serialize');
               serializeSpy.mockResolvedValueOnce({
                 foo: 'bar', // Initial keyring state.
               });
 
-              const mockStateChange = jest.fn();
+              const mockStateChange = vi.fn();
               messenger.subscribe(
                 'KeyringController:stateChange',
                 mockStateChange,
@@ -3882,7 +3877,7 @@ describe('KeyringController', () => {
             { keyringBuilders: [keyringBuilderFactory(MockShallowKeyring)] },
             async ({ controller, messenger }) => {
               await controller.addNewKeyring(MockShallowKeyring.type);
-              const mockStateChange = jest.fn();
+              const mockStateChange = vi.fn();
               messenger.subscribe(
                 'KeyringController:stateChange',
                 mockStateChange,
@@ -3910,15 +3905,12 @@ describe('KeyringController', () => {
               const selector = { type: MockKeyring.type };
 
               await controller.addNewKeyring(MockKeyring.type);
-              const serializeSpy = jest.spyOn(
-                MockKeyring.prototype,
-                'serialize',
-              );
+              const serializeSpy = vi.spyOn(MockKeyring.prototype, 'serialize');
               serializeSpy.mockResolvedValue({
                 foo: 'bar', // Initial keyring state.
               });
 
-              const mockStateChange = jest.fn();
+              const mockStateChange = vi.fn();
               messenger.subscribe(
                 'KeyringController:stateChange',
                 mockStateChange,
@@ -3938,7 +3930,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by address', () => {
       it('should call the given function with the selected keyring', async () => {
         await withController(async ({ controller, initialState }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           const selector = {
             address: initialState.keyrings[0].accounts[0] as Hex,
           };
@@ -3969,7 +3961,7 @@ describe('KeyringController', () => {
               const selector = {
                 address: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4' as Hex,
               };
-              const fn = jest.fn();
+              const fn = vi.fn();
 
               await expect(
                 controller.withKeyring(selector, fn),
@@ -3984,7 +3976,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by id', () => {
       it('should call the given function with the selected keyring', async () => {
         await withController(async ({ controller }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
           const { metadata } = controller.state.keyrings[0];
           const selector = { id: metadata.id };
@@ -4023,7 +4015,7 @@ describe('KeyringController', () => {
           await withController(
             async ({ controller, initialState: _initialState }) => {
               const selector = { id: 'non-existent-id' };
-              const fn = jest.fn();
+              const fn = vi.fn();
 
               await expect(
                 controller.withKeyring(selector, fn),
@@ -4037,7 +4029,7 @@ describe('KeyringController', () => {
           await withController(
             async ({ controller, initialState: _initialState }) => {
               const selector = { id: 'non-existent-id' };
-              const fn = jest.fn();
+              const fn = vi.fn();
 
               await expect(
                 controller.withKeyring(selector, fn, { createIfMissing: true }),
@@ -4052,7 +4044,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by filter', () => {
       it('calls the given function with the matching keyring', async () => {
         await withController(async ({ controller }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
           const { metadata } = controller.state.keyrings[0];
           const selector: KeyringSelector = {
@@ -4078,12 +4070,12 @@ describe('KeyringController', () => {
 
       it('passes both keyring and metadata to the filter', async () => {
         await withController(async ({ controller }) => {
-          const filterFn = jest.fn(
+          const filterFn = vi.fn(
             (k: EthKeyring): boolean => k.type === KeyringTypes.hd,
           );
           const selector: KeyringSelector = { filter: filterFn };
 
-          await controller.withKeyring(selector, jest.fn());
+          await controller.withKeyring(selector, vi.fn());
 
           expect(filterFn).toHaveBeenCalledWith(
             expect.any(Object),
@@ -4099,7 +4091,7 @@ describe('KeyringController', () => {
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
           async ({ controller }) => {
             await controller.addNewKeyring(MockKeyring.type);
-            const fn = jest.fn();
+            const fn = vi.fn();
             const selector: KeyringSelector = {
               filter: (k): boolean => k.type === MockKeyring.type,
             };
@@ -4120,7 +4112,7 @@ describe('KeyringController', () => {
           const selector: KeyringSelector = {
             filter: (): boolean => false,
           };
-          const fn = jest.fn();
+          const fn = vi.fn();
 
           await expect(controller.withKeyring(selector, fn)).rejects.toThrow(
             KeyringControllerErrorMessage.KeyringNotFound,
@@ -4181,17 +4173,17 @@ describe('KeyringController', () => {
         // This simulates an inconsistent internal state
         const mockOrphanKeyring: Partial<EthKeyring> = {
           type: 'OrphanKeyring',
-          getAccounts: jest.fn().mockResolvedValue([]),
+          getAccounts: vi.fn().mockResolvedValue([]),
         };
 
-        jest
-          .spyOn(controller, 'getKeyringForAccount')
-          .mockResolvedValue(mockOrphanKeyring);
+        vi.spyOn(controller, 'getKeyringForAccount').mockResolvedValue(
+          mockOrphanKeyring,
+        );
 
         const selector = {
           address: '0x1234567890123456789012345678901234567890' as Hex,
         };
-        const fn = jest.fn();
+        const fn = vi.fn();
 
         // This should trigger the #getKeyringMetadata error because mockOrphanKeyring
         // is not in the internal #keyrings array
@@ -4228,7 +4220,7 @@ describe('KeyringController', () => {
         const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
         stubKeyringClassWithAccount(MockKeyring, address);
 
-        const destroySpy = jest.spyOn(MockKeyring.prototype, 'destroy');
+        const destroySpy = vi.spyOn(MockKeyring.prototype, 'destroy');
 
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
@@ -4240,9 +4232,7 @@ describe('KeyringController', () => {
             await controller.withKeyring(
               { type: MockKeyring.type },
               async ({ keyring }) => {
-                jest
-                  .spyOn(keyring, 'getAccounts')
-                  .mockResolvedValue([] as Hex[]);
+                vi.spyOn(keyring, 'getAccounts').mockResolvedValue([] as Hex[]);
               },
             );
 
@@ -4356,7 +4346,7 @@ describe('KeyringController', () => {
       await withController(
         { skipVaultCreation: true },
         async ({ controller }) => {
-          await expect(controller.withController(jest.fn())).rejects.toThrow(
+          await expect(controller.withController(vi.fn())).rejects.toThrow(
             KeyringControllerErrorMessage.ControllerLocked,
           );
         },
@@ -4458,7 +4448,7 @@ describe('KeyringController', () => {
       it('destroys created keyrings and does not commit them if the callback throws', async () => {
         const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
         stubKeyringClassWithAccount(MockKeyring, mockAddress);
-        const destroySpy = jest
+        const destroySpy = vi
           .spyOn(MockKeyring.prototype, 'destroy')
           .mockResolvedValue(undefined);
 
@@ -4526,7 +4516,7 @@ describe('KeyringController', () => {
       it('destroys the removed keyring', async () => {
         const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
         stubKeyringClassWithAccount(MockKeyring, mockAddress);
-        const destroySpy = jest
+        const destroySpy = vi
           .spyOn(MockKeyring.prototype, 'destroy')
           .mockResolvedValue(undefined);
 
@@ -4574,7 +4564,7 @@ describe('KeyringController', () => {
       it('destroys a keyring that was created then removed within the same callback', async () => {
         const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
         stubKeyringClassWithAccount(MockKeyring, mockAddress);
-        const destroySpy = jest
+        const destroySpy = vi
           .spyOn(MockKeyring.prototype, 'destroy')
           .mockResolvedValue(undefined);
 
@@ -4615,7 +4605,7 @@ describe('KeyringController', () => {
 
     it('does not update the vault if no keyrings change', async () => {
       await withController(async ({ controller, encryptor }) => {
-        const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+        const encryptSpy = vi.spyOn(encryptor, 'encrypt');
 
         await controller.withController(async () => {
           // no-op
@@ -4629,8 +4619,8 @@ describe('KeyringController', () => {
   describe('withKeyringUnsafe', () => {
     it('calls the given function without acquiring the lock', async () => {
       await withController(async ({ controller }) => {
-        const acquireSpy = jest.spyOn(Mutex.prototype, 'acquire');
-        const fn = jest.fn().mockResolvedValue('result');
+        const acquireSpy = vi.spyOn(Mutex.prototype, 'acquire');
+        const fn = vi.fn().mockResolvedValue('result');
         const selector = { type: KeyringTypes.hd };
         const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
         const { metadata } = controller.state.keyrings[0];
@@ -4648,7 +4638,7 @@ describe('KeyringController', () => {
         { skipVaultCreation: true },
         async ({ controller }) => {
           await expect(
-            controller.withKeyringUnsafe({ type: KeyringTypes.hd }, jest.fn()),
+            controller.withKeyringUnsafe({ type: KeyringTypes.hd }, vi.fn()),
           ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
         },
       );
@@ -4656,7 +4646,7 @@ describe('KeyringController', () => {
 
     it('throws KeyringNotFound if no keyring matches the selector', async () => {
       await withController(async ({ controller }) => {
-        const fn = jest.fn();
+        const fn = vi.fn();
 
         await expect(
           controller.withKeyringUnsafe({ type: 'NonExistentType' }, fn),
@@ -4682,7 +4672,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by address', () => {
       it('calls the given function with the selected keyring', async () => {
         await withController(async ({ controller, initialState }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           const selector = {
             address: initialState.keyrings[0].accounts[0] as Hex,
           };
@@ -4699,7 +4689,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by id', () => {
       it('calls the given function with the selected keyring', async () => {
         await withController(async ({ controller }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
           const { metadata } = controller.state.keyrings[0];
           const selector = { id: metadata.id };
@@ -4712,7 +4702,7 @@ describe('KeyringController', () => {
 
       it('throws KeyringNotFound if no keyring has the given id', async () => {
         await withController(async ({ controller }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
 
           await expect(
             controller.withKeyringUnsafe({ id: 'non-existent-id' }, fn),
@@ -4725,7 +4715,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by filter', () => {
       it('calls the given function with the matching keyring', async () => {
         await withController(async ({ controller }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
           const { metadata } = controller.state.keyrings[0];
           const selector: KeyringSelector = {
@@ -4740,7 +4730,7 @@ describe('KeyringController', () => {
 
       it('throws KeyringNotFound if no keyring matches the filter', async () => {
         await withController(async ({ controller }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
 
           await expect(
             controller.withKeyringUnsafe({ filter: (): boolean => false }, fn),
@@ -4781,7 +4771,7 @@ describe('KeyringController', () => {
   describe('withKeyringV2', () => {
     it('should wrap the V1 keyring using the default builder and call the operation', async () => {
       await withController(async ({ controller }) => {
-        const fn = jest.fn();
+        const fn = vi.fn();
         await controller.withKeyringV2({ type: KeyringType.Hd }, fn);
 
         expect(fn).toHaveBeenCalledWith(
@@ -4806,7 +4796,7 @@ describe('KeyringController', () => {
 
     it('should throw KeyringNotFound when no keyring matches', async () => {
       await withController(async ({ controller }) => {
-        const fn = jest.fn();
+        const fn = vi.fn();
 
         await expect(
           controller.withKeyringV2({ type: KeyringType.Snap }, fn),
@@ -4826,7 +4816,7 @@ describe('KeyringController', () => {
             MockShallowKeyring.type,
           );
 
-          const fn = jest.fn();
+          const fn = vi.fn();
           await expect(
             controller.withKeyringV2({ id: metadata.id }, fn),
           ).rejects.toThrow(
@@ -4856,14 +4846,14 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(
-          controller.withKeyringV2({ type: KeyringType.Hd }, jest.fn()),
+          controller.withKeyringV2({ type: KeyringType.Hd }, vi.fn()),
         ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
 
     it('should not match legacy KeyringTypes values in V2 type selectors', async () => {
       await withController(async ({ controller }) => {
-        const fn = jest.fn();
+        const fn = vi.fn();
 
         await expect(
           controller.withKeyringV2(
@@ -4879,7 +4869,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by address', () => {
       it('should wrap the V1 keyring that holds the given address', async () => {
         await withController(async ({ controller, initialState }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           const address = initialState.keyrings[0].accounts[0] as Hex;
 
           await controller.withKeyringV2({ address }, fn);
@@ -4897,7 +4887,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by id', () => {
       it('should wrap the V1 keyring with the matching metadata id', async () => {
         await withController(async ({ controller, initialState }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           const keyringId = initialState.keyrings[0].metadata.id;
 
           await controller.withKeyringV2({ id: keyringId }, fn);
@@ -4913,7 +4903,7 @@ describe('KeyringController', () => {
       it('should throw KeyringNotFound if no keyring has the id', async () => {
         await withController(async ({ controller }) => {
           await expect(
-            controller.withKeyringV2({ id: 'non-existent-id' }, jest.fn()),
+            controller.withKeyringV2({ id: 'non-existent-id' }, vi.fn()),
           ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
@@ -4922,7 +4912,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by filter', () => {
       it('should use the V2 keyring instance that matches the filter', async () => {
         await withController(async ({ controller }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           await controller.withKeyringV2(
             {
               filter: (k): boolean =>
@@ -4952,12 +4942,12 @@ describe('KeyringController', () => {
 
             // 1. The HD keyring that supports V2, so we explicitly skip it.
             // 2. The mock keyring that we want to filter, but that will get implicitly skipped because it doesn't support V2.
-            const filter = jest
+            const filter = vi
               .fn()
               .mockReturnValueOnce(false)
               .mockReturnValueOnce(true);
 
-            const fn = jest.fn();
+            const fn = vi.fn();
             await expect(
               controller.withKeyringV2({ filter }, fn),
             ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
@@ -4968,10 +4958,7 @@ describe('KeyringController', () => {
       it('should throw KeyringNotFound if no keyring matches the filter', async () => {
         await withController(async ({ controller }) => {
           await expect(
-            controller.withKeyringV2(
-              { filter: (): boolean => false },
-              jest.fn(),
-            ),
+            controller.withKeyringV2({ filter: (): boolean => false }, vi.fn()),
           ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
@@ -4996,7 +4983,7 @@ describe('KeyringController', () => {
     describe('messenger action', () => {
       it('should be callable through the messenger', async () => {
         await withController(async ({ messenger }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
 
           await messenger.call(
             'KeyringController:withKeyringV2',
@@ -5040,7 +5027,7 @@ describe('KeyringController', () => {
 
           // The V2 adapter for simple keyrings has no native `destroy`, so we
           // attach one to assert the cleanup tears down the V2 instance too.
-          const destroyV2 = jest.fn();
+          const destroyV2 = vi.fn();
           await controller.withController(async (restrictedController) => {
             const { keyringV2 } = restrictedController.keyrings[1];
             (keyringV2 as { destroy?: () => void }).destroy = destroyV2;
@@ -5091,8 +5078,8 @@ describe('KeyringController', () => {
   describe('withKeyringV2Unsafe', () => {
     it('calls the given function without acquiring the lock', async () => {
       await withController(async ({ controller, initialState }) => {
-        const acquireSpy = jest.spyOn(Mutex.prototype, 'acquire');
-        const fn = jest.fn().mockResolvedValue('result');
+        const acquireSpy = vi.spyOn(Mutex.prototype, 'acquire');
+        const fn = vi.fn().mockResolvedValue('result');
         const selector = { type: KeyringType.Hd };
         const { metadata } = initialState.keyrings[0];
 
@@ -5112,7 +5099,7 @@ describe('KeyringController', () => {
         { skipVaultCreation: true },
         async ({ controller }) => {
           await expect(
-            controller.withKeyringV2Unsafe({ type: KeyringType.Hd }, jest.fn()),
+            controller.withKeyringV2Unsafe({ type: KeyringType.Hd }, vi.fn()),
           ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
         },
       );
@@ -5120,7 +5107,7 @@ describe('KeyringController', () => {
 
     it('throws KeyringNotFound if no keyring matches the selector', async () => {
       await withController(async ({ controller }) => {
-        const fn = jest.fn();
+        const fn = vi.fn();
 
         await expect(
           controller.withKeyringV2Unsafe({ type: KeyringType.Snap }, fn),
@@ -5138,7 +5125,7 @@ describe('KeyringController', () => {
             MockShallowKeyring.type,
           );
 
-          const fn = jest.fn();
+          const fn = vi.fn();
           await expect(
             controller.withKeyringV2Unsafe({ id: metadata.id }, fn),
           ).rejects.toThrow(
@@ -5165,7 +5152,7 @@ describe('KeyringController', () => {
 
     it('does not match legacy KeyringTypes values in V2 type selectors', async () => {
       await withController(async ({ controller }) => {
-        const fn = jest.fn();
+        const fn = vi.fn();
 
         await expect(
           controller.withKeyringV2Unsafe(
@@ -5181,7 +5168,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by address', () => {
       it('calls the given function with the wrapped V2 keyring', async () => {
         await withController(async ({ controller, initialState }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           const selector = {
             address: initialState.keyrings[0].accounts[0] as Hex,
           };
@@ -5200,7 +5187,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by id', () => {
       it('calls the given function with the wrapped V2 keyring', async () => {
         await withController(async ({ controller, initialState }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           const { metadata } = initialState.keyrings[0];
           const selector = { id: metadata.id };
 
@@ -5215,7 +5202,7 @@ describe('KeyringController', () => {
 
       it('throws KeyringNotFound if no keyring has the given id', async () => {
         await withController(async ({ controller }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
 
           await expect(
             controller.withKeyringV2Unsafe({ id: 'non-existent-id' }, fn),
@@ -5228,7 +5215,7 @@ describe('KeyringController', () => {
     describe('when the keyring is selected by filter', () => {
       it('calls the given function with the matching V2 keyring', async () => {
         await withController(async ({ controller, initialState }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
           const { metadata } = initialState.keyrings[0];
           const selector: KeyringSelectorV2 = {
             filter: (k): boolean => k.type === KeyringType.Hd,
@@ -5245,7 +5232,7 @@ describe('KeyringController', () => {
 
       it('throws KeyringNotFound if no keyring matches the filter', async () => {
         await withController(async ({ controller }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
 
           await expect(
             controller.withKeyringV2Unsafe(
@@ -5266,12 +5253,12 @@ describe('KeyringController', () => {
             // The HD keyring supports v2, the MockKeyring does not.
             // Filter skips HD (first call returns false) then hits MockKeyring
             // which has no v2 wrapper, so it is implicitly skipped.
-            const filter = jest
+            const filter = vi
               .fn()
               .mockReturnValueOnce(false)
               .mockReturnValueOnce(true);
 
-            const fn = jest.fn();
+            const fn = vi.fn();
             await expect(
               controller.withKeyringV2Unsafe({ filter }, fn),
             ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
@@ -5310,7 +5297,7 @@ describe('KeyringController', () => {
     describe('messenger action', () => {
       it('should be callable through the messenger', async () => {
         await withController(async ({ messenger }) => {
-          const fn = jest.fn();
+          const fn = vi.fn();
 
           await messenger.call(
             'KeyringController:withKeyringV2Unsafe',
@@ -5340,44 +5327,50 @@ describe('KeyringController', () => {
 
   describe('actions', () => {
     beforeEach(() => {
-      jest
-        .spyOn(KeyringController.prototype, 'signMessage')
-        .mockResolvedValue('0x1234');
-      jest
-        .spyOn(KeyringController.prototype, 'signPersonalMessage')
-        .mockResolvedValue('0x1234');
-      jest
-        .spyOn(KeyringController.prototype, 'signTypedMessage')
-        .mockResolvedValue('0x1234');
-      jest
-        .spyOn(KeyringController.prototype, 'decryptMessage')
-        .mockResolvedValue('I am Satoshi Buterin');
-      jest
-        .spyOn(KeyringController.prototype, 'getEncryptionPublicKey')
-        .mockResolvedValue('ZfKqt4HSy4tt9/WvqP3QrnzbIS04cnV//BhksKbLgVA=');
-      jest
-        .spyOn(KeyringController.prototype, 'prepareUserOperation')
-        .mockResolvedValue({
-          callData: '0x706',
-          initCode: '0x22ff',
-          nonce: '0x1',
-          gasLimits: {
-            callGasLimit: '0x58a83',
-            verificationGasLimit: '0xe8c4',
-            preVerificationGas: '0xc57c',
-          },
-          dummySignature: '0x',
-          dummyPaymasterAndData: '0x',
-          bundlerUrl: 'https://bundler.example.com/rpc',
-        });
-      jest
-        .spyOn(KeyringController.prototype, 'patchUserOperation')
-        .mockResolvedValue({
-          paymasterAndData: '0x1234',
-        });
-      jest
-        .spyOn(KeyringController.prototype, 'signUserOperation')
-        .mockResolvedValue('0x1234');
+      vi.spyOn(KeyringController.prototype, 'signMessage').mockResolvedValue(
+        '0x1234',
+      );
+      vi.spyOn(
+        KeyringController.prototype,
+        'signPersonalMessage',
+      ).mockResolvedValue('0x1234');
+      vi.spyOn(
+        KeyringController.prototype,
+        'signTypedMessage',
+      ).mockResolvedValue('0x1234');
+      vi.spyOn(KeyringController.prototype, 'decryptMessage').mockResolvedValue(
+        'I am Satoshi Buterin',
+      );
+      vi.spyOn(
+        KeyringController.prototype,
+        'getEncryptionPublicKey',
+      ).mockResolvedValue('ZfKqt4HSy4tt9/WvqP3QrnzbIS04cnV//BhksKbLgVA=');
+      vi.spyOn(
+        KeyringController.prototype,
+        'prepareUserOperation',
+      ).mockResolvedValue({
+        callData: '0x706',
+        initCode: '0x22ff',
+        nonce: '0x1',
+        gasLimits: {
+          callGasLimit: '0x58a83',
+          verificationGasLimit: '0xe8c4',
+          preVerificationGas: '0xc57c',
+        },
+        dummySignature: '0x',
+        dummyPaymasterAndData: '0x',
+        bundlerUrl: 'https://bundler.example.com/rpc',
+      });
+      vi.spyOn(
+        KeyringController.prototype,
+        'patchUserOperation',
+      ).mockResolvedValue({
+        paymasterAndData: '0x1234',
+      });
+      vi.spyOn(
+        KeyringController.prototype,
+        'signUserOperation',
+      ).mockResolvedValue('0x1234');
     });
 
     describe('signMessage', () => {
@@ -5604,14 +5597,15 @@ describe('KeyringController', () => {
 
     describe('getKeyringsByType', () => {
       it('should return correct keyring by type', async () => {
-        jest
-          .spyOn(KeyringController.prototype, 'getKeyringsByType')
-          .mockReturnValue([
-            {
-              type: 'HD Key Tree',
-              accounts: ['0x1234'],
-            },
-          ]);
+        vi.spyOn(
+          KeyringController.prototype,
+          'getKeyringsByType',
+        ).mockReturnValue([
+          {
+            type: 'HD Key Tree',
+            accounts: ['0x1234'],
+          },
+        ]);
         await withController(async ({ controller, messenger }) => {
           messenger.call('KeyringController:getKeyringsByType', 'HD Key Tree');
 
@@ -5624,12 +5618,13 @@ describe('KeyringController', () => {
 
     describe('getKeyringForAccount', () => {
       it('should return the keyring for the account', async () => {
-        jest
-          .spyOn(KeyringController.prototype, 'getKeyringForAccount')
-          .mockResolvedValue({
-            type: 'HD Key Tree',
-            accounts: ['0x1234'],
-          });
+        vi.spyOn(
+          KeyringController.prototype,
+          'getKeyringForAccount',
+        ).mockResolvedValue({
+          type: 'HD Key Tree',
+          accounts: ['0x1234'],
+        });
         await withController(async ({ controller, messenger }) => {
           await messenger.call('KeyringController:getKeyringForAccount', '0x0');
 
@@ -5640,9 +5635,9 @@ describe('KeyringController', () => {
 
     describe('getAccounts', () => {
       it('should return all accounts', async () => {
-        jest
-          .spyOn(KeyringController.prototype, 'getAccounts')
-          .mockResolvedValue(['0x1234']);
+        vi.spyOn(KeyringController.prototype, 'getAccounts').mockResolvedValue([
+          '0x1234',
+        ]);
         await withController(async ({ controller, messenger }) => {
           await messenger.call('KeyringController:getAccounts');
 
@@ -5653,9 +5648,10 @@ describe('KeyringController', () => {
 
     describe('persistAllKeyrings', () => {
       it('should call persistAllKeyrings', async () => {
-        jest
-          .spyOn(KeyringController.prototype, 'persistAllKeyrings')
-          .mockResolvedValue(true);
+        vi.spyOn(
+          KeyringController.prototype,
+          'persistAllKeyrings',
+        ).mockResolvedValue(true);
         await withController(async ({ controller, messenger }) => {
           await messenger.call('KeyringController:persistAllKeyrings');
 
@@ -5689,7 +5685,7 @@ describe('KeyringController', () => {
     describe('withController', () => {
       it('should call withController', async () => {
         await withController(async ({ messenger }) => {
-          const operation = jest.fn().mockResolvedValue('result');
+          const operation = vi.fn().mockResolvedValue('result');
 
           const actionReturnValue = await messenger.call(
             'KeyringController:withController',
@@ -5714,9 +5710,10 @@ describe('KeyringController', () => {
           id: 'mock-id',
           name: 'mock-keyring',
         };
-        jest
-          .spyOn(KeyringController.prototype, 'addNewKeyring')
-          .mockImplementationOnce(async () => mockKeyringMetadata);
+        vi.spyOn(
+          KeyringController.prototype,
+          'addNewKeyring',
+        ).mockImplementationOnce(async () => mockKeyringMetadata);
 
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
@@ -5778,7 +5775,7 @@ describe('KeyringController', () => {
           await controller.persistAllKeyrings();
         };
         const actions: (() => Promise<void>)[] = [persistAction, noOp, noOp];
-        const listener = jest.fn(async () => {
+        const listener = vi.fn(async () => {
           callCount += 1;
           // Only execute persistAllKeyrings on the first call to prevent infinite loops
           const actionIndex = Math.min(callCount - 1, actions.length - 1);
@@ -5788,7 +5785,7 @@ describe('KeyringController', () => {
         messenger.subscribe(
           'KeyringController:stateChange',
           // Cast to avoid misued-promise warning.
-          listener as jest.Mocked<() => void>,
+          listener as Mocked<() => void>,
         );
 
         await controller.submitPassword(password);
@@ -5807,11 +5804,11 @@ describe('KeyringController', () => {
         // Mocking the serialize method to throw an error will
         // halt the controller everytime it tries to persist the keyring,
         // making it impossible to update the vault
-        jest
-          .spyOn(MockKeyring.prototype, 'serialize')
-          .mockImplementation(async () => {
+        vi.spyOn(MockKeyring.prototype, 'serialize').mockImplementation(
+          async () => {
             throw new Error('You will never be able to persist me!');
-          });
+          },
+        );
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
           async ({ controller, initialState }) => {
@@ -6141,12 +6138,8 @@ function stubKeyringClassWithAccount(
   keyringClass: KeyringClass,
   account: string,
 ): void {
-  jest
-    .spyOn(keyringClass.prototype, 'getAccounts')
-    .mockResolvedValue([account]);
-  jest
-    .spyOn(keyringClass.prototype, 'addAccounts')
-    .mockResolvedValue([account]);
+  vi.spyOn(keyringClass.prototype, 'getAccounts').mockResolvedValue([account]);
+  vi.spyOn(keyringClass.prototype, 'addAccounts').mockResolvedValue([account]);
 }
 
 /**
@@ -6218,13 +6211,13 @@ async function withController<ReturnValue>(
  * Construct a keyring builder with a spy.
  *
  * @param KeyringConstructor - The constructor to use for building the keyring.
- * @returns A keyring builder that uses `jest.fn()` to spy on invocations.
+ * @returns A keyring builder that uses `vi.fn()` to spy on invocations.
  */
 function buildKeyringBuilderWithSpy(KeyringConstructor: KeyringClass): {
   (): EthKeyring;
   type: string;
 } {
-  const keyringBuilderWithSpy: { (): EthKeyring; type?: string } = jest
+  const keyringBuilderWithSpy: { (): EthKeyring; type?: string } = vi
     .fn()
     .mockImplementation((...args) => new KeyringConstructor(...args));
   keyringBuilderWithSpy.type = KeyringConstructor.type;
