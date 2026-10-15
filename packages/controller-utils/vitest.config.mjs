@@ -11,6 +11,11 @@ export default mergeConfig(baseConfig, {
     // newer Node than this repo's engines range allows.
     name: basename(dirname(fileURLToPath(import.meta.url))),
 
+    // Jest ran this package under jsdom, via a custom environment that also
+    // patched in `TextEncoder` for `@noble/hashes`. Node provides that now,
+    // so plain jsdom is enough.
+    environment: 'jsdom',
+
     coverage: {
       thresholds: {
         branches: 85.89,
