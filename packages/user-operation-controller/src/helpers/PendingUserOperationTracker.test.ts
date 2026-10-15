@@ -1,5 +1,7 @@
 import { query } from '@metamask/controller-utils';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
 
 import type { UserOperationMetadata, UserOperationReceipt } from '../types.js';
 import { UserOperationStatus } from '../types.js';
@@ -35,11 +37,13 @@ const BLOCK_MOCK = {
   baseFeePerGas: '0x3A',
 };
 
-jest.mock('./Bundler');
+vi.mock('./Bundler');
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  query: jest.fn(),
+vi.mock('@metamask/controller-utils', async () => ({
+  ...(await vi.importActual<typeof import('@metamask/controller-utils')>(
+    '@metamask/controller-utils',
+  )),
+  query: vi.fn(),
 }));
 
 /**
@@ -49,9 +53,9 @@ jest.mock('@metamask/controller-utils', () => ({
  */
 function createMessengerMock() {
   return {
-    call: jest.fn(),
-    registerInitialEventPayload: jest.fn(),
-  } as unknown as jest.Mocked<UserOperationControllerMessenger>;
+    call: vi.fn(),
+    registerInitialEventPayload: vi.fn(),
+  } as unknown as Mocked<UserOperationControllerMessenger>;
 }
 
 /**
@@ -61,14 +65,14 @@ function createMessengerMock() {
  */
 function createBundlerMock() {
   return {
-    getUserOperationReceipt: jest.fn(),
-  } as unknown as jest.Mocked<BundlerHelper.Bundler>;
+    getUserOperationReceipt: vi.fn(),
+  } as unknown as Mocked<BundlerHelper.Bundler>;
 }
 
 describe('PendingUserOperationTracker', () => {
   const messengerMock = createMessengerMock();
   const bundlerMock = createBundlerMock();
-  const queryMock = jest.mocked(query);
+  const queryMock = vi.mocked(query);
 
   /**
    * Simulate the scenario where a user operation is confirmed.
@@ -129,7 +133,9 @@ describe('PendingUserOperationTracker', () => {
   }
 
   beforeEach(() => {
-    jest.spyOn(BundlerHelper, 'Bundler').mockReturnValue(bundlerMock);
+    vi.spyOn(BundlerHelper, 'Bundler').mockImplementation(function () {
+      return bundlerMock;
+    });
 
     messengerMock.call.mockReturnValue({
       blockTracker: { getCurrentBlock: () => BLOCK_NUMBER_MOCK },
@@ -250,7 +256,7 @@ describe('PendingUserOperationTracker', () => {
 
     describe('on confirmed user operation', () => {
       it('emits confirmed event', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         await onConfirmedUserOperation(
           (pendingUserOperationTracker: PendingUserOperationTracker) => {
@@ -273,7 +279,7 @@ describe('PendingUserOperationTracker', () => {
       });
 
       it('emits update event', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         await onConfirmedUserOperation(
           (pendingUserOperationTracker: PendingUserOperationTracker) => {
@@ -296,7 +302,7 @@ describe('PendingUserOperationTracker', () => {
       });
 
       it('normalizes given gas values', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         const actualGasCostInNumber = 5000;
         const actualGasUsedInNumber = 3000;
@@ -329,7 +335,7 @@ describe('PendingUserOperationTracker', () => {
 
     describe('on failed user operation', () => {
       it('emits failed event', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         await onFailedUserOperation(
           (pendingUserOperationTracker: PendingUserOperationTracker) => {
@@ -353,7 +359,7 @@ describe('PendingUserOperationTracker', () => {
       });
 
       it('emits update event', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         await onFailedUserOperation(
           (pendingUserOperationTracker: PendingUserOperationTracker) => {
