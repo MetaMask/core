@@ -1,5 +1,18 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "references": [],
-  "include": ["../../types", "./src"]
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../cryptography"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
+  "include": ["../../types", "./src", "./scripts", "./tests"]
 }
