@@ -1,9 +1,13 @@
 import { setImmediate as realSetImmediate } from 'node:timers';
-import { expect, vi } from 'vitest';
+import { vi } from 'vitest';
 
 /**
  * Test helpers for packages on Vitest, the counterpart to `tests/helpers.ts`.
- * Everything here is bound to a runner, so the two share nothing.
+ *
+ * `advanceTime` is bound to Vitest, but `flushPromises` is identical to the Jest
+ * one. A module under `tests/` cannot be shared, as it would not belong to the
+ * importing package's tsconfig project, so it is repeated here until it moves to
+ * `@metamask/utils`.
  */
 
 /**
@@ -49,19 +53,4 @@ export async function advanceTime({
  */
 export async function flushPromises(): Promise<void> {
   await new Promise(realSetImmediate);
-}
-
-/**
- * Some tests involve a rejected promise that is not necessarily the focus of
- * the test. In these cases we don't want to ignore the error in case the
- * promise _isn't_ rejected, but we don't want to highlight the assertion,
- * either.
- *
- * @param promiseOrFn - A promise that rejects, or a function that returns a
- * promise that rejects.
- */
-export async function ignoreRejection<Type>(
-  promiseOrFn: Promise<Type> | (() => Type | Promise<Type>),
-): Promise<void> {
-  await expect(promiseOrFn).rejects.toThrow(expect.any(Error));
 }
