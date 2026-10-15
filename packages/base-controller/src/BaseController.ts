@@ -461,14 +461,9 @@ export function deriveStateFromMetadata<
 export type ValidatableController<
   Controller,
   ControllerState extends StateConstraint,
-> =
-  // `never[]` accepts a class with any constructor signature, because
-  // parameters are contravariant and every type accepts `never`. The trade-off
-  // is that this type can't be used to call the constructor, but only the
-  // static `struct` is needed.
-  (new (...args: never[]) => Controller) & {
-    struct: Pick<Struct<ControllerState>, 'validate'>;
-  };
+> = (new (...args: never[]) => Controller) & {
+  struct: Pick<Struct<ControllerState>, 'validate'>;
+};
 
 /**
  * Validate the state of a controller against its struct.

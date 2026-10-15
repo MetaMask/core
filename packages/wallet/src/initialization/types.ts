@@ -61,12 +61,11 @@ export type InitFunctionArguments<Instance, InstanceMessenger> = {
  * `initialize` uses it to validate the instance's state before passing the
  * state to `init`.
  */
-export type InstanceReference<Instance, State extends StateConstraint> =
-  // `never[]` accepts a class with any constructor signature, because
-  // parameters are contravariant and every type accepts `never`.
-  (new (...args: never[]) => Instance) & {
-    struct?: ValidatableController<Instance, State>['struct'];
-  };
+export type InstanceReference<Instance, State extends StateConstraint> = (new (
+  ...args: never[]
+) => Instance) & {
+  struct?: ValidatableController<Instance, State>['struct'];
+};
 
 export type InitializationConfiguration<Instance, InstanceMessenger> = {
   name: InstanceName<Instance>;
