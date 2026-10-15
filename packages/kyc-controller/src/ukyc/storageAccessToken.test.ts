@@ -21,10 +21,6 @@ const LOCAL_USER_SECRET = new Uint8Array(
 ).fill(42);
 let MATERIAL: UkycClientMaterial;
 
-beforeAll(async () => {
-  MATERIAL = await deriveClientMaterial(LOCAL_USER_SECRET);
-});
-
 const ISSUED_AT = new Date('2026-07-07T00:00:00.000Z');
 const EXPIRES_AT = new Date('2026-07-07T04:00:00.000Z');
 
@@ -70,6 +66,10 @@ describe('UKYC canonicalizeJson', () => {
 });
 
 describe('UKYC signStorageAccessToken', () => {
+  beforeAll(async () => {
+    MATERIAL = await deriveClientMaterial(LOCAL_USER_SECRET);
+  });
+
   it('mints a client-presented token with the expected payload', async () => {
     const token = await signStorageAccessToken({
       material: MATERIAL,
@@ -229,6 +229,10 @@ describe('UKYC signStorageAccessToken', () => {
 });
 
 describe('UKYC encodeStorageAccessTokenForHeader', () => {
+  beforeAll(async () => {
+    MATERIAL = await deriveClientMaterial(LOCAL_USER_SECRET);
+  });
+
   it('encodes the envelope as unpadded base64url that round-trips', async () => {
     const token = await signStorageAccessToken({
       material: MATERIAL,
