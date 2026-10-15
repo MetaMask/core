@@ -536,34 +536,51 @@ export class AccountActivityService {
       // The system notification will automatically provide the list of chains that are up
       await this.#subscribeToSelectedAccount();
     } else if (state === WebSocketState.DISCONNECTED) {
-      if (this.#statusChangeDebouncer.timer) {
-        clearTimeout(this.#statusChangeDebouncer.timer);
-        this.#statusChangeDebouncer.timer = null;
-      }
-
-      const chainsToMarkDown = new Set(this.#chainsUp);
-      for (const chainId of this.#statusChangeDebouncer.pendingChanges.keys()) {
-        chainsToMarkDown.add(chainId);
-      }
-      this.#statusChangeDebouncer.pendingChanges.clear();
-
-      if (chainsToMarkDown.size > 0) {
-        const chainIds = Array.from(chainsToMarkDown);
-        this.#messenger.publish(`AccountActivityService:statusChanged`, {
-          chainIds,
-          status: 'down',
-          timestamp: Date.now(),
-        });
-
-        log('WebSocket disconnection - Published tracked chains as down', {
-          count: chainIds.length,
-          chains: chainIds,
-        });
-
-        // Clear the tracking set since all chains are now down
-        this.#chainsUp.clear();
-      }
+      this.#publishTrackedChainsDown(
+        'WebSocket disconnection - Published tracked chains as down',
+      );
     }
+  }
+
+  /**
+   * Publish every tracked chain, including any status still buffered, as
+   * `down`, then forget them.
+   *
+   * Shared by WebSocket disconnect and `#unsubscribeFromAllAccountActivity`.
+   * Callers resubscribe afterward; the next system notification restores
+   * chains that are up.
+   *
+   * @param reason - Log message describing why the chains were released.
+   */
+  #publishTrackedChainsDown(reason: string): void {
+    if (this.#statusChangeDebouncer.timer) {
+      clearTimeout(this.#statusChangeDebouncer.timer);
+      this.#statusChangeDebouncer.timer = null;
+    }
+
+    const chainsToMarkDown = new Set(this.#chainsUp);
+    for (const chainId of this.#statusChangeDebouncer.pendingChanges.keys()) {
+      chainsToMarkDown.add(chainId);
+    }
+    this.#statusChangeDebouncer.pendingChanges.clear();
+
+    if (chainsToMarkDown.size === 0) {
+      return;
+    }
+
+    const chainIds = Array.from(chainsToMarkDown);
+    this.#messenger.publish(`AccountActivityService:statusChanged`, {
+      chainIds,
+      status: 'down',
+      timestamp: Date.now(),
+    });
+
+    log(reason, {
+      count: chainIds.length,
+      chains: chainIds,
+    });
+
+    this.#chainsUp.clear();
   }
 
   // =============================================================================
@@ -584,10 +601,15 @@ export class AccountActivityService {
   }
 
   /**
-   * Unsubscribe from all account activity subscriptions for this service
-   * Finds all channels matching the service's namespace and unsubscribes from them
+   * Unsubscribe from all account activity subscriptions for this service.
+   * Finds all channels matching the service's namespace and unsubscribes from
+   * them, and releases every tracked chain the same way a disconnect does.
    */
   async #unsubscribeFromAllAccountActivity(): Promise<void> {
+    this.#publishTrackedChainsDown(
+      'Unsubscribed from account activity - Published tracked chains as down',
+    );
+
     const accountActivitySubscriptions = this.#messenger.call(
       'BackendWebSocketService:findSubscriptionsByChannelPrefix',
       this.#options.subscriptionNamespace,
@@ -660,8 +682,8 @@ export class AccountActivityService {
 
   /**
    * Handle remote feature flag changes: if the set of enabled chain prefixes
-   * changed while connected, resubscribe the selected account so new chains
-   * are picked up and disabled ones are dropped.
+   * changed while connected, unsubscribe (which releases every tracked chain),
+   * then resubscribe with the new prefixes.
    */
   async #handleFeatureFlagsStateChange(): Promise<void> {
     try {

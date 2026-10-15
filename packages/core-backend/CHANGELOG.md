@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `isBasicFunctionality` and `subscribeToBasicFunctionalityChange` options to `BackendWebSocketService`. When basic functionality is off, the service does not connect or reconnect, and an open socket is closed ([#10797](https://github.com/MetaMask/core/pull/10797))
 
+### Changed
+
+- Publish `AccountActivityService:statusChanged` with status `down` for every tracked chain when unsubscribing from account activity, matching WebSocket disconnect, so those chains are released for snaps feature flag changes ([#10819](https://github.com/MetaMask/core/pull/10819))
+
 ## [12.1.0]
 
 ### Added

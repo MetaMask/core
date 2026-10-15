@@ -2569,7 +2569,7 @@
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 9
+      "count": 11
     },
     "typescript/no-unsafe-member-access": {
       "count": 2
