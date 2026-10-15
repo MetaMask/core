@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/keyring-api` from `^24.1.0` to `^24.2.0` ([#10792](https://github.com/MetaMask/core/pull/10792))
-- Bump `@metamask/keyring-internal-api` from `^12.1.0` to `^12.1.1` ([#10792](https://github.com/MetaMask/core/pull/10792))
+- Bump `@metamask/keyring-api` from `^24.1.0` to `^24.3.0` ([#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
+- Bump `@metamask/keyring-internal-api` from `^12.1.0` to `^12.1.2` ([#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/keyring-snap-client` from `^10.0.0` to `^10.0.1` ([#10792](https://github.com/MetaMask/core/pull/10792))
 - Bump `@metamask/phishing-controller` from `^18.2.0` to `^18.2.1` ([#10813](https://github.com/MetaMask/core/pull/10813))
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
+- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 
 ## [19.0.0]
 

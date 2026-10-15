@@ -51,10 +51,10 @@
   },
   "dependencies": {
     "@metamask/account-api": "^2.1.0",
-    "@metamask/accounts-controller": "^40.0.0",
+    "@metamask/accounts-controller": "^40.1.0",
     "@metamask/eth-snap-keyring": "^24.1.1",
-    "@metamask/keyring-api": "^24.2.0",
-    "@metamask/keyring-controller": "^28.1.0",
+    "@metamask/keyring-api": "^24.3.0",
+    "@metamask/keyring-controller": "^28.2.0",
     "@metamask/keyring-internal-snap-client": "^11.1.1",
     "@metamask/keyring-snap-sdk": "^10.0.1",
     "@metamask/messenger": "^3.0.0",
