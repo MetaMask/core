@@ -7,6 +7,7 @@ import { createNetworkClient } from './create-network-client.js';
 import type {
   NetworkClientId,
   NetworkControllerMessenger,
+  NetworkControllerOptions,
 } from './NetworkController.js';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
 import type { RpcFailoverMode } from './selectors.js';
@@ -104,9 +105,7 @@ export function createAutoManagedNetworkClient<
   getRpcServiceOptions?: (
     rpcEndpointUrl: string,
   ) => RpcServiceOptionsWithDefaults;
-  getBlockTrackerOptions?: (
-    rpcEndpointUrl: string,
-  ) => Omit<PollingBlockTrackerOptions, 'provider'>;
+  getBlockTrackerOptions?: NetworkControllerOptions['getBlockTrackerOptions'];
   messenger: NetworkControllerMessenger;
   rpcFailoverMode: RpcFailoverMode;
   logger?: Logger;

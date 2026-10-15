@@ -17,6 +17,7 @@ export const networkController: InitializationConfiguration<
       messenger,
       infuraProjectId: options.infuraProjectId,
       failoverUrls: options.failoverUrls,
+      getBlockTrackerOptions: options.getBlockTrackerOptions,
       analyticsOptions: options.analyticsOptions,
     }),
   getMessenger: (parent) => {

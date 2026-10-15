@@ -788,12 +788,13 @@ export type NetworkControllerOptions = {
   ) => RpcServiceOptionsWithDefaults;
   /**
    * A function that can be used to customize a block tracker constructed for an
-   * RPC endpoint. The function takes the URL of the endpoint and should return
-   * an object of type {@link PollingBlockTrackerOptions}, minus `provider` (as
-   * it is filled in automatically).
+   * RPC endpoint. The function takes the URL and network client configuration
+   * and should return an object of type {@link PollingBlockTrackerOptions},
+   * minus `provider` (as it is filled in automatically).
    */
   getBlockTrackerOptions?: (
     rpcEndpointUrl: string,
+    configuration: Readonly<NetworkClientConfiguration>,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   /**
    * Configuration for the "RPC Service Unavailable" and "RPC Service Degraded"

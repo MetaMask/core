@@ -4,7 +4,6 @@ import {
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
 } from '@metamask/controller-utils';
-import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
@@ -34,6 +33,7 @@ import type { Logger } from 'loglevel';
 import type {
   NetworkClientId,
   NetworkControllerMessenger,
+  NetworkControllerOptions,
 } from './NetworkController.js';
 import { RpcServiceChain } from './rpc-service/rpc-service-chain.js';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
@@ -51,8 +51,6 @@ import type {
   Provider,
 } from './types.js';
 import { NetworkClientType } from './types.js';
-
-const SECOND = 1000;
 
 /**
  * Why the degraded event was emitted.
@@ -148,9 +146,9 @@ export function createNetworkClient({
   getRpcServiceOptions?: (
     rpcEndpointUrl: string,
   ) => RpcServiceOptionsWithDefaults;
-  getBlockTrackerOptions: (
-    rpcEndpointUrl: string,
-  ) => Omit<PollingBlockTrackerOptions, 'provider'>;
+  getBlockTrackerOptions: NonNullable<
+    NetworkControllerOptions['getBlockTrackerOptions']
+  >;
   messenger: NetworkControllerMessenger;
   rpcFailoverMode: RpcFailoverMode;
   logger?: Logger;
@@ -186,7 +184,7 @@ export function createNetworkClient({
   const rpcProvider = providerFromMiddlewareV2(rpcApiMiddleware);
 
   const blockTracker = createBlockTracker({
-    networkClientType: configuration.type,
+    configuration,
     endpointUrl: primaryEndpointUrl,
     getOptions: getBlockTrackerOptions,
     provider: rpcProvider,
@@ -509,8 +507,7 @@ function createRpcServiceChain({
  * Create the block tracker for the network.
  *
  * @param args - The arguments.
- * @param args.networkClientType - The type of the network client ("infura" or
- * "custom").
+ * @param args.configuration - The network client configuration.
  * @param args.endpointUrl - The URL of the endpoint.
  * @param args.getOptions - Factory for the block tracker options.
  * @param args.provider - The EIP-1193 provider for the network's JSON-RPC
@@ -518,31 +515,24 @@ function createRpcServiceChain({
  * @returns The created block tracker.
  */
 function createBlockTracker({
-  networkClientType,
+  configuration,
   endpointUrl,
   getOptions,
   provider,
 }: {
-  networkClientType: NetworkClientType;
+  configuration: NetworkClientConfiguration;
   endpointUrl: string;
-  getOptions: (
-    rpcEndpointUrl: string,
-  ) => Omit<PollingBlockTrackerOptions, 'provider'>;
+  getOptions: NonNullable<NetworkControllerOptions['getBlockTrackerOptions']>;
   provider: InternalProvider;
 }): PollingBlockTracker {
   const defaultOptions = {
-    pollingInterval:
-      // Needed for testing.
-      // eslint-disable-next-line no-restricted-globals
-      process.env.IN_TEST && networkClientType === NetworkClientType.Custom
-        ? inMilliseconds(1, Duration.Second)
-        : inMilliseconds(20, Duration.Second),
+    pollingInterval: inMilliseconds(20, Duration.Second),
     retryTimeout: inMilliseconds(20, Duration.Second),
   };
 
   return new PollingBlockTracker({
     ...defaultOptions,
-    ...getOptions(endpointUrl),
+    ...getOptions(endpointUrl, configuration),
     provider,
   });
 }
@@ -635,15 +625,8 @@ function createCustomNetworkMiddleware({
   Json,
   MiddlewareContext<{ origin: string; skipCache: boolean }>
 > {
-  // Needed for testing.
-  // eslint-disable-next-line no-restricted-globals
-  const testMiddlewares = process.env.IN_TEST
-    ? [createEstimateGasDelayTestMiddleware()]
-    : [];
-
   return JsonRpcEngineV2.create({
     middleware: [
-      ...testMiddlewares,
       createChainIdMiddleware(chainId),
       createBlockRefRewriteMiddleware({ blockTracker }),
       createBlockCacheMiddleware({ blockTracker }),
@@ -652,22 +635,4 @@ function createCustomNetworkMiddleware({
       rpcApiMiddleware,
     ],
   }).asMiddleware();
-}
-
-/**
- * For use in tests only.
- * Adds a delay to `eth_estimateGas` calls.
- *
- * @returns The middleware for delaying gas estimation calls by 2 seconds when in test.
- */
-function createEstimateGasDelayTestMiddleware(): JsonRpcMiddleware<
-  JsonRpcRequest,
-  Json
-> {
-  return async ({ request, next }) => {
-    if (request.method === 'eth_estimateGas') {
-      await new Promise((resolve) => setTimeout(resolve, SECOND * 2));
-    }
-    return next();
-  };
 }
