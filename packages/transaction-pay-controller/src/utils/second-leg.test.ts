@@ -504,7 +504,7 @@ describe('second-leg', () => {
           disableSequential: true,
           disableUpgrade: true,
           from: FROM_MOCK,
-          isGasFeeSponsored: true,
+          forceIsGasFeeSponsored: true,
           isInternal: true,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           origin: ORIGIN_METAMASK,
@@ -540,7 +540,7 @@ describe('second-leg', () => {
 
       expect(callMock).toHaveBeenCalledWith(
         'TransactionController:addTransactionBatch',
-        expect.objectContaining({ isGasFeeSponsored: false }),
+        expect.objectContaining({ forceIsGasFeeSponsored: false }),
       );
     });
 

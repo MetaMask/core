@@ -19,7 +19,6 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
-import { accountSupports7702 } from '../../utils/7702.js';
 import {
   getServerPollingInterval,
   getServerPollingTimeout,
@@ -257,15 +256,13 @@ async function submitTransactionSteps(
     messenger,
   );
 
+  // Use the sponsorship decision from the quote so the submitted gas limits
+  // match the quoted source network fee.
   const gasPayment = resolveGasPayment({
     isDelegated: quote.original.gasless,
+    isGasFeeSponsored: Boolean(quote.original.client.isSourceGasFeeSponsored),
     isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
     sourceTokenAddress: quote.request.sourceTokenAddress,
-    sponsorship: {
-      accountSupports7702: accountSupports7702(messenger, quote.request.from),
-      request: quote.request,
-      transaction,
-    },
   });
 
   if (gasPayment.mode === GasPaymentMode.Delegation) {
@@ -780,7 +777,7 @@ async function submitViaTransactionController(
       const addTransactionOptions = {
         excludeNativeTokenForFee,
         gasFeeToken,
-        isGasFeeSponsored: gasPayment.isGasFeeSponsored,
+        forceIsGasFeeSponsored: gasPayment.forceIsGasFeeSponsored,
         isInternal: true,
         networkClientId,
         origin: ORIGIN_METAMASK,
@@ -833,7 +830,7 @@ async function submitViaTransactionController(
             }),
         excludeNativeTokenForFee,
         gasFeeToken,
-        isGasFeeSponsored: gasPayment.isGasFeeSponsored,
+        forceIsGasFeeSponsored: gasPayment.forceIsGasFeeSponsored,
         isInternal: true,
         networkClientId,
         origin: ORIGIN_METAMASK,

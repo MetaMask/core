@@ -29,6 +29,7 @@ import {
 } from '../../utils/feature-flags.js';
 import {
   GasPaymentMode,
+  getGasFeeSponsorship,
   resolveGasPayment,
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
@@ -79,6 +80,7 @@ type SourceNetworkCost = Pick<
 > & {
   gasLimits: number[];
   is7702: boolean;
+  isSourceGasFeeSponsored?: boolean;
   isSourceGasFeeToken?: boolean;
   maxFeePerGas: string | undefined;
   maxPriorityFeePerGas: string | undefined;
@@ -263,7 +265,7 @@ async function buildServerQuoteRequest(
     // we can submit them ourselves once the funds land. Post-quote flows submit
     // their own calls and must not opt in.
     if (
-      canDeferCalls({
+      await canDeferCalls({
         accountSupports7702,
         messenger,
         targetChainId,
@@ -302,7 +304,7 @@ async function buildServerQuoteRequest(
  *
  * The second leg is an internal, sponsored EIP-7702 batch on the target chain,
  * so the account must be able to sign EIP-7702 authorizations, the target chain
- * must support EIP-7702, and MetaMask must sponsor gas for the transaction on
+ * must support EIP-7702, and the client must sponsor gas for the transaction on
  * that chain. Otherwise the user would need native gas on the target chain.
  *
  * Temporarily, only nested transactions are supported as second-leg calls, as
@@ -318,7 +320,7 @@ async function buildServerQuoteRequest(
  * @param options.transaction - Transaction being paid for.
  * @returns Whether the calls can be deferred to a second leg.
  */
-function canDeferCalls({
+async function canDeferCalls({
   accountSupports7702,
   messenger,
   targetChainId,
@@ -328,14 +330,20 @@ function canDeferCalls({
   messenger: TransactionPayControllerMessenger;
   targetChainId: Hex;
   transaction: TransactionMeta;
-}): boolean {
-  return (
-    Boolean(transaction.nestedTransactions?.length) &&
-    accountSupports7702 &&
-    transaction.isGasFeeSponsored === true &&
-    transaction.chainId === targetChainId &&
-    isEIP7702Chain(messenger, targetChainId)
-  );
+}): Promise<boolean> {
+  if (
+    !transaction.nestedTransactions?.length ||
+    !isEIP7702Chain(messenger, targetChainId)
+  ) {
+    return false;
+  }
+
+  return await getGasFeeSponsorship({
+    accountSupports7702,
+    messenger,
+    request: { sourceChainId: targetChainId, targetChainId },
+    transaction,
+  });
 }
 
 function normalizeAuthorizationList(
@@ -547,6 +555,9 @@ async function normalizeQuote(
       client: {
         gasLimits: sourceNetwork.gasLimits,
         is7702: sourceNetwork.is7702,
+        ...(sourceNetwork.isSourceGasFeeSponsored
+          ? { isSourceGasFeeSponsored: true }
+          : {}),
         maxFeePerGas: sourceNetwork.maxFeePerGas,
         maxPriorityFeePerGas: sourceNetwork.maxPriorityFeePerGas,
       },
@@ -617,14 +628,17 @@ async function calculateSourceNetworkCost({
 
   const { from, sourceChainId, sourceTokenAddress } = quoteRequest;
 
+  const isGasFeeSponsored = await getGasFeeSponsorship({
+    accountSupports7702,
+    messenger,
+    request: quoteRequest,
+    transaction,
+  });
+
   const gasPayment = resolveGasPayment({
     isDelegated: gasless,
+    isGasFeeSponsored,
     sourceTokenAddress,
-    sponsorship: {
-      accountSupports7702,
-      request: quoteRequest,
-      transaction,
-    },
   });
 
   if (gasPayment.mode === GasPaymentMode.Delegation) {
@@ -637,7 +651,12 @@ async function calculateSourceNetworkCost({
 
     // Gas limit is zero as sponsored transactions go through the EIP-7702
     // gas station hook and do not require user-paid gas.
-    return { ...noFees, gasLimits: [0], is7702: true };
+    return {
+      ...noFees,
+      gasLimits: [0],
+      is7702: true,
+      isSourceGasFeeSponsored: true,
+    };
   }
 
   const firstStep = steps[0];

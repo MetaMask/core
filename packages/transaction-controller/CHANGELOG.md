@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `shouldSign` hook to decide whether a transaction reserves a nonce and is signed locally ([#10575](https://github.com/MetaMask/core/pull/10575))
+  - Defaults to signing locally when omitted.
+  - `beforeSign` runs before `shouldSign`, including when local signing is skipped.
+  - A `publish` hook is required when `shouldSign` returns `false`; the controller no longer falls back to `eth_sendRawTransaction` with an unsigned payload.
+- Add `forceIsGasFeeSponsored` to `AddTransactionOptions`, `TransactionBatchRequest`, and `TransactionMeta` so transaction creators can require gas fee sponsorship from client hooks ([#10575](https://github.com/MetaMask/core/pull/10575))
+- Add `isGasFeeSponsoredAvailable` to `TransactionMeta`, set from simulation and refreshed on approval when simulation is enabled ([#10575](https://github.com/MetaMask/core/pull/10575))
+  - A failed gas fee token simulation leaves the previous value unchanged.
+- Add optional `isGasFeeSponsored` to `PublishHookResult` and the `onPublish` callback of existing batch transactions ([#10575](https://github.com/MetaMask/core/pull/10575))
+
+### Changed
+
+- **BREAKING:** Gas fee sponsorship no longer controls signing or publication ([#10575](https://github.com/MetaMask/core/pull/10575))
+  - `TransactionMeta.isGasFeeSponsored` is now set once when the transaction is published, from the `isGasFeeSponsored` value returned by the publish hook. Simulation no longer sets it.
+  - Replace `isGasFeeSponsored` in `addTransaction` and `addTransactionBatch` options with `forceIsGasFeeSponsored`, and decide sponsorship in client hooks.
+  - Nonce reservation now happens after `beforeSign` and the gas fee token check, and only when signing locally. Existing nonces are kept when local signing is skipped.
+- **BREAKING:** `hooks` is now optional in `TransactionControllerOptions` and `hooks.publish` uses the `PublishHook` type ([#10575](https://github.com/MetaMask/core/pull/10575))
+- `getGasFeeTokens` now sets `isGasFeeTokenIgnoredIfBalance` on the transaction passed to `isEIP7702GasFeeTokensEnabled`, so clients can include EIP-7702 gas fee tokens for gas fee token estimates ([#10575](https://github.com/MetaMask/core/pull/10575))
+
+### Removed
+
+- **BREAKING:** Remove `isExternalSign` from `TransactionMeta` ([#10575](https://github.com/MetaMask/core/pull/10575))
+  - Use the `shouldSign` hook to skip local signing.
+
 ## [72.2.1]
 
 ### Changed

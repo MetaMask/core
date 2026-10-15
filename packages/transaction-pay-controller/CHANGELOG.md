@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `isGasFeeSponsored` callback to `TransactionPayControllerOptions`, exposed as the `TransactionPayController:isGasFeeSponsored` action ([#10575](https://github.com/MetaMask/core/pull/10575))
+  - Relay and server quotes use it to zero source network fees for sponsored same-chain routes and record the decision on the quote so submission uses the same gas limits.
+
 ### Changed
 
+- **BREAKING:** Pay no longer sets `isExternalSign` on the target transaction when quotes are available ([#10575](https://github.com/MetaMask/core/pull/10575))
+  - Clients should return `shouldSign: false` from the `TransactionController` `shouldSign` hook when the transaction has executable Pay quotes.
+- **BREAKING:** Relay, server, and second-leg submissions pass `forceIsGasFeeSponsored` instead of `isGasFeeSponsored`, and Relay and server quotes, including deferred second-leg opt-in, no longer read `TransactionMeta.isGasFeeSponsored` ([#10575](https://github.com/MetaMask/core/pull/10575))
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 
 ## [30.1.0]

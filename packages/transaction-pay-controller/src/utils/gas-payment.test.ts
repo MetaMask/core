@@ -1,12 +1,17 @@
-import type { GasFeeToken } from '@metamask/transaction-controller';
+import type {
+  GasFeeToken,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../tests/messenger-mock.js';
+import type { TransactionPayControllerIsGasFeeSponsoredAction } from '../TransactionPayController-method-action-types.js';
 import type { GasPayment } from './gas-payment.js';
 import {
   shouldUseGasStation,
   GasPaymentMode,
+  getGasFeeSponsorship,
   logGasPaymentOutcome,
   resolveGasPayment,
   resolveGasStationCost,
@@ -62,8 +67,7 @@ const MATCHING_GAS_FEE_TOKEN: GasFeeToken = {
 
 const TRANSACTION_MOCK = {
   chainId: REQUEST_MOCK.sourceChainId,
-  isGasFeeSponsored: true,
-};
+} as TransactionMeta;
 
 const SPONSORED_ROUTE_REQUEST_MOCK = {
   sourceChainId: REQUEST_MOCK.sourceChainId,
@@ -165,24 +169,13 @@ describe('gas-payment', () => {
       sourceTokenAddress: REQUEST_MOCK.sourceTokenAddress,
     };
 
-    const SPONSORED_MOCK = {
-      accountSupports7702: true,
-      request: SPONSORED_ROUTE_REQUEST_MOCK,
-      transaction: TRANSACTION_MOCK,
-    };
-
-    const UNSPONSORED_MOCK = {
-      ...SPONSORED_MOCK,
-      accountSupports7702: false,
-    };
-
     it('prefers delegation over every other funding source', () => {
       expect(
         resolveGasPayment({
           ...PAYMENT_REQUEST_MOCK,
           isDelegated: true,
+          isGasFeeSponsored: true,
           isSourceGasFeeToken: true,
-          sponsorship: SPONSORED_MOCK,
         }),
       ).toStrictEqual({ mode: GasPaymentMode.Delegation });
     });
@@ -191,11 +184,11 @@ describe('gas-payment', () => {
       expect(
         resolveGasPayment({
           ...PAYMENT_REQUEST_MOCK,
+          isGasFeeSponsored: true,
           isSourceGasFeeToken: true,
-          sponsorship: SPONSORED_MOCK,
         }),
       ).toStrictEqual({
-        isGasFeeSponsored: true,
+        forceIsGasFeeSponsored: true,
         mode: GasPaymentMode.Sponsored,
       });
     });
@@ -235,12 +228,20 @@ describe('gas-payment', () => {
       expect(
         resolveGasPayment({
           ...PAYMENT_REQUEST_MOCK,
-          sponsorship: UNSPONSORED_MOCK,
+          isGasFeeSponsored: false,
         }),
       ).toStrictEqual({
-        isGasFeeSponsored: false,
+        forceIsGasFeeSponsored: false,
         mode: GasPaymentMode.Native,
       });
+    });
+
+    it('leaves the flag unset when the strategy never sponsors', () => {
+      expect(
+        resolveGasPayment({
+          sourceTokenAddress: REQUEST_MOCK.sourceTokenAddress,
+        }),
+      ).toStrictEqual({ mode: GasPaymentMode.Native });
     });
 
     it('does not log the resolved mode at quote time', () => {
@@ -329,67 +330,62 @@ describe('gas-payment', () => {
     });
   });
 
-  describe('sponsorship', () => {
+  describe('getGasFeeSponsorship', () => {
+    const isGasFeeSponsoredMock: jest.MockedFn<
+      TransactionPayControllerIsGasFeeSponsoredAction['handler']
+    > = jest.fn();
+
+    messenger.registerActionHandler(
+      'TransactionPayController:isGasFeeSponsored',
+      isGasFeeSponsoredMock,
+    );
+
     const SPONSORSHIP_MOCK = {
       accountSupports7702: true,
+      messenger,
       request: SPONSORED_ROUTE_REQUEST_MOCK,
       transaction: TRANSACTION_MOCK,
     };
 
-    /**
-     * Resolve the mode for a sponsorship input.
-     *
-     * @param sponsorship - Sponsorship overrides.
-     * @returns The resolved gas payment.
-     */
-    function resolve(sponsorship: Record<string, unknown>): GasPayment {
-      return resolveGasPayment({
-        sourceTokenAddress: REQUEST_MOCK.sourceTokenAddress,
-        sponsorship: { ...SPONSORSHIP_MOCK, ...sponsorship },
-      });
-    }
+    beforeEach(() => {
+      isGasFeeSponsoredMock.mockResolvedValue({ isGasFeeSponsored: true });
+    });
 
-    it('sponsors a supported account on a same-chain route', () => {
-      expect(resolve({})).toStrictEqual({
-        isGasFeeSponsored: true,
-        mode: GasPaymentMode.Sponsored,
+    it('returns the client decision for a supported account on a same-chain route', async () => {
+      expect(await getGasFeeSponsorship(SPONSORSHIP_MOCK)).toBe(true);
+      expect(isGasFeeSponsoredMock).toHaveBeenCalledWith({
+        transaction: TRANSACTION_MOCK,
       });
     });
 
-    it('does not sponsor when the account cannot sign EIP-7702 authorizations', () => {
-      expect(resolve({ accountSupports7702: false })).toStrictEqual({
-        isGasFeeSponsored: false,
-        mode: GasPaymentMode.Native,
-      });
+    it('does not sponsor when the client does not sponsor the transaction', async () => {
+      isGasFeeSponsoredMock.mockResolvedValue({ isGasFeeSponsored: false });
+
+      expect(await getGasFeeSponsorship(SPONSORSHIP_MOCK)).toBe(false);
+    });
+
+    it('does not ask the client when the account cannot sign EIP-7702 authorizations', async () => {
+      expect(
+        await getGasFeeSponsorship({
+          ...SPONSORSHIP_MOCK,
+          accountSupports7702: false,
+        }),
+      ).toBe(false);
+      expect(isGasFeeSponsoredMock).not.toHaveBeenCalled();
     });
 
     it.each(['sourceChainId', 'targetChainId'] as const)(
-      'does not sponsor when %s differs from the transaction chain',
-      (chainIdKey) => {
+      'does not ask the client when %s differs from the transaction chain',
+      async (chainIdKey) => {
         expect(
-          resolve({
+          await getGasFeeSponsorship({
+            ...SPONSORSHIP_MOCK,
             request: { ...SPONSORED_ROUTE_REQUEST_MOCK, [chainIdKey]: '0x2' },
           }),
-        ).toStrictEqual({
-          isGasFeeSponsored: false,
-          mode: GasPaymentMode.Native,
-        });
+        ).toBe(false);
+        expect(isGasFeeSponsoredMock).not.toHaveBeenCalled();
       },
     );
-
-    it('leaves the flag unset when the transaction carries no sponsorship signal', () => {
-      expect(
-        resolve({ transaction: { chainId: REQUEST_MOCK.sourceChainId } }),
-      ).toStrictEqual({ mode: GasPaymentMode.Native });
-    });
-
-    it('leaves the flag unset when the strategy never sponsors', () => {
-      expect(
-        resolveGasPayment({
-          sourceTokenAddress: REQUEST_MOCK.sourceTokenAddress,
-        }),
-      ).toStrictEqual({ mode: GasPaymentMode.Native });
-    });
   });
 
   describe('resolveGasStationCost', () => {

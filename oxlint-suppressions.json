@@ -6634,13 +6634,13 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 268
+      "count": 269
     },
     "typescript/no-unsafe-call": {
-      "count": 84
+      "count": 85
     },
     "typescript/no-unsafe-member-access": {
-      "count": 216
+      "count": 217
     },
     "typescript/no-unsafe-return": {
       "count": 2
@@ -6679,10 +6679,10 @@
       "count": 39
     },
     "typescript/no-unsafe-call": {
-      "count": 17
+      "count": 16
     },
     "typescript/no-unsafe-member-access": {
-      "count": 26
+      "count": 25
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-validation.test.ts": {
@@ -6700,17 +6700,14 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
       "count": 66
     },
     "typescript/no-unsafe-call": {
-      "count": 9
+      "count": 10
     },
     "typescript/no-unsafe-member-access": {
-      "count": 9
+      "count": 10
     },
     "typescript/no-unsafe-return": {
       "count": 2
@@ -6729,13 +6726,13 @@
       "count": 4
     },
     "typescript/no-unsafe-assignment": {
-      "count": 46
+      "count": 45
     },
     "typescript/no-unsafe-call": {
       "count": 21
     },
     "typescript/no-unsafe-member-access": {
-      "count": 29
+      "count": 27
     },
     "typescript/no-unsafe-return": {
       "count": 3
@@ -6763,13 +6760,13 @@
       "count": 2
     },
     "typescript/no-unsafe-assignment": {
-      "count": 7
+      "count": 8
     },
     "typescript/no-unsafe-call": {
-      "count": 16
+      "count": 17
     },
     "typescript/no-unsafe-member-access": {
-      "count": 16
+      "count": 17
     },
     "typescript/no-unsafe-return": {
       "count": 3

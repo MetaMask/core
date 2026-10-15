@@ -1035,10 +1035,7 @@
   },
   "packages/transaction-controller/src/TransactionController.test.ts": {
     "TS2322": {
-      "count": 6
-    },
-    "TS2345": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {

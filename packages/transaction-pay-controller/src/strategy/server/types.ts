@@ -114,6 +114,13 @@ export type ServerQuoteResponse = {
 export type ServerQuoteClient = {
   gasLimits: number[];
   is7702: boolean;
+
+  /**
+   * Whether the source network fee was quoted as sponsored.
+   * Submission uses the same decision so gas limits match the quote.
+   */
+  isSourceGasFeeSponsored?: boolean;
+
   maxFeePerGas: string | undefined;
   maxPriorityFeePerGas: string | undefined;
 };

@@ -391,8 +391,8 @@ async function addTransactionBatchWith7702(
     skipInitialGasEstimate,
     transactions,
     excludeNativeTokenForFee,
+    forceIsGasFeeSponsored,
     isGasFeeIncluded,
-    isGasFeeSponsored,
     validateSecurity,
   } = userRequest;
 
@@ -524,8 +524,8 @@ async function addTransactionBatchWith7702(
     batchId,
     gasFeeToken,
     excludeNativeTokenForFee,
+    forceIsGasFeeSponsored,
     isGasFeeIncluded,
-    isGasFeeSponsored,
     isInternal,
     nestedTransactions,
     networkClientId,

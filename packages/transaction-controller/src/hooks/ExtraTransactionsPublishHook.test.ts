@@ -147,6 +147,27 @@ describe('ExtraTransactionsPublishHook', () => {
     );
 
     expect(await hookPromise).toStrictEqual({
+      isGasFeeSponsored: undefined,
+      transactionHash: TRANSACTION_HASH_MOCK,
+    });
+  });
+
+  it('resolves with gas fee sponsorship from onPublish callback', async () => {
+    const hook = createHook().getHook();
+
+    const hookPromise = hook(TRANSACTION_META_MOCK, SIGNED_TRANSACTION_MOCK);
+
+    const onPublish =
+      addTransactionBatchMock.mock.calls[0][0].transactions[0]
+        .existingTransaction?.onPublish;
+
+    onPublish?.({
+      isGasFeeSponsored: true,
+      transactionHash: TRANSACTION_HASH_MOCK,
+    });
+
+    expect(await hookPromise).toStrictEqual({
+      isGasFeeSponsored: true,
       transactionHash: TRANSACTION_HASH_MOCK,
     });
   });
