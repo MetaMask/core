@@ -116,6 +116,9 @@ function buildInstanceOptions(
     networkController: {
       infuraProjectId,
     },
+    selectedNetworkController: {
+      domainProxyMap: new Map(),
+    },
     remoteFeatureFlagController: {
       clientConfigApiService: new ClientConfigApiService({
         fetch: globalThis.fetch,

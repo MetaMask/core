@@ -272,14 +272,14 @@ const SessionDisclaimersResponseStruct = type({
 // === PARAM TYPES ===
 
 export type CreateMoonpaySessionParams = {
-  email: string;
+  partnerIdentityToken: string;
   termsAcceptedAt: string;
   disclaimerIds: string[];
 };
 
 export type CreateVendorCustomerParams = {
   vendor: KycVendor;
-  email: string;
+  partnerIdentityToken: string;
 };
 
 export type SubmitVendorDisclaimersParams = {
@@ -543,7 +543,8 @@ export class KycService extends BaseDataService<
    *
    * @param params - The parameters.
    * @param params.vendor - Identity vendor (e.g. `iron` for Money/VBA).
-   * @param params.email - Email associated with the customer.
+   * @param params.partnerIdentityToken - Partner identity token minted by
+   * `AuthenticationController:getPartnerIdentityToken`.
    * @returns The vendor customer record (subset validated for controller use).
    */
   async createVendorCustomer(
@@ -552,7 +553,9 @@ export class KycService extends BaseDataService<
     const url = new URL(`/vendors/${params.vendor}/customers`, this.#baseUrl);
     const data = await this.#requestJson(url, {
       method: 'POST',
-      body: JSON.stringify({ email: params.email }),
+      body: JSON.stringify({
+        partnerIdentityToken: params.partnerIdentityToken,
+      }),
     });
     return this.#validateResponse(
       data,
@@ -775,7 +778,6 @@ export class KycService extends BaseDataService<
         body: JSON.stringify({
           vendorId: params.vendor ?? 'moonpay',
           vendorUserId: 'mockedId',
-          jwtToken: 'mock-jwt-token', // TODO: Remove this from the kyc-api
           sessionClientPublicKey: params.sessionClientPublicKey,
           residenceCountry: params.residenceCountry,
           vendorMetadata: params.vendorMetadata ?? {},
