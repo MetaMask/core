@@ -1,6 +1,10 @@
-// Types for the custom matchers in `tests/matchers.ts`; `types/jest.d.ts` is the
-// Jest side. `export {}` makes this a module, and so the block below an
-// augmentation rather than a replacement of `vitest` that would wipe out `vi`.
+/**
+ * Types for the custom matchers in `tests/matchers.ts`; `types/jest.d.ts` is the
+ * Jest side.
+ */
+
+// `export {}` makes this a module, and so the block below an augmentation
+// rather than a replacement of `vitest` that would wipe out `vi`.
 export {};
 
 declare module 'vitest' {
