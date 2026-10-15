@@ -1,6 +1,7 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { parseCaipAccountId, parseCaipAssetType } from '@metamask/utils';
 import type { Draft } from 'immer';
 import { noop } from 'lodash-es';
 
@@ -18,6 +19,7 @@ import type {
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
+  SetPaySourceRequest,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -34,6 +36,7 @@ import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
   subscribeAssetChanges,
   subscribeTransactionChanges,
+  updateTransaction,
 } from './utils/transaction.js';
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -44,6 +47,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getStrategy',
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
+  'setPaySource',
   'setTransactionConfig',
   'updateFiatPayment',
   'updatePaymentToken',
@@ -138,6 +142,37 @@ export class TransactionPayController extends BaseController<
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
     });
+  }
+
+  /**
+   * Persists chain-agnostic Pay source metadata on the target transaction.
+   *
+   * The CAIP-10 account and CAIP-19 asset must identify the same chain.
+   * Legacy EVM-only Pay metadata is preserved unchanged.
+   *
+   * @param request - Pay source metadata and target transaction ID.
+   * @param request.source - Chain-agnostic payment source metadata.
+   * @param request.transactionId - ID of the target transaction.
+   */
+  setPaySource({ transactionId, source }: SetPaySourceRequest): void {
+    const accountChainId = parseCaipAccountId(source.sourceAccountId).chainId;
+    const assetChainId = parseCaipAssetType(source.sourceAssetId).chainId;
+
+    if (accountChainId !== assetChainId) {
+      throw new Error('Pay source account and asset must use the same chain');
+    }
+
+    updateTransaction(
+      {
+        transactionId,
+        messenger: this.messenger,
+        note: 'Set transaction pay source',
+      },
+      (transaction) => {
+        transaction.metamaskPay ??= {};
+        transaction.metamaskPay.source = { ...source };
+      },
+    );
   }
 
   /**

@@ -68,6 +68,6 @@ The high level interaction with the `TransactionPayController` is as follows:
 
 ## State
 
-State is grouped according to the associated transaction ID in the `transactionData` property.
+Transient state is grouped according to the associated transaction ID in the `transactionData` property. It includes required tokens, the selected payment token, retrieved quotes, and calculated totals, and is not persisted across restarts.
 
-This transaction specific data includes any required tokens, selected payment token, retrieved quotes, and calculated totals.
+Chain-agnostic source account and asset metadata is stored only on the persisted target transaction in `metamaskPay.source`. The CAIP-10 account and CAIP-19 asset identify their source chain without placing non-EVM identifiers in legacy EVM-only fields. Execution correlation and recovery checkpoints are not part of ordinary Pay selection state.

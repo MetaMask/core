@@ -89,6 +89,7 @@ export type {
   LegacyGasFeeEstimates,
   Log,
   MetamaskPayMetadata,
+  MetamaskPaySource,
   NestedTransactionMetadata,
   NestedTransactionUpdate,
   PublishBatchHook,

@@ -33,6 +33,7 @@ import type {
 import type {
   BatchTransaction,
   BatchTransactionParams,
+  MetamaskPaySource,
   TransactionControllerAddTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
@@ -297,9 +298,21 @@ export type TransactionPayControllerOptions = {
   state?: Partial<TransactionPayControllerState>;
 };
 
+/** Chain-agnostic source metadata for a MetaMask Pay transaction. */
+export type TransactionPaySource = MetamaskPaySource;
+
+/** Request to persist Pay source metadata on a target transaction. */
+export type SetPaySourceRequest = {
+  /** Chain-agnostic payment source metadata. */
+  source: TransactionPaySource;
+
+  /** ID of the target TransactionController transaction. */
+  transactionId: string;
+};
+
 /** State of the TransactionPayController. */
 export type TransactionPayControllerState = {
-  /** State relating to each transaction, keyed by transaction ID. */
+  /** Transient state relating to each transaction, keyed by transaction ID. */
   transactionData: Record<string, TransactionData>;
 };
 
