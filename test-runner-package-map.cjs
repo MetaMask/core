@@ -32,7 +32,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/composable-controller',
   '@metamask/config-registry-controller',
   '@metamask/connectivity-controller',
-  '@metamask/controller-utils',
   '@metamask/core-backend',
   '@metamask/cryptography',
   '@metamask/delegation-controller',

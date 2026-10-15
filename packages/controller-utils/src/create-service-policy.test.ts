@@ -1,4 +1,6 @@
 import { CircuitState, ConstantBackoff, handleWhen } from 'cockatiel';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   createServicePolicy,
@@ -11,11 +13,11 @@ import {
 
 describe('createServicePolicy', () => {
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('execute', () => {
@@ -27,8 +29,8 @@ describe('createServicePolicy', () => {
       });
 
       it('fires onAvailable on the first successful execution and not again on subsequent successful executions', async () => {
-        const mockService = jest.fn();
-        const onAvailableListener = jest.fn();
+        const mockService = vi.fn();
+        const onAvailableListener = vi.fn();
         const policy = createServicePolicy();
         policy.onAvailable(onAvailableListener);
 
@@ -40,11 +42,11 @@ describe('createServicePolicy', () => {
       });
 
       it('does not fire onDegraded when the service responds within the degraded threshold', async () => {
-        const onDegradedListener = jest.fn();
+        const onDegradedListener = vi.fn();
         const policy = createServicePolicy();
         policy.onDegraded(onDegradedListener);
 
-        await policy.execute(jest.fn());
+        await policy.execute(vi.fn());
 
         expect(onDegradedListener).not.toHaveBeenCalled();
       });
@@ -52,18 +54,18 @@ describe('createServicePolicy', () => {
       it('fires onDegraded when the service takes longer than the degraded threshold', async () => {
         const degradedThreshold = 2_000;
         const delay = degradedThreshold + 1;
-        const mockService = jest.fn(
+        const mockService = vi.fn(
           () =>
             new Promise<void>((resolve) => setTimeout(() => resolve(), delay)),
         );
-        const onDegradedListener = jest.fn();
+        const onDegradedListener = vi.fn();
         const policy = createServicePolicy({
           degradedThreshold,
         });
         policy.onDegraded(onDegradedListener);
 
         const promise = policy.execute(mockService);
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
         await promise;
 
         expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -72,18 +74,18 @@ describe('createServicePolicy', () => {
       it('does not fire onAvailable when the service takes longer than the degraded threshold', async () => {
         const degradedThreshold = 2_000;
         const delay = degradedThreshold + 1;
-        const mockService = jest.fn(
+        const mockService = vi.fn(
           () =>
             new Promise<void>((resolve) => setTimeout(() => resolve(), delay)),
         );
-        const onAvailableListener = jest.fn();
+        const onAvailableListener = vi.fn();
         const policy = createServicePolicy({
           degradedThreshold,
         });
         policy.onAvailable(onAvailableListener);
 
         const promise = policy.execute(mockService);
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
         await promise;
 
         expect(onAvailableListener).not.toHaveBeenCalled();
@@ -91,27 +93,27 @@ describe('createServicePolicy', () => {
 
       it('uses the default degraded threshold when none is provided', async () => {
         const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
-        const mockService = jest.fn(
+        const mockService = vi.fn(
           () =>
             new Promise<void>((resolve) => setTimeout(() => resolve(), delay)),
         );
-        const onDegradedListener = jest.fn();
+        const onDegradedListener = vi.fn();
         const policy = createServicePolicy();
         policy.onDegraded(onDegradedListener);
 
         const promise = policy.execute(mockService);
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
         await promise;
 
         expect(onDegradedListener).toHaveBeenCalledTimes(1);
       });
 
       it('does not fire onBreak', async () => {
-        const onBreakListener = jest.fn();
+        const onBreakListener = vi.fn();
         const policy = createServicePolicy();
         policy.onBreak(onBreakListener);
 
-        await policy.execute(jest.fn());
+        await policy.execute(vi.fn());
 
         expect(onBreakListener).not.toHaveBeenCalled();
       });
@@ -123,7 +125,7 @@ describe('createServicePolicy', () => {
           httpStatus: 500,
         });
         const mockService = createErroringService({ error });
-        const onBreakListener = jest.fn();
+        const onBreakListener = vi.fn();
         const policy = createServicePolicyForTestingRetries({
           breakAfterFirstExecution: true,
         });
@@ -139,7 +141,7 @@ describe('createServicePolicy', () => {
           httpStatus: 404,
         });
         const mockService = createErroringService({ error });
-        const onBreakListener = jest.fn();
+        const onBreakListener = vi.fn();
         const policy = createServicePolicyForTestingRetries({
           breakAfterFirstExecution: true,
         });
@@ -175,8 +177,8 @@ describe('createServicePolicy', () => {
 
         it('fires onRetry once per retry', async () => {
           const mockService = createErroringService();
-          const onRetryListener = jest.fn().mockImplementation(() => {
-            jest.advanceTimersToNextTimer();
+          const onRetryListener = vi.fn().mockImplementation(() => {
+            vi.advanceTimersToNextTimer();
           });
           const policy = createServicePolicyForTestingRetries({
             options,
@@ -211,7 +213,7 @@ describe('createServicePolicy', () => {
 
         it('does not fire onAvailable', async () => {
           const mockService = createErroringService();
-          const onAvailableListener = jest.fn();
+          const onAvailableListener = vi.fn();
           const policy = createServicePolicyForTestingRetries({
             options: {
               maxRetries,
@@ -228,7 +230,7 @@ describe('createServicePolicy', () => {
         it('fires onDegraded with the error', async () => {
           const error = new Error('failure');
           const mockService = createErroringService({ error });
-          const onDegradedListener = jest.fn();
+          const onDegradedListener = vi.fn();
           const policy = createServicePolicyForTestingRetries({
             options: {
               maxRetries,
@@ -245,7 +247,7 @@ describe('createServicePolicy', () => {
 
         it('does not fire onBreak', async () => {
           const mockService = createErroringService();
-          const onBreakListener = jest.fn();
+          const onBreakListener = vi.fn();
           const policy = createServicePolicyForTestingRetries({
             options: {
               maxRetries,
@@ -281,7 +283,7 @@ describe('createServicePolicy', () => {
 
         it('does not fire onAvailable', async () => {
           const mockService = createErroringService();
-          const onAvailableListener = jest.fn();
+          const onAvailableListener = vi.fn();
           const policy = createServicePolicyForTestingRetries({
             options: {
               maxRetries,
@@ -297,7 +299,7 @@ describe('createServicePolicy', () => {
 
         it('does not fire onDegraded', async () => {
           const mockService = createErroringService();
-          const onDegradedListener = jest.fn();
+          const onDegradedListener = vi.fn();
           const policy = createServicePolicyForTestingRetries({
             options: {
               maxRetries,
@@ -313,7 +315,7 @@ describe('createServicePolicy', () => {
 
         it('fires onBreak', async () => {
           const mockService = createErroringService();
-          const onBreakListener = jest.fn();
+          const onBreakListener = vi.fn();
           const policy = createServicePolicyForTestingRetries({
             options: {
               maxRetries,
@@ -367,7 +369,7 @@ describe('createServicePolicy', () => {
 
         it('does not fire onAvailable', async () => {
           const mockService = createErroringService();
-          const onAvailableListener = jest.fn();
+          const onAvailableListener = vi.fn();
           const policy = createServicePolicyForTestingRetries({
             options: {
               maxRetries,
@@ -383,7 +385,7 @@ describe('createServicePolicy', () => {
 
         it('does not fire onDegraded', async () => {
           const mockService = createErroringService();
-          const onDegradedListener = jest.fn();
+          const onDegradedListener = vi.fn();
           const policy = createServicePolicyForTestingRetries({
             options: {
               maxRetries,
@@ -399,7 +401,7 @@ describe('createServicePolicy', () => {
 
         it('fires onBreak', async () => {
           const mockService = createErroringService();
-          const onBreakListener = jest.fn();
+          const onBreakListener = vi.fn();
           const policy = createServicePolicyForTestingRetries({
             options: {
               maxRetries,
@@ -431,7 +433,7 @@ describe('createServicePolicy', () => {
         const mockService = createErroringService({
           failUntilNthAttempt: DEFAULT_MAX_RETRIES + 1,
         });
-        const onAvailableListener = jest.fn();
+        const onAvailableListener = vi.fn();
         const policy = createServicePolicyForTestingRetries();
         policy.onAvailable(onAvailableListener);
 
@@ -447,7 +449,7 @@ describe('createServicePolicy', () => {
         const mockService = createErroringService({
           failUntilNthAttempt: DEFAULT_MAX_RETRIES + 1,
         });
-        const onDegradedListener = jest.fn();
+        const onDegradedListener = vi.fn();
         const policy = createServicePolicyForTestingRetries();
         policy.onDegraded(onDegradedListener);
 
@@ -460,7 +462,7 @@ describe('createServicePolicy', () => {
         const degradedThreshold = 2_000;
         const delay = degradedThreshold + 1;
         let attempts = 0;
-        const mockService = jest.fn(
+        const mockService = vi.fn(
           () =>
             new Promise<{ some: string }>((resolve, reject) => {
               attempts += 1;
@@ -471,7 +473,7 @@ describe('createServicePolicy', () => {
               }
             }),
         );
-        const onDegradedListener = jest.fn();
+        const onDegradedListener = vi.fn();
         const policy = createServicePolicyForTestingRetries({
           options: {
             degradedThreshold,
@@ -480,7 +482,7 @@ describe('createServicePolicy', () => {
         policy.onDegraded(onDegradedListener);
 
         const promise = policy.execute(mockService);
-        await jest.runAllTimersAsync();
+        await vi.runAllTimersAsync();
         await promise;
 
         expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -490,7 +492,7 @@ describe('createServicePolicy', () => {
         const degradedThreshold = 2_000;
         const delay = degradedThreshold + 1;
         let attempts = 0;
-        const mockService = jest.fn(
+        const mockService = vi.fn(
           () =>
             new Promise<{ some: string }>((resolve, reject) => {
               attempts += 1;
@@ -501,7 +503,7 @@ describe('createServicePolicy', () => {
               }
             }),
         );
-        const onAvailableListener = jest.fn();
+        const onAvailableListener = vi.fn();
         const policy = createServicePolicyForTestingRetries({
           options: {
             degradedThreshold,
@@ -510,7 +512,7 @@ describe('createServicePolicy', () => {
         policy.onAvailable(onAvailableListener);
 
         const promise = policy.execute(mockService);
-        await jest.runAllTimersAsync();
+        await vi.runAllTimersAsync();
         await promise;
 
         expect(onAvailableListener).not.toHaveBeenCalled();
@@ -522,7 +524,7 @@ describe('createServicePolicy', () => {
         // Setup
         const circuitBreakDuration = 5_000;
         let attempts = 0;
-        const mockService = jest.fn(() => {
+        const mockService = vi.fn(() => {
           attempts += 1;
           if (attempts > DEFAULT_MAX_CONSECUTIVE_FAILURES) {
             return { some: 'data' };
@@ -539,7 +541,7 @@ describe('createServicePolicy', () => {
         await ignoreRejection(policy.execute(mockService));
         await ignoreRejection(policy.execute(mockService));
         await ignoreRejection(policy.execute(mockService));
-        jest.advanceTimersByTime(circuitBreakDuration);
+        vi.advanceTimersByTime(circuitBreakDuration);
 
         const result = await policy.execute(mockService);
         expect(result).toStrictEqual({ some: 'data' });
@@ -548,7 +550,7 @@ describe('createServicePolicy', () => {
       it('uses the default circuit break duration when none is provided', async () => {
         // Setup
         let attempts = 0;
-        const mockService = jest.fn(() => {
+        const mockService = vi.fn(() => {
           attempts += 1;
           if (attempts > DEFAULT_MAX_CONSECUTIVE_FAILURES) {
             return { some: 'data' };
@@ -561,7 +563,7 @@ describe('createServicePolicy', () => {
         await ignoreRejection(policy.execute(mockService));
         await ignoreRejection(policy.execute(mockService));
         await ignoreRejection(policy.execute(mockService));
-        jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
+        vi.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
 
         const result = await policy.execute(mockService);
         expect(result).toStrictEqual({ some: 'data' });
@@ -571,7 +573,7 @@ describe('createServicePolicy', () => {
         // Setup
         const circuitBreakDuration = 5_000;
         let attempts = 0;
-        const mockService = jest.fn(() => {
+        const mockService = vi.fn(() => {
           attempts += 1;
           if (
             attempts === 1 ||
@@ -581,7 +583,7 @@ describe('createServicePolicy', () => {
           }
           throw new Error('failure');
         });
-        const onAvailableListener = jest.fn();
+        const onAvailableListener = vi.fn();
         const policy = createServicePolicyForTestingRetries({
           options: {
             circuitBreakDuration,
@@ -599,7 +601,7 @@ describe('createServicePolicy', () => {
         await ignoreRejection(policy.execute(mockService));
 
         // Recover
-        jest.advanceTimersByTime(circuitBreakDuration);
+        vi.advanceTimersByTime(circuitBreakDuration);
         await policy.execute(mockService);
         expect(onAvailableListener).toHaveBeenCalledTimes(2);
       });
@@ -608,14 +610,14 @@ describe('createServicePolicy', () => {
         // Setup
         const circuitBreakDuration = 5_000;
         let attempts = 0;
-        const mockService = jest.fn(() => {
+        const mockService = vi.fn(() => {
           attempts += 1;
           if (attempts === 1) {
             return { some: 'data' };
           }
           throw new Error('failure');
         });
-        const onAvailableListener = jest.fn();
+        const onAvailableListener = vi.fn();
         const policy = createServicePolicyForTestingRetries({
           options: {
             circuitBreakDuration,
@@ -633,7 +635,7 @@ describe('createServicePolicy', () => {
         await ignoreRejection(policy.execute(mockService));
 
         // Recover
-        jest.advanceTimersByTime(circuitBreakDuration);
+        vi.advanceTimersByTime(circuitBreakDuration);
         await ignoreRejection(policy.execute(mockService));
         expect(onAvailableListener).toHaveBeenCalledTimes(1);
       });
@@ -642,7 +644,7 @@ describe('createServicePolicy', () => {
     describe('using a custom retryFilterPolicy', () => {
       it('throws the error immediately without retrying if retryFilterPolicy filters the error out', async () => {
         const error = new Error('failure');
-        const mockService = jest.fn(() => {
+        const mockService = vi.fn(() => {
           throw error;
         });
         const policy = createServicePolicyForTestingRetries({
@@ -659,13 +661,13 @@ describe('createServicePolicy', () => {
 
       it('does not fire onRetry, onBreak, onDegraded, or onAvailable if retryFilterPolicy filters the error out', async () => {
         const error = new Error('failure');
-        const mockService = jest.fn(() => {
+        const mockService = vi.fn(() => {
           throw error;
         });
-        const onRetryListener = jest.fn();
-        const onBreakListener = jest.fn();
-        const onDegradedListener = jest.fn();
-        const onAvailableListener = jest.fn();
+        const onRetryListener = vi.fn();
+        const onBreakListener = vi.fn();
+        const onDegradedListener = vi.fn();
+        const onAvailableListener = vi.fn();
         const policy = createServicePolicyForTestingRetries({
           options: {
             retryFilterPolicy: handleWhen(
@@ -688,7 +690,7 @@ describe('createServicePolicy', () => {
 
       it('throws the error after retrying if retryFilterPolicy filters the error in', async () => {
         const error = new Error('failure');
-        const mockService = jest.fn(() => {
+        const mockService = vi.fn(() => {
           throw error;
         });
         const policy = createServicePolicyForTestingRetries({
@@ -705,10 +707,10 @@ describe('createServicePolicy', () => {
 
       it('fires onRetry if retryFilterPolicy filters the error in', async () => {
         const error = new Error('failure');
-        const mockService = jest.fn(() => {
+        const mockService = vi.fn(() => {
           throw error;
         });
-        const onRetryListener = jest.fn();
+        const onRetryListener = vi.fn();
         const policy = createServicePolicyForTestingRetries({
           options: {
             retryFilterPolicy: handleWhen(
@@ -727,7 +729,7 @@ describe('createServicePolicy', () => {
       it('opens the circuit when the predicate treats the error as a service failure', async () => {
         const error = new Error('failure');
         const mockService = createErroringService({ error });
-        const onBreakListener = jest.fn();
+        const onBreakListener = vi.fn();
         const policy = createServicePolicyForTestingRetries({
           options: {
             isServiceFailure: () => true,
@@ -745,7 +747,7 @@ describe('createServicePolicy', () => {
       it('never opens the circuit when the predicate does not treat the error as a service failure', async () => {
         const error = new Error('failure');
         const mockService = createErroringService({ error });
-        const onBreakListener = jest.fn();
+        const onBreakListener = vi.fn();
         const policy = createServicePolicyForTestingRetries({
           options: {
             isServiceFailure: () => false,
@@ -774,7 +776,7 @@ describe('createServicePolicy', () => {
       await ignoreRejection(policy.execute(createErroringService()));
       await ignoreRejection(policy.execute(createErroringService()));
       await ignoreRejection(policy.execute(createErroringService()));
-      jest.advanceTimersByTime(1_000);
+      vi.advanceTimersByTime(1_000);
 
       expect(policy.getRemainingCircuitOpenDuration()).toBe(
         DEFAULT_CIRCUIT_BREAK_DURATION - 1_000,
@@ -795,7 +797,7 @@ describe('createServicePolicy', () => {
       expect(policy.getCircuitState()).toBe(CircuitState.Open);
 
       // Advance to half-open
-      jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
+      vi.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
       const promise = ignoreRejection(policy.execute(createErroringService()));
       expect(policy.getCircuitState()).toBe(CircuitState.HalfOpen);
       await promise;
@@ -819,7 +821,7 @@ describe('createServicePolicy', () => {
 
     it('allows the service to succeed after the circuit was open', async () => {
       let attempts = 0;
-      const mockService = jest.fn(() => {
+      const mockService = vi.fn(() => {
         attempts += 1;
         if (attempts > DEFAULT_MAX_CONSECUTIVE_FAILURES) {
           return { some: 'data' };
@@ -853,14 +855,14 @@ describe('createServicePolicy', () => {
     it('fires onAvailable again after reset when the service succeeds', async () => {
       // Setup
       let attempts = 0;
-      const mockService = jest.fn(() => {
+      const mockService = vi.fn(() => {
         attempts += 1;
         if (attempts === 1 || attempts > DEFAULT_MAX_CONSECUTIVE_FAILURES + 1) {
           return { some: 'data' };
         }
         throw new Error('failure');
       });
-      const onAvailableListener = jest.fn();
+      const onAvailableListener = vi.fn();
       const policy = createServicePolicyForTestingRetries();
       policy.onAvailable(onAvailableListener);
 
@@ -912,8 +914,9 @@ async function ignoreRejection<Type>(promise: Promise<Type>): Promise<void> {
  */
 function createServicePolicyForTestingRetries({
   options,
-  onRetryListener = (): ReturnType<Parameters<ServicePolicy['onRetry']>[0]> =>
-    jest.advanceTimersToNextTimer(),
+  onRetryListener = (): ReturnType<Parameters<ServicePolicy['onRetry']>[0]> => {
+    vi.advanceTimersToNextTimer();
+  },
   breakAfterFirstExecution = false,
 }: {
   options?: Parameters<typeof createServicePolicy>[0];
@@ -952,9 +955,9 @@ function createErroringService({
   failUntilNthAttempt?: number;
   error?: Error;
   result?: unknown;
-} = {}): jest.Mock {
+} = {}): Mock {
   let attempts = 0;
-  return jest.fn(() => {
+  return vi.fn(() => {
     attempts += 1;
     if (attempts >= failUntilNthAttempt) {
       return result;
