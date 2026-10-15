@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/keyring-api` from `^24.1.0` to `^24.2.0` ([#10792](https://github.com/MetaMask/core/pull/10792))
+- Bump `@metamask/keyring-api` from `^24.1.0` to `^24.3.0` ([#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 
 ## [82.0.3]
