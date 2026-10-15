@@ -64,9 +64,25 @@
       "count": 2
     }
   },
+  "packages/account-tree-controller/src/backup-and-sync/analytics/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
   "packages/account-tree-controller/src/backup-and-sync/analytics/traces.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/authentication/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/service/index.test.ts": {
@@ -90,6 +106,9 @@
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/service/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
     "typescript/explicit-function-return-type": {
       "count": 1
     },
@@ -103,6 +122,14 @@
     },
     "typescript/unbound-method": {
       "count": 7
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/syncing/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 4
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/syncing/legacy.test.ts": {
@@ -139,6 +166,14 @@
   "packages/account-tree-controller/src/backup-and-sync/user-storage/format-utils.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 3
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/user-storage/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 4
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/user-storage/network-operations.test.ts": {
@@ -181,6 +216,14 @@
   "packages/account-tree-controller/src/backup-and-sync/utils/controller.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 3
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/utils/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
     }
   },
   "packages/account-tree-controller/src/group.ts": {
@@ -379,6 +422,9 @@
     }
   },
   "packages/advanced-chart-core/src/features/indicators/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
     "no-shadow": {
       "count": 6
     },
@@ -408,6 +454,9 @@
     }
   },
   "packages/advanced-chart-core/src/features/volume/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
     "unicorn/no-useless-undefined": {
       "count": 1
     }
@@ -438,6 +487,11 @@
       "count": 1
     }
   },
+  "packages/advanced-chart-core/src/overlays/focusTime/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
   "packages/advanced-chart-core/src/overlays/positionLines/__tests__/positionLines.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -452,6 +506,9 @@
     }
   },
   "packages/advanced-chart-core/src/overlays/positionLines/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
     "unicorn/no-useless-undefined": {
       "count": 3
     }
@@ -459,6 +516,11 @@
   "packages/advanced-chart-core/src/overlays/socialLeaderboard/__tests__/socialLeaderboard.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 2
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/socialLeaderboard/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
     }
   },
   "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/animation.test.ts": {
@@ -478,6 +540,9 @@
     }
   },
   "packages/advanced-chart-core/src/overlays/tradeMarkers/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
     "no-shadow": {
       "count": 1
     }
@@ -694,6 +759,11 @@
       "count": 6
     }
   },
+  "packages/approval-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
   "packages/assets-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -759,6 +829,16 @@
       "count": 4
     }
   },
+  "packages/assets-controller/src/__fixtures__/bsc-spam-token/api-responses/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/__fixtures__/scam-token-cleanup/api-responses/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
   "packages/assets-controller/src/__fixtures__/scam-token-cleanup/captureTokenApiResponses.ts": {
     "typescript/no-unsafe-call": {
       "count": 2
@@ -766,6 +846,16 @@
   },
   "packages/assets-controller/src/__fixtures__/spamWalletState.ts": {
     "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/__fixtures__/stale-balance/api-responses/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/__fixtures__/ws-price-updates/api-responses/index.ts": {
+    "metamask-core/no-barrel-files": {
       "count": 1
     }
   },
@@ -880,6 +970,16 @@
       "count": 1
     }
   },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/clients/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
   "packages/assets-controller/src/data-sources/evm-rpc-services/services/BalanceFetcher.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -915,6 +1015,26 @@
       "count": 13
     }
   },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/services/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/types/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/utils/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
   "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 1
@@ -926,6 +1046,11 @@
   "packages/assets-controller/src/middlewares/ParallelMiddleware.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
+    }
+  },
+  "packages/assets-controller/src/middlewares/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
     }
   },
   "packages/assets-controller/src/migrations/healAssetsInfoMetadata.test.ts": {
@@ -943,6 +1068,11 @@
       "count": 1
     }
   },
+  "packages/assets-controller/src/pipeline/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
   "packages/assets-controller/src/selectors/balance.test.ts": {
     "no-useless-return": {
       "count": 1
@@ -956,6 +1086,11 @@
       "count": 4
     },
     "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/utils/index.ts": {
+    "metamask-core/no-barrel-files": {
       "count": 1
     }
   },
@@ -1113,6 +1248,11 @@
       "count": 2
     }
   },
+  "packages/assets-controllers/src/MultichainAssetsController/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
   "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 6
@@ -1126,6 +1266,11 @@
       "count": 1
     }
   },
+  "packages/assets-controllers/src/MultichainAssetsRatesController/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
   "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -1136,6 +1281,11 @@
   },
   "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.ts": {
     "typescript/no-misused-promises": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/MultichainBalancesController/index.ts": {
+    "metamask-core/no-barrel-files": {
       "count": 1
     }
   },
@@ -1200,6 +1350,11 @@
       "count": 1
     },
     "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/RatesController/index.ts": {
+    "metamask-core/no-barrel-files": {
       "count": 1
     }
   },
@@ -1389,6 +1544,14 @@
       "count": 1
     }
   },
+  "packages/assets-controllers/src/TokenSearchDiscoveryDataController/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
   "packages/assets-controllers/src/TokensController.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 6
@@ -1501,6 +1664,16 @@
       "count": 4
     }
   },
+  "packages/assets-controllers/src/crypto-compare-service/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    }
+  },
   "packages/assets-controllers/src/multi-chain-accounts-service/api-balance-fetcher.test.ts": {
     "no-import-assign": {
       "count": 2
@@ -1527,6 +1700,11 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    }
+  },
+  "packages/assets-controllers/src/multi-chain-accounts-service/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
     }
   },
   "packages/assets-controllers/src/multi-chain-accounts-service/multi-chain-accounts.test.ts": {
@@ -1655,6 +1833,11 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 4
+    }
+  },
+  "packages/assets-controllers/src/token-prices-service/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
     }
   },
   "packages/assets-controllers/src/token-service.test.ts": {
@@ -2193,6 +2376,11 @@
       "count": 1
     }
   },
+  "packages/bridge-status-controller/src/strategy/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
   "packages/bridge-status-controller/src/strategy/non-evm-strategy.ts": {
     "no-useless-return": {
       "count": 2
@@ -2403,6 +2591,11 @@
       "count": 1
     }
   },
+  "packages/client-utils/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    }
+  },
   "packages/client-utils/src/mappers/api-transaction-mapper.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 3
@@ -2480,6 +2673,11 @@
       "count": 1
     }
   },
+  "packages/controller-utils/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
   "packages/controller-utils/src/siwe.ts": {
     "no-undef": {
       "count": 1
@@ -2545,9 +2743,19 @@
       "count": 11
     }
   },
+  "packages/core-backend/src/api/accounts/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
   "packages/core-backend/src/api/base-client.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 3
+    }
+  },
+  "packages/core-backend/src/api/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
     }
   },
   "packages/core-backend/src/api/prices/client.test.ts": {
@@ -2556,6 +2764,11 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 8
+    }
+  },
+  "packages/core-backend/src/api/prices/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
     }
   },
   "packages/core-backend/src/api/test-utils.ts": {
@@ -2568,8 +2781,18 @@
       "count": 2
     }
   },
+  "packages/core-backend/src/api/token/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
   "packages/core-backend/src/api/tokens/client.test.ts": {
     "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/api/tokens/index.ts": {
+    "metamask-core/no-barrel-files": {
       "count": 1
     }
   },
@@ -2634,9 +2857,19 @@
       "count": 4
     }
   },
+  "packages/core-backend/src/ws/ohlcv/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
   "packages/cryptography/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
+    }
+  },
+  "packages/cryptography/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
     }
   },
   "packages/delegation-controller/jest.config.cjs": {
@@ -2820,6 +3053,11 @@
       "count": 1
     }
   },
+  "packages/eth-block-tracker/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
   "packages/eth-block-tracker/tests/setupAfterEnv.ts": {
     "id-length": {
       "count": 1
@@ -2838,6 +3076,11 @@
   "packages/eth-json-rpc-middleware/src/block-ref.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 6
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 8
     }
   },
   "packages/eth-json-rpc-middleware/src/methods/wallet-get-granted-execution-permissions.test.ts": {
@@ -2893,6 +3136,9 @@
     }
   },
   "packages/eth-json-rpc-provider/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    },
     "no-redeclare": {
       "count": 1
     }
@@ -3071,6 +3317,11 @@
       "count": 19
     }
   },
+  "packages/gas-fee-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    }
+  },
   "packages/gator-permissions-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -3096,6 +3347,16 @@
     },
     "typescript/no-unsafe-assignment": {
       "count": 2
+    }
+  },
+  "packages/gator-permissions-controller/src/decodePermission/decoders/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
+  "packages/gator-permissions-controller/src/decodePermission/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
     }
   },
   "packages/gator-permissions-controller/src/permissionOnChainStatus.test.ts": {
@@ -3349,6 +3610,11 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 7
+    }
+  },
+  "packages/keyring-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 3
     }
   },
   "packages/keyring-controller/tests/mocks/mockEncryptor.ts": {
@@ -3609,6 +3875,19 @@
       "count": 2
     }
   },
+  "packages/logging-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
+  "packages/logging-controller/src/logTypes/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 3
+    }
+  },
   "packages/message-manager/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -3630,6 +3909,11 @@
   "packages/message-manager/src/DecryptMessageManager.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
+    }
+  },
+  "packages/message-manager/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 4
     }
   },
   "packages/message-manager/src/utils.test.ts": {
@@ -3876,6 +4160,14 @@
       "count": 2
     }
   },
+  "packages/multichain-account-service/src/analytics/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    }
+  },
   "packages/multichain-account-service/src/analytics/perf.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
@@ -3976,6 +4268,14 @@
       "count": 2
     }
   },
+  "packages/multichain-account-service/src/providers/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 8
+    }
+  },
   "packages/multichain-account-service/src/providers/utils.ts": {
     "id-length": {
       "count": 2
@@ -3989,8 +4289,21 @@
       "count": 1
     }
   },
+  "packages/multichain-account-service/src/tests/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 4
+    }
+  },
   "packages/multichain-api-middleware/jest.config.cjs": {
     "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "packages/multichain-api-middleware/src/handlers/index.ts": {
+    "metamask-core/no-barrel-files": {
       "count": 1
     }
   },
@@ -4169,6 +4482,11 @@
       "count": 16
     }
   },
+  "packages/name-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 6
+    }
+  },
   "packages/name-controller/src/providers/ens.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 2
@@ -4312,6 +4630,11 @@
       "count": 2
     }
   },
+  "packages/network-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    }
+  },
   "packages/network-controller/src/rpc-service/rpc-service-chain.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 13
@@ -4447,6 +4770,11 @@
       "count": 1
     }
   },
+  "packages/network-enablement-controller/src/services/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
   "packages/notification-services-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -4480,6 +4808,32 @@
       "count": 3
     }
   },
+  "packages/notification-services-controller/src/NotificationServicesController/constants/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 9
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/mocks/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 4
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/processors/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 3
+    }
+  },
   "packages/notification-services-controller/src/NotificationServicesController/processors/process-notifications.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 1
@@ -4501,9 +4855,57 @@
       "count": 3
     }
   },
+  "packages/notification-services-controller/src/NotificationServicesController/types/feature-announcement/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 3
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 5
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/notification-api/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
   "packages/notification-services-controller/src/NotificationServicesController/types/notification-api/notification-api.ts": {
     "id-length": {
       "count": 4
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/notification/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/perps/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/snaps/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
     }
   },
   "packages/notification-services-controller/src/NotificationServicesController/types/type-utils.ts": {
@@ -4517,6 +4919,32 @@
     },
     "typescript/no-unsafe-assignment": {
       "count": 8
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 6
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/mocks/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/types/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 3
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/utils/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
     }
   },
   "packages/notification-services-controller/src/NotificationServicesPushController/web/push-utils.test.ts": {
@@ -4536,6 +4964,19 @@
     },
     "typescript/no-unsafe-assignment": {
       "count": 1
+    }
+  },
+  "packages/notification-services-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
+  "packages/notification-services-controller/src/shared/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 3
     }
   },
   "packages/notification-services-controller/src/shared/to-raw-notification.ts": {
@@ -4622,6 +5063,11 @@
       "count": 1
     }
   },
+  "packages/permission-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 5
+    }
+  },
   "packages/permission-controller/src/permission-middleware.ts": {
     "no-useless-return": {
       "count": 1
@@ -4650,6 +5096,16 @@
       "count": 2
     }
   },
+  "packages/perps-controller/src/aggregation/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/constants/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 8
+    }
+  },
   "packages/perps-controller/src/providers/AggregatedPerpsProvider.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -4671,6 +5127,11 @@
   },
   "packages/perps-controller/src/providers/LighterProvider.ts": {
     "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/routing/index.ts": {
+    "metamask-core/no-barrel-files": {
       "count": 1
     }
   },
@@ -4700,6 +5161,11 @@
       "count": 2
     }
   },
+  "packages/perps-controller/src/types/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
   "packages/perps-controller/src/utils/hyperLiquidAdapter.ts": {
     "jsdoc/require-param": {
       "count": 1
@@ -4709,6 +5175,11 @@
     },
     "no-unused-vars": {
       "count": 1
+    }
+  },
+  "packages/perps-controller/src/utils/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 21
     }
   },
   "packages/perps-controller/src/utils/orderCalculations.ts": {
@@ -4880,6 +5351,11 @@
       "count": 1
     }
   },
+  "packages/phishing-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    }
+  },
   "packages/phishing-controller/src/tests/utils.ts": {
     "typescript/explicit-function-return-type": {
       "count": 2
@@ -4947,6 +5423,11 @@
   "packages/preferences-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
+    }
+  },
+  "packages/preferences-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
     }
   },
   "packages/profile-controller/jest.config.cjs": {
@@ -5027,6 +5508,16 @@
       "count": 1
     }
   },
+  "packages/profile-sync-controller/src/controllers/authentication/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/authentication/mocks/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    }
+  },
   "packages/profile-sync-controller/src/controllers/authentication/mocks/mockResponses.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -5038,6 +5529,14 @@
   "packages/profile-sync-controller/src/controllers/authentication/mocks/mockResponses.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
     }
   },
   "packages/profile-sync-controller/src/controllers/user-storage/UserStorageController.test.ts": {
@@ -5156,6 +5655,16 @@
       "count": 3
     }
   },
+  "packages/profile-sync-controller/src/controllers/user-storage/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 5
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/mocks/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
   "packages/profile-sync-controller/src/controllers/user-storage/mocks/mockResponses.ts": {
     "typescript/explicit-function-return-type": {
       "count": 8
@@ -5169,6 +5678,11 @@
   "packages/profile-sync-controller/src/controllers/user-storage/utils.ts": {
     "id-length": {
       "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 3
     }
   },
   "packages/profile-sync-controller/src/sdk/__fixtures__/test-utils.ts": {
@@ -5268,6 +5782,9 @@
     "id-length": {
       "count": 3
     },
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
+    },
     "typescript/explicit-function-return-type": {
       "count": 1
     }
@@ -5275,6 +5792,11 @@
   "packages/profile-sync-controller/src/sdk/errors.ts": {
     "id-length": {
       "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 7
     }
   },
   "packages/profile-sync-controller/src/sdk/mocks/userstorage.ts": {
@@ -5373,6 +5895,14 @@
     },
     "typescript/no-unsafe-assignment": {
       "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/shared/encryption/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 1
     }
   },
   "packages/profile-sync-controller/src/shared/encryption/utils.ts": {
@@ -5480,6 +6010,11 @@
     },
     "typescript/no-unsafe-return": {
       "count": 13
+    }
+  },
+  "packages/ramps-controller/src/order-syncing/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
     }
   },
   "packages/ramps-controller/src/wallet-registration-service.test.ts": {
@@ -5696,6 +6231,11 @@
       "count": 1
     }
   },
+  "packages/signature-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
   "packages/signature-controller/src/utils/decoding-api.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -5824,6 +6364,11 @@
   },
   "packages/smart-transactions-controller/src/featureFlags/feature-flags.ts": {
     "id-length": {
+      "count": 1
+    }
+  },
+  "packages/smart-transactions-controller/src/featureFlags/index.ts": {
+    "metamask-core/no-barrel-files": {
       "count": 1
     }
   },
@@ -7112,6 +7657,11 @@
       "count": 1
     }
   },
+  "packages/user-operation-controller/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
+    }
+  },
   "packages/user-operation-controller/src/utils/gas-fees.test.ts": {
     "typescript/no-unsafe-return": {
       "count": 1
@@ -7162,6 +7712,14 @@
   "packages/utils/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
+    }
+  },
+  "packages/utils/src/__fixtures__/index.ts": {
+    "metamask-core/no-barrel-files": {
+      "count": 1
+    },
+    "metamask-core/no-wildcard-exports": {
+      "count": 5
     }
   },
   "packages/utils/src/assert.test.ts": {
@@ -7257,6 +7815,11 @@
       "count": 1
     }
   },
+  "packages/utils/src/index.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 22
+    }
+  },
   "packages/utils/src/json.test.ts": {
     "no-throw-literal": {
       "count": 7
@@ -7320,6 +7883,11 @@
   "packages/utils/src/misc.tst.ts": {
     "typescript/no-explicit-any": {
       "count": 1
+    }
+  },
+  "packages/utils/src/node.ts": {
+    "metamask-core/no-wildcard-exports": {
+      "count": 2
     }
   },
   "packages/utils/src/unitsConversion.test.ts": {
@@ -7557,6 +8125,11 @@
   },
   "packages/wallet/src/initialization/instances/claims-service/claims-service.test.ts": {
     "typescript/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "packages/wallet/src/initialization/instances/index.ts": {
+    "metamask-core/no-barrel-files": {
       "count": 1
     }
   },

@@ -8,13 +8,21 @@ module.exports = {
   collectCoverage: true,
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected
-  collectCoverageFrom: ['<rootDir>/scripts/**/*.ts'],
+  collectCoverageFrom: [
+    '<rootDir>/.oxlint-plugins/**/*.ts',
+    '<rootDir>/scripts/**/*.ts',
+  ],
 
   // The directory where Jest should output its coverage files
   coverageDirectory: '<rootDir>/scripts/coverage',
 
   // An array of regexp pattern strings used to skip coverage collection
-  coveragePathIgnorePatterns: ['/package-template/'],
+  coveragePathIgnorePatterns: [
+    // The plugin entrypoint only registers rules, so there is no logic to
+    // test; each rule is tested on its own.
+    '/.oxlint-plugins/metamask-core.ts',
+    '/package-template/',
+  ],
 
   // Indicates which provider should be used to instrument code for coverage
   coverageProvider: 'babel',
@@ -25,6 +33,12 @@ module.exports = {
   // An object that configures minimum threshold enforcement for coverage results
   // <rootDir> does not work here.
   coverageThreshold: {
+    './.oxlint-plugins/**/*.ts': {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
+    },
     './scripts/create-package/**/*.ts': {
       branches: 100,
       functions: 100,
@@ -77,6 +91,7 @@ module.exports = {
 
   // The glob patterns Jest uses to detect test files
   testMatch: [
+    '<rootDir>/.oxlint-plugins/**/?(*.)+(spec|test).[tj]s?(x)',
     '<rootDir>/scripts/**/__tests__/**/*.[jt]s?(x)',
     '<rootDir>/scripts/**/?(*.)+(spec|test).[tj]s?(x)',
   ],

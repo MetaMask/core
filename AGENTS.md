@@ -65,6 +65,7 @@ The monorepo uses a hierarchical configuration approach for different tools. For
 #### Oxlint
 
 - `oxlint.config.ts` configures Oxlint for the entire monorepo.
+- `.oxlint-plugins/` defines custom Oxlint rules for the monorepo (e.g. `metamask-core/no-wildcard-exports`, `metamask-core/no-subpath-index-files`), which are loaded via `jsPlugins` in `oxlint.config.ts`. Tests for these rules run via `yarn test:scripts`.
 - `oxlint-suppressions.json` isn't a config file per se, but defines Oxlint errors that are being ignored (temporarily).
 
 #### Oxfmt
@@ -173,7 +174,8 @@ Use `yarn create-package --name <name> --description <description>` to add a new
 ### General package guidelines
 
 - Each package should have an `index.ts` file in `src/` that explicitly lists all exports.
-- Avoid barrel exports (`export * from './file'`).ts`. Instead, explicitly name each export:
+- Don't create `index.ts` files ("barrel" files) in subdirectories of `src/`. Export each symbol by name from `src/index.ts` instead. The only exception is an `index.ts` file that is an entrypoint for a subpath listed under `exports` in `package.json` (e.g. `src/v2/index.ts` for `"./v2"`).
+- Avoid barrel exports (`export * from './file'`). Instead, explicitly name each export:
 
   ```typescript
   // Bad
@@ -183,6 +185,21 @@ Use `yarn create-package --name <name> --description <description>` to add a new
   export { FooController } from './foo-controller';
   export type { FooControllerMessenger } from './foo-controller';
   ```
+
+- Avoid namespace re-exports (`export * as Ns from './file'`). To group values under one name, import them, build the object yourself, and export it by name. Export types by name individually:
+
+  ```typescript
+  // Bad
+  export * as Constants from './constants';
+
+  // Good
+  import { FOO, BAR } from './constants';
+
+  export const Constants = { FOO, BAR };
+  export type { FooType } from './constants';
+  ```
+
+- These guidelines are enforced by the `metamask-core/no-subpath-index-files` and `metamask-core/no-wildcard-exports` lint rules. See `docs/code-guidelines/package-guidelines.md` for more.
 
 ### Controllers
 
