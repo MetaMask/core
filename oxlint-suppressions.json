@@ -7690,6 +7690,11 @@
       "count": 2
     }
   },
+  "test-runners.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
   "tests/vitest/setup-after-env.ts": {
     "vitest/require-top-level-describe": {
       "count": 2

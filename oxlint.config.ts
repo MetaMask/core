@@ -4,11 +4,17 @@ import jest from '@metamask/oxlint-config-jest';
 import nodejs from '@metamask/oxlint-config-nodejs';
 import typescript from '@metamask/oxlint-config-typescript';
 import vitest from '@metamask/oxlint-config-vitest';
-import { existsSync, readdirSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const monorepoRoot = path.dirname(fileURLToPath(import.meta.url));
+
+// CommonJS, so `yarn.config.cjs` can read the same list.
+const { PACKAGES_ON_JEST } = createRequire(import.meta.url)(
+  './test-runners.cjs',
+) as { PACKAGES_ON_JEST: string[] };
 
 /**
  * The two runners need separate overrides, and a file must match only one of
@@ -21,12 +27,11 @@ const packageNames = readdirSync(path.join(monorepoRoot, 'packages'), {
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name);
 
-const vitestPackages = packageNames.filter((name) =>
-  existsSync(path.join(monorepoRoot, 'packages', name, 'vitest.config.mjs')),
+const packagesOnJest = new Set(
+  PACKAGES_ON_JEST.map((ident) => ident.replace('@metamask/', '')),
 );
-const jestPackages = packageNames.filter(
-  (name) => !vitestPackages.includes(name),
-);
+const jestPackages = packageNames.filter((name) => packagesOnJest.has(name));
+const vitestPackages = packageNames.filter((name) => !packagesOnJest.has(name));
 
 /**
  * Builds the test-file globs for a set of packages.
