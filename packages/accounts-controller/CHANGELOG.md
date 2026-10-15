@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Filter out MPC Money keyring accounts when replicating `KeyringController` state ([#10577](https://github.com/MetaMask/core/pull/10577))
+- Filter out MPC Money keyring accounts when replicating `KeyringController` state ([#10577](https://github.com/MetaMask/core/pull/10577)), ([#10849](https://github.com/MetaMask/core/pull/10849))
   - Those accounts are treated differently with their own "account-like" controller.
   - `keyringTypeToName` no longer throws for the MPC Money keyring type, and returns "MPC Money".
 - Add support for watch-only accounts ([#10677](https://github.com/MetaMask/core/pull/10677))
