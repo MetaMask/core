@@ -3,7 +3,6 @@ import { validate } from '@metamask/superstruct';
 import type { Hex, PendingJsonRpcResponse } from '@metamask/utils';
 
 import { walletPayErrors } from '../errors.js';
-import { isWalletPayTypeAllowed } from '../feature-flags.js';
 import { getWalletPayFlow } from '../flows/index.js';
 import { WalletPayParamsStruct } from '../types.js';
 import type {
@@ -15,6 +14,7 @@ import type {
   WalletPayResult,
   WalletPayTransaction,
 } from '../types.js';
+import { isWalletPayTypeAllowed } from '../utils/feature-flags.js';
 
 // Some providers resolve with this placeholder when there is no hash.
 const FALLBACK_TRANSACTION_HASH = '0x0';

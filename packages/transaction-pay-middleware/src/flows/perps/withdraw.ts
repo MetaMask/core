@@ -5,8 +5,8 @@ import {
 import { generateERC20TransferData } from '@metamask/perps-controller/utils/transferData';
 import { TransactionType } from '@metamask/transaction-controller';
 
-import { isPayFlowEnabled } from '../../feature-flags.js';
 import type { WalletPayFlow } from '../../types.js';
+import { isPayFlowEnabled } from '../../utils/feature-flags.js';
 import { assertPerpsEligible, toUsdcAmountRaw } from './shared.js';
 
 /**

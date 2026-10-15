@@ -22,7 +22,7 @@ import type {
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 import { HexChecksumAddressStruct } from '@metamask/utils';
 
-import type { RemoteFeatureFlags } from './feature-flags.js';
+import type { RemoteFeatureFlags } from './utils/feature-flags.js';
 
 type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
