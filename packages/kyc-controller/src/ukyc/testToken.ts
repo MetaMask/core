@@ -1,5 +1,5 @@
 import { getRandomBytes } from '@metamask/cryptography';
-import { bytesToHex, hexToBytes } from '@metamask/utils';
+import { bytesToHex, hexToBytes, remove0x } from '@metamask/utils';
 
 import {
   UKYC_CAPABILITY_AUTH_SCHEME,
@@ -124,7 +124,7 @@ export async function mintUkycTestToken(
   const { storageId, signingPublicKey } = encodeClientMaterial(material);
 
   return {
-    localUserSecret: bytesToHex(localUserSecret),
+    localUserSecret: remove0x(bytesToHex(localUserSecret)),
     storageId,
     signingPublicKey,
     token,
