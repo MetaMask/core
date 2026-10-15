@@ -33,6 +33,18 @@ describe('crypto', () => {
     );
   });
 
+  it('canonicalizes Uint8Array values nested in arrays and objects as hex', () => {
+    expect(
+      canonicalize({ list: [new Uint8Array([1]), { z: new Uint8Array([2]) }] }),
+    ).toBe(`{"list":["0x01",{"z":"0x02"}]}`);
+  });
+
+  it('drops undefined object values and nulls undefined array items', () => {
+    expect(canonicalize({ a: undefined, b: [undefined, 1] })).toBe(
+      '{"b":[null,1]}',
+    );
+  });
+
   it('hashes independently of key order', async () => {
     expect(await hash({ b: 1, a: 2 })).toBe(await hash({ a: 2, b: 1 }));
   });

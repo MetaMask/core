@@ -59,7 +59,8 @@
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.0",
     "@noble/ciphers": "^1.3.0",
-    "@noble/curves": "^1.9.7"
+    "@noble/curves": "^1.9.7",
+    "json-stable-stringify": "^1.3.0"
   },
   "devDependencies": {
     "@cubist-labs/cubesigner-sdk-fs-storage": "^0.4.284",

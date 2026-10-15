@@ -12,6 +12,7 @@ import {
 import type { Hex } from '@metamask/utils';
 import { chacha20poly1305 } from '@noble/ciphers/chacha';
 import { p256 } from '@noble/curves/nist';
+import stableStringify from 'json-stable-stringify';
 
 import type { EcPublicJwk, Identifier } from './types.js';
 
@@ -26,7 +27,10 @@ const CHACHA_NONCE_LEN = 12;
  * @returns A canonical JSON string.
  */
 export function canonicalize(value: unknown): string {
-  return JSON.stringify(sortKeys(value));
+  return stableStringify(value, {
+    replacer: (_key, node) =>
+      node instanceof Uint8Array ? bytesToHex(node) : node,
+  }) as string;
 }
 
 /**
@@ -330,27 +334,4 @@ export function fromBase64Url(value: string): Uint8Array {
       .replace(/_/gu, '/')
       .padEnd(value.length + ((4 - (value.length % 4)) % 4), '='),
   );
-}
-
-/**
- * Recursively sorts keys and encodes Uint8Array as hex.
- *
- * @param value - Value to normalize.
- * @returns JSON-safe canonical form.
- */
-function sortKeys(value: unknown): unknown {
-  if (value instanceof Uint8Array) {
-    return bytesToHex(value);
-  }
-  if (Array.isArray(value)) {
-    return value.map(sortKeys);
-  }
-  if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.keys(value as Record<string, unknown>)
-        .sort()
-        .map((key) => [key, sortKeys((value as Record<string, unknown>)[key])]),
-    );
-  }
-  return value;
 }
