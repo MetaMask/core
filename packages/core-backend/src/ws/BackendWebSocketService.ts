@@ -516,16 +516,9 @@ export class BackendWebSocketService {
       return;
     }
 
-    // If already connecting, wait for the existing attempt.
+    // If already connecting, wait for the existing connection attempt to complete
     if (this.#connectionPromise) {
       await this.#connectionPromise;
-      // The attempt that owns the promise clears it. If a gate closed while
-      // this call waited, do not open another socket.
-      if (!this.#isConnectionAllowed()) {
-        return;
-      }
-      // connect() returns immediately when the awaited attempt reached CONNECTED.
-      await this.connect();
       return;
     }
 
