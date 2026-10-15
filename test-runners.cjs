@@ -1,3 +1,6 @@
+const { readdirSync } = require('node:fs');
+const path = require('node:path');
+
 // Do not add to this list: new packages are expected to use Vitest.
 const PACKAGES_ON_JEST = new Set([
   '@metamask/account-tree-controller',
@@ -107,4 +110,19 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/wallet-framework-docs',
 ]);
 
-module.exports = { PACKAGES_ON_JEST };
+const packageNames = readdirSync(path.join(__dirname, 'packages'), {
+  withFileTypes: true,
+})
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
+
+// Directory names, which is what file globs need. A constraint pins every
+// package's name to its directory.
+const JEST_PACKAGES = packageNames.filter((name) =>
+  PACKAGES_ON_JEST.has(`@metamask/${name}`),
+);
+const VITEST_PACKAGES = packageNames.filter(
+  (name) => !PACKAGES_ON_JEST.has(`@metamask/${name}`),
+);
+
+module.exports = { PACKAGES_ON_JEST, JEST_PACKAGES, VITEST_PACKAGES };

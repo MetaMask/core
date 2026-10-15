@@ -4,34 +4,20 @@ import jest from '@metamask/oxlint-config-jest';
 import nodejs from '@metamask/oxlint-config-nodejs';
 import typescript from '@metamask/oxlint-config-typescript';
 import vitest from '@metamask/oxlint-config-vitest';
-import { readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const monorepoRoot = path.dirname(fileURLToPath(import.meta.url));
-
-// CommonJS, so `yarn.config.cjs` can read the same list.
-const { PACKAGES_ON_JEST } = createRequire(import.meta.url)(
-  './test-runners.cjs',
-) as { PACKAGES_ON_JEST: Set<string> };
 
 /**
  * The two runners need separate overrides, and a file must match only one of
  * them: each config declares its runner's globals, so a file matching both has
  * its explicit `vitest` imports flagged as shadowing Jest's.
+ *
+ * CommonJS, so `yarn.config.cjs` can read the same source of truth.
  */
-const packageNames = readdirSync(path.join(monorepoRoot, 'packages'), {
-  withFileTypes: true,
-})
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => entry.name);
-
-const packagesOnJest = new Set(
-  [...PACKAGES_ON_JEST].map((ident) => ident.replace('@metamask/', '')),
-);
-const jestPackages = packageNames.filter((name) => packagesOnJest.has(name));
-const vitestPackages = packageNames.filter((name) => !packagesOnJest.has(name));
+const { JEST_PACKAGES: jestPackages, VITEST_PACKAGES: vitestPackages } =
+  createRequire(import.meta.url)('./test-runners.cjs') as {
+    JEST_PACKAGES: string[];
+    VITEST_PACKAGES: string[];
+  };
 
 /**
  * Builds the test-file globs for a set of packages.
@@ -91,15 +77,6 @@ export default createConfig({
     },
 
     {
-      // Plain data, with no imports or exports to make it unambiguously a
-      // module.
-      files: ['test-runners.cjs'],
-      rules: {
-        'import/unambiguous': 'off',
-      },
-    },
-
-    {
       files: [
         '.github/**',
         'yarn.config.cjs',
@@ -115,6 +92,7 @@ export default createConfig({
         'jest.config.packages.cjs',
         'jest.config.scripts.cjs',
         'vitest.config.packages.mjs',
+        'test-runners.cjs',
         // These import their globals explicitly.
         'tests/helpers.ts',
         'tests/matchers.ts',
@@ -126,6 +104,14 @@ export default createConfig({
       rules: {
         'node/no-sync': 'off',
         'node/no-process-env': 'off',
+      },
+    },
+
+    {
+      // No imports or exports, so nothing marks it unambiguously as a module.
+      files: ['test-runners.cjs'],
+      rules: {
+        'import/unambiguous': 'off',
       },
     },
 
