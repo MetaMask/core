@@ -47,7 +47,7 @@
     "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
     "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "test": "yarn test:unit && yarn test:types",
+    "test": "yarn test:types && yarn test:unit",
     "test:clean": "yarn test:unit:clean && yarn test:types",
     "test:types": "tstyche",
     "test:unit": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",

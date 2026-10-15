@@ -28,7 +28,7 @@ export default defineConfig({
     // The files to include in the test run.
     include: ['src/**/*.test.ts'],
 
-    // Jest's `setupFiles` and `setupFilesAfterEnv`, which Vitest merges.
+    // The setup files shared by every package.
     setupFiles: [
       path.join(monorepoRoot, 'tests/vitest/setup.ts'),
       path.join(monorepoRoot, 'tests/vitest/setup-after-env.ts'),
@@ -40,14 +40,11 @@ export default defineConfig({
     restoreMocks: true,
 
     fakeTimers: {
-      // Jest's `doNotFake`. Unset, @sinonjs/fake-timers fakes everything.
       toNotFake: ['nextTick', 'queueMicrotask'],
     },
 
     coverage: {
-      // `yarn test` sets `COLLECT_COVERAGE=false`, as does the Jest config, so
-      // the root script need not know which runner a package uses.
-      enabled: process.env.COLLECT_COVERAGE !== 'false',
+      enabled: true,
 
       // Configure the coverage provider. We use `istanbul` here, because it is
       // more stable than `v8`.
@@ -60,7 +57,7 @@ export default defineConfig({
       // re-exports, so it has nothing to cover.
       exclude: ['src/**/index.ts', 'src/**/*.d.ts'],
 
-      // Jest's reporters, with `lcovonly` for `lcov`, which also writes HTML.
+      // `lcovonly` rather than `lcov`, which also writes a second HTML report.
       reporter: ['text', 'html', 'json-summary', 'lcovonly'],
 
       // Each package configures its own thresholds.

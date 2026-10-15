@@ -19,10 +19,7 @@ module.exports = {
   // clearMocks: true,
 
   // Indicates whether the coverage information should be collected while executing the test
-  //
-  // `yarn test` sets `COLLECT_COVERAGE=false`, as does the Vitest config, so the
-  // root script need not know which runner a package uses.
-  collectCoverage: process.env.COLLECT_COVERAGE !== 'false',
+  collectCoverage: true,
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected
   collectCoverageFrom: ['./src/**/*.ts'],

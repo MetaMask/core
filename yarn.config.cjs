@@ -724,7 +724,7 @@ function expectTestScripts(workspace) {
       expectWorkspaceField(
         workspace,
         'scripts.test',
-        'yarn test:unit && yarn test:types',
+        'yarn test:types && yarn test:unit',
       );
       expectWorkspaceField(
         workspace,
@@ -777,7 +777,7 @@ function expectTestScripts(workspace) {
     expectWorkspaceField(
       workspace,
       'scripts.test',
-      'yarn test:unit && yarn test:types',
+      'yarn test:types && yarn test:unit',
     );
     expectWorkspaceField(
       workspace,
