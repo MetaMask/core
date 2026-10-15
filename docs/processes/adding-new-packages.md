@@ -12,7 +12,9 @@ Manually creating a new monorepo package can be a tedious, even frustrating proc
    - By default, `create-package` gives your package a combined MIT license and Apache 2.0 license.
    - If your desired license is _not_ MIT and Apache 2.0, then you must update your `LICENSE` file and the `license` field of `package.json`.
 3. Update `.github/CODEOWNERS` and `teams.json` to assign a team as the owner of the new package.
-4. Open a new Pull Request to merge your new package scaffolding into the monorepo. It should contain no functional changes beyond the addition of the new package structure. See [Why two PRs are recommended](#why-two-prs-are-recommended).
+4. Open a new Pull Request to merge your new package scaffolding into the monorepo.
+   - It should contain no functional changes beyond the addition of the new package structure.
+   - See [Why two PRs are recommended](#why-two-prs-are-recommended).
 5. Add your dependencies.
    - Do this as normal using `yarn`.
    - Remember, if you are adding other monorepo packages as dependents, don't forget to add them to the `references` array in your package's `tsconfig.json` and `tsconfig.build.json`.
