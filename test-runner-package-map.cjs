@@ -115,16 +115,12 @@ const PACKAGES_ON_JEST = new Set([
 /**
  * Groups the repository's workspaces by the test runner they use.
  *
- * Locations come from the root `workspaces` field rather than assuming
- * `packages/`, so a workspace added anywhere else is still assigned a runner.
- *
  * @returns {Promise<{ jestWorkspaces: string[], vitestWorkspaces: string[] }>}
  * Workspace directories, relative to the repository root.
  */
 async function getTestRunnerWorkspaces() {
   const locations = await getWorkspaceLocations(workspaces, __dirname);
 
-  // A constraint pins every package's name to its directory.
   const onJest = (location) =>
     PACKAGES_ON_JEST.has(`@metamask/${path.basename(location)}`);
 
