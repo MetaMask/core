@@ -80,29 +80,29 @@ async function deriveLabeled(
 export async function deriveClientMaterial(
   localUserSecret: Uint8Array<ArrayBuffer>,
 ): Promise<UkycClientMaterial> {
-  const storageId = await deriveLabeled(
-    localUserSecret,
-    UKYC_KDF_INFO.storageId,
-    UKYC_DERIVED_KEY_SIZES.storageId,
-  );
-
-  const dataEncryptionKey = await deriveLabeled(
-    localUserSecret,
-    UKYC_KDF_INFO.dataEncryptionKey,
-    UKYC_DERIVED_KEY_SIZES.dataEncryptionKey,
-  );
-
-  const signingKey = await deriveLabeled(
-    localUserSecret,
-    UKYC_KDF_INFO.signingKey,
-    UKYC_DERIVED_KEY_SIZES.signingKey,
-  );
-
-  const relayTunnelKey = await deriveLabeled(
-    localUserSecret,
-    UKYC_KDF_INFO.relayTunnelKey,
-    UKYC_DERIVED_KEY_SIZES.relayTunnelKey,
-  );
+  const [storageId, dataEncryptionKey, signingKey, relayTunnelKey] =
+    await Promise.all([
+      deriveLabeled(
+        localUserSecret,
+        UKYC_KDF_INFO.storageId,
+        UKYC_DERIVED_KEY_SIZES.storageId,
+      ),
+      deriveLabeled(
+        localUserSecret,
+        UKYC_KDF_INFO.dataEncryptionKey,
+        UKYC_DERIVED_KEY_SIZES.dataEncryptionKey,
+      ),
+      deriveLabeled(
+        localUserSecret,
+        UKYC_KDF_INFO.signingKey,
+        UKYC_DERIVED_KEY_SIZES.signingKey,
+      ),
+      deriveLabeled(
+        localUserSecret,
+        UKYC_KDF_INFO.relayTunnelKey,
+        UKYC_DERIVED_KEY_SIZES.relayTunnelKey,
+      ),
+    ]);
 
   const signingPublicKey = await getPublicKey(signingKey);
 
