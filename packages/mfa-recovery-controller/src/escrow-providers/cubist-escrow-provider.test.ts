@@ -176,6 +176,20 @@ describe('CubistEscrowProvider', () => {
       ).rejects.toMatchObject({ code: 'escrow_response_invalid' });
     });
 
+    it.each([
+      ['fractional version', { version: 1.5 }],
+      ['negative version', { version: -1 }],
+      ['non-numeric version', { version: '1' }],
+      ['non-string signature', { signature: 1 }],
+      ['missing escrow id', { escrowId: undefined }],
+    ])('rejects a receipt with a %s', async (_label, patch) => {
+      const receipt = { ...(await signedReceipt()), ...patch };
+      const { provider } = createProvider({ stdout: receipt });
+      await expect(
+        provider.applyMutation(MUTATION, TOKEN, AUTHORIZATION, PAYLOAD),
+      ).rejects.toMatchObject({ code: 'escrow_response_invalid' });
+    });
+
     it('reports a policy deny as a mutation rejection', async () => {
       const { provider } = createProvider({
         policy: { response: 'Deny', reason: 'version mismatch' },

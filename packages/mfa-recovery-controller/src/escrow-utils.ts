@@ -1,3 +1,4 @@
+import { integer, is, min, string, type } from '@metamask/superstruct';
 import { areUint8ArraysEqual } from '@metamask/utils';
 
 import { MfaRecoveryError } from './errors.js';
@@ -26,6 +27,16 @@ export function isFulfilledResult<Result>(
   return result.status === 'fulfilled';
 }
 
+// `type()` (not `object()`) so unknown fields are still accepted, as before.
+const MutationReceiptStruct = type({
+  mutationId: string(),
+  requestHash: string(),
+  escrowId: string(),
+  version: min(integer(), 0),
+  receiptKeyId: string(),
+  signature: string(),
+});
+
 /**
  * Checks the serialized shape of a mutation receipt.
  *
@@ -33,17 +44,7 @@ export function isFulfilledResult<Result>(
  * @returns Whether the value has a mutation receipt shape.
  */
 export function isMutationReceipt(value: unknown): value is MutationReceipt {
-  return (
-    isRecord(value) &&
-    typeof value.mutationId === 'string' &&
-    typeof value.requestHash === 'string' &&
-    typeof value.escrowId === 'string' &&
-    typeof value.version === 'number' &&
-    Number.isInteger(value.version) &&
-    value.version >= 0 &&
-    typeof value.receiptKeyId === 'string' &&
-    typeof value.signature === 'string'
-  );
+  return is(value, MutationReceiptStruct);
 }
 
 /**
@@ -108,8 +109,4 @@ export function selectHighestConsistentVersion(
     throw new MfaRecoveryError('Replica corruption', 'replica_corruption');
   }
   return selected;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }

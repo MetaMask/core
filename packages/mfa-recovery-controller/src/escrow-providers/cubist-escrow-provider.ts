@@ -3,6 +3,7 @@ import type {
   InvokePolicyResponse,
   Version,
 } from '@cubist-labs/cubesigner-sdk';
+import { integer, is, literal, min, string, type } from '@metamask/superstruct';
 import { bytesToString, hexToBytes } from '@metamask/utils';
 
 import { hashMutationReceipt, verifySignature, wrapKeyId } from '../crypto.js';
@@ -227,8 +228,25 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   }
 }
 
+// `type()` is non-strict, so unknown fields are ignored. The explicit field
+// mapping below still strips them from the returned value.
+const PingStruct = type({ ok: literal(true) });
+
+const ChallengeStruct = type({
+  id: string(),
+  escrowId: literal(ESCROW_ID),
+  expiresAt: integer(),
+});
+
+const GetSecretResponseStruct = type({
+  recoverySecret: type({ ciphertext: string() }),
+  version: min(integer(), 0),
+  lastMutationId: string(),
+  wrapKeyId: string(),
+});
+
 function parsePing(value: unknown): void {
-  if (!isRecord(value) || value.ok !== true) {
+  if (!is(value, PingStruct)) {
     throw new MfaRecoveryError(
       'Invalid ping response',
       'escrow_response_invalid',
@@ -237,13 +255,7 @@ function parsePing(value: unknown): void {
 }
 
 function parseChallenge(value: unknown): PoPChallenge {
-  if (
-    !isRecord(value) ||
-    typeof value.id !== 'string' ||
-    value.escrowId !== ESCROW_ID ||
-    typeof value.expiresAt !== 'number' ||
-    !Number.isInteger(value.expiresAt)
-  ) {
+  if (!is(value, ChallengeStruct)) {
     throw new MfaRecoveryError(
       'Invalid PoP challenge',
       'escrow_response_invalid',
@@ -257,16 +269,7 @@ function parseChallenge(value: unknown): PoPChallenge {
 }
 
 function parseGetSecretResponse(value: unknown): GetRecoverySecretResponse {
-  if (
-    !isRecord(value) ||
-    !isRecord(value.recoverySecret) ||
-    typeof value.recoverySecret.ciphertext !== 'string' ||
-    typeof value.version !== 'number' ||
-    !Number.isInteger(value.version) ||
-    value.version < 0 ||
-    typeof value.lastMutationId !== 'string' ||
-    typeof value.wrapKeyId !== 'string'
-  ) {
+  if (!is(value, GetSecretResponseStruct)) {
     throw new MfaRecoveryError(
       'Invalid recovery secret response',
       'escrow_response_invalid',
@@ -288,8 +291,4 @@ function parseReceipt(value: unknown): MutationReceipt {
     );
   }
   return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
