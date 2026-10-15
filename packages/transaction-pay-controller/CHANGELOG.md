@@ -13,9 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Reserve a buffer on Max HyperLiquid withdrawals while the account has open positions, so price drift between quoting and submission no longer fails the `sendAsset` step with `Insufficient balance for token transfer` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Reserve a buffer on Max HyperLiquid withdrawals while the account has open positions, so price drift between quoting and submission no longer fails the `sendAsset` step with `Insufficient balance for token transfer` ([#10846](https://github.com/MetaMask/core/pull/10846))
   - Gated behind `confirmations_pay_post_quote.<default|overrides>.hyperliquidMaxBuffer`, disabled by default.
-- Stop falling back to the Arbitrum wallet USDC balance as the Max source amount for HyperLiquid withdrawals when the client `getBalance` callback cannot resolve the HyperLiquid balance ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Stop falling back to the Arbitrum wallet USDC balance as the Max source amount for HyperLiquid withdrawals when the client `getBalance` callback cannot resolve the HyperLiquid balance ([#10846](https://github.com/MetaMask/core/pull/10846))
 
 ## [30.1.0]
 
