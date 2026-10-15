@@ -182,6 +182,9 @@
       "path": "./packages/money-account-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/money-account-mfa-whitelist/tsconfig.build.json"
+    },
+    {
       "path": "./packages/money-account-upgrade-controller/tsconfig.build.json"
     },
     {
@@ -306,6 +309,9 @@
     },
     {
       "path": "./packages/transaction-pay-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/transaction-pay-middleware/tsconfig.build.json"
     },
     {
       "path": "./packages/user-operation-controller/tsconfig.build.json"

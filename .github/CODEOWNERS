@@ -410,6 +410,13 @@
 /packages/money-account-controller/tsconfig.*      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/money-account-controller/typedoc.json    @MetaMask/accounts-engineers @MetaMask/core-platform
 
+### money-account-mfa-whitelist
+/packages/money-account-mfa-whitelist                 @MetaMask/earn
+/packages/money-account-mfa-whitelist/CHANGELOG.md    @MetaMask/core-platform @MetaMask/earn
+/packages/money-account-mfa-whitelist/package.json    @MetaMask/core-platform @MetaMask/earn
+/packages/money-account-mfa-whitelist/tsconfig.*      @MetaMask/core-platform @MetaMask/earn
+/packages/money-account-mfa-whitelist/typedoc.json    @MetaMask/core-platform @MetaMask/earn
+
 ### money-account-upgrade-controller
 /packages/money-account-upgrade-controller                 @MetaMask/delegation @MetaMask/earn
 /packages/money-account-upgrade-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
@@ -711,6 +718,13 @@
 /packages/transaction-pay-controller/tsconfig.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-controller/typedoc.json    @MetaMask/confirmations @MetaMask/core-platform
 
+### transaction-pay-middleware
+/packages/transaction-pay-middleware                 @MetaMask/confirmations
+/packages/transaction-pay-middleware/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-pay-middleware/package.json    @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-pay-middleware/tsconfig.*      @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-pay-middleware/typedoc.json    @MetaMask/confirmations @MetaMask/core-platform
+
 ### user-operation-controller
 /packages/user-operation-controller                 @MetaMask/confirmations
 /packages/user-operation-controller/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
@@ -732,12 +746,17 @@
 /packages/wallet/src/initialization/instances/approval-controller/               @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/claims-controller/                 @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/claims-service/                    @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/client-controller/                 @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/wallet/src/initialization/instances/connectivity-controller/           @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/gas-fee-controller/                @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/keyring-controller/                @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/logging-controller/                @MetaMask/confirmations
+/packages/wallet/src/initialization/instances/network-controller/                @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/wallet/src/initialization/instances/passkey-controller/                @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/permission-controller/             @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/remote-feature-flag-controller/    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/wallet/src/initialization/instances/seedless-onboarding-controller/    @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/selected-network-controller/       @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/shield-api-service/                @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/shield-controller/                 @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/storage-service/                   @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
