@@ -1236,8 +1236,10 @@ export class KycController extends BaseController<
         this.messenger.call('KycService:fetchIdosEnclaveJwks'),
         this.messenger.call('KycService:fetchIdosRelayJwks'),
       ]);
-    await assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
-    await assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    await Promise.all([
+      assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey),
+      assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema),
+    ]);
   }
 
   /**
