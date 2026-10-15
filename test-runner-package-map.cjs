@@ -87,7 +87,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/rate-limit-controller',
   '@metamask/react-data-query',
   '@metamask/remote-feature-flag-controller',
-  '@metamask/sample-controllers',
   '@metamask/seedless-onboarding-controller',
   '@metamask/selected-network-controller',
   '@metamask/sentinel-api-service',
