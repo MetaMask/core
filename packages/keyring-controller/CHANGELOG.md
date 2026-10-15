@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.2.0]
+
 ### Added
 
-- Add `KeyringTypes.mpcMoney` and `KeyringTypes.mpc` keyring types ([#10577](https://github.com/MetaMask/core/pull/10577)), ([#10849](https://github.com/MetaMask/core/pull/10849))
+- Add `KeyringTypes.mpcMoney` and `KeyringTypes.mpc` keyring types ([#10577](https://github.com/MetaMask/core/pull/10577), [#10849](https://github.com/MetaMask/core/pull/10849))
 
 ### Changed
 
@@ -1095,7 +1097,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.0...HEAD
+[28.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.1.0...@metamask/keyring-controller@28.2.0
 [28.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.0.0...@metamask/keyring-controller@28.1.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.1.1...@metamask/keyring-controller@28.0.0
 [27.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.1.0...@metamask/keyring-controller@27.1.1
