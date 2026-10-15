@@ -284,9 +284,10 @@ describe('walletPay', () => {
         params: [{ type: 'perpsWithdraw', from: FROM, amount: '5' }],
       });
 
-      expect(mocks.addTransaction.mock.calls[0][1].type).toBe(
-        TransactionType.perpsWithdraw,
-      );
+      expect(mocks.addTransaction.mock.calls[0][1]).toMatchObject({
+        type: TransactionType.perpsWithdraw,
+        skipInitialGasEstimate: true,
+      });
     });
 
     it('rejects when the chain is not configured', async () => {

@@ -22,6 +22,7 @@ describe('perpsWithdrawFlow', () => {
         data: `0xa9059cbb${FROM.slice(2).padStart(64, '0')}${'4c4b40'.padStart(64, '0')}`,
       },
       type: TransactionType.perpsWithdraw,
+      skipInitialGasEstimate: true,
     });
   });
 

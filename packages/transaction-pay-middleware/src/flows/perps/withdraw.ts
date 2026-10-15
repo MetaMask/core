@@ -12,7 +12,8 @@ import { assertPerpsEligible, toUsdcAmountRaw } from './shared.js';
 /**
  * `perpsWithdraw`: the same placeholder USDC transfer to `from` the in-wallet
  * withdraw uses; the confirmation and Pay turn it into the Hyperliquid
- * withdraw.
+ * withdraw. Gas isn't estimated upfront: the funds are on Hyperliquid, so the
+ * placeholder transfer would fail to estimate.
  */
 export const perpsWithdrawFlow: WalletPayFlow = {
   // Reuses the in-wallet withdraw flow, so it also needs that flow's flag.
@@ -28,5 +29,6 @@ export const perpsWithdrawFlow: WalletPayFlow = {
       data: generateERC20TransferData(from, toUsdcAmountRaw(amount)),
     },
     type: TransactionType.perpsWithdraw,
+    skipInitialGasEstimate: true,
   }),
 };
