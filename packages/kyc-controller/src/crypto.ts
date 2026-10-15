@@ -14,7 +14,7 @@
  *        key    = HKDF-SHA256(shared, salt=none, info=none, 32 bytes)
  *        plain  = AES-256-GCM.decrypt(key, iv, ciphertext || 16-byte tag)
  *
- * This module is platform-agnostic: it uses `@noble/*` and `@metamask/utils`
+ * This module is platform-agnostic: it uses `@metamask/cryptography` and `@metamask/utils`
  * (via the shared encoding helpers) and avoids `Buffer` / `atob` so it runs
  * unchanged on mobile, extension, and web.
  */
