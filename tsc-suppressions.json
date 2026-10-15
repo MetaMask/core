@@ -373,7 +373,7 @@
   },
   "packages/bridge-status-controller/src/bridge-status-controller.batch-sell.test.ts": {
     "TS2322": {
-      "count": 6
+      "count": 5
     },
     "TS2345": {
       "count": 1
