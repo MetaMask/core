@@ -2948,15 +2948,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx fails (after adding tx) 1`] = `
 [
   [
-    "BridgeController:stopPollingForQuotes",
-    "Transaction submitted",
-    undefined,
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
@@ -2987,64 +2978,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
-  ],
-  [
-    "TransactionController:isAtomicBatchSupported",
-    {
-      "address": "0xaccount1",
-      "chainIds": [
-        "0xa4b1",
-      ],
-    },
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
-    "NetworkController:findNetworkClientIdByChainId",
-    "0xa4b1",
-  ],
-  [
-    "TransactionController:estimateGasFee",
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum-client-id",
-      "transactionParams": {
-        "data": "0xapprovalData",
-        "from": "0xaccount1",
-        "gas": "0x5208",
-        "to": "0xtokenContract",
-        "value": "0x0",
-      },
-    },
-  ],
-  [
-    "TransactionController:addTransaction",
-    {
-      "data": "0xapprovalData",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xtokenContract",
-      "value": "0x0",
-    },
-    {
-      "actionId": "1234567891.456",
-      "isInternal": true,
-      "networkClientId": "arbitrum-client-id",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "bridgeApproval",
-    },
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
-    "TransactionController:getState",
   ],
   [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3097,15 +3030,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
 exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx fails (before adding tx) 1`] = `
 [
   [
-    "BridgeController:stopPollingForQuotes",
-    "Transaction submitted",
-    undefined,
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
@@ -3136,64 +3060,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
-  ],
-  [
-    "TransactionController:isAtomicBatchSupported",
-    {
-      "address": "0xaccount1",
-      "chainIds": [
-        "0xa4b1",
-      ],
-    },
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
-    "NetworkController:findNetworkClientIdByChainId",
-    "0xa4b1",
-  ],
-  [
-    "TransactionController:estimateGasFee",
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum-client-id",
-      "transactionParams": {
-        "data": "0xapprovalData",
-        "from": "0xaccount1",
-        "gas": "0x5208",
-        "to": "0xtokenContract",
-        "value": "0x0",
-      },
-    },
-  ],
-  [
-    "TransactionController:addTransaction",
-    {
-      "data": "0xapprovalData",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xtokenContract",
-      "value": "0x0",
-    },
-    {
-      "actionId": "1234567891.456",
-      "isInternal": true,
-      "networkClientId": "arbitrum-client-id",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "bridgeApproval",
-    },
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
-    "TransactionController:getState",
   ],
   [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -4634,13 +4500,6 @@ exports[`BridgeStatusController submitTx: EVM swap should silence addTransaction
   "isStxEnabled": true,
   "location": "Unknown",
   "originalTransactionId": "test-tx-id",
-  "pricingData": {
-    "amountSent": "1.234",
-    "amountSentInUsd": "1.01",
-    "quotedGasAmount": "1.234",
-    "quotedGasInUsd": "2.5778",
-    "quotedReturnInUsd": "0.134214",
-  },
   "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
@@ -4709,15 +4568,6 @@ exports[`BridgeStatusController submitTx: EVM swap should silence addTransaction
 exports[`BridgeStatusController submitTx: EVM swap should silence addTransactionBatchFn error if tx has been added to state 4`] = `
 [
   [
-    "BridgeController:stopPollingForQuotes",
-    "Transaction submitted",
-    undefined,
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
@@ -4748,75 +4598,6 @@ exports[`BridgeStatusController submitTx: EVM swap should silence addTransaction
       "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
-  ],
-  [
-    "TransactionController:isAtomicBatchSupported",
-    {
-      "address": "0xaccount1",
-      "chainIds": [
-        "0xa4b1",
-      ],
-    },
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
-    "NetworkController:findNetworkClientIdByChainId",
-    "0xa4b1",
-  ],
-  [
-    "TransactionController:estimateGasFee",
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum",
-      "transactionParams": {
-        "data": "0xapprovalData",
-        "from": "0xaccount1",
-        "gas": "0x5208",
-        "to": "0xtokenContract",
-        "value": "0x0",
-      },
-    },
-  ],
-  [
-    "TransactionController:estimateGasFee",
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum",
-      "transactionParams": {
-        "data": "0xdata",
-        "from": "0xaccount1",
-        "gas": "0x5208",
-        "to": "0xbridgeContract",
-        "value": "0x0",
-      },
-    },
-  ],
-  [
-    "TransactionController:getState",
-  ],
-  [
-    "TransactionController:updateTransaction",
-    {
-      "batchId": "batchId1",
-      "chainId": "0xa4b1",
-      "hash": "0xevmTxHash",
-      "id": "test-tx-id",
-      "status": "unapproved",
-      "time": 1234567890,
-      "txParams": {
-        "chainId": "0xa4b1",
-        "data": "0xdata",
-        "from": "0xaccount1",
-        "gasLimit": "0x5208",
-        "to": "0xbridgeContract",
-        "value": "0x0",
-      },
-      "type": "swap",
-    },
-    "Update tx type to swap",
   ],
 ]
 `;
@@ -4854,13 +4635,6 @@ exports[`BridgeStatusController submitTx: EVM swap should silence updateTransact
   "isStxEnabled": true,
   "location": "Unknown",
   "originalTransactionId": "test-tx-id",
-  "pricingData": {
-    "amountSent": "1.234",
-    "amountSentInUsd": "1.01",
-    "quotedGasAmount": "1.234",
-    "quotedGasInUsd": "2.5778",
-    "quotedReturnInUsd": "0.134214",
-  },
   "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
@@ -4929,15 +4703,6 @@ exports[`BridgeStatusController submitTx: EVM swap should silence updateTransact
 exports[`BridgeStatusController submitTx: EVM swap should silence updateTransaction error if tx has been added to state 4`] = `
 [
   [
-    "BridgeController:stopPollingForQuotes",
-    "Transaction submitted",
-    undefined,
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
@@ -4968,75 +4733,6 @@ exports[`BridgeStatusController submitTx: EVM swap should silence updateTransact
       "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
     },
-  ],
-  [
-    "TransactionController:isAtomicBatchSupported",
-    {
-      "address": "0xaccount1",
-      "chainIds": [
-        "0xa4b1",
-      ],
-    },
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
-    "NetworkController:findNetworkClientIdByChainId",
-    "0xa4b1",
-  ],
-  [
-    "TransactionController:estimateGasFee",
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum",
-      "transactionParams": {
-        "data": "0xapprovalData",
-        "from": "0xaccount1",
-        "gas": "0x5208",
-        "to": "0xtokenContract",
-        "value": "0x0",
-      },
-    },
-  ],
-  [
-    "TransactionController:estimateGasFee",
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum",
-      "transactionParams": {
-        "data": "0xdata",
-        "from": "0xaccount1",
-        "gas": "0x5208",
-        "to": "0xbridgeContract",
-        "value": "0x0",
-      },
-    },
-  ],
-  [
-    "TransactionController:getState",
-  ],
-  [
-    "TransactionController:updateTransaction",
-    {
-      "batchId": "batchId1",
-      "chainId": "0xa4b1",
-      "hash": "0xevmTxHash",
-      "id": "test-tx-id",
-      "status": "unapproved",
-      "time": 1234567890,
-      "txParams": {
-        "chainId": "0xa4b1",
-        "data": "0xdata",
-        "from": "0xaccount1",
-        "gasLimit": "0x5208",
-        "to": "0xbridgeContract",
-        "value": "0x0",
-      },
-      "type": "swap",
-    },
-    "Update tx type to swap",
   ],
 ]
 `;

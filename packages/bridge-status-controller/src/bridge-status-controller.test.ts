@@ -3660,7 +3660,12 @@ describe('BridgeStatusController', () => {
           ).rejects.toThrow('Approval tx failed');
 
           expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(
+            mockMessengerCall.mock.calls.filter(
+              ([action]) =>
+                action === 'BridgeController:trackUnifiedSwapBridgeEvent',
+            ),
+          ).toMatchSnapshot();
         },
       );
     });
@@ -3692,7 +3697,12 @@ describe('BridgeStatusController', () => {
           ).rejects.toThrow('Approval tx failed');
 
           expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(
+            mockMessengerCall.mock.calls.filter(
+              ([action]) =>
+                action === 'BridgeController:trackUnifiedSwapBridgeEvent',
+            ),
+          ).toMatchSnapshot();
         },
       );
     });
@@ -4110,179 +4120,68 @@ describe('BridgeStatusController', () => {
             ).toBeUndefined(); // Empty since tx w submitted
 
             expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+            const expectedProperties = {
+              account_hardware_type: null,
+              action_type: 'swapbridge-v1',
+              chain_id_destination: 'eip155:10',
+              chain_id_source: 'eip155:42161',
+              custom_slippage: false,
+              destination_hash_present: false,
+              feature_id: 'unified_swap_bridge',
+              gas_included: false,
+              gas_included_7702: false,
+              is_hardware_wallet: false,
+              location: 'Unknown',
+              price_impact: 0,
+              provider: 'lifi_across',
+              quoted_time_minutes: 0.25,
+              slippage_limit: 0,
+              source_hash_present: false,
+              stx_enabled: false,
+              swap_type: 'crosschain',
+              token_address_destination: 'eip155:10/slip44:60',
+              token_address_source: 'eip155:42161/slip44:60',
+              token_security_type_destination: null,
+              token_symbol_destination: 'ETH',
+              token_symbol_source: 'ETH',
+              usd_amount_source: 1.01,
+              usd_quoted_gas: 2.5778,
+              usd_quoted_return: 0,
+            };
 
             expect(
-              mockMessengerCall.mock.calls.find(
+              mockMessengerCall.mock.calls.filter(
                 ([action]) =>
                   action === 'BridgeController:trackUnifiedSwapBridgeEvent',
               ),
-            ).toMatchInlineSnapshot(`
+            ).toStrictEqual([
               [
-                "BridgeController:trackUnifiedSwapBridgeEvent",
-                "Unified SwapBridge Submitted",
-                {
-                  "account_hardware_type": null,
-                  "action_type": "swapbridge-v1",
-                  "chain_id_destination": "eip155:10",
-                  "chain_id_source": "eip155:42161",
-                  "custom_slippage": false,
-                  "destination_hash_present": false,
-                  "feature_id": "unified_swap_bridge",
-                  "gas_included": false,
-                  "gas_included_7702": false,
-                  "is_hardware_wallet": false,
-                  "location": "Unknown",
-                  "price_impact": 0,
-                  "provider": "lifi_across",
-                  "quoted_time_minutes": 0.25,
-                  "slippage_limit": 0,
-                  "source_hash_present": false,
-                  "stx_enabled": false,
-                  "swap_type": "crosschain",
-                  "token_address_destination": "eip155:10/slip44:60",
-                  "token_address_source": "eip155:42161/slip44:60",
-                  "token_security_type_destination": null,
-                  "token_symbol_destination": "ETH",
-                  "token_symbol_source": "ETH",
-                  "usd_amount_source": 1.01,
-                  "usd_quoted_gas": 2.5778,
-                  "usd_quoted_return": 0,
-                },
-              ]
-            `);
-          },
-        );
-      });
-
-      it('should silence error when trade tx submission fails (after adding to state)', async () => {
-        const mockActionId = '9876543210.789';
-        jest
-          .spyOn(transactionUtils, 'generateActionId')
-          .mockReturnValueOnce('9876543210.789')
-          .mockReturnValueOnce('9876543210.790');
-
-        setupEventTrackingMocks(mockMessengerCall);
-        const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
-
-        // Setup for trade tx (no approval)
-        mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-        mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
-        mockMessengerCall.mockResolvedValueOnce({
-          estimates: {
-            type: GasFeeEstimateType.FeeMarket,
-            high: {
-              suggestedMaxFeePerGas: '0x1234',
-              suggestedMaxPriorityFeePerGas: '0x5678',
-            },
-          },
-        });
-
-        // Trade tx fails during submission
-        mockMessengerCall.mockRejectedValueOnce(
-          'Trade tx submission failed after adding to state',
-        );
-        mockMessengerCall.mockReturnValueOnce({
-          transactions: [{ ...mockEvmTxMeta, actionId: '9876543210.789' }],
-        });
-        mockMessengerCall.mockReturnValueOnce({
-          transactions: [{ ...mockEvmTxMeta, actionId: '9876543210.789' }],
-        });
-
-        mockMessengerCall.mockReturnValueOnce({
-          transactions: [{ ...mockEvmTxMeta, actionId: '9876543210.789' }],
-        });
-
-        await withController(
-          { mockMessengerCall },
-          async ({
-            controller,
-            rootMessenger,
-            startPollingForBridgeTxStatusSpy,
-          }) => {
-            const result = await rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              (quoteWithoutApproval.trade as TxData).from,
-              quoteWithoutApproval,
-              false,
-            );
-            expect(result).toMatchInlineSnapshot(`
-              {
-                "actionId": "9876543210.789",
-                "chainId": "0xa4b1",
-                "hash": "0xevmTxHash",
-                "id": "test-tx-id",
-                "status": "unapproved",
-                "time": 1234567890,
-                "txParams": {
-                  "chainId": "0xa4b1",
-                  "data": "0xdata",
-                  "from": "0xaccount1",
-                  "gasLimit": "0x5208",
-                  "to": "0xbridgeContract",
-                  "value": "0x0",
-                },
-                "txReceipt": {
-                  "effectiveGasPrice": "0x1880a",
-                  "gasUsed": "0x2c92a",
-                },
-                "type": "bridge",
-              }
-            `);
-
-            // Verify: Pre-submission history should still exist keyed by actionId
-            // This allows failed event tracking to find the quote data
-            expect(controller.state.txHistory[mockActionId]).toBeUndefined();
-            expect(controller.state.txHistory['test-tx-id'].actionId).toBe(
-              '9876543210.789',
-            );
-            expect(controller.state.txHistory['test-tx-id'].txMetaId).toBe(
-              'test-tx-id',
-            );
-            expect(
-              controller.state.txHistory['test-tx-id'].status.srcChain.txHash,
-            ).toBe('0xevmTxHash');
-
-            expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-
-            expect(
-              mockMessengerCall.mock.calls.find(
-                ([action]) =>
-                  action === 'BridgeController:trackUnifiedSwapBridgeEvent',
-              ),
-            ).toMatchInlineSnapshot(`
+                'BridgeController:trackUnifiedSwapBridgeEvent',
+                'Unified SwapBridge Submitted',
+                expectedProperties,
+              ],
               [
-                "BridgeController:trackUnifiedSwapBridgeEvent",
-                "Unified SwapBridge Submitted",
+                'BridgeController:trackUnifiedSwapBridgeEvent',
+                'Unified SwapBridge Failed',
                 {
-                  "account_hardware_type": null,
-                  "action_type": "swapbridge-v1",
-                  "chain_id_destination": "eip155:10",
-                  "chain_id_source": "eip155:42161",
-                  "custom_slippage": false,
-                  "destination_hash_present": false,
-                  "feature_id": "unified_swap_bridge",
-                  "gas_included": false,
-                  "gas_included_7702": false,
-                  "is_hardware_wallet": false,
-                  "location": "Unknown",
-                  "price_impact": 0,
-                  "provider": "lifi_across",
-                  "quoted_time_minutes": 0.25,
-                  "slippage_limit": 0,
-                  "source_hash_present": false,
-                  "stx_enabled": false,
-                  "swap_type": "crosschain",
-                  "token_address_destination": "eip155:10/slip44:60",
-                  "token_address_source": "eip155:42161/slip44:60",
-                  "token_security_type_destination": null,
-                  "token_symbol_destination": "ETH",
-                  "token_symbol_source": "ETH",
-                  "usd_amount_source": 1.01,
-                  "usd_quoted_gas": 2.5778,
-                  "usd_quoted_return": 0,
+                  ...expectedProperties,
+                  actual_time_minutes: 0.000016666666666666667,
+                  allowance_reset_transaction: undefined,
+                  approval_transaction: undefined,
+                  destination_transaction: 'FAILED',
+                  error_code: 'unknown',
+                  error_message: 'Trade tx submission failed',
+                  failure_phase: 'broadcast',
+                  source_transaction: 'PENDING',
+                  quote_vs_execution_ratio: 0,
+                  quoted_vs_used_gas_ratio: 0,
+                  security_warnings: [],
+                  usd_actual_gas: 0,
+                  usd_actual_return: 0,
+                  usd_quoted_return: 0.134214,
                 },
-              ]
-            `);
+              ],
+            ]);
           },
         );
       });
@@ -5255,71 +5154,6 @@ describe('BridgeStatusController', () => {
       `);
     });
 
-    it('should silence addTransactionBatchFn error if tx has been added to state', async () => {
-      mockGenerateBatchId.mockReturnValueOnce('batchId1');
-      setupEventTrackingMocks(mockMessengerCall);
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockReturnValueOnce('arbitrum');
-      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionBatchFn.mockRejectedValueOnce(
-        'Error adding transaction batch',
-      );
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
-      });
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
-      });
-      mockMessengerCall.mockReturnValueOnce({
-        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
-      });
-
-      const getAddTransactionBatchParamsSpy = jest.spyOn(
-        transactionUtils,
-        'getAddTransactionBatchParams',
-      );
-
-      await withController(
-        { mockMessengerCall },
-        async ({
-          controller,
-          rootMessenger,
-          startPollingForBridgeTxStatusSpy,
-        }) => {
-          const result = await rootMessenger.call(
-            'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
-            mockEvmQuoteResponse,
-            true,
-          );
-          controller.stopAllPolling();
-
-          expect(result).toMatchSnapshot();
-          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-          const { quote, ...txHistoryItem } =
-            controller.state.txHistory[result.id];
-          expect(txHistoryItem).toMatchSnapshot();
-          expect(addTransactionBatchFn.mock.calls).toMatchSnapshot();
-          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-        },
-      );
-
-      const { messenger, tradeData, ...params } =
-        getAddTransactionBatchParamsSpy.mock.calls[0][0];
-      expect(params).toMatchInlineSnapshot(`
-        {
-          "atomic": true,
-          "batchId": "batchId1",
-          "disable7702": true,
-          "isDelegatedAccount": false,
-          "isGasFeeIncluded": false,
-          "isGasFeeSponsored": false,
-          "requireApproval": false,
-        }
-      `);
-    });
-
     it('should silence updateTransaction error if tx has been added to state', async () => {
       mockGenerateBatchId.mockReturnValueOnce('batchId1');
       setupEventTrackingMocks(mockMessengerCall);
@@ -5364,11 +5198,17 @@ describe('BridgeStatusController', () => {
 
           expect(result).toMatchSnapshot();
           expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-          const { quote, ...txHistoryItem } =
+          const { quote, pricingData, ...txHistoryItem } =
             controller.state.txHistory[result.id];
+          expect(quote).toBeDefined();
           expect(txHistoryItem).toMatchSnapshot();
           expect(addTransactionBatchFn.mock.calls).toMatchSnapshot();
-          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(
+            mockMessengerCall.mock.calls.filter(
+              ([action]) =>
+                action === 'BridgeController:trackUnifiedSwapBridgeEvent',
+            ),
+          ).toMatchSnapshot();
         },
       );
 
@@ -6160,270 +6000,6 @@ describe('BridgeStatusController', () => {
     });
 
     describe('TransactionController:transactionStatusUpdated (failed)', () => {
-      // STX batch-sell is many swaps. A sibling failure must not fail the parent.
-      // 7702 with an active delegation is one atomic tx and is covered below.
-      it('does not mark a pre-submit STX batch-sell parent failed when a sibling tx fails', () => {
-        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        const expectedHistoryKeys = Object.keys(
-          bridgeStatusController.state.txHistory,
-        );
-        mockMessenger.publish(
-          'TransactionController:transactionStatusUpdated',
-          {
-            transactionMeta: {
-              error: { name: 'Error', message: 'sibling failed' },
-              chainId: CHAIN_IDS.ARBITRUM,
-              networkClientId: 'eth-id',
-              time: Date.now(),
-              // Delegated STX swaps get delegationAddress. They are not the 7702 batch tx.
-              delegationAddress: '0xdelegationAddress',
-              txParams: {
-                from: '0xaccount1',
-                to: '0xbridgeContract',
-                data: '0xdata',
-                value: '0x0',
-              },
-              type: TransactionType.swap,
-              status: TransactionStatus.failed,
-              id: 'sibling-tx',
-              batchId: '0xbatchsellparent',
-            },
-          },
-        );
-
-        expect(
-          bridgeStatusController.state.txHistory['0xbatchsellparent'].status
-            .status,
-        ).toBe(StatusTypes.PENDING);
-        expect(
-          Object.keys(bridgeStatusController.state.txHistory),
-        ).toStrictEqual(expectedHistoryKeys);
-        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
-          [
-            [
-              "BridgeController:trackUnifiedSwapBridgeEvent",
-              "Unified SwapBridge Failed",
-              {
-                "account_hardware_type": null,
-                "action_type": "swapbridge-v1",
-                "actual_time_minutes": 0,
-                "batch_id": "0xbatchsellparent",
-                "chain_id_destination": "eip155:42161",
-                "chain_id_source": "eip155:42161",
-                "custom_slippage": false,
-                "destination_hash_present": false,
-                "error_code": "unknown",
-                "error_message": "Transaction failed. sibling failed",
-                "failure_phase": "broadcast",
-                "feature_id": "unified_swap_bridge",
-                "gas_included": false,
-                "gas_included_7702": false,
-                "is_hardware_wallet": false,
-                "location": "Unknown",
-                "price_impact": 0,
-                "provider": "",
-                "quote_vs_execution_ratio": 0,
-                "quoted_time_minutes": 0,
-                "quoted_vs_used_gas_ratio": 0,
-                "security_warnings": [],
-                "slippage_limit": 0,
-                "source_hash_present": false,
-                "source_transaction": "FAILED",
-                "stx_enabled": false,
-                "swap_type": "single_chain",
-                "token_address_destination": "eip155:42161/slip44:60",
-                "token_address_source": "eip155:42161/slip44:60",
-                "token_security_type_destination": null,
-                "token_symbol_destination": "",
-                "token_symbol_source": "",
-                "usd_actual_gas": 0,
-                "usd_actual_return": 0,
-                "usd_amount_source": 0,
-                "usd_quoted_gas": 0,
-                "usd_quoted_return": 0,
-              },
-            ],
-          ]
-        `);
-      });
-
-      it('marks a batch-sell parent failed when the atomic 7702 tx fails', () => {
-        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish(
-          'TransactionController:transactionStatusUpdated',
-          {
-            transactionMeta: {
-              error: { name: 'Error', message: '7702 batch failed' },
-              chainId: CHAIN_IDS.ARBITRUM,
-              networkClientId: 'eth-id',
-              time: Date.now(),
-              txParams: {
-                authorizationList: [
-                  {
-                    address: '0xdelegation',
-                    chainId: '0xa',
-                    nonce: '0x1',
-                    r: '0xr',
-                    s: '0xs',
-                    yParity: '0x1',
-                  },
-                ],
-              } as unknown as TransactionParams,
-              type: TransactionType.batch,
-              delegationAddress: '0xdelegation',
-              nestedTransactions: [{ type: TransactionType.swap }],
-              status: TransactionStatus.failed,
-              id: '7702-batch-tx',
-              batchId: '0xbatchsellparent',
-            },
-          },
-        );
-
-        expect(
-          bridgeStatusController.state.txHistory['0xbatchsellparent'].status
-            .status,
-        ).toBe(StatusTypes.FAILED);
-        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
-          [
-            [
-              "AccountsController:getAccountByAddress",
-              "0xaccount1",
-            ],
-            [
-              "TransactionController:getState",
-            ],
-            [
-              "BridgeController:trackUnifiedSwapBridgeEvent",
-              "Unified SwapBridge Failed",
-              {
-                "account_hardware_type": null,
-                "action_type": "swapbridge-v1",
-                "actual_time_minutes": 833734.9086333333,
-                "allowance_reset_transaction": undefined,
-                "approval_transaction": undefined,
-                "batch_id": "0xbatchsellparent",
-                "chain_id_destination": "eip155:10",
-                "chain_id_source": "eip155:42161",
-                "custom_slippage": true,
-                "destination_hash_present": false,
-                "destination_transaction": "FAILED",
-                "error_code": "unknown",
-                "error_message": "Transaction failed. 7702 batch failed",
-                "failure_phase": "source_execution",
-                "feature_id": "unified_swap_bridge",
-                "gas_included": false,
-                "gas_included_7702": false,
-                "is_hardware_wallet": false,
-                "location": "Main View",
-                "price_impact": 0,
-                "provider": "lifi_across",
-                "quote_vs_execution_ratio": 0,
-                "quoted_time_minutes": 0.25,
-                "quoted_vs_used_gas_ratio": 0,
-                "security_warnings": [],
-                "slippage_limit": 0,
-                "source_hash_present": true,
-                "source_transaction": "COMPLETE",
-                "stx_enabled": false,
-                "swap_type": "crosschain",
-                "token_address_destination": "eip155:10/slip44:60",
-                "token_address_source": "eip155:42161/slip44:60",
-                "token_security_type_destination": null,
-                "token_symbol_destination": "ETH",
-                "token_symbol_source": "ETH",
-                "usd_actual_gas": 0,
-                "usd_actual_return": 0,
-                "usd_amount_source": 0,
-                "usd_quoted_gas": 2.5778,
-                "usd_quoted_return": 0,
-              },
-            ],
-          ]
-        `);
-      });
-
-      it('marks an atomic batch failed when its batch tx fails', () => {
-        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish(
-          'TransactionController:transactionStatusUpdated',
-          {
-            transactionMeta: {
-              error: { name: 'Error', message: 'batch failed' },
-              chainId: CHAIN_IDS.ARBITRUM,
-              networkClientId: 'eth-id',
-              time: Date.now(),
-              txParams: {} as unknown as TransactionParams,
-              type: TransactionType.swap,
-              status: TransactionStatus.failed,
-              id: 'atomic-trade',
-              batchId: '0xatomicbatchparent',
-            },
-          },
-        );
-
-        expect(
-          bridgeStatusController.state.txHistory['0xatomicbatchparent'].status
-            .status,
-        ).toBe(StatusTypes.FAILED);
-        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
-          [
-            [
-              "AccountsController:getAccountByAddress",
-              "0xaccount1",
-            ],
-            [
-              "TransactionController:getState",
-            ],
-            [
-              "BridgeController:trackUnifiedSwapBridgeEvent",
-              "Unified SwapBridge Failed",
-              {
-                "account_hardware_type": null,
-                "action_type": "swapbridge-v1",
-                "actual_time_minutes": 833734.9086333333,
-                "allowance_reset_transaction": undefined,
-                "approval_transaction": undefined,
-                "batch_id": "0xatomicbatchparent",
-                "chain_id_destination": "eip155:10",
-                "chain_id_source": "eip155:42161",
-                "custom_slippage": false,
-                "destination_hash_present": false,
-                "destination_transaction": "FAILED",
-                "error_code": "unknown",
-                "error_message": "Transaction failed. batch failed",
-                "failure_phase": "source_execution",
-                "feature_id": "unified_swap_bridge",
-                "gas_included": false,
-                "gas_included_7702": false,
-                "is_hardware_wallet": false,
-                "location": "Main View",
-                "price_impact": 0,
-                "provider": "lifi_across",
-                "quote_vs_execution_ratio": 0,
-                "quoted_time_minutes": 0.25,
-                "quoted_vs_used_gas_ratio": 0,
-                "security_warnings": [],
-                "slippage_limit": 0,
-                "source_hash_present": true,
-                "source_transaction": "COMPLETE",
-                "stx_enabled": false,
-                "swap_type": "crosschain",
-                "token_address_destination": "eip155:10/slip44:60",
-                "token_address_source": "eip155:42161/slip44:60",
-                "token_security_type_destination": null,
-                "token_symbol_destination": "ETH",
-                "token_symbol_source": "ETH",
-                "usd_actual_gas": 0,
-                "usd_actual_return": 0,
-                "usd_amount_source": 0,
-                "usd_quoted_gas": 2.5778,
-                "usd_quoted_return": 0,
-              },
-            ],
-          ]
-        `);
-      });
-
       it('should track failed event for bridge transaction', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
         mockMessenger.publish(

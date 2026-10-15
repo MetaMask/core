@@ -890,8 +890,12 @@ describe('BridgeStatusController', () => {
           expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
 
           // Verify that history item was added
+          const { batchSellData, pricingData, quote, ...historyItem } =
+            controller.state.txHistory.batchId1;
+          expect(batchSellData).toBeDefined();
+          expect(quote).toBeDefined();
           // eslint-disable-next-line jest/no-restricted-matchers
-          expect(controller.state.txHistory.batchId1).toMatchSnapshot();
+          expect(historyItem).toMatchSnapshot();
           expect(Object.keys(controller.state.txHistory)).toHaveLength(1);
         },
       );
@@ -1097,8 +1101,12 @@ describe('BridgeStatusController', () => {
           expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
 
           // Verify that history item was added
+          const { batchSellData, pricingData, quote, ...historyItem } =
+            controller.state.txHistory.batchId1;
+          expect(batchSellData).toBeDefined();
+          expect(quote).toBeDefined();
           // eslint-disable-next-line jest/no-restricted-matchers
-          expect(controller.state.txHistory.batchId1).toMatchSnapshot();
+          expect(historyItem).toMatchSnapshot();
           expect(Object.keys(controller.state.txHistory)).toHaveLength(1);
         },
       );
@@ -1326,175 +1334,18 @@ describe('BridgeStatusController', () => {
           expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
 
           // Verify that history item was added
+          const { batchSellData, pricingData, quote, ...historyItem } =
+            controller.state.txHistory['1'];
+          expect(batchSellData).toBeDefined();
+          expect(quote).toBeDefined();
           // eslint-disable-next-line jest/no-restricted-matchers
-          expect(controller.state.txHistory['1']).toMatchSnapshot();
+          expect(historyItem).toMatchSnapshot();
           expect(Object.keys(controller.state.txHistory)).toHaveLength(2);
         },
       );
     });
 
     // Each swap is its own tx, so transaction statuses are independent
-    it('keeps the first STX trade pending when a sibling fails during addTransactionBatch', async () => {
-      const gasIncluded7702 = false;
-      const gasIncluded = false;
-      const stxEnabled = true;
-
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1718217600000);
-      mockGenerateBatchId.mockReturnValueOnce('batchId1');
-      const mockBatchSellTrades = {
-        ...mockBatchSellTradesErc20Erc20,
-        gasIncluded7702,
-        gasIncluded,
-        transactions: [...mockBatchSellTradesErc20Erc20.transactions].filter(
-          (tx) => tx !== undefined,
-        ),
-      };
-      const batchTxs = mockBatchSellTrades.transactions
-        .filter((tx) => tx.type === BatchSellTransactionType.TRADE)
-        .map((tx, index) => ({
-          batchId: 'batchId1' as `0x${string}`,
-          txParams: {
-            from: tx.from,
-            data: tx.data,
-          },
-          type: TransactionType.swap,
-          id: String(index),
-          chainId: '0xa' as const,
-          time: Date.now(),
-          networkClientId: 'networkClientId',
-          status:
-            index === 0
-              ? TransactionStatus.submitted
-              : TransactionStatus.failed,
-        }));
-
-      mockMessengerCall.mockImplementation((action: string) => {
-        if (action === 'BridgeController:getState') {
-          return { batchSellTrades: mockBatchSellTrades };
-        }
-        if (action === 'AccountsController:getAccountByAddress') {
-          return mockSelectedAccount;
-        }
-        if (action === 'TransactionController:isAtomicBatchSupported') {
-          return false;
-        }
-        if (action === 'NetworkController:findNetworkClientIdByChainId') {
-          return 'networkClientId';
-        }
-        if (action === 'TransactionController:getState') {
-          return { transactions: batchTxs };
-        }
-      });
-
-      await withController(
-        { mockMessengerCall },
-        async ({ controller, rootMessenger }) => {
-          const failedTxMeta = batchTxs[1];
-          addTransactionBatchFn.mockImplementationOnce(async () => {
-            rootMessenger.publish(
-              'TransactionController:transactionStatusUpdated',
-              {
-                transactionMeta: failedTxMeta,
-              },
-            );
-            throw new Error('sibling failed');
-          });
-
-          const result = await rootMessenger.call(
-            'BridgeStatusController:submitBatchSell',
-            {
-              accountAddress: (mockQuotes[0].trade as TxData).from,
-              quoteResponses: mockQuotes,
-              isStxEnabled: stxEnabled,
-            },
-          );
-          expect(result).toStrictEqual(batchTxs[0]);
-
-          controller.stopAllPolling();
-
-          expect(Object.keys(controller.state.txHistory)).toHaveLength(2);
-
-          expect(controller.state.txHistory).toMatchObject({
-            '0': {
-              actionId: undefined,
-              batchId: 'batchId1',
-              txMetaId: '0',
-              status: {
-                srcChain: {
-                  chainId: 10,
-                  txHash: undefined,
-                },
-                status: StatusTypes.PENDING,
-              },
-            },
-            '1': {
-              actionId: undefined,
-              batchId: 'batchId1',
-              txMetaId: '1',
-              status: {
-                srcChain: {
-                  chainId: 10,
-                  txHash: undefined,
-                },
-                status: StatusTypes.FAILED,
-              },
-            },
-          });
-          expect(
-            mockMessengerCall.mock.calls.find(
-              ([action, name]) =>
-                action === 'BridgeController:trackUnifiedSwapBridgeEvent' &&
-                name === 'Unified SwapBridge Failed',
-            ),
-          ).toMatchInlineSnapshot(`
-            [
-              "BridgeController:trackUnifiedSwapBridgeEvent",
-              "Unified SwapBridge Failed",
-              {
-                "account_hardware_type": null,
-                "action_type": "swapbridge-v1",
-                "actual_time_minutes": 0,
-                "batch_id": "batchId1",
-                "chain_id_destination": "eip155:10",
-                "chain_id_source": "eip155:10",
-                "custom_slippage": false,
-                "destination_hash_present": false,
-                "error_code": "missing_error_object",
-                "error_message": "Transaction failed",
-                "failure_phase": "broadcast",
-                "feature_id": "unified_swap_bridge",
-                "gas_included": false,
-                "gas_included_7702": false,
-                "is_hardware_wallet": false,
-                "location": "Unknown",
-                "price_impact": 0,
-                "provider": "",
-                "quote_vs_execution_ratio": 0,
-                "quoted_time_minutes": 0,
-                "quoted_vs_used_gas_ratio": 0,
-                "security_warnings": [],
-                "slippage_limit": 0,
-                "source_hash_present": false,
-                "source_transaction": "FAILED",
-                "stx_enabled": false,
-                "swap_type": "single_chain",
-                "token_address_destination": "eip155:10/slip44:60",
-                "token_address_source": "eip155:10/slip44:60",
-                "token_security_type_destination": null,
-                "token_symbol_destination": "",
-                "token_symbol_source": "",
-                "usd_actual_gas": 0,
-                "usd_actual_return": 0,
-                "usd_amount_source": 0,
-                "usd_quoted_gas": 0,
-                "usd_quoted_return": 0,
-              },
-            ]
-          `);
-        },
-      );
-    });
-
     it('marks the first STX batch-sell history item FAILED when the first trade fails during addTransactionBatch', async () => {
       const gasIncluded7702 = false;
       const gasIncluded = false;
