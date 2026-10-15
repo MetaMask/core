@@ -54,6 +54,10 @@ Call `MarketingConsentController:refresh()` when the wallet UI opens or the app 
 
 To turn a marketing notification channel on, save consent first, then write the preferences through `NotificationServicesController:updateNotificationPreferences`. That method rejects marketing channels that are on without consent, with an error whose `code` is `MARKETING_CONSENT_REQUIRED_ERROR_CODE` (exported by `@metamask/notification-services-controller`).
 
+## Architecture
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for how the controller syncs consent with AUS.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
