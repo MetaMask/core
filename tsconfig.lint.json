@@ -300,6 +300,9 @@
       "path": "./packages/transaction-pay-controller/tsconfig.lint.json"
     },
     {
+      "path": "./packages/transaction-pay-middleware/tsconfig.lint.json"
+    },
+    {
       "path": "./packages/user-operation-controller/tsconfig.lint.json"
     },
     {
