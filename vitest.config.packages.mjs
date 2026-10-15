@@ -15,9 +15,8 @@ export default defineConfig({
   resolve: {
     // Apply the `paths` option from the package's `tsconfig.json`, which
     // resolves `@metamask/*` imports to the uncompiled source of packages that
-    // live in this repo and falls back to `node_modules` for the rest. Tests
-    // therefore need no build step, and the mapping lives in one place instead
-    // of two.
+    // live in this repo. Tests therefore need no build step, and the mapping
+    // lives in one place instead of two.
     tsconfigPaths: true,
   },
 
@@ -51,8 +50,7 @@ export default defineConfig({
       enabled: process.env.COLLECT_COVERAGE !== 'false',
 
       // Configure the coverage provider. We use `istanbul` here, because it is
-      // more stable than `v8` and closer to the `babel` provider used under
-      // Jest.
+      // more stable than `v8`.
       provider: 'istanbul',
 
       // The files to include in the coverage report.
