@@ -13,23 +13,23 @@ import { createRequire } from 'node:module';
  *
  * CommonJS, so `yarn.config.cjs` can read the same source of truth.
  */
-const { JEST_PACKAGES: jestPackages, VITEST_PACKAGES: vitestPackages } =
+const { JEST_WORKSPACES: jestWorkspaces, VITEST_WORKSPACES: vitestWorkspaces } =
   createRequire(import.meta.url)('./test-runner-package-map.cjs') as {
-    JEST_PACKAGES: string[];
-    VITEST_PACKAGES: string[];
+    JEST_WORKSPACES: string[];
+    VITEST_WORKSPACES: string[];
   };
 
 /**
- * Builds the test-file globs for a set of packages.
+ * Builds the test-file globs for a set of workspaces.
  *
- * @param names - The package directory names.
- * @returns Globs matching those packages' test files and test helpers.
+ * @param locations - Workspace locations relative to the repository root.
+ * @returns Globs matching those workspaces' test files and test helpers.
  */
-function testFilesIn(names: string[]): string[] {
-  return names.flatMap((name) => [
-    `packages/${name}/**/*.test.ts`,
-    `packages/${name}/**/test/**`,
-    `packages/${name}/**/tests/**`,
+function testFilesIn(locations: string[]): string[] {
+  return locations.flatMap((location) => [
+    `${location}/**/*.test.ts`,
+    `${location}/**/test/**`,
+    `${location}/**/tests/**`,
   ]);
 }
 
@@ -123,7 +123,7 @@ export default createConfig({
         'packages/*/jest.config.integration.cjs',
         'packages/*/jest.config.unit.cjs',
         'scripts/**/*.test.ts',
-        ...testFilesIn(jestPackages),
+        ...testFilesIn(jestWorkspaces),
       ],
       extends: [nodejs, jest],
       rules: {
@@ -142,7 +142,7 @@ export default createConfig({
         'tests/vitest/**',
         'vitest.config.packages.mjs',
         'packages/*/vitest.config.mjs',
-        ...testFilesIn(vitestPackages),
+        ...testFilesIn(vitestWorkspaces),
       ],
       extends: [nodejs, vitest],
       rules: {

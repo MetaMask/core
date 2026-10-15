@@ -1,6 +1,8 @@
 const { readdirSync } = require('node:fs');
 const path = require('node:path');
 
+const { workspaces } = require('./package.json');
+
 // Do not add to this list: new packages are expected to use Vitest.
 const PACKAGES_ON_JEST = new Set([
   '@metamask/account-tree-controller',
@@ -110,19 +112,49 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/wallet-framework-docs',
 ]);
 
-const packageNames = readdirSync(path.join(__dirname, 'packages'), {
-  withFileTypes: true,
-})
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => entry.name);
+/**
+ * Expands one `workspaces` pattern to the directories it matches.
+ *
+ * Only the `<dir>/*` shape the field actually uses is handled, and anything
+ * else throws rather than silently matching nothing. `fs.globSync` would be
+ * the obvious tool but needs a newer Node than this repo's engines range.
+ *
+ * @param {string} pattern - A pattern from the root `workspaces` field.
+ * @returns {string[]} Matching directories, relative to the repository root.
+ */
+function expandWorkspacePattern(pattern) {
+  const parent = path.dirname(pattern);
+  if (path.basename(pattern) !== '*' || parent.includes('*')) {
+    throw new Error(`Unsupported workspaces pattern: ${pattern}`);
+  }
 
-// Directory names, which is what file globs need. A constraint pins every
-// package's name to its directory.
-const JEST_PACKAGES = packageNames.filter((name) =>
-  PACKAGES_ON_JEST.has(`@metamask/${name}`),
-);
-const VITEST_PACKAGES = packageNames.filter(
-  (name) => !PACKAGES_ON_JEST.has(`@metamask/${name}`),
-);
+  let entries;
+  try {
+    entries = readdirSync(path.join(__dirname, parent), {
+      withFileTypes: true,
+    });
+  } catch (error) {
+    // A declared pattern that matches nothing yet, such as an empty `examples`.
+    if (error.code === 'ENOENT') {
+      return [];
+    }
+    throw error;
+  }
 
-module.exports = { PACKAGES_ON_JEST, JEST_PACKAGES, VITEST_PACKAGES };
+  return entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.posix.join(parent, entry.name));
+}
+
+// Taken from the `workspaces` field rather than assuming `packages/`, so a
+// workspace added anywhere else is still assigned a runner.
+const locations = workspaces.flatMap(expandWorkspacePattern);
+
+// A constraint pins every package's name to its directory.
+const onJest = (location) =>
+  PACKAGES_ON_JEST.has(`@metamask/${path.basename(location)}`);
+
+const JEST_WORKSPACES = locations.filter(onJest);
+const VITEST_WORKSPACES = locations.filter((location) => !onJest(location));
+
+module.exports = { PACKAGES_ON_JEST, JEST_WORKSPACES, VITEST_WORKSPACES };
