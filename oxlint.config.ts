@@ -22,7 +22,7 @@ const packageNames = readdirSync(path.join(monorepoRoot, 'packages'), {
   .map((entry) => entry.name);
 
 const vitestPackages = packageNames.filter((name) =>
-  existsSync(path.join(monorepoRoot, 'packages', name, 'vitest.config.mts')),
+  existsSync(path.join(monorepoRoot, 'packages', name, 'vitest.config.mjs')),
 );
 const jestPackages = packageNames.filter(
   (name) => !vitestPackages.includes(name),
@@ -100,7 +100,7 @@ export default createConfig({
         'oxlint.config.ts',
         'jest.config.packages.cjs',
         'jest.config.scripts.cjs',
-        'vitest.config.packages.mts',
+        'vitest.config.packages.mjs',
         // These import their globals explicitly.
         'tests/helpers.ts',
         'tests/matchers.ts',
@@ -140,8 +140,8 @@ export default createConfig({
     {
       files: [
         'tests/vitest/**',
-        'vitest.config.packages.mts',
-        'packages/*/vitest.config.mts',
+        'vitest.config.packages.mjs',
+        'packages/*/vitest.config.mjs',
         ...testFilesIn(vitestPackages),
       ],
       extends: [nodejs, vitest],

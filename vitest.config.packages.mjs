@@ -4,76 +4,26 @@
  * enable `globals: true`.
  */
 
-import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
 const monorepoRoot = path.dirname(fileURLToPath(import.meta.url));
-const packagesDir = path.join(monorepoRoot, 'packages');
-
-/**
- * Resolves `@metamask/*` to this repo's uncompiled source, falling back to
- * `node_modules`. `resolve.alias` cannot express the fallback, as an alias
- * always wins, whereas a `resolveId` hook can decline.
- *
- * NOTE: This must be synchronized with the `paths` option in
- * `tsconfig.packages.json`.
- *
- * @returns A Vite plugin.
- */
-function resolveWorkspaceSources(): Plugin {
-  const explicitTargets = new Map([
-    ['@metamask/json-rpc-engine/v2', 'json-rpc-engine/src/v2/index.ts'],
-    ['@metamask/utils/node', 'utils/src/node.ts'],
-    [
-      '@metamask/profile-sync-controller/auth',
-      'profile-sync-controller/src/controllers/authentication/index.ts',
-    ],
-    [
-      '@metamask/profile-sync-controller/user-storage',
-      'profile-sync-controller/src/controllers/user-storage/index.ts',
-    ],
-  ]);
-
-  return {
-    name: 'metamask:resolve-workspace-sources',
-    enforce: 'pre',
-    resolveId(source) {
-      const explicitTarget = explicitTargets.get(source);
-      if (explicitTarget) {
-        return path.join(packagesDir, explicitTarget);
-      }
-
-      const match = /^@metamask\/(?<name>[^/]+)$/u.exec(source);
-      if (match?.groups) {
-        const candidate = path.join(
-          packagesDir,
-          match.groups.name,
-          'src',
-          'index.ts',
-        );
-        if (existsSync(candidate)) {
-          return candidate;
-        }
-      }
-
-      return null;
-    },
-  };
-}
 
 export default defineConfig({
-  plugins: [resolveWorkspaceSources()],
+  resolve: {
+    // Applies the `paths` option from the package's `tsconfig.json`, which
+    // resolves `@metamask/*` to the uncompiled source of packages in this
+    // repo and falls back to `node_modules` for the rest. One mapping, not
+    // two.
+    tsconfigPaths: true,
+  },
 
   test: {
     // On by default in Vitest; `yarn test:watch` opts back in.
     watch: false,
 
-    include: ['{src,tests}/**/*.test.ts'],
-
-    environment: 'node',
+    include: ['src/**/*.test.ts'],
 
     // Jest's `setupFiles` and `setupFilesAfterEach`, which Vitest merges.
     setupFiles: [
@@ -119,7 +69,7 @@ export default defineConfig({
       provider: 'istanbul',
 
       include: ['src/**/*.ts'],
-      exclude: ['src/**/index.ts', 'src/**/*.test.ts'],
+      exclude: ['src/**/index.ts', 'src/**/*.test.ts', 'src/**/*.d.ts'],
 
       reporter: ['text', 'html', 'json-summary', 'lcov'],
       reportsDirectory: 'coverage',

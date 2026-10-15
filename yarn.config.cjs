@@ -880,7 +880,7 @@ function expectTestScripts(workspace) {
     expectWorkspaceField(
       workspace,
       'scripts.test:clean',
-      'rimraf node_modules/.vite',
+      'vitest --clearCache',
     );
     expectWorkspaceField(
       workspace,
@@ -911,7 +911,7 @@ function expectTestScripts(workspace) {
     expectWorkspaceField(
       workspace,
       'scripts.test:unit:clean',
-      'rimraf node_modules/.vite',
+      'vitest --clearCache',
     );
     expectWorkspaceField(
       workspace,
