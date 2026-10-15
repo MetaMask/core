@@ -44,7 +44,8 @@ export type GetGasFeeTokensRequest = {
  * @param request.publicKeyEIP7702 - Public key to validate EIP-7702 contract signatures.
  * @param request.transactionMeta - The transaction metadata.
  * @param request.getSimulationConfig - Optional transaction simulation parameters.
- * @returns The available gas fee tokens and whether gas fee sponsorship is available.
+ * @returns The available gas fee tokens and whether gas fee sponsorship is
+ * available. Sponsorship availability is `undefined` if the simulation fails.
  */
 export async function getGasFeeTokens({
   chainId,
@@ -55,7 +56,7 @@ export async function getGasFeeTokens({
   getSimulationConfig,
 }: GetGasFeeTokensRequest): Promise<{
   gasFeeTokens: GasFeeToken[];
-  isGasFeeSponsoredAvailable: boolean;
+  isGasFeeSponsoredAvailable?: boolean;
 }> {
   const { delegationAddress, txParams } = transactionMeta;
   const { authorizationList: authorizationListRequest } = txParams;
@@ -119,7 +120,7 @@ export async function getGasFeeTokens({
     return result;
   } catch (error) {
     log('Failed to gas fee tokens', error);
-    return { gasFeeTokens: [], isGasFeeSponsoredAvailable: false };
+    return { gasFeeTokens: [], isGasFeeSponsoredAvailable: undefined };
   }
 }
 

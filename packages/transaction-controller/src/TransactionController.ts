@@ -3757,17 +3757,23 @@ export class TransactionController extends BaseController<
 
     if (shouldRefreshGasFeeTokens) {
       this.#simulationRequestTokens.delete(transactionId);
-      const gasFeeTokensResult = await this.#getGasFeeTokens(transactionMeta);
-      gasFeeTokens = gasFeeTokensResult.gasFeeTokens;
+      const {
+        gasFeeTokens: refreshedGasFeeTokens,
+        isGasFeeSponsoredAvailable,
+      } = await this.#getGasFeeTokens(transactionMeta);
+      gasFeeTokens = refreshedGasFeeTokens;
 
-      preparedTransactionMeta = this.#updateTransactionInternal(
-        { transactionId },
-        (draftTxMeta) => {
-          draftTxMeta.gasFeeTokens = gasFeeTokens;
-          draftTxMeta.isGasFeeSponsoredAvailable =
-            gasFeeTokensResult.isGasFeeSponsoredAvailable;
-        },
-      );
+      // A failed refresh keeps the stored gas fee tokens and sponsorship
+      // availability. A selected gas fee token still fails the check below.
+      if (isGasFeeSponsoredAvailable !== undefined) {
+        preparedTransactionMeta = this.#updateTransactionInternal(
+          { transactionId },
+          (draftTxMeta) => {
+            draftTxMeta.gasFeeTokens = gasFeeTokens;
+            draftTxMeta.isGasFeeSponsoredAvailable = isGasFeeSponsoredAvailable;
+          },
+        );
+      }
     }
 
     await checkGasFeeTokenBeforePublish({

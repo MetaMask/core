@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A `publish` hook is required when `shouldSign` returns `false`; the controller no longer falls back to `eth_sendRawTransaction` with an unsigned payload.
 - Add `forceIsGasFeeSponsored` to `AddTransactionOptions`, `TransactionBatchRequest`, and `TransactionMeta` so transaction creators can require gas fee sponsorship from client hooks ([#10575](https://github.com/MetaMask/core/pull/10575))
 - Add `isGasFeeSponsoredAvailable` to `TransactionMeta`, set from simulation and refreshed on approval when simulation is enabled ([#10575](https://github.com/MetaMask/core/pull/10575))
+  - A failed gas fee token simulation leaves the previous value unchanged.
 - Add optional `isGasFeeSponsored` to `PublishHookResult` and the `onPublish` callback of existing batch transactions ([#10575](https://github.com/MetaMask/core/pull/10575))
 
 ### Changed

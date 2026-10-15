@@ -2595,6 +2595,59 @@ describe('TransactionController', () => {
         expect(statusUpdates[0].txParams.nonce).toBe(toHex(NONCE_MOCK));
       });
 
+      it('keeps sponsorship availability when the approval refresh fails', async () => {
+        getGasFeeTokensMock
+          .mockResolvedValueOnce(
+            createGasFeeTokensResult([GAS_FEE_TOKEN_MOCK], true),
+          )
+          .mockResolvedValue({
+            gasFeeTokens: [],
+            isGasFeeSponsoredAvailable: undefined,
+          });
+
+        const shouldSignHook: jest.MockedFn<ShouldSignHook> = jest
+          .fn()
+          .mockResolvedValue({ shouldSign: true });
+
+        const { controller, mockTransactionApprovalRequest } = setupController({
+          options: {
+            hooks: {
+              shouldSign: shouldSignHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0]).toMatchObject({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsoredAvailable: true,
+        });
+
+        mockTransactionApprovalRequest.approve();
+        await flushPromises();
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(2);
+        expect(
+          shouldSignHook.mock.calls[0][0].transactionMeta
+            .isGasFeeSponsoredAvailable,
+        ).toBe(true);
+        expect(controller.state.transactions[0]).toMatchObject({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsoredAvailable: true,
+        });
+      });
+
       it('skips nonce reservation and preserves an existing nonce when shouldSign resolves false', async () => {
         const shouldSignHook = jest
           .fn()

@@ -233,7 +233,7 @@ describe('Gas Fee Tokens Utils', () => {
       });
     });
 
-    it('returns empty if error', async () => {
+    it('returns empty tokens and unknown sponsorship availability if error', async () => {
       simulateTransactionsMock.mockImplementationOnce(() => {
         throw new Error('Simulation error');
       });
@@ -242,7 +242,7 @@ describe('Gas Fee Tokens Utils', () => {
 
       expect(result).toStrictEqual({
         gasFeeTokens: [],
-        isGasFeeSponsoredAvailable: false,
+        isGasFeeSponsoredAvailable: undefined,
       });
     });
 
