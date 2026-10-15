@@ -4,28 +4,40 @@ import { defineConfig } from 'vitest/config';
 
 const monorepoRoot = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * This configuration is extended by the `vitest.config.mjs` configuration in
+ * each package.
+ *
+ * For a detailed explanation of each option, visit:
+ * https://vitest.dev/config/
+ */
 export default defineConfig({
   resolve: {
-    // Applies the `paths` option from the package's `tsconfig.json`, which
-    // resolves `@metamask/*` to the uncompiled source of packages in this
-    // repo and falls back to `node_modules` for the rest. One mapping, not
-    // two.
+    // Apply the `paths` option from the package's `tsconfig.json`, which
+    // resolves `@metamask/*` imports to the uncompiled source of packages that
+    // live in this repo and falls back to `node_modules` for the rest. Tests
+    // therefore need no build step, and the mapping lives in one place instead
+    // of two.
     tsconfigPaths: true,
   },
 
   test: {
-    // On by default in Vitest; `yarn test:watch` opts back in.
+    // Vitest enables watch mode by default. We disable it here, so it can be
+    // explicitly enabled with `yarn test:watch`.
     watch: false,
 
+    // The files to include in the test run.
     include: ['src/**/*.test.ts'],
 
-    // Jest's `setupFiles` and `setupFilesAfterEach`, which Vitest merges.
+    // Jest's `setupFiles` and `setupFilesAfterEnv`, which Vitest merges into a
+    // single option.
     setupFiles: [
       path.join(monorepoRoot, 'tests/vitest/setup.ts'),
       path.join(monorepoRoot, 'tests/vitest/setup-after-env.ts'),
     ],
 
-    // Jest's `resetMocks` and `restoreMocks`.
+    // Reset mocks between tests, so a mocked implementation cannot leak from
+    // one test into the next.
     mockReset: true,
     restoreMocks: true,
 
@@ -40,15 +52,25 @@ export default defineConfig({
       // the root script need not know which runner a package uses.
       enabled: process.env.COLLECT_COVERAGE !== 'false',
 
-      // `istanbul` is both more stable than `v8` and closer to the `babel`
-      // provider used under Jest.
+      // Configure the coverage provider. We use `istanbul` here, because it is
+      // more stable than `v8` and closer to the `babel` provider used under
+      // Jest.
       provider: 'istanbul',
 
+      // The files to include in the coverage report.
       include: ['src/**/*.ts'],
+
+      // The files to exclude from the coverage report. An index file only
+      // re-exports, so it has nothing to cover. Setting this replaces Vitest's
+      // defaults, which is why test files are listed too.
       exclude: ['src/**/index.ts', 'src/**/*.test.ts', 'src/**/*.d.ts'],
 
+      // The reporters the Jest config uses, except that istanbul's `lcov`
+      // writes a second HTML report alongside the `lcov.info` file, so the
+      // narrower `lcovonly` stands in for it.
       reporter: ['text', 'html', 'json-summary', 'lcovonly'],
-      reportsDirectory: 'coverage',
+
+      // Each package configures its own thresholds.
     },
   },
 });
