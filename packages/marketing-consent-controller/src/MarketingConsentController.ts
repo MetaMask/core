@@ -21,7 +21,6 @@ import type {
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
-  KeyringControllerState,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -48,6 +47,34 @@ type ConsentSyncSession = {
   /** Whether AUS may have changed (e.g. on another device) since the last read. */
   remoteStale?: boolean;
 };
+
+/**
+ * The marketing consent held by AnalyticsController.
+ */
+type LocalConsent = {
+  /** Whether the user opted in to marketing. */
+  optedIn: boolean;
+  /** Whether the user made a marketing consent decision. */
+  decided: boolean;
+};
+
+/**
+ * Picks the marketing consent fields from AnalyticsController state.
+ *
+ * @param state - The AnalyticsController state.
+ * @returns The local marketing consent.
+ */
+function toLocalConsent(
+  state: Pick<
+    AnalyticsControllerState,
+    'optedInToMarketing' | 'marketingConsentDecisionMade'
+  >,
+): LocalConsent {
+  return {
+    optedIn: state.optedInToMarketing === true,
+    decided: state.marketingConsentDecisionMade === true,
+  };
+}
 
 // === STATE ===
 
@@ -192,19 +219,23 @@ export class MarketingConsentController extends BaseController<
   readonly #clientType: ClientType;
 
   /**
-   * The latest AnalyticsController state, which holds local consent.
+   * Whether the wallet is unlocked, kept in step with the KeyringController
+   * lock and unlock events.
    */
-  #analyticsState: AnalyticsControllerState;
+  #isUnlocked: boolean;
 
   /**
-   * The latest AuthenticationController state, used for the signed-in status.
+   * The last signed-in status seen, so a sign-in or sign-out can be told apart
+   * from other AuthenticationController changes.
    */
-  #authenticationState: AuthenticationControllerState;
+  #isSignedIn: boolean;
 
   /**
-   * The latest KeyringController state, used for the lock status.
+   * The last local consent seen, so the AnalyticsController listener can tell
+   * a first decision from a changed one. Read local consent with
+   * {@link MarketingConsentController.#getLocalConsent} instead.
    */
-  #keyringState: KeyringControllerState;
+  #lastSeenConsent: LocalConsent;
 
   /**
    * The current signed-in session.
@@ -253,11 +284,13 @@ export class MarketingConsentController extends BaseController<
     });
 
     this.#clientType = clientType;
-    this.#analyticsState = this.messenger.call('AnalyticsController:getState');
-    this.#authenticationState = this.messenger.call(
+    this.#isUnlocked = this.messenger.call(
+      'KeyringController:getState',
+    ).isUnlocked;
+    this.#isSignedIn = this.messenger.call(
       'AuthenticationController:getState',
-    );
-    this.#keyringState = this.messenger.call('KeyringController:getState');
+    ).isSignedIn;
+    this.#lastSeenConsent = this.#getLocalConsent();
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -362,12 +395,13 @@ export class MarketingConsentController extends BaseController<
     const expectedSession = this.#session;
     await this.#settleSync();
 
+    const localConsent = this.#getLocalConsent();
     if (
       expectedSession !== this.#session ||
       this.state.pendingMarketingConsent !== null ||
       this.#session.lastSynced !== expectedConsent ||
-      this.#analyticsState.marketingConsentDecisionMade !== true ||
-      this.#analyticsState.optedInToMarketing !== expectedConsent
+      !localConsent.decided ||
+      localConsent.optedIn !== expectedConsent
     ) {
       throw new Error('Marketing consent was not saved to AUS');
     }
@@ -387,21 +421,20 @@ export class MarketingConsentController extends BaseController<
    */
   #subscribe(): void {
     this.messenger.subscribe('KeyringController:unlock', () => {
-      this.#keyringState = { ...this.#keyringState, isUnlocked: true };
+      this.#isUnlocked = true;
       // AUS may have changed on another device while locked.
       this.refresh();
     });
 
     this.messenger.subscribe('KeyringController:lock', () => {
-      this.#keyringState = { ...this.#keyringState, isUnlocked: false };
+      this.#isUnlocked = false;
     });
 
     this.messenger.subscribe(
       'AuthenticationController:stateChanged',
       (state) => {
-        const changed =
-          this.#authenticationState.isSignedIn !== state.isSignedIn;
-        this.#authenticationState = state;
+        const changed = this.#isSignedIn !== state.isSignedIn;
+        this.#isSignedIn = state.isSignedIn;
 
         if (changed) {
           this.#session = {};
@@ -411,25 +444,33 @@ export class MarketingConsentController extends BaseController<
     );
 
     this.messenger.subscribe('AnalyticsController:stateChanged', (state) => {
-      const prior = this.#analyticsState;
-      this.#analyticsState = state;
+      const prior = this.#lastSeenConsent;
+      const now = toLocalConsent(state);
+      this.#lastSeenConsent = now;
 
-      const priorDecided = prior.marketingConsentDecisionMade === true;
-      const nowDecided = state.marketingConsentDecisionMade === true;
       const localConsentChanged =
-        prior.optedInToMarketing !== state.optedInToMarketing &&
-        priorDecided &&
-        nowDecided &&
-        this.#applyingRemoteValue !== state.optedInToMarketing;
-      const decisionJustMade = !priorDecided && nowDecided;
+        prior.optedIn !== now.optedIn &&
+        prior.decided &&
+        now.decided &&
+        this.#applyingRemoteValue !== now.optedIn;
+      const decisionJustMade = !prior.decided && now.decided;
 
       if (!localConsentChanged && !decisionJustMade) {
         return;
       }
 
-      this.#setPendingConsent(state.optedInToMarketing === true);
+      this.#setPendingConsent(now.optedIn);
       this.#startSync();
     });
+  }
+
+  /**
+   * Reads local consent from AnalyticsController.
+   *
+   * @returns Whether the user opted in to marketing and whether they decided.
+   */
+  #getLocalConsent(): LocalConsent {
+    return toLocalConsent(this.messenger.call('AnalyticsController:getState'));
   }
 
   /**
@@ -441,9 +482,7 @@ export class MarketingConsentController extends BaseController<
    */
   #isReady(): boolean {
     return (
-      this.#keyringState.isUnlocked &&
-      this.#authenticationState.isSignedIn &&
-      this.#analyticsState.marketingConsentDecisionMade === true
+      this.#isUnlocked && this.#isSignedIn && this.#getLocalConsent().decided
     );
   }
 
@@ -534,7 +573,7 @@ export class MarketingConsentController extends BaseController<
    * @param session - The session the read belongs to.
    */
   async #reconcileWithAus(session: ConsentSyncSession): Promise<void> {
-    const localValue = this.#analyticsState.optedInToMarketing === true;
+    const localValue = this.#getLocalConsent().optedIn;
 
     // AUS caches this query across profiles, so fetch fresh consent per session.
     await this.messenger.call(
