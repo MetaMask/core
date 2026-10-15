@@ -670,17 +670,15 @@
       "count": 1
     }
   },
-  "packages/approval-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 21
     },
     "typescript/no-unsafe-assignment": {
       "count": 5
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 16
     }
   },
   "packages/approval-controller/src/ApprovalController.ts": {
