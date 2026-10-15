@@ -1414,14 +1414,14 @@ export class KycController extends BaseController<
     const localUserSecret = await getOrCreateLocalUserSecret(
       this.#localUserSecretStore,
     );
-    const clientMaterial = deriveClientMaterial(localUserSecret);
+    const clientMaterial = await deriveClientMaterial(localUserSecret);
     const wrappedEncryptionDataKey = wrapEncryptionKey(
       sessionClientPrivateKey,
       encryptionDataKey.serverPublicKey.x,
       clientMaterial.dataEncryptionKey,
     );
 
-    const ukycCapabilityToken = signStorageAccessToken({
+    const ukycCapabilityToken = await signStorageAccessToken({
       material: clientMaterial,
       // TODO: Confirm with idOS when this can be switched back to read and a separate token is sent for write
       operations: ['read', 'write'],
