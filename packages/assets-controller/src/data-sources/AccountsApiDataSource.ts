@@ -965,6 +965,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
           };
         }
       }
+
+      if (response.errors && Object.keys(response.errors).length > 0) {
+        context.response.errors = {
+          ...context.response.errors,
+          ...response.errors,
+        };
+      }
     } catch (error) {
       log('Middleware fetch failed', { error });
     }

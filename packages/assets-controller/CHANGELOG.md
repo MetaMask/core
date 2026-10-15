@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Poll staked balances every hour instead of every 3 minutes. Subscribe still fetches immediately, and a confirmed transaction that touches the staking contract still refreshes the balance right away ([#10782](https://github.com/MetaMask/core/pull/10782))
 - Remove staked balances from the fast asset pipeline ([#10782](https://github.com/MetaMask/core/pull/10782))
 
+### Fixed
+
+- Copy Accounts API v5 fetch errors onto the asset pipeline context so unprocessed and timed-out chains are retried by RPC fallback and the slow pipeline ([#10782](https://github.com/MetaMask/core/pull/10782))
+
 ## [19.0.0]
 
 ### Added
