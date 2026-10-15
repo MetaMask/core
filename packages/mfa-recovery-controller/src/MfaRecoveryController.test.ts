@@ -512,12 +512,39 @@ describe('MfaRecoveryController', () => {
     });
 
     it('throws when a configured escrow is unavailable', async () => {
-      await withController(async ({ controller, escrowB }) => {
+      await withController(async ({ controller, escrowB, options }) => {
         await controller.register(SECRET, IDENTIFIERS);
         escrowB.available = false;
+        const auth = jest.spyOn(
+          options.authProvider,
+          'authorizeRecoveryRequest',
+        );
+        auth.mockClear();
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toThrow('All configured escrows are required for mutation');
+        expect(auth).not.toHaveBeenCalled();
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+
+    it('does not authorize a resumed authorizing mutation when an escrow is unavailable', async () => {
+      await withController(async ({ controller, escrowB, options }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        const auth = jest
+          .spyOn(options.authProvider, 'authorizeRecoveryRequest')
+          .mockRejectedValueOnce(new Error('auth down'));
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toThrow('auth down');
+        expect(await controller.getPhase()).toBe('authorizing');
+
+        escrowB.available = false;
+        auth.mockClear();
+        await expect(controller.resume()).rejects.toThrow(
+          'All configured escrows are required for mutation',
+        );
+        expect(auth).not.toHaveBeenCalled();
         expect(await controller.getPhase()).toBe('authorizing');
         await controller.abort();
       });

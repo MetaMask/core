@@ -465,6 +465,8 @@ export class MfaRecoveryController extends BaseController<
         );
       }
 
+      await this.#assertEscrowsAvailable(this.#escrows);
+
       const profileId = await this.#authProvider.getAuthenticatedProfileId();
       const audiences = this.#escrows.map((escrow) => escrow.id);
       const currentVersion = this.#resolveCurrentRecoveryVersion(epoch);
@@ -526,6 +528,7 @@ export class MfaRecoveryController extends BaseController<
     }
 
     if (pending.phase === 'authorizing') {
+      await this.#assertEscrowsAvailable(this.#escrows);
       await this.#replicateMutation({
         ...pending,
         phase: 'writing',
@@ -550,13 +553,7 @@ export class MfaRecoveryController extends BaseController<
       return;
     }
 
-    const availableEscrows = await this.#getAvailableEscrows(remainingEscrows);
-    if (availableEscrows.length !== remainingEscrows.length) {
-      throw new MfaRecoveryError(
-        'All configured escrows are required for mutation',
-        'escrow_unavailable',
-      );
-    }
+    await this.#assertEscrowsAvailable(remainingEscrows);
 
     const claims = decodeAuthControllerToken(pending.authControllerToken);
     const authControllerToken =
@@ -621,6 +618,19 @@ export class MfaRecoveryController extends BaseController<
       throw new IncompleteMutationError(mutation.id);
     }
     await this.#clearPending();
+  }
+
+  async #assertEscrowsAvailable(
+    escrows: RecoveryEscrowProvider[],
+  ): Promise<void> {
+    const availableEscrows = await this.#getAvailableEscrows(escrows);
+    // Do we want to wait for all escrows to be available?
+    if (availableEscrows.length !== escrows.length) {
+      throw new MfaRecoveryError(
+        'All configured escrows are required for mutation',
+        'escrow_unavailable',
+      );
+    }
   }
 
   #getRemainingEscrows(
