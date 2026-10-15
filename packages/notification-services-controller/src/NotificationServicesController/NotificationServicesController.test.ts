@@ -642,13 +642,14 @@ describe('NotificationServicesController', () => {
     };
 
     describe('when AUS preferences are not initialized (preferences are null)', () => {
-      it('writes a fresh preferences blob using hardcoded defaults, no wallet-activity addresses, and supplied marketing flags', async () => {
+      it('writes a fresh preferences blob using hardcoded defaults, no wallet-activity addresses, and marketing notifications from marketing consent', async () => {
         const {
           messenger,
           mockEnablePushNotifications,
           mockGetConfig,
           mockUpdateNotifications,
           mockKeyringControllerGetState,
+          mockAnalyticsControllerGetState,
         } = arrangeMocks({
           configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
         });
@@ -671,16 +672,16 @@ describe('NotificationServicesController', () => {
           ],
         });
 
+        mockAnalyticsControllerGetState.mockReturnValue({
+          optedInToMarketing: true,
+        });
         const controller = new NotificationServicesController({
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
         controller.init();
 
-        await controller.createOnChainTriggers({
-          hasMarketingConsent: true,
-          productAnnouncementEnabled: false,
-        });
+        await controller.createOnChainTriggers();
 
         expect(mockGetConfig).toHaveBeenCalled();
         expect(mockTriggerQuery.isDone()).toBe(true);
@@ -695,7 +696,7 @@ describe('NotificationServicesController', () => {
             accounts: [],
           },
           marketing: {
-            inAppNotificationsEnabled: false,
+            inAppNotificationsEnabled: true,
             pushNotificationsEnabled: true,
           },
           perps: { ...DEFAULT_PERPS_PREFERENCES },
@@ -914,7 +915,7 @@ describe('NotificationServicesController', () => {
         });
       });
 
-      it('enables marketing in-app notifications when product announcements are enabled', async () => {
+      it('keeps marketing notifications off without marketing consent, ignoring the deprecated options', async () => {
         const { messenger, mockUpdateNotifications } = arrangeMocks({
           configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
         });
@@ -927,12 +928,13 @@ describe('NotificationServicesController', () => {
         controller.init();
 
         await controller.createOnChainTriggers({
+          hasMarketingConsent: true,
           productAnnouncementEnabled: true,
         });
 
         const [writtenPrefs] = mockUpdateNotifications.mock.calls[0];
         expect(writtenPrefs.marketing).toStrictEqual({
-          inAppNotificationsEnabled: true,
+          inAppNotificationsEnabled: false,
           pushNotificationsEnabled: false,
         });
       });

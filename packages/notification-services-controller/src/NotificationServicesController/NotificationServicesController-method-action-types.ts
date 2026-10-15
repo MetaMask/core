@@ -36,6 +36,10 @@ export type NotificationServicesControllerCheckAccountsPresenceAction = {
  *
  * **Action** - used in the notification settings to enable/disable feature announcements.
  *
+ * @deprecated Feature announcements follow marketing consent (the AUS
+ * `marketing.inAppNotificationsEnabled` preference). Nothing in this
+ * controller reads the flag this sets, and it will be removed.
+ *
  * @param featureAnnouncementsEnabled - A boolean value indicating the desired enabled state of the feature announcements.
  * @async
  * @throws {Error} If fails to update
@@ -55,11 +59,13 @@ export type NotificationServicesControllerSetFeatureAnnouncementsEnabledAction =
  * {@link AuthenticatedUserStorageService} has no stored preferences yet.
  * Existing preferences are left as-is.
  *
+ * When preferences are initialized, both marketing channels (push, and
+ * in-app feature announcements) follow `AnalyticsController` marketing
+ * consent.
+ *
  * @param opts - optional options to mutate this functionality
- * @param opts.hasMarketingConsent - The user's marketing-consent flag.
- * Used only during initialization to seed marketing push notifications.
- * @param opts.productAnnouncementEnabled - The user's product-announcement flag.
- * Used only during initialization to seed marketing in-app notifications.
+ * @param opts.hasMarketingConsent - Deprecated and ignored.
+ * @param opts.productAnnouncementEnabled - Deprecated and ignored.
  * @param opts.registerPushNotifications - Whether to attempt FCM/device push registration.
  * @returns The updated or newly created user storage.
  * @throws {Error} Throws an error if unauthenticated or from other operations.

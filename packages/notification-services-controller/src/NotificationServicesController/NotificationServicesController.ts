@@ -87,6 +87,11 @@ export type NotificationServicesControllerState = {
 
   /**
    * Flag that indicates if the feature announcements are enabled
+   *
+   * @deprecated Feature announcements follow marketing consent: they are the
+   * AUS `marketing.inAppNotificationsEnabled` preference, seeded from
+   * `AnalyticsController` consent. Nothing in this controller reads this flag,
+   * and it will be removed.
    */
   isFeatureAnnouncementsEnabled: boolean;
 
@@ -197,15 +202,14 @@ export const defaultState: NotificationServicesControllerState = {
 
 export type NotificationServicesControllerEnableNotificationsOptions = {
   /**
-   * Whether the user has consented to marketing notifications. Used only when
-   * notification preferences are being initialized for the first time to seed
-   * marketing push notifications.
+   * @deprecated Ignored. Marketing notifications are seeded from
+   * `AnalyticsController` marketing consent. This option will be removed.
    */
   hasMarketingConsent?: boolean;
   /**
-   * Whether product announcements are enabled. Used only when notification
-   * preferences are being initialized for the first time to seed marketing
-   * in-app notifications.
+   * @deprecated Ignored. Marketing in-app notifications (feature
+   * announcements) are seeded from `AnalyticsController` marketing consent.
+   * This option will be removed.
    */
   productAnnouncementEnabled?: boolean;
   /**
@@ -288,8 +292,7 @@ const getEnabledAccounts = async (
 
 /**
  * Builds a fresh `NotificationPreferences` blob using hardcoded defaults for
- * Perps, Social AI, and Agentic CLI and the user's
- * marketing/product-announcement flags.
+ * Perps, Social AI, and Agentic CLI and the user's marketing consent.
  *
  * `walletActivity` is written only because the blob schema requires the field;
  * nothing reads it back. Both channels are always on, and subscriptions are
@@ -297,13 +300,12 @@ const getEnabledAccounts = async (
  * to a keyring, but this blob is keyed by canonical profile ID, which pairing
  * shares across every SRP belonging to the same user.
  *
- * @param hasMarketingConsent - Whether marketing push notifications should be enabled.
- * @param productAnnouncementEnabled - Whether marketing in-app notifications should be enabled.
+ * @param hasMarketingConsent - Whether the user consents to marketing. Both
+ * marketing channels (push, and in-app feature announcements) follow it.
  * @returns A complete `NotificationPreferences` object.
  */
 const buildFreshPreferences = (
   hasMarketingConsent: boolean,
-  productAnnouncementEnabled: boolean,
 ): NotificationPreferences => ({
   walletActivity: {
     inAppNotificationsEnabled: true,
@@ -311,7 +313,7 @@ const buildFreshPreferences = (
     accounts: [],
   },
   marketing: {
-    inAppNotificationsEnabled: productAnnouncementEnabled,
+    inAppNotificationsEnabled: hasMarketingConsent,
     pushNotificationsEnabled: hasMarketingConsent,
   },
   perps: { ...DEFAULT_PERPS_PREFERENCES },
@@ -1006,6 +1008,10 @@ export class NotificationServicesController extends BaseController<
    *
    * **Action** - used in the notification settings to enable/disable feature announcements.
    *
+   * @deprecated Feature announcements follow marketing consent (the AUS
+   * `marketing.inAppNotificationsEnabled` preference). Nothing in this
+   * controller reads the flag this sets, and it will be removed.
+   *
    * @param featureAnnouncementsEnabled - A boolean value indicating the desired enabled state of the feature announcements.
    * @async
    * @throws {Error} If fails to update
@@ -1032,11 +1038,13 @@ export class NotificationServicesController extends BaseController<
    * {@link AuthenticatedUserStorageService} has no stored preferences yet.
    * Existing preferences are left as-is.
    *
+   * When preferences are initialized, both marketing channels (push, and
+   * in-app feature announcements) follow `AnalyticsController` marketing
+   * consent.
+   *
    * @param opts - optional options to mutate this functionality
-   * @param opts.hasMarketingConsent - The user's marketing-consent flag.
-   * Used only during initialization to seed marketing push notifications.
-   * @param opts.productAnnouncementEnabled - The user's product-announcement flag.
-   * Used only during initialization to seed marketing in-app notifications.
+   * @param opts.hasMarketingConsent - Deprecated and ignored.
+   * @param opts.productAnnouncementEnabled - Deprecated and ignored.
    * @param opts.registerPushNotifications - Whether to attempt FCM/device push registration.
    * @returns The updated or newly created user storage.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
@@ -1062,10 +1070,11 @@ export class NotificationServicesController extends BaseController<
         'AuthenticatedUserStorageService:getNotificationPreferences',
       );
 
-      const hasMarketingConsent = Boolean(opts?.hasMarketingConsent);
-      const productAnnouncementEnabled = Boolean(
-        opts?.productAnnouncementEnabled,
-      );
+      // Marketing notifications require marketing consent, read from its
+      // source rather than from the caller.
+      const hasMarketingConsent =
+        this.messenger.call('AnalyticsController:getState')
+          .optedInToMarketing === true;
 
       const isFirstTimeSetup = preferences === null;
 
@@ -1108,10 +1117,7 @@ export class NotificationServicesController extends BaseController<
       if (isFirstTimeSetup) {
         await this.messenger.call(
           'AuthenticatedUserStorageService:putNotificationPreferences',
-          buildFreshPreferences(
-            hasMarketingConsent,
-            productAnnouncementEnabled,
-          ),
+          buildFreshPreferences(hasMarketingConsent),
           this.#featureAnnouncementEnv.platform,
         );
       }

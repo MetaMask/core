@@ -15,10 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `NotificationServicesControllerMessenger` requires `AnalyticsController:getState` in its allowed actions ([#10821](https://github.com/MetaMask/core/pull/10821))
+- **BREAKING:** When notification preferences are created for the first time, both marketing channels (push, and in-app feature announcements) now follow `AnalyticsController` marketing consent; the `hasMarketingConsent` and `productAnnouncementEnabled` options of `createOnChainTriggers` and `enableMetamaskNotifications` are ignored. Users without marketing consent no longer start with feature announcements on ([#10821](https://github.com/MetaMask/core/pull/10821))
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
 - Bump `loglevel` from `^1.8.1` to `^1.9.2` ([#10724](https://github.com/MetaMask/core/pull/10724))
 - Bump `firebase` from `^11.10.0` to `^12.19.0` ([#10600](https://github.com/MetaMask/core/pull/10600))
 - Bump `@contentful/rich-text-html-renderer` from `^16.5.2` to `^16.6.10` ([#10712](https://github.com/MetaMask/core/pull/10712))
+
+### Deprecated
+
+- Deprecate the `isFeatureAnnouncementsEnabled` state property, the `setFeatureAnnouncementsEnabled` method and its `NotificationServicesController:setFeatureAnnouncementsEnabled` action, and the `hasMarketingConsent` and `productAnnouncementEnabled` options. Feature announcements follow marketing consent through the Authenticated User Storage `marketing.inAppNotificationsEnabled` preference ([#10821](https://github.com/MetaMask/core/pull/10821))
 
 ## [29.0.3]
 
