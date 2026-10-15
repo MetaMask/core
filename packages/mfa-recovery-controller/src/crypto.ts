@@ -1,3 +1,6 @@
+import { getRandomBytes } from '@metamask/cryptography';
+import { hkdfSha256 } from '@metamask/cryptography/hkdf';
+import { sha256 } from '@metamask/cryptography/sha';
 import {
   base64ToBytes,
   bytesToBase64,
@@ -9,8 +12,6 @@ import {
 import type { Hex } from '@metamask/utils';
 import { chacha20poly1305 } from '@noble/ciphers/chacha';
 import { p256 } from '@noble/curves/nist';
-import { hkdf } from '@noble/hashes/hkdf';
-import { sha256 as sha256Sync } from '@noble/hashes/sha2';
 
 import type { EcPublicJwk, Identifier } from './types.js';
 
@@ -34,8 +35,8 @@ export function canonicalize(value: unknown): string {
  * @param value - Value to hash.
  * @returns Hex digest.
  */
-export function hash(value: unknown): Hex {
-  return bytesToHex(sha256Sync(stringToBytes(canonicalize(value))));
+export async function hash(value: unknown): Promise<Hex> {
+  return bytesToHex(await sha256(stringToBytes(canonicalize(value))));
 }
 
 /**
@@ -83,7 +84,7 @@ export function canonicalizeIdentifiers(identifiers: Identifier[]): unknown {
  * @returns A random 0x-prefixed id.
  */
 export function randomId(): Hex {
-  return bytesToHex(randomBytes(16));
+  return bytesToHex(getRandomBytes(16));
 }
 
 /**
@@ -128,14 +129,14 @@ export function generateSigningKey(): {
  * @param message - Message string; hashed with SHA-256 before ECDSA.
  * @returns Compact IEEE P1363 hex signature (`r‖s`).
  */
-export function sign(privateKey: string, message: string): Hex {
+export async function sign(privateKey: string, message: string): Promise<Hex> {
   const jwk = JSON.parse(privateKey) as { d?: string };
   if (typeof jwk.d !== 'string') {
     throw new Error('Invalid P-256 private JWK');
   }
   return bytesToHex(
     p256
-      .sign(sha256Sync(stringToBytes(message)), fromBase64Url(jwk.d))
+      .sign(await sha256(stringToBytes(message)), fromBase64Url(jwk.d))
       .toBytes('compact'),
   );
 }
@@ -148,11 +149,11 @@ export function sign(privateKey: string, message: string): Hex {
  * @param message - Message string; hashed with SHA-256 before ECDSA.
  * @returns Whether the signature is valid.
  */
-export function verifySignature(
+export async function verifySignature(
   publicKey: string,
   signature: string,
   message: string,
-): boolean {
+): Promise<boolean> {
   const jwk = JSON.parse(publicKey) as { x?: string; y?: string };
   if (typeof jwk.x !== 'string' || typeof jwk.y !== 'string') {
     return false;
@@ -160,7 +161,7 @@ export function verifySignature(
   try {
     return p256.verify(
       hexToBytes(signature),
-      sha256Sync(stringToBytes(message)),
+      await sha256(stringToBytes(message)),
       concatBytes([
         new Uint8Array([0x04]),
         fromBase64Url(jwk.x),
@@ -184,13 +185,13 @@ export function verifySignature(
  * @param receipt.version - Applied version.
  * @returns Hex digest.
  */
-export function hashMutationReceipt(receipt: {
+export async function hashMutationReceipt(receipt: {
   escrowId: string;
   mutationId: string;
   receiptKeyId: string;
   requestHash: string;
   version: number;
-}): Hex {
+}): Promise<Hex> {
   return hash({
     escrowId: receipt.escrowId,
     mutationId: receipt.mutationId,
@@ -216,8 +217,10 @@ export function decodeHex(hexString: string): Uint8Array {
  * @param wrapPublicKey - Wrap public JWK JSON.
  * @returns Key id matching cubist `wrapKeyId`.
  */
-export function wrapKeyId(wrapPublicKey: string): Hex {
-  return bytesToHex(sha256Sync(publicKeyBytesFromJwk(wrapPublicKey)));
+export async function wrapKeyId(wrapPublicKey: string): Promise<Hex> {
+  return bytesToHex(
+    await sha256(new Uint8Array(publicKeyBytesFromJwk(wrapPublicKey))),
+  );
 }
 
 /**
@@ -228,13 +231,13 @@ export function wrapKeyId(wrapPublicKey: string): Hex {
  * @param plaintext - Bytes to encrypt.
  * @returns Unprefixed hex of `nonce || ciphertext+tag`.
  */
-export function encryptToPublic(
+export async function encryptToPublic(
   privateKey: string,
   publicKey: string,
   plaintext: Uint8Array,
-): string {
-  const key = deriveTransportKey(privateKey, publicKey);
-  const nonce = randomBytes(CHACHA_NONCE_LEN);
+): Promise<string> {
+  const key = await deriveTransportKey(privateKey, publicKey);
+  const nonce = getRandomBytes(CHACHA_NONCE_LEN);
   const ciphertext = chacha20poly1305(key, nonce).encrypt(plaintext);
   return bytesToHex(concatBytes([nonce, ciphertext])).slice(2);
 }
@@ -247,12 +250,12 @@ export function encryptToPublic(
  * @param ciphertextHex - Unprefixed or `0x` hex of `nonce || ciphertext+tag`.
  * @returns Plaintext bytes.
  */
-export function decryptFromPublic(
+export async function decryptFromPublic(
   privateKey: string,
   publicKey: string,
   ciphertextHex: string,
-): Uint8Array {
-  const key = deriveTransportKey(privateKey, publicKey);
+): Promise<Uint8Array> {
+  const key = await deriveTransportKey(privateKey, publicKey);
   const blob = decodeHex(ciphertextHex);
   if (blob.length < CHACHA_NONCE_LEN) {
     throw new Error('Wrapped secret is truncated');
@@ -262,13 +265,18 @@ export function decryptFromPublic(
   );
 }
 
-function deriveTransportKey(privateKey: string, publicKey: string): Uint8Array {
+async function deriveTransportKey(
+  privateKey: string,
+  publicKey: string,
+): Promise<Uint8Array> {
   const privateBytes = privateKeyBytesFromJwk(privateKey);
   const publicBytes = publicKeyBytesFromJwk(publicKey);
   const shared = p256.getSharedSecret(privateBytes, publicBytes);
   // noble returns a compressed point (33 bytes). Cubist uses the 32-byte x-coordinate.
   const ikm = shared.slice(1, 33);
-  return hkdf(sha256Sync, ikm, undefined, WRAP_INFO, CHACHA_KEY_LEN);
+  // An empty salt is equivalent to the previous `undefined` salt: HMAC zero-pads
+  // the key to the block size either way, so derived keys are unchanged.
+  return hkdfSha256(ikm, new Uint8Array(0), WRAP_INFO, CHACHA_KEY_LEN);
 }
 
 function privateKeyBytesFromJwk(privateKey: string): Uint8Array {
@@ -307,14 +315,6 @@ function toBase64Url(bytes: Uint8Array): string {
     .replace(/\+/gu, '-')
     .replace(/\//gu, '_')
     .replace(/[=]+$/u, '');
-}
-
-/**
- * @param length - Number of bytes to generate.
- * @returns CSPRNG bytes.
- */
-function randomBytes(length: number): Uint8Array {
-  return globalThis.crypto.getRandomValues(new Uint8Array(length));
 }
 
 /**

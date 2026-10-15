@@ -57,16 +57,16 @@ export function isMutationReceipt(value: unknown): value is MutationReceipt {
  * @param escrow - Expected target escrow provider.
  * @returns Whether the receipt is valid for the target.
  */
-export function verifyMutationReceipt(
+export async function verifyMutationReceipt(
   receipt: MutationReceipt,
   mutation: Mutation,
   escrow: RecoveryEscrowProvider,
-): boolean {
+): Promise<boolean> {
   if (receipt.escrowId !== escrow.id) {
     return false;
   }
   try {
-    return escrow.verifyReceipt(receipt, mutation, escrow.id);
+    return await escrow.verifyReceipt(receipt, mutation, escrow.id);
   } catch {
     return false;
   }

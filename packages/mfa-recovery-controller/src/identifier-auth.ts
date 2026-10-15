@@ -101,7 +101,7 @@ export async function authorizeEscrowsWithToken({
   );
   const authorizationResults = await Promise.allSettled(
     challenges.map(async ({ escrow, challenge }) => {
-      const message = hash([token, challenge.id, token.requestHash]);
+      const message = await hash([token, challenge.id, token.requestHash]);
       return {
         escrow,
         authorization: {
@@ -110,7 +110,7 @@ export async function authorizeEscrowsWithToken({
           proof: {
             challengeId: challenge.id,
             requestHash: token.requestHash,
-            signature: sign(proofPrivateKey, message),
+            signature: await sign(proofPrivateKey, message),
           },
         },
       };

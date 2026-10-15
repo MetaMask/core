@@ -117,7 +117,9 @@ export class StubAuthProvider implements RecoveryAuthProvider {
       ...(params.identifiers === undefined
         ? {}
         : {
-            identifiersHash: hash(canonicalizeIdentifiers(params.identifiers)),
+            identifiersHash: await hash(
+              canonicalizeIdentifiers(params.identifiers),
+            ),
           }),
     });
   }
@@ -137,7 +139,7 @@ export class StubIdentifierAuthProvider implements RecoveryIdentifierAuthProvide
       proofPublicKey: params.proofPublicKey,
       requestHash: params.requestHash,
       providerAssertion: {
-        bound: hash({
+        bound: await hash({
           proofPublicKey: params.proofPublicKey,
           requestHash: params.requestHash,
         }),
@@ -246,7 +248,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         'get_secret_failed',
       );
     }
-    const requestHash = hash({
+    const requestHash = await hash({
       operation: 'getRecoverySecret',
       requestId,
       pkE,
@@ -261,7 +263,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     }
     return {
       recoverySecret: {
-        ciphertext: encryptToPublic(
+        ciphertext: await encryptToPublic(
           this.#wrapPrivateKey,
           JSON.stringify(pkE),
           decodeHex(record.recoverySecret),
@@ -269,7 +271,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       },
       version: record.version,
       lastMutationId: record.lastMutationId,
-      wrapKeyId: wrapKeyId(this.wrapPublicKey),
+      wrapKeyId: await wrapKeyId(this.wrapPublicKey),
     };
   }
 
@@ -338,7 +340,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         throw new MfaRecoveryError('Invalid registration', 'invalid_register');
       }
       const registerPayload = payload as RegisterPayload;
-      const recoverySecret = this.#unwrapPayloadSecret(
+      const recoverySecret = await this.#unwrapPayloadSecret(
         registerPayload.recoverySecret,
       );
       await this.#assertPayloadHash(mutation, {
@@ -398,7 +400,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     }
 
     if (mutation.operation === 'updateRecoverySecret') {
-      const recoverySecret = this.#unwrapPayloadSecret(
+      const recoverySecret = await this.#unwrapPayloadSecret(
         (payload as UpdateRecoverySecretPayload).recoverySecret,
       );
       await this.#assertPayloadHash(mutation, {
@@ -428,11 +430,11 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     return await this.#signReceipt(mutation);
   }
 
-  verifyReceipt(
+  async verifyReceipt(
     receipt: MutationReceipt,
     mutation: Mutation,
     expectedEscrowId: string,
-  ): boolean {
+  ): Promise<boolean> {
     if (this.invalidReceipts) {
       return false;
     }
@@ -442,14 +444,14 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       receipt.escrowId !== expectedEscrowId ||
       expectedEscrowId !== this.id ||
       receipt.version !== mutation.newVersion ||
-      receipt.receiptKeyId !== wrapKeyId(this.receiptPublicKey)
+      receipt.receiptKeyId !== (await wrapKeyId(this.receiptPublicKey))
     ) {
       return false;
     }
-    return verifySignature(
+    return await verifySignature(
       this.receiptPublicKey,
       receipt.signature,
-      hashMutationReceipt({
+      await hashMutationReceipt({
         escrowId: receipt.escrowId,
         mutationId: receipt.mutationId,
         receiptKeyId: receipt.receiptKeyId,
@@ -503,11 +505,14 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       requestHash: mutation.requestHash,
       escrowId: this.id,
       version: mutation.newVersion,
-      receiptKeyId: wrapKeyId(this.receiptPublicKey),
+      receiptKeyId: await wrapKeyId(this.receiptPublicKey),
     };
     return {
       ...unsigned,
-      signature: sign(this.#receiptPrivateKey, hashMutationReceipt(unsigned)),
+      signature: await sign(
+        this.#receiptPrivateKey,
+        await hashMutationReceipt(unsigned),
+      ),
     };
   }
 
@@ -515,7 +520,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     mutation: Mutation,
     token: AuthControllerToken,
   ): Promise<void> {
-    const requestHash = hash({
+    const requestHash = await hash({
       id: mutation.id,
       profileId: mutation.profileId,
       operation: mutation.operation,
@@ -552,7 +557,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   ): Promise<void> {
     if (
       decodeAuthControllerToken(token)?.ext.identifiersHash !==
-      hash(canonicalizeIdentifiers(identifiers))
+      (await hash(canonicalizeIdentifiers(identifiers)))
     ) {
       throw new MfaRecoveryError(
         'Identifier ownership not approved',
@@ -589,8 +594,10 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     ) {
       throw new MfaRecoveryError('Invalid PoP challenge', 'invalid_challenge');
     }
-    const message = hash([token, proof.challengeId, requestHash]);
-    if (!verifySignature(token.proofPublicKey, proof.signature, message)) {
+    const message = await hash([token, proof.challengeId, requestHash]);
+    if (
+      !(await verifySignature(token.proofPublicKey, proof.signature, message))
+    ) {
       throw new MfaRecoveryError('Invalid PoP signature', 'invalid_pop');
     }
     challenge.consumed = true;
@@ -636,7 +643,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     mutation: Mutation,
     payload: unknown,
   ): Promise<void> {
-    if (hash(payload) !== mutation.payloadHash) {
+    if ((await hash(payload)) !== mutation.payloadHash) {
       throw new MfaRecoveryError(
         'Mutation payload does not match payloadHash',
         'payload_mismatch',
@@ -644,9 +651,9 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     }
   }
 
-  #unwrapPayloadSecret(wrapped: WrappedSecret): string {
+  async #unwrapPayloadSecret(wrapped: WrappedSecret): Promise<string> {
     return bytesToHex(
-      decryptFromPublic(
+      await decryptFromPublic(
         this.#wrapPrivateKey,
         JSON.stringify(wrapped.pkE),
         wrapped.ciphertext,

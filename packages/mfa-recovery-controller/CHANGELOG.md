@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mutation `payloadHash` is the hash of the logical pending payload (`identifiers` and/or `0x`-hex secret). At apply, each escrow receives `{ pkE, ciphertext }` wrapped to its own wrap key with escrow-wrap-v1
   - `getSecret` request hashes bind the client's ephemeral `pkE`; responses are `{ ciphertext }` plus `wrapKeyId`
   - `Mutation.audiences` is the configured replica-id list, in that order. Each replica should require an exact match
-  - `MutationReceipt` includes `receiptKeyId`. `RecoveryEscrowProvider.verifyReceipt` takes the expected escrow id and verifies with that replica's receipt key
+  - `MutationReceipt` includes `receiptKeyId`. `RecoveryEscrowProvider.verifyReceipt` takes the expected escrow id, verifies with that replica's receipt key, and returns a `Promise<boolean>`
   - `AuthControllerToken.expiresAt` and `PoPChallenge.expiresAt` are Unix seconds
   - Mutations require idle pending state (`resume()` / `abort()` first). `abort()` drops `authorizing` only; `writing` must be finished with `resume()`
   - `CubistEscrowProvider` invokes Cubist escrow commands through `@cubist-labs/cubesigner-sdk` `policyInvoke` (`ping`, `generateChallenge`, `applyMutation`, `getSecret` on `cubist_secret_escrow`) and verifies receipts with a pinned receipt public key

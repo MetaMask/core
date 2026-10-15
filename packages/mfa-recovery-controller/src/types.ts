@@ -297,7 +297,7 @@ export type RecoveryEscrowProvider = {
     receipt: MutationReceipt,
     mutation: Mutation,
     expectedEscrowId: string,
-  ) => boolean;
+  ) => Promise<boolean>;
 };
 
 /**

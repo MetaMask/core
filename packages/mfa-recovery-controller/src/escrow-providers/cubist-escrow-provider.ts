@@ -157,25 +157,25 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
    * @param expectedEscrowId - Escrow identity expected by the caller.
    * @returns Whether the receipt is valid for this escrow.
    */
-  verifyReceipt(
+  async verifyReceipt(
     receipt: MutationReceipt,
     mutation: Mutation,
     expectedEscrowId: string,
-  ): boolean {
+  ): Promise<boolean> {
     if (
       receipt.mutationId !== mutation.id ||
       receipt.requestHash !== mutation.requestHash ||
       receipt.escrowId !== expectedEscrowId ||
       expectedEscrowId !== this.id ||
       receipt.version !== mutation.newVersion ||
-      receipt.receiptKeyId !== wrapKeyId(this.#receiptPublicKey)
+      receipt.receiptKeyId !== (await wrapKeyId(this.#receiptPublicKey))
     ) {
       return false;
     }
-    return verifySignature(
+    return await verifySignature(
       this.#receiptPublicKey,
       receipt.signature,
-      hashMutationReceipt({
+      await hashMutationReceipt({
         escrowId: receipt.escrowId,
         mutationId: receipt.mutationId,
         receiptKeyId: receipt.receiptKeyId,

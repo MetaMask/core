@@ -88,13 +88,13 @@ export async function assertValidPendingOperation(
   if (mutation.operation === 'register' && mutation.expectedVersion !== 0) {
     throwInvalidPendingOperation();
   }
-  if (hash(payload) !== mutation.payloadHash) {
+  if ((await hash(payload)) !== mutation.payloadHash) {
     throw new MfaRecoveryError(
       'Pending payload does not match mutation',
       'payload_mismatch',
     );
   }
-  const requestHash = hash({
+  const requestHash = await hash({
     id: mutation.id,
     profileId: mutation.profileId,
     operation: mutation.operation,

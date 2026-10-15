@@ -153,7 +153,7 @@ describe('CubistEscrowProvider', () => {
 
   describe('applyMutation', () => {
     it('invokes applyMutation, including a null identifier authorization', async () => {
-      const receipt = signedReceipt();
+      const receipt = await signedReceipt();
       const { provider, invoke } = createProvider({ stdout: receipt });
       expect(
         await provider.applyMutation(MUTATION, TOKEN, null, PAYLOAD),
@@ -312,10 +312,10 @@ describe('CubistEscrowProvider', () => {
   describe('verifyReceipt', () => {
     const { provider } = createProvider();
 
-    it('accepts a receipt signed by the pinned receipt key', () => {
-      expect(provider.verifyReceipt(signedReceipt(), MUTATION, 'cubist')).toBe(
-        true,
-      );
+    it('accepts a receipt signed by the pinned receipt key', async () => {
+      expect(
+        await provider.verifyReceipt(await signedReceipt(), MUTATION, 'cubist'),
+      ).toBe(true);
     });
 
     it.each([
@@ -324,30 +324,33 @@ describe('CubistEscrowProvider', () => {
       ['escrow id', { escrowId: 'other' }],
       ['version', { version: 2 }],
       ['receipt key id', { receiptKeyId: '0xother' }],
-    ] as const)('rejects a receipt with a different %s', (_label, patch) => {
-      expect(
-        provider.verifyReceipt(
-          { ...signedReceipt(), ...patch },
-          MUTATION,
-          'cubist',
-        ),
-      ).toBe(false);
-    });
+    ] as const)(
+      'rejects a receipt with a different %s',
+      async (_label, patch) => {
+        expect(
+          await provider.verifyReceipt(
+            { ...(await signedReceipt()), ...patch },
+            MUTATION,
+            'cubist',
+          ),
+        ).toBe(false);
+      },
+    );
 
-    it('rejects a receipt aimed at a different escrow id', () => {
+    it('rejects a receipt aimed at a different escrow id', async () => {
       expect(
-        provider.verifyReceipt(
-          { ...signedReceipt(), escrowId: 'other' },
+        await provider.verifyReceipt(
+          { ...(await signedReceipt()), escrowId: 'other' },
           MUTATION,
           'other',
         ),
       ).toBe(false);
     });
 
-    it('rejects a receipt with a bad signature', () => {
+    it('rejects a receipt with a bad signature', async () => {
       expect(
-        provider.verifyReceipt(
-          { ...signedReceipt(), signature: '00' },
+        await provider.verifyReceipt(
+          { ...(await signedReceipt()), signature: '00' },
           MUTATION,
           'cubist',
         ),
@@ -401,17 +404,22 @@ function createProvider(
   };
 }
 
-function signedReceipt(patch: Partial<MutationReceipt> = {}): MutationReceipt {
+async function signedReceipt(
+  patch: Partial<MutationReceipt> = {},
+): Promise<MutationReceipt> {
   const unsigned = {
     mutationId: MUTATION.id,
     requestHash: MUTATION.requestHash,
     escrowId: 'cubist',
     version: MUTATION.newVersion,
-    receiptKeyId: wrapKeyId(receiptKey.publicKey),
+    receiptKeyId: await wrapKeyId(receiptKey.publicKey),
     ...patch,
   };
   return {
     ...unsigned,
-    signature: sign(receiptKey.privateKey, hashMutationReceipt(unsigned)),
+    signature: await sign(
+      receiptKey.privateKey,
+      await hashMutationReceipt(unsigned),
+    ),
   };
 }

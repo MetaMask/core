@@ -280,7 +280,7 @@ describe('MfaRecoveryController', () => {
         const session = await controller.authenticateIdentifier(PASSKEY);
 
         expect(session.token.requestHash).toBe(
-          hash({
+          await hash({
             operation: 'getRecoverySecret',
             requestId: session.requestId,
             pkE: session.pkE,
@@ -898,7 +898,7 @@ describe('MfaRecoveryController', () => {
           identifiers: IDENTIFIERS,
           recoverySecret: bytesToHex(SECRET),
         };
-        const payloadHash = hash(payload);
+        const payloadHash = await hash(payload);
         const fields = {
           id: '0xmutauth',
           profileId: 'profile-1',
@@ -910,7 +910,7 @@ describe('MfaRecoveryController', () => {
         };
         const mutation = {
           ...fields,
-          requestHash: hash(fields),
+          requestHash: await hash(fields),
         };
         const authorizing = await passthroughEncryptor.encrypt({
           phase: 'authorizing',
@@ -935,7 +935,7 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ controller, options }) => {
         await controller.register(SECRET, IDENTIFIERS);
         const payload = { identifiers: IDENTIFIERS };
-        const payloadHash = hash(payload);
+        const payloadHash = await hash(payload);
         const mutationFields = {
           id: '0xmutidentifiers',
           profileId: 'profile-1',
@@ -947,7 +947,7 @@ describe('MfaRecoveryController', () => {
         };
         const mutation = {
           ...mutationFields,
-          requestHash: hash(mutationFields),
+          requestHash: await hash(mutationFields),
         };
         const authorizing = {
           phase: 'authorizing' as const,
@@ -993,11 +993,11 @@ describe('MfaRecoveryController', () => {
             operation: 'updateRecoverySecret' as const,
             expectedVersion: 1,
             newVersion: 2,
-            payloadHash: hash(payload),
+            payloadHash: await hash(payload),
             audiences: ['escrow-a', 'escrow-b'],
             requestHash: '0x',
           };
-          mutation.requestHash = hash({
+          mutation.requestHash = await hash({
             id: mutation.id,
             profileId: mutation.profileId,
             operation: mutation.operation,
@@ -1108,7 +1108,7 @@ describe('MfaRecoveryController', () => {
           identifiers: IDENTIFIERS,
           recoverySecret: bytesToHex(SECRET),
         };
-        const payloadHash = hash(payload);
+        const payloadHash = await hash(payload);
         const mutation = {
           id: '0xmut',
           profileId: 'profile-1',
@@ -1119,7 +1119,7 @@ describe('MfaRecoveryController', () => {
           audiences: ['escrow-a', 'escrow-b'],
           requestHash: '',
         };
-        mutation.requestHash = hash({
+        mutation.requestHash = await hash({
           id: mutation.id,
           profileId: mutation.profileId,
           operation: mutation.operation,
@@ -1135,7 +1135,9 @@ describe('MfaRecoveryController', () => {
             sub: 'profile-1',
             exp: unixNow() + 60,
             requestHash: mutation.requestHash,
-            identifiersHash: hash(canonicalizeIdentifiers(payload.identifiers)),
+            identifiersHash: await hash(
+              canonicalizeIdentifiers(payload.identifiers),
+            ),
           }),
           payload,
           identifier: null,
@@ -1168,7 +1170,7 @@ describe('MfaRecoveryController', () => {
           identifiers: IDENTIFIERS,
           recoverySecret: bytesToHex(SECRET),
         };
-        const payloadHash = hash(payload);
+        const payloadHash = await hash(payload);
         const mutation = {
           id: '0xmut',
           profileId: 'profile-1',
@@ -1179,7 +1181,7 @@ describe('MfaRecoveryController', () => {
           audiences: ['escrow-a', 'escrow-b'],
           requestHash: '',
         };
-        mutation.requestHash = hash({
+        mutation.requestHash = await hash({
           id: mutation.id,
           profileId: mutation.profileId,
           operation: mutation.operation,
@@ -1195,7 +1197,9 @@ describe('MfaRecoveryController', () => {
             sub: 'profile-1',
             exp: unixNow() + 60,
             requestHash: mutation.requestHash,
-            identifiersHash: hash(canonicalizeIdentifiers(payload.identifiers)),
+            identifiersHash: await hash(
+              canonicalizeIdentifiers(payload.identifiers),
+            ),
           }),
           payload,
           identifier: null,
@@ -1263,7 +1267,7 @@ describe('MfaRecoveryController', () => {
           receiptKeyId: '0xreceipt',
           signature: '0xsignature',
         });
-        jest.spyOn(escrowA, 'verifyReceipt').mockReturnValue(true);
+        jest.spyOn(escrowA, 'verifyReceipt').mockResolvedValue(true);
 
         await expect(controller.register(SECRET, IDENTIFIERS)).rejects.toThrow(
           'Invalid mutation receipt',
@@ -1273,9 +1277,9 @@ describe('MfaRecoveryController', () => {
 
     it('treats receipt verification errors as invalid receipts', async () => {
       await withController(async ({ controller, escrowA }) => {
-        jest.spyOn(escrowA, 'verifyReceipt').mockImplementation(() => {
-          throw new Error('verification failed');
-        });
+        jest
+          .spyOn(escrowA, 'verifyReceipt')
+          .mockRejectedValue(new Error('verification failed'));
 
         await expect(controller.register(SECRET, IDENTIFIERS)).rejects.toThrow(
           'Invalid mutation receipt',
@@ -1336,19 +1340,19 @@ describe('MfaRecoveryController', () => {
     it.each([
       {
         name: 'an invalid phase',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           pending.phase = 'invalid';
         },
       },
       {
         name: 'a malformed mutation',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           pending.mutation = null;
         },
       },
       {
         name: 'an operation and payload mismatch',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           const mutation = pending.mutation as Record<string, unknown>;
           mutation.operation = 'updateIdentifiers';
           pending.payload = { recoverySecret: bytesToHex(SECRET) };
@@ -1356,19 +1360,19 @@ describe('MfaRecoveryController', () => {
       },
       {
         name: 'a malformed payload',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           pending.payload = null;
         },
       },
       {
         name: 'a payload without a recovery secret',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           pending.payload = {};
         },
       },
       {
         name: 'an invalid recovery secret encoding',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           pending.payload = {
             recoverySecret: '0xzz',
           };
@@ -1376,7 +1380,7 @@ describe('MfaRecoveryController', () => {
       },
       {
         name: 'an identifier payload with invalid entries',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           const mutation = pending.mutation as Record<string, unknown>;
           mutation.operation = 'updateIdentifiers';
           pending.payload = { identifiers: [{}] };
@@ -1384,10 +1388,10 @@ describe('MfaRecoveryController', () => {
       },
       {
         name: 'duplicate identifiers',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           const mutation = pending.mutation as Record<string, unknown>;
           const payload = { identifiers: [PASSKEY, PASSKEY] };
-          const payloadHash = hash(payload);
+          const payloadHash = await hash(payload);
           const fields = {
             id: mutation.id,
             profileId: mutation.profileId,
@@ -1397,19 +1401,22 @@ describe('MfaRecoveryController', () => {
             payloadHash,
             audiences: mutation.audiences,
           };
-          pending.mutation = { ...fields, requestHash: hash(fields) };
+          pending.mutation = {
+            ...fields,
+            requestHash: await hash(fields),
+          };
           pending.payload = payload;
           pending.authControllerToken = createAuthControllerToken({
             sub: 'profile-1',
             exp: unixNow() + 60,
-            requestHash: hash(fields),
-            identifiersHash: hash(payload.identifiers),
+            requestHash: await hash(fields),
+            identifiersHash: await hash(payload.identifiers),
           });
         },
       },
       {
         name: 'a non-null register identifier',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           const mutation = pending.mutation as Record<string, unknown>;
           mutation.operation = 'register';
           pending.payload = {
@@ -1421,7 +1428,7 @@ describe('MfaRecoveryController', () => {
       },
       {
         name: 'a non-zero register expectedVersion',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           const mutation = pending.mutation as Record<string, unknown>;
           mutation.operation = 'register';
           mutation.expectedVersion = 1;
@@ -1435,13 +1442,13 @@ describe('MfaRecoveryController', () => {
       },
       {
         name: 'a null update identifier',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           pending.identifier = null;
         },
       },
       {
         name: 'an unknown identifier type',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           pending.identifier = {
             type: 'unknown',
             namespace: 'example.com',
@@ -1452,7 +1459,7 @@ describe('MfaRecoveryController', () => {
       },
       {
         name: 'a non-consecutive version',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           const mutation = pending.mutation as Record<string, unknown>;
           mutation.expectedVersion = 4;
           mutation.newVersion = 6;
@@ -1460,28 +1467,28 @@ describe('MfaRecoveryController', () => {
       },
       {
         name: 'a mismatched payload hash',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           const mutation = pending.mutation as Record<string, unknown>;
           mutation.payloadHash = '0xwrong-payload-hash';
         },
       },
       {
         name: 'a mismatched mutation request hash',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           const mutation = pending.mutation as Record<string, unknown>;
           mutation.requestHash = '0xwrong-request-hash';
         },
       },
       {
         name: 'an out-of-order audience list',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           const mutation = pending.mutation as Record<string, unknown>;
           mutation.audiences = ['escrow-b', 'escrow-a'];
         },
       },
       {
         name: 'an invalid AuthController token',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           pending.authControllerToken = createAuthControllerToken({
             sub: 'profile-1',
             exp: unixNow() + 60,
@@ -1492,19 +1499,19 @@ describe('MfaRecoveryController', () => {
       },
       {
         name: 'a malformed AuthController token',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           pending.authControllerToken = null;
         },
       },
       {
         name: 'an AuthController token with invalid fields',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           pending.authControllerToken = {};
         },
       },
       {
         name: 'an AuthController token without step-up assurance',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           const mutation = pending.mutation as Record<string, unknown>;
           pending.authControllerToken = createAuthControllerToken({
             sub: 'profile-1',
@@ -1515,19 +1522,19 @@ describe('MfaRecoveryController', () => {
       },
       {
         name: 'an invalid receipt array',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           pending.receipts = null;
         },
       },
       {
         name: 'a receipt with invalid fields',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           pending.receipts = [{}];
         },
       },
       {
         name: 'duplicate receipts',
-        mutate: (pending: Record<string, unknown>): void => {
+        mutate: async (pending: Record<string, unknown>): Promise<void> => {
           const mutation = pending.mutation as Record<string, unknown>;
           const receipt = {
             mutationId: mutation.id,
@@ -1547,7 +1554,7 @@ describe('MfaRecoveryController', () => {
           const pending = JSON.parse(
             JSON.stringify(await getValidWritingPending(options.escrows)),
           ) as Record<string, unknown>;
-          mutate(pending);
+          await mutate(pending);
           const auth = jest.spyOn(
             options.authProvider,
             'authorizeRecoveryRequest',
@@ -1659,7 +1666,7 @@ async function getValidWritingPending(
   const payload = {
     recoverySecret: bytesToHex(SECRET_2),
   };
-  const payloadHash = hash(payload);
+  const payloadHash = await hash(payload);
   const fields = {
     id: '0xvalid-pending',
     profileId: 'profile-1',
@@ -1673,12 +1680,12 @@ async function getValidWritingPending(
     phase: 'writing',
     mutation: {
       ...fields,
-      requestHash: hash(fields),
+      requestHash: await hash(fields),
     },
     authControllerToken: createAuthControllerToken({
       sub: 'profile-1',
       exp: unixNow() + 60,
-      requestHash: hash(fields),
+      requestHash: await hash(fields),
       aal: 2,
     }),
     payload,
