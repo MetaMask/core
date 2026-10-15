@@ -129,29 +129,26 @@ export enum RpcEndpointType {
   Infura = 'infura',
 }
 
-const BuiltInNetworkClientIdStruct = string();
+const NetworkClientIdStruct = string();
+
+/**
+ * The string that uniquely identifies a network client.
+ */
+export type NetworkClientId = Infer<typeof NetworkClientIdStruct>;
+
+const BuiltInNetworkClientIdStruct = NetworkClientIdStruct;
 
 /**
  * The string that uniquely identifies an Infura network client.
  */
 export type BuiltInNetworkClientId = Infer<typeof BuiltInNetworkClientIdStruct>;
 
-const CustomNetworkClientIdStruct = string();
+const CustomNetworkClientIdStruct = NetworkClientIdStruct;
 
 /**
  * The string that uniquely identifies a custom network client.
  */
 export type CustomNetworkClientId = Infer<typeof CustomNetworkClientIdStruct>;
-
-const NetworkClientIdStruct = union([
-  BuiltInNetworkClientIdStruct,
-  CustomNetworkClientIdStruct,
-]);
-
-/**
- * The string that uniquely identifies a network client.
- */
-export type NetworkClientId = Infer<typeof NetworkClientIdStruct>;
 
 const InfuraRpcEndpointUrlStruct =
   define<`https://${InfuraNetworkType}.infura.io/v3/{infuraProjectId}`>(
