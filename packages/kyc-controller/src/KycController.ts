@@ -1379,8 +1379,8 @@ export class KycController extends BaseController<
     }
 
     try {
-      assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
-      assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+      await assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
+      await assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
     } catch (error) {
       throw wrapError(
         error,

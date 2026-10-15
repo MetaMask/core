@@ -101,9 +101,9 @@ export async function verifyJwtChain(
   }
 
   const isValid = await verify(
+    base64UrlToBytes(jwk.x),
     base64UrlToBytes(signatureSegment),
     new TextEncoder().encode(`${headerSegment}.${payloadSegment}`),
-    base64UrlToBytes(jwk.x),
   );
   if (!isValid) {
     throw new Error(
