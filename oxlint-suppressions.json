@@ -303,11 +303,17 @@
     }
   },
   "packages/advanced-chart-core/src/__tests__/index.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
     "typescript/no-unsafe-assignment": {
       "count": 1
     }
   },
   "packages/advanced-chart-core/src/core/__tests__/bootstrap.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    },
     "typescript/no-unsafe-assignment": {
       "count": 1
     },
@@ -316,6 +322,9 @@
     }
   },
   "packages/advanced-chart-core/src/core/__tests__/bridge.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
     "typescript/no-unsafe-assignment": {
       "count": 1
     },
@@ -323,8 +332,18 @@
       "count": 1
     }
   },
+  "packages/advanced-chart-core/src/core/__tests__/loadLibrary.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
   "packages/advanced-chart-core/src/core/__tests__/resolution.test.ts": {
     "typescript/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/core/__tests__/timezone.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
       "count": 1
     }
   },
@@ -344,6 +363,9 @@
     }
   },
   "packages/advanced-chart-core/src/features/indicators/__tests__/legend.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 56
+    },
     "typescript/unbound-method": {
       "count": 3
     }
@@ -359,11 +381,17 @@
   "packages/advanced-chart-core/src/features/indicators/index.ts": {
     "no-shadow": {
       "count": 6
+    },
+    "unicorn/no-useless-undefined": {
+      "count": 3
     }
   },
   "packages/advanced-chart-core/src/features/indicators/legend.ts": {
     "no-shadow": {
       "count": 10
+    },
+    "unicorn/no-useless-undefined": {
+      "count": 1
     }
   },
   "packages/advanced-chart-core/src/features/indicators/studies.ts": {
@@ -376,6 +404,11 @@
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/features/volume/index.ts": {
+    "unicorn/no-useless-undefined": {
       "count": 1
     }
   },
@@ -400,6 +433,11 @@
       "count": 1
     }
   },
+  "packages/advanced-chart-core/src/messages/handler.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
   "packages/advanced-chart-core/src/overlays/positionLines/__tests__/positionLines.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -408,9 +446,32 @@
       "count": 4
     }
   },
+  "packages/advanced-chart-core/src/overlays/positionLines/__tests__/state.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/positionLines/index.ts": {
+    "unicorn/no-useless-undefined": {
+      "count": 3
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/socialLeaderboard/__tests__/socialLeaderboard.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/animation.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
   "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/markerHitTest.test.ts": {
     "no-shadow": {
       "count": 2
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
     },
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -422,6 +483,9 @@
     }
   },
   "packages/advanced-chart-core/src/pagination/__tests__/priceApi.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    },
     "typescript/no-unsafe-assignment": {
       "count": 1
     },
@@ -430,6 +494,9 @@
     }
   },
   "packages/advanced-chart-core/src/pagination/__tests__/rnBacked.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 13
+    },
     "typescript/no-unsafe-assignment": {
       "count": 18
     },
@@ -461,6 +528,9 @@
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/datafeed.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 11
+    },
     "typescript/no-unsafe-assignment": {
       "count": 4
     },
@@ -472,11 +542,17 @@
     "no-shadow": {
       "count": 1
     },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
     "typescript/no-unsafe-assignment": {
       "count": 1
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/initChart.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
     "typescript/no-unsafe-assignment": {
       "count": 3
     },
@@ -515,6 +591,21 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 11
+    }
+  },
+  "packages/advanced-chart-core/src/widget/__tests__/tvDomHelpers.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/widget/datafeed.ts": {
+    "unicorn/no-useless-undefined": {
+      "count": 1
+    }
+  },
+  "packages/advanced-chart-core/src/widget/externalLinkBridge.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
     }
   },
   "packages/ai-controllers/jest.config.cjs": {
@@ -644,6 +735,9 @@
     }
   },
   "packages/assets-controller/src/AssetsController.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
     "typescript/no-unsafe-assignment": {
       "count": 5
     }
@@ -6595,6 +6689,9 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
     "typescript/no-unsafe-assignment": {
       "count": 66
     },
@@ -6617,6 +6714,9 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-submit.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    },
     "typescript/no-unsafe-assignment": {
       "count": 46
     },
@@ -6647,6 +6747,9 @@
   "packages/transaction-pay-controller/src/utils/gas-payment.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
     },
     "typescript/no-unsafe-assignment": {
       "count": 7
