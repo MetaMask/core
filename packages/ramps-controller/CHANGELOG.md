@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(dev-deps): bump `oxfmt` from `^0.44.0` to `^0.72.0` ([#10785](https://github.com/MetaMask/core/pull/10785))
+
 ## [27.0.1]
 
 ### Changed
