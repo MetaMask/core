@@ -38,4 +38,4 @@ When adding a new package to the monorepo, it is recommended to open two separat
 1. The first PR should contain only the scaffolding for the new package, including its initial structure, configuration files, and any necessary updates to monorepo-wide files like `.github/CODEOWNERS` and `teams.json`.
 2. The second PR should contain the functional changes, such as adding dependencies and implementing the package's features.
 
-This approach helps reviewers from the core team focus on the structural changes separately from the functional changes which can be a large volume of code, making the review process more manageable and efficient, reducing the risk of introducing errors.
+This approach helps reviewers from the Core Platform team focus on the structural changes separately from the functional changes which can be a large volume of code, making the review process more manageable and efficient, reducing the risk of introducing errors.
