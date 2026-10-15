@@ -15,10 +15,10 @@ import type { MarketingConsentController } from './MarketingConsentController.js
  * and saved to AUS on the next unlock and sign-in; the call resolves
  * without waiting for that.
  *
- * @param enabled - Whether the user consents to marketing.
  * A call overtaken by a newer one resolves without waiting; the newer call
  * reports the outcome.
  *
+ * @param enabled - Whether the user consents to marketing.
  * @throws If AUS did not save the change. AUS is the source of truth, so
  * the change is then dropped and local consent is re-read from AUS.
  */

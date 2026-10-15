@@ -29,7 +29,25 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 
 import type { MarketingConsentControllerMethodActions } from './MarketingConsentController-method-action-types.js';
 
+// === GENERAL ===
+
+/**
+ * The name of the {@link MarketingConsentController}, used to namespace the
+ * controller's actions and events and to namespace the controller's state data
+ * when composed with other controllers.
+ */
 const controllerName = 'MarketingConsentController';
+
+/**
+ * One signed-in period. A new session starts whenever the signed-in status
+ * changes, so work started for one profile is never applied to another.
+ */
+type ConsentSyncSession = {
+  /** The consent value AUS last confirmed in this session. */
+  lastSynced?: boolean;
+  /** Whether AUS may have changed (e.g. on another device) since the last read. */
+  remoteStale?: boolean;
+};
 
 // === STATE ===
 
@@ -43,6 +61,9 @@ export type MarketingConsentControllerState = {
   pendingMarketingConsent: boolean | null;
 };
 
+/**
+ * The metadata for each property in {@link MarketingConsentControllerState}.
+ */
 const marketingConsentControllerMetadata = {
   pendingMarketingConsent: {
     includeInStateLogs: true,
@@ -63,29 +84,50 @@ export function getDefaultMarketingConsentControllerState(): MarketingConsentCon
 
 // === MESSENGER ===
 
+/**
+ * The controller methods exposed as messenger actions.
+ */
 const MESSENGER_EXPOSED_METHODS = ['setMarketingConsent', 'refresh'] as const;
 
+/**
+ * Retrieves the state of the {@link MarketingConsentController}.
+ */
 export type MarketingConsentControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   MarketingConsentControllerState
 >;
 
+/**
+ * Actions that {@link MarketingConsentControllerMessenger} exposes to other
+ * consumers.
+ */
 export type MarketingConsentControllerActions =
   | MarketingConsentControllerGetStateAction
   | MarketingConsentControllerMethodActions;
 
+/**
+ * Published when the state of {@link MarketingConsentController} changes.
+ */
 export type MarketingConsentControllerStateChangedEvent =
   ControllerStateChangedEvent<
     typeof controllerName,
     MarketingConsentControllerState
   >;
 
+/**
+ * Events that {@link MarketingConsentControllerMessenger} exposes to other
+ * consumers.
+ */
 export type MarketingConsentControllerEvents =
   MarketingConsentControllerStateChangedEvent;
 
 type AuthenticationControllerState =
   AuthenticationController.AuthenticationControllerState;
 
+/**
+ * Actions from other messengers that {@link MarketingConsentControllerMessenger}
+ * calls.
+ */
 type AllowedActions =
   | AuthenticatedUserStorageInvalidateQueriesAction
   | AuthenticatedUserStorageServiceGetMarketingConsentAction
@@ -98,6 +140,10 @@ type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetStateAction
   | KeyringControllerGetStateAction;
 
+/**
+ * Events from other messengers that {@link MarketingConsentControllerMessenger}
+ * subscribes to.
+ */
 type AllowedEvents =
   | ControllerStateChangedEvent<'AnalyticsController', AnalyticsControllerState>
   | ControllerStateChangedEvent<
@@ -107,21 +153,17 @@ type AllowedEvents =
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent;
 
+/**
+ * The messenger restricted to actions and events accessed by
+ * {@link MarketingConsentController}.
+ */
 export type MarketingConsentControllerMessenger = Messenger<
   typeof controllerName,
   MarketingConsentControllerActions | AllowedActions,
   MarketingConsentControllerEvents | AllowedEvents
 >;
 
-// === TYPES ===
-
-type ConsentSyncSession = {
-  lastSynced?: boolean;
-  // AUS may have changed on another device since the last read.
-  remoteStale?: boolean;
-};
-
-// === CONTROLLER ===
+// === CONTROLLER DEFINITION ===
 
 /**
  * Keeps the user's marketing consent (held locally by `AnalyticsController`)
@@ -144,22 +186,46 @@ export class MarketingConsentController extends BaseController<
   MarketingConsentControllerState,
   MarketingConsentControllerMessenger
 > {
+  /**
+   * The client sent with every AUS write.
+   */
   readonly #clientType: ClientType;
 
+  /**
+   * The latest AnalyticsController state, which holds local consent.
+   */
   #analyticsState: AnalyticsControllerState;
 
+  /**
+   * The latest AuthenticationController state, used for the signed-in status.
+   */
   #authenticationState: AuthenticationControllerState;
 
+  /**
+   * The latest KeyringController state, used for the lock status.
+   */
   #keyringState: KeyringControllerState;
 
+  /**
+   * The current signed-in session.
+   */
   #session: ConsentSyncSession = {};
 
-  // The AUS value being applied locally, so its state change is not taken
-  // for a local change.
+  /**
+   * The AUS value being applied locally, so its state change is not taken for
+   * a local change.
+   */
   #applyingRemoteValue: boolean | undefined;
 
+  /**
+   * The sync run in progress, if any. Only one runs at a time.
+   */
   #inFlight: Promise<void> | undefined;
 
+  /**
+   * Counts {@link MarketingConsentController.setMarketingConsent} calls, so a
+   * call overtaken by a newer one can tell.
+   */
   #latestConsentRequest = 0;
 
   /**
@@ -212,10 +278,10 @@ export class MarketingConsentController extends BaseController<
    * and saved to AUS on the next unlock and sign-in; the call resolves
    * without waiting for that.
    *
-   * @param enabled - Whether the user consents to marketing.
    * A call overtaken by a newer one resolves without waiting; the newer call
    * reports the outcome.
    *
+   * @param enabled - Whether the user consents to marketing.
    * @throws If AUS did not save the change. AUS is the source of truth, so
    * the change is then dropped and local consent is re-read from AUS.
    */
@@ -316,6 +382,9 @@ export class MarketingConsentController extends BaseController<
     this.#startSync();
   }
 
+  /**
+   * Subscribes to the lock, sign-in and consent changes that drive syncing.
+   */
   #subscribe(): void {
     this.messenger.subscribe('KeyringController:unlock', () => {
       this.#keyringState = { ...this.#keyringState, isUnlocked: true };
@@ -363,9 +432,13 @@ export class MarketingConsentController extends BaseController<
     });
   }
 
-  // Whether consent can be synced: AUS needs a bearer token, which is only
-  // obtainable while unlocked and signed in, and only a decided consent is
-  // synced.
+  /**
+   * Whether consent can be synced: AUS needs a bearer token, which is only
+   * obtainable while unlocked and signed in, and only a decided consent is
+   * synced.
+   *
+   * @returns True when unlocked, signed in and consent is decided.
+   */
   #isReady(): boolean {
     return (
       this.#keyringState.isUnlocked &&
@@ -374,13 +447,21 @@ export class MarketingConsentController extends BaseController<
     );
   }
 
+  /**
+   * Sets the consent change waiting to be written to AUS.
+   *
+   * @param value - The consent to write, or `null` when nothing is pending.
+   */
   #setPendingConsent(value: boolean | null): void {
     this.update((state) => {
       state.pendingMarketingConsent = value;
     });
   }
 
-  // Updates and rewards notifications rely on marketing consent.
+  /**
+   * Turns off the AUS marketing notification channels (push and in-app), which
+   * rely on marketing consent. Writes nothing when they are already off.
+   */
   async #turnOffMarketingNotifications(): Promise<void> {
     await this.messenger.call(
       'AuthenticatedUserStorageService:invalidateQueries',
@@ -427,8 +508,13 @@ export class MarketingConsentController extends BaseController<
       });
   }
 
-  // Channels go off before consent so AUS never has consent off with a
-  // channel on; a failure leaves both to retry.
+  /**
+   * Writes consent to AUS. For an opt-out, the marketing notification channels
+   * go off first, so AUS never has consent off with a channel on; a failure
+   * leaves both to retry.
+   *
+   * @param value - The consent to write.
+   */
   async #writeConsent(value: boolean): Promise<void> {
     if (!value) {
       await this.#turnOffMarketingNotifications();
@@ -440,6 +526,13 @@ export class MarketingConsentController extends BaseController<
     );
   }
 
+  /**
+   * Reads consent from AUS and applies it locally, or writes the local value
+   * when AUS has none. Results are dropped if the session ended or a local
+   * change arrived during the read.
+   *
+   * @param session - The session the read belongs to.
+   */
   async #reconcileWithAus(session: ConsentSyncSession): Promise<void> {
     const localValue = this.#analyticsState.optedInToMarketing === true;
 
@@ -490,6 +583,12 @@ export class MarketingConsentController extends BaseController<
     session.lastSynced = remote.marketingConsentEnabled;
   }
 
+  /**
+   * Writes the pending change to AUS, then any newer change made during the
+   * write. On failure the pending change stays in state.
+   *
+   * @param session - The session the write belongs to.
+   */
   async #flushPendingConsent(session: ConsentSyncSession): Promise<void> {
     const value = this.state.pendingMarketingConsent;
     if (value === null || !this.#isReady()) {
@@ -509,6 +608,12 @@ export class MarketingConsentController extends BaseController<
     await this.#flushPendingConsent(session);
   }
 
+  /**
+   * One sync run: reads AUS when nothing is pending, then writes any pending
+   * change.
+   *
+   * @param session - The session the run belongs to.
+   */
   async #run(session: ConsentSyncSession): Promise<void> {
     // Every run starts from a pending local change, a new session or a
     // refresh, so without a pending change AUS is always read.
@@ -520,6 +625,13 @@ export class MarketingConsentController extends BaseController<
     await this.#flushPendingConsent(session);
   }
 
+  /**
+   * Starts a sync run when ready, or returns the one in progress. When a run
+   * ends, another starts if the session changed, a refresh was requested, or a
+   * change was queued after the run's last write.
+   *
+   * @returns The sync run in progress.
+   */
   #sync(): Promise<void> {
     if (this.#inFlight) {
       return this.#inFlight;
@@ -562,13 +674,19 @@ export class MarketingConsentController extends BaseController<
     return this.#inFlight;
   }
 
+  /**
+   * Starts a sync run without waiting for it, logging any failure.
+   */
   #startSync(): void {
     this.#sync().catch((error) => {
       console.error('Failed to synchronize marketing consent with AUS:', error);
     });
   }
 
-  // A run for an older session hands off to a new run when it settles.
+  /**
+   * Waits until no sync run is in progress, including runs started when an
+   * older one hands off to a new session.
+   */
   async #settleSync(): Promise<void> {
     await this.#sync();
     if (this.#inFlight) {
