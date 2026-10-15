@@ -3396,7 +3396,7 @@
   },
   "packages/kyc-controller/src/index.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 16
+      "count": 14
     }
   },
   "packages/kyc-controller/src/ukyc/localUserSecret.test.ts": {
