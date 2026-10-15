@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump accounts (`keyring*-api`) deps ([#10844](https://github.com/MetaMask/core/pull/10844))
+
 ## [20.1.0]
 
 ### Added
