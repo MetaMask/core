@@ -11,7 +11,7 @@
 
 /** @type {import('@yarnpkg/types')} */
 const { defineConfig } = require('@yarnpkg/types');
-const { PACKAGES_ON_JEST } = require('./test-runners.cjs');
+const { PACKAGES_ON_JEST } = require('./test-runner-package-map.cjs');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
 const { basename, resolve } = require('path');

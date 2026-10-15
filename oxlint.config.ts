@@ -14,7 +14,7 @@ import { createRequire } from 'node:module';
  * CommonJS, so `yarn.config.cjs` can read the same source of truth.
  */
 const { JEST_PACKAGES: jestPackages, VITEST_PACKAGES: vitestPackages } =
-  createRequire(import.meta.url)('./test-runners.cjs') as {
+  createRequire(import.meta.url)('./test-runner-package-map.cjs') as {
     JEST_PACKAGES: string[];
     VITEST_PACKAGES: string[];
   };
@@ -92,7 +92,7 @@ export default createConfig({
         'jest.config.packages.cjs',
         'jest.config.scripts.cjs',
         'vitest.config.packages.mjs',
-        'test-runners.cjs',
+        'test-runner-package-map.cjs',
         // These import their globals explicitly.
         'tests/helpers.ts',
         'tests/matchers.ts',
@@ -109,7 +109,7 @@ export default createConfig({
 
     {
       // No imports or exports, so nothing marks it unambiguously as a module.
-      files: ['test-runners.cjs'],
+      files: ['test-runner-package-map.cjs'],
       rules: {
         'import/unambiguous': 'off',
       },
