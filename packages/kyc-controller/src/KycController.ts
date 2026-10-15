@@ -1310,10 +1310,9 @@ export class KycController extends BaseController<
       );
     }
 
-    const sessionClientPrivateKey = x25519.utils.randomSecretKey();
-    const sessionClientPublicKey = toBase64Url(
-      x25519.getPublicKey(sessionClientPrivateKey),
-    );
+    const keyPair = await generateKeyPair();
+    const sessionClientPrivateKey = keyPair.privateKey;
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
 
     const { deletionId, ukycCapabilityToken: capabilityTokenSchema } =
       await this.messenger.call('KycService:createDeletion', {
@@ -1324,7 +1323,7 @@ export class KycController extends BaseController<
     await this.#verifyCapabilityTokenSchema(capabilityTokenSchema);
 
     const clientMaterial = await this.#getClientMaterial();
-    const wrappedUkycCapabilityToken = this.#wrapCapabilityToken({
+    const wrappedUkycCapabilityToken = await this.#wrapCapabilityToken({
       clientMaterial,
       sessionClientPrivateKey,
       serverPublicKeyX: capabilityTokenSchema.serverPublicKey.x,
@@ -1579,7 +1578,7 @@ export class KycController extends BaseController<
       encryptionDataKey.serverPublicKey.x,
       clientMaterial.dataEncryptionKey,
     );
-    const wrappedUkycCapabilityToken = this.#wrapCapabilityToken({
+    const wrappedUkycCapabilityToken = await this.#wrapCapabilityToken({
       clientMaterial,
       sessionClientPrivateKey,
       serverPublicKeyX: capabilityTokenSchema.serverPublicKey.x,
@@ -1624,14 +1623,14 @@ export class KycController extends BaseController<
    * @param params.expiresAt - Token expiry. Must be after the issue time.
    * @returns The wrapped capability token.
    */
-  #wrapCapabilityToken(params: {
+  async #wrapCapabilityToken(params: {
     clientMaterial: UkycClientMaterial;
     sessionClientPrivateKey: Uint8Array;
     serverPublicKeyX: string;
     operations: UkycStorageOperation[];
     expiresAt: Date;
-  }): CapabilityAuthorization {
-    const ukycCapabilityToken = signStorageAccessToken({
+  }): Promise<CapabilityAuthorization> {
+    const ukycCapabilityToken = await signStorageAccessToken({
       material: params.clientMaterial,
       operations: params.operations,
       expiresAt: params.expiresAt,
