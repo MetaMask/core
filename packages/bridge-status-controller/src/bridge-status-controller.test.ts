@@ -2386,7 +2386,7 @@ describe('BridgeStatusController', () => {
           symbol: 'SOL',
           name: 'Solana',
           decimals: 9,
-          assetId: 'eip155:1399811149/slip44:501',
+          assetId: getNativeAssetForChainId(ChainId.SOLANA).assetId,
         },
         destTokenAmount: '0.5',
         minDestTokenAmount: '0.475',
@@ -2411,7 +2411,7 @@ describe('BridgeStatusController', () => {
               symbol: 'SOL',
               name: 'Solana',
               decimals: 9,
-              assetId: 'eip155:1399811149/slip44:501',
+              assetId: getNativeAssetForChainId(ChainId.SOLANA).assetId,
             },
             destAsset: {
               chainId: ChainId.ETH,
@@ -2432,7 +2432,7 @@ describe('BridgeStatusController', () => {
               symbol: 'SOL',
               name: 'Solana',
               decimals: 9,
-              assetId: 'eip155:1399811149/slip44:501',
+              assetId: getNativeAssetForChainId(ChainId.SOLANA).assetId,
             },
           },
         },
@@ -2632,30 +2632,31 @@ describe('BridgeStatusController', () => {
           symbol: 'USDC',
           name: 'USDC',
           decimals: 18,
-          assetId: 'eip155:1399811149/slip44:501',
+          assetId: `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`,
         },
         bridgeId: 'test-bridge',
         bridges: [],
         steps: [
           {
-            action: ActionTypes.BRIDGE,
+            action: ActionTypes.SWAP,
             srcChainId: ChainId.SOLANA,
-            destChainId: ChainId.ETH,
+            destChainId: ChainId.SOLANA,
             srcAsset: {
               chainId: ChainId.SOLANA,
               address: 'native',
               symbol: 'SOL',
               name: 'Solana',
               decimals: 9,
-              assetId: 'eip155:1399811149/slip44:501',
+              assetId: getNativeAssetForChainId(ChainId.SOLANA).assetId,
             },
             destAsset: {
-              chainId: ChainId.ETH,
+              chainId: ChainId.SOLANA,
               address: '0x...',
-              symbol: 'ETH',
-              name: 'Ethereum',
+              symbol: 'USDC',
+              name: 'USDC',
               decimals: 18,
-              assetId: 'eip155:1/slip44:60',
+              assetId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
             },
           },
         ],
@@ -2668,7 +2669,7 @@ describe('BridgeStatusController', () => {
               symbol: 'SOL',
               name: 'Solana',
               decimals: 9,
-              assetId: 'eip155:1399811149/slip44:501',
+              assetId: getNativeAssetForChainId(ChainId.SOLANA).assetId,
             },
           },
         },
@@ -2876,7 +2877,7 @@ describe('BridgeStatusController', () => {
           symbol: 'USDT',
           name: 'Tether USD',
           decimals: 6,
-          assetId: 'tron:728126428/slip44:195',
+          assetId: 'tron:728126428/trc20:TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
         },
         destTokenAmount: '500000000',
         minDestTokenAmount: '475000000',
@@ -2901,7 +2902,8 @@ describe('BridgeStatusController', () => {
               symbol: 'USDT',
               name: 'Tether USD',
               decimals: 6,
-              assetId: 'tron:728126428/slip44:195',
+              assetId:
+                'tron:728126428/trc20:TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
             },
             destAsset: {
               chainId: ChainId.TRON,
@@ -3049,6 +3051,31 @@ describe('BridgeStatusController', () => {
         quote: {
           ...mockQuoteResponse.quote,
           destChainId: ChainId.ETH, // Different chain = bridge
+          destAsset: {
+            chainId: ChainId.ETH,
+            address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+            assetId:
+              'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as CaipAssetType,
+          },
+          steps: [
+            {
+              ...mockQuoteResponse.quote.steps[0],
+              action: ActionTypes.BRIDGE,
+              destChainId: ChainId.ETH,
+              destAsset: {
+                chainId: ChainId.ETH,
+                address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                symbol: 'USDC',
+                name: 'USD Coin',
+                decimals: 6,
+                assetId:
+                  'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as CaipAssetType,
+              },
+            },
+          ],
         },
       };
 

@@ -516,9 +516,9 @@ export class NftController extends BaseController<
    */
   #updateNestedNftState<
     Key extends typeof ALL_NFTS_STATE_KEY | typeof ALL_NFTS_CONTRACTS_STATE_KEY,
-    NftCollection extends Key extends typeof ALL_NFTS_STATE_KEY
+    NftCollection extends (Key extends typeof ALL_NFTS_STATE_KEY
       ? Nft[]
-      : NftContract[],
+      : NftContract[]),
   >(
     newCollection: NftCollection,
     baseStateKey: Key,

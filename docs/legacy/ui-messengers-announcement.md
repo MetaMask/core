@@ -112,12 +112,8 @@ To define capabilities for a route:
    import type { RouteMessengerFromCapabilities } from '../../../messengers/route-messenger';
 
    export const ALLOWED_CAPABILITIES = defineAllowedRouteCapabilities({
-     actions: [
-       /* actions go here */
-     ],
-     events: [
-       /* events go here */
-     ],
+     actions: [/* actions go here */],
+     events: [/* events go here */],
    });
 
    export type RouteMessengerInstance = RouteMessengerFromCapabilities<
@@ -166,12 +162,8 @@ To define capabilities for a route:
    import type { RouteMessengerFromCapabilities } from '../../../../messengers/route-messenger';
 
    export const ALLOWED_CAPABILITIES = defineAllowedRouteCapabilities({
-     actions: [
-       /* actions go here */
-     ],
-     events: [
-       /* events go here */
-     ],
+     actions: [/* actions go here */],
+     events: [/* events go here */],
    });
 
    export type RouteMessengerInstance = RouteMessengerFromCapabilities<

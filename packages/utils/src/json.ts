@@ -53,15 +53,15 @@ export type Json =
  * ```
  */
 export type ObjectOptional<Schema extends Record<string, unknown>> = {
-  [Key in keyof Schema as Schema[Key] extends ExactOptionalGuard
-    ? Key
-    : never]?: Schema[Key] extends ExactOptionalGuard & (infer Original)
+  [
+    Key in keyof Schema as Schema[Key] extends ExactOptionalGuard ? Key : never
+  ]?: Schema[Key] extends ExactOptionalGuard & (infer Original)
     ? Original
     : never;
 } & {
-  [Key in keyof Schema as Schema[Key] extends ExactOptionalGuard
-    ? never
-    : Key]: Schema[Key];
+  [
+    Key in keyof Schema as Schema[Key] extends ExactOptionalGuard ? never : Key
+  ]: Schema[Key];
 };
 
 /**

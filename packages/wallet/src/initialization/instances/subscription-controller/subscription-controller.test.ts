@@ -243,6 +243,12 @@ describe('subscriptionController', () => {
         timezone: 'Europe/Berlin',
       }),
     );
+    registerActionHandler(
+      rootMessenger,
+      'SeedlessOnboardingController',
+      'SeedlessOnboardingController:getIsUserAuthenticated',
+      async () => false,
+    );
     const serviceMessenger = subscriptionService.getMessenger(rootMessenger);
     const fetchFunction = jest.fn(async (url: string, _init?: RequestInit) => {
       if (url === SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card')) {

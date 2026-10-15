@@ -676,11 +676,8 @@
     }
   },
   "packages/approval-controller/src/ApprovalController.test.ts": {
-    "id-denylist": {
-      "count": 3
-    },
     "typescript/explicit-function-return-type": {
-      "count": 22
+      "count": 21
     },
     "typescript/no-unsafe-assignment": {
       "count": 5
@@ -2238,7 +2235,7 @@
       "count": 2
     },
     "typescript/no-unsafe-assignment": {
-      "count": 5
+      "count": 9
     },
     "typescript/no-unsafe-return": {
       "count": 2
@@ -6640,20 +6637,6 @@
       "count": 1
     }
   },
-  "packages/transaction-pay-controller/src/strategy/relay/polymarket/withdraw.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 16
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 4
-    },
-    "typescript/no-unsafe-call": {
-      "count": 8
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 24
-    }
-  },
   "packages/transaction-pay-controller/src/strategy/relay/relay-max.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 30
@@ -6712,7 +6695,7 @@
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 34
+      "count": 39
     },
     "typescript/no-unsafe-call": {
       "count": 17
@@ -6826,6 +6809,20 @@
     },
     "typescript/no-unsafe-return": {
       "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/polymarket/withdraw.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 6
+    },
+    "typescript/no-unsafe-call": {
+      "count": 8
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 24
     }
   },
   "packages/transaction-pay-controller/src/utils/provider.test.ts": {

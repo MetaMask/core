@@ -48,6 +48,11 @@ import {
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
+import {
+  getPolymarketDepositWalletOverrides,
+  getPredictWithdrawFeeTokenAccount,
+  getPredictWithdrawSafeAddress,
+} from '../../utils/polymarket/withdraw.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import { resolveNonAtomicRecipient } from '../../utils/second-leg.js';
@@ -59,12 +64,8 @@ import {
 } from '../../utils/token.js';
 import { getQuotePricing } from '../../utils/trade-type.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
+import { hasRelayDepositStep } from './deposit-step.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
-import {
-  applyPolymarketDepositWalletOverrides,
-  getPredictWithdrawSafeAddress,
-  isPredictWithdraw,
-} from './polymarket/withdraw.js';
 import { fetchRelayQuote } from './relay-api.js';
 import {
   getRelayMaxQuote,
@@ -363,11 +364,17 @@ async function getSingleQuote(
     };
 
     if (effectiveRequest.isPolymarketDepositWallet) {
-      await applyPolymarketDepositWalletOverrides(
-        body,
-        effectiveRequest,
+      const overrides = await getPolymarketDepositWalletOverrides(
+        from,
         messenger,
       );
+      const { depositWallet } = overrides;
+
+      body.originCurrency = overrides.sourceTokenAddress;
+      body.user = depositWallet;
+      body.refundTo = depositWallet;
+      body.useDepositAddress = true;
+      body.strict = true;
     }
 
     const isAtomic = effectiveRequest.atomic !== false;
@@ -926,8 +933,6 @@ async function calculateSourceNetworkCost(
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
     relayParams[0];
 
-  const isPredictWithdrawFlow = isPredictWithdraw(request, transaction);
-
   // `fromOverride = Safe proxy` is only valid for deposit-style Relay routes
   // where the deposit contract reads the user's source-token balance directly.
   // Same-chain destinations route through DEX swap aggregators that frequently
@@ -938,8 +943,8 @@ async function calculateSourceNetworkCost(
   // EOA `from` so simulation succeeds.
   const fromOverride = getPredictWithdrawSafeAddress(
     request,
-    quote.steps,
     transaction,
+    hasRelayDepositStep(quote.steps),
   );
 
   // For post-quote flows the original transaction will be prepended to the
@@ -999,9 +1004,10 @@ async function calculateSourceNetworkCost(
   // return nothing and force users to hold POL.
   // (`useFromOverride` only governs the gas-estimation `from` address, where
   // swap-style routes need EOA because DEX routers reject contract callers.)
-  const proxyFeeTokenAccount = isPredictWithdrawFlow
-    ? request.refundTo
-    : undefined;
+  const proxyFeeTokenAccount = getPredictWithdrawFeeTokenAccount(
+    request,
+    transaction,
+  );
 
   const gasStationCost = await resolveGasStationCost({
     accountSupports7702,

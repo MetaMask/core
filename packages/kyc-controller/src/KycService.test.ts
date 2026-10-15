@@ -159,7 +159,7 @@ describe('KycService', () => {
 
       expect(
         await service.createMoonpaySession({
-          email: 'a@b.co',
+          partnerIdentityToken: 'partner-identity-token',
           termsAcceptedAt: '2026-01-01T00:00:00.000Z',
           disclaimerIds: ['1'],
         }),
@@ -172,7 +172,7 @@ describe('KycService', () => {
 
       await expect(
         service.createMoonpaySession({
-          email: 'a@b.co',
+          partnerIdentityToken: 'partner-identity-token',
           termsAcceptedAt: '2026-01-01T00:00:00.000Z',
           disclaimerIds: ['1'],
         }),
@@ -266,7 +266,7 @@ describe('KycService', () => {
         .post(
           '/sessions',
           (body: Record<string, unknown>) =>
-            body.jwtToken === 'mock-jwt-token' &&
+            body.jwtToken === undefined &&
             body.vendorId === 'moonpay' &&
             body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
             body.residenceCountry === RESIDENCE_COUNTRY &&
@@ -664,7 +664,9 @@ describe('KycService', () => {
   describe('createVendorCustomer', () => {
     it('creates an Iron customer and returns the validated subset', async () => {
       nock(MOCK_API_URL)
-        .post('/vendors/iron/customers', { email: 'a@b.co' })
+        .post('/vendors/iron/customers', {
+          partnerIdentityToken: 'partner-identity-token',
+        })
         .reply(200, {
           id: 'iron-1',
           email: 'a@b.co',
@@ -680,7 +682,10 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
+        await service.createVendorCustomer({
+          vendor: 'iron',
+          partnerIdentityToken: 'partner-identity-token',
+        }),
       ).toMatchObject({
         id: 'iron-1',
         email: 'a@b.co',
@@ -695,7 +700,7 @@ describe('KycService', () => {
       await expect(
         service.createVendorCustomer({
           vendor: 'iron',
-          email: 'a@b.co',
+          partnerIdentityToken: 'partner-identity-token',
         }),
       ).rejects.toThrow(
         /Malformed response received from vendor customers API/u,
@@ -704,7 +709,9 @@ describe('KycService', () => {
 
     it('sends one request per call when two calls overlap', async () => {
       const scope = nock(MOCK_API_URL)
-        .post('/vendors/iron/customers', { email: 'a@b.co' })
+        .post('/vendors/iron/customers', {
+          partnerIdentityToken: 'partner-identity-token',
+        })
         .times(2)
         .reply(200, {
           id: 'iron-1',
@@ -714,8 +721,14 @@ describe('KycService', () => {
       const { service } = getService();
 
       await Promise.all([
-        service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
-        service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
+        service.createVendorCustomer({
+          vendor: 'iron',
+          partnerIdentityToken: 'partner-identity-token',
+        }),
+        service.createVendorCustomer({
+          vendor: 'iron',
+          partnerIdentityToken: 'partner-identity-token',
+        }),
       ]);
 
       expect(scope.isDone()).toBe(true);

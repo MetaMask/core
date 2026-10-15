@@ -381,7 +381,9 @@ type RequiredEventContextFromClientBase = {
  * Both are kept for a migration window and are treated as separate payloads.
  */
 export type RequiredEventContextFromClient = {
-  [K in keyof RequiredEventContextFromClientBase]: K extends BatchSellMetricsEventName
+  [
+    K in keyof RequiredEventContextFromClientBase
+  ]: K extends BatchSellMetricsEventName
     ? RequiredEventContextFromClientBase[K]
     : RequiredEventContextFromClientBase[K] &
         OptionalLocationContextFromClient<
