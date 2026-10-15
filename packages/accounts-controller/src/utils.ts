@@ -59,6 +59,9 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.mpcMoney: {
       return 'MPC Money';
     }
+    case KeyringTypes.mpc: {
+      return 'MPC';
+    }
     default: {
       throw new Error(`Unknown keyring ${keyringType}`);
     }

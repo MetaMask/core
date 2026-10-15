@@ -32,6 +32,7 @@ describe('utils', () => {
       [KeyringType.WatchOnly, 'Watch-only Account'],
       [KeyringTypes.money, 'Money'],
       [KeyringTypes.mpcMoney, 'MPC Money'],
+      [KeyringTypes.mpc, 'MPC'],
     ])('returns "%s" for %s keyring type', (keyringType, expectedName) => {
       expect(keyringTypeToName(keyringType)).toBe(expectedName);
     });
