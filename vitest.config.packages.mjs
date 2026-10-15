@@ -36,27 +36,9 @@ export default defineConfig({
     restoreMocks: true,
 
     fakeTimers: {
-      // Everything @sinonjs/fake-timers can fake except `nextTick` and
-      // `queueMicrotask`, which the call sites used to exclude one by one with
-      // Jest's `doNotFake`. Vitest has no `doNotFake` and no default `toFake`,
-      // so the list has to be inclusive. Dropping `Intl` would quietly stop
-      // `Intl.DateTimeFormat` following mocked time.
-      toFake: [
-        'Intl',
-        'setTimeout',
-        'clearTimeout',
-        'setImmediate',
-        'clearImmediate',
-        'setInterval',
-        'clearInterval',
-        'Date',
-        'hrtime',
-        'requestAnimationFrame',
-        'cancelAnimationFrame',
-        'requestIdleCallback',
-        'cancelIdleCallback',
-        'performance',
-      ],
+      // Jest's `doNotFake`, which the call sites used to pass one by one. With
+      // neither option set, @sinonjs/fake-timers fakes everything it can.
+      toNotFake: ['nextTick', 'queueMicrotask'],
     },
 
     coverage: {
@@ -71,7 +53,7 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: ['src/**/index.ts', 'src/**/*.test.ts', 'src/**/*.d.ts'],
 
-      reporter: ['text', 'html', 'json-summary', 'lcov'],
+      reporter: ['text', 'html', 'json-summary', 'lcovonly'],
       reportsDirectory: 'coverage',
     },
   },
