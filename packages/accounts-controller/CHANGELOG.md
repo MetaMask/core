@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Filter out MPC accounts when replicating `KeyringController` state ([#10577](https://github.com/MetaMask/core/pull/10577))
+- Filter out MPC Money keyring accounts when replicating `KeyringController` state ([#10577](https://github.com/MetaMask/core/pull/10577)), ([#10849](https://github.com/MetaMask/core/pull/10849))
   - Those accounts are treated differently with their own "account-like" controller.
+  - `keyringTypeToName` no longer throws for the MPC Money keyring type, and returns "MPC Money".
 - Add support for watch-only accounts ([#10677](https://github.com/MetaMask/core/pull/10677))
   - Watch-only accounts are now synced directly from the (v2) watch-only keyring.
   - Watch-only accounts are named "Watch-only Account" by default, and `keyringTypeToName` no longer throws for the watch-only keyring type.
@@ -26,9 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `ethereum-cryptography` from `^2.1.2` to `^3.2.0` ([#10485](https://github.com/MetaMask/core/pull/10485), [#10599](https://github.com/MetaMask/core/pull/10599))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@metamask/network-controller` from `^37.0.0` to `^37.0.1` ([#10658](https://github.com/MetaMask/core/pull/10658))
-- Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.1` ([#10733](https://github.com/MetaMask/core/pull/10733), [#10792](https://github.com/MetaMask/core/pull/10792))
+- Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.2` ([#10733](https://github.com/MetaMask/core/pull/10733), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/eth-snap-keyring` from `^24.0.0` to `^24.1.1` ([#10732](https://github.com/MetaMask/core/pull/10732), [#10792](https://github.com/MetaMask/core/pull/10792))
-- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.2.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.3.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/keyring-sdk` from `^3.1.0` to `^4.0.0` ([#10792](https://github.com/MetaMask/core/pull/10792))
 
 ## [40.0.0]

@@ -695,7 +695,7 @@ describe('AccountsController', () => {
         expect(snapAccount?.scopes).not.toBe(mockAccount3.scopes);
       });
 
-      it('does not add Money or MPC keyring accounts', async () => {
+      it('does not add Money or MPC Money keyring accounts', async () => {
         mockUUIDWithNormalAccounts([mockAccount]);
 
         const messenger = buildMessenger();
@@ -729,11 +729,11 @@ describe('AccountsController', () => {
               },
             },
             {
-              type: KeyringTypes.mpc,
+              type: KeyringTypes.mpcMoney,
               accounts: [mockAccount3.address],
               metadata: {
-                id: 'mock-id-mpc',
-                name: 'mock-name-mpc',
+                id: 'mock-id-mpc-money',
+                name: 'mock-name-mpc-money',
               },
             },
           ],
