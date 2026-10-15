@@ -7690,11 +7690,6 @@
       "count": 2
     }
   },
-  "tests/vitest/setup-after-env.ts": {
-    "vitest/require-top-level-describe": {
-      "count": 2
-    }
-  },
   "types/@metamask/contract-metadata.d.ts": {
     "import/unambiguous": {
       "count": 1
