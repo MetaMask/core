@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [40.1.0]
+
 ### Uncategorized
 
 - chore(deps): update dependency @metamask/providers to ^22.1.1 ([#10709](https://github.com/MetaMask/core/pull/10709))
@@ -954,7 +956,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@40.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@40.1.0...HEAD
+[40.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@40.0.0...@metamask/accounts-controller@40.1.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.1...@metamask/accounts-controller@40.0.0
 [39.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.0...@metamask/accounts-controller@39.1.1
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.7...@metamask/accounts-controller@39.1.0
