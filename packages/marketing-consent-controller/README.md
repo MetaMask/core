@@ -43,7 +43,7 @@ Call `MarketingConsentController:setMarketingConsent(enabled)` for every user ch
 
 - It resolves once AUS has saved the change.
 - Turning consent off also turns off the AUS marketing notification channels.
-- While locked or signed out, the change is applied locally and saved at the next unlock and sign-in; the call resolves without waiting.
+- Before sign-in finishes (for example during onboarding), the change is applied locally and saved once the wallet is unlocked and signed in; the call resolves without waiting. A change still unsaved when the wallet locks is saved after the next unlock and sign-in.
 - If AUS does not save the change, the call rejects and local consent is re-read from AUS.
 
 ### Re-reading AUS

@@ -175,8 +175,8 @@ export type MarketingConsentControllerMessenger = Messenger<
  * AUS has saved the change.
  * - On sign-in, unlock or {@link MarketingConsentController.refresh}, consent
  * is read from AUS and applied locally.
- * - A local change not yet saved (e.g. made while signed out) wins at the next
- * sync and is written to AUS. If AUS has no record, the local value is
+ * - A local change not yet saved (e.g. made during onboarding, before sign-in
+ * finishes) wins at the next sync and is written to AUS. If AUS has no record, the local value is
  * written to it.
  * - Whenever consent is off, the AUS "marketing" notification channels are
  * turned off too, including when another client revoked consent.
@@ -274,9 +274,9 @@ export class MarketingConsentController extends BaseController<
    * Turning consent off also turns off the AUS marketing notification
    * channels, before consent is saved.
    *
-   * While the wallet is locked or signed out, the change is applied locally
-   * and saved to AUS on the next unlock and sign-in; the call resolves
-   * without waiting for that.
+   * Before sign-in finishes (e.g. during onboarding), the change is applied
+   * locally and saved to AUS once the wallet is unlocked and signed in; the
+   * call resolves without waiting for that.
    *
    * A call overtaken by a newer one resolves without waiting; the newer call
    * reports the outcome.
@@ -292,8 +292,8 @@ export class MarketingConsentController extends BaseController<
     await this.#applyLocalConsent(enabled);
 
     // Checked after applying: the change applies locally either way, and a
-    // first decision is what makes syncing possible. When locked or signed
-    // out, the change stays pending until the next unlock and sign-in.
+    // first decision is what makes syncing possible. Before sign-in finishes,
+    // the change stays pending until the wallet is unlocked and signed in.
     if (!this.#isReady()) {
       return;
     }
@@ -316,8 +316,8 @@ export class MarketingConsentController extends BaseController<
    * @param failedValue - The consent value that was not saved.
    */
   async #revertToAus(failedValue: boolean): Promise<void> {
-    // Signed out or locked mid-save: like a change made while signed out, it
-    // stays pending and is saved at the next unlock and sign-in.
+    // Locked or signed out mid-save: like a change made before sign-in, it
+    // stays pending and is saved after the next unlock and sign-in.
     if (!this.#isReady()) {
       return;
     }

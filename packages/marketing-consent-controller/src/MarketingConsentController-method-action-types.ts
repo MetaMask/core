@@ -11,9 +11,9 @@ import type { MarketingConsentController } from './MarketingConsentController.js
  * Turning consent off also turns off the AUS marketing notification
  * channels, before consent is saved.
  *
- * While the wallet is locked or signed out, the change is applied locally
- * and saved to AUS on the next unlock and sign-in; the call resolves
- * without waiting for that.
+ * Before sign-in finishes (e.g. during onboarding), the change is applied
+ * locally and saved to AUS once the wallet is unlocked and signed in; the
+ * call resolves without waiting for that.
  *
  * A call overtaken by a newer one resolves without waiting; the newer call
  * reports the outcome.
