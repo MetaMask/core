@@ -1,9 +1,3 @@
-/**
- * Shared Vitest configuration for packages in `packages/`, the counterpart to
- * `jest.config.packages.cjs`. Like `metamask-module-template`, it does not
- * enable `globals: true`.
- */
-
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
