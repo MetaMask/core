@@ -61,9 +61,8 @@ export default defineConfig({
       include: ['src/**/*.ts'],
 
       // The files to exclude from the coverage report. An index file only
-      // re-exports, so it has nothing to cover. Setting this replaces Vitest's
-      // defaults, which is why test files are listed too.
-      exclude: ['src/**/index.ts', 'src/**/*.test.ts', 'src/**/*.d.ts'],
+      // re-exports, so it has nothing to cover.
+      exclude: ['src/**/index.ts', 'src/**/*.d.ts'],
 
       // The reporters the Jest config uses, except that istanbul's `lcov`
       // writes a second HTML report alongside the `lcov.info` file, so the
