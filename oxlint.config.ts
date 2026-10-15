@@ -13,11 +13,16 @@ import { createRequire } from 'node:module';
  *
  * CommonJS, so `yarn.config.cjs` can read the same source of truth.
  */
-const { JEST_WORKSPACES: jestWorkspaces, VITEST_WORKSPACES: vitestWorkspaces } =
-  createRequire(import.meta.url)('./test-runner-package-map.cjs') as {
-    JEST_WORKSPACES: string[];
-    VITEST_WORKSPACES: string[];
-  };
+const { getTestRunnerWorkspaces } = createRequire(import.meta.url)(
+  './test-runner-package-map.cjs',
+) as {
+  getTestRunnerWorkspaces: () => Promise<{
+    jestWorkspaces: string[];
+    vitestWorkspaces: string[];
+  }>;
+};
+
+const { jestWorkspaces, vitestWorkspaces } = await getTestRunnerWorkspaces();
 
 /**
  * Builds the test-file globs for a set of workspaces.
@@ -92,7 +97,6 @@ export default createConfig({
         'jest.config.packages.cjs',
         'jest.config.scripts.cjs',
         'vitest.config.packages.mjs',
-        'test-runner-package-map.cjs',
         // These import their globals explicitly.
         'tests/helpers.ts',
         'tests/matchers.ts',
