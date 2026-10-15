@@ -211,7 +211,7 @@ export async function signStorageAccessToken(
   }
 
   const message = stringToBytes(canonicalizeJson(payload));
-  const signature = await sign(message, material.signingKey);
+  const signature = await sign(material.signingKey, message);
 
   return {
     payload,
