@@ -329,19 +329,6 @@ export class BackendWebSocketService {
 
   #ws: WebSocket | undefined;
 
-  /**
-   * Socket created for the current handshake, before `onopen` assigns `#ws`.
-   * `disconnect()` closes this so Basic Functionality can abort CONNECTING.
-   */
-  #pendingWebSocket: WebSocket | undefined;
-
-  /**
-   * True after `disconnect()` asks the socket to close. A handshake still in
-   * CONNECTING cannot carry the manual close code: browsers report 1006 and an
-   * empty reason instead.
-   */
-  #manualClose = false;
-
   #state: WebSocketState = WebSocketState.DISCONNECTED;
 
   #reconnectAttempts = 0;
@@ -445,38 +432,6 @@ export class BackendWebSocketService {
   }
 
   /**
-   * Drop a queued reconnect and start the backoff over.
-   * Does not close an open or in-flight socket.
-   */
-  #clearReconnectSchedule(): void {
-    if (this.#reconnectTimer) {
-      clearTimeout(this.#reconnectTimer);
-      this.#reconnectTimer = null;
-    }
-    this.#reconnectAttempts = 0;
-    this.#newBackoff();
-  }
-
-  /**
-   * Stop a connection that the gates no longer allow.
-   *
-   * Basic Functionality closes the socket. A disabled feature flag only
-   * cancels a queued reconnect and leaves an open socket in place.
-   *
-   * @returns True when the caller should not open a socket.
-   */
-  #stopDisallowedConnection(): boolean {
-    if (this.#isConnectionAllowed()) {
-      return false;
-    }
-    this.#clearReconnectSchedule();
-    if (!this.#isBasicFunctionality()) {
-      this.disconnect();
-    }
-    return true;
-  }
-
-  /**
    * Apply a Basic Functionality change. The getter is the source of truth.
    *
    * Turning the setting off uses the same `disconnect()` path as lock and
@@ -549,10 +504,10 @@ export class BackendWebSocketService {
    * @returns Promise that resolves when connection is established
    */
   async connect(): Promise<void> {
-    // Priority 1: Feature flag and Basic Functionality must both allow the socket.
-    // If either gate is closed, stop attempts. Only Basic Functionality also
-    // drops an open connection; a disabled feature flag keeps it as before.
-    if (this.#stopDisallowedConnection()) {
+    // Feature flag and Basic Functionality must both allow the socket.
+    // A closed gate does not open a socket. Closing an open socket is
+    // disconnect(), which Basic Functionality off calls directly.
+    if (!this.#isConnectionAllowed()) {
       return;
     }
 
@@ -561,13 +516,11 @@ export class BackendWebSocketService {
       return;
     }
 
-    // If already connecting, wait for the existing attempt. A Basic Functionality
-    // abort resolves that attempt without connecting, so start a new handshake
-    // when the setting is back on.
+    // If already connecting, wait for the existing attempt.
     if (this.#connectionPromise) {
       await this.#connectionPromise;
-      // The attempt that owns the promise clears it. If Basic Functionality
-      // turned off while this call waited, do not open another socket.
+      // The attempt that owns the promise clears it. If a gate closed while
+      // this call waited, do not open another socket.
       if (!this.#isConnectionAllowed()) {
         return;
       }
@@ -600,8 +553,8 @@ export class BackendWebSocketService {
         throw error;
       }
 
-      // Basic Functionality may have turned off while awaiting the token
-      if (this.#stopDisallowedConnection()) {
+      // A gate may have closed while awaiting the token
+      if (!this.#isConnectionAllowed()) {
         return;
       }
 
@@ -631,8 +584,7 @@ export class BackendWebSocketService {
    * The timer is cleared before the early return. Lock, sign-out, and Basic
    * Functionality off all call this, including when the socket is already gone
    * and `onclose` will not run. `clearTimeout` has to run first: assigning
-   * `#reconnectTimer` to null leaves the callback scheduled. A socket still in
-   * CONNECTING is `#pendingWebSocket`, so this closes that too.
+   * `#reconnectTimer` to null leaves the callback scheduled.
    */
   disconnect(): void {
     if (this.#reconnectTimer) {
@@ -640,22 +592,11 @@ export class BackendWebSocketService {
       this.#reconnectTimer = null;
     }
 
-    const socket = this.#ws ?? this.#pendingWebSocket;
-    if (!socket || this.#state === WebSocketState.DISCONNECTED) {
+    if (this.#state === WebSocketState.DISCONNECTED || !this.#ws) {
       return;
     }
 
-    // This close replaces the handshake timeout. A timeout close would not
-    // set the manual-close flag.
-    if (this.#connectionTimeout) {
-      clearTimeout(this.#connectionTimeout);
-      this.#connectionTimeout = null;
-    }
-
-    // Remember the local abort before close(). An open socket reports code 4999.
-    // A CONNECTING socket reports 1006, so onclose uses this flag instead.
-    this.#manualClose = true;
-    socket.close(MANUAL_DISCONNECT_CODE, MANUAL_DISCONNECT_REASON);
+    this.#ws.close(MANUAL_DISCONNECT_CODE, MANUAL_DISCONNECT_REASON);
 
     log('WebSocket manually disconnected');
   }
@@ -1135,7 +1076,6 @@ export class BackendWebSocketService {
         return new Promise<void>((resolve, reject) => {
           // eslint-disable-next-line no-restricted-globals
           const ws = new WebSocket(wsUrl);
-          this.#pendingWebSocket = ws;
           this.#connectionTimeout = setTimeout(() => {
             log('WebSocket connection timeout - forcing close', {
               timeout: this.#options.timeout,
@@ -1150,9 +1090,6 @@ export class BackendWebSocketService {
               this.#connectionTimeout = null;
             }
 
-            if (this.#pendingWebSocket === ws) {
-              this.#pendingWebSocket = undefined;
-            }
             this.#ws = ws;
             this.#setState(WebSocketState.CONNECTED);
             this.#connectedAt = Date.now();
@@ -1184,21 +1121,14 @@ export class BackendWebSocketService {
               wasClean: event.wasClean,
             });
 
-            // A CONNECTING close() arrives as 1006. The flag records that
-            // disconnect() requested it, including when this event is a duplicate.
-            const closedByDisconnect = this.#manualClose;
-            this.#manualClose = false;
-
             // Guard against duplicate close events
             if (this.#state === WebSocketState.DISCONNECTED) {
               return;
             }
 
-            // An open socket keeps code 4999. A handshake abort does not.
             const isManualDisconnect =
-              closedByDisconnect ||
-              (event.code === MANUAL_DISCONNECT_CODE &&
-                event.reason === MANUAL_DISCONNECT_REASON);
+              event.code === MANUAL_DISCONNECT_CODE &&
+              event.reason === MANUAL_DISCONNECT_REASON;
 
             // If connection hasn't been established yet, handle the connection promise
             if (this.#state === WebSocketState.CONNECTING) {
@@ -1223,9 +1153,6 @@ export class BackendWebSocketService {
             this.#clearTimers();
 
             // Clear WebSocket reference to allow garbage collection
-            if (this.#pendingWebSocket === ws) {
-              this.#pendingWebSocket = undefined;
-            }
             this.#ws = undefined;
 
             // Clear connection tracking
@@ -1505,12 +1432,8 @@ export class BackendWebSocketService {
     });
 
     this.#reconnectTimer = setTimeout(() => {
-      // A closed gate drops this timer and resets the attempt count.
-      // Leave the timer set until then so that clear still runs.
-      if (this.#stopDisallowedConnection()) {
-        return;
-      }
-
+      // Null the timer before connect(). connect() returns early while a
+      // timer id is still set, including when a gate is closed.
       this.#reconnectTimer = null;
 
       // eslint-disable-next-line @typescript-eslint/no-floating-promises

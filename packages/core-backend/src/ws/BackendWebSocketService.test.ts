@@ -107,15 +107,9 @@ class MockWebSocket extends EventTarget {
     MockWebSocket.#instanceCount += 1;
     this.url = url;
     // TypeScript has issues with jest.spyOn on WebSocket methods, so using direct assignment
-    // Store reference to simulateClose for use in close()
     const simulateCloseFn = this.simulateClose.bind(this);
     // eslint-disable-next-line jest/prefer-spy-on
     this.close = jest.fn().mockImplementation((code = 1000, reason = '') => {
-      // close() during CONNECTING fails the handshake with 1006 and no reason.
-      if (this.readyState === MockWebSocket.CONNECTING) {
-        simulateCloseFn(1006, '');
-        return;
-      }
       simulateCloseFn(code, reason);
     });
     // eslint-disable-next-line jest/prefer-spy-on
@@ -988,44 +982,20 @@ describe('BackendWebSocketService', () => {
           options: { isBasicFunctionality: () => isBasic },
           mockWebSocketOptions: { autoConnect: false },
         },
-        async ({ service, completeAsyncOperations }) => {
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           const firstConnect = service.connect();
           await completeAsyncOperations(0);
           const waitingConnect = service.connect();
 
           isBasic = false;
+          // disconnect() during CONNECTING does not settle the handshake.
           service.disconnect();
+          getMockWebSocket().triggerOpen();
           await firstConnect;
           await waitingConnect;
           await completeAsyncOperations(5000);
 
           expect(MockWebSocket.getInstanceCount()).toBe(1);
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.DISCONNECTED,
-          );
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
-        },
-      );
-    });
-
-    it('does not reconnect when disconnect aborts a CONNECTING handshake with code 1006', async () => {
-      await withService(
-        { mockWebSocketOptions: { autoConnect: false } },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          const connectPromise = service.connect();
-          await completeAsyncOperations(0);
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.CONNECTING,
-          );
-
-          service.disconnect();
-          await connectPromise;
-          await completeAsyncOperations(5000);
-
-          expect(getMockWebSocket().close).toHaveBeenCalledWith(
-            4999,
-            'Internal: Manual disconnect',
-          );
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
           );
@@ -2207,9 +2177,10 @@ describe('BackendWebSocketService', () => {
           // Advance time to trigger reconnection check
           await completeAsyncOperations(70);
 
-          // Should have checked isEnabled and stopped reconnection
+          // The timer calls connect(), which returns without opening a socket.
+          // The failed attempt stays counted.
           expect(mockEnabledCallback).toHaveBeenCalled();
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
           );
@@ -2284,8 +2255,10 @@ describe('BackendWebSocketService', () => {
           isBasicFunctionality.mockReturnValue(false);
           await completeAsyncOperations(70);
 
+          // The timer calls connect(), which returns without opening a socket.
+          // The failed attempt stays counted.
           expect(isBasicFunctionality).toHaveBeenCalled();
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
           );
@@ -2424,91 +2397,6 @@ describe('BackendWebSocketService', () => {
             WebSocketState.DISCONNECTED,
           );
           expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
-        },
-      );
-    });
-
-    it('closes an in-flight handshake when basic functionality turns off', async () => {
-      let isBasic = true;
-      let onChange: (() => void) | undefined;
-      await withService(
-        {
-          options: {
-            isBasicFunctionality: () => isBasic,
-            subscribeToBasicFunctionalityChange: (callback) => {
-              onChange = callback;
-              return (): void => undefined;
-            },
-          },
-          mockWebSocketOptions: { autoConnect: false },
-        },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          const connectPromise = service.connect();
-          await completeAsyncOperations();
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.CONNECTING,
-          );
-
-          isBasic = false;
-          onChange?.();
-
-          expect(getMockWebSocket().close).toHaveBeenCalled();
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.DISCONNECTED,
-          );
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
-
-          getMockWebSocket().triggerOpen();
-          await connectPromise;
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.DISCONNECTED,
-          );
-        },
-      );
-    });
-
-    it('reconnects when basic functionality turns back on during an aborted handshake', async () => {
-      let isBasic = true;
-      let onChange: (() => void) | undefined;
-      await withService(
-        {
-          options: {
-            isBasicFunctionality: () => isBasic,
-            subscribeToBasicFunctionalityChange: (callback) => {
-              onChange = callback;
-              return (): void => undefined;
-            },
-          },
-          mockWebSocketOptions: { autoConnect: false },
-        },
-        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          const connectPromise = service.connect();
-          await completeAsyncOperations();
-          const firstSocket = getMockWebSocket();
-          // WebSocket.close() delivers onclose asynchronously. Hold it so the
-          // setting can turn back on before the aborted handshake settles.
-          firstSocket.close.mockImplementation(() => undefined);
-
-          isBasic = false;
-          onChange?.();
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.CONNECTING,
-          );
-
-          isBasic = true;
-          onChange?.();
-          firstSocket.simulateClose(1006, '');
-          await connectPromise;
-          await completeAsyncOperations();
-
-          const secondSocket = getMockWebSocket();
-          expect(secondSocket).not.toBe(firstSocket);
-          secondSocket.triggerOpen();
-          await completeAsyncOperations();
-
-          expect(service.getConnectionInfo().state).toBe(
-            WebSocketState.CONNECTED,
-          );
         },
       );
     });
