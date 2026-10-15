@@ -3783,6 +3783,11 @@
       "count": 1
     }
   },
+  "packages/money-account-mfa-whitelist/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
   "packages/money-account-upgrade-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -6977,6 +6982,11 @@
       "count": 1
     }
   },
+  "packages/transaction-pay-middleware/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
   "packages/user-operation-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -7675,26 +7685,12 @@
     }
   },
   "tests/helpers.ts": {
-    "id-length": {
-      "count": 1
-    },
     "typescript/no-unsafe-argument": {
-      "count": 2
-    },
-    "typescript/no-unsafe-member-access": {
       "count": 1
     }
   },
   "tests/scripts-setup.ts": {
     "jest/require-top-level-describe": {
-      "count": 1
-    }
-  },
-  "tests/setupAfterEnv/matchers.ts": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
       "count": 1
     }
   },
@@ -7753,7 +7749,7 @@
       "count": 1
     }
   },
-  "types/global.d.ts": {
+  "types/jest.d.ts": {
     "id-length": {
       "count": 1
     },
