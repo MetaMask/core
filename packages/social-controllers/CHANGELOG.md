@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `createCopyTradeIntent` method to `SocialService` (and the `SocialService:createCopyTradeIntent` messenger action). Calls `POST /v1/copy-trade-intents` with the comment origin, the copier's CAIP-10 account, and the execution (a swaps `quoteId` or a perps `oid`), and returns the validated `CopyTradeIntentResponse`. Both 201 (created) and 200 (existing intent) resolve ([#10823](https://github.com/MetaMask/core/pull/10823))
-  - Export the `CreateCopyTradeIntentOptions`, `CopyTradeIntentResponse`, `CopyTradeOrigin`, `CopyTradeExecution`, `CopyTradeAccount`, and `CopyTradePayoutEligibility` types
+- Export the `CreateCopyTradeIntentOptions`, `CopyTradeIntentResponse`, `CopyTradeOrigin`, `CopyTradeExecution`, `CopyTradeAccount`, and `CopyTradePayoutEligibility` types
 
 ### Changed
 
