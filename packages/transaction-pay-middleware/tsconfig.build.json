@@ -4,6 +4,29 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "references": [],
-  "include": ["../../types", "./src"]
+  "references": [
+    {
+      "path": "../controller-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../perps-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../transaction-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../utils/tsconfig.build.json"
+    }
+  ],
+  "include": ["../../types", "./src"],
+  "exclude": ["**/*.test.ts", "**/jest.config.ts", "./src/tests"]
 }
