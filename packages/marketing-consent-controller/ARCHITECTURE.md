@@ -84,7 +84,7 @@ See [MarketingConsentController.ts](/packages/marketing-consent-controller/src/M
 
 On failure:
 
-- If a newer `setMarketingConsent` call has started, it resolves; the newer call reports the outcome.
+- If a newer choice was made while it waited (a newer `setMarketingConsent` call, or other code changing consent in `AnalyticsController`), it resolves; the newer choice is saved on its own.
 - If the wallet locked or the user was signed out during the save, the change stays pending and the call rejects.
 - Otherwise the change is dropped, consent is re-read from AUS and applied locally, and the call rejects.
 
