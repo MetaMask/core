@@ -6771,16 +6771,16 @@
   },
   "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 141
+      "count": 144
     },
     "typescript/no-unsafe-assignment": {
       "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 108
+      "count": 110
     },
     "typescript/no-unsafe-member-access": {
-      "count": 108
+      "count": 110
     }
   },
   "packages/transaction-pay-controller/src/utils/gas-payment.test.ts": {

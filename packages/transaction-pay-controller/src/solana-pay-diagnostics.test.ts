@@ -1,5 +1,4 @@
 import type { MetamaskPaySolanaExecution } from '@metamask/transaction-controller';
-import type { CaipAccountId, CaipAssetType } from '@metamask/utils';
 
 import {
   getSolanaPaySupportDiagnostics,
@@ -9,10 +8,8 @@ import {
 import type { TransactionPaySource } from './types.js';
 
 const SOURCE: TransactionPaySource = {
-  sourceAccountId:
-    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:account' as CaipAccountId,
-  sourceAssetId:
-    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:asset' as CaipAssetType,
+  sourceAccountId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:account',
+  sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:asset',
 };
 
 function getExecution(
@@ -77,7 +74,7 @@ describe('getSolanaPaySupportDiagnostics', () => {
       {
         ...SOURCE,
         sourceAccountId:
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:private-account' as CaipAccountId,
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:private-account',
       },
       getExecution({
         phase: 'submitted',
@@ -111,8 +108,7 @@ describe('getSolanaPaySupportDiagnostics', () => {
     const diagnostic = getSolanaPaySupportDiagnostics(
       {
         ...SOURCE,
-        sourceAssetId:
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as CaipAssetType,
+        sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
       },
       getExecution(),
     );
@@ -160,8 +156,7 @@ describe('isSolanaPayLifecycleTransition', () => {
     const next = getSolanaPaySupportDiagnostics(
       {
         ...SOURCE,
-        sourceAssetId:
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as CaipAssetType,
+        sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
       },
       getExecution(),
     );
