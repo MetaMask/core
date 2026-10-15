@@ -29,8 +29,7 @@ export default defineConfig({
     // The files to include in the test run.
     include: ['src/**/*.test.ts'],
 
-    // Jest's `setupFiles` and `setupFilesAfterEnv`, which Vitest merges into a
-    // single option.
+    // Jest's `setupFiles` and `setupFilesAfterEnv`, which Vitest merges.
     setupFiles: [
       path.join(monorepoRoot, 'tests/vitest/setup.ts'),
       path.join(monorepoRoot, 'tests/vitest/setup-after-env.ts'),
@@ -42,8 +41,7 @@ export default defineConfig({
     restoreMocks: true,
 
     fakeTimers: {
-      // Jest's `doNotFake`, which the call sites used to pass one by one. With
-      // neither option set, @sinonjs/fake-timers fakes everything it can.
+      // Jest's `doNotFake`. Unset, @sinonjs/fake-timers fakes everything.
       toNotFake: ['nextTick', 'queueMicrotask'],
     },
 
@@ -64,9 +62,7 @@ export default defineConfig({
       // re-exports, so it has nothing to cover.
       exclude: ['src/**/index.ts', 'src/**/*.d.ts'],
 
-      // The reporters the Jest config uses, except that istanbul's `lcov`
-      // writes a second HTML report alongside the `lcov.info` file, so the
-      // narrower `lcovonly` stands in for it.
+      // Jest's reporters, with `lcovonly` for `lcov`, which also writes HTML.
       reporter: ['text', 'html', 'json-summary', 'lcovonly'],
 
       // Each package configures its own thresholds.
