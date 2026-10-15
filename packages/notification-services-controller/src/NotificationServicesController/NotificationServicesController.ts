@@ -1070,12 +1070,6 @@ export class NotificationServicesController extends BaseController<
         'AuthenticatedUserStorageService:getNotificationPreferences',
       );
 
-      // Marketing notifications require marketing consent, read from its
-      // source rather than from the caller.
-      const hasMarketingConsent =
-        this.messenger.call('AnalyticsController:getState')
-          .optedInToMarketing === true;
-
       const isFirstTimeSetup = preferences === null;
 
       // 2. Subscribe the keyring's accounts on first-time setup only.
@@ -1115,9 +1109,14 @@ export class NotificationServicesController extends BaseController<
       // failed subscribe leave the user enabled with no accounts subscribed
       // and no second chance to seed them.
       if (isFirstTimeSetup) {
+        // Marketing notifications require marketing consent, read from its
+        // source rather than from the caller.
+        const { optedInToMarketing } = this.messenger.call(
+          'AnalyticsController:getState',
+        );
         await this.messenger.call(
           'AuthenticatedUserStorageService:putNotificationPreferences',
-          buildFreshPreferences(hasMarketingConsent),
+          buildFreshPreferences(optedInToMarketing === true),
           this.#featureAnnouncementEnv.platform,
         );
       }
