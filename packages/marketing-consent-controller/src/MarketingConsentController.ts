@@ -44,8 +44,11 @@ const controllerName = 'MarketingConsentController';
 type ConsentSyncSession = {
   /** The consent value AUS last confirmed in this session. */
   lastSynced?: boolean;
-  /** Whether AUS may have changed (e.g. on another device) since the last read. */
-  remoteStale?: boolean;
+  /**
+   * A refresh was requested (e.g. on unlock, since AUS may have changed on
+   * another device), so AUS should be read again.
+   */
+  refreshRequested?: boolean;
 };
 
 /**
@@ -362,7 +365,7 @@ export class MarketingConsentController extends BaseController<
     // Any pending change is this call's: a newer choice returns before the
     // revert (see setMarketingConsent).
     this.#setPendingConsent(null);
-    this.#session.remoteStale = true;
+    this.#session.refreshRequested = true;
     try {
       await this.#settleSync();
     } catch (error) {
@@ -414,7 +417,7 @@ export class MarketingConsentController extends BaseController<
    * returns to the foreground.
    */
   refresh(): void {
-    this.#session.remoteStale = true;
+    this.#session.refreshRequested = true;
     this.#startSync();
   }
 
@@ -656,9 +659,11 @@ export class MarketingConsentController extends BaseController<
    * @param session - The session the run belongs to.
    */
   async #run(session: ConsentSyncSession): Promise<void> {
+    // Claim any refresh requests: this run's AUS read satisfies them. A
+    // request made during the run sets the flag again and starts another run.
     // Every run starts from a pending local change, a new session or a
     // refresh, so without a pending change AUS is always read.
-    session.remoteStale = false;
+    session.refreshRequested = false;
     if (this.state.pendingMarketingConsent === null) {
       await this.#reconcileWithAus(session);
     }
@@ -697,7 +702,7 @@ export class MarketingConsentController extends BaseController<
       if (
         this.#isReady() &&
         (sessionChanged ||
-          this.#session.remoteStale === true ||
+          this.#session.refreshRequested === true ||
           changedAfterFlush)
       ) {
         this.#startSync();
