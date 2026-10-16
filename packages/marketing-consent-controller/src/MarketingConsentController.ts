@@ -222,13 +222,13 @@ export class MarketingConsentController extends BaseController<
   readonly #clientType: ClientType;
 
   /**
-   * Whether {@link MarketingConsentController.init} has run.
+   * Whether {@link MarketingConsentController.initialize} has run.
    */
   #initialized = false;
 
   /**
    * Whether the wallet is unlocked, kept in step with the KeyringController
-   * lock and unlock events. Starts `false`, so nothing syncs before `init`.
+   * lock and unlock events. Starts `false`, so nothing syncs before `initialize`.
    */
   #isUnlocked = false;
 
@@ -269,7 +269,7 @@ export class MarketingConsentController extends BaseController<
 
   /**
    * Creates a new MarketingConsentController. It doesn't read other
-   * controllers or sync until {@link MarketingConsentController.init} is
+   * controllers or sync until {@link MarketingConsentController.initialize} is
    * called.
    *
    * @param options - Constructor options.
@@ -305,8 +305,12 @@ export class MarketingConsentController extends BaseController<
    * Reads the lock, sign-in and consent state, subscribes to their changes
    * and starts the first sync. Call it once every controller this one depends
    * on is registered. Calling it again does nothing.
+   *
+   * It isn't named `init` because `Wallet` from `@metamask/wallet` calls
+   * `init` on its instances before `AnalyticsController` is registered. Once
+   * `AnalyticsController` is part of `@metamask/wallet`, `init` can call this.
    */
-  init(): void {
+  initialize(): void {
     if (this.#initialized) {
       return;
     }

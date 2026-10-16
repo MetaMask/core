@@ -85,7 +85,7 @@ type SetupOptions = {
   putPreferences?: () => Promise<void>;
   state?: Partial<MarketingConsentControllerState>;
   clientType?: ClientType;
-  init?: boolean;
+  initialize?: boolean;
 };
 
 const DELEGATED_ACTIONS = [
@@ -145,7 +145,7 @@ function createDeferred<Value>(): {
  * @param options.putPreferences - Overrides the AUS preferences write.
  * @param options.state - Initial controller state.
  * @param options.clientType - The client type passed to the controller.
- * @param options.init - Whether to call `init` after constructing.
+ * @param options.initialize - Whether to call `initialize` after constructing.
  * @returns The controller, messengers, mocks and event helpers.
  */
 function setup({
@@ -159,7 +159,7 @@ function setup({
   putPreferences = async (): Promise<void> => undefined,
   state,
   clientType = 'extension',
-  init = true,
+  initialize = true,
 }: SetupOptions = {}): {
   controller: MarketingConsentController;
   rootMessenger: RootMessenger;
@@ -295,8 +295,8 @@ function setup({
     state,
     clientType,
   });
-  if (init) {
-    controller.init();
+  if (initialize) {
+    controller.initialize();
   }
 
   return { controller, rootMessenger, mocks, setAnalyticsState, setSignedIn };
@@ -352,7 +352,7 @@ describe('MarketingConsentController', () => {
     consoleError.mockRestore();
   });
 
-  describe('init', () => {
+  describe('initialize', () => {
     it('can be constructed before the controllers it reads are registered', () => {
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
@@ -376,12 +376,12 @@ describe('MarketingConsentController', () => {
       ).not.toThrow();
     });
 
-    it('does not sync until init is called', async () => {
+    it('does not sync until initialize is called', async () => {
       const { controller, mocks, setSignedIn } = setup({
         analyticsState: OPTED_IN,
         isSignedIn: true,
         remoteConsent: { marketingConsentEnabled: true },
-        init: false,
+        initialize: false,
       });
       setSignedIn(false);
       setSignedIn(true);
@@ -389,18 +389,18 @@ describe('MarketingConsentController', () => {
       await flushPromises();
       expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
 
-      controller.init();
+      controller.initialize();
       await flushPromises();
 
       expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(1);
     });
 
-    it('saves a choice made before init once init is called', async () => {
+    it('saves a choice made before initialize once it is called', async () => {
       const { controller, mocks } = setup({
         analyticsState: OPTED_OUT,
         isSignedIn: true,
         remoteConsent: { marketingConsentEnabled: false },
-        init: false,
+        initialize: false,
       });
 
       expect(await controller.setMarketingConsent(true)).toBeUndefined();
@@ -408,7 +408,7 @@ describe('MarketingConsentController', () => {
       expect(controller.state.pendingMarketingConsent).toBe(true);
       expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
 
-      controller.init();
+      controller.initialize();
       await flushPromises();
 
       expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([true]);
@@ -423,7 +423,7 @@ describe('MarketingConsentController', () => {
       });
       await flushPromises();
 
-      controller.init();
+      controller.initialize();
       await flushPromises();
 
       expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(1);
