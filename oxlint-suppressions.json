@@ -3601,11 +3601,6 @@
       "count": 2
     }
   },
-  "packages/marketing-consent-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/message-manager/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
