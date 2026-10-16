@@ -16,7 +16,7 @@ or
 
 ### Setup
 
-Construct it after `AnalyticsController`, `AuthenticationController` and `KeyringController` are registered: the constructor reads their state and starts syncing right away.
+Construct it, then call `init()` once `AnalyticsController`, `AuthenticationController` and `KeyringController` are registered. The constructor doesn't call other controllers; `init()` reads their state, subscribes to their changes and starts syncing.
 
 ```ts
 const controller = new MarketingConsentController({
@@ -24,7 +24,12 @@ const controller = new MarketingConsentController({
   state, // persisted state, if any
   clientType: 'extension', // or 'mobile'
 });
+
+// After every controller is registered:
+controller.init();
 ```
+
+Before `init()`, the controller doesn't sync: `setMarketingConsent` applies the choice locally and saves it once `init()` has run and the user is signed in.
 
 The messenger must allow these actions and events:
 

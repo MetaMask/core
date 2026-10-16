@@ -85,7 +85,28 @@ type SetupOptions = {
   putPreferences?: () => Promise<void>;
   state?: Partial<MarketingConsentControllerState>;
   clientType?: ClientType;
+  init?: boolean;
 };
+
+const DELEGATED_ACTIONS = [
+  'AuthenticatedUserStorageService:invalidateQueries',
+  'AuthenticatedUserStorageService:getMarketingConsent',
+  'AuthenticatedUserStorageService:putMarketingConsent',
+  'AuthenticatedUserStorageService:getNotificationPreferences',
+  'AuthenticatedUserStorageService:putNotificationPreferences',
+  'AnalyticsController:getState',
+  'AnalyticsController:optInToMarketing',
+  'AnalyticsController:optOutOfMarketing',
+  'AuthenticationController:getState',
+  'KeyringController:getState',
+] as const;
+
+const DELEGATED_EVENTS = [
+  'AnalyticsController:stateChanged',
+  'AuthenticationController:stateChanged',
+  'KeyringController:lock',
+  'KeyringController:unlock',
+] as const;
 
 const flushPromises = async (): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, 0));
@@ -124,6 +145,7 @@ function createDeferred<Value>(): {
  * @param options.putPreferences - Overrides the AUS preferences write.
  * @param options.state - Initial controller state.
  * @param options.clientType - The client type passed to the controller.
+ * @param options.init - Whether to call `init` after constructing.
  * @returns The controller, messengers, mocks and event helpers.
  */
 function setup({
@@ -137,6 +159,7 @@ function setup({
   putPreferences = async (): Promise<void> => undefined,
   state,
   clientType = 'extension',
+  init = true,
 }: SetupOptions = {}): {
   controller: MarketingConsentController;
   rootMessenger: RootMessenger;
@@ -263,24 +286,8 @@ function setup({
   });
   rootMessenger.delegate({
     messenger,
-    actions: [
-      'AuthenticatedUserStorageService:invalidateQueries',
-      'AuthenticatedUserStorageService:getMarketingConsent',
-      'AuthenticatedUserStorageService:putMarketingConsent',
-      'AuthenticatedUserStorageService:getNotificationPreferences',
-      'AuthenticatedUserStorageService:putNotificationPreferences',
-      'AnalyticsController:getState',
-      'AnalyticsController:optInToMarketing',
-      'AnalyticsController:optOutOfMarketing',
-      'AuthenticationController:getState',
-      'KeyringController:getState',
-    ],
-    events: [
-      'AnalyticsController:stateChanged',
-      'AuthenticationController:stateChanged',
-      'KeyringController:lock',
-      'KeyringController:unlock',
-    ],
+    actions: [...DELEGATED_ACTIONS],
+    events: [...DELEGATED_EVENTS],
   });
 
   const controller = new MarketingConsentController({
@@ -288,6 +295,9 @@ function setup({
     state,
     clientType,
   });
+  if (init) {
+    controller.init();
+  }
 
   return { controller, rootMessenger, mocks, setAnalyticsState, setSignedIn };
 }
@@ -340,6 +350,84 @@ describe('MarketingConsentController', () => {
 
   afterEach(() => {
     consoleError.mockRestore();
+  });
+
+  describe('init', () => {
+    it('can be constructed before the controllers it reads are registered', () => {
+      const rootMessenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      const messenger: MarketingConsentControllerMessenger = new Messenger({
+        namespace: 'MarketingConsentController',
+        parent: rootMessenger,
+      });
+      rootMessenger.delegate({
+        messenger,
+        actions: [...DELEGATED_ACTIONS],
+        events: [...DELEGATED_EVENTS],
+      });
+
+      expect(
+        () =>
+          new MarketingConsentController({
+            messenger,
+            clientType: 'extension',
+          }),
+      ).not.toThrow();
+    });
+
+    it('does not sync until init is called', async () => {
+      const { controller, mocks, setSignedIn } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: true },
+        init: false,
+      });
+      setSignedIn(false);
+      setSignedIn(true);
+      controller.refresh();
+      await flushPromises();
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+
+      controller.init();
+      await flushPromises();
+
+      expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(1);
+    });
+
+    it('saves a choice made before init once init is called', async () => {
+      const { controller, mocks } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+        init: false,
+      });
+
+      expect(await controller.setMarketingConsent(true)).toBeUndefined();
+      expect(mocks.optInToMarketing).toHaveBeenCalled();
+      expect(controller.state.pendingMarketingConsent).toBe(true);
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+
+      controller.init();
+      await flushPromises();
+
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([true]);
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
+    it('does nothing when called again', async () => {
+      const { controller, mocks } = setup({
+        analyticsState: OPTED_IN,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: true },
+      });
+      await flushPromises();
+
+      controller.init();
+      await flushPromises();
+
+      expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('constructor', () => {
