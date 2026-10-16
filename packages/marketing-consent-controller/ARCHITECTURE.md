@@ -48,7 +48,7 @@ While a change is waiting:
 
 ## Sync run
 
-Only one sync run is in flight at a time; asking for a sync while one runs returns the same run. A run is started by `init()`, on sign-in, on unlock (through `refresh()`), on a consent change and on `refresh()`.
+Only one sync run is in flight at a time; asking for a sync while one runs returns the same run. A run is started by `initialize()`, on sign-in, on unlock (through `refresh()`), on a consent change and on `refresh()`.
 
 ```mermaid
 flowchart TD
