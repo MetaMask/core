@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Stop reusing a cash-subscription delegation whose period `startDate` is outside the Subscription API window (14 days before the checkout start date, 5 minutes after it; trial checkouts also reject a live start). A stale stored permission caused `POST /subscriptions/crypto` to fail with `E214`.
+- Stop reusing a cash-subscription delegation whose period `startDate` is outside the Subscription API window (14 days before the checkout start date, 5 minutes after it; trial checkouts also reject a live start). A stale stored permission caused `POST /subscriptions/crypto` to fail with `E214`. ([#10870](https://github.com/MetaMask/core/pull/10870))
 
 ## [14.0.0]
 
