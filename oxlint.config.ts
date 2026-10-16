@@ -89,7 +89,7 @@ export default createConfig({
     },
 
     {
-      files: ['test-runner-package-map.cjs', './jest.config.cjs'],
+      files: ['test-runner-package-map.cjs'],
       rules: {
         'import/unambiguous': 'off',
       },
