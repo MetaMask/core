@@ -31,6 +31,7 @@ export const approvalController: InitializationConfiguration<
   ApprovalControllerMessenger
 > = {
   name: 'ApprovalController',
+  reference: ApprovalController,
   init: ({ state, messenger, options }) =>
     new ApprovalController({
       state,

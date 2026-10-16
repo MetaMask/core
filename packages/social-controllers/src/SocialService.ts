@@ -287,6 +287,9 @@ const FeedItemStruct = assign(
     firstTradeAt: optional(nullable(number())),
     holdTimeMs: optional(nullable(number())),
     entryPriceUsd: optional(nullable(number())),
+    eventId: optional(string()),
+    revision: optional(number()),
+    occurredAt: optional(string()),
   }),
 );
 

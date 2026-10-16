@@ -1,5 +1,4 @@
-import type { BalanceSource } from '../middlewares/ParallelMiddleware.js';
-import type { AssetsDataSource, ChainId, Middleware } from '../types.js';
+import type { AssetsDataSource } from '../types.js';
 import { buildFastFetchSources } from './buildFastFetchSources.js';
 import type { FastFetchSources } from './buildFastFetchSources.js';
 
@@ -10,17 +9,9 @@ function stubSource(name: string): AssetsDataSource {
   };
 }
 
-function stubBalanceSource(name: string): BalanceSource {
-  return {
-    ...stubSource(name),
-    getActiveChainsSync: (): ChainId[] => [],
-  };
-}
-
 function buildSources(): FastFetchSources {
   return {
-    accountsApiDataSource: stubBalanceSource('AccountsApiDataSource'),
-    stakedBalanceDataSource: stubBalanceSource('StakedBalanceDataSource'),
+    accountsApiDataSource: stubSource('AccountsApiDataSource'),
     customAssetGraduationMiddleware: stubSource(
       'CustomAssetGraduationMiddleware',
     ),
@@ -39,7 +30,7 @@ describe('buildFastFetchSources', () => {
       isBasicFunctionality: true,
       includeCustomAssetGraduation: true,
       expected: [
-        'ParallelBalanceMiddleware',
+        'AccountsApiDataSource',
         'CustomAssetGraduationMiddleware',
         'RpcFallbackMiddleware',
         'DetectionMiddleware',
@@ -52,18 +43,19 @@ describe('buildFastFetchSources', () => {
       // The Accounts API v6 lane resolves pins through `includeAssetIds`.
       includeCustomAssetGraduation: false,
       expected: [
-        'ParallelBalanceMiddleware',
+        'AccountsApiDataSource',
         'RpcFallbackMiddleware',
         'DetectionMiddleware',
         'ParallelMiddleware',
       ],
     },
     {
-      title: 'runs only the staking balance and detection',
+      title: 'runs nothing',
       isBasicFunctionality: false,
       includeCustomAssetGraduation: true,
-      // No network-backed source may run when the user has opted out.
-      expected: ['StakedBalanceDataSource', 'DetectionMiddleware'],
+      // No balance source runs, so detection has nothing to scan and no
+      // token or price source to feed. The RPC background lane covers this.
+      expected: [],
     },
   ])(
     '$title',
