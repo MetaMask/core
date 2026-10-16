@@ -234,11 +234,7 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
 
     it('metadata - fetches native BNB only when state has no image yet', () => {
       const metadata = METADATA.lookUp(response, BNB_ASSET_ID);
-      if (metadataAlreadyStored) {
-        expect(metadata).toBeUndefined();
-        return;
-      }
-      expect(metadata).toBeDefined();
+      expect(metadata !== undefined).toBe(!metadataAlreadyStored);
     });
 
     // Legitimate failing test, our middleware stack does not filter out spam

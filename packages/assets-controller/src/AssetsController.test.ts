@@ -36,7 +36,6 @@ import {
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
 import type {
   Caip19AssetId,
-  AccountId,
   ChainId,
   DataRequest,
   DataResponse,
