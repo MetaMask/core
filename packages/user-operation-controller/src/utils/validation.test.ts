@@ -1,5 +1,5 @@
 import { TransactionType } from '@metamask/transaction-controller';
-/* eslint-disable jest/expect-expect */
+/* eslint-disable vitest/expect-expect */
 import { cloneDeep } from 'lodash-es';
 import { describe, expect, it, vi } from 'vitest';
 
