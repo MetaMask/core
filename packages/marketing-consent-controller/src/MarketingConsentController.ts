@@ -222,23 +222,28 @@ export class MarketingConsentController extends BaseController<
   readonly #clientType: ClientType;
 
   /**
-   * Whether the wallet is unlocked, kept in step with the KeyringController
-   * lock and unlock events.
+   * Whether {@link MarketingConsentController.init} has run.
    */
-  #isUnlocked: boolean;
+  #initialized = false;
+
+  /**
+   * Whether the wallet is unlocked, kept in step with the KeyringController
+   * lock and unlock events. Starts `false`, so nothing syncs before `init`.
+   */
+  #isUnlocked = false;
 
   /**
    * The last signed-in status seen, so a sign-in or sign-out can be told apart
    * from other AuthenticationController changes.
    */
-  #isSignedIn: boolean;
+  #isSignedIn = false;
 
   /**
    * The last local consent seen, so the AnalyticsController listener can tell
    * a first decision from a changed one. Read local consent with
    * {@link MarketingConsentController.#getLocalConsent} instead.
    */
-  #lastSeenConsent: LocalConsent;
+  #lastSeenConsent: LocalConsent = { optedIn: false, decided: false };
 
   /**
    * The current signed-in session.
@@ -263,7 +268,9 @@ export class MarketingConsentController extends BaseController<
   #latestConsentRequest = 0;
 
   /**
-   * Creates a new MarketingConsentController.
+   * Creates a new MarketingConsentController. It doesn't read other
+   * controllers or sync until {@link MarketingConsentController.init} is
+   * called.
    *
    * @param options - Constructor options.
    * @param options.messenger - The messenger scoped to this controller.
@@ -287,6 +294,24 @@ export class MarketingConsentController extends BaseController<
     });
 
     this.#clientType = clientType;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  /**
+   * Reads the lock, sign-in and consent state, subscribes to their changes
+   * and starts the first sync. Call it once every controller this one depends
+   * on is registered. Calling it again does nothing.
+   */
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
+    this.#initialized = true;
+
     this.#isUnlocked = this.messenger.call(
       'KeyringController:getState',
     ).isUnlocked;
@@ -294,11 +319,6 @@ export class MarketingConsentController extends BaseController<
       'AuthenticationController:getState',
     ).isSignedIn;
     this.#lastSeenConsent = this.#getLocalConsent();
-
-    this.messenger.registerMethodActionHandlers(
-      this,
-      MESSENGER_EXPOSED_METHODS,
-    );
 
     this.#subscribe();
     this.#startSync();
