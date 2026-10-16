@@ -1,5 +1,6 @@
 import type { AnalyticsControllerGetStateAction } from '@metamask/analytics-controller';
 import type {
+  AuthenticatedUserStorageInvalidateQueriesAction,
   AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
   NotificationPreferences,
@@ -363,6 +364,7 @@ type AllowedActions =
   | AuthenticationController.AuthenticationControllerIsSignedInAction
   | AuthenticationController.AuthenticationControllerPerformSignInAction
   // Authenticated User Storage Requests
+  | AuthenticatedUserStorageInvalidateQueriesAction
   | AuthenticatedUserStorageServiceGetNotificationPreferencesAction
   | AuthenticatedUserStorageServicePutNotificationPreferencesAction
   // Analytics Controller Requests
@@ -428,6 +430,44 @@ export class MarketingConsentRequiredError extends Error {
     this.name = 'MarketingConsentRequiredError';
   }
 }
+
+/**
+ * A change to notification preferences: any sections, and any fields within a
+ * section. Fields left out keep their stored value. Arrays and maps are
+ * replaced whole.
+ */
+export type NotificationPreferencesUpdate = {
+  [Section in keyof NotificationPreferences]?: Partial<
+    NotificationPreferences[Section]
+  >;
+};
+
+/**
+ * Applies an update over stored preferences. Fields set to `undefined` are
+ * ignored, so a field can never be reset by leaving it out.
+ *
+ * @param stored - The stored preferences.
+ * @param update - The change to apply.
+ * @returns The merged preferences.
+ */
+const mergeNotificationPreferences = (
+  stored: NotificationPreferences,
+  update: NotificationPreferencesUpdate,
+): NotificationPreferences => {
+  const merged = { ...stored };
+  for (const [section, fields] of Object.entries(update)) {
+    const definedFields = Object.fromEntries(
+      Object.entries(fields ?? {}).filter(([, value]) => value !== undefined),
+    );
+    Object.assign(merged, {
+      [section]: {
+        ...stored[section as keyof NotificationPreferences],
+        ...definedFields,
+      },
+    });
+  }
+  return merged;
+};
 
 type FeatureAnnouncementEnv = {
   spaceId: string;
@@ -746,6 +786,12 @@ export class NotificationServicesController extends BaseController<
   readonly #locale: () => string;
 
   readonly #featureAnnouncementEnv: FeatureAnnouncementEnv;
+
+  /**
+   * The last queued preferences update. Updates run one at a time so each
+   * one merges over the result of the one before.
+   */
+  #preferencesUpdate: Promise<unknown> = Promise.resolve();
 
   readonly #env: ENV;
 
@@ -1621,10 +1667,14 @@ export class NotificationServicesController extends BaseController<
   }
 
   /**
-   * Saves the user's notification preferences to Authenticated User Storage.
+   * Saves a change to the user's notification preferences in Authenticated
+   * User Storage. Sections and fields left out keep their stored value, so
+   * callers send only what they change.
    *
-   * Marketing notifications require marketing consent, so a write that has a
-   * marketing channel on while the user has not consented is rejected. Turning
+   * Marketing notifications require marketing consent, so an update that
+   * turns a marketing channel on while the user has not consented is
+   * rejected. Only the fields in the update are checked: a marketing channel
+   * already on in storage doesn't block updates to other preferences. Turning
    * consent off turns marketing channels off on its own (see
    * `MarketingConsentController`).
    *
@@ -1632,29 +1682,78 @@ export class NotificationServicesController extends BaseController<
    * (e.g. through `@metamask/react-data-query`), whose cache keeps UIs up to
    * date; write them through this method so the consent rule is enforced.
    *
-   * @param preferences - The full notification preferences to save.
-   * @throws {MarketingConsentRequiredError} If a marketing channel is on
-   * without marketing consent.
+   * @param update - The sections and fields to change.
+   * @returns The saved preferences.
+   * @throws {MarketingConsentRequiredError} If the update turns a marketing
+   * channel on without marketing consent.
+   * @throws If notification preferences have not been set up yet; they are
+   * created when notifications are first enabled.
    */
   public async updateNotificationPreferences(
-    preferences: NotificationPreferences,
-  ): Promise<void> {
-    const { marketing } = preferences;
+    update: NotificationPreferencesUpdate,
+  ): Promise<NotificationPreferences> {
+    const result = this.#preferencesUpdate.then(async () =>
+      this.#applyNotificationPreferencesUpdate(update),
+    );
+    this.#preferencesUpdate = result.catch(() => undefined);
+    return result;
+  }
+
+  /**
+   * Applies one queued preferences update.
+   *
+   * @param update - The sections and fields to change.
+   * @returns The saved preferences.
+   */
+  async #applyNotificationPreferencesUpdate(
+    update: NotificationPreferencesUpdate,
+  ): Promise<NotificationPreferences> {
+    const { marketing } = update;
     const { optedInToMarketing } = this.messenger.call(
       'AnalyticsController:getState',
     );
     if (
-      (marketing.pushNotificationsEnabled ||
-        marketing.inAppNotificationsEnabled) &&
+      (marketing?.pushNotificationsEnabled === true ||
+        marketing?.inAppNotificationsEnabled === true) &&
       optedInToMarketing !== true
     ) {
       throw new MarketingConsentRequiredError();
     }
 
+    // Merge over a fresh read: the AUS cache can be a minute old, and a stale
+    // copy would bring back values changed since.
+    await this.messenger.call(
+      'AuthenticatedUserStorageService:invalidateQueries',
+      {
+        queryKey: [
+          'AuthenticatedUserStorageService:getNotificationPreferences',
+        ],
+      },
+    );
+    const stored = await this.messenger.call(
+      'AuthenticatedUserStorageService:getNotificationPreferences',
+    );
+    // Stored preferences mark first-time setup as done (see
+    // `createOnChainTriggers`), so an update must never create them.
+    if (!stored) {
+      throw new Error('Notification preferences have not been set up yet');
+    }
+
+    const preferences = mergeNotificationPreferences(stored, update);
     await this.messenger.call(
       'AuthenticatedUserStorageService:putNotificationPreferences',
       preferences,
       this.#featureAnnouncementEnv.platform,
     );
+
+    // The write only invalidates the cached preferences; re-reading them
+    // publishes the new value to UIs bound to the AUS cache.
+    await this.messenger
+      .call('AuthenticatedUserStorageService:getNotificationPreferences')
+      .catch((error: unknown) => {
+        log.error('Failed to refresh notification preferences', error);
+      });
+
+    return preferences;
   }
 }

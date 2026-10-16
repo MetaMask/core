@@ -224,10 +224,14 @@ export type NotificationServicesControllerSendPerpPlaceOrderNotificationAction =
   };
 
 /**
- * Saves the user's notification preferences to Authenticated User Storage.
+ * Saves a change to the user's notification preferences in Authenticated
+ * User Storage. Sections and fields left out keep their stored value, so
+ * callers send only what they change.
  *
- * Marketing notifications require marketing consent, so a write that has a
- * marketing channel on while the user has not consented is rejected. Turning
+ * Marketing notifications require marketing consent, so an update that
+ * turns a marketing channel on while the user has not consented is
+ * rejected. Only the fields in the update are checked: a marketing channel
+ * already on in storage doesn't block updates to other preferences. Turning
  * consent off turns marketing channels off on its own (see
  * `MarketingConsentController`).
  *
@@ -235,9 +239,12 @@ export type NotificationServicesControllerSendPerpPlaceOrderNotificationAction =
  * (e.g. through `@metamask/react-data-query`), whose cache keeps UIs up to
  * date; write them through this method so the consent rule is enforced.
  *
- * @param preferences - The full notification preferences to save.
- * @throws {MarketingConsentRequiredError} If a marketing channel is on
- * without marketing consent.
+ * @param update - The sections and fields to change.
+ * @returns The saved preferences.
+ * @throws {MarketingConsentRequiredError} If the update turns a marketing
+ * channel on without marketing consent.
+ * @throws If notification preferences have not been set up yet; they are
+ * created when notifications are first enabled.
  */
 export type NotificationServicesControllerUpdateNotificationPreferencesAction =
   {

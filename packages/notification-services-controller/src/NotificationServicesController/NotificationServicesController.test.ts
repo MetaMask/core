@@ -1,5 +1,6 @@
 import type { AnalyticsControllerGetStateAction } from '@metamask/analytics-controller';
 import type {
+  AuthenticatedUserStorageInvalidateQueriesAction,
   AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
   NotificationPreferences,
@@ -2517,6 +2518,7 @@ describe('NotificationServicesController', () => {
   describe('updateNotificationPreferences', () => {
     const arrangeController = (
       optedInToMarketing: boolean,
+      stored: NotificationPreferences | null = mockPreferences(),
     ): ReturnType<typeof mockNotificationMessenger> & {
       controller: NotificationServicesController;
     } => {
@@ -2524,6 +2526,7 @@ describe('NotificationServicesController', () => {
       mocks.mockAnalyticsControllerGetState.mockReturnValue({
         optedInToMarketing,
       });
+      mocks.mockGetNotificationPreferences.mockResolvedValue(stored);
       const controller = new NotificationServicesController({
         messenger: mocks.messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
@@ -2531,56 +2534,239 @@ describe('NotificationServicesController', () => {
       return { ...mocks, controller };
     };
 
-    it('saves preferences with the client platform', async () => {
-      const { controller, mockPutNotificationPreferences } =
-        arrangeController(false);
-      const preferences = mockPreferences();
+    it('merges the update over freshly read preferences and saves it with the client platform', async () => {
+      const order: string[] = [];
+      const {
+        controller,
+        mockInvalidateQueries,
+        mockGetNotificationPreferences,
+        mockPutNotificationPreferences,
+      } = arrangeController(false);
+      mockInvalidateQueries.mockImplementation(async () => {
+        order.push('invalidate');
+      });
+      mockGetNotificationPreferences.mockImplementation(async () => {
+        order.push('get');
+        return mockPreferences();
+      });
+      mockPutNotificationPreferences.mockImplementation(async () => {
+        order.push('put');
+      });
 
-      await controller.updateNotificationPreferences(preferences);
+      const saved = await controller.updateNotificationPreferences({
+        perps: { pushNotificationsEnabled: false },
+      });
+
+      const expected = mockPreferences({
+        perps: {
+          inAppNotificationsEnabled: true,
+          pushNotificationsEnabled: false,
+        },
+      });
+      expect(saved).toStrictEqual(expected);
+      expect(mockPutNotificationPreferences).toHaveBeenCalledWith(
+        expected,
+        'extension',
+      );
+      expect(mockInvalidateQueries).toHaveBeenCalledWith({
+        queryKey: [
+          'AuthenticatedUserStorageService:getNotificationPreferences',
+        ],
+      });
+      expect(order).toStrictEqual(['invalidate', 'get', 'put', 'get']);
+    });
+
+    it('keeps stored fields that the update leaves out or sets to undefined', async () => {
+      const stored = mockPreferences({
+        socialAI: {
+          inAppNotificationsEnabled: false,
+          pushNotificationsEnabled: false,
+          mutedTraderProfileIds: ['trader'],
+        },
+      });
+      const { controller, mockPutNotificationPreferences } = arrangeController(
+        false,
+        stored,
+      );
+
+      await controller.updateNotificationPreferences({
+        socialAI: {
+          pushNotificationsEnabled: true,
+          inAppNotificationsEnabled: undefined,
+        },
+        walletActivity: undefined,
+      });
 
       expect(mockPutNotificationPreferences).toHaveBeenCalledWith(
-        preferences,
+        {
+          ...stored,
+          socialAI: { ...stored.socialAI, pushNotificationsEnabled: true },
+        },
         'extension',
       );
     });
 
-    it('saves marketing channels that are on when the user has consented', async () => {
-      const { controller, mockPutNotificationPreferences } =
-        arrangeController(true);
-      const preferences = mockPreferencesWithMarketingInApp(true);
+    it('saves updates to other preferences when a marketing channel is already on without consent', async () => {
+      const stored = mockPreferencesWithMarketingInApp(true);
+      const { controller, mockPutNotificationPreferences } = arrangeController(
+        false,
+        stored,
+      );
 
-      await controller.updateNotificationPreferences(preferences);
+      await controller.updateNotificationPreferences({
+        perps: { inAppNotificationsEnabled: false },
+      });
 
       expect(mockPutNotificationPreferences).toHaveBeenCalledWith(
-        preferences,
+        {
+          ...stored,
+          perps: { ...stored.perps, inAppNotificationsEnabled: false },
+        },
+        'extension',
+      );
+    });
+
+    it('saves marketing channels turned off without consent', async () => {
+      const { controller, mockPutNotificationPreferences } = arrangeController(
+        false,
+        mockPreferencesWithMarketingInApp(true),
+      );
+
+      await controller.updateNotificationPreferences({
+        marketing: { inAppNotificationsEnabled: false },
+      });
+
+      expect(mockPutNotificationPreferences).toHaveBeenCalledWith(
+        mockPreferences(),
+        'extension',
+      );
+    });
+
+    it('saves marketing channels turned on when the user has consented', async () => {
+      const { controller, mockPutNotificationPreferences } =
+        arrangeController(true);
+
+      await controller.updateNotificationPreferences({
+        marketing: { inAppNotificationsEnabled: true },
+      });
+
+      expect(mockPutNotificationPreferences).toHaveBeenCalledWith(
+        mockPreferencesWithMarketingInApp(true),
         'extension',
       );
     });
 
     it.each([
-      { pushNotificationsEnabled: true, inAppNotificationsEnabled: false },
-      { pushNotificationsEnabled: false, inAppNotificationsEnabled: true },
+      { pushNotificationsEnabled: true },
+      { inAppNotificationsEnabled: true },
     ])(
-      'rejects marketing channels that are on without consent (%o)',
+      'rejects turning a marketing channel on without consent (%o)',
       async (marketing) => {
-        const { controller, mockPutNotificationPreferences } =
-          arrangeController(false);
+        const {
+          controller,
+          mockGetNotificationPreferences,
+          mockPutNotificationPreferences,
+        } = arrangeController(false);
 
         await expect(
-          controller.updateNotificationPreferences(
-            mockPreferences({ marketing }),
-          ),
+          controller.updateNotificationPreferences({ marketing }),
         ).rejects.toThrow(MarketingConsentRequiredError);
         await expect(
-          controller.updateNotificationPreferences(
-            mockPreferences({ marketing }),
-          ),
+          controller.updateNotificationPreferences({ marketing }),
         ).rejects.toMatchObject({
           code: MARKETING_CONSENT_REQUIRED_ERROR_CODE,
         });
+        expect(mockGetNotificationPreferences).not.toHaveBeenCalled();
         expect(mockPutNotificationPreferences).not.toHaveBeenCalled();
       },
     );
+
+    it('throws without writing when preferences have not been set up yet', async () => {
+      const { controller, mockPutNotificationPreferences } = arrangeController(
+        false,
+        null,
+      );
+
+      await expect(
+        controller.updateNotificationPreferences({
+          perps: { pushNotificationsEnabled: false },
+        }),
+      ).rejects.toThrow('Notification preferences have not been set up yet');
+      expect(mockPutNotificationPreferences).not.toHaveBeenCalled();
+    });
+
+    it('runs updates one at a time, each merging over the previous one', async () => {
+      let stored = mockPreferences();
+      const {
+        controller,
+        mockGetNotificationPreferences,
+        mockPutNotificationPreferences,
+      } = arrangeController(false);
+      mockGetNotificationPreferences.mockImplementation(async () => stored);
+      mockPutNotificationPreferences.mockImplementation(
+        async (preferences: NotificationPreferences) => {
+          stored = preferences;
+        },
+      );
+
+      await Promise.all([
+        controller.updateNotificationPreferences({
+          perps: { pushNotificationsEnabled: false },
+        }),
+        controller.updateNotificationPreferences({
+          socialAI: { pushNotificationsEnabled: false },
+        }),
+      ]);
+
+      expect(stored.perps.pushNotificationsEnabled).toBe(false);
+      expect(stored.socialAI.pushNotificationsEnabled).toBe(false);
+    });
+
+    it('runs the next update after a failed one', async () => {
+      const { controller, mockPutNotificationPreferences } =
+        arrangeController(false);
+      mockPutNotificationPreferences.mockRejectedValueOnce(
+        new Error('AUS unavailable'),
+      );
+
+      const first = controller.updateNotificationPreferences({
+        perps: { pushNotificationsEnabled: false },
+      });
+      const second = controller.updateNotificationPreferences({
+        perps: { inAppNotificationsEnabled: false },
+      });
+
+      await expect(first).rejects.toThrow('AUS unavailable');
+      expect(await second).toStrictEqual(
+        mockPreferences({
+          perps: {
+            inAppNotificationsEnabled: false,
+            pushNotificationsEnabled: true,
+          },
+        }),
+      );
+    });
+
+    it('returns the saved preferences when re-reading them fails', async () => {
+      const { controller, mockGetNotificationPreferences } =
+        arrangeController(false);
+      mockGetNotificationPreferences
+        .mockResolvedValueOnce(mockPreferences())
+        .mockRejectedValueOnce(new Error('AUS unavailable'));
+
+      expect(
+        await controller.updateNotificationPreferences({
+          perps: { pushNotificationsEnabled: false },
+        }),
+      ).toStrictEqual(
+        mockPreferences({
+          perps: {
+            inAppNotificationsEnabled: true,
+            pushNotificationsEnabled: false,
+          },
+        }),
+      );
+    });
 
     it('is callable through the messenger', async () => {
       const { globalMessenger, mockPutNotificationPreferences } =
@@ -2588,7 +2774,7 @@ describe('NotificationServicesController', () => {
 
       await globalMessenger.call(
         'NotificationServicesController:updateNotificationPreferences',
-        mockPreferences(),
+        { perps: { pushNotificationsEnabled: false } },
       );
 
       expect(mockPutNotificationPreferences).toHaveBeenCalledTimes(1);
@@ -2751,6 +2937,7 @@ function mockNotificationMessenger(): {
   mockKeyringControllerGetState: jest.Mock;
   mockGetNotificationPreferences: jest.Mock;
   mockPutNotificationPreferences: jest.Mock;
+  mockInvalidateQueries: jest.Mock;
   mockAnalyticsControllerGetState: jest.Mock;
 } {
   const globalMessenger = getRootMessenger();
@@ -2777,6 +2964,7 @@ function mockNotificationMessenger(): {
       'NotificationServicesPushController:deletePushNotificationLinks',
       'NotificationServicesPushController:enablePushNotifications',
       'NotificationServicesPushController:subscribeToPushNotifications',
+      'AuthenticatedUserStorageService:invalidateQueries',
       'AuthenticatedUserStorageService:getNotificationPreferences',
       'AuthenticatedUserStorageService:putNotificationPreferences',
       'AnalyticsController:getState',
@@ -2842,6 +3030,11 @@ function mockNotificationMessenger(): {
 
   const mockPutNotificationPreferences =
     typedMockAction<AuthenticatedUserStorageServicePutNotificationPreferencesAction>().mockResolvedValue(
+      undefined,
+    );
+
+  const mockInvalidateQueries =
+    typedMockAction<AuthenticatedUserStorageInvalidateQueriesAction>().mockResolvedValue(
       undefined,
     );
 
@@ -2923,6 +3116,14 @@ function mockNotificationMessenger(): {
       return mockPutNotificationPreferences(params[0], params[1]);
     }
 
+    if (actionType === 'AuthenticatedUserStorageService:invalidateQueries') {
+      return mockInvalidateQueries(
+        params[0] as Parameters<
+          AuthenticatedUserStorageInvalidateQueriesAction['handler']
+        >[0],
+      );
+    }
+
     if (actionType === 'AnalyticsController:getState') {
       return mockAnalyticsControllerGetState();
     }
@@ -2946,6 +3147,7 @@ function mockNotificationMessenger(): {
     mockKeyringControllerGetState,
     mockGetNotificationPreferences,
     mockPutNotificationPreferences,
+    mockInvalidateQueries,
     mockAnalyticsControllerGetState,
   };
 }
