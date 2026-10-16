@@ -6,9 +6,6 @@
   },
   "references": [
     {
-      "path": "../analytics-controller/tsconfig.lint.json"
-    },
-    {
       "path": "../messenger/tsconfig.lint.json"
     },
     {

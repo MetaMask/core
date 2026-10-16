@@ -7,9 +7,6 @@
   },
   "references": [
     {
-      "path": "../analytics-controller/tsconfig.build.json"
-    },
-    {
       "path": "../authenticated-user-storage/tsconfig.build.json"
     },
     {
