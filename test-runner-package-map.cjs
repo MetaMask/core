@@ -94,7 +94,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/transaction-controller',
   '@metamask/transaction-pay-controller',
   '@metamask/transaction-pay-middleware',
-  '@metamask/utils',
   '@metamask/wallet',
   '@metamask/wallet-cli',
   '@metamask/wallet-framework-docs',

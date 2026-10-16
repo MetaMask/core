@@ -4,8 +4,7 @@
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
     "noErrorTruncation": true,
-    "noUncheckedIndexedAccess": true,
-    "types": ["jest"]
+    "noUncheckedIndexedAccess": true
   },
   "include": ["../../types", "./src"]
 }

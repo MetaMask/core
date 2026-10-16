@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   BYTES_FIXTURES,
   INVALID_BYTES_FIXTURES,
@@ -645,7 +647,7 @@ describe('areUint8ArraysEqual', () => {
     // the samples are taken. A tighter bound buys no sensitivity to the real
     // regression, only flakiness.
     const ratio =
-      earlyTotal > lateTotal ? earlyTotal / lateTotal : lateTotal / earlyTotal;
+      Math.max(earlyTotal, lateTotal) / Math.min(earlyTotal, lateTotal);
     expect(ratio).toBeLessThan(2);
   });
 });
