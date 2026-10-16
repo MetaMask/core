@@ -89,7 +89,6 @@ export default createConfig({
     },
 
     {
-      // No imports or exports, so nothing marks it unambiguously as a module.
       files: ['test-runner-package-map.cjs'],
       rules: {
         'import/unambiguous': 'off',
