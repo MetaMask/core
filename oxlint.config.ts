@@ -122,7 +122,7 @@ export default createConfig({
       files: [
         'tests/vitest/**',
         'vitest.config.packages.js',
-        'packages/*/vitest.config.mjs',
+        'packages/*/vitest.config.js',
         'packages/*/**/*.test.ts',
         'packages/*/**/test/**',
         'packages/*/**/tests/**',
