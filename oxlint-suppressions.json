@@ -3824,7 +3824,7 @@
   },
   "packages/multichain-account-service/src/MultichainAccountService.test.ts": {
     "typescript/no-unsafe-return": {
-      "count": 5
+      "count": 6
     },
     "typescript/unbound-method": {
       "count": 1
