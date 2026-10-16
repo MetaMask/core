@@ -12,6 +12,7 @@ import type {
   AssetsControllerState,
   Context,
   DataRequest,
+  DataResponse,
   Caip19AssetId,
   ChainId,
 } from '../types.js';
@@ -133,11 +134,33 @@ function createDataRequest(
   } as DataRequest;
 }
 
+function withResponseBalances(response: DataResponse = {}): DataResponse {
+  if (response.assetsBalance || !response.detectedAssets) {
+    return response;
+  }
+
+  const assetsBalance: NonNullable<DataResponse['assetsBalance']> = {};
+  for (const [accountId, assetIds] of Object.entries(response.detectedAssets)) {
+    if (assetIds.length === 0) {
+      continue;
+    }
+    assetsBalance[accountId] = Object.fromEntries(
+      assetIds.map((assetId) => [assetId, { amount: '1' }]),
+    );
+  }
+
+  if (Object.keys(assetsBalance).length === 0) {
+    return response;
+  }
+
+  return { ...response, assetsBalance };
+}
+
 function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
-    response: {},
     ...overrides,
+    response: withResponseBalances(overrides?.response),
   };
 }
 
@@ -324,9 +347,8 @@ describe('TokenDataSource', () => {
   });
 
   it('middleware heals low-occurrence balance-only assets without spam-filtering them out', async () => {
-    // Already-tracked balances missing assetsInfo are healed via assetsBalance
-    // (not detectedAssets). Spam filtering must not strip those holdings or
-    // withhold metadata — DetectionMiddleware intentionally skips them.
+    // Balances already tracked in state, but missing metadata, are enriched
+    // without spam filtering.
     const lowOccurrenceAsset =
       'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
 
@@ -337,6 +359,14 @@ describe('TokenDataSource', () => {
         createMockAssetResponse(lowOccurrenceAsset, { occurrences: 1 }),
       ],
       suggestedOccurrenceFloors: { '1': 3 },
+      getAssetsState: (): Partial<AssetsControllerState> => ({
+        assetsInfo: {},
+        assetsBalance: {
+          'mock-account-id': {
+            [lowOccurrenceAsset]: { amount: '50' },
+          },
+        },
+      }),
     });
 
     const next = jest.fn().mockResolvedValue(undefined);
@@ -1053,7 +1083,7 @@ describe('TokenDataSource', () => {
 
     const next = jest.fn().mockResolvedValue(undefined);
     // Websocket-shaped update: brand-new tokens (absent from state) with
-    // seeded metadata stubs. Runs BEFORE DetectionMiddleware.
+    // seeded metadata stubs.
     const context = createMiddlewareContext({
       request: createDataRequest({ dataTypes: ['balance'] }),
       response: {
@@ -1575,8 +1605,7 @@ describe('TokenDataSource', () => {
     });
 
     const next = jest.fn().mockResolvedValue(undefined);
-    // detectedAssets is intentionally omitted (undefined) to mirror the real-world
-    // case where DetectionMiddleware finds zero balances and zero custom assets
+    // No balances on the response: only enabled native assets are fetched.
     const context = createMiddlewareContext({
       response: {},
     });

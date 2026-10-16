@@ -725,7 +725,7 @@
       "count": 3
     },
     "typescript/no-unsafe-assignment": {
-      "count": 22
+      "count": 21
     },
     "typescript/no-unsafe-call": {
       "count": 4
@@ -739,7 +739,7 @@
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 5
+      "count": 4
     }
   },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
@@ -801,10 +801,7 @@
   },
   "packages/assets-controller/src/data-sources/PriceDataSource.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 8
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 3
+      "count": 7
     }
   },
   "packages/assets-controller/src/data-sources/RpcDataSource.test.ts": {

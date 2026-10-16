@@ -17,6 +17,7 @@ import type {
   AssetsControllerState,
   Middleware,
   FungibleAssetMetadata,
+  DataRequest,
   DataResponse,
 } from '../types.js';
 import { fetchWithTimeout } from '../utils/index.js';
@@ -195,12 +196,14 @@ function cleanResponseSpam(
  * TokenDataSource enriches responses with token metadata from the Tokens API.
  *
  * This middleware-based data source:
- * - Checks detected assets for missing metadata/images
- * - Also checks `assetsBalance` entries missing metadata/images (heal path)
+ * - Collects metadata for state balances that have no metadata yet, and for
+ *   every balance on the current response
+ * - Excludes hidden assets
  * - Fetches metadata from Tokens API v3 for assets needing enrichment
  * - Filters EVM ERC-20 spam using per-chain floors from Token API
- *   `/v1/suggestedOccurrenceFloors` (default floor 3) for newly detected
- *   assets only; balance-only heals are enriched without spam-filtering
+ *   `/v1/suggestedOccurrenceFloors` (default floor 3) for balances that are
+ *   new to state; balances already tracked in state are enriched without
+ *   spam-filtering
  * - Merges fetched metadata into the response
  *
  * Pass the same {@link AssetsControllerMessenger} as other data sources for Blockaid
@@ -394,14 +397,14 @@ export class TokenDataSource {
   }
 
   /**
-   * Middleware that runs BEFORE DetectionMiddleware for account-activity
-   * (websocket) updates. New-to-state EVM ERC-20 balances are enriched with
-   * their Token API occurrence counts first, and tokens below the per-chain
-   * suggested occurrence floor are dropped from the response (balances and
-   * stub metadata) so spam airdrops never reach detection, metadata
-   * enrichment, pricing, or state. Custom assets and mUSD are exempt, and
-   * assets unknown to the Token API are kept (fail open), mirroring
-   * {@link TokenDataSource.assetsMiddleware} filtering semantics.
+   * Middleware that runs for account-activity (websocket) updates. New-to-state
+   * EVM ERC-20 balances are enriched with their Token API occurrence counts
+   * first, and tokens below the per-chain suggested occurrence floor are
+   * dropped from the response (balances and stub metadata) so spam airdrops
+   * never reach metadata enrichment, pricing, or state. Custom assets and
+   * mUSD are exempt, and assets unknown to the Token API are kept (fail
+   * open), mirroring {@link TokenDataSource.assetsMiddleware} filtering
+   * semantics.
    *
    * @returns The middleware function for the assets pipeline.
    */
@@ -429,8 +432,7 @@ export class TokenDataSource {
       );
 
       // Candidates: EVM ERC-20s that are genuinely new (absent from state
-      // balances and metadata) — the same assets DetectionMiddleware would
-      // mark as newly detected right after this middleware.
+      // balances and metadata).
       const candidateByLowerId = new Map<string, string>();
       for (const [accountId, accountBalances] of Object.entries(
         response.assetsBalance ?? {},
@@ -524,34 +526,121 @@ export class TokenDataSource {
   }
 
   /**
+   * Metadata to fetch for this request.
+   *
+   * State balances that have no metadata yet are heals: they are enriched and
+   * not spam-filtered. Response balances are included too; a response balance
+   * already present in state is a heal, and one that is new to state is
+   * spam-filtered. Hidden assets are excluded.
+   *
+   * @param request - Account and chain scope.
+   * @param response - Current pipeline response.
+   * @returns Asset IDs to fetch, and the subset that must skip spam filtering.
+   */
+  #collectMetadataAssetIds(
+    request: DataRequest,
+    response: DataResponse,
+  ): {
+    assetIdsNeedingMetadata: Set<string>;
+    balanceHealAssetIds: Set<string>;
+  } {
+    const state = this.#getAssetsState();
+    const stateMetadata = state.assetsInfo ?? {};
+    const accountIds = request.accountsWithSupportedChains.map(
+      ({ account }) => account.id,
+    );
+    const accountFilter =
+      accountIds.length > 0 ? new Set(accountIds) : undefined;
+    const chainFilter =
+      request.chainIds.length > 0 ? new Set(request.chainIds) : undefined;
+    const hiddenAssetIds = new Set(
+      Object.entries(state.assetPreferences ?? {})
+        .filter(([, preferences]) => preferences.hidden)
+        .map(([assetId]) => assetId.toLowerCase()),
+    );
+    const knownMetadataIds = new Set(
+      Object.keys(stateMetadata).map((assetId) => assetId.toLowerCase()),
+    );
+    const assetIdsNeedingMetadata = new Set<string>();
+    const balanceHealAssetIds = new Set<string>();
+    const stateBalanceIds = new Set<string>();
+
+    const needsMetadata = (assetId: string): boolean => {
+      if (hiddenAssetIds.has(assetId.toLowerCase())) {
+        return false;
+      }
+      if (response.assetsInfo?.[assetId as Caip19AssetId]?.image) {
+        return false;
+      }
+      if (stateMetadata[assetId as Caip19AssetId]?.image) {
+        return false;
+      }
+      return !isStakingContractAssetId(assetId);
+    };
+
+    const inRequestChains = (assetId: string): boolean => {
+      if (!chainFilter) {
+        return true;
+      }
+      try {
+        const { chainId } = parseCaipAssetType(assetId as Caip19AssetId);
+        return chainFilter.has(chainId);
+      } catch {
+        return false;
+      }
+    };
+
+    for (const [accountId, accountBalances] of Object.entries(
+      state.assetsBalance ?? {},
+    )) {
+      if (accountFilter && !accountFilter.has(accountId)) {
+        continue;
+      }
+      for (const assetId of Object.keys(accountBalances)) {
+        stateBalanceIds.add(assetId.toLowerCase());
+        if (!inRequestChains(assetId) || !needsMetadata(assetId)) {
+          continue;
+        }
+        assetIdsNeedingMetadata.add(assetId);
+        balanceHealAssetIds.add(assetId.toLowerCase());
+      }
+    }
+
+    for (const accountBalances of Object.values(response.assetsBalance ?? {})) {
+      for (const assetId of Object.keys(accountBalances)) {
+        if (!needsMetadata(assetId)) {
+          continue;
+        }
+        assetIdsNeedingMetadata.add(assetId);
+        const lowerId = assetId.toLowerCase();
+        if (stateBalanceIds.has(lowerId) || knownMetadataIds.has(lowerId)) {
+          balanceHealAssetIds.add(lowerId);
+        }
+      }
+    }
+
+    return { assetIdsNeedingMetadata, balanceHealAssetIds };
+  }
+
+  /**
    * Get the middleware for enriching responses with token metadata.
    *
    * This middleware:
-   * 1. Extracts the response from context
-   * 2. Fetches metadata for detected assets and balances missing metadata
+   * 1. Fetches metadata for state balances that have none, and for every
+   *    balance on the current response, excluding hidden assets
+   * 2. Spam-filters balances that are new to state; balances already tracked
+   *    are enriched without being removed
    * 3. Enriches the response with fetched metadata
    * 4. Calls next() at the end to continue the middleware chain
-   *
-   * Spam filtering (EVM occurrence floors / non-EVM Blockaid) applies only to
-   * newly `detectedAssets`. Balance-only heals — assets already present in
-   * `assetsBalance` but missing `assetsInfo`, which DetectionMiddleware skips —
-   * are enriched without being filtered out of balances.
    *
    * @returns The middleware function for the assets pipeline.
    */
   get assetsMiddleware(): Middleware {
     return forDataTypes(['metadata'], async (ctx, next) => {
-      // Extract response from context
-      const { response } = ctx;
-
-      const { assetsInfo: stateMetadata, customAssets } =
-        this.#getAssetsState();
-      const assetIdsNeedingMetadata = new Set<string>();
-      // Newly detected asset IDs (lowercase) — subject to spam filtering.
-      const detectedAssetIds = new Set<string>();
-      // Balance-only heals (in assetsBalance, not newly detected) — enrich
-      // metadata but do not spam-filter / delete holdings.
-      const balanceHealAssetIds = new Set<string>();
+      const { request, response } = ctx;
+      const { customAssets } = this.#getAssetsState();
+      const { assetIdsNeedingMetadata, balanceHealAssetIds } =
+        this.#collectMetadataAssetIds(request, response);
 
       // Custom assets are user-imported — exempt from spam filtering.
       // State stores asset IDs in their normalized (checksummed) form, but the
@@ -570,58 +659,6 @@ export class TokenDataSource {
       );
       for (const nativeAssetId of nativeAssetIdsList) {
         assetIdsNeedingMetadata.add(nativeAssetId);
-      }
-
-      // Also fetch metadata for detected assets that are missing it
-      if (response.detectedAssets) {
-        for (const detectedIds of Object.values(response.detectedAssets)) {
-          for (const assetId of detectedIds) {
-            // Skip if response already has metadata with image
-            const responseMetadata = response.assetsInfo?.[assetId];
-            if (responseMetadata?.image) {
-              continue;
-            }
-
-            // Skip if state already has metadata with image
-            const existingMetadata = stateMetadata[assetId];
-            if (existingMetadata?.image) {
-              continue;
-            }
-
-            // Skip staking contracts; we use built-in metadata and do not fetch from the tokens API
-            if (isStakingContractAssetId(assetId)) {
-              continue;
-            }
-
-            detectedAssetIds.add(assetId.toLowerCase());
-            assetIdsNeedingMetadata.add(assetId);
-          }
-        }
-      }
-
-      // Also fetch metadata for balances that are missing it
-      if (response.assetsBalance) {
-        for (const accountBalances of Object.values(response.assetsBalance)) {
-          for (const assetId of Object.keys(
-            accountBalances,
-          ) as Caip19AssetId[]) {
-            if (response.assetsInfo?.[assetId]?.image) {
-              continue;
-            }
-            if (stateMetadata[assetId]?.image) {
-              continue;
-            }
-            if (isStakingContractAssetId(assetId)) {
-              continue;
-            }
-            assetIdsNeedingMetadata.add(assetId);
-            // Only treat as a heal when DetectionMiddleware did not queue it
-            // as newly detected — those remain subject to spam filtering.
-            if (!detectedAssetIds.has(assetId.toLowerCase())) {
-              balanceHealAssetIds.add(assetId.toLowerCase());
-            }
-          }
-        }
       }
 
       if (assetIdsNeedingMetadata.size === 0) {

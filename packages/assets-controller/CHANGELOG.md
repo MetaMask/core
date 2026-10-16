@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `syncAssetsPrices(assetIds)`, which force-fetches spot prices for an explicit CAIP-19 asset list through `PriceDataSource` and merges them into state. Prices are shared, so the method takes no account or chain scope
+
 ### Changed
+
+- **BREAKING:** Remove `DetectionMiddleware`. `PriceDataSource` prices custom assets, balances, and metadata already in state plus balances on the current response, excluding hidden assets. `TokenDataSource` fetches metadata for state balances that have none and for response balances, and excludes hidden assets
+- **BREAKING:** Remove `assetsForPriceUpdate` from `getAssets` options. Refresh an explicit asset list with `syncAssetsPrices` instead
+- Price enrichment relies on the price freshness cache to avoid redundant requests
 
 - Bump `@metamask/keyring-api` from `^24.1.0` to `^24.3.0` ([#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/keyring-internal-api` from `^12.1.0` to `^12.1.2` ([#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))

@@ -231,53 +231,17 @@ export class PriceDataSource {
    * Get the middleware for enriching responses with price data.
    *
    * This middleware:
-   * 1. Extracts the response from context
-   * 2. Fetches prices for detected assets (assets without metadata)
-   * 3. Enriches the response with fetched prices
-   * 4. Calls next() at the end to continue the middleware chain
-   *
-   * Note: This middleware ONLY fetches prices for detected assets.
-   * For fetching prices for all assets, use the subscription mechanism
-   * which polls prices for all assets in the balance state.
+   * 1. Collects custom assets, balances, and metadata from state, plus response balances
+   * 2. Excludes hidden, non-priceable, and unsupported assets
+   * 3. Fetches stale prices according to the freshness cache
+   * 4. Enriches the response and continues the middleware chain
    *
    * @returns The middleware function for the assets pipeline.
    */
   get assetsMiddleware(): Middleware {
     return forDataTypes(['price'], async (ctx, next) => {
-      // Extract response from context
       const { response, request } = ctx;
-
-      const statePrices = (this.#getAssetsState()?.assetsPrice ?? {}) as Record<
-        string,
-        FungibleAssetPrice
-      >;
-
-      const assetIds = new Set<Caip19AssetId>();
-
-      for (const assetId of request.assetsForPriceUpdate ?? []) {
-        assetIds.add(assetId);
-      }
-
-      // Detected assets only need a price fetch when state has none yet.
-      // Explicit assetsForPriceUpdate (e.g. currency change) are always fetched.
-      for (const detectedAccountAssets of Object.values(
-        response.detectedAssets ?? {},
-      )) {
-        for (const assetId of detectedAccountAssets) {
-          const normalizedAssetId = safeNormalizeAssetId(assetId);
-          const alreadyQueued = request.assetsForPriceUpdate?.some(
-            (queuedId) =>
-              queuedId === assetId || queuedId === normalizedAssetId,
-          );
-          if (
-            statePrices[assetId] === undefined &&
-            statePrices[normalizedAssetId] === undefined &&
-            !alreadyQueued
-          ) {
-            assetIds.add(normalizedAssetId);
-          }
-        }
-      }
+      const assetIds = this.#getAssetIdsForPriceFetch(request, response);
 
       if (assetIds.size === 0) {
         return next(ctx);
@@ -300,10 +264,6 @@ export class PriceDataSource {
         return next(ctx);
       }
 
-      if (request.forceUpdate) {
-        this.#deduper.invalidateKeys(supportedAssetIds);
-      }
-
       try {
         const spotPrices = await this.#fetchSpotPrices(supportedAssetIds);
         response.assetsPrice = {
@@ -317,6 +277,33 @@ export class PriceDataSource {
       // Call next() at the end to continue the middleware chain
       return next(ctx);
     });
+  }
+
+  /**
+   * Fetch spot prices for an explicit asset list, bypassing the freshness cache.
+   *
+   * @param assetIds - CAIP-19 asset IDs to price.
+   * @returns Prices keyed by asset ID. Empty when none are priceable or supported.
+   */
+  async fetchAssetPrices(
+    assetIds: Caip19AssetId[],
+  ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
+    const priceableAssetIds = assetIds.filter(isPriceableAsset);
+    if (priceableAssetIds.length === 0) {
+      return {};
+    }
+
+    const supportedNetworks = await this.#getSupportedNetworks();
+    const supportedAssetIds = this.#filterAssetsByNetwork(
+      priceableAssetIds,
+      supportedNetworks,
+    );
+    if (supportedAssetIds.length === 0) {
+      return {};
+    }
+
+    this.#deduper.invalidateKeys(supportedAssetIds);
+    return this.#fetchSpotPrices(supportedAssetIds);
   }
 
   // ============================================================================
@@ -454,54 +441,104 @@ export class PriceDataSource {
    */
   #getAssetIdsFromBalanceState(request: DataRequest): Caip19AssetId[] {
     try {
-      const state = this.#getAssetsState();
-      const assetIds = new Set<Caip19AssetId>();
-
-      const accountIds = request.accountsWithSupportedChains.map(
-        (a) => a.account.id,
-      );
-      const accountFilter =
-        accountIds.length > 0 ? new Set(accountIds) : undefined;
-      const chainFilter =
-        request.chainIds.length > 0 ? new Set(request.chainIds) : undefined;
-
-      if (state?.assetsBalance) {
-        for (const [accountId, accountBalances] of Object.entries(
-          state.assetsBalance,
-        )) {
-          // Filter by account if specified
-          if (accountFilter && !accountFilter.has(accountId)) {
-            continue;
-          }
-
-          for (const assetId of Object.keys(accountBalances)) {
-            // Filter by chain if specified; skip malformed asset IDs for this entry only
-            if (chainFilter) {
-              try {
-                const { chainId } = parseCaipAssetType(
-                  assetId as Caip19AssetId,
-                );
-                if (!chainFilter.has(chainId)) {
-                  continue;
-                }
-              } catch (error) {
-                log('Skipping malformed asset ID in balance state', {
-                  assetId,
-                  error,
-                });
-                continue;
-              }
-            }
-            assetIds.add(assetId as Caip19AssetId);
-          }
-        }
-      }
-
-      return [...assetIds];
+      return [
+        ...this.#getAssetIdsForPriceFetch(request, {
+          assetsBalance: {},
+        }),
+      ];
     } catch (error) {
       log('Failed to get asset IDs from balance state', { error });
       return [];
     }
+  }
+
+  /**
+   * Assets to price for this request: custom assets, balances, and metadata
+   * already in state, plus balances on the current response, excluding hidden
+   * assets. Scoped to the request's accounts and chains.
+   *
+   * @param request - Account and chain scope for the fetch.
+   * @param response - Current pipeline response.
+   * @returns Deduplicated, normalized CAIP-19 asset IDs.
+   */
+  #getAssetIdsForPriceFetch(
+    request: DataRequest,
+    response: Pick<DataResponse, 'assetsBalance'>,
+  ): Set<Caip19AssetId> {
+    const state = this.#getAssetsState();
+    const accountIds = request.accountsWithSupportedChains.map(
+      ({ account }) => account.id,
+    );
+    const accountFilter =
+      accountIds.length > 0 ? new Set(accountIds) : undefined;
+    const chainFilter =
+      request.chainIds.length > 0 ? new Set(request.chainIds) : undefined;
+    const hiddenAssetIds = new Set(
+      Object.entries(state.assetPreferences ?? {})
+        .filter(([, preferences]) => preferences.hidden)
+        .map(([assetId]) =>
+          safeNormalizeAssetId(assetId as Caip19AssetId).toLowerCase(),
+        ),
+    );
+    const assetIds = new Map<string, Caip19AssetId>();
+
+    const addAssetId = (assetId: string): void => {
+      try {
+        const normalizedAssetId = safeNormalizeAssetId(
+          assetId as Caip19AssetId,
+        );
+        const { chainId } = parseCaipAssetType(normalizedAssetId);
+        const key = normalizedAssetId.toLowerCase();
+        if (
+          (chainFilter && !chainFilter.has(chainId)) ||
+          hiddenAssetIds.has(key)
+        ) {
+          return;
+        }
+        assetIds.set(key, normalizedAssetId);
+      } catch (error) {
+        log('Skipping malformed asset ID for price fetch', { assetId, error });
+      }
+    };
+
+    const addBalances = (
+      balances: DataResponse['assetsBalance'] | undefined,
+      applyAccountFilter: boolean,
+    ): void => {
+      for (const [accountId, accountBalances] of Object.entries(
+        balances ?? {},
+      )) {
+        if (
+          applyAccountFilter &&
+          accountFilter &&
+          !accountFilter.has(accountId)
+        ) {
+          continue;
+        }
+
+        for (const assetId of Object.keys(accountBalances)) {
+          addAssetId(assetId);
+        }
+      }
+    };
+
+    addBalances(state.assetsBalance, true);
+    for (const [accountId, customAssetIds] of Object.entries(
+      state.customAssets ?? {},
+    )) {
+      if (accountFilter && !accountFilter.has(accountId)) {
+        continue;
+      }
+      for (const assetId of customAssetIds) {
+        addAssetId(assetId);
+      }
+    }
+    for (const assetId of Object.keys(state.assetsInfo ?? {})) {
+      addAssetId(assetId);
+    }
+    addBalances(response.assetsBalance, true);
+
+    return new Set(assetIds.values());
   }
 
   /**
