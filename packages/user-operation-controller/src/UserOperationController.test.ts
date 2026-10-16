@@ -632,7 +632,7 @@ describe('UserOperationController', () => {
       expect(Object.keys(controller.state.userOperations)).toHaveLength(0);
     });
 
-    // eslint-disable-next-line jest/expect-expect
+    // eslint-disable-next-line vitest/expect-expect
     it('does not throw if hash function not invoked', async () => {
       const controller = new UserOperationController(optionsMock);
 
