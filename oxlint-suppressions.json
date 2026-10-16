@@ -6269,7 +6269,7 @@
   },
   "packages/transaction-controller/src/utils/gas.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 5
+      "count": 4
     },
     "typescript/no-unsafe-return": {
       "count": 2

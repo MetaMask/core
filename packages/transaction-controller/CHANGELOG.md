@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exclude the unused gas refund from `nativeBalanceChange` when the simulation credits the sender without debiting the gas cost ([#10614](https://github.com/MetaMask/core/pull/10614))
   - On Arc the simulated state diff credits the fee recipient and, when the gas limit exceeds the gas used, refunds the sender's unused gas, but never debits the upfront gas, so a value-0 call was reported as an incoming native balance and a native send under-reported its decrease.
 
+### Added
+
+- Estimate type-4 transactions with an authorization list as one outer transaction, instead of combining separate upgrade and execution estimates and subtracting 21,000 intrinsic gas, so the estimate includes the EIP-2780 runtime authorization charges ([#10783](https://github.com/MetaMask/core/pull/10783))
+  - If all authorizations are signed, use `eth_estimateGas` on the selected network for the exact transaction.
+  - Otherwise, send one Simulation API request with an `authorizationList` containing the authority of each entry: the sender for unsigned entries, and the recovered signer for pre-signed entries. Estimation fails if a signer cannot be recovered.
+  - If simulation is disabled, the chain is not supported by the Simulation API, or the simulation request fails or returns no gas limit, use `eth_estimateGas` on the selected network with dummy signatures and the delegation of the sender set with a state override. If the sender is not yet delegated, add 35,190 gas once for the EIP-2780 delegation indicator charge.
+  - A simulated transaction error is recorded as `simulationFails` without falling back to the selected network.
+
 ## [72.2.1]
 
 ### Changed
