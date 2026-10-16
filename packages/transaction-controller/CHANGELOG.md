@@ -7,18 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add `mode` to the `estimateGasBatch` result, `eip7702-outer` for a single gas limit of the outer EIP-7702 transaction or `per-transaction` for one gas limit per transaction, and export the `EstimateGasBatchMode` and `EstimateGasBatchResult` types ([#10790](https://github.com/MetaMask/core/pull/10790))
-
 ### Changed
 
 - When the outer EIP-7702 estimate in `estimateGasBatch` fails and the sender requires an upgrade, add 43,006 gas to the sum of the provided gas values for the upgrade authorization, which the provided values do not include ([#10790](https://github.com/MetaMask/core/pull/10790))
+- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/core-backend` from `^12.1.0` to `^12.2.0` ([#10857](https://github.com/MetaMask/core/pull/10857))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
+### Fixed
+
+- Exclude the unused gas refund from `nativeBalanceChange` when the simulation credits the sender without debiting the gas cost ([#10614](https://github.com/MetaMask/core/pull/10614))
+  - On Arc the simulated state diff credits the fee recipient and, when the gas limit exceeds the gas used, refunds the sender's unused gas, but never debits the upfront gas, so a value-0 call was reported as an incoming native balance and a native send under-reported its decrease.
+
+### Added
+
+- Add `mode` to the `estimateGasBatch` result, `eip7702-outer` for a single gas limit of the outer EIP-7702 transaction or `per-transaction` for one gas limit per transaction, and export the `EstimateGasBatchMode` and `EstimateGasBatchResult` types ([#10790](https://github.com/MetaMask/core/pull/10790))
 - Estimate type-4 transactions with an authorization list as one outer transaction, instead of combining separate upgrade and execution estimates and subtracting 21,000 intrinsic gas, so the estimate includes the EIP-2780 runtime authorization charges ([#10783](https://github.com/MetaMask/core/pull/10783))
   - If all authorizations are signed, use `eth_estimateGas` on the selected network for the exact transaction.
   - Otherwise, send one Simulation API request with an `authorizationList` containing the authority of each entry: the sender for unsigned entries, and the recovered signer for pre-signed entries. Estimation fails if a signer cannot be recovered.
-  - If simulation is disabled, the chain is not supported by the Simulation API, or the simulation request fails or returns no gas limit, use `eth_estimateGas` on the selected network with dummy signatures and the delegation of the sender set with a state override. If the sender is not yet delegated, add 35,190 gas once for the EIP-2780 delegation indicator charge.
+  - If simulation is disabled, the chain is not supported by the Simulation API, or the simulation request fails or returns no gas limit, use `eth_estimateGas` on the selected network with dummy signatures and the delegation of the sender set with a state override. Add 44,190 gas for each unsigned authorization, and a further 183,600 if the sender does not exist in state, to cover the worst-case EIP-2780 runtime authorization charges.
   - A simulated transaction error is recorded as `simulationFails` without falling back to the selected network.
 
 ## [72.2.1]
