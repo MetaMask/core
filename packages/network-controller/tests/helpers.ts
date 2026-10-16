@@ -21,6 +21,8 @@ import type {
 import { getKnownPropertyNames } from '@metamask/utils';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
+import { vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
 import { NetworkController } from '../src/index.js';
@@ -151,20 +153,20 @@ export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
   rpcFailoverMode = 'disabled',
   analyticsId = '11111111-1111-4111-8111-111111111111',
-  trackEvent = jest.fn(),
+  trackEvent = vi.fn(),
   configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
 }: {
   connectivityStatus?: ConnectivityStatus;
   rpcFailoverMode?: RpcFailoverMode;
   analyticsId?: string;
-  trackEvent?: jest.Mock;
+  trackEvent?: Mock;
   configRegistryNetworkConfigs?: RegistryNetworkConfig[];
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
     MessengerActions<NetworkControllerMessenger>,
     MessengerEvents<NetworkControllerMessenger>
-  >({ namespace: MOCK_ANY_NAMESPACE, captureException: jest.fn() });
+  >({ namespace: MOCK_ANY_NAMESPACE, captureException: vi.fn() });
 
   rootMessenger.registerActionHandler(
     'ConnectivityController:getState',

@@ -3359,11 +3359,6 @@
       "count": 1
     }
   },
-  "packages/network-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/network-controller/src/NetworkController.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -3399,7 +3394,7 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 4
+      "count": 1
     },
     "typescript/no-unsafe-member-access": {
       "count": 1
@@ -3419,23 +3414,14 @@
     },
     "typescript/no-unsafe-argument": {
       "count": 2
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/network-controller/tests/network-client/block-hash-in-response.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 4
-    },
     "typescript/no-unsafe-return": {
       "count": 19
     }
   },
   "packages/network-controller/tests/network-client/block-param.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 4
-    },
     "typescript/no-unsafe-return": {
       "count": 21
     }
@@ -3452,9 +3438,6 @@
     }
   },
   "packages/network-controller/tests/network-client/no-block-param.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 4
-    },
     "typescript/no-unsafe-return": {
       "count": 20
     }

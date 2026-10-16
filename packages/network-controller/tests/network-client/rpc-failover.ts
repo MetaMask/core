@@ -1,10 +1,17 @@
 import { ConstantBackoff } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
-import { ignoreRejection } from '../../../../tests/helpers.js';
+import { ignoreRejection } from '../../../../tests/vitest/helpers.js';
 import { buildRootMessenger } from '../helpers.js';
 import type { MockRequest, MockResponse, ProviderType } from './helpers.js';
 import { withMockedCommunications, withNetworkClient } from './helpers.js';
+
+/**
+ * An error class, as `toThrow` accepts one. Stands in for `jest.Constructable`,
+ * which Vitest does not re-export.
+ */
+type Constructable = new (...args: never[]) => unknown;
 
 /**
  * Tests for RPC failover behavior.
@@ -32,8 +39,8 @@ export function testsForRpcFailoverBehavior({
   getRequestToMock: (request: MockRequest, blockNumber: Hex) => MockRequest;
   failure: MockResponse | Error | string;
   isRetriableFailure: boolean;
-  getExpectedError: (url: string) => Error | jest.Constructable;
-  getExpectedBreakError?: (url: string) => Error | jest.Constructable;
+  getExpectedError: (url: string) => Error | Constructable;
+  getExpectedBreakError?: (url: string) => Error | Constructable;
 }): void {
   if (providerType === 'custom') {
     return;
@@ -59,6 +66,7 @@ export function testsForRpcFailoverBehavior({
             const request = requestToCall;
             const requestToMock = getRequestToMock(request, blockNumber);
             const additionalMockRpcCallOptions =
+              // eslint-disable-next-line vitest/no-conditional-in-test
               failure instanceof Error || typeof failure === 'string'
                 ? { error: failure }
                 : { response: failure };
@@ -107,7 +115,7 @@ export function testsForRpcFailoverBehavior({
                     // We also don't need to await this, it just needs to
                     // be added to the promise queue.
                     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                    jest.advanceTimersByTimeAsync(backoffDuration);
+                    vi.advanceTimersByTimeAsync(backoffDuration);
                   },
                 );
 
@@ -127,6 +135,7 @@ export function testsForRpcFailoverBehavior({
     it('allows RPC service options to be customized', async () => {
       const customMaxConsecutiveFailures = 6;
       const customMaxRetries = 2;
+      // eslint-disable-next-line vitest/no-conditional-in-test
       const customNumRequestsToMake = isRetriableFailure
         ? customMaxConsecutiveFailures / (customMaxRetries + 1)
         : customMaxConsecutiveFailures;
@@ -151,6 +160,7 @@ export function testsForRpcFailoverBehavior({
               const request = requestToCall;
               const requestToMock = getRequestToMock(request, blockNumber);
               const additionalMockRpcCallOptions =
+                // eslint-disable-next-line vitest/no-conditional-in-test
                 failure instanceof Error || typeof failure === 'string'
                   ? { error: failure }
                   : { response: failure };
@@ -187,6 +197,7 @@ export function testsForRpcFailoverBehavior({
                       btoa,
                       isOffline: (): boolean => false,
                     };
+                    // eslint-disable-next-line vitest/no-conditional-in-test
                     if (rpcEndpointUrl === 'https://failover.endpoint') {
                       const headers: HeadersInit = {
                         'X-Baz': 'Qux',
@@ -223,7 +234,7 @@ export function testsForRpcFailoverBehavior({
                       // We also don't need to await this, it just needs to
                       // be added to the promise queue.
                       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                      jest.advanceTimersByTimeAsync(backoffDuration);
+                      vi.advanceTimersByTimeAsync(backoffDuration);
                     },
                   );
 
@@ -248,6 +259,7 @@ export function testsForRpcFailoverBehavior({
         const request = requestToCall;
         const requestToMock = getRequestToMock(request, blockNumber);
         const additionalMockRpcCallOptions =
+          // eslint-disable-next-line vitest/no-conditional-in-test
           failure instanceof Error || typeof failure === 'string'
             ? { error: failure }
             : { response: failure };
@@ -285,7 +297,7 @@ export function testsForRpcFailoverBehavior({
               // We also don't need to await this, it just needs to
               // be added to the promise queue.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              jest.advanceTimersByTimeAsync(backoffDuration);
+              vi.advanceTimersByTimeAsync(backoffDuration);
             });
 
             for (let i = 0; i < numRequestsToMake - 1; i++) {

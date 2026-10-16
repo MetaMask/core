@@ -1,4 +1,5 @@
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
+import { describe, expect, it, vi } from 'vitest';
 
 import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service.js';
 import { NetworkClientType } from '../../src/types.js';
@@ -88,6 +89,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
             // Start the block tracker
             blockTracker.on('latest', () => {
               numberOfBlocks += 1;
+              // eslint-disable-next-line vitest/no-conditional-in-test
               if (numberOfBlocks === 2) {
                 resolve();
               }
@@ -97,7 +99,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           const firstResult = await makeRpcCall(requests[0]);
           // Proceed to the next iteration of the block tracker so that a new
           // block is fetched and the current block is updated.
-          await jest.advanceTimersByTimeAsync(pollingInterval);
+          await vi.advanceTimersByTimeAsync(pollingInterval);
           await waitForTwoBlocks;
           const secondResult = await makeRpcCall(requests[1]);
           return [firstResult, secondResult];
@@ -326,9 +328,10 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         },
       );
 
+      // eslint-disable-next-line vitest/no-conditional-in-test
       if (providerType === NetworkClientType.Infura) {
         // This is not ideal, but we can refactor this later.
-        // eslint-disable-next-line jest/no-conditional-expect
+        // eslint-disable-next-line vitest/no-conditional-expect
         await expect(promise).rejects.toThrow(
           rpcErrors.internal({
             message: error.message,
@@ -337,7 +340,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         );
       } else {
         // This is not ideal, but we can refactor this later.
-        // eslint-disable-next-line jest/no-conditional-expect
+        // eslint-disable-next-line vitest/no-conditional-expect
         await expect(promise).rejects.toThrow(
           rpcErrors.internal({ data: error }),
         );
