@@ -13,7 +13,7 @@
   "exclude": [
     "./jest.config.packages.ts",
     "**/*.test.ts",
-    "**/*.tst.ts",
+    "**/*.test-d.ts",
     "**/jest.config.ts",
     "./src/**/__fixtures__/**/*",
     "./src/**/__mocks__/**/*",
