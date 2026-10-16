@@ -7677,21 +7677,6 @@
       "count": 2
     }
   },
-  "tests/helpers.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    }
-  },
-  "tests/scripts-setup.ts": {
-    "jest/require-top-level-describe": {
-      "count": 1
-    }
-  },
-  "tests/setupAfterEnv/nock.ts": {
-    "jest/require-top-level-describe": {
-      "count": 2
-    }
-  },
   "types/@metamask/contract-metadata.d.ts": {
     "import/unambiguous": {
       "count": 1
