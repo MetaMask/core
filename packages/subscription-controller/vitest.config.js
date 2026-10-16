@@ -2,7 +2,7 @@ import { basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mergeConfig } from 'vitest/config';
 
-import baseConfig from '../../vitest.config.packages.mjs';
+import baseConfig from '../../vitest.config.packages.js';
 
 export default mergeConfig(baseConfig, {
   test: {
