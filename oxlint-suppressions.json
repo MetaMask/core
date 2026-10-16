@@ -737,9 +737,6 @@
   "packages/assets-controller/src/AssetsController.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 5
     }
   },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
@@ -931,11 +928,6 @@
   "packages/assets-controller/src/migrations/healAssetsInfoMetadata.test.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
-    }
-  },
-  "packages/assets-controller/src/pipeline/buildFastFetchSources.test.ts": {
-    "no-unused-vars": {
-      "count": 1
     }
   },
   "packages/assets-controller/src/pipeline/executeAssetsPipeline.ts": {
@@ -3396,7 +3388,7 @@
   },
   "packages/kyc-controller/src/index.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 16
+      "count": 14
     }
   },
   "packages/kyc-controller/src/ukyc/localUserSecret.test.ts": {
@@ -7542,11 +7534,6 @@
       "count": 1
     },
     "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/wallet/src/initialization/initialization.ts": {
-    "no-unused-vars": {
       "count": 1
     }
   },
