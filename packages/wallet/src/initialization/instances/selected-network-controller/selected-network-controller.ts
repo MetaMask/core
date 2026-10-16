@@ -11,6 +11,7 @@ export const selectedNetworkController: InitializationConfiguration<
   SelectedNetworkControllerMessenger
 > = {
   name: 'SelectedNetworkController',
+  reference: SelectedNetworkController,
   init: ({ state, messenger, options }) =>
     new SelectedNetworkController({
       state,

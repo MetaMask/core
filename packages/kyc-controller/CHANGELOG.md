@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** Remove `MoonPayFrameHandler`, `MoonPayFrameHandlerOptions`, and `clearMoonPaySession` ([#10850](https://github.com/MetaMask/core/pull/10850))
+  - Clients that embedded MoonPay Check/Auth frames must implement that protocol themselves
+
 ## [0.10.0]
 
 ### Added
