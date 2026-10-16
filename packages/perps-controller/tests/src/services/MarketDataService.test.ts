@@ -1770,12 +1770,15 @@ describe('MarketDataService', () => {
         ];
         fetchGlobalSnapshot.mockRejectedValue(new Error('snapshot rejected'));
         let resolveProvider: ((markets: MarketInfo[]) => void) | undefined;
-        mockProvider.getMarkets.mockImplementation(
-          () =>
-            new Promise((resolve) => {
-              resolveProvider = resolve;
-            }),
-        );
+        const providerCalled = new Promise<void>((resolve) => {
+          mockProvider.getMarkets.mockImplementation(
+            () =>
+              new Promise((resolveMarkets) => {
+                resolveProvider = resolveMarkets;
+                resolve();
+              }),
+          );
+        });
         const isCurrent = jest
           .fn()
           .mockReturnValueOnce(true)
@@ -1787,8 +1790,7 @@ describe('MarketDataService', () => {
           params: { useTerminalApi: true },
           context: snapshotContext({ isCurrent }),
         });
-        await Promise.resolve();
-        await Promise.resolve();
+        await providerCalled;
         resolveProvider?.(providerMarkets);
 
         await expect(pending).rejects.toThrow('snapshot context changed');
@@ -2021,12 +2023,15 @@ describe('MarketDataService', () => {
           new Error('snapshot rejected'),
         );
         let resolveProvider: ((markets: PerpsMarketData[]) => void) | undefined;
-        mockProvider.getMarketDataWithPrices.mockImplementation(
-          () =>
-            new Promise((resolve) => {
-              resolveProvider = resolve;
-            }),
-        );
+        const providerCalled = new Promise<void>((resolve) => {
+          mockProvider.getMarketDataWithPrices.mockImplementation(
+            () =>
+              new Promise((resolveMarkets) => {
+                resolveProvider = resolveMarkets;
+                resolve();
+              }),
+          );
+        });
         const isCurrent = jest
           .fn()
           .mockReturnValueOnce(true)
@@ -2037,8 +2042,7 @@ describe('MarketDataService', () => {
           provider: mockProvider,
           context: createGlobalSnapshotContext({ isCurrent }),
         });
-        await Promise.resolve();
-        await Promise.resolve();
+        await providerCalled;
         resolveProvider?.(providerMarketData);
 
         await expect(pending).rejects.toThrow('snapshot context changed');
