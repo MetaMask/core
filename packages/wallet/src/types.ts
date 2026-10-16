@@ -24,15 +24,12 @@ import type { StorageServiceInstanceOptions } from './initialization/instances/s
 import type { SubscriptionControllerInstanceOptions } from './initialization/instances/subscription-controller/types.js';
 import type { SubscriptionServiceInstanceOptions } from './initialization/instances/subscription-service/types.js';
 import type { TransactionControllerInstanceOptions } from './initialization/instances/transaction-controller/types.js';
-import type { InitializationConfiguration } from './initialization/types.js';
+import type { AnyInitializationConfiguration } from './initialization/types.js';
 
 export type WalletOptions = {
   messenger?: RootMessenger<DefaultActions, DefaultEvents>;
   state?: Record<string, Record<string, Json> | undefined>;
-  initializationConfigurations?: InitializationConfiguration<
-    unknown,
-    unknown
-  >[];
+  initializationConfigurations?: AnyInitializationConfiguration[];
   instanceOptions: InstanceSpecificOptions;
 };
 

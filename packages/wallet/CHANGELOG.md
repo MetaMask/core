@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Require a `reference` property on `InitializationConfiguration` for instances that have state ([#10023](https://github.com/MetaMask/core/pull/10023))
 - **BREAKING:** Add `PermissionController` to the default initialization configurations ([#10807](https://github.com/MetaMask/core/pull/10807))
   - Accepts optional `instanceOptions.permissionController.caveatSpecifications`, `permissionSpecifications` and `unrestrictedMethods`, each defaulting to empty.
 - **BREAKING:** Add `SubjectMetadataController` to the default initialization configurations ([#10807](https://github.com/MetaMask/core/pull/10807))
