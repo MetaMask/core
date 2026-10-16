@@ -165,6 +165,7 @@
     "lint:misc": "lavamoat/scripts.lint.json",
     "lint:misc:check": "lavamoat/scripts.yarn.json",
     "lint:oxlint": "lavamoat/scripts.lint.json",
+    "lint:teams": "lavamoat/scripts.lint.json",
     "lint:tsc": "lavamoat/scripts.lint.json",
     "lint:tsc:check": "lavamoat/scripts.lint.json",
     "lint:tsc:clean": "lavamoat/scripts.yarn.json",
@@ -175,6 +176,8 @@
     "messenger-action-types:check": "lavamoat/scripts.yarn.json",
     "messenger-action-types:generate": "lavamoat/scripts.yarn.json",
     "postinstall": "lavamoat/scripts.yarn.json",
+    "readme-content:check": "lavamoat/scripts.lint.json",
+    "readme-content:update": "lavamoat/scripts.lint.json",
     "skills:postinstall": "lavamoat/scripts.skills.json"
   }
 }
