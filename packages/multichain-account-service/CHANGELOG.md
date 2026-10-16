@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Register `XlmAccountProvider` in `MultichainAccountService` built-in providers and accept `providerConfigs[XLM_ACCOUNT_PROVIDER_NAME]` ([#10867](https://github.com/MetaMask/core/pull/10867))
+
 ### Changed
 
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
