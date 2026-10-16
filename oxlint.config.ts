@@ -5,13 +5,15 @@ import nodejs from '@metamask/oxlint-config-nodejs';
 import typescript from '@metamask/oxlint-config-typescript';
 import vitest from '@metamask/oxlint-config-vitest';
 
-import { getJestWorkspaces } from './test-runner-package-map.cjs';
+import { getJestWorkspaceLocations } from './test-runner-package-map.cjs';
 
-const jestTestFiles = (await getJestWorkspaces()).flatMap((location) => [
-  `${location}/**/*.test.ts`,
-  `${location}/**/test/**`,
-  `${location}/**/tests/**`,
-]);
+const jestTestFiles = (await getJestWorkspaceLocations()).flatMap(
+  (location) => [
+    `${location}/**/*.test.ts`,
+    `${location}/**/test/**`,
+    `${location}/**/tests/**`,
+  ],
+);
 
 export default createConfig({
   extends: [base],

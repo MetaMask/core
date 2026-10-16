@@ -113,12 +113,11 @@ const PACKAGES_ON_JEST = new Set([
 ]);
 
 /**
- * Finds the workspaces still on Jest.
+ * Finds the locations of the workspaces still on Jest.
  *
- * @returns {Promise<string[]>} Workspace directories, relative to the
- * repository root.
+ * @returns {Promise<string[]>} Locations relative to the repository root.
  */
-async function getJestWorkspaces() {
+async function getJestWorkspaceLocations() {
   const locations = await getWorkspaceLocations(workspaces, __dirname);
 
   return locations.filter((location) =>
@@ -126,4 +125,4 @@ async function getJestWorkspaces() {
   );
 }
 
-module.exports = { PACKAGES_ON_JEST, getJestWorkspaces };
+module.exports = { PACKAGES_ON_JEST, getJestWorkspaceLocations };
