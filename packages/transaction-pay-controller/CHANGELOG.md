@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor(transaction-pay-controller): extract post-quote gas helpers from the Relay strategy ([#10805](https://github.com/MetaMask/core/pull/10805))
-- refactor(transaction-pay-controller): decouple Polymarket withdraw helpers from the Relay strategy ([#10799](https://github.com/MetaMask/core/pull/10799))
-
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
