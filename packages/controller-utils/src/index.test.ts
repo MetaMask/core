@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import * as allExports from './index.js';
 
 describe('@metamask/controller-utils', () => {
@@ -85,13 +87,13 @@ describe('@metamask/controller-utils', () => {
         "DEFAULT_INFURA_NETWORKS",
         "CustomNetworkType",
         "NetworkType",
+        "isNetworkType",
+        "isInfuraNetworkType",
         "BuiltInNetworkName",
         "ChainId",
         "NetworksTicker",
         "BlockExplorerUrl",
         "NetworkNickname",
-        "isNetworkType",
-        "isInfuraNetworkType",
         "parseDomainParts",
         "isValidSIWEOrigin",
         "detectSIWE",

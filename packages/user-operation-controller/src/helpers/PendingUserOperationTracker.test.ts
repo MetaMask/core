@@ -196,7 +196,7 @@ describe('PendingUserOperationTracker', () => {
       expect(queryMock).not.toHaveBeenCalled();
     });
 
-    // eslint-disable-next-line jest/expect-expect
+    // eslint-disable-next-line vitest/expect-expect
     it('does not throw if error while checking user operation', async () => {
       const pendingUserOperationTracker = new PendingUserOperationTracker({
         getUserOperations: () => [
@@ -216,7 +216,7 @@ describe('PendingUserOperationTracker', () => {
       });
     });
 
-    // eslint-disable-next-line jest/expect-expect
+    // eslint-disable-next-line vitest/expect-expect
     it('does not throw if no user operation receipt', async () => {
       const pendingUserOperationTracker = new PendingUserOperationTracker({
         getUserOperations: () => [

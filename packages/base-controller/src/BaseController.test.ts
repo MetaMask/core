@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-export */
 import type { MockAnyNamespace } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import { number, object, string, Struct } from '@metamask/superstruct';
