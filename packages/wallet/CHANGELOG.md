@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [18.0.0]
 
-### Uncategorized
-
-- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
-
 ### Added
 
 - **BREAKING:** Require a `reference` property on `InitializationConfiguration` for instances that have state ([#10023](https://github.com/MetaMask/core/pull/10023))
