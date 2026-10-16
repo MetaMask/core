@@ -14,7 +14,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/analytics-data-regulation-controller',
   '@metamask/announcement-controller',
   '@metamask/app-metadata-controller',
-  '@metamask/approval-controller',
   '@metamask/assets-controller',
   '@metamask/assets-controllers',
   '@metamask/authenticated-user-storage',
