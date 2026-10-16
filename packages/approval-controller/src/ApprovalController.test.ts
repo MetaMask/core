@@ -1,6 +1,6 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
-/* eslint-disable jest/expect-expect */
+/* eslint-disable vitest/expect-expect */
 import type {
   MessengerActions,
   MessengerEvents,
@@ -1461,7 +1461,7 @@ describe('approval controller', () => {
 
         const expectedFlow = {
           // We're not making an assertion conditionally, we're using a helper.
-          // eslint-disable-next-line jest/no-conditional-expect
+          // eslint-disable-next-line vitest/no-conditional-expect
           id: opts?.id ?? expect.any(String),
           loadingText: opts?.loadingText ?? null,
         };
