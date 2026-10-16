@@ -13,6 +13,8 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { Mock, MockInstance } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getDefaultMarketingConsentControllerState,
@@ -109,7 +111,7 @@ function createDeferred<Value>(): {
 
 /**
  * Constructs the controller under test with a root messenger whose external
- * actions are backed by jest mocks.
+ * actions are backed by mock functions.
  *
  * @param options - Setup options.
  * @param options.analyticsState - Initial AnalyticsController state.
@@ -139,22 +141,22 @@ function setup({
   controller: MarketingConsentController;
   rootMessenger: RootMessenger;
   mocks: {
-    invalidateQueries: jest.Mock<Promise<void>, []>;
-    getMarketingConsent: jest.Mock<Promise<RemoteConsent>, []>;
-    putMarketingConsent: jest.Mock<
-      Promise<void>,
-      [MarketingConsent, ClientType?]
+    invalidateQueries: Mock<() => Promise<void>>;
+    getMarketingConsent: Mock<() => Promise<RemoteConsent>>;
+    putMarketingConsent: Mock<
+      (consent: MarketingConsent, clientType?: ClientType) => Promise<void>
     >;
-    getNotificationPreferences: jest.Mock<
-      Promise<NotificationPreferences | null>,
-      []
+    getNotificationPreferences: Mock<
+      () => Promise<NotificationPreferences | null>
     >;
-    putNotificationPreferences: jest.Mock<
-      Promise<void>,
-      [NotificationPreferences, ClientType?]
+    putNotificationPreferences: Mock<
+      (
+        preferences: NotificationPreferences,
+        clientType?: ClientType,
+      ) => Promise<void>
     >;
-    optInToMarketing: jest.Mock<Promise<void>, []>;
-    optOutOfMarketing: jest.Mock<void, []>;
+    optInToMarketing: Mock<() => Promise<void>>;
+    optOutOfMarketing: Mock<() => void>;
   };
   setAnalyticsState: (newState: Partial<AnalyticsControllerState>) => void;
   setSignedIn: (signedIn: boolean) => void;
@@ -196,20 +198,20 @@ function setup({
   };
 
   const mocks = {
-    invalidateQueries: jest.fn(async () => undefined),
-    getMarketingConsent: jest.fn(getConsent),
-    putMarketingConsent: jest.fn(
+    invalidateQueries: vi.fn(async () => undefined),
+    getMarketingConsent: vi.fn(getConsent),
+    putMarketingConsent: vi.fn(
       async (_body: MarketingConsent, _clientType?: ClientType) => putConsent(),
     ),
-    getNotificationPreferences: jest.fn(getPreferences),
-    putNotificationPreferences: jest.fn(
+    getNotificationPreferences: vi.fn(getPreferences),
+    putNotificationPreferences: vi.fn(
       async (_preferences: NotificationPreferences, _clientType?: ClientType) =>
         putPreferences(),
     ),
-    optInToMarketing: jest.fn(async () => {
+    optInToMarketing: vi.fn(async () => {
       setAnalyticsState(OPTED_IN);
     }),
-    optOutOfMarketing: jest.fn(() => {
+    optOutOfMarketing: vi.fn(() => {
       setAnalyticsState(OPTED_OUT);
     }),
   };
@@ -297,9 +299,8 @@ function setup({
  * @returns The written consent values.
  */
 function writtenConsents(
-  putMarketingConsent: jest.Mock<
-    Promise<void>,
-    [MarketingConsent, ClientType?]
+  putMarketingConsent: Mock<
+    (consent: MarketingConsent, clientType?: ClientType) => Promise<void>
   >,
 ): boolean[] {
   return putMarketingConsent.mock.calls.map(
@@ -307,11 +308,32 @@ function writtenConsents(
   );
 }
 
+/**
+ * Builds a state listener that runs an action once, the first time a
+ * condition holds.
+ *
+ * @param condition - Checked against each published state.
+ * @param action - Runs once, the first time the condition holds.
+ * @returns The listener.
+ */
+function onceWhen<State>(
+  condition: (state: State) => boolean,
+  action: () => void,
+): (state: State) => void {
+  let done = false;
+  return (state) => {
+    if (!done && condition(state)) {
+      done = true;
+      action();
+    }
+  };
+}
+
 describe('MarketingConsentController', () => {
-  let consoleError: jest.SpyInstance;
+  let consoleError: MockInstance<typeof console.error>;
 
   beforeEach(() => {
-    consoleError = jest
+    consoleError = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
   });
@@ -388,9 +410,12 @@ describe('MarketingConsentController', () => {
       );
     });
 
-    it.each([true, false])(
-      'applies AUS consent %s to AnalyticsController',
-      async (marketingConsentEnabled) => {
+    it.each([
+      { marketingConsentEnabled: true, applied: 'optInToMarketing' as const },
+      { marketingConsentEnabled: false, applied: 'optOutOfMarketing' as const },
+    ])(
+      'applies AUS consent $marketingConsentEnabled to AnalyticsController',
+      async ({ marketingConsentEnabled, applied }) => {
         const { mocks } = setup({
           analyticsState: {
             optedInToMarketing: !marketingConsentEnabled,
@@ -401,11 +426,7 @@ describe('MarketingConsentController', () => {
         });
         await flushPromises();
 
-        expect(
-          marketingConsentEnabled
-            ? mocks.optInToMarketing
-            : mocks.optOutOfMarketing,
-        ).toHaveBeenCalled();
+        expect(mocks[applied]).toHaveBeenCalled();
         expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
       },
     );
@@ -438,9 +459,12 @@ describe('MarketingConsentController', () => {
       expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
     });
 
-    it.each([true, false])(
-      'uploads the first local decision %s instead of applying the AUS value',
-      async (localConsent) => {
+    it.each([
+      { localConsent: true, remoteApplied: 'optOutOfMarketing' as const },
+      { localConsent: false, remoteApplied: 'optInToMarketing' as const },
+    ])(
+      'uploads the first local decision $localConsent instead of applying the AUS value',
+      async ({ localConsent, remoteApplied }) => {
         const { controller, mocks, setAnalyticsState } = setup({
           analyticsState: UNDECIDED,
           isSignedIn: true,
@@ -454,9 +478,7 @@ describe('MarketingConsentController', () => {
         await flushPromises();
 
         expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
-        expect(
-          localConsent ? mocks.optOutOfMarketing : mocks.optInToMarketing,
-        ).not.toHaveBeenCalled();
+        expect(mocks[remoteApplied]).not.toHaveBeenCalled();
         expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
           { marketingConsentEnabled: localConsent },
           'extension',
@@ -473,7 +495,7 @@ describe('MarketingConsentController', () => {
         getConsent: async () => remoteConsent,
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       remoteConsent = { marketingConsentEnabled: true };
       setSignedIn(false);
@@ -493,7 +515,7 @@ describe('MarketingConsentController', () => {
         remoteConsent: { marketingConsentEnabled: true },
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       setSignedIn(false);
       setSignedIn(true);
@@ -507,16 +529,13 @@ describe('MarketingConsentController', () => {
 
     it('does not apply AUS consent from a read started before a sign-out', async () => {
       const firstRead = createDeferred<RemoteConsent>();
-      let reads = 0;
       const { mocks, setSignedIn } = setup({
         analyticsState: OPTED_IN,
         isSignedIn: true,
-        getConsent: async () => {
-          reads += 1;
-          return reads === 1
-            ? firstRead.promise
-            : { marketingConsentEnabled: true };
-        },
+        getConsent: vi
+          .fn<() => Promise<RemoteConsent>>()
+          .mockReturnValueOnce(firstRead.promise)
+          .mockResolvedValue({ marketingConsentEnabled: true }),
       });
       await flushPromises();
       expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(1);
@@ -559,18 +578,15 @@ describe('MarketingConsentController', () => {
         remoteConsent: { marketingConsentEnabled: false },
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       // Opt out again the moment the opt-in is confirmed, after the run has
       // checked for newer changes and before it finishes.
-      let optedOutAgain = false;
       rootMessenger.subscribe(
         'MarketingConsentController:stateChanged',
-        (state) => {
-          if (!optedOutAgain && state.pendingMarketingConsent === null) {
-            optedOutAgain = true;
-            setAnalyticsState(OPTED_OUT);
-          }
-        },
+        onceWhen(
+          (state) => state.pendingMarketingConsent === null,
+          () => setAnalyticsState(OPTED_OUT),
+        ),
       );
 
       setAnalyticsState(OPTED_IN);
@@ -632,7 +648,7 @@ describe('MarketingConsentController', () => {
         remoteConsent: { marketingConsentEnabled: false },
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       setAnalyticsState(OPTED_IN);
       await flushPromises();
@@ -650,7 +666,7 @@ describe('MarketingConsentController', () => {
         remoteConsent: { marketingConsentEnabled: false },
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       setAnalyticsState({ optedIn: true });
       await flushPromises();
@@ -905,7 +921,7 @@ describe('MarketingConsentController', () => {
 
       rootMessenger.publish('KeyringController:lock');
       remoteConsent = { marketingConsentEnabled: false };
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       rootMessenger.publish('KeyringController:unlock');
       await flushPromises();
 
@@ -945,7 +961,7 @@ describe('MarketingConsentController', () => {
 
       // Another device opted out while this client stayed alive.
       remoteConsent = { marketingConsentEnabled: false };
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       controller.refresh();
       await flushPromises();
 
@@ -961,7 +977,7 @@ describe('MarketingConsentController', () => {
         remoteConsent: { marketingConsentEnabled: true },
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       rootMessenger.call('MarketingConsentController:refresh');
       await flushPromises();
@@ -981,7 +997,7 @@ describe('MarketingConsentController', () => {
 
       setAnalyticsState(OPTED_IN);
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       controller.refresh();
       await flushPromises();
@@ -996,21 +1012,14 @@ describe('MarketingConsentController', () => {
   describe('setMarketingConsent', () => {
     it('resolves a call overtaken by a consent change from other code, without reverting', async () => {
       const put = createDeferred<void>();
-      let firstPut = true;
       const { controller, mocks, setAnalyticsState } = setup({
         analyticsState: OPTED_OUT,
         isSignedIn: true,
         remoteConsent: { marketingConsentEnabled: false },
       });
       await flushPromises();
-      jest.clearAllMocks();
-      mocks.putMarketingConsent.mockImplementation(async () => {
-        if (firstPut) {
-          firstPut = false;
-          return put.promise;
-        }
-        return Promise.resolve();
-      });
+      vi.clearAllMocks();
+      mocks.putMarketingConsent.mockReturnValueOnce(put.promise);
 
       const saving = controller.setMarketingConsent(true);
       await flushPromises();
@@ -1034,7 +1043,7 @@ describe('MarketingConsentController', () => {
         remoteConsent: { marketingConsentEnabled: false },
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       const first = controller.setMarketingConsent(true);
       const second = controller.setMarketingConsent(false);
@@ -1053,7 +1062,7 @@ describe('MarketingConsentController', () => {
         remoteConsent: { marketingConsentEnabled: false },
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       expect(await controller.setMarketingConsent(true)).toBeUndefined();
 
@@ -1115,7 +1124,7 @@ describe('MarketingConsentController', () => {
       });
       await flushPromises();
 
-      const onSaved = jest.fn();
+      const onSaved = vi.fn();
       const saving = controller.setMarketingConsent(true).then(onSaved);
       await flushPromises();
       expect(onSaved).not.toHaveBeenCalled();
@@ -1156,7 +1165,7 @@ describe('MarketingConsentController', () => {
         remoteConsent: { marketingConsentEnabled: false },
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       mocks.putMarketingConsent.mockImplementation(async () => {
         throw new Error('AUS unavailable');
       });
@@ -1209,7 +1218,7 @@ describe('MarketingConsentController', () => {
         remoteConsent: { marketingConsentEnabled: false },
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       mocks.putMarketingConsent
         .mockImplementationOnce(async () => firstWrite.promise)
         .mockImplementation(async () => undefined);
@@ -1245,7 +1254,7 @@ describe('MarketingConsentController', () => {
         remoteConsent: { marketingConsentEnabled: false },
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       mocks.putMarketingConsent.mockImplementation(async () => {
         throw new Error('AUS unavailable');
       });
@@ -1285,7 +1294,7 @@ describe('MarketingConsentController', () => {
         putConsent: async () => put.promise,
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       const saving = controller.setMarketingConsent(true);
       await flushPromises();
@@ -1302,21 +1311,17 @@ describe('MarketingConsentController', () => {
 
     it('keeps an unsaved change pending when the session ends during the wait, and saves it at the next sign-in', async () => {
       const put = createDeferred<void>();
-      let failNextPut = true;
       const { controller, mocks, setSignedIn } = setup({
         analyticsState: OPTED_OUT,
         isSignedIn: true,
         remoteConsent: { marketingConsentEnabled: false },
-        putConsent: async () => {
-          if (failNextPut) {
-            failNextPut = false;
-            return put.promise;
-          }
-          return Promise.resolve();
-        },
+        putConsent: vi
+          .fn<() => Promise<void>>()
+          .mockReturnValueOnce(put.promise)
+          .mockResolvedValue(undefined),
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       const saving = controller.setMarketingConsent(true);
       await flushPromises();
@@ -1362,14 +1367,13 @@ describe('MarketingConsentController', () => {
 
     it('keeps waiting when an older session run hands off to a new run', async () => {
       const firstRead = createDeferred<RemoteConsent>();
-      let reads = 0;
       const { controller, mocks, setSignedIn } = setup({
         analyticsState: OPTED_IN,
         isSignedIn: true,
-        getConsent: async () => {
-          reads += 1;
-          return reads === 1 ? firstRead.promise : null;
-        },
+        getConsent: vi
+          .fn<() => Promise<RemoteConsent>>()
+          .mockReturnValueOnce(firstRead.promise)
+          .mockResolvedValue(null),
       });
       await flushPromises();
 
@@ -1381,7 +1385,7 @@ describe('MarketingConsentController', () => {
       expect(await saving).toBeUndefined();
       // The older session's run stops before writing; the new one writes the
       // pending change without reading AUS first.
-      expect(reads).toBe(1);
+      expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(1);
       expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([true]);
     });
 
@@ -1421,7 +1425,7 @@ describe('MarketingConsentController', () => {
         getPreferences: async () => NOTIFICATION_PREFERENCES,
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       mocks.invalidateQueries.mockImplementation(async () => {
         order.push('invalidate');
       });
@@ -1471,13 +1475,19 @@ describe('MarketingConsentController', () => {
         getPreferences: async () => NOTIFICATION_PREFERENCES,
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       let reads = 0;
-      mocks.getNotificationPreferences.mockImplementation(async () => {
-        reads += 1;
-        order.push(`getPreferences${reads}`);
-        return reads === 1 ? firstRead.promise : NOTIFICATION_PREFERENCES;
-      });
+      mocks.getNotificationPreferences
+        .mockImplementation(async () => {
+          reads += 1;
+          order.push(`getPreferences${reads}`);
+          return NOTIFICATION_PREFERENCES;
+        })
+        .mockImplementationOnce(async () => {
+          reads += 1;
+          order.push(`getPreferences${reads}`);
+          return firstRead.promise;
+        });
       mocks.putNotificationPreferences.mockImplementation(async () => {
         order.push('putPreferences');
       });
@@ -1510,17 +1520,22 @@ describe('MarketingConsentController', () => {
         getPreferences: async () => NOTIFICATION_PREFERENCES,
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       let writes = 0;
       mocks.getNotificationPreferences.mockImplementation(async () => {
         order.push('getPreferences');
         return NOTIFICATION_PREFERENCES;
       });
-      mocks.putNotificationPreferences.mockImplementation(async () => {
-        writes += 1;
-        order.push(`putPreferences${writes}`);
-        return writes === 1 ? firstWrite.promise : undefined;
-      });
+      mocks.putNotificationPreferences
+        .mockImplementation(async () => {
+          writes += 1;
+          order.push(`putPreferences${writes}`);
+        })
+        .mockImplementationOnce(async () => {
+          writes += 1;
+          order.push(`putPreferences${writes}`);
+          return firstWrite.promise;
+        });
       mocks.putMarketingConsent.mockImplementation(async () => {
         order.push('putConsent');
       });
@@ -1662,7 +1677,7 @@ describe('MarketingConsentController', () => {
         getPreferences: async () => NOTIFICATION_PREFERENCES,
       });
       await flushPromises();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       setAnalyticsState(OPTED_IN);
       await flushPromises();
