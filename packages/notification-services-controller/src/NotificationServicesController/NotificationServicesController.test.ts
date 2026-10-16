@@ -2747,6 +2747,109 @@ describe('NotificationServicesController', () => {
       );
     });
 
+    it('re-reads preferences once, after the last queued update', async () => {
+      const order: string[] = [];
+      const {
+        controller,
+        mockInvalidateQueries,
+        mockGetNotificationPreferences,
+        mockPutNotificationPreferences,
+      } = arrangeController(false);
+      mockInvalidateQueries.mockImplementation(async () => {
+        order.push('invalidate');
+      });
+      mockGetNotificationPreferences.mockImplementation(async () => {
+        order.push('get');
+        return mockPreferences();
+      });
+      mockPutNotificationPreferences.mockImplementation(async () => {
+        order.push('put');
+      });
+
+      await Promise.all([
+        controller.updateNotificationPreferences({
+          perps: { pushNotificationsEnabled: false },
+        }),
+        controller.updateNotificationPreferences({
+          socialAI: { pushNotificationsEnabled: false },
+        }),
+      ]);
+
+      expect(order).toStrictEqual([
+        'invalidate',
+        'get',
+        'put',
+        'invalidate',
+        'get',
+        'put',
+        'get',
+      ]);
+    });
+
+    it('re-reads preferences when the last queued update is rejected', async () => {
+      const order: string[] = [];
+      const {
+        controller,
+        mockGetNotificationPreferences,
+        mockPutNotificationPreferences,
+      } = arrangeController(false);
+      mockGetNotificationPreferences.mockImplementation(async () => {
+        order.push('get');
+        return mockPreferences();
+      });
+      mockPutNotificationPreferences.mockImplementation(async () => {
+        order.push('put');
+      });
+
+      const saved = controller.updateNotificationPreferences({
+        perps: { pushNotificationsEnabled: false },
+      });
+      const rejected = controller.updateNotificationPreferences({
+        marketing: { pushNotificationsEnabled: true },
+      });
+
+      expect(await saved).toBeDefined();
+      await expect(rejected).rejects.toThrow(MarketingConsentRequiredError);
+      expect(order).toStrictEqual(['get', 'put', 'get']);
+    });
+
+    it('does not re-read preferences when nothing was written', async () => {
+      const { controller, mockGetNotificationPreferences } =
+        arrangeController(false);
+
+      await expect(
+        controller.updateNotificationPreferences({
+          marketing: { inAppNotificationsEnabled: true },
+        }),
+      ).rejects.toThrow(MarketingConsentRequiredError);
+
+      expect(mockGetNotificationPreferences).not.toHaveBeenCalled();
+    });
+
+    it('starts a section missing from stored preferences from its defaults', async () => {
+      const { agenticCli: _agenticCli, ...withoutAgenticCli } =
+        mockPreferences();
+      const { controller, mockPutNotificationPreferences } = arrangeController(
+        false,
+        withoutAgenticCli as NotificationPreferences,
+      );
+
+      await controller.updateNotificationPreferences({
+        agenticCli: { pushNotificationsEnabled: false },
+      });
+
+      expect(mockPutNotificationPreferences).toHaveBeenCalledWith(
+        {
+          ...withoutAgenticCli,
+          agenticCli: {
+            ...DEFAULT_AGENTIC_CLI_PREFERENCES,
+            pushNotificationsEnabled: false,
+          },
+        },
+        'extension',
+      );
+    });
+
     it('returns the saved preferences when re-reading them fails', async () => {
       const { controller, mockGetNotificationPreferences } =
         arrangeController(false);

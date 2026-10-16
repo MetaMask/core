@@ -444,7 +444,9 @@ export type NotificationPreferencesUpdate = {
 
 /**
  * Applies an update over stored preferences. Fields set to `undefined` are
- * ignored, so a field can never be reset by leaving it out.
+ * ignored, so a field can never be reset by leaving it out. A section missing
+ * from stored preferences (one added after they were created) starts from its
+ * defaults.
  *
  * @param stored - The stored preferences.
  * @param update - The change to apply.
@@ -459,9 +461,10 @@ const mergeNotificationPreferences = (
     const definedFields = Object.fromEntries(
       Object.entries(fields ?? {}).filter(([, value]) => value !== undefined),
     );
+    const key = section as keyof NotificationPreferences;
     Object.assign(merged, {
-      [section]: {
-        ...stored[section as keyof NotificationPreferences],
+      [key]: {
+        ...(stored[key] ?? buildFreshPreferences(false)[key]),
         ...definedFields,
       },
     });
@@ -792,6 +795,17 @@ export class NotificationServicesController extends BaseController<
    * one merges over the result of the one before.
    */
   #preferencesUpdate: Promise<unknown> = Promise.resolve();
+
+  /**
+   * Preferences updates queued and not finished yet.
+   */
+  #queuedPreferencesUpdates = 0;
+
+  /**
+   * Whether a queued update has written preferences since they were last
+   * re-read.
+   */
+  #preferencesWrittenSinceRefresh = false;
 
   readonly #env: ENV;
 
@@ -1692,11 +1706,39 @@ export class NotificationServicesController extends BaseController<
   public async updateNotificationPreferences(
     update: NotificationPreferencesUpdate,
   ): Promise<NotificationPreferences> {
-    const result = this.#preferencesUpdate.then(async () =>
-      this.#applyNotificationPreferencesUpdate(update),
-    );
+    this.#queuedPreferencesUpdates += 1;
+    const result = this.#preferencesUpdate.then(async () => {
+      try {
+        return await this.#applyNotificationPreferencesUpdate(update);
+      } finally {
+        this.#queuedPreferencesUpdates -= 1;
+        // Re-read once the queue drains, not after every write: UIs bound to
+        // the AUS cache would otherwise briefly show a state without the
+        // updates still queued.
+        if (
+          this.#queuedPreferencesUpdates === 0 &&
+          this.#preferencesWrittenSinceRefresh
+        ) {
+          this.#preferencesWrittenSinceRefresh = false;
+          await this.#refreshNotificationPreferences();
+        }
+      }
+    });
     this.#preferencesUpdate = result.catch(() => undefined);
     return result;
+  }
+
+  /**
+   * Re-reads notification preferences. A write only invalidates the cached
+   * preferences; re-reading them publishes the new value to UIs bound to the
+   * AUS cache. A failed re-read is logged; the UI catches up on its next read.
+   */
+  async #refreshNotificationPreferences(): Promise<void> {
+    await this.messenger
+      .call('AuthenticatedUserStorageService:getNotificationPreferences')
+      .catch((error: unknown) => {
+        log.error('Failed to refresh notification preferences', error);
+      });
   }
 
   /**
@@ -1745,14 +1787,7 @@ export class NotificationServicesController extends BaseController<
       preferences,
       this.#featureAnnouncementEnv.platform,
     );
-
-    // The write only invalidates the cached preferences; re-reading them
-    // publishes the new value to UIs bound to the AUS cache.
-    await this.messenger
-      .call('AuthenticatedUserStorageService:getNotificationPreferences')
-      .catch((error: unknown) => {
-        log.error('Failed to refresh notification preferences', error);
-      });
+    this.#preferencesWrittenSinceRefresh = true;
 
     return preferences;
   }
