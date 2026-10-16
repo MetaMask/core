@@ -755,13 +755,13 @@ function expectTestScripts(workspace) {
     return;
   }
 
-  expectWorkspaceField(workspace, 'scripts.test:watch', 'vitest watch');
+  expectWorkspaceField(workspace, 'scripts.test:watch', 'vitest --watch');
 
   if (workspace.manifest.scripts['test:types'] === undefined) {
     expectWorkspaceField(
       workspace,
       'scripts.test',
-      'vitest run --reporter=dot',
+      'vitest',
     );
     expectWorkspaceField(
       workspace,
@@ -771,7 +771,7 @@ function expectTestScripts(workspace) {
     expectWorkspaceField(
       workspace,
       'scripts.test:verbose',
-      'vitest run --reporter=verbose',
+      'vitest --reporter=verbose',
     );
   } else {
     expectWorkspaceField(
@@ -792,7 +792,7 @@ function expectTestScripts(workspace) {
     expectWorkspaceField(
       workspace,
       'scripts.test:unit',
-      'vitest run --reporter=dot',
+      'vitest',
     );
     expectWorkspaceField(
       workspace,
@@ -802,7 +802,7 @@ function expectTestScripts(workspace) {
     expectWorkspaceField(
       workspace,
       'scripts.test:unit:verbose',
-      'vitest run --reporter=verbose',
+      'vitest --reporter=verbose',
     );
   }
 }
