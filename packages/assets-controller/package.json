@@ -62,7 +62,7 @@
     "@metamask/client-controller": "^2.0.0",
     "@metamask/config-registry-controller": "^5.0.0",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/core-backend": "^12.1.1",
+    "@metamask/core-backend": "^12.2.0",
     "@metamask/keyring-api": "^24.3.0",
     "@metamask/keyring-controller": "^28.2.0",
     "@metamask/keyring-internal-api": "^12.1.2",
