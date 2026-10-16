@@ -36,6 +36,7 @@ import {
   MAX_GAS_BLOCK_PERCENT,
   DUMMY_AUTHORIZATION_SIGNATURE,
   EIP2780_DELEGATION_GAS,
+  UPGRADE_AUTHORIZATION_GAS,
   simulateGasBatch,
 } from './gas.js';
 import { rpcRequest } from './provider.js';
@@ -1650,6 +1651,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: GAS_MOCK,
         gasLimits: [GAS_MOCK],
+        mode: 'eip7702-outer',
         requiresAuthorizationList: true,
       });
 
@@ -1707,6 +1709,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: GAS_MOCK,
         gasLimits: [GAS_MOCK],
+        mode: 'eip7702-outer',
       });
 
       expect(rpcRequestMock).toHaveBeenCalledWith({
@@ -1759,6 +1762,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: GAS_MOCK,
         gasLimits: [GAS_MOCK],
+        mode: 'eip7702-outer',
       });
     });
 
@@ -1797,10 +1801,11 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: 521000,
         gasLimits: [521000],
+        mode: 'eip7702-outer',
       });
     });
 
-    it('preserves requiresAuthorizationList when 7702 fallback fires for upgrade-required account', async () => {
+    it('adds upgrade authorization gas to provided gas in 7702 path when simulation fails and upgrade required', async () => {
       const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
         {
           chainId: CHAIN_ID_MOCK,
@@ -1829,8 +1834,9 @@ describe('gas', () => {
       });
 
       expect(result).toStrictEqual({
-        totalGasLimit: 521000,
-        gasLimits: [521000],
+        totalGasLimit: 521000 + UPGRADE_AUTHORIZATION_GAS,
+        gasLimits: [521000 + UPGRADE_AUTHORIZATION_GAS],
+        mode: 'eip7702-outer',
         requiresAuthorizationList: true,
       });
     });
@@ -1871,6 +1877,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: 521000,
         gasLimits: [21000, 500000],
+        mode: 'per-transaction',
       });
 
       expect(simulateTransactionsMock).not.toHaveBeenCalled();
@@ -1895,6 +1902,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: 521000,
         gasLimits: [21000, 500000],
+        mode: 'per-transaction',
       });
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
@@ -1997,6 +2005,7 @@ describe('gas', () => {
 
       expect(generateEIP7702BatchTransactionMock).not.toHaveBeenCalled();
       expect(result.gasLimits).toHaveLength(2);
+      expect(result.mode).toBe('per-transaction');
     });
   });
 

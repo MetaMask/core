@@ -6468,13 +6468,13 @@
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 59
+      "count": 62
     },
     "typescript/no-unsafe-call": {
-      "count": 30
+      "count": 32
     },
     "typescript/no-unsafe-member-access": {
-      "count": 28
+      "count": 30
     },
     "typescript/no-unsafe-return": {
       "count": 1
@@ -6694,7 +6694,7 @@
       "count": 4
     },
     "typescript/no-unsafe-assignment": {
-      "count": 46
+      "count": 47
     },
     "typescript/no-unsafe-call": {
       "count": 21
@@ -6790,13 +6790,13 @@
   },
   "packages/transaction-pay-controller/src/utils/quote-gas.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 13
+      "count": 16
     },
     "typescript/no-unsafe-call": {
-      "count": 8
+      "count": 11
     },
     "typescript/no-unsafe-member-access": {
-      "count": 8
+      "count": 11
     },
     "typescript/no-unsafe-return": {
       "count": 2
