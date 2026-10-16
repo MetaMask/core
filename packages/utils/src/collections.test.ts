@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { FrozenMap, FrozenSet } from './collections.js';
 
 describe('FrozenMap', () => {
@@ -82,7 +84,7 @@ describe('FrozenMap', () => {
         ['b', 2],
         ['c', 3],
       ]);
-      const deleteSpy = jest.spyOn(expected, 'delete');
+      const deleteSpy = vi.spyOn(expected, 'delete');
 
       const frozenMap = new FrozenMap([
         ['a', 1],
@@ -300,7 +302,7 @@ describe('FrozenSet', () => {
   describe('forEach', () => {
     it('iterates over the set', () => {
       const expected = new Set(['a', 'b', 'c']);
-      const deleteSpy = jest.spyOn(expected, 'delete');
+      const deleteSpy = vi.spyOn(expected, 'delete');
 
       const frozenSet = new FrozenSet(['a', 'b', 'c']);
 
