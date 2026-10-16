@@ -1,4 +1,4 @@
-import { getRandomBytes } from '@metamask/cryptography/random';
+import { getRandomBytes } from '@metamask/cryptography';
 import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 
 import type { KycControllerMessenger } from '../KycController.js';
