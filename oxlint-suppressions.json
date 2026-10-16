@@ -4535,11 +4535,6 @@
       "count": 1
     }
   },
-  "packages/package-template/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/passkey-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
