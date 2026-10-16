@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Limit each RPC HTTP attempt, including reading its response body, to 5 seconds by default ([#6306](https://github.com/MetaMask/core/issues/6306))
+- **BREAKING:** Limit each RPC HTTP attempt, including reading its response body, to 5 seconds by default ([#10854](https://github.com/MetaMask/core/pull/10854))
   - Set `requestTimeout` in `getRpcServiceOptions` to allow slower endpoints. Timeout errors use `ETIMEDOUT` and follow the existing retry and circuit-breaker policy, so the total RPC call can take longer than one attempt.
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `loglevel` from `^1.8.1` to `^1.9.2` ([#10724](https://github.com/MetaMask/core/pull/10724))
