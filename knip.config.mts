@@ -105,8 +105,6 @@ const config: KnipConfig = {
       ignoreBinaries: ['sysctl'],
     },
     'packages/keyring-controller': {
-      // `uuid` is only referenced as the module-name string in `vi.mock('uuid')`
-      // and `vi.importActual('uuid')`, which knip does not trace.
       ignoreDependencies: ['@metamask/controller-utils', 'uuid'],
     },
     'packages/local-node-utils': {

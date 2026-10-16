@@ -24,8 +24,6 @@ export class MockErc4337Keyring implements EthKeyring {
     return [];
   }
 
-  // Annotated explicitly: the type `vi.fn()` infers names `Procedure` from
-  // inside Vitest's own build, which TypeScript rejects as unportable (TS2883).
   prepareUserOperation: Mock = vi.fn();
 
   patchUserOperation: Mock = vi.fn();
