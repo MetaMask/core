@@ -6,9 +6,6 @@ import baseConfig from '../../vitest.config.packages.mjs';
 
 export default mergeConfig(baseConfig, {
   test: {
-    // The display name when running multiple projects. Derived from
-    // `import.meta.url` rather than `import.meta.dirname`, which needs a
-    // newer Node than this repo's engines range allows.
     name: basename(dirname(fileURLToPath(import.meta.url))),
 
     // Jest ran this package under jsdom, via a custom environment that also
