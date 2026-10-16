@@ -229,10 +229,16 @@ function getNativeBalanceChange(
 
   const isBalanceCreated = isNativeBalanceCreated(stateDiff);
 
-  const gasCost = isGasCostDeductedFromSender(
+  const senderGainExcludingValue = getNativeBalanceChangeExcludingValue(
     txParams,
     previousBalance,
     newBalance,
+    request.nestedTransactions,
+  );
+
+  const gasCost = isGasCostDeductedFromSender(
+    txParams,
+    senderGainExcludingValue,
     isBalanceCreated,
   )
     ? transactionResponse.gasCost
@@ -242,12 +248,10 @@ function getNativeBalanceChange(
     ? getUnusedGasRefund(txParams, transactionResponse)
     : new BN(0);
 
-  const senderGain = hexToBN(newBalance)
-    .sub(hexToBN(previousBalance))
-    .add(hexToBN(txParams.value ?? '0x0'))
-    .add(getNestedValue(request.nestedTransactions));
-
-  const refund = BN.min(unusedGasRefund, BN.max(senderGain, new BN(0)));
+  const refund = BN.min(
+    unusedGasRefund,
+    BN.max(senderGainExcludingValue, new BN(0)),
+  );
   const offset = new BN(String(gasCost ?? 0)).sub(refund);
 
   return getSimulationBalanceChange(previousBalance, newBalance, offset);
@@ -261,21 +265,19 @@ function getNativeBalanceChange(
  *
  * - The sender is only charged when the simulated transaction specifies a fee
  * per gas.
- * - If the sender lost exactly the transaction value, gas was not charged.
+ * - If the sender lost exactly the transferred value, gas was not charged.
  * - Some chains credit the fee recipient without debiting the sender, which is
  * detectable because it increases the total native balance.
  *
  * @param txParams - Parameters of the simulated transaction.
- * @param previousBalance - Sender native balance before the simulation.
- * @param newBalance - Sender native balance after the simulation.
+ * @param balanceChangeExcludingValue - Sender native balance change excluding the transferred value.
  * @param isBalanceCreated - Whether the simulation increased the total native
  * balance.
  * @returns Whether the gas cost was deducted from the sender.
  */
 function isGasCostDeductedFromSender(
   txParams: TransactionParams,
-  previousBalance: Hex,
-  newBalance: Hex,
+  balanceChangeExcludingValue: BN,
   isBalanceCreated: boolean,
 ): boolean {
   const feePerGas = (txParams.maxFeePerGas ?? txParams.gasPrice) as
@@ -286,11 +288,7 @@ function isGasCostDeductedFromSender(
     return false;
   }
 
-  const extraLoss = hexToBN(previousBalance)
-    .sub(hexToBN(newBalance))
-    .sub(hexToBN(txParams.value ?? '0x0'));
-
-  if (extraLoss.isZero()) {
+  if (balanceChangeExcludingValue.isZero()) {
     return false;
   }
 
@@ -985,4 +983,27 @@ function getNestedValue(nestedTransactions?: NestedTransactionMetadata[]): BN {
   return (nestedTransactions ?? [])
     .map((tx) => hexToBN(tx.value ?? '0x0'))
     .reduce((acc, val) => acc.add(val), new BN(0));
+}
+
+/**
+ * Calculate the sender's native balance change excluding the value sent by
+ * the transaction and any nested transactions.
+ *
+ * @param txParams - Parameters of the simulated transaction.
+ * @param previousBalance - Sender native balance before the simulation.
+ * @param newBalance - Sender native balance after the simulation.
+ * @param nestedTransactions - Nested transactions of a batch, if any.
+ * @returns The balance change excluding the transferred value. Positive when
+ * the sender gained, negative when the sender lost.
+ */
+function getNativeBalanceChangeExcludingValue(
+  txParams: TransactionParams,
+  previousBalance: Hex,
+  newBalance: Hex,
+  nestedTransactions?: NestedTransactionMetadata[],
+): BN {
+  return hexToBN(newBalance)
+    .sub(hexToBN(previousBalance))
+    .add(hexToBN(txParams.value ?? '0x0'))
+    .add(getNestedValue(nestedTransactions));
 }
