@@ -1,10 +1,8 @@
 import { TERMINAL_API_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { MarketDataService } from '../../../src/services/MarketDataService.js';
 import { TerminalMarketService } from '../../../src/services/TerminalMarketService.js';
-import type {
-  PerpsPlatformDependencies,
-  PerpsProvider,
-} from '../../../src/types/index.js';
+import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
+import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
 import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 const SNAPSHOT_NOW = 1_700_000_030_000;
@@ -1370,7 +1368,6 @@ describe('TerminalMarketService', () => {
       const context = {
         tracingContext: { provider: 'hyperliquid', isTestnet: false },
         errorContext: { controller: 'PerpsController', method: 'getMarkets' },
-        globalSnapshotConfigured: true,
         globalSnapshot: {
           request: {
             provider: 'hyperliquid' as const,
@@ -1381,13 +1378,12 @@ describe('TerminalMarketService', () => {
           isMarketAllowed: (): boolean => true,
         },
       };
-      const getMarkets = jest.fn();
-      const getMarketDataWithPrices = jest.fn();
-      const provider = {
-        protocolId: 'hyperliquid',
-        getMarkets,
-        getMarketDataWithPrices,
-      } as unknown as PerpsProvider;
+      const provider = createMockHyperLiquidProvider();
+      const getMarkets = jest.spyOn(provider, 'getMarkets');
+      const getMarketDataWithPrices = jest.spyOn(
+        provider,
+        'getMarketDataWithPrices',
+      );
 
       const markets = await marketData.getMarkets({
         provider,

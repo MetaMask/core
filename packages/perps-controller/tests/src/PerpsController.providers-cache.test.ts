@@ -1781,7 +1781,6 @@ describe('PerpsController', () => {
         .calls[0]?.[0] as {
         context: ServiceContext;
       };
-      expect(call.context.globalSnapshotConfigured).toBe(true);
       expect(call.context.globalSnapshot?.request).toStrictEqual({
         provider: 'hyperliquid',
         network: 'mainnet',
@@ -1809,7 +1808,6 @@ describe('PerpsController', () => {
         .calls[0]?.[0] as {
         context: ServiceContext;
       };
-      expect(call.context.globalSnapshotConfigured).toBeUndefined();
       expect(call.context.globalSnapshot).toBeUndefined();
     });
 
