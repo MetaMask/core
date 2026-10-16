@@ -368,7 +368,7 @@ function createCustomSubscriptionMessenger(): {
 }
 
 /**
- * Jest Mock Utility to generate a mock Subscription Messenger
+ * Mock utility to generate a mock Subscription Messenger
  *
  * @param overrideMessengers - override messengers if need to modify the underlying permissions
  * @param overrideMessengers.rootMessenger - base messenger to override
