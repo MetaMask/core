@@ -1230,7 +1230,7 @@ describe('validateControllerState', () => {
   });
 
   it('captures warning and returns in lenient mode', () => {
-    const captureException = jest.fn();
+    const captureException = vi.fn();
     const state = { foo: 'foo', bar: 'bar' };
 
     expect(
