@@ -73,6 +73,7 @@ export default createConfig({
         'oxlint.config.ts',
         'jest.config.packages.cjs',
         'jest.config.scripts.cjs',
+        'vitest.config.mjs',
         'vitest.config.packages.mjs',
         // These import their globals explicitly.
         'tests/helpers.ts',
@@ -121,6 +122,7 @@ export default createConfig({
     {
       files: [
         'tests/vitest/**',
+        'vitest.config.mjs',
         'vitest.config.packages.mjs',
         'packages/*/vitest.config.mjs',
         'packages/*/**/*.test.ts',
