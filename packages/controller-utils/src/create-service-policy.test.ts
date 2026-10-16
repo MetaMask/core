@@ -945,7 +945,7 @@ function createServicePolicyForTestingRetries({
  * Error('failure')`).
  * @param options.result - The value to return on success (default: `{ some:
  * 'data' }`).
- * @returns A Jest mock function.
+ * @returns A mock function.
  */
 function createErroringService({
   failUntilNthAttempt = Infinity,
