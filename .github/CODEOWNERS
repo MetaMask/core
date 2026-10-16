@@ -361,6 +361,13 @@
 /packages/logging-controller/tsconfig.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/logging-controller/typedoc.json    @MetaMask/confirmations @MetaMask/core-platform
 
+### marketing-consent-controller
+/packages/marketing-consent-controller                 @MetaMask/engagement
+/packages/marketing-consent-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/engagement
+/packages/marketing-consent-controller/package.json    @MetaMask/core-platform @MetaMask/engagement
+/packages/marketing-consent-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/engagement
+/packages/marketing-consent-controller/typedoc.json    @MetaMask/core-platform @MetaMask/engagement
+
 ### message-manager
 /packages/message-manager                 @MetaMask/confirmations
 /packages/message-manager/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
