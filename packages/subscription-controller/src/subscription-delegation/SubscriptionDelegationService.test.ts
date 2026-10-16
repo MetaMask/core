@@ -1326,12 +1326,10 @@ describe('SubscriptionDelegationService', () => {
 
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
-        expect.objectContaining({
-          delegationHash: expect.not.stringMatching(
-            stored.metadata.delegationHash,
-          ),
-        }),
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledTimes(1);
+      const [cryptoRequest] = mocks.startSubscriptionWithCrypto.mock.calls[0];
+      expect(cryptoRequest.delegationHash).not.toBe(
+        stored.metadata.delegationHash,
       );
     });
 
