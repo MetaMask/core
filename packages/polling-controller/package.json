@@ -42,10 +42,10 @@
     "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
     "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "test": "vitest run --reporter=dot",
+    "test": "vitest",
     "test:clean": "vitest --clearCache",
-    "test:verbose": "vitest run --reporter=verbose",
-    "test:watch": "vitest watch"
+    "test:verbose": "vitest --reporter=verbose",
+    "test:watch": "vitest --watch"
   },
   "dependencies": {
     "@metamask/base-controller": "^10.1.0",
