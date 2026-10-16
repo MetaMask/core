@@ -7,4 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
+- test: migrate the package template to Vitest ([#10853](https://github.com/MetaMask/core/pull/10853))
+
 [Unreleased]: https://github.com/MetaMask/core/
