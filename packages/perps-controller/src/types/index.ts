@@ -3354,6 +3354,11 @@ export type PerpsGlobalSnapshotRequest = {
 /** Validated snapshot data and its source-bounded expiry. */
 export type PerpsGlobalSnapshotResult = {
   markets: PerpsMarketData[];
+  /**
+   * Trading-rule rows for `markets`, in the same order. `getMarkets` reads
+   * this instead of mapping the snapshot a second time.
+   */
+  marketInfos: MarketInfo[];
   expiresAt: number;
 };
 

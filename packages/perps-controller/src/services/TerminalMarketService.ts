@@ -390,7 +390,7 @@ export class TerminalMarketService {
 
     const marketKeys = new Set<string>();
     const representedDexes = new Set<string>();
-    const markets = snapshot.markets
+    const mapped = snapshot.markets
       .map((market, index) => {
         this.#validateSnapshotMarket(
           market,
@@ -407,6 +407,8 @@ export class TerminalMarketService {
         return market;
       })
       .map((market) => this.#mapSnapshotMarket(market, expiresAt));
+    const markets = mapped.map((market) => market.marketData);
+    const marketInfos = mapped.map((market) => market.marketInfo);
     if (identity.enabledDexes.some((dex) => !representedDexes.has(dex))) {
       throw new Error('Terminal global snapshot is missing a requested DEX');
     }
@@ -414,7 +416,7 @@ export class TerminalMarketService {
       throw new Error('Terminal global snapshot has no tradable markets');
     }
 
-    return { markets, expiresAt };
+    return { markets, marketInfos, expiresAt };
   }
 
   #validateRequestedIdentity(
@@ -625,7 +627,7 @@ export class TerminalMarketService {
   #mapSnapshotMarket(
     market: GlobalSnapshotMarket,
     sourceExpiresAt: number,
-  ): PerpsMarketData {
+  ): { marketData: PerpsMarketData; marketInfo: MarketInfo } {
     const formatters = this.#deps.marketDataFormatters;
     // Keep both provider price semantics explicit in the wire contract. Core
     // maps markPrice to its UI price while retaining validation of midPrice.
@@ -647,36 +649,45 @@ export class TerminalMarketService {
     );
 
     return {
-      id: market.id,
-      symbol: market.symbol,
-      name: market.name ?? market.symbol,
-      ...(market.description !== null && {
-        description: market.description,
-      }),
-      maxLeverage: `${String(market.maxLeverage)}x`,
-      price: formatters.formatPerpsFiat(price, {
-        ranges: formatters.priceRangesUniversal,
-      }),
-      change24h: formatChange(change24h, formatters),
-      change24hPercent: formatters.formatPercentage(market.changePercent24h),
-      change5m: change5m.change,
-      changePercent5m: change5m.percent,
-      change1h: change1h.change,
-      changePercent1h: change1h.percent,
-      volume: formatters.formatVolume(volume),
-      openInterest: formatters.formatVolume(openInterest),
-      fundingRate: Number(market.funding),
-      marketSource: isHip3 ? market.dex : undefined,
-      marketType,
-      isHip3,
-      isNewMarket: isHip3 && marketType === undefined,
-      ...(market.keywords && { keywords: market.keywords }),
-      ...(market.tags && { tags: market.tags }),
-      ...(market.category && { categories: [market.category] }),
-      ...(market.listedAt !== null && { listedAt: market.listedAt }),
-      trend: market.trend,
-      dataSource: 'terminal-global-snapshot-mark',
-      sourceExpiresAt,
+      marketData: {
+        id: market.id,
+        symbol: market.symbol,
+        name: market.name ?? market.symbol,
+        ...(market.description !== null && {
+          description: market.description,
+        }),
+        maxLeverage: `${String(market.maxLeverage)}x`,
+        price: formatters.formatPerpsFiat(price, {
+          ranges: formatters.priceRangesUniversal,
+        }),
+        change24h: formatChange(change24h, formatters),
+        change24hPercent: formatters.formatPercentage(market.changePercent24h),
+        change5m: change5m.change,
+        changePercent5m: change5m.percent,
+        change1h: change1h.change,
+        changePercent1h: change1h.percent,
+        volume: formatters.formatVolume(volume),
+        openInterest: formatters.formatVolume(openInterest),
+        fundingRate: Number(market.funding),
+        marketSource: isHip3 ? market.dex : undefined,
+        marketType,
+        isHip3,
+        isNewMarket: isHip3 && marketType === undefined,
+        ...(market.keywords && { keywords: market.keywords }),
+        ...(market.tags && { tags: market.tags }),
+        ...(market.category && { categories: [market.category] }),
+        ...(market.listedAt !== null && { listedAt: market.listedAt }),
+        trend: market.trend,
+        dataSource: 'terminal-global-snapshot-mark',
+        sourceExpiresAt,
+      },
+      // v4 markets carry szDecimals and maxLeverage. They do not carry a margin table.
+      marketInfo: {
+        name: market.symbol,
+        szDecimals: market.szDecimals,
+        maxLeverage: market.maxLeverage,
+        marginTableId: 0,
+      },
     };
   }
 
@@ -736,6 +747,7 @@ export class TerminalMarketService {
     return {
       expiresAt: result.expiresAt,
       markets: clonePerpsMarketData(result.markets),
+      marketInfos: result.marketInfos.map((market) => ({ ...market })),
     };
   }
 

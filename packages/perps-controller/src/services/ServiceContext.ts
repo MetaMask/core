@@ -77,6 +77,12 @@ export type ServiceContext = {
   };
 
   /**
+   * Set when `terminalApi.globalSnapshotUrl` is configured. `getMarkets` then
+   * reads the snapshot cache and does not call the legacy `/v1` market list.
+   */
+  globalSnapshotConfigured?: boolean;
+
+  /**
    * Cached subscription fee-waiver status for read-only fee previews.
    * Read by the controller from `RewardsIntegrationService` — the same cached
    * benefits snapshot the fee resolver uses — and omitted entirely when no

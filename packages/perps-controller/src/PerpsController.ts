@@ -4709,13 +4709,14 @@ export class PerpsController extends BaseController<
    */
   async getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]> {
     const isMarketAllowed = this.#buildMarketAllowedFilter();
+    const context = this.#createGetMarketsContext();
     if (params?.standalone) {
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
       const operation = this.#marketDataService.getMarkets({
         provider,
         params,
-        context: this.#createServiceContext('getMarkets'),
+        context,
         isMarketAllowed,
       });
       return provider === this.#standaloneProvider
@@ -4727,8 +4728,25 @@ export class PerpsController extends BaseController<
     return this.#marketDataService.getMarkets({
       provider,
       params,
-      context: this.#createServiceContext('getMarkets'),
+      context,
       isMarketAllowed,
+    });
+  }
+
+  /**
+   * Build the getMarkets context. A snapshot URL selects the shared snapshot
+   * cache. The legacy /v1 list stays in place when that URL is absent.
+   *
+   * @returns Service context for `MarketDataService.getMarkets`.
+   */
+  #createGetMarketsContext(): ServiceContext {
+    const globalSnapshot = this.#buildGlobalSnapshotContext();
+    const globalSnapshotConfigured = Boolean(
+      this.#options.infrastructure.terminalApi?.globalSnapshotUrl,
+    );
+    return this.#createServiceContext('getMarkets', {
+      ...(globalSnapshotConfigured && { globalSnapshotConfigured: true }),
+      ...(globalSnapshot && { globalSnapshot }),
     });
   }
 

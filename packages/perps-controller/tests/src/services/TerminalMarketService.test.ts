@@ -1,6 +1,10 @@
 import { TERMINAL_API_CONFIG } from '../../../src/constants/perpsConfig.js';
+import { MarketDataService } from '../../../src/services/MarketDataService.js';
 import { TerminalMarketService } from '../../../src/services/TerminalMarketService.js';
-import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
+import type {
+  PerpsPlatformDependencies,
+  PerpsProvider,
+} from '../../../src/types/index.js';
 import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 const SNAPSHOT_NOW = 1_700_000_030_000;
@@ -586,6 +590,14 @@ describe('TerminalMarketService', () => {
             sourceExpiresAt: SNAPSHOT_NOW + 28_000,
           },
         ],
+        marketInfos: [
+          {
+            name: 'BTC',
+            szDecimals: 5,
+            maxLeverage: 50,
+            marginTableId: 0,
+          },
+        ],
         expiresAt: SNAPSHOT_NOW + 28_000,
       });
       expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -1128,6 +1140,12 @@ describe('TerminalMarketService', () => {
         marketType: 'stock',
         tags: ['memecoin'],
       });
+      expect(result.marketInfos[1]).toStrictEqual({
+        name: 'xyz:AAOI',
+        szDecimals: 5,
+        maxLeverage: 10,
+        marginTableId: 0,
+      });
     });
 
     it('rejects HIP-3 markets whose provider does not match the snapshot venue', async () => {
@@ -1332,11 +1350,75 @@ describe('TerminalMarketService', () => {
       const first = await service.fetchGlobalSnapshot(request);
       first.markets[0].trend?.push([SNAPSHOT_NOW, '1']);
       first.markets.splice(0);
+      first.marketInfos.splice(0);
       const second = await service.fetchGlobalSnapshot(request);
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(second.markets).toHaveLength(1);
       expect(second.markets[0].trend).toHaveLength(2);
+      expect(second.marketInfos).toHaveLength(1);
+    });
+
+    it('serves getMarkets and market data from one snapshot request', async () => {
+      const fetchSpy = jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(okJsonResponse(createGlobalSnapshot()));
+      const marketData = new MarketDataService({
+        ...mockDeps,
+        terminalMarketService: service,
+      });
+      const context = {
+        tracingContext: { provider: 'hyperliquid', isTestnet: false },
+        errorContext: { controller: 'PerpsController', method: 'getMarkets' },
+        globalSnapshotConfigured: true,
+        globalSnapshot: {
+          request: {
+            provider: 'hyperliquid' as const,
+            network: 'mainnet' as const,
+            enabledDexes: ['main'],
+          },
+          isCurrent: (): boolean => true,
+          isMarketAllowed: (): boolean => true,
+        },
+      };
+      const getMarkets = jest.fn();
+      const getMarketDataWithPrices = jest.fn();
+      const provider = {
+        protocolId: 'hyperliquid',
+        getMarkets,
+        getMarketDataWithPrices,
+      } as unknown as PerpsProvider;
+
+      const markets = await marketData.getMarkets({
+        provider,
+        params: { useTerminalApi: true },
+        context,
+      });
+      const prices = await marketData.getMarketDataWithPrices({
+        provider,
+        params: { useTerminalApi: true },
+        context,
+      });
+
+      expect(markets).toStrictEqual([
+        { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+      ]);
+      expect(prices.map((market) => market.symbol)).toStrictEqual(['BTC']);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const urls = fetchSpy.mock.calls.map((call): string => {
+        const input = call[0];
+        if (typeof input === 'string') {
+          return input;
+        }
+        if (input instanceof URL) {
+          return input.href;
+        }
+        return '';
+      });
+      expect(urls.some((url) => url.includes('/v1/perpetuals'))).toBe(false);
+      expect(urls[0]).toContain('/v4/perpetuals');
+      expect(getMarkets).not.toHaveBeenCalled();
+      expect(getMarketDataWithPrices).not.toHaveBeenCalled();
     });
   });
 
