@@ -9579,7 +9579,6 @@ __metadata:
     rimraf: "npm:^6.1.3"
     semver: "npm:^7.8.5"
     stdio-mock: "npm:^1.2.0"
-    tstyche: "npm:^7.2.5"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"

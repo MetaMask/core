@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'tstyche';
+import { describe, expectTypeOf, test } from 'vitest';
 
 import type { PublicInterface, RuntimeObject } from './misc.js';
 import { isObject, hasProperty, getKnownPropertyNames } from './misc.js';
@@ -17,13 +17,13 @@ describe('PublicInterface', () => {
   }
 
   test('does not require private properties', () => {
-    expect({
+    expectTypeOf({
       bar: 'bar',
-    }).type.toBeAssignableTo<PublicInterface<ClassWithPrivateProperties>>();
+    }).toExtend<PublicInterface<ClassWithPrivateProperties>>();
   });
 
   test('still requires public properties', () => {
-    expect({}).type.not.toBeAssignableTo<
+    expectTypeOf({}).not.toExtend<
       PublicInterface<ClassWithPrivateProperties>
     >();
   });
@@ -33,17 +33,17 @@ describe('isObject', () => {
   test('narrows an unknown value to a runtime object', () => {
     const unknownValue = {} as unknown;
 
-    expect(unknownValue).type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf(unknownValue).not.toExtend<RuntimeObject>();
 
     if (isObject(unknownValue)) {
-      expect(unknownValue).type.toBeAssignableTo<RuntimeObject>();
+      expectTypeOf(unknownValue).toExtend<RuntimeObject>();
     }
   });
 
   test('does not interfere with satisfaction of static type', () => {
     const constObjectType = { foo: 'foo' } as const;
     if (hasProperty(constObjectType, 'foo')) {
-      expect(constObjectType).type.toBeAssignableTo<{ foo: 'foo' }>();
+      expectTypeOf(constObjectType).toExtend<{ foo: 'foo' }>();
     }
   });
 });
@@ -53,17 +53,17 @@ describe('hasProperty', () => {
 
   test('rejects objects that have not been proven to have the property', () => {
     // Establish that `Object` is not accepted when a specific property is needed.
-    expect(unknownObject).type.not.toBeAssignableTo<Record<'foo', unknown>>();
+    expectTypeOf(unknownObject).not.toExtend<Record<'foo', unknown>>();
 
     // Establish that `RuntimeObject` is not accepted when a specific property is needed.
     if (isObject(unknownObject)) {
-      expect(unknownObject).type.not.toBeAssignableTo<Record<'foo', unknown>>();
+      expectTypeOf(unknownObject).not.toExtend<Record<'foo', unknown>>();
     }
   });
 
   test('accepts an object once the property is proven', () => {
     if (isObject(unknownObject) && hasProperty(unknownObject, 'foo')) {
-      expect(unknownObject).type.toBeAssignableTo<Record<'foo', unknown>>();
+      expectTypeOf(unknownObject).toExtend<Record<'foo', unknown>>();
     }
   });
 
@@ -73,15 +73,13 @@ describe('hasProperty', () => {
       hasProperty(unknownObject, 'foo') &&
       hasProperty(unknownObject, 'bar')
     ) {
-      expect(unknownObject).type.toBeAssignableTo<
-        Record<'foo' | 'bar', unknown>
-      >();
+      expectTypeOf(unknownObject).toExtend<Record<'foo' | 'bar', unknown>>();
     }
   });
 
   test('rejects an object when only some required properties are proven', () => {
     if (isObject(unknownObject) && hasProperty(unknownObject, 'foo')) {
-      expect(unknownObject).type.not.toBeAssignableTo<
+      expectTypeOf(unknownObject).not.toExtend<
         Record<'foo' | 'bar', unknown>
       >();
     }
@@ -90,9 +88,7 @@ describe('hasProperty', () => {
   test('does not interfere with satisfaction of non-overlapping types', () => {
     const overlappingTypesExample = { foo: 'foo', baz: 'baz' };
     if (hasProperty(overlappingTypesExample, 'foo')) {
-      expect(overlappingTypesExample).type.toBeAssignableTo<
-        Record<'baz', unknown>
-      >();
+      expectTypeOf(overlappingTypesExample).toExtend<Record<'baz', unknown>>();
     }
   });
 
@@ -103,10 +99,10 @@ describe('hasProperty', () => {
     exampleErrorWithCode.code = 999;
 
     // Establish that trying to check for a custom property on an error results in failure
-    expect(exampleErrorWithCode).type.not.toBeAssignableTo<{ code: any }>();
+    expectTypeOf(exampleErrorWithCode).not.toExtend<{ code: any }>();
 
     if (hasProperty(exampleErrorWithCode, 'code')) {
-      expect(exampleErrorWithCode.code).type.toBe<unknown>();
+      expectTypeOf(exampleErrorWithCode.code).toEqualTypeOf<unknown>();
     }
   });
 
@@ -132,7 +128,9 @@ describe('hasProperty', () => {
 
     const hasPropertyTypeExample: HasPropertyTypeExample = {};
     if (hasProperty(hasPropertyTypeExample, 'a')) {
-      expect(hasPropertyTypeExample.a).type.toBe<number | undefined>();
+      expectTypeOf(hasPropertyTypeExample.a).toEqualTypeOf<
+        number | undefined
+      >();
     }
   });
 });
@@ -144,43 +142,43 @@ describe('getKnownPropertyNames', () => {
   }
 
   test('returns the known keys of an enum', () => {
-    expect(getKnownPropertyNames(GetKnownPropertyNamesEnumExample)).type.toBe<
-      ('Foo' | 'Baz')[]
-    >();
+    expectTypeOf(
+      getKnownPropertyNames(GetKnownPropertyNamesEnumExample),
+    ).toEqualTypeOf<('Foo' | 'Baz')[]>();
   });
 });
 
 describe('RuntimeObject', () => {
   test('accepts valid runtime objects', () => {
-    expect({}).type.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf({}).toExtend<RuntimeObject>();
 
-    expect({ foo: 'foo' }).type.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf({ foo: 'foo' }).toExtend<RuntimeObject>();
 
-    expect({ 0: 'foo' }).type.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf({ 0: 'foo' }).toExtend<RuntimeObject>();
 
-    expect({ [Symbol('foo')]: 'foo' }).type.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf({ [Symbol('foo')]: 'foo' }).toExtend<RuntimeObject>();
   });
 
   test('rejects invalid runtime objects', () => {
-    expect(null).type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf(null).not.toExtend<RuntimeObject>();
 
-    expect(undefined).type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf(undefined).not.toExtend<RuntimeObject>();
 
-    expect('foo').type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf('foo').not.toExtend<RuntimeObject>();
 
-    expect(0).type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf(0).not.toExtend<RuntimeObject>();
 
-    expect([]).type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf([]).not.toExtend<RuntimeObject>();
 
-    expect(new Date()).type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf(new Date()).not.toExtend<RuntimeObject>();
 
-    expect(() => 0).type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf(() => 0).not.toExtend<RuntimeObject>();
 
-    expect(new Set()).type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf(new Set()).not.toExtend<RuntimeObject>();
 
-    expect(new Map()).type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf(new Map()).not.toExtend<RuntimeObject>();
 
-    expect(Symbol('test')).type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf(Symbol('test')).not.toExtend<RuntimeObject>();
   });
 
   test('gets confused by interfaces and classes', () => {
@@ -193,16 +191,12 @@ describe('RuntimeObject', () => {
     const runtimeObjectInterfaceExample: RuntimeObjectInterfaceExample = {
       a: 0,
     };
-    expect(
-      runtimeObjectInterfaceExample,
-    ).type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf(runtimeObjectInterfaceExample).not.toExtend<RuntimeObject>();
 
     class RuntimeObjectClassExample {
       a!: number;
     }
     const runtimeObjectClassExample = new RuntimeObjectClassExample();
-    expect(
-      runtimeObjectClassExample,
-    ).type.not.toBeAssignableTo<RuntimeObject>();
+    expectTypeOf(runtimeObjectClassExample).not.toExtend<RuntimeObject>();
   });
 });

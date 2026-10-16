@@ -7205,7 +7205,7 @@
       "count": 1
     }
   },
-  "packages/utils/src/json.tst.ts": {
+  "packages/utils/src/json.test-d.ts": {
     "id-length": {
       "count": 1
     },
@@ -7237,7 +7237,7 @@
       "count": 1
     }
   },
-  "packages/utils/src/misc.tst.ts": {
+  "packages/utils/src/misc.test-d.ts": {
     "typescript/no-explicit-any": {
       "count": 1
     }

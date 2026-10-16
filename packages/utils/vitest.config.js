@@ -8,11 +8,14 @@ export default mergeConfig(baseConfig, {
     // oxlint-disable-next-line n/no-unsupported-features/node-builtins
     name: basename(import.meta.dirname),
 
+    typecheck: {
+      enabled: true,
+    },
+
     coverage: {
-      // Fixtures hold data rather than logic, and `*.tst.ts` files are type
-      // tests run by `tstyche` rather than Vitest, so neither has coverage to
-      // collect.
-      exclude: ['src/**/__fixtures__/**', 'src/**/*.tst.ts'],
+      // Fixtures hold data rather than logic, and type tests never execute, so
+      // neither has coverage to collect.
+      exclude: ['src/**/__fixtures__/**', 'src/**/*.test-d.ts'],
 
       thresholds: {
         branches: 100,
