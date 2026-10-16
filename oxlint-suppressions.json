@@ -3665,11 +3665,6 @@
       "count": 1
     }
   },
-  "packages/messenger/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/messenger/src/Messenger.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 12

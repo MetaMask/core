@@ -14,6 +14,7 @@
   "exclude": [
     "./jest.config.packages.ts",
     "**/*.test.ts",
+    "**/*.test-d.ts",
     "**/jest.config.ts",
     "**/*.tst.ts"
   ]
