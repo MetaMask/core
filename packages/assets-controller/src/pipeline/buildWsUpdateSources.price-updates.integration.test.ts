@@ -40,7 +40,6 @@ import { AccountActivityDataSource } from '../data-sources/AccountActivityDataSo
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
 import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
-import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import type {
   AccountId,
   AssetsControllerState,
@@ -179,9 +178,6 @@ async function runWsUpdatePass({
         getAssetsState: (): AssetsControllerState => state,
       }),
       rpcFallbackMiddleware,
-      detectionMiddleware: new DetectionMiddleware({
-        getAssetsState: (): AssetsControllerState => state,
-      }),
       tokenDataSource,
       priceDataSource,
     },
@@ -293,15 +289,6 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
         });
       });
 
-      it('queues both surfaced holdings for a price update', () => {
-        const queued =
-          result.request.assetsForPriceUpdate?.map((id) => id.toLowerCase()) ??
-          [];
-        expect(queued).toStrictEqual(
-          expect.arrayContaining([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
-        );
-      });
-
       it('invokes the Price API for both surfaced holdings in the same pass', () => {
         expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
           new Set([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
@@ -363,10 +350,6 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
     });
 
     it('prices the held-but-unpriced asset in the same pass', () => {
-      const queued =
-        result.request.assetsForPriceUpdate?.map((id) => id.toLowerCase()) ??
-        [];
-      expect(queued).toStrictEqual([ETH_ASSET_ID]);
       expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
         new Set([ETH_ASSET_ID]),
       );
@@ -400,9 +383,10 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       ).toBeUndefined();
     });
 
-    it('does not re-price the already-priced token', () => {
-      expect(result.request.assetsForPriceUpdate ?? []).toStrictEqual([]);
-      expect(result.mocks.priceAPI.priceBatches).toStrictEqual([]);
+    it('refreshes the held token price through the freshness cache', () => {
+      expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
+        new Set([USDC_ASSET_ID_LOWERCASE]),
+      );
     });
 
     it('does not refetch metadata for the enriched token, only the native asset', () => {

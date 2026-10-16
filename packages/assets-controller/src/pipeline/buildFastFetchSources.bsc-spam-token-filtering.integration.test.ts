@@ -28,7 +28,6 @@ import { RpcDataSource } from '../data-sources/RpcDataSource.js';
 import { StakedBalanceDataSource } from '../data-sources/StakedBalanceDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
 import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
-import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import { RpcFallbackMiddleware } from '../middlewares/RpcFallbackMiddleware.js';
 import type {
   AccountId,
@@ -172,9 +171,6 @@ async function runPipeline(
       }),
       rpcFallbackMiddleware: new RpcFallbackMiddleware({
         rpcDataSource: rpcOverride ?? rpcDataSource,
-        getAssetsState: (): AssetsControllerState => state,
-      }),
-      detectionMiddleware: new DetectionMiddleware({
         getAssetsState: (): AssetsControllerState => state,
       }),
       tokenDataSource,

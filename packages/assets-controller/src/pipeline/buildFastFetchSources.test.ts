@@ -25,7 +25,6 @@ function buildSources(): FastFetchSources {
       'CustomAssetGraduationMiddleware',
     ),
     rpcFallbackMiddleware: stubSource('RpcFallbackMiddleware'),
-    detectionMiddleware: stubSource('DetectionMiddleware'),
     tokenDataSource: stubSource('TokenDataSource'),
     priceDataSource: stubSource('PriceDataSource'),
   };
@@ -35,14 +34,13 @@ describe('buildFastFetchSources', () => {
   it.each([
     {
       title:
-        'orders the lane balances → graduation → rpc fallback → detection → enrichment',
+        'orders the lane balances → graduation → rpc fallback → enrichment',
       isBasicFunctionality: true,
       includeCustomAssetGraduation: true,
       expected: [
         'ParallelBalanceMiddleware',
         'CustomAssetGraduationMiddleware',
         'RpcFallbackMiddleware',
-        'DetectionMiddleware',
         'ParallelMiddleware',
       ],
     },
@@ -54,16 +52,15 @@ describe('buildFastFetchSources', () => {
       expected: [
         'ParallelBalanceMiddleware',
         'RpcFallbackMiddleware',
-        'DetectionMiddleware',
         'ParallelMiddleware',
       ],
     },
     {
-      title: 'runs only the staking balance and detection',
+      title: 'runs only the staking balance',
       isBasicFunctionality: false,
       includeCustomAssetGraduation: true,
       // No network-backed source may run when the user has opted out.
-      expected: ['StakedBalanceDataSource', 'DetectionMiddleware'],
+      expected: ['StakedBalanceDataSource'],
     },
   ])(
     '$title',

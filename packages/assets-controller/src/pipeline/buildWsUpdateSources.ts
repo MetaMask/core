@@ -5,7 +5,6 @@ import type { AssetsDataSource, Middleware } from '../types.js';
 export type WsUpdateSources = {
   customAssetGraduationMiddleware: AssetsDataSource;
   rpcFallbackMiddleware: AssetsDataSource;
-  detectionMiddleware: AssetsDataSource;
   /** Also supplies the occurrence-filter middleware used for websocket airdrops. */
   tokenDataSource: AssetsDataSource & {
     readonly occurrenceFilterMiddleware: Middleware;
@@ -34,7 +33,6 @@ export function buildWsUpdateSources(
   const {
     customAssetGraduationMiddleware,
     rpcFallbackMiddleware,
-    detectionMiddleware,
     tokenDataSource,
     priceDataSource,
   } = sources;
@@ -52,7 +50,6 @@ export function buildWsUpdateSources(
     ...(!options.includeCustomAssetGraduation && options.isBasicFunctionality
       ? [rpcFallbackMiddleware]
       : []),
-    detectionMiddleware,
     ...(options.isBasicFunctionality
       ? [createParallelMiddleware([tokenDataSource, priceDataSource])]
       : []),

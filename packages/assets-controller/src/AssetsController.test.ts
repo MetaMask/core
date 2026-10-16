@@ -4128,18 +4128,18 @@ describe('AssetsController', () => {
       await withController(({ controller }) => {
         expect(controller.state.selectedCurrency).toBe('usd');
 
-        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const refreshSpy = jest.spyOn(controller, 'syncAssetsPrices');
 
         controller.setSelectedCurrency('usd');
 
         expect(controller.state.selectedCurrency).toBe('usd');
-        expect(getAssetsSpy).not.toHaveBeenCalled();
+        expect(refreshSpy).not.toHaveBeenCalled();
 
-        getAssetsSpy.mockRestore();
+        refreshSpy.mockRestore();
       });
     });
 
-    it('calls getAssets with forceUpdate, price dataType, and assetsForPriceUpdate to refresh prices', async () => {
+    it('refreshes prices for held assets when the currency changes', async () => {
       const mockAssetId2 =
         'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
       const initialState: Partial<AssetsControllerState> = {
@@ -4152,17 +4152,15 @@ describe('AssetsController', () => {
       };
 
       await withController({ state: initialState }, ({ controller }) => {
-        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const refreshSpy = jest
+          .spyOn(controller, 'syncAssetsPrices')
+          .mockResolvedValue(undefined);
 
         controller.setSelectedCurrency('eur');
 
-        expect(getAssetsSpy).toHaveBeenCalledWith(expect.any(Array), {
-          forceUpdate: true,
-          dataTypes: ['price'],
-          assetsForPriceUpdate: [MOCK_ASSET_ID, mockAssetId2],
-        });
+        expect(refreshSpy).toHaveBeenCalledWith([MOCK_ASSET_ID, mockAssetId2]);
 
-        getAssetsSpy.mockRestore();
+        refreshSpy.mockRestore();
       });
     });
 
@@ -4178,14 +4176,14 @@ describe('AssetsController', () => {
       await withController(
         { state: initialState, isBasicFunctionality: () => false },
         ({ controller }) => {
-          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+          const refreshSpy = jest.spyOn(controller, 'syncAssetsPrices');
 
           controller.setSelectedCurrency('eur');
 
           expect(controller.state.selectedCurrency).toBe('eur');
-          expect(getAssetsSpy).not.toHaveBeenCalled();
+          expect(refreshSpy).not.toHaveBeenCalled();
 
-          getAssetsSpy.mockRestore();
+          refreshSpy.mockRestore();
         },
       );
     });
@@ -5011,7 +5009,6 @@ describe('AssetsController', () => {
                   resolveGetAssets = (): void => resolve({});
                 }),
             );
-
           // First trigger: unlock + account tree ready. #start() kicks off
           // #runStartupRefresh(), whose forced getAssets() call is still
           // pending (it never resolves until we call resolveGetAssets below).
@@ -5040,20 +5037,12 @@ describe('AssetsController', () => {
           resolveGetAssets?.();
           await flushPromises();
 
-          // Once the single in-flight startup refresh settles, it also
-          // triggers one follow-up price-only getAssets() call — but a
-          // duplicate #runStartupRefresh() would double both of these (4
-          // total), not just add one. Two calls confirms no duplicate ran.
-          expect(getAssetsSpy).toHaveBeenCalledTimes(2);
-          expect(getAssetsSpy).toHaveBeenNthCalledWith(
-            1,
+          // The startup refresh remains a single getAssets call. Prices are
+          // fetched inside that pipeline pass.
+          expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+          expect(getAssetsSpy).toHaveBeenCalledWith(
             expect.anything(),
             expect.objectContaining({ forceUpdate: true }),
-          );
-          expect(getAssetsSpy).toHaveBeenNthCalledWith(
-            2,
-            expect.anything(),
-            expect.objectContaining({ dataTypes: ['price'] }),
           );
           getAssetsSpy.mockRestore();
         },
@@ -5930,20 +5919,10 @@ describe('AssetsController', () => {
       );
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      expect(getAssetsSpy).toHaveBeenCalledTimes(2);
-      expect(getAssetsSpy).toHaveBeenNthCalledWith(
-        1,
+      expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+      expect(getAssetsSpy).toHaveBeenCalledWith(
         [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
         expect.objectContaining({ forceUpdate: true }),
-      );
-      expect(getAssetsSpy).toHaveBeenNthCalledWith(
-        2,
-        [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
-        expect.objectContaining({
-          forceUpdate: true,
-          dataTypes: ['price'],
-          assetsForPriceUpdate: expect.arrayContaining(['eip155:1/slip44:60']),
-        }),
       );
 
       controller.destroy();

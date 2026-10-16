@@ -30,7 +30,6 @@ import { RpcDataSource } from '../data-sources/RpcDataSource.js';
 import { StakedBalanceDataSource } from '../data-sources/StakedBalanceDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
 import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
-import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import { RpcFallbackMiddleware } from '../middlewares/RpcFallbackMiddleware.js';
 import type {
   AccountId,
@@ -188,9 +187,6 @@ async function runPipeline(
         rpcDataSource: rpcOverride ?? rpcDataSource,
         getAssetsState: (): AssetsControllerState => state,
         isBalanceV6Enabled: (): boolean => true,
-      }),
-      detectionMiddleware: new DetectionMiddleware({
-        getAssetsState: (): AssetsControllerState => state,
       }),
       tokenDataSource,
       priceDataSource,
