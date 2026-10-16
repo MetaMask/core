@@ -40,7 +40,6 @@ import { AccountActivityDataSource } from '../data-sources/AccountActivityDataSo
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
 import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
-import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import type {
   AccountId,
   AssetsControllerState,
@@ -179,9 +178,6 @@ async function runWsUpdatePass({
         getAssetsState: (): AssetsControllerState => state,
       }),
       rpcFallbackMiddleware,
-      detectionMiddleware: new DetectionMiddleware({
-        getAssetsState: (): AssetsControllerState => state,
-      }),
       tokenDataSource,
       priceDataSource,
     },
@@ -248,7 +244,7 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
         });
       });
 
-      it.each([BALANCES, METADATA, PRICES, DETECTED_ASSETS])(
+      it.each([BALANCES, METADATA, PRICES])(
         '$surface - present for the surfaced holdings after one pass',
         ({ lookUp }) => {
           expect(lookUp(result.response, ETH_ASSET_ID)).toBeDefined();
@@ -291,15 +287,6 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
           price: USDC_SPOT_PRICE,
           usdPrice: USDC_SPOT_PRICE,
         });
-      });
-
-      it('queues both surfaced holdings for a price update', () => {
-        const queued =
-          result.request.assetsForPriceUpdate?.map((id) => id.toLowerCase()) ??
-          [];
-        expect(queued).toStrictEqual(
-          expect.arrayContaining([ETH_ASSET_ID, USDC_ASSET_ID_LOWERCASE]),
-        );
       });
 
       it('invokes the Price API for both surfaced holdings in the same pass', () => {
@@ -356,17 +343,13 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       });
     });
 
-    it('does not re-detect the holding', () => {
+    it('does not mark the holding as an RPC detection', () => {
       expect(
         DETECTED_ASSETS.lookUp(result.response, ETH_ASSET_ID),
       ).toBeUndefined();
     });
 
     it('prices the held-but-unpriced asset in the same pass', () => {
-      const queued =
-        result.request.assetsForPriceUpdate?.map((id) => id.toLowerCase()) ??
-        [];
-      expect(queued).toStrictEqual([ETH_ASSET_ID]);
       expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
         new Set([ETH_ASSET_ID]),
       );
@@ -394,14 +377,13 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       });
     });
 
-    it('does not re-detect the token', () => {
+    it('does not mark the token as an RPC detection', () => {
       expect(
         DETECTED_ASSETS.lookUp(result.response, USDC_ASSET_ID_LOWERCASE),
       ).toBeUndefined();
     });
 
     it('does not re-price the already-priced token', () => {
-      expect(result.request.assetsForPriceUpdate ?? []).toStrictEqual([]);
       expect(result.mocks.priceAPI.priceBatches).toStrictEqual([]);
     });
 

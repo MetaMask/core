@@ -8,9 +8,6 @@ export {
   DEFAULT_TRACKED_ASSETS_BY_CHAIN,
   CHAINS_WITH_DEFAULT_TRACKED_ASSETS,
   DEFAULT_ASSET_METADATA,
-  buildDefaultAssetsInfo,
-  getDefaultTrackedAssetsForChain,
-  getDefaultAssetMetadata,
 } from './defaults.js';
 export type { PendingTokenMetadata } from './AssetsController.js';
 
@@ -19,10 +16,6 @@ export {
   SNAPS_ASSETS_MIGRATION_FLAG_KEYS,
   SNAPS_ASSETS_MIGRATION_NAMESPACES,
   SnapsAssetsMigrationStage,
-  getSnapsAssetsMigrationNamespace,
-  isMigrationStageActive,
-  isSnapsAssetsMigrationNamespace,
-  parseSnapsAssetsMigrationStage,
 } from './utils/snaps-assets-migration.js';
 export type { SnapsAssetsMigrationNamespace } from './utils/snaps-assets-migration.js';
 
@@ -34,26 +27,16 @@ export type {
   AssetsControllerGetStateAction,
   AssetsControllerActions,
   AssetsControllerStateChangeEvent,
-  AssetsControllerBalanceChangedEvent,
-  AssetsControllerPriceChangedEvent,
-  AssetsControllerAssetsDetectedEvent,
   AssetsControllerEvents,
 } from './AssetsController.js';
 export type {
   AssetsControllerGetAssetsAction,
-  AssetsControllerGetAssetsBalanceAction,
-  AssetsControllerGetAssetMetadataAction,
   AssetsControllerGetAccountAssetByIDAction,
   AssetsControllerGetAccountAssetsByIDsAction,
   AssetsControllerGetAccountAssetsByScopeAction,
-  AssetsControllerGetAssetsPriceAction,
-  AssetsControllerAddCustomAssetAction,
-  AssetsControllerRemoveCustomAssetAction,
-  AssetsControllerGetCustomAssetsAction,
-  AssetsControllerHideAssetAction,
-  AssetsControllerUnhideAssetAction,
   AssetsControllerGetExchangeRatesForBridgeAction,
   AssetsControllerGetStateForTransactionPayAction,
+  AssetsControllerAddCustomAssetAction,
   AssetsControllerSetSelectedCurrencyAction,
 } from './AssetsController-method-action-types.js';
 
@@ -105,11 +88,6 @@ export type {
   SubscriptionResponse,
   // Combined asset type
   Asset,
-  // Event types
-  BalanceChangeEvent,
-  PriceChangeEvent,
-  MetadataChangeEvent,
-  AssetsDetectedEvent,
 } from './types.js';
 
 // Data sources - base class and types
@@ -130,7 +108,7 @@ export type {
 } from './data-sources/index.js';
 
 // Data sources - RPC
-export { RpcDataSource, createRpcDataSource } from './data-sources/index.js';
+export { RpcDataSource } from './data-sources/index.js';
 
 export type {
   RpcDataSourceConfig,
@@ -142,13 +120,8 @@ export type {
 // Data sources - Unified Snap Data Source (dynamically discovers keyring snaps)
 export {
   SnapDataSource,
-  createSnapDataSource,
   SNAP_DATA_SOURCE_NAME,
-  // Constants
   KEYRING_PERMISSION,
-  // Utility functions
-  getChainIdsCaveat,
-  extractChainFromAssetId,
 } from './data-sources/index.js';
 
 export type {
@@ -168,21 +141,14 @@ export type {
 // Middlewares
 export {
   CustomAssetGraduationMiddleware,
-  DetectionMiddleware,
   RpcFallbackMiddleware,
 } from './middlewares/index.js';
 export type {
   CustomAssetGraduationMiddlewareOptions,
-  DetectionMiddlewareOptions,
   RpcFallbackMiddlewareOptions,
 } from './middlewares/index.js';
 
 // Utilities
-export {
-  normalizeAssetId,
-  formatExchangeRatesForBridge,
-  formatStateForTransactionPay,
-} from './utils/index.js';
 export type {
   AccountForLegacyFormat,
   BridgeExchangeRatesFormat,
@@ -197,17 +163,7 @@ export {
   calculateBalanceForAllWallets,
   calculateBalanceChangeForAccountGroup,
   getAggregatedBalanceForAccount,
-  getGroupIdForAccount,
-  getInternalAccountsForGroup,
 } from './selectors/balance.js';
-
-export {
-  getAccountGroupLoadingStatus,
-  getAccountLoadingStatus,
-  getIsAssetsLoadingForSelectedAccountGroup,
-  isAccountGroupLoading,
-  isAccountLoading,
-} from './selectors/loading.js';
 
 export type {
   AccountGroupBalance,
