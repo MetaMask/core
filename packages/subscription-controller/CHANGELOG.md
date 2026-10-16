@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
+### Fixed
+
+- Stop reusing a cash-subscription delegation whose period `startDate` is outside the Subscription API window (14 days before the checkout start date, 5 minutes after it; trial checkouts also reject a live start). A stale stored permission caused `POST /subscriptions/crypto` to fail with `E214`.
+
 ## [14.0.0]
 
 ### Changed
