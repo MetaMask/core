@@ -758,11 +758,7 @@ function expectTestScripts(workspace) {
   expectWorkspaceField(workspace, 'scripts.test:watch', 'vitest --watch');
 
   if (workspace.manifest.scripts['test:types'] === undefined) {
-    expectWorkspaceField(
-      workspace,
-      'scripts.test',
-      'vitest',
-    );
+    expectWorkspaceField(workspace, 'scripts.test', 'vitest');
     expectWorkspaceField(
       workspace,
       'scripts.test:clean',
@@ -789,11 +785,7 @@ function expectTestScripts(workspace) {
       'scripts.test:verbose',
       'yarn test:unit:verbose && yarn test:types',
     );
-    expectWorkspaceField(
-      workspace,
-      'scripts.test:unit',
-      'vitest',
-    );
+    expectWorkspaceField(workspace, 'scripts.test:unit', 'vitest');
     expectWorkspaceField(
       workspace,
       'scripts.test:unit:clean',
