@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@metamask/keyring-internal-snap-client` from `^11.0.0` to `^11.1.1` ([#10734](https://github.com/MetaMask/core/pull/10734), [#10792](https://github.com/MetaMask/core/pull/10792))
-- Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
+- Bump `@metamask/snaps-controllers` from `^19.0.0` to `^21.1.2` ([#10719](https://github.com/MetaMask/core/pull/10719), [#10748](https://github.com/MetaMask/core/pull/10748))
 - Bump `@metamask/eth-snap-keyring` from `^24.0.0` to `^24.1.1` ([#10732](https://github.com/MetaMask/core/pull/10732), [#10792](https://github.com/MetaMask/core/pull/10792))
 - Bump `@metamask/keyring-api` from `^24.0.0` to `^24.3.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/keyring-snap-sdk` from `^10.0.0` to `^10.0.1` ([#10792](https://github.com/MetaMask/core/pull/10792))
