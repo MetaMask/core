@@ -16,8 +16,8 @@ declare module 'vitest' {
     R extends void | Promise<void> = void | Promise<void>,
     T = unknown,
   > {
-    toBeFulfilled(): R;
-    toNeverResolve(): R;
+    toBeFulfilled(): Promise<void>;
+    toNeverResolve(): Promise<void>;
   }
   /* oxlint-enable id-length */
 }
