@@ -584,6 +584,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         messenger,
                         getRpcServiceOptions: () => ({
                           fetch,
+                          requestTimeout: 60_000,
                           btoa,
                           policyOptions: {
                             backoff: new ConstantBackoff(backoffDuration),
@@ -852,6 +853,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         messenger,
                         getRpcServiceOptions: () => ({
                           fetch,
+                          requestTimeout: 60_000,
                           btoa,
                           policyOptions: {
                             backoff: new ConstantBackoff(backoffDuration),
@@ -1210,6 +1212,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   messenger,
                   getRpcServiceOptions: () => ({
                     fetch,
+                    requestTimeout: 60_000,
                     btoa,
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
@@ -1542,6 +1545,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   }),
                   getRpcServiceOptions: () => ({
                     fetch,
+                    requestTimeout: 60_000,
                     btoa,
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
