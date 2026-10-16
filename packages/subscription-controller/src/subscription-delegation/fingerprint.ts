@@ -51,8 +51,7 @@ function isStartDateInsideApiWindow(
 
   const retryMinimumStartDate =
     expectedStartDate - START_DATE_PAST_SKEW_SECONDS;
-  const trialLiveFloor =
-    expectedStartDate > nowSeconds ? nowSeconds + 1 : 0;
+  const trialLiveFloor = expectedStartDate > nowSeconds ? nowSeconds + 1 : 0;
   const minimumStartDate = Math.max(retryMinimumStartDate, trialLiveFloor);
   const maximumStartDate = expectedStartDate + START_DATE_FUTURE_SKEW_SECONDS;
 
