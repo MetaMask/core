@@ -1491,7 +1491,7 @@ describe('KeyringController', () => {
         });
 
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line jest/expect-expect
+        // eslint-disable-next-line vitest/expect-expect
         it('should not select imported account', async () => {
           await withController(async ({ controller }) => {
             await controller.importAccountWithStrategy(
@@ -1578,7 +1578,7 @@ describe('KeyringController', () => {
         });
 
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line jest/expect-expect
+        // eslint-disable-next-line vitest/expect-expect
         it('should not select imported account', async () => {
           await withController(async ({ controller }) => {
             const somePassword = 'holachao123';
