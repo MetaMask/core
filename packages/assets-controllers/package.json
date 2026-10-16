@@ -60,7 +60,7 @@
     "@metamask/account-tree-controller": "^11.0.1",
     "@metamask/accounts-controller": "^40.1.0",
     "@metamask/approval-controller": "^10.0.0",
-    "@metamask/base-controller": "^10.0.0",
+    "@metamask/base-controller": "^10.1.0",
     "@metamask/contract-metadata": "^2.5.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/core-backend": "^12.2.0",

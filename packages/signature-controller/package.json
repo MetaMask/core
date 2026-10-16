@@ -52,7 +52,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^40.1.0",
     "@metamask/approval-controller": "^10.0.0",
-    "@metamask/base-controller": "^10.0.0",
+    "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/eth-sig-util": "^9.0.0",
     "@metamask/gator-permissions-controller": "^6.0.1",

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.1.0]
+
 ### Uncategorized
 
 - chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
@@ -473,7 +475,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@10.1.0...HEAD
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@10.0.0...@metamask/base-controller@10.1.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.1.0...@metamask/base-controller@10.0.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.1...@metamask/base-controller@9.1.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.0...@metamask/base-controller@9.0.1
