@@ -1301,8 +1301,7 @@ describe('MarketDataService', () => {
 
     beforeEach(() => {
       mockDeps.terminalApi = {
-        ...mockDeps.terminalApi,
-        globalSnapshotUrl: 'https://terminal.test/v3/perpetuals',
+        marketDataUrl: 'https://terminal.test/v1/perpetuals',
       };
       mockTerminalService = {
         fetchMarkets: jest.fn(),
@@ -1533,7 +1532,6 @@ describe('MarketDataService', () => {
         isMarketAllowed?: (symbol: string) => boolean;
       } = {}): ServiceContext => ({
         ...mockContext,
-        globalSnapshotConfigured: true,
         globalSnapshot: {
           request: {
             provider: 'hyperliquid',
@@ -1546,6 +1544,10 @@ describe('MarketDataService', () => {
       });
 
       beforeEach(() => {
+        if (mockDeps.terminalApi) {
+          mockDeps.terminalApi.globalSnapshotUrl =
+            'https://terminal.test/v4/perpetuals';
+        }
         fetchGlobalSnapshot = jest.fn().mockResolvedValue({
           markets: [],
           marketInfos: snapshotInfos,
@@ -1645,11 +1647,152 @@ describe('MarketDataService', () => {
         const result = await serviceWithTerminal.getMarkets({
           provider: mockProvider,
           params: { useTerminalApi: true },
-          context: { ...mockContext, globalSnapshotConfigured: true },
+          context: mockContext,
         });
 
         expect(result).toEqual(providerMarkets);
         expect(fetchGlobalSnapshot).not.toHaveBeenCalled();
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+      });
+
+      it('reads the snapshot when useTerminalApi is omitted', async () => {
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          context: snapshotContext(),
+        });
+
+        expect(result).toEqual(snapshotInfos);
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+      });
+
+      it('uses the legacy /v1 list when a snapshot service is injected without a URL', async () => {
+        delete mockDeps.terminalApi?.globalSnapshotUrl;
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: terminalMetadata,
+        });
+
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: snapshotContext(),
+        });
+
+        expect(result).toEqual(terminalMarkets);
+        expect(mockTerminalService.fetchMarkets).toHaveBeenCalled();
+        expect(fetchGlobalSnapshot).not.toHaveBeenCalled();
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+      });
+
+      it('rejects when the snapshot context is already stale', async () => {
+        const isCurrent = jest.fn((): boolean => false);
+
+        await expect(
+          serviceWithTerminal.getMarkets({
+            provider: mockProvider,
+            context: snapshotContext({ isCurrent }),
+          }),
+        ).rejects.toThrow('snapshot context changed');
+
+        expect(fetchGlobalSnapshot).not.toHaveBeenCalled();
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+        expect(mockTerminalService.logError).not.toHaveBeenCalled();
+      });
+
+      it('rejects a snapshot context race without calling the provider', async () => {
+        const isCurrent = jest
+          .fn()
+          .mockReturnValueOnce(true)
+          .mockReturnValueOnce(false);
+
+        await expect(
+          serviceWithTerminal.getMarkets({
+            provider: mockProvider,
+            context: snapshotContext({ isCurrent }),
+          }),
+        ).rejects.toThrow('snapshot context changed');
+
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+      });
+
+      it('rejects when a failed snapshot fetch also races with a context change', async () => {
+        fetchGlobalSnapshot.mockRejectedValue(
+          new Error('snapshot network failure'),
+        );
+        const isCurrent = jest
+          .fn()
+          .mockReturnValueOnce(true)
+          .mockReturnValueOnce(false);
+
+        await expect(
+          serviceWithTerminal.getMarkets({
+            provider: mockProvider,
+            context: snapshotContext({ isCurrent }),
+          }),
+        ).rejects.toThrow('snapshot context changed');
+
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+        expect(mockTerminalService.logError).not.toHaveBeenCalled();
+      });
+
+      it('falls back to the provider when the snapshot expires', async () => {
+        const providerMarkets: MarketInfo[] = [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+        ];
+        fetchGlobalSnapshot.mockResolvedValue({
+          markets: [],
+          marketInfos: snapshotInfos,
+          expiresAt: Date.now() - 1,
+        });
+        mockProvider.getMarkets.mockResolvedValue(providerMarkets);
+
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: snapshotContext(),
+        });
+
+        expect(result).toEqual(providerMarkets);
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+        expect(mockTerminalService.logError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: 'Terminal global snapshot expired',
+          }),
+          'getMarkets.globalSnapshot',
+        );
+      });
+
+      it('rejects a provider fallback when the snapshot context changes during the provider read', async () => {
+        const providerMarkets: MarketInfo[] = [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+        ];
+        fetchGlobalSnapshot.mockRejectedValue(new Error('snapshot rejected'));
+        let resolveProvider: ((markets: MarketInfo[]) => void) | undefined;
+        mockProvider.getMarkets.mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              resolveProvider = resolve;
+            }),
+        );
+        const isCurrent = jest
+          .fn()
+          .mockReturnValueOnce(true)
+          .mockReturnValueOnce(true)
+          .mockReturnValueOnce(false);
+
+        const pending = serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: snapshotContext({ isCurrent }),
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+        resolveProvider?.(providerMarkets);
+
+        await expect(pending).rejects.toThrow('snapshot context changed');
+        expect(mockProvider.getMarkets).toHaveBeenCalledTimes(1);
         expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
       });
     });
@@ -1894,6 +2037,7 @@ describe('MarketDataService', () => {
           provider: mockProvider,
           context: createGlobalSnapshotContext({ isCurrent }),
         });
+        await Promise.resolve();
         await Promise.resolve();
         resolveProvider?.(providerMarketData);
 

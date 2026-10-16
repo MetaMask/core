@@ -4734,18 +4734,15 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Build the getMarkets context. A snapshot URL selects the shared snapshot
-   * cache. The legacy /v1 list stays in place when that URL is absent.
+   * Build the getMarkets context. The service reads
+   * `terminalApi.globalSnapshotUrl` itself and uses this identity only when
+   * that URL is set.
    *
    * @returns Service context for `MarketDataService.getMarkets`.
    */
   #createGetMarketsContext(): ServiceContext {
     const globalSnapshot = this.#buildGlobalSnapshotContext();
-    const globalSnapshotConfigured = Boolean(
-      this.#options.infrastructure.terminalApi?.globalSnapshotUrl,
-    );
     return this.#createServiceContext('getMarkets', {
-      ...(globalSnapshotConfigured && { globalSnapshotConfigured: true }),
       ...(globalSnapshot && { globalSnapshot }),
     });
   }

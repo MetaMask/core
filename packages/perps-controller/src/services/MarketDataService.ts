@@ -34,6 +34,7 @@ import type {
   AssetRoute,
   PerpsPlatformDependencies,
   PerpsMarketData,
+  PerpsGlobalSnapshotResult,
   PerpsProviderType,
   TerminalAssetMetadata,
 } from '../types/index.js';
@@ -751,11 +752,52 @@ export class MarketDataService {
   }
 
   /**
+   * Read the snapshot for the caller's current identity.
+   * A context change throws. Expiry and every other snapshot failure are
+   * logged, then returned as undefined so the caller falls back once.
+   *
+   * @param globalSnapshot - Identity and race guard for this call.
+   * @param logMethod - Log label for a rejected snapshot.
+   * @returns The current snapshot, or undefined when the caller should fall back.
+   */
+  async #readCurrentGlobalSnapshot(
+    globalSnapshot: NonNullable<ServiceContext['globalSnapshot']>,
+    logMethod: string,
+  ): Promise<PerpsGlobalSnapshotResult | undefined> {
+    const { terminalMarketService } = this.#deps;
+    if (!terminalMarketService?.fetchGlobalSnapshot) {
+      return undefined;
+    }
+    if (!globalSnapshot.isCurrent()) {
+      throw new Error('Terminal global snapshot context changed');
+    }
+    try {
+      const snapshot = await terminalMarketService.fetchGlobalSnapshot(
+        globalSnapshot.request,
+      );
+      if (!globalSnapshot.isCurrent()) {
+        throw new Error('Terminal global snapshot context changed');
+      }
+      if (Date.now() >= snapshot.expiresAt) {
+        throw new Error('Terminal global snapshot expired');
+      }
+      return snapshot;
+    } catch (snapshotError) {
+      if (!globalSnapshot.isCurrent()) {
+        throw new Error('Terminal global snapshot context changed');
+      }
+      terminalMarketService.logError(snapshotError, logMethod);
+      return undefined;
+    }
+  }
+
+  /**
    * Get available markets
    * Handles full orchestration: tracing, error logging, state management, and provider delegation.
-   * A configured global snapshot is the market list. A rejected snapshot falls
-   * back to the provider. Without a snapshot URL, `useTerminalApi` still reads
-   * the legacy Terminal list and falls back to the provider on failure.
+   * A configured global snapshot is the market list, whether or not
+   * `useTerminalApi` is set. A rejected snapshot falls back to the provider.
+   * Without a snapshot URL, `useTerminalApi` still reads the legacy Terminal
+   * list and falls back to the provider on failure.
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
@@ -812,31 +854,25 @@ export class MarketDataService {
         return markets;
       };
 
-      // A configured snapshot is the list. Do not follow a rejected snapshot
-      // with the legacy /v1 market request.
+      // A configured snapshot URL is the list. Do not follow a rejected
+      // snapshot with the legacy /v1 market request. `useTerminalApi` does
+      // not choose this path.
       const { globalSnapshot } = context;
+      const snapshotUrlConfigured = Boolean(
+        this.#deps.terminalApi?.globalSnapshotUrl,
+      );
+      let snapshotAttempted = false;
       if (
-        context.globalSnapshotConfigured &&
+        snapshotUrlConfigured &&
         globalSnapshot &&
         this.#deps.terminalMarketService?.fetchGlobalSnapshot
       ) {
-        if (!globalSnapshot.isCurrent()) {
-          throw new Error('Terminal global snapshot context changed');
-        }
-        try {
-          const snapshot =
-            await this.#deps.terminalMarketService.fetchGlobalSnapshot(
-              globalSnapshot.request,
-            );
-          if (!globalSnapshot.isCurrent()) {
-            throw new Error('Terminal global snapshot context changed');
-          }
-          if (Date.now() >= snapshot.expiresAt) {
-            throw new Error('Terminal global snapshot expired');
-          }
-          if (!Array.isArray(snapshot.marketInfos)) {
-            throw new Error('Terminal global snapshot has no market list');
-          }
+        snapshotAttempted = true;
+        const snapshot = await this.#readCurrentGlobalSnapshot(
+          globalSnapshot,
+          'getMarkets.globalSnapshot',
+        );
+        if (snapshot && Array.isArray(snapshot.marketInfos)) {
           return recordSuccess(
             this.#filterMarketInfos(
               snapshot.marketInfos,
@@ -844,17 +880,15 @@ export class MarketDataService {
               isMarketAllowed,
             ),
           );
-        } catch (snapshotError) {
-          if (!globalSnapshot.isCurrent()) {
-            throw new Error('Terminal global snapshot context changed');
-          }
-          this.#deps.terminalMarketService.logError(
-            snapshotError,
+        }
+        if (snapshot) {
+          this.#deps.terminalMarketService?.logError(
+            new Error('Terminal global snapshot has no market list'),
             'getMarkets.globalSnapshot',
           );
         }
       } else if (
-        !context.globalSnapshotConfigured &&
+        !snapshotUrlConfigured &&
         useTerminalApi &&
         this.#deps.terminalMarketService
       ) {
@@ -886,6 +920,9 @@ export class MarketDataService {
       }
 
       const markets = await provider.getMarkets(params);
+      if (snapshotAttempted && globalSnapshot && !globalSnapshot.isCurrent()) {
+        throw new Error('Terminal global snapshot context changed');
+      }
 
       if (context.stateManager) {
         context.stateManager.update((state) => {
@@ -995,35 +1032,16 @@ export class MarketDataService {
         this.#deps.terminalMarketService?.fetchGlobalSnapshot
       ) {
         snapshotAttempted = true;
-        if (!globalSnapshot.isCurrent()) {
-          throw new Error('Terminal global snapshot context changed');
-        }
-        try {
-          const snapshot =
-            await this.#deps.terminalMarketService.fetchGlobalSnapshot(
-              globalSnapshot.request,
-            );
-          if (!globalSnapshot.isCurrent()) {
-            throw new Error('Terminal global snapshot context changed');
-          }
-          if (Date.now() >= snapshot.expiresAt) {
-            throw new Error('Terminal global snapshot expired');
-          }
-          if (snapshot.markets.length > 0) {
-            traceData = { success: true };
-            const allowedMarkets = snapshot.markets.filter((market) =>
-              globalSnapshot.isMarketAllowed(market.symbol),
-            );
-            return applyMarketFilters(allowedMarkets, params);
-          }
-        } catch (snapshotError) {
-          if (!globalSnapshot.isCurrent()) {
-            throw new Error('Terminal global snapshot context changed');
-          }
-          this.#deps.terminalMarketService.logError(
-            snapshotError,
-            'getMarketDataWithPrices.globalSnapshot',
+        const snapshot = await this.#readCurrentGlobalSnapshot(
+          globalSnapshot,
+          'getMarketDataWithPrices.globalSnapshot',
+        );
+        if (snapshot && snapshot.markets.length > 0) {
+          traceData = { success: true };
+          const allowedMarkets = snapshot.markets.filter((market) =>
+            globalSnapshot.isMarketAllowed(market.symbol),
           );
+          return applyMarketFilters(allowedMarkets, params);
         }
       }
 

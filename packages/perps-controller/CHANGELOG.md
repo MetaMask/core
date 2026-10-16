@@ -16,7 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `TerminalMarketService.fetchGlobalSnapshot` requires Terminal global snapshot schema version 4 and rejects schema version 3 ([#10855](https://github.com/MetaMask/core/pull/10855))
   - Point `terminalApi.globalSnapshotUrl` at `GET /v4/perpetuals` before upgrading. A v3 URL fails validation on every request and falls back to the provider path.
 - Ignore unknown fields on the Terminal global snapshot envelope and on each market instead of rejecting the snapshot ([#10855](https://github.com/MetaMask/core/pull/10855))
-- When `terminalApi.globalSnapshotUrl` is set, `getMarkets` builds its list from the same global snapshot fetch and cache as `getMarketDataWithPrices` and does not call `GET /v1/perpetuals`. A rejected or unavailable snapshot falls back to the provider. Without a snapshot URL, `getMarkets` still uses the legacy Terminal `/v1` path ([#10855](https://github.com/MetaMask/core/pull/10855))
+- When `terminalApi.globalSnapshotUrl` is set, `getMarkets` builds its list from the same global snapshot fetch and cache as `getMarketDataWithPrices` and does not call `GET /v1/perpetuals`. `useTerminalApi` does not gate that list. A rejected or unavailable snapshot falls back to the provider. Without a snapshot URL, `getMarkets` still uses the legacy Terminal `/v1` path ([#10855](https://github.com/MetaMask/core/pull/10855))
+  - Snapshot list rows omit `marginMode`, `onlyIsolated`, and `isDelisted`, and set `marginTableId` to `0`. The v4 market payload has no margin table.
+  - `PerpsGlobalSnapshotResult.marketInfos` is a required field. It is the trading-rule list for `markets`, in the same order.
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/subscription-controller` from `^14.0.0` to `^14.0.1` ([#10896](https://github.com/MetaMask/core/pull/10896))
 
