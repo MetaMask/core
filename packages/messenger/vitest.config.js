@@ -8,9 +8,13 @@ export default mergeConfig(baseConfig, {
     // oxlint-disable-next-line n/no-unsupported-features/node-builtins
     name: basename(import.meta.dirname),
 
+    typecheck: {
+      enabled: true,
+    },
+
     coverage: {
       // Type tests never execute, so they have no coverage to collect.
-      exclude: ['src/**/*.tst.ts'],
+      exclude: ['src/**/*.test-d.ts'],
 
       thresholds: {
         branches: 98.97,

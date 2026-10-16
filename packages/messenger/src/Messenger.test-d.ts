@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'tstyche';
+import { describe, test } from 'vitest';
 
 import { Messenger } from './Messenger.js';
 
@@ -28,13 +28,11 @@ describe('Messenger', () => {
         EventA | EventB
       >({ namespace: 'Child' });
 
-      expect(
-        source.delegateAll({
-          messenger: child,
-          actions: ['A:getValue', 'B:getName'],
-          events: ['A:stateChange', 'B:nameChange'],
-        }),
-      ).type.not.toRaiseError();
+      source.delegateAll({
+        messenger: child,
+        actions: ['A:getValue', 'B:getName'],
+        events: ['A:stateChange', 'B:nameChange'],
+      });
     });
 
     test('excludes the delegatee own-namespace actions from the exhaustiveness check', () => {
@@ -45,13 +43,11 @@ describe('Messenger', () => {
         namespace: 'Child',
       });
 
-      expect(
-        source.delegateAll({
-          messenger: child,
-          actions: ['A:getValue'],
-          events: [],
-        }),
-      ).type.not.toRaiseError();
+      source.delegateAll({
+        messenger: child,
+        actions: ['A:getValue'],
+        events: [],
+      });
     });
 
     test('raises a type error when an external action is missing', () => {
@@ -62,13 +58,12 @@ describe('Messenger', () => {
         namespace: 'Child',
       });
 
-      expect(
-        source.delegateAll({
-          messenger: child,
-          actions: ['A:getValue'],
-          events: [],
-        }),
-      ).type.toRaiseError();
+      source.delegateAll({
+        messenger: child,
+        // @ts-expect-error The external action `B:getName` is missing.
+        actions: ['A:getValue'],
+        events: [],
+      });
     });
 
     test('raises a type error when an external event is missing', () => {
@@ -79,13 +74,12 @@ describe('Messenger', () => {
         namespace: 'Child',
       });
 
-      expect(
-        source.delegateAll({
-          messenger: child,
-          actions: [],
-          events: ['A:stateChange'],
-        }),
-      ).type.toRaiseError();
+      source.delegateAll({
+        messenger: child,
+        actions: [],
+        // @ts-expect-error The external event `B:nameChange` is missing.
+        events: ['A:stateChange'],
+      });
     });
 
     test('raises a type error when the source cannot provide a required external action', () => {
@@ -96,13 +90,12 @@ describe('Messenger', () => {
         namespace: 'Child',
       });
 
-      expect(
-        source.delegateAll({
-          messenger: child,
-          actions: ['A:getValue'],
-          events: [],
-        }),
-      ).type.toRaiseError();
+      source.delegateAll({
+        messenger: child,
+        // @ts-expect-error The source cannot provide `B:getName`.
+        actions: ['A:getValue'],
+        events: [],
+      });
     });
   });
 });
