@@ -44,10 +44,10 @@
     "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
     "messenger-action-types:generate": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "test": "vitest run --reporter=dot",
+    "test": "vitest",
     "test:clean": "vitest --clearCache",
-    "test:verbose": "vitest run --reporter=verbose",
-    "test:watch": "vitest watch"
+    "test:verbose": "vitest --reporter=verbose",
+    "test:watch": "vitest --watch"
   },
   "dependencies": {
     "@ethersproject/abi": "^5.7.0",
