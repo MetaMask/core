@@ -1757,6 +1757,62 @@ describe('PerpsController', () => {
       ).toBeUndefined();
     });
 
+    it('passes the shared snapshot identity into getMarkets', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          fallbackHip3Enabled: true,
+          fallbackHip3AllowlistMarkets: ['xyz:*'],
+          fallbackHip3BlocklistMarkets: ['xyz:TSLA'],
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      await controller.getMarkets({ standalone: true, useTerminalApi: true });
+
+      const call = mockMarketDataServiceInstance.getMarkets.mock
+        .calls[0]?.[0] as {
+        context: ServiceContext;
+      };
+      expect(call.context.globalSnapshotConfigured).toBe(true);
+      expect(call.context.globalSnapshot?.request).toStrictEqual({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main', 'xyz'],
+      });
+      expect(call.context.globalSnapshot?.isMarketAllowed('xyz:TSLA')).toBe(
+        false,
+      );
+      expect(call.context.globalSnapshot?.isMarketAllowed('BTC')).toBe(true);
+    });
+
+    it('leaves getMarkets on the legacy path when no snapshot URL is configured', async () => {
+      mockInfrastructure.terminalApi = undefined;
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      await controller.getMarkets({ standalone: true, useTerminalApi: true });
+
+      const call = mockMarketDataServiceInstance.getMarkets.mock
+        .calls[0]?.[0] as {
+        context: ServiceContext;
+      };
+      expect(call.context.globalSnapshotConfigured).toBeUndefined();
+      expect(call.context.globalSnapshot).toBeUndefined();
+    });
+
     it('uses existing provider for standalone queries when available', async () => {
       const mockMarketData = [
         {
