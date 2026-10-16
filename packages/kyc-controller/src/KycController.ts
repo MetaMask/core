@@ -415,8 +415,8 @@ export class KycController extends BaseController<
    *
    * The verified email stored on controller state comes from the partner
    * identity token. When that request returns HTTP 422, a stored email is
-   * kept for an existing session. Creating a vendor customer requires the
-   * token and sends it as `partnerIdentityToken`.
+   * kept for an existing session. Creating a vendor customer and UKYC session
+   * requires the token, which both requests send as `partnerIdentityToken`.
    *
    * @param params - The session parameters.
    * @param params.vendor - Identity vendor for the session.
@@ -501,6 +501,7 @@ export class KycController extends BaseController<
         vendor: params.vendor,
         geoCountry,
         aal2Token: params.aal2Token,
+        partnerIdentityToken: partnerIdentity.partnerIdentityToken,
       });
     }
     const sessionStatus = await this.messenger.call(
@@ -716,17 +717,20 @@ export class KycController extends BaseController<
    * kyc-api returns the existing session if one with the same vendor and
    * canonicalUserId already exists.
    *
-   * @param params - Vendor, country, and AAL2 token used to create the session.
+   * @param params - Vendor, country, and tokens used to create the session.
    * @param params.vendor - Identity vendor for the UKYC session.
    * @param params.geoCountry - ISO 3166-1 alpha-3 country of residence.
    * @param params.aal2Token - AAL2 authentication token sent as the
    * Authorization bearer value for session creation.
+   * @param params.partnerIdentityToken - Partner identity token minted for
+   * the vendor's audience.
    * @returns The created or refreshed session status.
    */
   async #createUkycSession(params: {
     vendor: KycVendor;
     geoCountry: string;
     aal2Token: string;
+    partnerIdentityToken: string;
   }): Promise<KycSessionStatus> {
     // Establish a per-session X25519 keypair used to seal both secrets. The
     // private half stays on the device; the public half is registered on the
@@ -748,6 +752,7 @@ export class KycController extends BaseController<
       residenceCountry: params.geoCountry,
       vendor: params.vendor,
       aal2Token: params.aal2Token,
+      partnerIdentityToken: params.partnerIdentityToken,
     });
 
     return this.#setAuthorizations({

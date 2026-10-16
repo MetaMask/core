@@ -11,8 +11,8 @@ import type { KycController } from './KycController.js';
  *
  * The verified email stored on controller state comes from the partner
  * identity token. When that request returns HTTP 422, a stored email is
- * kept for an existing session. Creating a vendor customer requires the
- * token and sends it as `partnerIdentityToken`.
+ * kept for an existing session. Creating a vendor customer and UKYC session
+ * requires the token, which both requests send as `partnerIdentityToken`.
  *
  * @param params - The session parameters.
  * @param params.vendor - Identity vendor for the session.

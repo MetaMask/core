@@ -341,6 +341,12 @@ export type CreateUkycSessionParams = {
    * token.
    */
   aal2Token: string;
+  /**
+   * Partner identity token minted by
+   * `AuthenticationController:getPartnerIdentityToken` for the session's
+   * vendor audience. Omitted from the request body when not provided.
+   */
+  partnerIdentityToken?: string;
 };
 
 /**
@@ -759,6 +765,8 @@ export class KycService extends BaseDataService<
    * @param params - The session parameters.
    * @param params.aal2Token - AAL2 authentication token used as the
    * Authorization bearer value.
+   * @param params.partnerIdentityToken - Optional partner identity token for
+   * the session's vendor audience, sent as `partnerIdentityToken`.
    * @returns The UKYC session id and encryption schemas.
    */
   async createUkycSession(
@@ -781,6 +789,9 @@ export class KycService extends BaseDataService<
           sessionClientPublicKey: params.sessionClientPublicKey,
           residenceCountry: params.residenceCountry,
           vendorMetadata: params.vendorMetadata ?? {},
+          ...(params.partnerIdentityToken && {
+            partnerIdentityToken: params.partnerIdentityToken,
+          }),
         }),
       },
       { bearerToken: params.aal2Token },
