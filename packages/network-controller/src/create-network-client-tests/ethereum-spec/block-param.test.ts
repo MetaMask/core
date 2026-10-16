@@ -1,3 +1,5 @@
+import { describe } from 'vitest';
+
 import { testsForRpcMethodSupportingBlockParam } from '../../../tests/network-client/block-param.js';
 import { NetworkClientType } from '../../types.js';
 

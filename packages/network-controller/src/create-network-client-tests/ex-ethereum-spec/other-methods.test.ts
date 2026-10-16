@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { TESTNET } from '../../../tests/helpers.js';
 import {
   withMockedCommunications,

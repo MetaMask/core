@@ -67,7 +67,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/multichain-transactions-controller',
   '@metamask/name-controller',
   '@metamask/network-connection-banner-controller',
-  '@metamask/network-controller',
   '@metamask/network-enablement-controller',
   '@metamask/notification-services-controller',
   '@metamask/passkey-controller',

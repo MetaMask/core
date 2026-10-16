@@ -9,6 +9,8 @@ import EthQuery from '@metamask/eth-query';
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 import nock, { isDone as nockIsDone } from 'nock';
 import type { Scope as NockScope } from 'nock';
+import { setTimeout as realSetTimeout } from 'node:timers';
+import { vi } from 'vitest';
 
 import { createNetworkClient } from '../../src/create-network-client.js';
 import type {
@@ -453,7 +455,12 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers<Type>(
   // `hasPromiseBeenFulfilled` is modified asynchronously.
   /* eslint-disable-next-line no-unmodified-loop-condition */
   while (!hasPromiseBeenFulfilled && numTimesClockHasBeenAdvanced < 30) {
-    await jest.runAllTimersAsync();
+    // Nock schedules its replies on the `node:timers` module, which fake
+    // timers do not replace, so the macrotask queue has to run for a mocked
+    // request to settle. `vi.runAllTimersAsync` resolves without yielding to it
+    // when no fake timer is pending, so yield explicitly first.
+    await new Promise((resolve) => realSetTimeout(resolve, 0));
+    await vi.runAllTimersAsync();
     numTimesClockHasBeenAdvanced += 1;
   }
 
@@ -511,7 +518,7 @@ export async function withNetworkClient<Type>(
   // request the latest block) set up in `eth-json-rpc-middleware`
   // 2. Halting the retry logic in `@metamask/eth-json-rpc-infura` (which also
   // depends on `setTimeout`)
-  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+  vi.useFakeTimers();
 
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
 
@@ -589,7 +596,7 @@ export async function withNetworkClient<Type>(
   } finally {
     await blockTracker.destroy();
 
-    jest.useRealTimers();
+    vi.useRealTimers();
   }
 }
 
