@@ -64,7 +64,7 @@
     "test:packages": "yarn test:verbose --silent --coverage=false",
     "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.cjs --silent",
     "test:scripts:shell": "node_modules/bats/bin/bats scripts/*.bats",
-    "test:verbose": "yarn workspaces foreach --all --exclude @metamask/core-monorepo --parallel --verbose run test:verbose",
+    "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
   },
   "devDependencies": {
