@@ -15,8 +15,8 @@ import type {
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
 import { stringToBytes } from '@metamask/utils';
-import { x25519 } from '@noble/curves/ed25519';
 
+import { generateKeyPair } from './crypto.js';
 import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
@@ -732,10 +732,9 @@ export class KycController extends BaseController<
     // private half stays on the device; the public half is registered on the
     // session so the server can open later authorizations. Each encryption
     // schema from session creation supplies the matching server public key.
-    const sessionClientPrivateKey = x25519.utils.randomSecretKey();
-    const sessionClientPublicKey = toBase64Url(
-      x25519.getPublicKey(sessionClientPrivateKey),
-    );
+    const keyPair = await generateKeyPair();
+    const sessionClientPrivateKey = keyPair.privateKey;
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
     // Residence is the ISO 3166-1 alpha-3 country already resolved for
     // disclaimers / KYC-required; fetch it if this sub-flow started without
     // that earlier step.
@@ -831,10 +830,9 @@ export class KycController extends BaseController<
       throw new Error('No session was found');
     }
 
-    const sessionClientPrivateKey = x25519.utils.randomSecretKey();
-    const sessionClientPublicKey = toBase64Url(
-      x25519.getPublicKey(sessionClientPrivateKey),
-    );
+    const keyPair = await generateKeyPair();
+    const sessionClientPrivateKey = keyPair.privateKey;
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
 
     const {
       encryptionDataKey: encryptionDataKeySchema,
@@ -1238,8 +1236,10 @@ export class KycController extends BaseController<
         this.messenger.call('KycService:fetchIdosEnclaveJwks'),
         this.messenger.call('KycService:fetchIdosRelayJwks'),
       ]);
-    assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
-    assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    await Promise.all([
+      assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey),
+      assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema),
+    ]);
   }
 
   /**
@@ -1267,14 +1267,14 @@ export class KycController extends BaseController<
     const localUserSecret = await getOrCreateLocalUserSecret(
       this.#localUserSecretStore,
     );
-    const clientMaterial = deriveClientMaterial(localUserSecret);
+    const clientMaterial = await deriveClientMaterial(localUserSecret);
     const wrappedEncryptionDataKey = wrapEncryptionKey(
       sessionClientPrivateKey,
       encryptionDataKey.serverPublicKey.x,
       clientMaterial.dataEncryptionKey,
     );
 
-    const ukycCapabilityToken = signStorageAccessToken({
+    const ukycCapabilityToken = await signStorageAccessToken({
       material: clientMaterial,
       // TODO: Confirm with idOS when this can be switched back to read and a separate token is sent for write
       operations: ['read', 'write'],

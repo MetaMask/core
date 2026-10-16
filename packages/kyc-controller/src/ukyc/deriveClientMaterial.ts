@@ -1,7 +1,6 @@
+import { getPublicKey } from '@metamask/cryptography/ed25519';
+import { hkdfSha256 } from '@metamask/cryptography/hkdf';
 import { stringToBytes } from '@metamask/utils';
-import { ed25519 } from '@noble/curves/ed25519';
-import { hkdf } from '@noble/hashes/hkdf';
-import { sha256 } from '@noble/hashes/sha2';
 
 import { toBase64Url } from '../encoding.js';
 import { UKYC_DERIVED_KEY_SIZES, UKYC_KDF_INFO } from './constants.js';
@@ -17,19 +16,19 @@ import { UKYC_DERIVED_KEY_SIZES, UKYC_KDF_INFO } from './constants.js';
  */
 export type UkycClientMaterial = {
   /** Opaque lookup key for the encrypted KYC object. */
-  storageId: Uint8Array;
+  storageId: Uint8Array<ArrayBuffer>;
   /** Symmetric key that encrypts `encrypted_kyc_data` (or wraps per-blob keys). */
-  dataEncryptionKey: Uint8Array;
+  dataEncryptionKey: Uint8Array<ArrayBuffer>;
   /**
    * Ed25519 private key used to sign `storage_access_token` capabilities. For
    * Ed25519 the 32-byte HKDF output *is* the private key. The private half
    * never leaves the device.
    */
-  signingKey: Uint8Array;
+  signingKey: Uint8Array<ArrayBuffer>;
   /** Public half of `signingKey`, registered with the object on first write. */
-  signingPublicKey: Uint8Array;
+  signingPublicKey: Uint8Array<ArrayBuffer>;
   /** Key for establishing/authenticating the encrypted tunnel to idOS, if needed. */
-  relayTunnelKey: Uint8Array;
+  relayTunnelKey: Uint8Array<ArrayBuffer>;
 };
 
 /**
@@ -54,12 +53,17 @@ export type EncodedUkycClientMaterial = {
  * @param length - Desired output length in bytes.
  * @returns The derived bytes.
  */
-function deriveLabeled(
-  localUserSecret: Uint8Array,
+async function deriveLabeled(
+  localUserSecret: Uint8Array<ArrayBuffer>,
   info: string,
   length: number,
-): Uint8Array {
-  return hkdf(sha256, localUserSecret, undefined, stringToBytes(info), length);
+): Promise<Uint8Array<ArrayBuffer>> {
+  return hkdfSha256(
+    localUserSecret,
+    new Uint8Array(),
+    stringToBytes(info),
+    length,
+  );
 }
 
 /**
@@ -73,34 +77,34 @@ function deriveLabeled(
  * `getOrCreateLocalUserSecret`.
  * @returns The derived {@link UkycClientMaterial}.
  */
-export function deriveClientMaterial(
-  localUserSecret: Uint8Array,
-): UkycClientMaterial {
-  const storageId = deriveLabeled(
-    localUserSecret,
-    UKYC_KDF_INFO.storageId,
-    UKYC_DERIVED_KEY_SIZES.storageId,
-  );
+export async function deriveClientMaterial(
+  localUserSecret: Uint8Array<ArrayBuffer>,
+): Promise<UkycClientMaterial> {
+  const [storageId, dataEncryptionKey, signingKey, relayTunnelKey] =
+    await Promise.all([
+      deriveLabeled(
+        localUserSecret,
+        UKYC_KDF_INFO.storageId,
+        UKYC_DERIVED_KEY_SIZES.storageId,
+      ),
+      deriveLabeled(
+        localUserSecret,
+        UKYC_KDF_INFO.dataEncryptionKey,
+        UKYC_DERIVED_KEY_SIZES.dataEncryptionKey,
+      ),
+      deriveLabeled(
+        localUserSecret,
+        UKYC_KDF_INFO.signingKey,
+        UKYC_DERIVED_KEY_SIZES.signingKey,
+      ),
+      deriveLabeled(
+        localUserSecret,
+        UKYC_KDF_INFO.relayTunnelKey,
+        UKYC_DERIVED_KEY_SIZES.relayTunnelKey,
+      ),
+    ]);
 
-  const dataEncryptionKey = deriveLabeled(
-    localUserSecret,
-    UKYC_KDF_INFO.dataEncryptionKey,
-    UKYC_DERIVED_KEY_SIZES.dataEncryptionKey,
-  );
-
-  const signingKey = deriveLabeled(
-    localUserSecret,
-    UKYC_KDF_INFO.signingKey,
-    UKYC_DERIVED_KEY_SIZES.signingKey,
-  );
-
-  const relayTunnelKey = deriveLabeled(
-    localUserSecret,
-    UKYC_KDF_INFO.relayTunnelKey,
-    UKYC_DERIVED_KEY_SIZES.relayTunnelKey,
-  );
-
-  const signingPublicKey = ed25519.getPublicKey(signingKey);
+  const signingPublicKey = await getPublicKey(signingKey);
 
   return {
     storageId,
