@@ -39,10 +39,6 @@ export default defineConfig({
     mockReset: true,
     restoreMocks: true,
 
-    fakeTimers: {
-      toNotFake: ['nextTick', 'queueMicrotask'],
-    },
-
     coverage: {
       enabled: true,
 
