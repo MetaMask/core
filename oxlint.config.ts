@@ -4,32 +4,14 @@ import jest from '@metamask/oxlint-config-jest';
 import nodejs from '@metamask/oxlint-config-nodejs';
 import typescript from '@metamask/oxlint-config-typescript';
 import vitest from '@metamask/oxlint-config-vitest';
-import { createRequire } from 'node:module';
 
-const { getTestRunnerWorkspaces } = createRequire(import.meta.url)(
-  './test-runner-package-map.cjs',
-) as {
-  getTestRunnerWorkspaces: () => Promise<{
-    jestWorkspaces: string[];
-    vitestWorkspaces: string[];
-  }>;
-};
+import { getJestWorkspaces } from './test-runner-package-map.cjs';
 
-const { jestWorkspaces, vitestWorkspaces } = await getTestRunnerWorkspaces();
-
-/**
- * Builds the test-file globs for a set of workspaces.
- *
- * @param locations - Workspace locations relative to the repository root.
- * @returns Globs matching those workspaces' test files and test helpers.
- */
-function testFilesIn(locations: string[]): string[] {
-  return locations.flatMap((location) => [
-    `${location}/**/*.test.ts`,
-    `${location}/**/test/**`,
-    `${location}/**/tests/**`,
-  ]);
-}
+const jestTestFiles = (await getJestWorkspaces()).flatMap((location) => [
+  `${location}/**/*.test.ts`,
+  `${location}/**/test/**`,
+  `${location}/**/tests/**`,
+]);
 
 export default createConfig({
   extends: [base],
@@ -120,7 +102,7 @@ export default createConfig({
         'packages/*/jest.config.integration.cjs',
         'packages/*/jest.config.unit.cjs',
         'scripts/**/*.test.ts',
-        ...testFilesIn(jestWorkspaces),
+        ...jestTestFiles,
       ],
       extends: [nodejs, jest],
       rules: {
@@ -139,8 +121,11 @@ export default createConfig({
         'tests/vitest/**',
         'vitest.config.packages.mjs',
         'packages/*/vitest.config.mjs',
-        ...testFilesIn(vitestWorkspaces),
+        'packages/*/**/*.test.ts',
+        'packages/*/**/test/**',
+        'packages/*/**/tests/**',
       ],
+      excludeFiles: jestTestFiles,
       extends: [nodejs, vitest],
       rules: {
         'node/no-sync': 'off',

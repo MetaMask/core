@@ -113,21 +113,17 @@ const PACKAGES_ON_JEST = new Set([
 ]);
 
 /**
- * Groups the repository's workspaces by the test runner they use.
+ * Finds the workspaces still on Jest.
  *
- * @returns {Promise<{ jestWorkspaces: string[], vitestWorkspaces: string[] }>}
- * Workspace directories, relative to the repository root.
+ * @returns {Promise<string[]>} Workspace directories, relative to the
+ * repository root.
  */
-async function getTestRunnerWorkspaces() {
+async function getJestWorkspaces() {
   const locations = await getWorkspaceLocations(workspaces, __dirname);
 
-  const onJest = (location) =>
-    PACKAGES_ON_JEST.has(`@metamask/${path.basename(location)}`);
-
-  return {
-    jestWorkspaces: locations.filter(onJest),
-    vitestWorkspaces: locations.filter((location) => !onJest(location)),
-  };
+  return locations.filter((location) =>
+    PACKAGES_ON_JEST.has(`@metamask/${path.basename(location)}`),
+  );
 }
 
-module.exports = { PACKAGES_ON_JEST, getTestRunnerWorkspaces };
+module.exports = { PACKAGES_ON_JEST, getJestWorkspaces };
