@@ -422,7 +422,8 @@ export class AccountActivityService {
     );
 
     try {
-      // First, unsubscribe from all current account activity subscriptions to avoid multiple subscriptions
+      // Drop the previous account's channels without releasing tracked chains.
+      // Chain status is unchanged on an account switch.
       await this.#unsubscribeFromAllAccountActivity();
 
       // Subscribe to the new selected accounts in CAIP-10 format
@@ -546,9 +547,10 @@ export class AccountActivityService {
    * Publish every tracked chain, including any status still buffered, as
    * `down`, then forget them.
    *
-   * Shared by WebSocket disconnect and `#unsubscribeFromAllAccountActivity`.
-   * Callers resubscribe afterward; the next system notification restores
-   * chains that are up.
+   * Used on WebSocket disconnect and when enabled chain prefixes change.
+   * Account switches leave tracked chains alone so AssetsController does not
+   * rebuild active-chain subscriptions. The next system notification restores
+   * chains that are up after resubscribe or reconnect.
    *
    * @param reason - Log message describing why the chains were released.
    */
@@ -603,19 +605,14 @@ export class AccountActivityService {
   /**
    * Unsubscribe from all account activity subscriptions for this service.
    * Finds all channels matching the service's namespace and unsubscribes from
-   * them, and releases every tracked chain the same way a disconnect does.
+   * them.
    */
   async #unsubscribeFromAllAccountActivity(): Promise<void> {
-    this.#publishTrackedChainsDown(
-      'Unsubscribed from account activity - Published tracked chains as down',
-    );
-
     const accountActivitySubscriptions = this.#messenger.call(
       'BackendWebSocketService:findSubscriptionsByChannelPrefix',
       this.#options.subscriptionNamespace,
     );
 
-    // Unsubscribe from all matching subscriptions
     for (const subscription of accountActivitySubscriptions) {
       await subscription.unsubscribe();
     }
@@ -682,8 +679,9 @@ export class AccountActivityService {
 
   /**
    * Handle remote feature flag changes: if the set of enabled chain prefixes
-   * changed while connected, unsubscribe (which releases every tracked chain),
-   * then resubscribe with the new prefixes.
+   * changed while connected, release every tracked chain, unsubscribe, then
+   * resubscribe with the new prefixes. The next system notification restores
+   * chains that are up.
    */
   async #handleFeatureFlagsStateChange(): Promise<void> {
     try {
@@ -696,6 +694,9 @@ export class AccountActivityService {
       }
 
       await this.#unsubscribeFromAllAccountActivity();
+      this.#publishTrackedChainsDown(
+        'Feature flag change - Published tracked chains as down',
+      );
       await this.#subscribeToSelectedAccount();
     } catch (error) {
       log('Feature flag change handling failed', { error });

@@ -1346,6 +1346,50 @@ describe('AccountActivityService', () => {
         );
       });
 
+      it('switches account channels without publishing tracked chains down', async () => {
+        jest.useFakeTimers();
+        jest.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          await withService(async ({ messenger, rootMessenger, mocks }) => {
+            const statusChangedEventListener = jest.fn();
+            messenger.subscribe(
+              'AccountActivityService:statusChanged',
+              statusChangedEventListener,
+            );
+            const systemCallback = getSystemNotificationCallback(mocks);
+
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:1'], status: 'up' },
+              timestamp: 1000,
+            });
+            jest.advanceTimersByTime(1000);
+            statusChangedEventListener.mockClear();
+
+            mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+              createMockInternalAccount({ address: '0x123abc' }),
+            ]);
+            mocks.findSubscriptionsByChannelPrefix.mockReturnValue([
+              { unsubscribe: jest.fn() },
+            ]);
+
+            rootMessenger.publish(
+              'AccountTreeController:selectedAccountGroupChange',
+              '',
+              '',
+            );
+            await completeAsyncOperations();
+
+            expect(mocks.findSubscriptionsByChannelPrefix).toHaveBeenCalled();
+            expect(statusChangedEventListener).not.toHaveBeenCalled();
+          });
+        } finally {
+          jest.restoreAllMocks();
+          jest.useRealTimers();
+        }
+      });
+
       it('should resubscribe to selected account when WebSocket connects', async () => {
         await withService(
           { accountAddress: '0x123abc' },
