@@ -144,6 +144,8 @@ export type SentinelMeta = {
   origin?: string;
   txType?: string;
   wallet?: string;
+  // Hardware wallet manufacturer. Omitted when the signer is not a hardware wallet.
+  accountHardwareType?: string;
 };
 
 /**
