@@ -9,12 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getDerivedIdentities` method, also expose it through the messenger as `ChompApiService:getDerivedIdentities` ([#10695](https://github.com/MetaMask/core/pull/10695))
+- Add `getDerivedIdentityByAddress` method, and expose it through the messenger as `ChompApiService:getDerivedIdentityByAddress` ([#10695](https://github.com/MetaMask/core/pull/10695))
+- Add `disassociateAddress` method for `DELETE /v1/auth/address`, and expose it through the messenger as `ChompApiService:disassociateAddress` ([#10695](https://github.com/MetaMask/core/pull/10695))
+  - For an address linked as a successor, this cancels the Money Account migration and unfreezes its predecessor, which CHOMP only allows while the migration is not `DONE`.
+- Add `AddressIdentityResponse`, `DerivedIdentitiesResponse`, `DerivedIdentity`, `DerivedIdentityAddressRole`, `DerivedIdentityMigration`, `DerivedIdentityStatus`, `MigrationStep`, `ChompApiServiceDisassociateAddressAction`, `ChompApiServiceGetDerivedIdentitiesAction`, and `ChompApiServiceGetDerivedIdentityByAddressAction` types ([#10695](https://github.com/MetaMask/core/pull/10695))
 - Add `createAddressChallenge` method for `POST /v2/auth/address/challenge`, and expose it through the messenger as `ChompApiService:createAddressChallenge` ([#10687](https://github.com/MetaMask/core/pull/10687))
   - Returns a single-use SIWE message bound to the profile, chain, purpose and address. The `ASSOCIATE_SUCCESSOR` purpose takes a `predecessorAddress` to link the address as the successor of an existing Money Account.
 - Add `associateAddressV2` method for `POST /v2/auth/address`, and expose it through the messenger as `ChompApiService:associateAddressV2` ([#10687](https://github.com/MetaMask/core/pull/10687))
   - Submits the signed challenge message to associate the address.
 - Add `ChompApiError`, thrown for non-2xx responses, which exposes the CHOMP error code from the response body as `code` ([#10687](https://github.com/MetaMask/core/pull/10687))
 - Add `AssociationPurpose`, `CreateAddressChallengeParams`, `CreateAddressChallengeResponse`, `AssociateAddressV2Params`, `ChompApiServiceCreateAddressChallengeAction`, and `ChompApiServiceAssociateAddressV2Action` types ([#10687](https://github.com/MetaMask/core/pull/10687))
+
+### Changed
+
+- **BREAKING:** Widen `ChompIntentType` (used by `SendIntentParams`, intent responses, and service-details `intentTypes`) to include `cash-migration-root` and `cash-migration-transfer` ([#10695](https://github.com/MetaMask/core/pull/10695))
 
 ### Removed
 
