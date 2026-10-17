@@ -14,7 +14,8 @@
   "files": [],
   "type": "module",
   "scripts": {
-    "build": "yarn tsc --build tsconfig.build.json --verbose",
+    "audit-script": "node ./scripts/audit-script.ts",
+    "build": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run build:docs",
     "build:only-clean": "rimraf -g 'packages/*/dist' 'packages/*/tsconfig.build.tsbuildinfo'",
@@ -129,6 +130,13 @@
   "simple-git-hooks": {
     "pre-push": "yarn lint"
   },
+  "devEngines": {
+    "packageManager": {
+      "name": "yarn",
+      "version": ">=4.16.0+sha256.ba05224324578801b9cc98170d64aa50b9a36733b440fb0942306da3fbbdc7d1",
+      "onFail": "error"
+    }
+  },
   "engines": {
     "node": "^22.14.0 || ^24"
   },
@@ -145,5 +153,30 @@
       "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false,
       "jest>@jest/core>jest-haste-map>@parcel/watcher#2.6.0": false
     }
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json",
+    "audit-script": "lavamoat/scripts.yarn.json",
+    "build": "lavamoat/scripts.build.json",
+    "get-changed-workspaces": "lavamoat/scripts.yarn.json",
+    "lint:dependencies": "lavamoat/scripts.lint.json",
+    "lint:dependencies:fix": "lavamoat/scripts.lint.json",
+    "lint:misc": "lavamoat/scripts.lint.json",
+    "lint:misc:check": "lavamoat/scripts.yarn.json",
+    "lint:oxlint": "lavamoat/scripts.lint.json",
+    "lint:teams": "lavamoat/scripts.lint.json",
+    "lint:tsc": "lavamoat/scripts.lint.json",
+    "lint:tsc:check": "lavamoat/scripts.lint.json",
+    "lint:tsc:clean": "lavamoat/scripts.yarn.json",
+    "lint:tsc:prune": "lavamoat/scripts.lint.json",
+    "lint:tsc:suppress": "lavamoat/scripts.lint.json",
+    "lint:tsconfigs:all": "lavamoat/scripts.yarn.json",
+    "lint:tsconfigs:fix:all": "lavamoat/scripts.yarn.json",
+    "messenger-action-types:check": "lavamoat/scripts.yarn.json",
+    "messenger-action-types:generate": "lavamoat/scripts.yarn.json",
+    "postinstall": "lavamoat/scripts.yarn.json",
+    "readme-content:check": "lavamoat/scripts.lint.json",
+    "readme-content:update": "lavamoat/scripts.lint.json",
+    "skills:postinstall": "lavamoat/scripts.skills.json"
   }
 }

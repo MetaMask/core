@@ -95,5 +95,8 @@
       "@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
       "@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
     }
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json"
   }
 }
