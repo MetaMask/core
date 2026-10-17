@@ -7646,7 +7646,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/marketing-consent-controller@workspace:packages/marketing-consent-controller"
   dependencies:
+    "@metamask/analytics-controller": "npm:^4.0.0"
+    "@metamask/authenticated-user-storage": "npm:^4.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
+    "@metamask/base-controller": "npm:^10.0.0"
+    "@metamask/keyring-controller": "npm:^28.2.0"
+    "@metamask/messenger": "npm:^3.0.0"
+    "@metamask/profile-sync-controller": "npm:^34.0.3"
     "@typescript/native": "npm:typescript@^7.0.2"
     "@vitest/coverage-istanbul": "npm:^5.0.0"
     rimraf: "npm:^6.1.3"

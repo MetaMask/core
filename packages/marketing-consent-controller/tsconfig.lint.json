@@ -4,5 +4,24 @@
     "outDir": "./.tsc-lint-cache",
     "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo"
   },
-  "references": []
+  "references": [
+    {
+      "path": "../analytics-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../authenticated-user-storage/tsconfig.lint.json"
+    },
+    {
+      "path": "../base-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../messenger/tsconfig.lint.json"
+    },
+    {
+      "path": "../profile-sync-controller/tsconfig.lint.json"
+    }
+  ]
 }

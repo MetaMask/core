@@ -41,13 +41,21 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/marketing-consent-controller",
     "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
     "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
-    "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
-    "messenger-action-types:generate": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
+    "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
+    "messenger-action-types:generate": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "vitest",
     "test:clean": "vitest --clearCache",
     "test:verbose": "vitest --reporter=verbose",
     "test:watch": "vitest --watch"
+  },
+  "dependencies": {
+    "@metamask/analytics-controller": "^4.0.0",
+    "@metamask/authenticated-user-storage": "^4.1.0",
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/keyring-controller": "^28.2.0",
+    "@metamask/messenger": "^3.0.0",
+    "@metamask/profile-sync-controller": "^34.0.3"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
