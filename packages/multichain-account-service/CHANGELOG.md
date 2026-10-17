@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `BaseBip44AccountProvider` leaking removed accounts and stale account IDs ([#10069](https://github.com/MetaMask/core/pull/10069))
+  - `getAccounts()` now filters out entries the `AccountsController` no longer knows about instead of returning them as if they were real accounts.
+  - `init()` now replaces the tracked account set instead of adding to it, so a re-init after an account removal (e.g. on unlock) no longer leaves the removed account's ID tracked forever.
+
 ### Changed
 
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
