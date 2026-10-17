@@ -19,7 +19,11 @@ import type {
   ProfileMetricsFetchNoncesRequest,
   ProfileMetricsSubmitMetricsRequest,
 } from './ProfileMetricsService.js';
-import type { ProofOfOwnershipSignRequest } from './ProofOfOwnershipService.js';
+import type {
+  ProofOfOwnershipSignBatchRequest,
+  ProofOfOwnershipSignBatchResponse,
+  ProofOfOwnershipSignRequest,
+} from './ProofOfOwnershipService.js';
 import { ProofUnsupportedNamespaceError } from './utils/canonicalize.js';
 
 /**
@@ -1089,16 +1093,22 @@ describe('ProfileMetricsController', () => {
                 getMetaMetricsId,
                 mockSubmitMetrics,
                 mockFetchNonces,
-                mockSignProof,
+                mockSignProofBatch,
                 registerAccounts,
               }) => {
                 registerAccounts([createMockAccount(lowercased)]);
                 mockFetchNonces.mockResolvedValueOnce({
                   [checksummedAddress]: 'nonce-1',
                 });
-                mockSignProof.mockResolvedValueOnce({
-                  nonce: 'nonce-1',
-                  signature: '0xdeadbeef',
+                mockSignProofBatch.mockResolvedValueOnce({
+                  results: [
+                    {
+                      proof: {
+                        nonce: 'nonce-1',
+                        signature: '0xdeadbeef',
+                      },
+                    },
+                  ],
                 });
 
                 await controller._executePoll();
@@ -1107,9 +1117,13 @@ describe('ProfileMetricsController', () => {
                   identifiers: [checksummedAddress],
                   entropySourceId: 'id1',
                 });
-                expect(mockSignProof).toHaveBeenCalledWith({
-                  account: expect.objectContaining({ address: lowercased }),
-                  nonce: 'nonce-1',
+                expect(mockSignProofBatch).toHaveBeenCalledWith({
+                  items: [
+                    {
+                      account: expect.objectContaining({ address: lowercased }),
+                      nonce: 'nonce-1',
+                    },
+                  ],
                 });
                 expect(mockSubmitMetrics).toHaveBeenCalledWith({
                   metametricsId: getMetaMetricsId(),
@@ -1157,7 +1171,7 @@ describe('ProfileMetricsController', () => {
                 getMetaMetricsId,
                 mockSubmitMetrics,
                 mockFetchNonces,
-                mockSignProof,
+                mockSignProofBatch,
                 registerAccounts,
               }) => {
                 registerAccounts([
@@ -1167,7 +1181,7 @@ describe('ProfileMetricsController', () => {
                 await controller._executePoll();
 
                 expect(mockFetchNonces).not.toHaveBeenCalled();
-                expect(mockSignProof).not.toHaveBeenCalled();
+                expect(mockSignProofBatch).not.toHaveBeenCalled();
                 expect(mockSubmitMetrics).toHaveBeenCalledWith({
                   metametricsId: getMetaMetricsId(),
                   entropySourceId: null,
@@ -1228,7 +1242,7 @@ describe('ProfileMetricsController', () => {
                 controller,
                 mockSubmitMetrics,
                 mockFetchNonces,
-                mockSignProof,
+                mockSignProofBatch,
                 registerAccounts,
               }) => {
                 const btcAccount: InternalAccount = {
@@ -1237,9 +1251,15 @@ describe('ProfileMetricsController', () => {
                 };
                 registerAccounts([btcAccount]);
                 mockFetchNonces.mockResolvedValueOnce({ [canonical]: 'n-btc' });
-                mockSignProof.mockResolvedValueOnce({
-                  nonce: 'n-btc',
-                  signature: '0xbtcsig',
+                mockSignProofBatch.mockResolvedValueOnce({
+                  results: [
+                    {
+                      proof: {
+                        nonce: 'n-btc',
+                        signature: '0xbtcsig',
+                      },
+                    },
+                  ],
                 });
 
                 await controller._executePoll();
@@ -1277,14 +1297,16 @@ describe('ProfileMetricsController', () => {
               async ({
                 controller,
                 mockFetchNonces,
-                mockSignProof,
+                mockSignProofBatch,
                 registerAccounts,
               }) => {
                 registerAccounts([createMockAccount(lowercased)]);
                 mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
-                mockSignProof.mockResolvedValue({
-                  nonce: 'n',
-                  signature: '0xsig',
+                mockSignProofBatch.mockResolvedValue({
+                  results: [
+                    { proof: { nonce: 'n', signature: '0xsig' } },
+                    { proof: { nonce: 'n', signature: '0xsig' } },
+                  ],
                 });
 
                 await controller._executePoll();
@@ -1313,7 +1335,7 @@ describe('ProfileMetricsController', () => {
                 getMetaMetricsId,
                 mockSubmitMetrics,
                 mockFetchNonces,
-                mockSignProof,
+                mockSignProofBatch,
                 registerAccounts,
               }) => {
                 registerAccounts([
@@ -1326,7 +1348,7 @@ describe('ProfileMetricsController', () => {
                 await controller._executePoll();
 
                 expect(mockFetchNonces).not.toHaveBeenCalled();
-                expect(mockSignProof).not.toHaveBeenCalled();
+                expect(mockSignProofBatch).not.toHaveBeenCalled();
                 expect(mockSubmitMetrics).toHaveBeenCalledWith({
                   metametricsId: getMetaMetricsId(),
                   entropySourceId: 'id1',
@@ -1414,7 +1436,7 @@ describe('ProfileMetricsController', () => {
                 getMetaMetricsId,
                 mockSubmitMetrics,
                 mockFetchNonces,
-                mockSignProof,
+                mockSignProofBatch,
               }) => {
                 // AccountsController is intentionally empty: the account
                 // was removed between enqueue and poll.
@@ -1422,7 +1444,7 @@ describe('ProfileMetricsController', () => {
                 await controller._executePoll();
 
                 expect(mockFetchNonces).not.toHaveBeenCalled();
-                expect(mockSignProof).not.toHaveBeenCalled();
+                expect(mockSignProofBatch).not.toHaveBeenCalled();
                 expect(mockSubmitMetrics).toHaveBeenCalledWith({
                   metametricsId: getMetaMetricsId(),
                   entropySourceId: 'id1',
@@ -1447,7 +1469,7 @@ describe('ProfileMetricsController', () => {
                 controller,
                 mockSubmitMetrics,
                 mockFetchNonces,
-                mockSignProof,
+                mockSignProofBatch,
                 registerAccounts,
               }) => {
                 const consoleErrorSpy = jest
@@ -1460,7 +1482,7 @@ describe('ProfileMetricsController', () => {
 
                 await controller._executePoll();
 
-                expect(mockSignProof).not.toHaveBeenCalled();
+                expect(mockSignProofBatch).not.toHaveBeenCalled();
                 expect(mockSubmitMetrics).toHaveBeenCalledWith(
                   expect.objectContaining({
                     entropySourceId: 'id1',
@@ -1492,7 +1514,7 @@ describe('ProfileMetricsController', () => {
                 controller,
                 mockSubmitMetrics,
                 mockFetchNonces,
-                mockSignProof,
+                mockSignProofBatch,
                 registerAccounts,
               }) => {
                 registerAccounts([createMockAccount(address.toLowerCase())]);
@@ -1500,7 +1522,7 @@ describe('ProfileMetricsController', () => {
 
                 await controller._executePoll();
 
-                expect(mockSignProof).not.toHaveBeenCalled();
+                expect(mockSignProofBatch).not.toHaveBeenCalled();
                 expect(mockSubmitMetrics).toHaveBeenCalledWith(
                   expect.objectContaining({
                     accounts: [{ address, scopes: ['eip155:1'] }],
@@ -1510,7 +1532,7 @@ describe('ProfileMetricsController', () => {
             );
           });
 
-          it('attaches proofs for the successful accounts and submits the rejected one without a proof when sign throws', async () => {
+          it('attaches proofs for successful accounts and submits rejected items without a proof', async () => {
             const goodAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const badAddress = '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359';
             const goodLower = goodAddress.toLowerCase();
@@ -1531,7 +1553,7 @@ describe('ProfileMetricsController', () => {
                 controller,
                 mockSubmitMetrics,
                 mockFetchNonces,
-                mockSignProof,
+                mockSignProofBatch,
                 registerAccounts,
               }) => {
                 const consoleErrorSpy = jest
@@ -1545,11 +1567,11 @@ describe('ProfileMetricsController', () => {
                   [goodAddress]: 'n-good',
                   [badAddress]: 'n-bad',
                 });
-                mockSignProof.mockImplementation(async ({ account }) => {
-                  if (account.address === goodLower) {
-                    return { nonce: 'n-good', signature: '0xgood' };
-                  }
-                  throw new Error('Method not found: signProofOfOwnership');
+                mockSignProofBatch.mockResolvedValueOnce({
+                  results: [
+                    { proof: { nonce: 'n-good', signature: '0xgood' } },
+                    { error: 'Method not found: signProofOfOwnershipBatch' },
+                  ],
                 });
 
                 await controller._executePoll();
@@ -1574,6 +1596,82 @@ describe('ProfileMetricsController', () => {
             );
           });
 
+          it('keeps the batch in the queue when signBatch rejects', async () => {
+            const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [{ address, scopes: ['eip155:1'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProofBatch,
+                registerAccounts,
+              }) => {
+                const consoleErrorSpy = jest
+                  .spyOn(console, 'error')
+                  .mockImplementation();
+                registerAccounts([createMockAccount(address.toLowerCase())]);
+                mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
+                mockSignProofBatch.mockRejectedValueOnce(
+                  new Error('batch signing failed'),
+                );
+
+                await controller._executePoll();
+
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                  'Failed to submit profile metrics for sync queue key id1:',
+                  expect.any(Error),
+                );
+                expect(mockSubmitMetrics).not.toHaveBeenCalled();
+                expect(controller.state.syncQueue).toStrictEqual(accounts);
+              },
+            );
+          });
+
+          it('keeps the batch in the queue when signBatch returns the wrong number of results', async () => {
+            const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [{ address, scopes: ['eip155:1'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProofBatch,
+                registerAccounts,
+              }) => {
+                const consoleErrorSpy = jest
+                  .spyOn(console, 'error')
+                  .mockImplementation();
+                registerAccounts([createMockAccount(address.toLowerCase())]);
+                mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
+                mockSignProofBatch.mockResolvedValueOnce({ results: [] });
+
+                await controller._executePoll();
+
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                  'Failed to submit profile metrics for sync queue key id1:',
+                  expect.any(Error),
+                );
+                expect(mockSubmitMetrics).not.toHaveBeenCalled();
+                expect(controller.state.syncQueue).toStrictEqual(accounts);
+              },
+            );
+          });
+
           it('keeps the batch in the queue when submitMetrics fails after proofs have been signed', async () => {
             const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const accounts: Record<string, AccountWithScopes[]> = {
@@ -1589,15 +1687,14 @@ describe('ProfileMetricsController', () => {
                 controller,
                 mockSubmitMetrics,
                 mockFetchNonces,
-                mockSignProof,
+                mockSignProofBatch,
                 registerAccounts,
               }) => {
                 jest.spyOn(console, 'error').mockImplementation();
                 registerAccounts([createMockAccount(address.toLowerCase())]);
                 mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
-                mockSignProof.mockResolvedValueOnce({
-                  nonce: 'n',
-                  signature: '0xsig',
+                mockSignProofBatch.mockResolvedValueOnce({
+                  results: [{ proof: { nonce: 'n', signature: '0xsig' } }],
                 });
                 mockSubmitMetrics.mockRejectedValueOnce(new Error('500'));
 
@@ -1624,7 +1721,7 @@ describe('ProfileMetricsController', () => {
               async ({
                 controller,
                 mockFetchNonces,
-                mockSignProof,
+                mockSignProofBatch,
                 registerAccounts,
               }) => {
                 registerAccounts([
@@ -1634,9 +1731,10 @@ describe('ProfileMetricsController', () => {
                 mockFetchNonces.mockImplementation(async ({ identifiers }) =>
                   Object.fromEntries(identifiers.map((id) => [id, `n-${id}`])),
                 );
-                mockSignProof.mockImplementation(async ({ nonce }) => ({
-                  nonce,
-                  signature: '0xsig',
+                mockSignProofBatch.mockImplementation(async ({ items }) => ({
+                  results: items.map(({ nonce }) => ({
+                    proof: { nonce, signature: '0xsig' },
+                  })),
                 }));
 
                 await controller._executePoll();
@@ -1673,7 +1771,7 @@ describe('ProfileMetricsController', () => {
                 controller,
                 mockSubmitMetrics,
                 mockFetchNonces,
-                mockSignProof,
+                mockSignProofBatch,
                 registerAccounts,
               }) => {
                 registerAccounts([
@@ -1684,9 +1782,8 @@ describe('ProfileMetricsController', () => {
                   },
                 ]);
                 mockFetchNonces.mockResolvedValueOnce({ [evmAddress]: 'n' });
-                mockSignProof.mockResolvedValueOnce({
-                  nonce: 'n',
-                  signature: '0xsig',
+                mockSignProofBatch.mockResolvedValueOnce({
+                  results: [{ proof: { nonce: 'n', signature: '0xsig' } }],
                 });
 
                 await controller._executePoll();
@@ -1695,7 +1792,7 @@ describe('ProfileMetricsController', () => {
                   identifiers: [evmAddress],
                   entropySourceId: 'id1',
                 });
-                expect(mockSignProof).toHaveBeenCalledTimes(1);
+                expect(mockSignProofBatch).toHaveBeenCalledTimes(1);
                 expect(mockSubmitMetrics).toHaveBeenCalledWith(
                   expect.objectContaining({
                     accounts: [
@@ -1920,6 +2017,10 @@ type WithControllerCallback<ReturnValue> = (payload: {
     Promise<AccountOwnershipProof>,
     [ProofOfOwnershipSignRequest]
   >;
+  mockSignProofBatch: jest.Mock<
+    Promise<ProofOfOwnershipSignBatchResponse>,
+    [ProofOfOwnershipSignBatchRequest]
+  >;
   registerAccounts: (accounts: InternalAccount[]) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -1961,6 +2062,7 @@ function getMessenger(
       'ProfileMetricsService:submitMetrics',
       'ProfileMetricsService:fetchNonces',
       'ProofOfOwnershipService:sign',
+      'ProofOfOwnershipService:signBatch',
     ],
     events: [
       'KeyringController:unlock',
@@ -1996,6 +2098,11 @@ async function withController<ReturnValue>(
   const mockSignProof = jest
     .fn()
     .mockRejectedValue(new Error('mockSignProof not configured for this test'));
+  const mockSignProofBatch = jest
+    .fn()
+    .mockRejectedValue(
+      new Error('mockSignProofBatch not configured for this test'),
+    );
   const mockAssertUserOptedIn = jest.fn().mockReturnValue(true);
   const mockGetMetaMetricsId = jest.fn().mockReturnValue('test-metrics-id');
 
@@ -2023,6 +2130,10 @@ async function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'ProofOfOwnershipService:sign',
     mockSignProof,
+  );
+  rootMessenger.registerActionHandler(
+    'ProofOfOwnershipService:signBatch',
+    mockSignProofBatch,
   );
   rootMessenger.registerActionHandler('AccountsController:getState', () => ({
     internalAccounts: {
@@ -2053,6 +2164,7 @@ async function withController<ReturnValue>(
     mockSubmitMetrics,
     mockFetchNonces,
     mockSignProof,
+    mockSignProofBatch,
     registerAccounts,
   });
 }
