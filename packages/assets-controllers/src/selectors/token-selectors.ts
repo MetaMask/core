@@ -241,6 +241,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           balance: stringifyBalanceWithDecimals(
             hexToBigInt(rawBalance),
             nativeToken.decimals,
+            nativeToken.decimals,
           ),
           fiat: fiatData
             ? {
@@ -334,6 +335,7 @@ const selectAllEvmAssets = createAssetListSelector(
             rawBalance,
             balance: stringifyBalanceWithDecimals(
               hexToBigInt(rawBalance),
+              token.decimals,
               token.decimals,
             ),
             fiat: fiatData

@@ -722,6 +722,38 @@ const expectedMockResult = {
 
 describe('token-selectors', () => {
   describe('selectAssetsBySelectedAccountGroup', () => {
+    it('does not truncate the balance of a token with more than 5 decimals', () => {
+      const cirBtc = '0x1111111111111111111111111111111111111111';
+      const account = '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab';
+      const result = selectAssetsBySelectedAccountGroup({
+        ...mockedMergedState,
+        allTokens: {
+          '0x1': {
+            [account]: [
+              ...(mockTokensControllerState.allTokens['0x1'][account] ?? []),
+              {
+                address: cirBtc,
+                decimals: 8,
+                symbol: 'cirBTC',
+                name: 'cirBTC',
+              },
+            ],
+          },
+        },
+        tokenBalances: {
+          [account]: {
+            '0x1': { [cirBtc]: '0x4A5' }, // 1189 (0.00001189 - 8 decimals)
+          },
+        },
+      });
+
+      expect(
+        result['0x1'].find(
+          (asset: { assetId: string }) => asset.assetId === cirBtc,
+        )?.balance,
+      ).toBe('0.00001189');
+    });
+
     it('does not include ignored evm tokens', () => {
       const result = selectAssetsBySelectedAccountGroup(mockedMergedState);
 
