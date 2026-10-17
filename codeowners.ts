@@ -191,6 +191,9 @@ const config = {
       teams: ['@MetaMask/confirmations'],
       initializationPath: 'logging-controller',
     },
+    'marketing-consent-controller': {
+      teams: ['@MetaMask/engagement'],
+    },
     'message-manager': {
       teams: ['@MetaMask/confirmations'],
     },

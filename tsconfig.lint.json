@@ -183,6 +183,9 @@
       "path": "./packages/logging-controller/tsconfig.lint.json"
     },
     {
+      "path": "./packages/marketing-consent-controller/tsconfig.lint.json"
+    },
+    {
       "path": "./packages/message-manager/tsconfig.lint.json"
     },
     {
