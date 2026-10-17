@@ -128,26 +128,6 @@ export function getKnownPropertyNames<Key extends PropertyKey>(
 export type PlainObject = Record<number | string | symbol, unknown>;
 
 /**
- * Predefined sizes (in Bytes) of specific parts of JSON structure.
- */
-/* eslint-disable @typescript-eslint/no-duplicate-enum-values --
-   These are byte sizes, so collisions are meaningful rather than mistakes:
-   a comma, a brace, a quote and a colon are all one byte, and `null` and
-   `true` are both four characters. */
-export enum JsonSize {
-  Null = 4,
-  Comma = 1,
-  Wrapper = 1,
-  True = 4,
-  False = 5,
-  Quote = 1,
-  Colon = 1,
-  // eslint-disable-next-line @typescript-eslint/no-shadow
-  Date = 24,
-}
-/* eslint-enable @typescript-eslint/no-duplicate-enum-values */
-
-/**
  * Regular expression with pattern matching for (special) escaped characters.
  */
 export const ESCAPE_CHARACTERS_REGEXP = /"|\\|\n|\r|\t/gu;
