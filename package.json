@@ -72,7 +72,7 @@
     "@actions/github": "^9.1.1",
     "@jest/globals": "^30.5.2",
     "@lavamoat/allow-scripts": "^5.1.0",
-    "@lavamoat/preinstall-always-fail": "^3.0.0",
+    "@lavamoat/preinstall-always-fail": "^3.0.1",
     "@metamask/action-utils": "^2.0.0",
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/create-release-branch": "^4.2.2",
