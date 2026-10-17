@@ -322,6 +322,9 @@
     },
     {
       "path": "./packages/advanced-chart-core/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/watch-only-account-service/tsconfig.lint.json"
     }
   ]
 }

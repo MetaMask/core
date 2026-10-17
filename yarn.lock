@@ -9719,6 +9719,26 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/watch-only-account-service@workspace:packages/watch-only-account-service":
+  version: 0.0.0-use.local
+  resolution: "@metamask/watch-only-account-service@workspace:packages/watch-only-account-service"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^6.2.1"
+    "@metamask/keyring-api": "npm:^24.2.0"
+    "@metamask/keyring-controller": "npm:^28.1.0"
+    "@metamask/messenger": "npm:^3.0.0"
+    "@types/jest": "npm:^30.0.0"
+    "@typescript/native": "npm:typescript@^7.0.2"
+    deepmerge: "npm:^4.3.1"
+    jest: "npm:^30.5.2"
+    rimraf: "npm:^6.1.3"
+    ts-jest: "npm:^29.4.14"
+    typedoc: "npm:^0.28.20"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
+    typescript: "npm:@typescript/typescript6@^6.0.2"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/watch-only-keyring@npm:^0.1.1":
   version: 0.1.1
   resolution: "@metamask/watch-only-keyring@npm:0.1.1"
