@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `refreshAccountChainBalancesFromRpc` to fetch a single asset via RPC and Accounts API, report Sentry mismatches when Accounts API ≠ RPC or state ≠ Accounts API, and merge the RPC balance into state (no-op when basic functionality is off or for staking vault assets) ([#9910](https://github.com/MetaMask/core/pull/9910))
+
 ### Changed
 
 - Temporarily extend `SnapDataSource` v6 balance fetches, in a deletable block, to also request every token already stored in balance state for the requested chains, so a rollback to Snaps still refreshes tokens that Accounts API and the websocket already support. Remove that block once balance reads fully move to Accounts API ([#10819](https://github.com/MetaMask/core/pull/10819))
