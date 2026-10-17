@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `immer` from `^11.1.18` to `^11.1.21` ([#10723](https://github.com/MetaMask/core/pull/10723))
 
 ## [28.2.0]
 
