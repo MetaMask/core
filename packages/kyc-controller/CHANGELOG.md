@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@noble/curves` from `^1.9.7` to `^2.4.0` ([#10593](https://github.com/MetaMask/core/pull/10593))
 
 ### Removed
 
