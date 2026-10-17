@@ -2,6 +2,9 @@
 // Types
 //
 
+import { createEnum } from './enum.js';
+import type { EnumValue } from './enum.js';
+
 /**
  * Makes every specified property of the specified object type mutable.
  *
@@ -130,22 +133,33 @@ export type PlainObject = Record<number | string | symbol, unknown>;
 /**
  * Predefined sizes (in Bytes) of specific parts of JSON structure.
  */
-/* eslint-disable @typescript-eslint/no-duplicate-enum-values --
-   These are byte sizes, so collisions are meaningful rather than mistakes:
-   a comma, a brace, a quote and a colon are all one byte, and `null` and
-   `true` are both four characters. */
-export enum JsonSize {
-  Null = 4,
-  Comma = 1,
-  Wrapper = 1,
-  True = 4,
-  False = 5,
-  Quote = 1,
-  Colon = 1,
-  // eslint-disable-next-line @typescript-eslint/no-shadow
-  Date = 24,
+// oxlint-disable-next-line no-redeclare
+export const JsonSize = createEnum({
+  Null: 4,
+  Comma: 1,
+  Wrapper: 1,
+  True: 4,
+  False: 5,
+  Quote: 1,
+  Colon: 1,
+  Date: 24,
+});
+
+// oxlint-disable-next-line no-redeclare
+export type JsonSize = EnumValue<typeof JsonSize>;
+
+// oxlint-disable-next-line typescript/no-namespace, no-redeclare
+export declare namespace JsonSize {
+  type Null = typeof JsonSize.Null;
+  type Comma = typeof JsonSize.Comma;
+  type Wrapper = typeof JsonSize.Wrapper;
+  type True = typeof JsonSize.True;
+  type False = typeof JsonSize.False;
+  type Quote = typeof JsonSize.Quote;
+  type Colon = typeof JsonSize.Colon;
+  // oxlint-disable-next-line no-shadow
+  type Date = typeof JsonSize.Date;
 }
-/* eslint-enable @typescript-eslint/no-duplicate-enum-values */
 
 /**
  * Regular expression with pattern matching for (special) escaped characters.
