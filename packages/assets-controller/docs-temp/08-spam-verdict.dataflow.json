@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Spam Verdict — How One Token Is Judged",
+    "quality_profile": "showcase",
+    "viewBox": [1070, 505],
+    "views": [
+      {
+        "id": "evm",
+        "label": "An unknown EVM token",
+        "focus": ["candidate", "exempt", "evm", "verdict", "dropped"],
+        "note": "The whole EVM decision is one number against one threshold: aggregator occurrences against the chain's floor."
+      },
+      {
+        "id": "nonevm",
+        "label": "A non-EVM token",
+        "focus": ["candidate", "exempt", "nonevm", "verdict"],
+        "note": "Solana and other non-EVM mints have no occurrence count, so Blockaid decides instead."
+      },
+      {
+        "id": "exempt",
+        "label": "What is never judged",
+        "focus": ["candidate", "exempt", "unjudged"],
+        "note": "Each of the three filtering passes carries its own skip list; this one belongs to the enrichment stage."
+      },
+      {
+        "id": "effect",
+        "label": "What a drop removes",
+        "focus": ["verdict", "kept", "dropped"],
+        "note": "Stub metadata goes too, so the token cannot look known and slip through as a heal next time."
+      }
+    ],
+    "legend": {
+      "entries": {
+        "emphasis": { "label": "EVM decision path" },
+        "security": { "label": "Removal" },
+        "database": { "label": "Survives" },
+        "default": { "label": "Non-EVM path" }
+      }
+    }
+  },
+  "stages": [
+    { "label": "Candidate" },
+    { "label": "Exemptions" },
+    { "label": "Rule" },
+    { "label": "Verdict" },
+    { "label": "Effect" }
+  ],
+  "nodes": [
+    {
+      "id": "candidate",
+      "type": "messagebus",
+      "label": "One asset id",
+      "sublabel": "in a response or state",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "exempt",
+      "type": "backend",
+      "label": "Exemption check",
+      "sublabel": "four ways to skip",
+      "stage": 1,
+      "row": 0
+    },
+    {
+      "id": "evm",
+      "type": "cloud",
+      "label": "Occurrence floor",
+      "sublabel": "Token API v3 count",
+      "stage": 2,
+      "row": 0
+    },
+    {
+      "id": "nonevm",
+      "type": "external",
+      "label": "Blockaid scan",
+      "sublabel": "bulkScanTokens",
+      "stage": 2,
+      "row": 1
+    },
+    {
+      "id": "verdict",
+      "type": "backend",
+      "label": "Verdict",
+      "sublabel": "keep or drop",
+      "stage": 3,
+      "row": 0
+    },
+    {
+      "id": "kept",
+      "type": "database",
+      "label": "Kept",
+      "sublabel": "metadata persisted",
+      "stage": 4,
+      "row": 0
+    },
+    {
+      "id": "dropped",
+      "type": "security",
+      "label": "Dropped",
+      "sublabel": "balance, info, detected",
+      "stage": 4,
+      "row": 1
+    },
+    {
+      "id": "unjudged",
+      "type": "database",
+      "label": "Kept unjudged",
+      "sublabel": "no scan can remove it",
+      "stage": 4,
+      "row": 2
+    }
+  ],
+  "flows": [
+    {
+      "id": "in",
+      "from": "candidate",
+      "to": "exempt",
+      "label": "asset id",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "to-evm",
+      "from": "exempt",
+      "to": "evm",
+      "label": "eip155 erc20",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "to-nonevm",
+      "from": "exempt",
+      "to": "nonevm",
+      "label": "token namespace"
+    },
+    {
+      "id": "skip",
+      "from": "exempt",
+      "to": "unjudged",
+      "label": "exempt, never scanned",
+      "route": "bottom-channel",
+      "toSide": "bottom",
+      "labelSegment": 1,
+      "labelDx": -190
+    },
+    {
+      "id": "evm-out",
+      "from": "evm",
+      "to": "verdict",
+      "label": "count vs floor",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "nonevm-out",
+      "from": "nonevm",
+      "to": "verdict",
+      "label": "clean or flagged"
+    },
+    {
+      "id": "keep",
+      "from": "verdict",
+      "to": "kept",
+      "label": "passed",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "drop",
+      "from": "verdict",
+      "to": "dropped",
+      "label": "failed",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "What is never scanned",
+      "items": [
+        "Native assets — a chain's own coin is always kept",
+        "Custom assets — a user who imports a token gets to keep it",
+        "Balance-only heals — already held, only the metadata is missing",
+        "Staking contracts and mUSD, both exempted by address"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Where the floor comes from",
+      "items": [
+        "GET /v1/suggestedOccurrenceFloors returns one floor per chain",
+        "Chains the response omits fall back to a floor of 3",
+        "No occurrence data is read as zero, so an unlisted token fails"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "A drop is more than a balance delete",
+      "items": [
+        "Its entry leaves assetsBalance, assetsInfo and the detected list",
+        "Any stub name and symbol seeded by the websocket is deleted too",
+        "Leaving the stub would make the token look known and exempt it as a heal"
+      ]
+    }
+  ]
+}
