@@ -6,6 +6,7 @@ import fs from 'fs/promises';
  */
 export type TscDiagnostic = {
   filePath?: string | undefined;
+  fileLoc?: string | undefined;
   code: string;
   message: string;
 };
@@ -15,6 +16,7 @@ export type TscDiagnostic = {
  */
 export type TscError = TscDiagnostic & {
   filePath: string;
+  fileLoc: string;
 };
 
 /**
@@ -44,7 +46,7 @@ export type UnsuppressedError = {
   code: string;
   count: number;
   suppressedCount: number;
-  messages: string[];
+  occurrences: { fileLoc: string; message: string }[];
 };
 
 /**
@@ -80,7 +82,7 @@ export type TscSuppressionsReport = {
  * Lines that elaborate on a diagnostic are indented, so they never match.
  */
 const DIAGNOSTIC_REGEXP =
-  /^((?<filePath>[^\s(][^(]*)\(\d+,\d+\): )?error (?<code>TS\d+): (?<message>.*)$/u;
+  /^((?<filePath>[^\s(][^(]*)\((?<fileLoc>\d+),\d+\): )?error (?<code>TS\d+): (?<message>.*)$/u;
 
 /**
  * Orders two strings by code unit, so that the suppressions file is written the
@@ -123,6 +125,7 @@ export function parseTscOutput(lines: Iterable<string>): TscDiagnostic[] {
     const match = DIAGNOSTIC_REGEXP.exec(line);
     if (match?.groups) {
       diagnostics.push({
+        fileLoc: match.groups.fileLoc,
         filePath: match.groups.filePath,
         code: String(match.groups.code),
         message: String(match.groups.message),
@@ -301,35 +304,42 @@ export function compareErrorsToSuppressions({
   errors: readonly TscError[];
   suppressions: TscSuppressions;
 }): TscSuppressionsReport {
-  // Group the errors by file and code, keeping their messages so that the
-  // report can show what was actually found.
+  // Group the errors by file and code, keeping where each one occurred and
+  // its message, so that the report can show what was actually found.
   const groups = new Map<
     string,
-    { filePath: string; code: string; messages: string[] }
+    {
+      filePath: string;
+      code: string;
+      occurrences: { fileLoc: string; message: string }[];
+    }
   >();
   for (const error of errors) {
     const group = groups.get(buildKey(error.filePath, error.code));
     if (group) {
-      group.messages.push(error.message);
+      group.occurrences.push({
+        fileLoc: error.fileLoc,
+        message: error.message,
+      });
     } else {
       groups.set(buildKey(error.filePath, error.code), {
         filePath: error.filePath,
         code: error.code,
-        messages: [error.message],
+        occurrences: [{ fileLoc: error.fileLoc, message: error.message }],
       });
     }
   }
 
   const unsuppressedErrors: UnsuppressedError[] = [];
-  for (const { filePath, code, messages } of groups.values()) {
+  for (const { filePath, code, occurrences } of groups.values()) {
     const suppressedCount = suppressions[filePath]?.[code]?.count ?? 0;
-    if (messages.length > suppressedCount) {
+    if (occurrences.length > suppressedCount) {
       unsuppressedErrors.push({
         filePath,
         code,
-        count: messages.length,
+        count: occurrences.length,
         suppressedCount,
-        messages,
+        occurrences,
       });
     }
   }
@@ -339,7 +349,8 @@ export function compareErrorsToSuppressions({
     for (const [code, { count: suppressedCount }] of Object.entries(
       suppressedByCode,
     )) {
-      const count = groups.get(buildKey(filePath, code))?.messages.length ?? 0;
+      const count =
+        groups.get(buildKey(filePath, code))?.occurrences.length ?? 0;
       if (count < suppressedCount) {
         staleSuppressions.push({ filePath, code, count, suppressedCount });
       }
@@ -415,8 +426,8 @@ export function printReport(report: TscSuppressionsReport): void {
       console.log(
         `  ${error.filePath}: ${error.code} (${error.count} found, ${error.suppressedCount} suppressed)`,
       );
-      for (const message of error.messages) {
-        console.log(`    - ${message}`);
+      for (const { fileLoc, message } of error.occurrences) {
+        console.log(`    - Line ${fileLoc}: ${message}`);
       }
     }
   }

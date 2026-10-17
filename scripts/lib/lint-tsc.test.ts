@@ -24,7 +24,12 @@ const { execa } = await import('execa');
 const tscSuppressions = await import('./tsc-suppressions.ts');
 const { lintTsc } = await import('./lint-tsc.ts');
 
-const ERROR = { filePath: 'a.ts', code: 'TS2322', message: 'Nope.' };
+const ERROR = {
+  filePath: 'a.ts',
+  fileLoc: '1',
+  code: 'TS2322',
+  message: 'Nope.',
+};
 
 const PASSING_REPORT = {
   unsuppressedErrors: [],
@@ -117,7 +122,7 @@ describe('lintTsc', () => {
           code: 'TS2322',
           count: 1,
           suppressedCount: 0,
-          messages: ['Nope.'],
+          occurrences: [{ fileLoc: '1', message: 'Nope.' }],
         },
       ],
       staleSuppressions: [],
