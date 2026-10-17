@@ -54,6 +54,7 @@ jobs:
   analyse-code:
     name: Analyse code
     needs: check-workflows
+    if: github.ref_name == 'main'
     uses: MetaMask/action-security-code-scanner/.github/workflows/security-scan.yml@v2
     with:
       scanner-ref: v2
@@ -156,7 +157,6 @@ jobs:
     name: All jobs complete
     runs-on: ubuntu-latest
     needs:
-      - analyse-code
       - check-release
       - lint-build-test
     outputs:
