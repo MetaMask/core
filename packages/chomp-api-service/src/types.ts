@@ -32,10 +32,35 @@ export type SignedDelegation = {
 
 // === PARAMS TYPES ===
 
-export type AssociateAddressParams = {
+/**
+ * Why an address is being associated through the v2 flow. `ASSOCIATE` creates
+ * a normal association, while `ASSOCIATE_SUCCESSOR` also links the address to
+ * its predecessor as the next address in the Money Account identity chain.
+ */
+export type AssociationPurpose = 'ASSOCIATE' | 'ASSOCIATE_SUCCESSOR';
+
+export type CreateAddressChallengeParams =
+  | {
+      address: Hex;
+      purpose: 'ASSOCIATE';
+    }
+  | {
+      address: Hex;
+      purpose: 'ASSOCIATE_SUCCESSOR';
+      /**
+       * The current address of the Money Account that `address` succeeds.
+       * Must be set before any intents exist on `address`.
+       */
+      predecessorAddress: Hex;
+    };
+
+export type AssociateAddressV2Params = {
+  challengeId: string;
+  /**
+   * The `personal_sign` signature of the challenge `message`, signed exactly
+   * as returned by CHOMP with the address being associated.
+   */
   signature: Hex;
-  timestamp: number;
-  address: Hex;
 };
 
 export type CreateUpgradeParams = {
@@ -77,18 +102,34 @@ export type CreateWithdrawalParams = {
 // === RESPONSE TYPES ===
 
 /**
- * Returned by POST /v1/auth/address.
+ * Returned by POST /v2/auth/address.
  *
  * `profileId` is only included when the address was newly associated
  * (`status: 'created'`). When the address was already associated with the
  * authenticated profile (`status: 'active'`), only `address` is returned.
- * Both cases respond with 201; an address associated with a different
- * profile responds with 409, which is surfaced as an error.
+ * An address associated with a different profile responds with 409, which is
+ * surfaced as an error.
  */
 export type AssociateAddressResponse = {
   profileId?: string;
   address: Hex;
   status: 'active' | 'created';
+};
+
+/**
+ * Returned by POST /v2/auth/address/challenge.
+ */
+export type CreateAddressChallengeResponse = {
+  challengeId: string;
+  /**
+   * The EIP-4361 (Sign-In with Ethereum) message to sign, bound to the
+   * profile, chain, purpose, address and predecessor.
+   */
+  message: string;
+  /**
+   * When the challenge expires, as an ISO 8601 timestamp.
+   */
+  expiresAt: string;
 };
 
 /**

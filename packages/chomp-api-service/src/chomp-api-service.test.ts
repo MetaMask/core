@@ -8,22 +8,117 @@ import type {
 import nock from 'nock';
 
 import type { ChompApiServiceMessenger } from './chomp-api-service.js';
-import { ChompApiService } from './chomp-api-service.js';
+import { ChompApiError, ChompApiService } from './chomp-api-service.js';
 
 const BASE_URL = 'https://api.chomp.example.com';
 const MOCK_TOKEN = 'mock-jwt-token';
 
 describe('ChompApiService', () => {
-  describe('associateAddress', () => {
+  describe('createAddressChallenge', () => {
+    const challengeResponse = {
+      challengeId: '7b1e6f0c-1f3a-4d2b-9c8e-2a4b6c8d0e1f',
+      message: 'api.chomp.example.com wants you to sign in...',
+      expiresAt: '2026-10-06T12:05:00.000Z',
+    };
+
+    it('sends a POST with auth headers and returns the challenge', async () => {
+      const params = { address: '0xabc', purpose: 'ASSOCIATE' } as const;
+      nock(BASE_URL)
+        .post('/v2/auth/address/challenge', params)
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .matchHeader('Content-Type', 'application/json')
+        .reply(200, challengeResponse);
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:createAddressChallenge',
+        params,
+      );
+
+      expect(result).toStrictEqual(challengeResponse);
+    });
+
+    it('sends the predecessor address for a successor challenge', async () => {
+      const params = {
+        address: '0xabc',
+        purpose: 'ASSOCIATE_SUCCESSOR',
+        predecessorAddress: '0xdef',
+      } as const;
+      nock(BASE_URL)
+        .post('/v2/auth/address/challenge', params)
+        .reply(200, challengeResponse);
+      const { service } = createService();
+
+      const result = await service.createAddressChallenge(params);
+
+      expect(result).toStrictEqual(challengeResponse);
+    });
+
+    it('requests a new challenge on every call', async () => {
+      const params = { address: '0xabc', purpose: 'ASSOCIATE' } as const;
+      const secondChallenge = {
+        ...challengeResponse,
+        challengeId: '0d9c8b7a-6f5e-4d3c-2b1a-0f9e8d7c6b5a',
+      };
+      nock(BASE_URL)
+        .post('/v2/auth/address/challenge', params)
+        .reply(200, challengeResponse)
+        .post('/v2/auth/address/challenge', params)
+        .reply(200, secondChallenge);
+      const { service } = createService();
+
+      const first = await service.createAddressChallenge(params);
+      const second = await service.createAddressChallenge(params);
+
+      expect(first).toStrictEqual(challengeResponse);
+      expect(second).toStrictEqual(secondChallenge);
+    });
+
+    it('throws a ChompApiError on non-OK status', async () => {
+      nock(BASE_URL)
+        .post('/v2/auth/address/challenge')
+        .reply(404, { statusCode: 404, message: 'Feature not found' });
+      const { service } = createService();
+
+      const error = await service
+        .createAddressChallenge({
+          address: '0xabc',
+          purpose: 'ASSOCIATE_SUCCESSOR',
+          predecessorAddress: '0xdef',
+        })
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(ChompApiError);
+      expect(error).toMatchObject({
+        httpStatus: 404,
+        message: "POST /v2/auth/address/challenge failed with status '404'",
+      });
+    });
+
+    it('throws on malformed response', async () => {
+      nock(BASE_URL)
+        .post('/v2/auth/address/challenge')
+        .reply(200, { challengeId: 'id', expiresAt: 'later' });
+      const { service } = createService();
+
+      await expect(
+        service.createAddressChallenge({
+          address: '0xabc',
+          purpose: 'ASSOCIATE',
+        }),
+      ).rejects.toThrow('At path: message');
+    });
+  });
+
+  describe('associateAddressV2', () => {
     const associateParams = {
+      challengeId: '7b1e6f0c-1f3a-4d2b-9c8e-2a4b6c8d0e1f',
       signature: '0x123' as const,
-      timestamp: 1735689600,
-      address: '0xabc' as const,
     };
 
     it('sends a POST with auth headers and returns the response on 201', async () => {
       nock(BASE_URL)
-        .post('/v1/auth/address', associateParams)
+        .post('/v2/auth/address', associateParams)
         .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
         .matchHeader('Content-Type', 'application/json')
         .reply(201, {
@@ -34,7 +129,7 @@ describe('ChompApiService', () => {
       const { rootMessenger } = createService();
 
       const result = await rootMessenger.call(
-        'ChompApiService:associateAddress',
+        'ChompApiService:associateAddressV2',
         associateParams,
       );
 
@@ -46,13 +141,13 @@ describe('ChompApiService', () => {
     });
 
     it('returns the response when the address is already associated with the profile', async () => {
-      nock(BASE_URL).post('/v1/auth/address').reply(201, {
+      nock(BASE_URL).post('/v2/auth/address').reply(200, {
         address: '0xabc',
         status: 'active',
       });
       const { service } = createService();
 
-      const result = await service.associateAddress(associateParams);
+      const result = await service.associateAddressV2(associateParams);
 
       expect(result).toStrictEqual({
         address: '0xabc',
@@ -60,37 +155,31 @@ describe('ChompApiService', () => {
       });
     });
 
-    it('throws when the address is associated with another profile (409)', async () => {
-      nock(BASE_URL).post('/v1/auth/address').reply(409, {
-        statusCode: 409,
-        message: 'Address is already associated with another profile',
+    it('throws a ChompApiError carrying the CHOMP error code', async () => {
+      nock(BASE_URL).post('/v2/auth/address').reply(400, {
+        statusCode: 400,
+        code: 'CHALLENGE_INVALID_OR_EXPIRED',
+        message: 'Challenge is invalid or expired',
       });
       const { service } = createService();
 
-      await expect(service.associateAddress(associateParams)).rejects.toThrow(
-        "POST /v1/auth/address failed with status '409'",
-      );
-    });
+      const error = await service
+        .associateAddressV2(associateParams)
+        .catch((caught: unknown) => caught);
 
-    it('throws on non-OK status', async () => {
-      nock(BASE_URL)
-        .post('/v1/auth/address')
-        .times(DEFAULT_MAX_RETRIES + 1)
-        .reply(500);
-      const { service } = createService();
-
-      await expect(service.associateAddress(associateParams)).rejects.toThrow(
-        "POST /v1/auth/address failed with status '500'",
-      );
+      expect(error).toBeInstanceOf(ChompApiError);
+      expect(error).toMatchObject({
+        httpStatus: 400,
+        code: 'CHALLENGE_INVALID_OR_EXPIRED',
+        message: "POST /v2/auth/address failed with status '400'",
+      });
     });
 
     it('throws on malformed response', async () => {
-      nock(BASE_URL)
-        .post('/v1/auth/address')
-        .reply(201, JSON.stringify({ missing: 'fields' }));
+      nock(BASE_URL).post('/v2/auth/address').reply(201, { missing: 'fields' });
       const { service } = createService();
 
-      await expect(service.associateAddress(associateParams)).rejects.toThrow(
+      await expect(service.associateAddressV2(associateParams)).rejects.toThrow(
         'At path: address',
       );
     });
