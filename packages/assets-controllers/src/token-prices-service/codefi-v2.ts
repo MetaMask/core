@@ -229,6 +229,7 @@ export const ZERO_ADDRESS: Hex =
 const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x89': '0x0000000000000000000000000000000000001010', // Polygon
   '0x440': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Metis Andromeda
+  '0x1251': '0xa00744882684c3e4747faefd68d283ea44099d03', // IoTeX Mainnet - native IOTX via WIOTX
   '0x1388': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle
 };
 
@@ -289,6 +290,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xab5': 'eip155:2741/erc20:0x0000000000000000000000000000000000000000', // Abstract - Native symbol: ETH
   '0x1079': 'eip155:4217/slip44:60', // Tempo Mainnet - No native asset
   '0x10e6': 'eip155:4326/erc20:0x0000000000000000000000000000000000000000', // MegaETH Mainnet - Native symbol: ETH
+  '0x1251': 'eip155:4689/erc20:0xa00744882684c3e4747faefd68d283ea44099d03', // IoTeX Mainnet - native IOTX (via WIOTX, == coingecko "iotex")
   '0x1388': 'eip155:5000/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle - Native symbol: MNT
   '0x13a7': 'eip155:5031/slip44:5031', // Somnia Mainnet - Native symbol: SOMI
   '0x13b2': 'eip155:5042/slip44:5042', // Arc - Native symbol: USDC
