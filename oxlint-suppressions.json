@@ -2044,20 +2044,14 @@
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.batch-sell.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    },
     "typescript/no-unsafe-assignment": {
-      "count": 9
-    },
-    "typescript/no-unsafe-call": {
-      "count": 2
+      "count": 3
     },
     "typescript/no-unsafe-member-access": {
-      "count": 11
+      "count": 1
     },
     "typescript/no-unsafe-return": {
-      "count": 4
+      "count": 2
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
@@ -2113,7 +2107,7 @@
       "count": 13
     },
     "typescript/no-unsafe-return": {
-      "count": 7
+      "count": 9
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.ts": {

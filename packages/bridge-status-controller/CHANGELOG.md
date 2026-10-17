@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update batch-strategy and batch-sell-strategy history persistence ([#10814](https://github.com/MetaMask/core/pull/10814))
+  - add a history item before submitting transactions. This enables the `TransactionController:transactionStatusUpdated` listener to match the txMeta with history and determine whether to publish the Failed event
+  - include latest `TransactionStatus` when rekey-ing or adding to history
+- Update evm-strategy history persistence ([#10814](https://github.com/MetaMask/core/pull/10814))
+  - if an approval is required, key initial historyItem by `actionId`
+  - rekey to the trade's `actionId` if the approval succeeds
+  - rekey to the trade's `id` on confirmation
+
+### Fixed
+
+- Emit only one `Unified SwapBridge Failed` event when `addTransaction` or `addTransactionBatch` fails ([#10814](https://github.com/MetaMask/core/pull/10814))
+  - Pre-submit history: evm keyed by actionId, batch + batch-sell keyed by batchId
+  - After tx exists: listener publishes Failed; submitTx returns the txMeta
+  - Before tx exists: submitTx catch publishes Failed
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
