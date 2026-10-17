@@ -1,10 +1,11 @@
 // This file is intended to be used only in a Node.js context.
 /* eslint-disable import-x/no-nodejs-modules */
 
+// eslint-disable-next-line no-shadow
+import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { v4 as uuidV4 } from 'uuid';
 
 import { isErrorWithCode, wrapError } from './errors.js';
 import type { Json } from './json.js';
@@ -241,7 +242,11 @@ export async function forceRemove(entryPath: string): Promise<void> {
  * ```
  */
 export function createSandbox(projectName: string): FileSandbox {
-  const directoryPath = path.join(os.tmpdir(), projectName, uuidV4());
+  const directoryPath = path.join(
+    os.tmpdir(),
+    projectName,
+    crypto.randomUUID(),
+  );
 
   return {
     directoryPath,

@@ -7171,16 +7171,13 @@
       "count": 20
     },
     "typescript/no-unsafe-argument": {
-      "count": 12
+      "count": 11
     },
     "typescript/no-unsafe-assignment": {
-      "count": 23
+      "count": 22
     },
     "typescript/no-unsafe-member-access": {
-      "count": 9
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
+      "count": 8
     }
   },
   "packages/utils/src/fs.ts": {
