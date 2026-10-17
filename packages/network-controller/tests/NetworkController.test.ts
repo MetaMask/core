@@ -2561,53 +2561,6 @@ describe('NetworkController', () => {
             });
           });
 
-          describe('if removing the networkDidChange subscription fails for an unknown reason', () => {
-            it('re-throws the error', async () => {
-              const infuraProjectId = 'some-infura-project-id';
-
-              await withController(
-                {
-                  state: {
-                    selectedNetworkClientId: infuraNetworkType,
-                  },
-                  infuraProjectId,
-                },
-                async ({ controller, networkControllerMessenger }) => {
-                  const fakeProvider = buildFakeProvider([
-                    // Called during provider initialization
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                      },
-                      response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                    },
-                    // Called via `lookupNetwork` directly
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                      },
-                      response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                    },
-                  ]);
-                  const fakeNetworkClient = buildFakeClient(fakeProvider);
-                  createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-                  await controller.lookupNetwork();
-
-                  const lookupNetworkPromise = controller.lookupNetwork();
-                  const error = new Error('oops');
-                  jest
-                    .spyOn(networkControllerMessenger, 'unsubscribe')
-                    .mockImplementation((eventType) => {
-                      if (eventType === 'NetworkController:networkDidChange') {
-                        throw error;
-                      }
-                    });
-                  await expect(lookupNetworkPromise).rejects.toThrow(error);
-                },
-              );
-            });
-          });
-
           lookupNetworkTests({
             expectedNetworkClientType: NetworkClientType.Infura,
             expectedNetworkClientId: infuraNetworkType,
@@ -3058,63 +3011,6 @@ describe('NetworkController', () => {
                 const lookupNetworkPromise = controller.lookupNetwork();
                 messenger.clearSubscriptions();
                 expect(await lookupNetworkPromise).toBeUndefined();
-              },
-            );
-          });
-        });
-
-        describe('if removing the networkDidChange subscription fails for an unknown reason', () => {
-          it('re-throws the error', async () => {
-            const infuraProjectId = 'some-infura-project-id';
-
-            await withController(
-              {
-                state: {
-                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                  networkConfigurationsByChainId: {
-                    '0x1337': buildCustomNetworkConfiguration({
-                      chainId: '0x1337',
-                      rpcEndpoints: [
-                        buildCustomRpcEndpoint({
-                          networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        }),
-                      ],
-                    }),
-                  },
-                },
-                infuraProjectId,
-              },
-              async ({ controller, networkControllerMessenger }) => {
-                const fakeProvider = buildFakeProvider([
-                  // Called during provider initialization
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                  },
-                  // Called via `lookupNetwork` directly
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                  },
-                ]);
-                const fakeNetworkClient = buildFakeClient(fakeProvider);
-                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-                await controller.lookupNetwork();
-
-                const lookupNetworkPromise = controller.lookupNetwork();
-                const error = new Error('oops');
-                jest
-                  .spyOn(networkControllerMessenger, 'unsubscribe')
-                  .mockImplementation((eventType) => {
-                    if (eventType === 'NetworkController:networkDidChange') {
-                      throw error;
-                    }
-                  });
-                await expect(lookupNetworkPromise).rejects.toThrow(error);
               },
             );
           });
