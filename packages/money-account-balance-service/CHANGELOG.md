@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/network-controller` from `^37.0.0` to `^37.1.0` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/money-account-api-data-service` from `^2.1.0` to `^2.2.0` ([#10827](https://github.com/MetaMask/core/pull/10827))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#10516](https://github.com/MetaMask/core/pull/10516))
 
 ## [3.1.2]
 
