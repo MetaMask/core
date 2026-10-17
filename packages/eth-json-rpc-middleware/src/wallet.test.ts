@@ -659,6 +659,42 @@ describe('wallet', () => {
         '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
       );
     });
+
+    it('should throw if message data contains extraneous keys', async () => {
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
+      const processTypedMessageV3 = async (): Promise<string> => testMsgSig;
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+        ],
+      });
+
+      const message = {
+        types: {
+          EIP712Domain: [
+            { name: 'name', type: 'string' },
+            { name: 'version', type: 'string' },
+            { name: 'chainId', type: 'uint256' },
+            { name: 'verifyingContract', type: 'address' },
+          ],
+        },
+        primaryType: 'EIP712Domain',
+        domain: {
+          verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+        },
+        message: {},
+        extraKey: 'unexpected',
+      };
+
+      const payload = {
+        method: 'eth_signTypedData_v3',
+        params: [testAddresses[0], JSON.stringify(message)],
+      };
+
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow('Invalid input.');
+    });
   });
 
   describe('signTypedDataV4', () => {
