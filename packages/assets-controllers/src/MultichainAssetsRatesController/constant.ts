@@ -57,6 +57,7 @@ export const MAP_CAIP_CURRENCIES: {
   dkk: 'swift:0/iso4217:DKK',
   eur: 'swift:0/iso4217:EUR',
   gbp: 'swift:0/iso4217:GBP',
+  gel: 'swift:0/iso4217:GEL',
   hkd: 'swift:0/iso4217:HKD',
   huf: 'swift:0/iso4217:HUF',
   idr: 'swift:0/iso4217:IDR',
