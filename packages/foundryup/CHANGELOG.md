@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `tar` from `^7.4.3` to `^7.5.22` ([#10444](https://github.com/MetaMask/core/pull/10444))
-- Bump `yargs` from `^17.7.2` to `^17.7.3` ([#10446](https://github.com/MetaMask/core/pull/10446))
+- Bump `yargs` from `^17.7.2` to `^18.2.0` ([#10446](https://github.com/MetaMask/core/pull/10446), [#10603](https://github.com/MetaMask/core/pull/10603))
 - Bump `minipass` from `^7.1.2` to `^7.1.3` ([#10725](https://github.com/MetaMask/core/pull/10725))
 
 ## [2.0.0]
