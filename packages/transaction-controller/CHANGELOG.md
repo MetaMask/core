@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/core-backend` from `^12.1.0` to `^12.2.0` ([#10857](https://github.com/MetaMask/core/pull/10857))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@ethereumjs/common` from `^4.4.0` to `^10.1.3` ([#10519](https://github.com/MetaMask/core/pull/10519))
+- Bump `@ethereumjs/rlp` from `^5.0.2` to `^10.1.3` ([#10519](https://github.com/MetaMask/core/pull/10519))
+- Bump `@ethereumjs/tx` from `^5.4.0` to `^10.1.3` ([#10519](https://github.com/MetaMask/core/pull/10519))
+- Bump `@ethereumjs/util` from `^9.1.0` to `^10.1.3` ([#10519](https://github.com/MetaMask/core/pull/10519))
 
 ### Fixed
 
