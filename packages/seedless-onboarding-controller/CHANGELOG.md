@@ -39,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
+### Removed
+
+- **BREAKING:** Remove the `checkIsPasswordOutdated` method and `SeedlessOnboardingControllerCheckIsPasswordOutdatedAction` ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - Call `resolvePasswordSyncState({ skipCache })` instead. It performs the same remote check and additionally returns the required recovery step, so a boolean `true` result now corresponds to `PasswordSyncInstruction.PasswordOutdated` for regular checkpoints or `PasswordSyncInstruction.WalletResetRequired` for `KEY_SYNC_PENDING`.
+- **BREAKING:** Remove the `submitGlobalPassword` and `syncLatestGlobalPassword` methods, along with `SeedlessOnboardingControllerSubmitGlobalPasswordAction` and `SeedlessOnboardingControllerSyncLatestGlobalPasswordAction` ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - Call `reconcilePassword({ globalPassword })` instead. When password synchronization is required, it runs both steps internally in the correct order, re-wraps the stored Keyring encryption key, and records the lifecycle phase, none of which happened when the two methods were called directly. For `KEY_SYNC_PENDING` with an outdated remote password, it returns `WalletResetRequired` instead.
+
 ## [12.0.0]
 
 ### Added
@@ -50,13 +57,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Grant `SeedlessOnboardingController` access to `AnalyticsController:trackEvent` and `KeyringController:exportSeedPhrase` ([#10568](https://github.com/MetaMask/core/pull/10568))
   - The `SeedlessOnboardingControllerMessenger` must allow and delegate these actions.
 - Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
-
-### Removed
-
-- **BREAKING:** Remove the `checkIsPasswordOutdated` method and `SeedlessOnboardingControllerCheckIsPasswordOutdatedAction` ([#10148](https://github.com/MetaMask/core/pull/10148))
-  - Call `resolvePasswordSyncState({ skipCache })` instead. It performs the same remote check and additionally returns the required recovery step, so a boolean `true` result now corresponds to `PasswordSyncInstruction.PasswordOutdated` for regular checkpoints or `PasswordSyncInstruction.WalletResetRequired` for `KEY_SYNC_PENDING`.
-- **BREAKING:** Remove the `submitGlobalPassword` and `syncLatestGlobalPassword` methods, along with `SeedlessOnboardingControllerSubmitGlobalPasswordAction` and `SeedlessOnboardingControllerSyncLatestGlobalPasswordAction` ([#10148](https://github.com/MetaMask/core/pull/10148))
-  - Call `reconcilePassword({ globalPassword })` instead. When password synchronization is required, it runs both steps internally in the correct order, re-wraps the stored Keyring encryption key, and records the lifecycle phase, none of which happened when the two methods were called directly. For `KEY_SYNC_PENDING` with an outdated remote password, it returns `WalletResetRequired` instead.
 
 ## [11.0.1]
 

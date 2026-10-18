@@ -51,6 +51,10 @@ import {
 import { projectLogger, createModuleLogger } from './logger.js';
 import { SecretMetadata } from './SecretMetadata.js';
 import {
+  SeedlessOnboardingControllerMessenger,
+  SeedlessOnboardingControllerOptions,
+} from './SeedlessOnboardingController-types.js';
+import {
   getInitialSeedlessOnboardingControllerStateWithDefaults,
   seedlessOnboardingMetadata,
 } from './state.js';
@@ -67,7 +71,6 @@ import type {
 } from './types.js';
 import {
   assertCanChangePassword,
-  assertIsValidVaultData,
   assertIsEncryptedKeyringEncryptionKeySet,
   assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
@@ -88,7 +91,6 @@ import {
   serializeVaultData,
 } from './utils/index.js';
 import type { SecretBackupData } from './utils/index.js';
-import { SeedlessOnboardingControllerMessenger, SeedlessOnboardingControllerOptions } from './SeedlessOnboardingController-types.js';
 
 export type {
   SeedlessOnboardingControllerActions,
@@ -1236,10 +1238,8 @@ export class SeedlessOnboardingController<
   ): Promise<void> {
     const { toprfPwEncryptionKey: encKey } =
       await this.#unlockVaultAndGetVaultData();
-    const encryptedKeyringEncryptionKey = await this.#encryptKeyringEncryptionKey(
-      keyringEncryptionKey,
-      encKey,
-    );
+    const encryptedKeyringEncryptionKey =
+      await this.#encryptKeyringEncryptionKey(keyringEncryptionKey, encKey);
     this.update((state) => {
       state.encryptedKeyringEncryptionKey = encryptedKeyringEncryptionKey;
     });
@@ -1956,7 +1956,10 @@ export class SeedlessOnboardingController<
       const encryptedKeyringEncryptionKey =
         keyringEncryptionKey === undefined
           ? undefined
-          : await this.#encryptKeyringEncryptionKey(keyringEncryptionKey, pwEncKey);
+          : await this.#encryptKeyringEncryptionKey(
+              keyringEncryptionKey,
+              pwEncKey,
+            );
 
       this.update((state) => {
         state.vault = updatedVaultState.vault;
