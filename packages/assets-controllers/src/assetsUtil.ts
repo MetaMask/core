@@ -165,6 +165,7 @@ export enum SupportedTokenDetectionNetworks {
   Hyperevm = '0x3e7', // decimal: 999
   Arc = '0x13b2', // decimal: 5042
   Robinhood = '0x1237', // decimal: 4663
+  DefiOracleMeta = '0x8a', // decimal: 138 — DeFi Oracle Meta Mainnet
 }
 
 /**
