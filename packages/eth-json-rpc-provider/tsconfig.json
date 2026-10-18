@@ -6,7 +6,7 @@
     "forceConsistentCasingInFileNames": true,
     "noErrorTruncation": true,
     "noUncheckedIndexedAccess": true,
-    "target": "es2017"
+    "types": ["jest"]
   },
   "references": [
     {

@@ -24,6 +24,7 @@ export type {
   SeedlessOnboardingControllerVerifyVaultPasswordAction,
   SeedlessOnboardingControllerGetSecretDataBackupStateAction,
   SeedlessOnboardingControllerSubmitPasswordAction,
+  SeedlessOnboardingControllerIdentifyIncompleteMetadataBackupAction,
   SeedlessOnboardingControllerSetLockedAction,
   SeedlessOnboardingControllerGetIsUserAuthenticatedAction,
   SeedlessOnboardingControllerClearStateAction,

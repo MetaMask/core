@@ -288,8 +288,8 @@ export type DeserializedVaultData = Pick<
   VaultData,
   'accessToken' | 'revokeToken'
 > & {
-  toprfEncryptionKey: Uint8Array;
-  toprfPwEncryptionKey: Uint8Array;
+  toprfEncryptionKey: Uint8Array<ArrayBuffer>;
+  toprfPwEncryptionKey: Uint8Array<ArrayBuffer>;
   toprfAuthKeyPair: KeyPair;
 };
 

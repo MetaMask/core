@@ -13,6 +13,7 @@ export type {
   ResourceState,
   TransakState,
   NativeProvidersState,
+  MoneyAccountWalletRegistration,
   MoneyAccountWalletRegistrationResult,
   KeyringControllerSignPersonalMessageAction,
   VbaAutorampStatus,
@@ -294,6 +295,7 @@ export {
   createAutorampAccount,
   applyAutorampRemoteStatus,
   markAutorampNotified,
+  buildMusdAutorampRequest,
   buildBrazilMusdAutorampRequest,
 } from './autorampAccount.js';
 export { buildOwnershipMessage } from './ownership-message.js';

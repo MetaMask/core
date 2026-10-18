@@ -10,7 +10,10 @@ import type {
   SnapKeyringAccountTransactionsUpdatedEvent,
 } from '@metamask/eth-snap-keyring';
 import { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
-import type { KeyringAccountEntropyOptions } from '@metamask/keyring-api';
+import type {
+  KeyringAccount,
+  KeyringAccountEntropyOptions,
+} from '@metamask/keyring-api';
 import {
   EthAccountType,
   EthMethod,
@@ -19,6 +22,7 @@ import {
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
 import { KeyringType } from '@metamask/keyring-api/v2';
+import type { Keyring as KeyringV2 } from '@metamask/keyring-api/v2';
 import type {
   KeyringControllerState,
   KeyringControllerGetKeyringsByTypeAction,
@@ -56,6 +60,7 @@ import {
   isSkippedKeyringType,
   isSnapKeyringType,
   isSnapKeyringV2Type,
+  isWatchOnlyKeyringType,
   keyringTypeToName,
 } from './utils.js';
 
@@ -313,6 +318,13 @@ type StatePatch = {
   }[];
   updated: InternalAccount[];
   removed: InternalAccount[];
+};
+
+/**
+ * A v2 keyring that supports looking up accounts by address synchronously.
+ */
+type KeyringWithLookup = KeyringV2 & {
+  lookupByAddress(address: string): KeyringAccount | undefined;
 };
 
 /**
@@ -682,7 +694,7 @@ export class AccountsController extends BaseController<
     for (const keyring of keyrings) {
       const { type } = keyring;
 
-      // Skipped accounts (Money or MPC) are not treated as real accounts, they are owned by their
+      // Skipped accounts (Money or MPC Money) are not treated as real accounts, they are owned by their
       // respective controllers, so we need to filter them out here.
       if (isSkippedKeyringType(type)) {
         continue;
@@ -897,9 +909,65 @@ export class AccountsController extends BaseController<
       return undefined;
     }
 
+    const account = snapKeyring.getAccountByAddress(address);
+
     // This might be undefined if the Snap deleted the account before
     // reaching that point.
-    return snapKeyring.getAccountByAddress(address);
+    if (!account) {
+      return undefined;
+    }
+
+    // We force the copy of the keyring's account, to avoid sharing its
+    // nested objects (`options`, `methods`, `scopes`) with the keyring,
+    // which controller state updates could mutate or freeze (e.g. through
+    // Immer's auto-freeze).
+    return cloneDeep(account);
+  }
+
+  /**
+   * Get an account from a v2 keyring, by iterating over all the keyrings of
+   * the given type and looking up the account by address.
+   *
+   * NOTE: `:getKeyringsByType` will only return v1 instances, that's why we need to use their v1
+   * adapter + `unwrap` method to get the reference to their v2 instance.
+   *
+   * @param keyringType - The type of the keyrings to look into.
+   * @param address - The address of the account to retrieve.
+   * @param createAccount - Callback to create the final internal account, given the account
+   * retrieved from the keyring and the keyring itself.
+   * @returns The account if available.
+   * @template KeyringV2WithLookup - The concrete type of the v2 keyring.
+   */
+  #getAccountFromV2Keyrings<KeyringV2WithLookup extends KeyringWithLookup>(
+    keyringType: KeyringType,
+    address: string,
+    createAccount: (
+      account: KeyringAccount,
+      keyringV2: KeyringV2WithLookup,
+    ) => InternalAccount,
+  ): InternalAccount | undefined {
+    const keyrings = this.messenger.call(
+      'KeyringController:getKeyringsByType',
+      keyringType,
+    );
+
+    for (const keyring of keyrings) {
+      if (keyring instanceof KeyringV1Adapter) {
+        // NOTE: We are already filtering by `keyringType`, so we are sure that those adapters
+        // are wrapping a keyring of that type.
+        const adapter = keyring as KeyringV1Adapter<KeyringV2WithLookup>;
+        const keyringV2 = adapter.unwrap();
+
+        // We use the synchronous method here since this method is used during `:stateChange` that are
+        // use synchronous handlers.
+        const account = keyringV2.lookupByAddress(address);
+        if (account) {
+          return createAccount(account, keyringV2);
+        }
+      }
+    }
+
+    return undefined;
   }
 
   /**
@@ -909,46 +977,69 @@ export class AccountsController extends BaseController<
    * @returns The Snap account if available.
    */
   #getAccountFromSnapKeyringV2(address: string): InternalAccount | undefined {
-    const keyrings = this.messenger.call(
-      'KeyringController:getKeyringsByType',
-      KeyringType.Snap,
-    );
-
     // Snap keyring v2 are "per-Snaps" (and can be accessed using their v1 adapter), so we need to
     // iterate over all of them to find the account.
-    // NOTE: `:getKeyringsByType` will only return v1 instances, that's why we need to use their v1
-    // adapter + `unwrap` method to get the reference to their v2 instance.
-    for (const keyring of keyrings) {
-      if (keyring instanceof KeyringV1Adapter) {
-        // NOTE: We already filtering by `KeyringType.Snap`, so we are sure that those adapters
-        // are wrapping a Snap keyring v2.
-        const adapter = keyring as KeyringV1Adapter<SnapKeyringV2>;
-        const keyringV2 = adapter.unwrap();
-
-        // We use the synchronous method here since this method is used during `:stateChange` that are
-        // use synchronous handlers.
-        const account = keyringV2.lookupByAddress(address);
-        if (account) {
-          return {
-            ...account,
-            // We still have to use internal account for now, so we inject some metadata.
-            metadata: {
-              name: '',
-              importTime: Date.now(),
-              lastSelected: 0,
-              keyring: {
-                type: KeyringType.Snap,
-              },
-              snap: {
-                id: keyringV2.snapId,
-              },
+    return this.#getAccountFromV2Keyrings(
+      KeyringType.Snap,
+      address,
+      (account, keyringV2: SnapKeyringV2) =>
+        // We force the copy of the keyring's account, to avoid sharing its
+        // nested objects (`options`, `methods`, `scopes`) with the keyring,
+        // which controller state updates could mutate or freeze (e.g. through
+        // Immer's auto-freeze).
+        cloneDeep({
+          ...account,
+          // We still have to use internal account for now, so we inject some metadata.
+          metadata: {
+            name: '',
+            importTime: Date.now(),
+            lastSelected: 0,
+            keyring: {
+              type: KeyringType.Snap,
             },
-          };
-        }
-      }
-    }
+            snap: {
+              id: keyringV2.snapId,
+            },
+          },
+        }),
+    );
+  }
 
-    return undefined;
+  /**
+   * Get an account from a watch-only keyring.
+   *
+   * @param address - The address of the account to retrieve.
+   * @returns The watch-only account if available.
+   */
+  #getAccountFromWatchOnlyKeyring(
+    address: string,
+  ): InternalAccount | undefined {
+    // There is usually only one watch-only keyring, but we iterate over all of
+    // them to find the account, in case more than one was added.
+    // The watch-only account is read from the keyring itself, keeping its ID
+    // and its (empty) list of methods, so we don't re-create an EVM account
+    // without signing methods.
+    return this.#getAccountFromV2Keyrings(
+      KeyringType.WatchOnly,
+      address,
+      (account) =>
+        // We force the copy of the keyring's account, to avoid sharing its
+        // nested objects (`options`, `methods`, `scopes`) with the keyring,
+        // which controller state updates could mutate or freeze (e.g. through
+        // Immer's auto-freeze).
+        cloneDeep({
+          ...account,
+          // We still have to use internal account for now, so we inject some metadata.
+          metadata: {
+            name: '',
+            importTime: Date.now(),
+            lastSelected: 0,
+            keyring: {
+              type: KeyringType.WatchOnly,
+            },
+          },
+        }),
+    );
   }
 
   /**
@@ -1008,7 +1099,7 @@ export class AccountsController extends BaseController<
     // Go over all keyring changes and create patches out of it.
     const addresses = new Set<string>();
     for (const keyring of keyrings) {
-      // Skipped accounts (Money or MPC) are not treated as real accounts, they are owned by their
+      // Skipped accounts (Money or MPC Money) are not treated as real accounts, they are owned by their
       // respective controllers, so we need to filter them out here.
       if (isSkippedKeyringType(keyring.type)) {
         continue;
@@ -1233,22 +1324,17 @@ export class AccountsController extends BaseController<
     const isSnapKeyringV2 = isSnapKeyringV2Type(keyring.type);
 
     if (isSnapKeyringV1 || isSnapKeyringV2) {
-      let account: InternalAccount | undefined;
-
-      if (isSnapKeyringV1) {
-        account = this.#getAccountFromSnapKeyringV1(address);
-      } else {
-        account = this.#getAccountFromSnapKeyringV2(address);
-      }
+      const account = isSnapKeyringV1
+        ? this.#getAccountFromSnapKeyringV1(address)
+        : this.#getAccountFromSnapKeyringV2(address);
 
       if (account) {
-        // We force the copy here, to avoid mutating the reference returned by the Snap keyring.
-        account = cloneDeep(account);
-
         // MIGRATION: To avoid any existing Snap account migration, we are
         // just "adding" the new typed options that we need for multichain
         // accounts. Ultimately, we would need a real Snap account migrations
         // (being handled by each Snaps).
+        // NOTE: The account returned by the helpers above is a detached copy,
+        // so it is safe to mutate here.
         if (isHdSnapKeyringAccount(account)) {
           const options: HdSnapKeyringAccount['options'] = {
             ...account.options,
@@ -1265,6 +1351,13 @@ export class AccountsController extends BaseController<
       }
 
       return account;
+    }
+
+    // Watch-only accounts are read from the watch-only keyring itself (like
+    // Snap v2 accounts), so we don't re-create an EVM account without signing
+    // methods for them.
+    if (isWatchOnlyKeyringType(keyring.type)) {
+      return this.#getAccountFromWatchOnlyKeyring(address);
     }
 
     return this.#getInternalAccountForNonSnapAccount(address, keyring);

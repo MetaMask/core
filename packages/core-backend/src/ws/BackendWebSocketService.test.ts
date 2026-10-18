@@ -107,11 +107,9 @@ class MockWebSocket extends EventTarget {
     MockWebSocket.#instanceCount += 1;
     this.url = url;
     // TypeScript has issues with jest.spyOn on WebSocket methods, so using direct assignment
-    // Store reference to simulateClose for use in close()
     const simulateCloseFn = this.simulateClose.bind(this);
     // eslint-disable-next-line jest/prefer-spy-on
     this.close = jest.fn().mockImplementation((code = 1000, reason = '') => {
-      // When close() is called, trigger the close event to simulate real WebSocket behavior
       simulateCloseFn(code, reason);
     });
     // eslint-disable-next-line jest/prefer-spy-on
@@ -977,6 +975,35 @@ describe('BackendWebSocketService', () => {
       );
     });
 
+    it('does not open another socket when a waiting connect ends with basic functionality off', async () => {
+      let isBasic = true;
+      await withService(
+        {
+          options: { isBasicFunctionality: () => isBasic },
+          mockWebSocketOptions: { autoConnect: false },
+        },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          const firstConnect = service.connect();
+          await completeAsyncOperations(0);
+          const waitingConnect = service.connect();
+
+          isBasic = false;
+          // disconnect() during CONNECTING does not settle the handshake.
+          service.disconnect();
+          getMockWebSocket().triggerOpen();
+          await firstConnect;
+          await waitingConnect;
+          await completeAsyncOperations(5000);
+
+          expect(MockWebSocket.getInstanceCount()).toBe(1);
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+        },
+      );
+    });
+
     // Temporarily disabled due to intermittent failures
     it('should resolve connection promise when manual disconnect occurs during CONNECTING phase', async () => {
       await withService(
@@ -1814,201 +1841,6 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should route account-activity notifications to wildcard channel callbacks', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
-        const subscribedChannel =
-          'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890';
-        const notificationChannel =
-          'account-activity.v1.eip155:42161:0x1234567890123456789012345678901234567890';
-
-        service.addChannelCallback({
-          channelName: subscribedChannel,
-          callback: channelCallback,
-        });
-
-        const notification = {
-          event: 'notification',
-          channel: notificationChannel,
-          subscriptionId: 'stale-subscription-id',
-          data: { address: '0x1234567890123456789012345678901234567890' },
-          timestamp: 1760344704595,
-        };
-
-        mockWs.simulateMessage(notification);
-
-        expect(channelCallback).toHaveBeenCalledWith(notification);
-      });
-    });
-
-    it('should route account-activity notifications to subscriptions by channel when subscriptionId is stale', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const subscriptionCallback = jest.fn();
-        const subscribedChannel =
-          'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890';
-        const notificationChannel =
-          'account-activity.v1.eip155:42161:0x1234567890123456789012345678901234567890';
-
-        await createSubscription(service, mockWs, {
-          channels: [subscribedChannel],
-          callback: subscriptionCallback,
-          requestId: 'test-wildcard-subscribe',
-          subscriptionId: 'sub-123',
-          channelType: 'account-activity.v1',
-        });
-
-        subscriptionCallback.mockClear();
-
-        const notification = {
-          event: 'notification',
-          channel: notificationChannel,
-          subscriptionId: 'stale-server-subscription-id',
-          data: { address: '0x1234567890123456789012345678901234567890' },
-          timestamp: 1760344704595,
-        };
-
-        mockWs.simulateMessage(notification);
-
-        expect(subscriptionCallback).toHaveBeenCalledWith(notification);
-      });
-    });
-
-    it('should normalize nested account-activity notifications before routing', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
-        const subscribedChannel =
-          'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890';
-        const notificationChannel =
-          'account-activity.v1.eip155:42161:0x1234567890123456789012345678901234567890';
-
-        service.addChannelCallback({
-          channelName: subscribedChannel,
-          callback: channelCallback,
-        });
-
-        mockWs.simulateMessage({
-          event: 'data',
-          timestamp: 1760344704595,
-          data: {
-            channel: notificationChannel,
-            subscriptionId: 'stale-subscription-id',
-            message: { address: '0x1234567890123456789012345678901234567890' },
-          },
-        });
-
-        expect(channelCallback).toHaveBeenCalledWith(
-          expect.objectContaining({
-            channel: notificationChannel,
-            data: { address: '0x1234567890123456789012345678901234567890' },
-          }),
-        );
-      });
-    });
-
-    it('should normalize nested account-activity notifications using activity payload', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
-        const subscribedChannel =
-          'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890';
-        const notificationChannel =
-          'account-activity.v1.eip155:42161:0x1234567890123456789012345678901234567890';
-
-        service.addChannelCallback({
-          channelName: subscribedChannel,
-          callback: channelCallback,
-        });
-
-        mockWs.simulateMessage({
-          event: 'data',
-          timestamp: 1760344704595,
-          data: {
-            channel: notificationChannel,
-            subscriptionId: 'stale-subscription-id',
-            activity: { address: '0x1234567890123456789012345678901234567890' },
-          },
-        });
-
-        expect(channelCallback).toHaveBeenCalledWith(
-          expect.objectContaining({
-            channel: notificationChannel,
-            data: { address: '0x1234567890123456789012345678901234567890' },
-          }),
-        );
-      });
-    });
-
-    it('should normalize nested account-activity notifications using nested timestamp and scalar payload', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
-        const subscribedChannel =
-          'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890';
-        const notificationChannel =
-          'account-activity.v1.eip155:42161:0x1234567890123456789012345678901234567890';
-
-        service.addChannelCallback({
-          channelName: subscribedChannel,
-          callback: channelCallback,
-        });
-
-        mockWs.simulateMessage({
-          event: 'data',
-          data: {
-            channel: notificationChannel,
-            timestamp: 1760344704595,
-            payload: 'scalar-payload',
-          },
-        });
-
-        expect(channelCallback).toHaveBeenCalledWith(
-          expect.objectContaining({
-            channel: notificationChannel,
-            timestamp: 1760344704595,
-            data: {
-              channel: notificationChannel,
-              timestamp: 1760344704595,
-              payload: 'scalar-payload',
-            },
-          }),
-        );
-      });
-    });
-
-    it('should preserve non-0x account addresses when parsing account-activity channels', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
-        const address = 'AbCdEf123456789';
-        const subscribedChannel = `account-activity.v1.eip155:0:${address}`;
-        const notificationChannel = `account-activity.v1.eip155:42161:${address}`;
-
-        service.addChannelCallback({
-          channelName: subscribedChannel,
-          callback: channelCallback,
-        });
-
-        mockWs.simulateMessage({
-          event: 'notification',
-          channel: notificationChannel,
-          subscriptionId: 'stale-subscription-id',
-          data: { address },
-          timestamp: 1760344704595,
-        });
-
-        expect(channelCallback).toHaveBeenCalledTimes(1);
-      });
-    });
-
     it('should stringify non-string WebSocket message payloads before parsing', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
@@ -2037,42 +1869,6 @@ describe('BackendWebSocketService', () => {
             data: { value: 1 },
           }),
         );
-      });
-    });
-
-    it('should default nested notification timestamps when nested timestamp is not numeric', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
-        const notificationChannel =
-          'account-activity.v1.eip155:42161:0x1234567890123456789012345678901234567890';
-
-        service.addChannelCallback({
-          channelName:
-            'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890',
-          callback: channelCallback,
-        });
-
-        const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1760344704999);
-
-        mockWs.simulateMessage({
-          event: 'data',
-          data: {
-            channel: notificationChannel,
-            timestamp: 'not-a-number',
-            payload: { address: '0x1234567890123456789012345678901234567890' },
-          },
-        });
-
-        expect(channelCallback).toHaveBeenCalledWith(
-          expect.objectContaining({
-            channel: notificationChannel,
-            timestamp: 1760344704999,
-          }),
-        );
-
-        nowSpy.mockRestore();
       });
     });
 
@@ -2116,93 +1912,7 @@ describe('BackendWebSocketService', () => {
       });
     });
 
-    it('should route subscription notifications via channel fallback when subscriptionId is stale but channel matches exactly', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const subscriptionCallback = jest.fn();
-        const channel =
-          'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890';
-
-        await createSubscription(service, mockWs, {
-          channels: [channel],
-          callback: subscriptionCallback,
-          requestId: 'test-exact-channel-subscribe',
-          subscriptionId: 'sub-exact',
-          channelType: 'account-activity.v1',
-        });
-
-        subscriptionCallback.mockClear();
-
-        const notification = {
-          event: 'notification',
-          channel,
-          subscriptionId: 'stale-subscription-id',
-          data: { address: '0x1234567890123456789012345678901234567890' },
-          timestamp: 1760344704595,
-        };
-
-        mockWs.simulateMessage(notification);
-
-        expect(subscriptionCallback).toHaveBeenCalledWith(notification);
-      });
-    });
-
-    it('should not wildcard-match account-activity channels with different chain refs', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
-
-        service.addChannelCallback({
-          channelName:
-            'account-activity.v1.eip155:42161:0x1234567890123456789012345678901234567890',
-          callback: channelCallback,
-        });
-
-        mockWs.simulateMessage({
-          event: 'notification',
-          channel:
-            'account-activity.v1.eip155:137:0x1234567890123456789012345678901234567890',
-          subscriptionId: 'stale-subscription-id',
-          data: { address: '0x1234567890123456789012345678901234567890' },
-          timestamp: 1760344704595,
-        });
-
-        expect(channelCallback).not.toHaveBeenCalled();
-      });
-    });
-
-    it('should not match subscriptions when channel format cannot be parsed', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const subscriptionCallback = jest.fn();
-
-        await createSubscription(service, mockWs, {
-          channels: ['legacy-channel.v1.test-topic'],
-          callback: subscriptionCallback,
-          requestId: 'test-unparseable-channel-subscribe',
-          subscriptionId: 'sub-unparseable',
-          channelType: 'legacy-channel.v1',
-        });
-
-        subscriptionCallback.mockClear();
-
-        mockWs.simulateMessage({
-          event: 'notification',
-          channel:
-            'account-activity.v1.eip155:42161:0x1234567890123456789012345678901234567890',
-          subscriptionId: 'stale-subscription-id',
-          data: { address: '0x1234567890123456789012345678901234567890' },
-          timestamp: 1760344704595,
-        });
-
-        expect(subscriptionCallback).not.toHaveBeenCalled();
-      });
-    });
-
-    it('should treat server responses with requestId as non-subscription messages for non-account-activity channels', async () => {
+    it('should treat messages with requestId in data as server responses', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
@@ -2222,66 +1932,6 @@ describe('BackendWebSocketService', () => {
         });
 
         expect(channelCallback).not.toHaveBeenCalled();
-      });
-    });
-
-    it('should not wildcard-match account-activity channels with different addresses', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
-
-        service.addChannelCallback({
-          channelName:
-            'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890',
-          callback: channelCallback,
-        });
-
-        mockWs.simulateMessage({
-          event: 'notification',
-          channel:
-            'account-activity.v1.eip155:42161:0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-          subscriptionId: 'stale-subscription-id',
-          data: { address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
-          timestamp: 1760344704595,
-        });
-
-        expect(channelCallback).not.toHaveBeenCalled();
-      });
-    });
-
-    it('should route account-activity notifications that include requestId in data', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const subscriptionCallback = jest.fn();
-        const channel =
-          'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890';
-
-        await createSubscription(service, mockWs, {
-          channels: [channel],
-          callback: subscriptionCallback,
-          requestId: 'test-request-id-in-data-subscribe',
-          subscriptionId: 'sub-with-request-id',
-          channelType: 'account-activity.v1',
-        });
-
-        subscriptionCallback.mockClear();
-
-        const notification = {
-          event: 'notification',
-          channel,
-          subscriptionId: 'sub-with-request-id',
-          data: {
-            requestId: 'orphaned-request-id',
-            address: '0x1234567890123456789012345678901234567890',
-          },
-          timestamp: 1760344704595,
-        };
-
-        mockWs.simulateMessage(notification);
-
-        expect(subscriptionCallback).toHaveBeenCalledWith(notification);
       });
     });
 
@@ -2527,12 +2177,266 @@ describe('BackendWebSocketService', () => {
           // Advance time to trigger reconnection check
           await completeAsyncOperations(70);
 
-          // Should have checked isEnabled and stopped reconnection
+          // The timer calls connect(), which returns without opening a socket.
+          // The failed attempt stays counted.
           expect(mockEnabledCallback).toHaveBeenCalled();
-          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
           expect(service.getConnectionInfo().state).toBe(
             WebSocketState.DISCONNECTED,
           );
+        },
+      );
+    });
+  });
+
+  // =====================================================
+  // BASIC FUNCTIONALITY TESTS
+  // =====================================================
+  describe('isBasicFunctionality', () => {
+    it('does not connect when basic functionality is off', async () => {
+      const isBasicFunctionality = jest.fn().mockReturnValue(false);
+      await withService(
+        {
+          options: { isBasicFunctionality },
+          mockWebSocketOptions: { autoConnect: false },
+        },
+        async ({ service }) => {
+          await service.connect();
+
+          expect(isBasicFunctionality).toHaveBeenCalled();
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+        },
+      );
+    });
+
+    it('does not connect when the feature flag is on but basic functionality is off', async () => {
+      await withService(
+        {
+          options: {
+            isEnabled: () => true,
+            isBasicFunctionality: () => false,
+          },
+          mockWebSocketOptions: { autoConnect: false },
+        },
+        async ({ service, mocks }) => {
+          await service.connect();
+
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+          expect(mocks.getBearerToken).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('stops a scheduled reconnect when basic functionality turns off', async () => {
+      const isBasicFunctionality = jest.fn().mockReturnValue(true);
+      await withService(
+        {
+          options: {
+            isBasicFunctionality,
+            reconnectDelay: 50,
+          },
+        },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+
+          await service.connect();
+          const mockWs = getMockWebSocket();
+          isBasicFunctionality.mockClear();
+
+          mockWs.simulateClose(1006, 'Connection lost');
+          await completeAsyncOperations(0);
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
+
+          isBasicFunctionality.mockReturnValue(false);
+          await completeAsyncOperations(70);
+
+          // The timer calls connect(), which returns without opening a socket.
+          // The failed attempt stays counted.
+          expect(isBasicFunctionality).toHaveBeenCalled();
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+        },
+      );
+    });
+
+    it('disconnects an open socket when basic functionality turns off', async () => {
+      let isBasic = true;
+      let onChange: (() => void) | undefined;
+      await withService(
+        {
+          options: {
+            isBasicFunctionality: () => isBasic,
+            subscribeToBasicFunctionalityChange: (callback) => {
+              onChange = callback;
+              return (): void => undefined;
+            },
+          },
+        },
+        async ({ service, getMockWebSocket }) => {
+          await service.connect();
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTED,
+          );
+
+          isBasic = false;
+          onChange?.();
+
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+          expect(getMockWebSocket().close).toHaveBeenCalled();
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+        },
+      );
+    });
+
+    it('connects when basic functionality turns back on', async () => {
+      let isBasic = false;
+      let onChange: (() => void) | undefined;
+      await withService(
+        {
+          options: {
+            isBasicFunctionality: () => isBasic,
+            subscribeToBasicFunctionalityChange: (callback) => {
+              onChange = callback;
+              return (): void => undefined;
+            },
+          },
+        },
+        async ({ service, completeAsyncOperations }) => {
+          await service.connect();
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+
+          isBasic = true;
+          onChange?.();
+          await completeAsyncOperations();
+
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTED,
+          );
+        },
+      );
+    });
+
+    it('cancels a pending reconnect when basic functionality turns off', async () => {
+      let isBasic = true;
+      let onChange: (() => void) | undefined;
+      await withService(
+        {
+          options: {
+            isBasicFunctionality: () => isBasic,
+            subscribeToBasicFunctionalityChange: (callback) => {
+              onChange = callback;
+              return (): void => undefined;
+            },
+            reconnectDelay: 50,
+          },
+        },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          jest.spyOn(Math, 'random').mockReturnValue(0);
+          await service.connect();
+          getMockWebSocket().simulateClose(1006, 'Connection lost');
+          await completeAsyncOperations(0);
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
+
+          isBasic = false;
+          onChange?.();
+
+          // The socket is already gone, so disconnect() only cancels the timer.
+          // The failed attempt stays counted, and the delay must not open another
+          // socket or schedule a further retry.
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
+          await completeAsyncOperations(200);
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(1);
+        },
+      );
+    });
+
+    it('keeps an open socket when only the feature flag turns off', async () => {
+      let isEnabled = true;
+      await withService(
+        { options: { isEnabled: () => isEnabled } },
+        async ({ service }) => {
+          await service.connect();
+          isEnabled = false;
+          await service.connect();
+
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.CONNECTED,
+          );
+        },
+      );
+    });
+
+    it('does not open a socket when basic functionality turns off while awaiting the bearer token', async () => {
+      let isBasic = true;
+      await withService(
+        { options: { isBasicFunctionality: () => isBasic } },
+        async ({ service, mocks, completeAsyncOperations }) => {
+          mocks.getBearerToken.mockImplementation(async () => {
+            isBasic = false;
+            return 'token';
+          });
+
+          await service.connect();
+          await completeAsyncOperations();
+
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+          expect(service.getConnectionInfo().reconnectAttempts).toBe(0);
+        },
+      );
+    });
+
+    it('closes the socket when basic functionality turns off during the handshake', async () => {
+      let isBasic = true;
+      await withService(
+        {
+          options: { isBasicFunctionality: () => isBasic },
+          mockWebSocketOptions: { autoConnect: false },
+        },
+        async ({ service, getMockWebSocket, completeAsyncOperations }) => {
+          const connectPromise = service.connect();
+          await completeAsyncOperations();
+
+          isBasic = false;
+          getMockWebSocket().triggerOpen();
+          await connectPromise;
+          await completeAsyncOperations();
+
+          expect(getMockWebSocket().close).toHaveBeenCalled();
+          expect(service.getConnectionInfo().state).toBe(
+            WebSocketState.DISCONNECTED,
+          );
+        },
+      );
+    });
+
+    it('unsubscribes from basic functionality changes on destroy', async () => {
+      const unsubscribe = jest.fn();
+      await withService(
+        {
+          options: {
+            subscribeToBasicFunctionalityChange: () => unsubscribe,
+          },
+          mockWebSocketOptions: { autoConnect: false },
+        },
+        async ({ service }) => {
+          service.destroy();
+          expect(unsubscribe).toHaveBeenCalledTimes(1);
         },
       );
     });

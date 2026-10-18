@@ -385,6 +385,9 @@ export type TransactionControllerOptions = {
   /** Whether new transactions will be automatically simulated. */
   isSimulationEnabled?: (transactionMeta?: TransactionMeta) => boolean;
 
+  /** Whether a transaction only interacts with trusted contracts. */
+  isTransactionTrusted?: (transactionMeta: TransactionMeta) => boolean;
+
   /** Whether timeout checking is enabled for a transaction. */
   isTimeoutEnabled?: (transactionMeta: TransactionMeta) => boolean;
 
@@ -762,6 +765,8 @@ export class TransactionController extends BaseController<
 
   readonly #isSimulationEnabled: (transactionMeta?: TransactionMeta) => boolean;
 
+  readonly #isTransactionTrusted: (transactionMeta: TransactionMeta) => boolean;
+
   readonly #isSwapsDisabled: boolean;
 
   readonly #isTimeoutEnabled: (transactionMeta: TransactionMeta) => boolean;
@@ -807,6 +812,7 @@ export class TransactionController extends BaseController<
       isEIP7702GasFeeTokensEnabled,
       isFirstTimeInteractionEnabled,
       isSimulationEnabled,
+      isTransactionTrusted,
       isTimeoutEnabled,
       messenger,
       publicKeyEIP7702,
@@ -854,6 +860,7 @@ export class TransactionController extends BaseController<
     this.#isFirstTimeInteractionEnabled =
       isFirstTimeInteractionEnabled ?? ((): boolean => true);
     this.#isSimulationEnabled = isSimulationEnabled ?? ((): boolean => true);
+    this.#isTransactionTrusted = isTransactionTrusted ?? ((): boolean => false);
     this.#isSwapsDisabled = disableSwaps ?? false;
     this.#isTimeoutEnabled = isTimeoutEnabled ?? ((): boolean => true);
     this.#publicKeyEIP7702 = publicKeyEIP7702;
@@ -3863,9 +3870,8 @@ export class TransactionController extends BaseController<
         this,
         chainId,
       ),
-      getConfirmedTransactions: this.#getNonceTrackerTransactions.bind(
+      getConfirmedTransactions: this.#getNonceTrackerConfirmedTransactions.bind(
         this,
-        [TransactionStatus.confirmed],
         chainId,
       ),
     });
@@ -3939,6 +3945,17 @@ export class TransactionController extends BaseController<
     pendingTransactionTracker.hub.on(
       'transaction-updated',
       this.updateTransaction.bind(this),
+    );
+  }
+
+  #getNonceTrackerConfirmedTransactions(
+    chainId: string,
+    address: string,
+  ): NonceTrackerTransaction[] {
+    return this.#getNonceTrackerTransactions(
+      [TransactionStatus.confirmed],
+      address,
+      chainId,
     );
   }
 
@@ -4051,6 +4068,7 @@ export class TransactionController extends BaseController<
         resimulateResponse = shouldResimulate(
           originalTransactionMeta,
           transactionMeta,
+          this.#isTransactionTrusted(transactionMeta),
         );
       }
 

@@ -9,9 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the shared `all` feed scope to `FetchFeedOptions` and export `FeedScope`. Preserve optional `eventId`, `revision`, and `occurredAt` projection metadata on `FeedItem` ([#10865](https://github.com/MetaMask/core/pull/10865))
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^12.1.0` to `^12.2.0` ([#10857](https://github.com/MetaMask/core/pull/10857))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+## [3.8.0]
+
+### Added
+
+- Add `createCopyTradeIntent` method to `SocialService` (and the `SocialService:createCopyTradeIntent` messenger action). Calls `POST /v1/copy-trade-intents` with the comment origin, the copier's CAIP-10 account, and the execution (a swaps `quoteId` or a perps `oid`), and returns the validated `CopyTradeIntentResponse`. Both 201 (created) and 200 (existing intent) resolve ([#10823](https://github.com/MetaMask/core/pull/10823))
+  - Export the `CreateCopyTradeIntentOptions`, `CopyTradeIntentResponse`, `CopyTradeOrigin`, `CopyTradeExecution`, `CopyTradeAccount`, and `CopyTradePayoutEligibility` types
+
+### Changed
+
+- Preserve optional per-position copy counts from Social API responses ([#10801](https://github.com/MetaMask/core/pull/10801))
+- Bump `@metamask/core-backend` from `^12.0.1` to `^12.1.0` ([#10788](https://github.com/MetaMask/core/pull/10788))
+
+### Fixed
+
+- Set `staleTime: 0` on `fetchFollowers` and `fetchTraderFollowing` so follow-list refetches after follow/unfollow are not served from the 1-minute `BaseDataService` cache ([#10789](https://github.com/MetaMask/core/pull/10789))
+
+## [3.7.0]
+
+### Added
+
+- Add optional `mutuals` flag to `fetchFollowers` (`FetchFollowersOptions`). When `true`, calls bearer-authenticated `GET /traders/:addressOrId/followers?mutuals=true` (social-api [#386](https://github.com/consensys-vertical-apps/va-mmcx-social-api/pull/386)); `count` is the mutual total. Omitted or `false` keeps the full follower list ([#10770](https://github.com/MetaMask/core/pull/10770))
 - Add `fetchMyFollowing` method to `SocialService` (and the `SocialService:fetchMyFollowing` messenger action) as an alias of `fetchFollowing`. Both call `GET /users/me/following`. Prefer `fetchMyFollowing` in new code so it pairs with `fetchMyFollowers`; `fetchFollowing` is unchanged ([#10701](https://github.com/MetaMask/core/pull/10701))
 - Add `fetchTraderFollowing` method to `SocialService` (and the `SocialService:fetchTraderFollowing` messenger action) for another trader's outbound follows. Calls bearer-authenticated `GET /traders/:addressOrId/following` (social-api [#380](https://github.com/consensys-vertical-apps/va-mmcx-social-api/pull/380)) and returns `FollowingResponse` (`following` profile summaries plus total `count`). Distinct from `fetchFollowing`, which loads the **current user's** list via `GET /users/me/following`. `fetchFollowers` uses the same auth model for `GET /traders/:addressOrId/followers` ([#10689](https://github.com/MetaMask/core/pull/10689))
 - Add `fetchMyFollowers` method to `SocialService` (and the `SocialService:fetchMyFollowers` messenger action) for the authenticated user's inbound followers. Calls `GET /users/me/followers` and returns `FollowersResponse` (`followers` profile summaries plus total `count`) ([#10649](https://github.com/MetaMask/core/pull/10649))
+
+### Changed
+
+- Allow `boughtUsd`, `soldUsd`, `realizedPnl`, and `costBasis` to be `null` on `Position` / feed items, matching incomplete Clicker metrics the social-api may serialize as JSON `null` ([#10753](https://github.com/MetaMask/core/pull/10753))
+- Drop individual `fetchFeed`, `fetchTraderFeed`, and `fetchTokenFeed` items that fail validation instead of rejecting the whole page ([#10753](https://github.com/MetaMask/core/pull/10753))
+- Update `SocialRealtimeService` to subscribe to the trending Social feed channel and forward every valid event from batched notifications ([#10751](https://github.com/MetaMask/core/pull/10751))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
 
 ## [3.6.0]
 
@@ -256,7 +291,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.8.0...HEAD
+[3.8.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.7.0...@metamask/social-controllers@3.8.0
+[3.7.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.6.0...@metamask/social-controllers@3.7.0
 [3.6.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.5.0...@metamask/social-controllers@3.6.0
 [3.5.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.4.0...@metamask/social-controllers@3.5.0
 [3.4.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.3.0...@metamask/social-controllers@3.4.0

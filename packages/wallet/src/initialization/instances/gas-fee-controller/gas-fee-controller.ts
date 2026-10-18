@@ -18,6 +18,7 @@ export const gasFeeController: InitializationConfiguration<
   GasFeeMessenger
 > = {
   name: 'GasFeeController',
+  reference: GasFeeController,
   init: ({ state, messenger, options }) => {
     const {
       clientId,

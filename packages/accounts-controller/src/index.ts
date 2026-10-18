@@ -45,4 +45,5 @@ export {
   getUUIDOptionsFromAddressOfNormalAccount,
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
+  isWatchOnlyKeyringType,
 } from './utils.js';

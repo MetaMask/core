@@ -7,6 +7,7 @@ import {
   AutorampStatus,
   applyAutorampRemoteStatus,
   buildBrazilMusdAutorampRequest,
+  buildMusdAutorampRequest,
   createAutorampAccount,
   isTerminalAutorampStatus,
   markAutorampNotified,
@@ -14,6 +15,32 @@ import {
 } from './autorampAccount.js';
 
 describe('autorampAccount', () => {
+  describe('buildMusdAutorampRequest', () => {
+    it('builds a standing USD to mUSD autoramp on Monad', () => {
+      expect(buildMusdAutorampRequest('0xabc', 'USD')).toMatchInlineSnapshot(`
+        {
+          "destination_currency": {
+            "blockchain": "Monad",
+            "token": "mUSD",
+            "type": "Crypto",
+          },
+          "recipient_account": {
+            "address": "0xabc",
+            "chain": "Monad",
+            "type": "Crypto",
+          },
+          "source_currencies": [
+            {
+              "code": "USD",
+              "type": "Fiat",
+            },
+          ],
+          "source_is_third_party": false,
+        }
+      `);
+    });
+  });
+
   describe('buildBrazilMusdAutorampRequest', () => {
     it('builds a standing BRL to mUSD autoramp on Monad', () => {
       expect(buildBrazilMusdAutorampRequest('0xabc')).toMatchInlineSnapshot(`
@@ -37,6 +64,12 @@ describe('autorampAccount', () => {
           "source_is_third_party": false,
         }
       `);
+    });
+
+    it('matches the generalized builder for BRL', () => {
+      expect(buildBrazilMusdAutorampRequest('0xabc')).toStrictEqual(
+        buildMusdAutorampRequest('0xabc', 'BRL'),
+      );
     });
   });
 

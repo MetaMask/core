@@ -35,6 +35,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `addNewSecretData` and `runMigrations` now reject while `seedlessOperationLifecycle` is set, including the `LOCAL_PASSWORD_PENDING` state left after a successful password change. They throw `PasswordChangeInProgress` for a pending password change and `OperationInProgress` for another password-recovery operation; clients must complete recovery first ([#10148](https://github.com/MetaMask/core/pull/10148))
 - `storeKeyringEncryptionKey` and `loadKeyringEncryptionKey` now acquire the controller lock, so they wait for any in-flight controller operation before reading or writing the Keyring encryption key ([#10148](https://github.com/MetaMask/core/pull/10148))
 - **BREAKING:** `clearState` now returns a promise and waits for in-flight controller operations before clearing state. It also clears the in-memory decrypted vault data to prevent a completed operation from restoring cleared state ([#10148](https://github.com/MetaMask/core/pull/10148))
+- Replace JS AES implementation with `@metamask/cryptography` ([#10659](https://github.com/MetaMask/core/pull/10659))
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+## [12.0.0]
+
+### Added
+
+- Expose `SeedlessOnboardingController:identifyIncompleteMetadataBackup` so clients can identify incomplete primary SRP metadata backups after unlocking ([#10568](https://github.com/MetaMask/core/pull/10568))
+
+### Changed
+
+- **BREAKING:** Grant `SeedlessOnboardingController` access to `AnalyticsController:trackEvent` and `KeyringController:exportSeedPhrase` ([#10568](https://github.com/MetaMask/core/pull/10568))
+  - The `SeedlessOnboardingControllerMessenger` must allow and delegate these actions.
 - Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
 
 ### Removed
@@ -486,7 +500,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@11.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@11.0.1...@metamask/seedless-onboarding-controller@12.0.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@11.0.0...@metamask/seedless-onboarding-controller@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.1.1...@metamask/seedless-onboarding-controller@11.0.0
 [10.1.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.1.0...@metamask/seedless-onboarding-controller@10.1.1

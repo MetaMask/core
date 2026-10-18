@@ -1,9 +1,13 @@
+import {
+  ChainId as ControllerChainId,
+  convertHexToDecimal,
+} from '@metamask/controller-utils';
+import type { TokenApiClient } from '@metamask/core-backend';
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from '../../../logger.js';
 import type { MulticallClient } from '../clients/index.js';
-import type { TokensApiClient } from '../clients/TokensApiClient.js';
 import type {
   AccountId,
   Address,
@@ -17,6 +21,46 @@ import type {
   TokenListEntry,
 } from '../types/index.js';
 import { reduceInBatchesSerially } from '../utils/index.js';
+
+/**
+ * Fallback `occurrenceFloor` when `/v1/suggestedOccurrenceFloors` has no entry
+ * for the chain, or the floors request fails.
+ */
+const DEFAULT_OCCURRENCE_FLOOR = 3;
+
+/** How long to keep `/v2/supportedNetworks` cached. */
+const SUPPORTED_NETWORKS_CACHE_TTL_MS = 60 * 60_000;
+
+/** How long to keep `/v1/suggestedOccurrenceFloors` cached. */
+const SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS = 60 * 60_000;
+
+/**
+ * Token-list cache window used when the caller shares a QueryClient.
+ * Without one, the list is refetched on every call.
+ */
+const TOKEN_LIST_STALE_TIME_MS = 5 * 60_000;
+const TOKEN_LIST_GC_TIME_MS = 60 * 60_000;
+
+type ApiTokenListItem = {
+  address: string;
+  symbol?: string;
+  name?: string;
+  decimals?: number;
+  occurrences?: number;
+  aggregators?: string[];
+  iconUrl?: string;
+};
+
+/**
+ * Token-list calls TokenDetector makes. `TokenApiClient` satisfies this, and
+ * tests can pass an object with only these methods.
+ */
+type TokenListApi = Pick<
+  TokenApiClient,
+  | 'fetchV2SupportedNetworks'
+  | 'fetchV1SuggestedOccurrenceFloors'
+  | 'fetchTokenList'
+>;
 
 const log = createModuleLogger(projectLogger, 'TokenDetector');
 
@@ -58,22 +102,28 @@ export type OnDetectionUpdateCallback = (result: TokenDetectionResult) => void;
 export class TokenDetector extends StaticIntervalPollingControllerOnly<DetectionPollingInput>() {
   readonly #multicallClient: MulticallClient;
 
-  readonly #tokensApiClient: TokensApiClient;
+  readonly #tokenApi: TokenListApi;
 
   readonly #config: Required<Omit<TokenDetectorConfig, 'pollingInterval'>>;
 
   readonly #tokenListCache: Map<ChainId, TokenListEntry[]> = new Map();
 
+  /**
+   * Last successful `/v2/supportedNetworks` CAIP chain IDs.
+   * A failed refresh leaves this in place so detection can continue.
+   */
+  #supportedChainIds: Set<string> | undefined;
+
   #onDetectionUpdate: OnDetectionUpdateCallback | undefined;
 
   constructor(
     multicallClient: MulticallClient,
-    tokensApiClient: TokensApiClient,
+    tokenApi: TokenListApi,
     config?: TokenDetectorConfig,
   ) {
     super();
     this.#multicallClient = multicallClient;
-    this.#tokensApiClient = tokensApiClient;
+    this.#tokenApi = tokenApi;
     this.#config = {
       tokenDetectionEnabled:
         config?.tokenDetectionEnabled ?? ((): boolean => true),
@@ -126,8 +176,30 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
    * @returns Array of token contract addresses.
    */
   async getTokensToCheck(chainId: ChainId): Promise<Address[]> {
-    const tokenList = await this.#fetchAndCacheTokenList(chainId);
+    const tokenList = await this.fetchAndCacheTokenList(chainId);
     return tokenList.map((entry) => entry.address as Address);
+  }
+
+  /**
+   * Fetch the mapped token list for a chain and keep it for metadata lookups.
+   *
+   * @param chainId - Chain ID in hex format.
+   * @returns Token list entries, including fields the address list drops.
+   */
+  async fetchAndCacheTokenList(chainId: ChainId): Promise<TokenListEntry[]> {
+    try {
+      const list = await this.#fetchTokenList(chainId);
+      this.#tokenListCache.set(chainId, list);
+      return list;
+    } catch (error) {
+      const cached = this.#tokenListCache.get(chainId);
+      log('Failed to fetch token list; using stale cache', {
+        chainId,
+        cachedCount: cached?.length ?? 0,
+        error,
+      });
+      return cached ?? [];
+    }
   }
 
   async detectTokens(
@@ -219,22 +291,6 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
       ...result,
       timestamp,
     };
-  }
-
-  async #fetchAndCacheTokenList(chainId: ChainId): Promise<TokenListEntry[]> {
-    try {
-      const list = await this.#tokensApiClient.fetchTokenList(chainId);
-      this.#tokenListCache.set(chainId, list);
-      return list;
-    } catch (error) {
-      const cached = this.#tokenListCache.get(chainId);
-      log('Failed to fetch token list; using stale cache', {
-        chainId,
-        cachedCount: cached?.length ?? 0,
-        error,
-      });
-      return cached ?? [];
-    }
   }
 
   #processBalanceResponses(
@@ -329,6 +385,126 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     } catch {
       return rawBalance;
     }
+  }
+
+  /**
+   * Load the ERC-20 list for a chain from `@metamask/core-backend`
+   * `TokenApiClient`:
+   * - `GET /v2/supportedNetworks`
+   * - `GET /v1/suggestedOccurrenceFloors`
+   * - `GET /tokens/{chainId}`
+   *
+   * Returns `[]` when the chain is unsupported, supported networks have never
+   * loaded, or the token-list request fails. A failed refresh of
+   * `/v2/supportedNetworks` reuses the last successful list. Linea mainnet
+   * keeps entries flagged by `lineaTeam` or seen by at least 3 aggregators.
+   *
+   * @param hexChainId - Chain ID in hex format (for example `'0x1'`).
+   * @returns Token list entries, or an empty array.
+   */
+  async #fetchTokenList(hexChainId: ChainId): Promise<TokenListEntry[]> {
+    if (!(await this.#isSupportedChain(hexChainId))) {
+      return [];
+    }
+
+    return this.#fetchTokenListEntries(hexChainId);
+  }
+
+  async #isSupportedChain(hexChainId: ChainId): Promise<boolean> {
+    const caipChainId = `eip155:${convertHexToDecimal(hexChainId)}`;
+    try {
+      const data = await this.#tokenApi.fetchV2SupportedNetworks({
+        staleTime: SUPPORTED_NETWORKS_CACHE_TTL_MS,
+        gcTime: SUPPORTED_NETWORKS_CACHE_TTL_MS,
+        retry: false,
+      });
+      this.#supportedChainIds = new Set([
+        ...(data.fullSupport ?? []),
+        ...(data.partialSupport ?? []),
+      ]);
+    } catch {
+      // Leave `#supportedChainIds` unchanged. The first failure has no list yet.
+    }
+    return this.#supportedChainIds?.has(caipChainId) ?? false;
+  }
+
+  async #getOccurrenceFloor(hexChainId: ChainId): Promise<number> {
+    try {
+      const data = await this.#tokenApi.fetchV1SuggestedOccurrenceFloors({
+        staleTime: SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS,
+        gcTime: SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS,
+        retry: false,
+      });
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        const decimalChainId = String(convertHexToDecimal(hexChainId));
+        return data[decimalChainId] ?? DEFAULT_OCCURRENCE_FLOOR;
+      }
+    } catch {
+      // Fall through to the default floor.
+    }
+    return DEFAULT_OCCURRENCE_FLOOR;
+  }
+
+  async #fetchTokenListEntries(hexChainId: ChainId): Promise<TokenListEntry[]> {
+    const decimalChainId = convertHexToDecimal(hexChainId);
+    const occurrenceFloor = await this.#getOccurrenceFloor(hexChainId);
+
+    try {
+      const raw = await this.#tokenApi.fetchTokenList(
+        decimalChainId,
+        {
+          occurrenceFloor,
+          includeNativeAssets: false,
+          includeTokenFees: false,
+          includeAssetType: false,
+          includeERC20Permit: false,
+          includeStorage: false,
+          includeRwaData: true,
+        },
+        {
+          staleTime: TOKEN_LIST_STALE_TIME_MS,
+          gcTime: TOKEN_LIST_GC_TIME_MS,
+          retry: false,
+        },
+      );
+      const items: ApiTokenListItem[] = Array.isArray(raw) ? raw : [];
+      return this.#applyChainSpecificFilters(hexChainId, items).map((item) => ({
+        address: item.address,
+        symbol: item.symbol ?? '',
+        name: item.name ?? '',
+        decimals: item.decimals ?? 18,
+        iconUrl: item.iconUrl,
+        aggregators: item.aggregators,
+        occurrences: item.occurrences,
+      }));
+    } catch (error) {
+      console.error(
+        `Tokens API request failed for chain ${hexChainId}:`,
+        error,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Apply chain-specific filters, mirroring `fetchTokenListByChainId` in
+   * `assets-controllers/src/token-service.ts`.
+   *
+   * @param hexChainId - Hex chain ID.
+   * @param items - Raw items from the API response.
+   * @returns Items after chain-specific filtering.
+   */
+  #applyChainSpecificFilters(
+    hexChainId: ChainId,
+    items: ApiTokenListItem[],
+  ): ApiTokenListItem[] {
+    if (hexChainId === ControllerChainId['linea-mainnet']) {
+      return items.filter((item) => {
+        const aggregators = item.aggregators ?? [];
+        return aggregators.includes('lineaTeam') || aggregators.length >= 3;
+      });
+    }
+    return items;
   }
 
   #getTokenMetadata(

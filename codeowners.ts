@@ -94,6 +94,7 @@ const config = {
         '@MetaMask/extension-platform',
         '@MetaMask/mobile-platform',
       ],
+      initializationPath: 'client-controller',
     },
     'client-utils': {
       teams: ['@MetaMask/core-extension-ux', '@MetaMask/mobile-core-ux'],
@@ -188,6 +189,7 @@ const config = {
     },
     'logging-controller': {
       teams: ['@MetaMask/confirmations'],
+      initializationPath: 'logging-controller',
     },
     'message-manager': {
       teams: ['@MetaMask/confirmations'],
@@ -206,6 +208,9 @@ const config = {
     },
     'money-account-controller': {
       teams: ['@MetaMask/accounts-engineers'],
+    },
+    'money-account-mfa-whitelist': {
+      teams: ['@MetaMask/earn'],
     },
     'money-account-upgrade-controller': {
       teams: ['@MetaMask/earn', '@MetaMask/delegation'],
@@ -237,6 +242,7 @@ const config = {
     },
     'network-controller': {
       teams: ['@MetaMask/core-platform', '@MetaMask/metamask-assets'],
+      initializationPath: 'network-controller',
     },
     'network-enablement-controller': {
       teams: ['@MetaMask/metamask-assets'],
@@ -250,6 +256,7 @@ const config = {
     },
     'permission-controller': {
       teams: ['@MetaMask/core-platform'],
+      initializationPath: 'permission-controller',
     },
     'permission-log-controller': {
       teams: ['@MetaMask/core-platform'],
@@ -304,6 +311,7 @@ const config = {
     },
     'selected-network-controller': {
       teams: ['@MetaMask/core-platform'],
+      initializationPath: 'selected-network-controller',
     },
     'sentinel-api-service': {
       teams: ['@MetaMask/confirmations', '@MetaMask/transactions'],
@@ -365,6 +373,9 @@ const config = {
       initializationPath: 'transaction-controller',
     },
     'transaction-pay-controller': {
+      teams: ['@MetaMask/confirmations'],
+    },
+    'transaction-pay-middleware': {
       teams: ['@MetaMask/confirmations'],
     },
     'user-operation-controller': {

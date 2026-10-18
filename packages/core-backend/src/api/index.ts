@@ -71,6 +71,8 @@ export type {
 export { TokenApiClient } from './token/index.js';
 export type {
   TokenMetadata,
+  TokenListQueryOptions,
+  TokenV2SupportedNetworksResponse,
   V1TokenDescriptionResponse,
   NetworkInfo,
   TopAsset,

@@ -6,6 +6,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
+    "types": ["jest"],
     "paths": {
       "@metamask/utils/node": ["./packages/utils/src/node.ts"],
       "@metamask/utils": ["./packages/utils/src/index.ts"]
@@ -184,6 +185,9 @@
       "path": "./packages/money-account-controller"
     },
     {
+      "path": "./packages/money-account-mfa-whitelist"
+    },
+    {
       "path": "./packages/money-account-upgrade-controller"
     },
     {
@@ -308,6 +312,9 @@
     },
     {
       "path": "./packages/transaction-pay-controller"
+    },
+    {
+      "path": "./packages/transaction-pay-middleware"
     },
     {
       "path": "./packages/user-operation-controller"

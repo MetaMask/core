@@ -12,6 +12,7 @@ export const seedlessOnboardingController: InitializationConfiguration<
   SeedlessOnboardingControllerMessenger
 > = {
   name: 'SeedlessOnboardingController',
+  reference: SeedlessOnboardingController,
   init: ({ state, messenger, options }) =>
     new SeedlessOnboardingController({
       ...options,
@@ -19,9 +20,20 @@ export const seedlessOnboardingController: InitializationConfiguration<
       state,
       messenger,
     }),
-  getMessenger: (parent) =>
-    new Messenger({
+  getMessenger: (parent) => {
+    const messenger: SeedlessOnboardingControllerMessenger = new Messenger({
       namespace: 'SeedlessOnboardingController',
       parent,
-    }),
+    });
+
+    parent.delegate({
+      messenger,
+      actions: [
+        'AnalyticsController:trackEvent',
+        'KeyringController:exportSeedPhrase',
+      ],
+    });
+
+    return messenger;
+  },
 };

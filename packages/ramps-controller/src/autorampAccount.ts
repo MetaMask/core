@@ -67,18 +67,21 @@ export type AutorampAccount = {
 export type CreateAutorampRequest = Record<string, unknown>;
 
 /**
- * Standing BRL → mUSD autoramp for a Money Account on Monad.
+ * Standing fiat → mUSD autoramp for a Money Account on Monad.
  *
  * `customer_id` is omitted; {@link RampsController.createAutoramp} injects it.
+ * The fiat code is required: this helper does not default to BRL.
  *
  * @param walletAddress - Money Account address that receives mUSD.
+ * @param sourceCurrencyCode - Fiat code placed in `source_currencies[0].code`.
  * @returns MoonPay `POST /autoramps` market body.
  */
-export function buildBrazilMusdAutorampRequest(
+export function buildMusdAutorampRequest(
   walletAddress: string,
+  sourceCurrencyCode: string,
 ): CreateAutorampRequest {
   return {
-    source_currencies: [{ type: 'Fiat', code: 'BRL' }],
+    source_currencies: [{ type: 'Fiat', code: sourceCurrencyCode }],
     destination_currency: {
       type: 'Crypto',
       token: 'mUSD',
@@ -91,6 +94,21 @@ export function buildBrazilMusdAutorampRequest(
     },
     source_is_third_party: false,
   };
+}
+
+/**
+ * Standing BRL → mUSD autoramp for a Money Account on Monad.
+ *
+ * Wrapper around {@link buildMusdAutorampRequest} with code `BRL`.
+ * `customer_id` is omitted; {@link RampsController.createAutoramp} injects it.
+ *
+ * @param walletAddress - Money Account address that receives mUSD.
+ * @returns MoonPay `POST /autoramps` market body.
+ */
+export function buildBrazilMusdAutorampRequest(
+  walletAddress: string,
+): CreateAutorampRequest {
+  return buildMusdAutorampRequest(walletAddress, 'BRL');
 }
 
 /**

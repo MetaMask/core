@@ -1,17 +1,12 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import { BaseController } from '@metamask/base-controller';
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  StateMetadata,
-} from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
+import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
 import type {
   DefaultEncryptionResult,
   EncryptionResultConstraint,
   Encryptor,
 } from '@metamask/keyring-controller';
-import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticateResult,
   ChangeEncryptionKeyResult,
@@ -22,28 +17,18 @@ import type {
 } from '@metamask/toprf-secure-backup';
 import {
   ToprfSecureBackup,
-  TOPRFErrorCode,
-  TOPRFError,
   EncAccountDataType,
 } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
   bytesToBase64,
-  isNullOrUndefined,
+  bytesToString,
+  stringToBytes,
+  concatBytes,
 } from '@metamask/utils';
-import { gcm } from '@noble/ciphers/aes';
-import { bytesToUtf8, utf8ToBytes } from '@noble/ciphers/utils';
-import { managedNonce } from '@noble/ciphers/webcrypto';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
-import {
-  assertCanChangePassword,
-  assertIsPasswordOutdatedCacheValid,
-  assertIsSeedlessOnboardingUserAuthenticated,
-  assertIsValidPassword,
-  assertIsValidVaultData,
-} from './assertions.js';
 import { getPasswordSyncInstruction } from './checkpoint.js';
 import type { AuthConnection } from './constants.js';
 import {
@@ -59,14 +44,16 @@ import {
   Web3AuthNetwork,
 } from './constants.js';
 import {
-  InvalidPrimarySecretDataTypeError,
   PasswordSyncError,
   RecoveryError,
   SeedlessOnboardingError,
 } from './errors.js';
 import { projectLogger, createModuleLogger } from './logger.js';
 import { SecretMetadata } from './SecretMetadata.js';
-import type { SeedlessOnboardingControllerMethodActions } from './SeedlessOnboardingController-method-action-types.js';
+import {
+  getInitialSeedlessOnboardingControllerStateWithDefaults,
+  seedlessOnboardingMetadata,
+} from './state.js';
 import type {
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerState,
@@ -77,15 +64,41 @@ import type {
   RenewRefreshToken,
   VaultData,
   DeserializedVaultData,
-  ToprfKeyDeriver,
 } from './types.js';
 import {
+  assertCanChangePassword,
+  assertIsValidVaultData,
+  assertIsEncryptedKeyringEncryptionKeySet,
+  assertIsEncryptedSeedlessEncryptionKeySet,
+  assertIsPasswordOutdatedCacheValid,
+  assertIsSeedlessOnboardingUserAuthenticated,
+  assertIsValidPassword,
   compareAndGetLatestToken,
   decodeJWTToken,
   decodeNodeAuthToken,
   deserializeVaultData,
+  getDataTypeMigrationUpdates,
+  getNewSocialBackupsMetadata,
+  trackIncompleteMetadataBackupEvents,
+  isAuthTokenError,
+  isMaxKeyChainLengthError,
+  isTokenNearExpiry,
+  parseVaultData,
+  parseAndValidateSecretMetadataBackup,
   serializeVaultData,
-} from './utils.js';
+} from './utils/index.js';
+import type { SecretBackupData } from './utils/index.js';
+import { SeedlessOnboardingControllerMessenger, SeedlessOnboardingControllerOptions } from './SeedlessOnboardingController-types.js';
+
+export type {
+  SeedlessOnboardingControllerActions,
+  SeedlessOnboardingControllerEvents,
+  SeedlessOnboardingControllerGetStateAction,
+  SeedlessOnboardingControllerMessenger,
+  SeedlessOnboardingControllerOptions,
+  SeedlessOnboardingControllerStateChangeEvent,
+} from './SeedlessOnboardingController-types.js';
+export { getInitialSeedlessOnboardingControllerStateWithDefaults } from './state.js';
 
 const log = createModuleLogger(projectLogger, controllerName);
 
@@ -113,6 +126,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'verifyVaultPassword',
   'getSecretDataBackupState',
   'submitPassword',
+  'identifyIncompleteMetadataBackup',
   'setLocked',
   'getIsUserAuthenticated',
   'clearState',
@@ -127,287 +141,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkAccessTokenExpired',
   'runMigrations',
 ] as const;
-
-// Actions
-export type SeedlessOnboardingControllerGetStateAction =
-  ControllerGetStateAction<
-    typeof controllerName,
-    SeedlessOnboardingControllerState
-  >;
-
-export type SeedlessOnboardingControllerActions =
-  | SeedlessOnboardingControllerGetStateAction
-  | SeedlessOnboardingControllerMethodActions;
-
-type AllowedActions = never;
-
-// Events
-export type SeedlessOnboardingControllerStateChangeEvent =
-  ControllerStateChangeEvent<
-    typeof controllerName,
-    SeedlessOnboardingControllerState
-  >;
-export type SeedlessOnboardingControllerEvents =
-  SeedlessOnboardingControllerStateChangeEvent;
-
-type AllowedEvents = never;
-
-// Messenger
-export type SeedlessOnboardingControllerMessenger = Messenger<
-  typeof controllerName,
-  SeedlessOnboardingControllerActions | AllowedActions,
-  SeedlessOnboardingControllerEvents | AllowedEvents
->;
-
-/**
- * Seedless Onboarding Controller Options.
- *
- * @param messenger - The messenger to use for this controller.
- * @param state - The initial state to set on this controller.
- * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
- */
-export type SeedlessOnboardingControllerOptions<
-  EncryptionKey = encryptionUtils.EncryptionKey,
-  SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
-  EncryptionResult extends
-    EncryptionResultConstraint<SupportedKeyDerivationParams> =
-    DefaultEncryptionResult<SupportedKeyDerivationParams>,
-> = {
-  messenger: SeedlessOnboardingControllerMessenger;
-
-  /**
-   * Initial state to set on this controller.
-   */
-  state?: Partial<SeedlessOnboardingControllerState>;
-
-  /**
-   * Encryptor to use for encrypting and decrypting seedless onboarding vault.
-   *
-   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
-   */
-  encryptor: Encryptor<
-    EncryptionKey,
-    SupportedKeyDerivationParams,
-    EncryptionResult
-  >;
-
-  /**
-   * A function to get a new jwt token using refresh token.
-   */
-  refreshJWTToken: RefreshJWTToken;
-
-  /**
-   * A function to revoke the refresh token.
-   */
-  revokeRefreshToken: RevokeRefreshToken;
-
-  /**
-   * A function to renew the refresh token and get new revoke token.
-   */
-  renewRefreshToken: RenewRefreshToken;
-
-  /**
-   * Optional key derivation interface for the TOPRF client.
-   *
-   * If provided, it will be used as an additional step during
-   * key derivation. This can be used, for example, to inject a slow key
-   * derivation step to protect against local brute force attacks on the
-   * password.
-   *
-   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
-   */
-  toprfKeyDeriver?: ToprfKeyDeriver;
-
-  /**
-   * Type of Web3Auth network to be used for the Seedless Onboarding flow.
-   *
-   * @default Web3AuthNetwork.Mainnet
-   */
-  network?: Web3AuthNetwork;
-
-  /**
-   * The TTL of the password outdated cache in milliseconds.
-   *
-   * @default PASSWORD_OUTDATED_CACHE_TTL_MS
-   */
-  passwordOutdatedCacheTTL?: number;
-};
-
-/**
- * Get the initial state for the Seedless Onboarding Controller with defaults.
- *
- * @param overrides - The overrides for the initial state.
- * @returns The initial state for the Seedless Onboarding Controller.
- */
-export function getInitialSeedlessOnboardingControllerStateWithDefaults(
-  overrides?: Partial<SeedlessOnboardingControllerState>,
-): SeedlessOnboardingControllerState {
-  const initialState = {
-    socialBackupsMetadata: [],
-    isSeedlessOnboardingUserAuthenticated: false,
-    migrationVersion: 0,
-    ...overrides,
-  };
-
-  // Ensure authenticated flag is set correctly.
-  try {
-    assertIsSeedlessOnboardingUserAuthenticated(initialState);
-    initialState.isSeedlessOnboardingUserAuthenticated = true;
-  } catch {
-    initialState.isSeedlessOnboardingUserAuthenticated = false;
-  }
-  return initialState;
-}
-
-/**
- * Seedless Onboarding Controller State Metadata.
- *
- * This allows us to choose if fields of the state should be persisted or not
- * using the `persist` flag; and if they can be sent to Sentry or not, using
- * the `anonymous` flag.
- */
-const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerState> =
-  {
-    vault: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    socialBackupsMetadata: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    nodeAuthTokens: {
-      // We sanitize the `authToken` field from the `nodeAuthTokens` to avoid logging the actual token.
-      // The reason we include this in the state logs is to help with debugging in case of any issues.
-      includeInStateLogs: (nodeAuthTokens) =>
-        !isNullOrUndefined(nodeAuthTokens),
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    authConnection: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: true,
-    },
-    authConnectionId: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: false,
-    },
-    groupedAuthConnectionId: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: false,
-    },
-    userId: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    socialLoginEmail: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: true,
-    },
-    vaultEncryptionKey: {
-      includeInStateLogs: false,
-      persist: false,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    vaultEncryptionSalt: {
-      includeInStateLogs: false,
-      persist: false,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    authPubKey: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    passwordOutdatedCache: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: false,
-    },
-    refreshToken: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    revokeToken: {
-      includeInStateLogs: false,
-      persist: false,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    pendingToBeRevokedTokens: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    // stays in vault
-    accessToken: {
-      includeInStateLogs: false,
-      persist: false,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    // stays outside of vault as this token is accessed by the metadata service
-    // before the vault is created or unlocked.
-    metadataAccessToken: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    encryptedSeedlessEncryptionKey: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    encryptedKeyringEncryptionKey: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
-    },
-    isSeedlessOnboardingUserAuthenticated: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: false,
-    },
-    migrationVersion: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: false,
-    },
-    seedlessOperationLifecycle: {
-      // Safe coordination data only: operation and checkpoint. No secrets.
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: false,
-    },
-  };
 
 export class SeedlessOnboardingController<
   EncryptionKey = encryptionUtils.EncryptionKey,
@@ -701,8 +434,8 @@ export class SeedlessOnboardingController<
         // create a new vault with the resulting authentication data
         await this.#createNewVaultWithAuthData({
           password,
-          rawToprfEncryptionKey: encKey,
-          rawToprfPwEncryptionKey: pwEncKey,
+          rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
+          rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: authKeyPair,
         });
 
@@ -855,50 +588,7 @@ export class SeedlessOnboardingController<
         throw error;
       }
 
-      let hasPrimarySrp = secretDatas.some(
-        (secret) =>
-          secret.itemId &&
-          secret.itemId !== 'PW_BACKUP' &&
-          secret.dataType === EncAccountDataType.PrimarySrp,
-      );
-
-      const updates: { itemId: string; dataType: EncAccountDataType }[] = [];
-
-      for (const secret of secretDatas) {
-        if (!secret.itemId || secret.itemId === 'PW_BACKUP') {
-          continue;
-        }
-
-        // Skip items that are already migrated (v2 with dataType set)
-        // Check both storageVersion and dataType since this migration is specific to dataType
-        const isAlreadyMigrated =
-          secret.storageVersion === 'v2' &&
-          secret.dataType !== undefined &&
-          secret.dataType !== null;
-        if (isAlreadyMigrated) {
-          continue;
-        }
-
-        let dataType: EncAccountDataType;
-
-        if (SecretMetadata.matchesType(secret, SecretType.Mnemonic)) {
-          // Preserve existing PrimarySrp designation
-          if (secret.dataType === EncAccountDataType.PrimarySrp) {
-            dataType = EncAccountDataType.PrimarySrp;
-          } else if (hasPrimarySrp) {
-            dataType = EncAccountDataType.ImportedSrp;
-          } else {
-            dataType = EncAccountDataType.PrimarySrp;
-            hasPrimarySrp = true;
-          }
-        } else if (SecretMetadata.matchesType(secret, SecretType.PrivateKey)) {
-          dataType = EncAccountDataType.ImportedPrivateKey;
-        } else {
-          continue;
-        }
-
-        updates.push({ itemId: secret.itemId, dataType });
-      }
+      const updates = getDataTypeMigrationUpdates(secretDatas);
 
       if (updates.length === 1) {
         await this.toprfClient.updateSecretDataItem({
@@ -971,8 +661,8 @@ export class SeedlessOnboardingController<
           // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
           await this.#createNewVaultWithAuthData({
             password,
-            rawToprfEncryptionKey: encKey,
-            rawToprfPwEncryptionKey: pwEncKey,
+            rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
+            rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
             rawToprfAuthKeyPair: authKeyPair,
           });
         }
@@ -1034,8 +724,8 @@ export class SeedlessOnboardingController<
 
         await this.#commitPasswordChangeState({
           password: newPassword,
-          encKey: newEncKey,
-          pwEncKey: newPwEncKey,
+          encKey: newEncKey as Uint8Array<ArrayBuffer>,
+          pwEncKey: newPwEncKey as Uint8Array<ArrayBuffer>,
           authKeyPair: newAuthKeyPair,
           keyringEncryptionKey,
           checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
@@ -1136,7 +826,24 @@ export class SeedlessOnboardingController<
   async submitPassword(password: string): Promise<void> {
     return await this.#withControllerLock(async () => {
       await this.#unlockVaultAndReconcileAccessToken(password);
+
+      this.#identifyIncompleteMetadataBackup(password);
     });
+  }
+
+  /**
+   * Identify an incomplete or mismatched primary SRP backup.
+   *
+   * This method must only be called after the controller has been unlocked.
+   *
+   * @param password - The password used to export the local primary SRP.
+   * @returns A promise that resolves after identification and telemetry have
+   * completed.
+   */
+  async identifyIncompleteMetadataBackup(password: string): Promise<void> {
+    this.#assertIsUnlocked();
+
+    await this.#identifyIncompleteMetadataBackup(password);
   }
 
   /**
@@ -1184,8 +891,8 @@ export class SeedlessOnboardingController<
     this.#resetPasswordOutdatedCache();
     await this.#commitPasswordChangeState({
       password: globalPassword,
-      encKey,
-      pwEncKey,
+      encKey: encKey as Uint8Array<ArrayBuffer>,
+      pwEncKey: pwEncKey as Uint8Array<ArrayBuffer>,
       authKeyPair,
       keyringEncryptionKey,
       checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
@@ -1226,7 +933,9 @@ export class SeedlessOnboardingController<
         maxPwChainLength: maxKeyChainLength,
       });
       const { pwEncKey } = res;
-      const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
+      const vaultKey = await this.#loadSeedlessEncryptionKey(
+        pwEncKey as Uint8Array<ArrayBuffer>,
+      );
 
       // accessToken before unlocking vault and flooding the state with values from the decrypted vault
       // it might be the new token set from the `refreshAuthTokens` method.
@@ -1246,10 +955,10 @@ export class SeedlessOnboardingController<
         decryptedVaultData.accessToken,
       );
     } catch (error) {
-      if (this.#isAuthTokenError(error)) {
+      if (isAuthTokenError(error)) {
         throw error;
       }
-      if (this.#isMaxKeyChainLengthError(error)) {
+      if (isMaxKeyChainLengthError(error)) {
         throw new Error(
           SeedlessOnboardingControllerErrorMessage.MaxKeyChainLengthExceeded,
         );
@@ -1475,7 +1184,7 @@ export class SeedlessOnboardingController<
         authPubKey,
       });
     } catch (error) {
-      if (this.#isAuthTokenError(error)) {
+      if (isAuthTokenError(error)) {
         throw error;
       }
       log('Error persisting local encryption key', error);
@@ -1527,7 +1236,7 @@ export class SeedlessOnboardingController<
   ): Promise<void> {
     const { toprfPwEncryptionKey: encKey } =
       await this.#unlockVaultAndGetVaultData();
-    const encryptedKeyringEncryptionKey = this.#encryptKeyringEncryptionKey(
+    const encryptedKeyringEncryptionKey = await this.#encryptKeyringEncryptionKey(
       keyringEncryptionKey,
       encKey,
     );
@@ -1565,13 +1274,16 @@ export class SeedlessOnboardingController<
    * @param encKey - The encryption key.
    * @returns The keyring encryption key.
    */
-  async #loadKeyringEncryptionKey(encKey: Uint8Array): Promise<string> {
+  async #loadKeyringEncryptionKey(
+    encKey: Uint8Array<ArrayBuffer>,
+  ): Promise<string> {
     const { encryptedKeyringEncryptionKey: encryptedKey } = this.state;
     assertIsEncryptedKeyringEncryptionKeySet(encryptedKey);
     const encryptedPasswordBytes = base64ToBytes(encryptedKey);
-    const aes = managedNonce(gcm)(encKey);
-    const password = aes.decrypt(encryptedPasswordBytes);
-    return bytesToUtf8(password);
+    const iv = encryptedPasswordBytes.slice(0, IV_LENGTH);
+    const ciphertext = encryptedPasswordBytes.slice(IV_LENGTH);
+    const password = await decrypt(encKey, iv, ciphertext);
+    return bytesToString(password);
   }
 
   /**
@@ -1580,13 +1292,16 @@ export class SeedlessOnboardingController<
    * @param encKey - The encryption key.
    * @returns The seedless encryption key.
    */
-  async #loadSeedlessEncryptionKey(encKey: Uint8Array): Promise<string> {
+  async #loadSeedlessEncryptionKey(
+    encKey: Uint8Array<ArrayBuffer>,
+  ): Promise<string> {
     const { encryptedSeedlessEncryptionKey: encryptedKey } = this.state;
     assertIsEncryptedSeedlessEncryptionKeySet(encryptedKey);
     const encryptedKeyBytes = base64ToBytes(encryptedKey);
-    const aes = managedNonce(gcm)(encKey);
-    const seedlessEncryptionKey = aes.decrypt(encryptedKeyBytes);
-    return bytesToUtf8(seedlessEncryptionKey);
+    const iv = encryptedKeyBytes.slice(0, IV_LENGTH);
+    const ciphertext = encryptedKeyBytes.slice(IV_LENGTH);
+    const seedlessEncryptionKey = await decrypt(encKey, iv, ciphertext);
+    return bytesToString(seedlessEncryptionKey);
   }
 
   /**
@@ -1635,7 +1350,7 @@ export class SeedlessOnboardingController<
       return recoverEncKeyResult;
     } catch (error) {
       // throw token expired error for token refresh handler
-      if (this.#isAuthTokenError(error)) {
+      if (isAuthTokenError(error)) {
         throw error;
       }
 
@@ -1656,7 +1371,7 @@ export class SeedlessOnboardingController<
       });
     } catch (error) {
       log('Error fetching secret data', error);
-      if (this.#isAuthTokenError(error)) {
+      if (isAuthTokenError(error)) {
         throw error;
       }
       throw new SeedlessOnboardingError(
@@ -1669,33 +1384,7 @@ export class SeedlessOnboardingController<
 
     // user must have at least one secret data
     if (secretDataItems?.length > 0) {
-      const results: SecretMetadata[] = secretDataItems.map((item) =>
-        SecretMetadata.fromRawMetadata(item.data, {
-          itemId: item.itemId,
-          dataType: item.dataType,
-          createdAt: item.createdAt,
-          storageVersion: item.version,
-        }),
-      );
-
-      // Sort: PrimarySrp first, then by client timestamp (oldest first)
-      results.sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
-
-      const primaryIndex = results.findIndex(
-        (result) =>
-          SecretMetadata.matchesType(result, SecretType.Mnemonic) &&
-          (result.dataType === undefined ||
-            result.dataType === null ||
-            result.dataType === EncAccountDataType.PrimarySrp),
-      );
-      if (primaryIndex === -1) {
-        throw InvalidPrimarySecretDataTypeError.fromSecretMetadata(results);
-      }
-      if (primaryIndex !== 0) {
-        const [primary] = results.splice(primaryIndex, 1);
-        results.unshift(primary);
-      }
-      return results;
+      return parseAndValidateSecretMetadataBackup(secretDataItems);
     }
 
     throw new Error(SeedlessOnboardingControllerErrorMessage.NoSecretDataFound);
@@ -1855,7 +1544,7 @@ export class SeedlessOnboardingController<
 
       return secretMetadata;
     } catch (error) {
-      if (this.#isAuthTokenError(error)) {
+      if (isAuthTokenError(error)) {
         throw error;
       }
       log('Error encrypting and storing secret data backup', error);
@@ -1970,7 +1659,7 @@ export class SeedlessOnboardingController<
       vaultEncryptionSalt = result.salt;
     }
 
-    const vaultData = this.#parseVaultData(decryptedVaultData);
+    const vaultData = parseVaultData(decryptedVaultData);
 
     return {
       vaultData,
@@ -1997,10 +1686,8 @@ export class SeedlessOnboardingController<
    * @throws Rethrows any errors from the callback with additional logging
    */
   async #withPersistedSecretMetadataBackupsState(
-    createSecretMetadataBackupCallback: () => Promise<
-      Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array }
-    >,
-  ): Promise<Omit<SocialBackupsMetadata, 'hash'> & { data: Uint8Array }> {
+    createSecretMetadataBackupCallback: () => Promise<SecretBackupData>,
+  ): Promise<SecretBackupData> {
     try {
       const newBackup = await createSecretMetadataBackupCallback();
 
@@ -2023,43 +1710,12 @@ export class SeedlessOnboardingController<
    * @param secretData.type - The type of the secret data.
    */
   #filterDupesAndUpdateSocialBackupsMetadata(
-    secretData:
-      | {
-          data: Uint8Array;
-          keyringId?: string;
-          type: SecretType;
-        }
-      | {
-          data: Uint8Array;
-          keyringId?: string;
-          type: SecretType;
-        }[],
+    secretData: SecretBackupData | SecretBackupData[],
   ): void {
-    const currentBackupsMetadata = this.state.socialBackupsMetadata;
-
-    const newBackupsMetadata = Array.isArray(secretData)
-      ? secretData
-      : [secretData];
-    const filteredNewBackupsMetadata: SocialBackupsMetadata[] = [];
-
-    // filter out the backed up metadata that already exists in the state
-    // to prevent duplicates
-    newBackupsMetadata.forEach((item) => {
-      const { keyringId, data, type } = item;
-      const backupHash = keccak256AndHexify(data);
-
-      const backupStateAlreadyExisted = currentBackupsMetadata.some(
-        (backup) => backup.hash === backupHash && backup.type === type,
-      );
-
-      if (!backupStateAlreadyExisted) {
-        filteredNewBackupsMetadata.push({
-          keyringId,
-          hash: backupHash,
-          type,
-        });
-      }
-    });
+    const filteredNewBackupsMetadata = getNewSocialBackupsMetadata(
+      this.state.socialBackupsMetadata,
+      secretData,
+    );
 
     if (filteredNewBackupsMetadata.length > 0) {
       this.update((state) => {
@@ -2089,8 +1745,8 @@ export class SeedlessOnboardingController<
     rawToprfAuthKeyPair,
   }: {
     password: string;
-    rawToprfEncryptionKey: Uint8Array;
-    rawToprfPwEncryptionKey: Uint8Array;
+    rawToprfEncryptionKey: Uint8Array<ArrayBuffer>;
+    rawToprfPwEncryptionKey: Uint8Array<ArrayBuffer>;
     rawToprfAuthKeyPair: KeyPair;
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
@@ -2136,7 +1792,7 @@ export class SeedlessOnboardingController<
   }: {
     password?: string;
     vaultData: DeserializedVaultData;
-    pwEncKey: Uint8Array;
+    pwEncKey: Uint8Array<ArrayBuffer>;
   }): Promise<void> {
     await this.#withVaultLock(async () => {
       const updatedState = await this.#createUpdatedVaultState({
@@ -2179,7 +1835,7 @@ export class SeedlessOnboardingController<
   }: {
     password?: string;
     vaultData: DeserializedVaultData;
-    pwEncKey: Uint8Array;
+    pwEncKey: Uint8Array<ArrayBuffer>;
   }): Promise<UpdatedVaultState> {
     const serializedVaultData = serializeVaultData(vaultData);
 
@@ -2213,7 +1869,7 @@ export class SeedlessOnboardingController<
 
       // encrypt the seedless encryption key with the password encryption key from TOPRF network
       updatedState.encryptedSeedlessEncryptionKey =
-        this.#encryptSeedlessEncryptionKey(exportedKeyString, pwEncKey);
+        await this.#encryptSeedlessEncryptionKey(exportedKeyString, pwEncKey);
     } else if (vaultEncryptionKey && vaultEncryptionSalt) {
       const encryptionKey =
         await this.#vaultEncryptor.importKey(vaultEncryptionKey);
@@ -2265,8 +1921,8 @@ export class SeedlessOnboardingController<
     operation,
   }: {
     password: string;
-    encKey: Uint8Array;
-    pwEncKey: Uint8Array;
+    encKey: Uint8Array<ArrayBuffer>;
+    pwEncKey: Uint8Array<ArrayBuffer>;
     authKeyPair: KeyPair;
     keyringEncryptionKey?: string;
     checkpoint: SeedlessOnboardingCheckpoint;
@@ -2300,7 +1956,7 @@ export class SeedlessOnboardingController<
       const encryptedKeyringEncryptionKey =
         keyringEncryptionKey === undefined
           ? undefined
-          : this.#encryptKeyringEncryptionKey(keyringEncryptionKey, pwEncKey);
+          : await this.#encryptKeyringEncryptionKey(keyringEncryptionKey, pwEncKey);
 
       this.update((state) => {
         state.vault = updatedVaultState.vault;
@@ -2331,12 +1987,15 @@ export class SeedlessOnboardingController<
    * @param pwEncKey - The TOPRF password encryption key.
    * @returns The encrypted Keyring encryption key in base64 format.
    */
-  #encryptKeyringEncryptionKey(
+  async #encryptKeyringEncryptionKey(
     keyringEncryptionKey: string,
-    pwEncKey: Uint8Array,
-  ): string {
-    const aes = managedNonce(gcm)(pwEncKey);
-    return bytesToBase64(aes.encrypt(utf8ToBytes(keyringEncryptionKey)));
+    pwEncKey: Uint8Array<ArrayBuffer>,
+  ): Promise<string> {
+    const { ciphertext, iv } = await encrypt(
+      pwEncKey,
+      stringToBytes(keyringEncryptionKey),
+    );
+    return bytesToBase64(concatBytes([iv, ciphertext]));
   }
 
   /**
@@ -2346,13 +2005,15 @@ export class SeedlessOnboardingController<
    * @param pwEncKey - The password encryption key from TOPRF network.
    * @returns The encrypted seedless encryption key.
    */
-  #encryptSeedlessEncryptionKey(
+  async #encryptSeedlessEncryptionKey(
     vaultEncryptionKey: string,
-    pwEncKey: Uint8Array,
-  ): string {
-    const aes = managedNonce(gcm)(pwEncKey);
-    const encryptedKey = aes.encrypt(utf8ToBytes(vaultEncryptionKey));
-    return bytesToBase64(encryptedKey);
+    pwEncKey: Uint8Array<ArrayBuffer>,
+  ): Promise<string> {
+    const { ciphertext, iv } = await encrypt(
+      pwEncKey,
+      stringToBytes(vaultEncryptionKey),
+    );
+    return bytesToBase64(concatBytes([iv, ciphertext]));
   }
 
   /**
@@ -2682,30 +2343,6 @@ export class SeedlessOnboardingController<
       async () => await this.#syncLatestGlobalPasswordInner(globalPassword),
       'syncLatestGlobalPassword',
     );
-  }
-
-  /**
-   * Parse and deserialize the authentication data from the vault.
-   *
-   * @param data - The decrypted vault data.
-   * @returns The parsed authentication data.
-   * @throws If the vault data is not valid.
-   */
-  #parseVaultData(data: unknown): VaultData {
-    if (typeof data !== 'string') {
-      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
-    }
-
-    let parsedVaultData: unknown;
-    try {
-      parsedVaultData = JSON.parse(data);
-    } catch {
-      throw new Error(SeedlessOnboardingControllerErrorMessage.VaultDataError);
-    }
-
-    assertIsValidVaultData(parsedVaultData);
-
-    return parsedVaultData;
   }
 
   #assertIsUnlocked(): void {
@@ -3136,41 +2773,6 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Check if the provided error is an auth token error.
-   *
-   * This method checks if the error is a TOPRF error with AuthTokenExpired code or InvalidAuthToken code.
-   *
-   * @param error - The error to check.
-   * @returns True if the error indicates auth token error, false otherwise.
-   */
-  #isAuthTokenError(error: unknown): boolean {
-    if (error instanceof TOPRFError) {
-      return (
-        error.code === TOPRFErrorCode.AuthTokenExpired ||
-        error.code === TOPRFErrorCode.InvalidAuthToken
-      );
-    }
-
-    return false;
-  }
-
-  /**
-   * Check if the provided error is a max key chain length error.
-   *
-   * This method checks if the error is a TOPRF error with MaxKeyChainLength code.
-   *
-   * @param error - The error to check.
-   * @returns True if the error indicates max key chain length has been exceeded, false otherwise.
-   */
-  #isMaxKeyChainLengthError(error: unknown): boolean {
-    if (error instanceof TOPRFError) {
-      return error.code === TOPRFErrorCode.MaxKeyChainLengthExceeded;
-    }
-
-    return false;
-  }
-
-  /**
    * Executes an operation with automatic token refresh on expiration.
    *
    * This wrapper method automatically handles token expiration by refreshing tokens
@@ -3198,7 +2800,7 @@ export class SeedlessOnboardingController<
       return await operation();
     } catch (error) {
       // Check if this is a token expiration error
-      if (this.#isAuthTokenError(error)) {
+      if (isAuthTokenError(error)) {
         log(
           `Token expired during ${operationName}, attempting to refresh tokens`,
           error,
@@ -3299,33 +2901,26 @@ export class SeedlessOnboardingController<
       return true; // Consider unauthenticated user as having expired tokens
     }
   }
-}
 
-/**
- * Determine whether a token should be proactively refreshed.
- *
- * When `iat` is provided: returns `true` when less than 10% of the token's
- * lifetime remains (i.e. we are in the last 10% before expiry).
- * When `iat` is omitted (e.g. node auth tokens): returns `true` when the token
- * is already expired.
- *
- * @param exp - Token expiration time in seconds (Unix epoch).
- * @param iat - Optional issued-at time in seconds (Unix epoch). Required for 10% threshold.
- * @returns True if the token should be refreshed.
- */
-function isTokenNearExpiry(exp: number, iat?: number): boolean {
-  const now = Date.now() / 1000;
-  if (iat === undefined) {
-    return now >= exp;
+  async #identifyIncompleteMetadataBackup(password: string): Promise<void> {
+    const deserializedVaultData =
+      this.#cachedDecryptedVaultData as DeserializedVaultData;
+
+    await trackIncompleteMetadataBackupEvents({
+      fetchAllSecretDataFn: () =>
+        this.toprfClient.fetchAllSecretDataItems({
+          decKey: deserializedVaultData.toprfEncryptionKey,
+          authKeyPair: deserializedVaultData.toprfAuthKeyPair,
+        }),
+      getPrimaryKeyringSeedPhraseFn: () =>
+        this.messenger.call('KeyringController:exportSeedPhrase', {
+          password,
+        }),
+      trackEvent: (event) =>
+        this.messenger.call('AnalyticsController:trackEvent', event),
+      logFn: log,
+    });
   }
-  const lifetime = exp - iat;
-  // Guard against malformed tokens where iat >= exp (zero or negative lifetime).
-  // Fall back to exact-expiry check so bad tokens are always considered stale.
-  if (lifetime <= 0) {
-    return now >= exp;
-  }
-  const remaining = exp - now;
-  return remaining <= 0.1 * lifetime;
 }
 
 /**
@@ -3347,37 +2942,5 @@ async function withLock<Result>(
     return await callback({ releaseLock });
   } finally {
     releaseLock();
-  }
-}
-
-/**
- * Assert that the provided encrypted keyring encryption key is a valid non-empty string.
- *
- * @param encryptedKeyringEncryptionKey - The encrypted keyring encryption key to check.
- * @throws If the encrypted keyring encryption key is not a valid string.
- */
-function assertIsEncryptedKeyringEncryptionKeySet(
-  encryptedKeyringEncryptionKey: string | undefined,
-): asserts encryptedKeyringEncryptionKey is string {
-  if (!encryptedKeyringEncryptionKey) {
-    throw new Error(
-      SeedlessOnboardingControllerErrorMessage.EncryptedKeyringEncryptionKeyNotSet,
-    );
-  }
-}
-
-/**
- * Assert that the provided encrypted seedless encryption key is a valid non-empty string.
- *
- * @param encryptedSeedlessEncryptionKey - The encrypted seedless encryption key to check.
- * @throws If the encrypted seedless encryption key is not a valid string.
- */
-function assertIsEncryptedSeedlessEncryptionKeySet(
-  encryptedSeedlessEncryptionKey: string | undefined,
-): asserts encryptedSeedlessEncryptionKey is string {
-  if (!encryptedSeedlessEncryptionKey) {
-    throw new Error(
-      SeedlessOnboardingControllerErrorMessage.EncryptedSeedlessEncryptionKeyNotSet,
-    );
   }
 }

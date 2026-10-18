@@ -80,7 +80,9 @@ function createRootMessenger({
   },
 }: {
   actionHandlers?: {
-    [Action in MessengerActions<RootMessenger> as Action['type']]?: Action['handler'];
+    [
+      Action in MessengerActions<RootMessenger> as Action['type']
+    ]?: Action['handler'];
   };
 } = {}): RootMessenger {
   const messenger: RootMessenger = new Messenger({

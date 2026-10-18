@@ -28,6 +28,8 @@ export type {
   KycControllerLaunchProviderFlowAction,
   KycControllerRecordSessionDisclaimersAction,
   KycControllerRecordVendorDisclaimersAction,
+  KycControllerFetchSessionStatusOnceAction,
+  KycControllerReadSessionStatusAction,
   KycControllerRefreshSessionStatusAction,
   KycControllerResetAction,
   KycControllerStartSessionAction,
@@ -45,6 +47,7 @@ export type {
   FetchSessionDisclaimersByCountryParams,
   FetchSessionDisclaimersBySessionIdParams,
   GetSessionStatusParams,
+  ResetWrappingKeysParams,
   VendorCustomerResponse,
   JwksResponse,
   KycServiceActions,
@@ -72,6 +75,7 @@ export type {
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetSessionStatusForVendorAction,
+  KycServiceResetWrappingKeysAction,
   KycServiceSetAuthorizationsAction,
   KycServiceSubmitSessionDisclaimersAction,
   KycServiceSubmitVendorDisclaimersAction,
@@ -88,6 +92,7 @@ export type {
   X25519KeyPair,
 } from './crypto.js';
 
+export { KYC_STATUSES, TERMINAL_SESSION_STATUSES } from './types.js';
 export type {
   KycCatalogDocument,
   KycConsentDocument,
@@ -104,6 +109,13 @@ export type {
   KycMoonpayVendorDisclaimersAccepted,
   KycVendorDisclaimersAccepted,
   KycVendorSigning,
+} from './types.js';
+export {
+  FINAL_STATUSES_TO_SKIP_AUTH_REFRESH,
+  CAPABILITY_AUTHORIZATION_STATUSES,
+  CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH,
+  needsCapabilityAuthorizationRefresh,
+  FINAL_STATUSES_TO_STOP_POLLING,
 } from './types.js';
 export type {
   KycSumSubLaunchParams,
@@ -145,9 +157,3 @@ export type {
   MintedUkycTestToken,
   MintUkycTestTokenParams,
 } from './ukyc/testToken.js';
-
-export {
-  clearMoonPaySession,
-  MoonPayFrameHandler,
-} from './vendors/MoonPayFrameHandler.js';
-export type { MoonPayFrameHandlerOptions } from './vendors/MoonPayFrameHandler.js';
