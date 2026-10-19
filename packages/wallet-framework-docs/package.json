@@ -22,6 +22,7 @@
   "sideEffects": false,
   "scripts": {
     "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
+    "audit-script": "node ../../scripts/audit-script.ts",
     "build": "docusaurus build site",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/wallet-framework-docs",
     "changelog:validate": "../../scripts/validate-changelog.sh",
@@ -69,6 +70,7 @@
     "node": "^22.14.0 || ^24 || ^26"
   },
   "scriptsConfig": {
-    "#default": "lavamoat/scripts.strict.json"
+    "#default": "lavamoat/scripts.strict.json",
+    "audit-script": "lavamoat/scripts.yarn.json"
   }
 }
