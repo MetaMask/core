@@ -16,6 +16,12 @@
     "**/*.test.ts",
     "**/*.test-d.ts",
     "**/jest.config.ts",
-    "**/*.tst.ts"
+    "**/*.tst.ts",
+    "**/test-utils.ts",
+    "**/__fixtures__/**",
+    "**/__mocks__/**",
+    "**/__snapshots__/**",
+    "**/test/**",
+    "**/tests/**"
   ]
 }

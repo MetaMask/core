@@ -27,12 +27,5 @@
       "path": "../utils/tsconfig.build.json"
     }
   ],
-  "exclude": [
-    "./jest.config.packages.ts",
-    "**/*.test.ts",
-    "**/jest.config.ts",
-    "**/*.tst.ts",
-    "./src/tests"
-  ],
   "include": ["../../types", "./src"]
 }
