@@ -1,5 +1,8 @@
 {
   "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "types": ["jest"]
+  },
   "references": [
     {
       "path": "../accounts-controller"
