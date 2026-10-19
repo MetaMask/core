@@ -143,6 +143,7 @@ type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof BridgeController>[0]>;
 };
 
+let mockTraceFn: jest.Mock;
 async function withController<ReturnValue>(
   ...args:
     | [WithControllerCallback<ReturnValue>]
@@ -221,6 +222,7 @@ async function withController<ReturnValue>(
     fetchFn: mockFetchFn,
     trackMetaMetricsFn,
     clientVersion: '13.8.0',
+    traceFn: mockTraceFn,
     ...options,
   });
 
@@ -257,6 +259,7 @@ describe('BridgeController SSE', function () {
     jest.clearAllMocks();
     jest.clearAllTimers();
     jest.resetAllMocks();
+    mockTraceFn = jest.fn(async (_request, fn) => await fn?.());
   });
 
   describe('quote tracing', () => {
@@ -507,6 +510,54 @@ describe('BridgeController SSE', function () {
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
         // eslint-disable-next-line jest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+        expect(mockTraceFn.mock.calls).toMatchObject([
+          [
+            {
+              data: {
+                request_id: 'test-uuid-1234',
+                result: 'success',
+                srcChainId: 'eip155:1',
+                swap_type: 'crosschain',
+              },
+              name: 'Quote Provider First Result',
+              tags: {
+                feature: 'swap',
+              },
+            },
+          ],
+          [
+            {
+              data: {
+                destChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+                feature_id: 'unified_swap_bridge',
+                provider: 'socket_celercircle',
+                request_id: 'test-uuid-1234',
+                result: 'success',
+                srcChainId: 'eip155:1',
+                swap_type: 'crosschain',
+              },
+              name: 'Quote Provider First Result',
+              tags: {
+                feature: 'swap',
+              },
+            },
+          ],
+          [
+            {
+              data: {
+                destChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+                feature_id: 'unified_swap_bridge',
+                request_id: 'test-uuid-1234',
+                result: 'success',
+                srcChainId: 'eip155:1',
+              },
+              name: 'Bridge Quotes Fetched',
+              tags: {
+                feature: 'swap',
+              },
+            },
+          ],
+        ]);
       },
     );
   });

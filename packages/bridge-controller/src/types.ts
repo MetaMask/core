@@ -43,6 +43,45 @@ import type { GaslessPropertiesSchema } from './validators/quote.js';
 import type { StepSchema } from './validators/step.js';
 import type { TokenFeatureSchema } from './validators/token-feature.js';
 
+import type { TraceRequest } from '@metamask/controller-utils';
+import { TraceFeatureTag, type TraceOperation } from './constants/traces.js';
+[];
+
+/**
+ * Filters the client-supplied trace names to only include swap/bridge/batch sell related names
+ */
+export type SwapRelatedTraceName<TNameEnum extends string> = {
+  [TName in TNameEnum]: `${TName}` extends
+    | `${string}Swap${string}`
+    | `${string}Bridge${string}`
+    | `${string}Batch Sell${string}`
+    ? TName
+    : never;
+}[TNameEnum];
+
+/**
+ * Trace request type for swap/bridge traces
+ */
+export type SwapTraceRequest<TTraceName> = Omit<
+  TraceRequest,
+  'name' | 'tags' | 'parentContext'
+> & {
+  name: TTraceName;
+  op?: TraceOperation;
+  tags: { feature: TraceFeatureTag };
+};
+
+/**
+ * Generic trace function type that supports both mobile and extension interfaces
+ */
+export type SwapTraceFunction<TTraceName extends string> = {
+  <TResult>(
+    request: SwapTraceRequest<TTraceName>,
+    fn: (args?: unknown) => TResult,
+  ): TResult;
+  (request: SwapTraceRequest<TTraceName>): void;
+};
+
 export type FetchFunction = (
   input: RequestInfo | URL | string,
   init?: RequestInit,

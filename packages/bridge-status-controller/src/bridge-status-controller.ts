@@ -17,6 +17,7 @@ import {
 import type {
   FailureTelemetryData,
   QuoteMetadataMigrationPhase,
+  SwapTraceFunction,
 } from '@metamask/bridge-controller';
 import {
   isNonEvmChainId,
@@ -29,7 +30,6 @@ import {
   PollingStatus,
   formatChainIdToHex,
 } from '@metamask/bridge-controller';
-import type { TraceCallback } from '@metamask/controller-utils';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import {
   TransactionStatus,
@@ -49,6 +49,7 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   MAX_ATTEMPTS,
   REFRESH_INTERVAL_MS,
+  type TraceName,
 } from './constants.js';
 import {
   QUOTE_STATUS_BACKFILL_WINDOW_MS,
@@ -182,7 +183,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
 
-  readonly #trace: TraceCallback;
+  readonly #trace: SwapTraceFunction<TraceName>;
 
   constructor({
     messenger,
@@ -207,7 +208,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     config?: {
       customBridgeApiBaseUrl?: string;
     };
-    traceFn?: TraceCallback;
+    traceFn: SwapTraceFunction<TraceName>;
     onQuoteStatusManagerError?: (
       error: QuoteStatusUpdateError | QuoteStatusGetError,
     ) => void;
@@ -231,7 +232,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       customBridgeApiBaseUrl:
         config?.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     };
-    this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
+    this.#trace = traceFn;
     this.#intentManager = new IntentManager({
       messenger: this.messenger,
       customBridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
@@ -380,7 +381,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         result,
         terminalStage,
       ),
-      () => undefined,
     );
   };
 
@@ -1762,12 +1762,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyItem?.featureId ??
       FeatureId.UNIFIED_SWAP_BRIDGE;
 
-    if (
-      !(
-        ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
-        eventName === UnifiedSwapBridgeEventName.StatusValidationFailed
-      )
-    ) {
+    if (!(
+      ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
+      eventName === UnifiedSwapBridgeEventName.StatusValidationFailed
+    )) {
       return;
     }
 

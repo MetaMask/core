@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export trace-related constants and types to ensure client requests include required fields
+  - `TraceName` now includes both client-emitted and controller trace names
+  - `TraceFeatureTag` and `BRIDGE_FEATURE_ID_TO_FEATURE_TAG` for supported features
+  - `TraceOperation` for client-side operations
+  - `SwapRelatedTraceName` filters Swap, Bridge and Batch Sell traces from client-defined `TraceName`
+  - `SwapTraceRequest` defines required request fields for swap trace calls
+  - `SwapTraceFunction` is the type-safe shared trace interface that works for mobile, extension and controller consumers
+- Populate the `tags` field with the active `feature` when tracing swap/bridge operations
+
 ### Changed
 
+- **BREAKING:** Require `traceFn` when initializing the BridgeController
 - Bump `@metamask/keyring-api` from `^24.1.0` to `^24.3.0` ([#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))

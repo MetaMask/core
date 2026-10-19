@@ -125,6 +125,8 @@ async function withController<ReturnValue>(
     clientId: BridgeClientId.EXTENSION,
     fetchFn: jest.fn(),
     addTransactionBatchFn,
+    traceFn: mockTraceFn,
+    clientProduct: 'metamask',
     ...options,
   });
   const startPollingForBridgeTxStatusSpy = jest.fn();
@@ -189,9 +191,12 @@ const mockTransferTx: BatchSellTradesResponse['transactions'][number] = {
   type: BatchSellTransactionType.TRANSFER,
 };
 
+let mockTraceFn: jest.Mock;
+
 describe('BridgeStatusController', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockTraceFn = jest.fn(async (_request, fn) => await fn?.());
   });
 
   describe('submitBatchSell', () => {
@@ -213,14 +218,12 @@ describe('BridgeStatusController', () => {
             it.each([true, false])(
               'isDelegatedAccount=%s',
               async (isDelegatedAccount) => {
-                if (
-                  !(
-                    !gasIncluded7702 &&
-                    !gasIncluded &&
-                    !stxEnabled &&
-                    !isDelegatedAccount
-                  )
-                ) {
+                if (!(
+                  !gasIncluded7702 &&
+                  !gasIncluded &&
+                  !stxEnabled &&
+                  !isDelegatedAccount
+                )) {
                   // return;
                 }
                 const is7702 = !shouldDisable7702(

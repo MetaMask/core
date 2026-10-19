@@ -755,6 +755,8 @@ type WithControllerOptions = {
   mockMessengerCall?: jest.Mock;
 };
 
+let mockTraceFn: jest.Mock;
+
 async function withController<ReturnValue>(
   ...args:
     | [WithControllerCallback<ReturnValue>]
@@ -773,6 +775,7 @@ async function withController<ReturnValue>(
     clientProduct: 'test-client-product',
     fetchFn: jest.fn(),
     addTransactionBatchFn,
+    traceFn: mockTraceFn,
     ...options,
   });
   const startPollingForBridgeTxStatusSpy = jest.fn();
@@ -809,6 +812,7 @@ const executePollingWithPendingStatus = async () => {
     fetchFn: jest.fn(),
     addTransactionBatchFn: jest.fn(),
     config: {},
+    traceFn: mockTraceFn,
   });
   const startPollingSpy = jest.spyOn(bridgeStatusController, 'startPolling');
 
@@ -1232,6 +1236,7 @@ describe('BridgeStatusController', () => {
     jest.clearAllMocks();
     jest.clearAllTimers();
     jest.spyOn(historyUtils, 'isHistoryItemTooOld').mockReturnValue(false);
+    mockTraceFn = jest.fn(async (_request, fn) => await fn?.());
   });
 
   describe('startPolling - error handling', () => {
@@ -3687,9 +3692,6 @@ describe('BridgeStatusController', () => {
       const handleLineaDelaySpy = jest
         .spyOn(transactionUtils, 'handleApprovalDelay')
         .mockResolvedValueOnce();
-      const mockTraceFn = jest
-        .fn()
-        .mockImplementation((_p, callback) => callback());
 
       setupEventTrackingMocks(mockMessengerCall);
       setupApprovalMocks(mockMessengerCall);
@@ -3734,9 +3736,6 @@ describe('BridgeStatusController', () => {
       const handleBaseDelaySpy = jest
         .spyOn(transactionUtils, 'handleApprovalDelay')
         .mockResolvedValueOnce();
-      const mockTraceFn = jest
-        .fn()
-        .mockImplementation((_p, callback) => callback());
 
       setupEventTrackingMocks(mockMessengerCall);
       setupApprovalMocks(mockMessengerCall);
@@ -3787,9 +3786,6 @@ describe('BridgeStatusController', () => {
       const handleMobileHardwareWalletDelaySpy = jest
         .spyOn(transactionUtils, 'handleMobileHardwareWalletDelay')
         .mockResolvedValueOnce();
-      const mockTraceFn = jest
-        .fn()
-        .mockImplementation((_p, callback) => callback());
 
       // Mock for hardware wallet check
       mockMessengerCall.mockReturnValueOnce({
@@ -3848,9 +3844,6 @@ describe('BridgeStatusController', () => {
       const handleMobileHardwareWalletDelaySpy = jest
         .spyOn(transactionUtils, 'handleMobileHardwareWalletDelay')
         .mockResolvedValueOnce();
-      const mockTraceFn = jest
-        .fn()
-        .mockImplementation((_p, callback) => callback());
 
       setupEventTrackingMocks(mockMessengerCall);
       setupApprovalMocks(mockMessengerCall);
@@ -3896,9 +3889,6 @@ describe('BridgeStatusController', () => {
       const handleMobileHardwareWalletDelaySpy = jest
         .spyOn(transactionUtils, 'handleMobileHardwareWalletDelay')
         .mockResolvedValueOnce();
-      const mockTraceFn = jest
-        .fn()
-        .mockImplementation((_p, callback) => callback());
 
       // Mock for non-hardware wallet check
       mockMessengerCall.mockReturnValueOnce({
@@ -4504,6 +4494,39 @@ describe('BridgeStatusController', () => {
             },
             false,
           );
+
+          expect(mockTraceFn.mock.calls).toMatchInlineSnapshot(`
+            [
+              [
+                {
+                  "data": {
+                    "feature_id": "unified_swap_bridge",
+                    "srcChainId": "eip155:42161",
+                    "stxEnabled": false,
+                  },
+                  "name": "Swap Transaction Completed",
+                  "tags": {
+                    "feature": "swap",
+                  },
+                },
+                [Function],
+              ],
+              [
+                {
+                  "data": {
+                    "feature_id": "unified_swap_bridge",
+                    "srcChainId": "eip155:42161",
+                    "stxEnabled": false,
+                  },
+                  "name": "Swap Transaction Approval Completed",
+                  "tags": {
+                    "feature": "swap",
+                  },
+                },
+                [Function],
+              ],
+            ]
+          `);
 
           expect(result).toMatchSnapshot();
           expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
@@ -5607,6 +5630,7 @@ describe('BridgeStatusController', () => {
         clientId: BridgeClientId.EXTENSION,
         clientProduct: 'test-client-product',
         fetchFn: mockFetchFn,
+        traceFn: mockTraceFn,
         addTransactionBatchFn: jest.fn(),
         state: {
           txHistory: {
@@ -7022,6 +7046,38 @@ describe('BridgeStatusController', () => {
               },
             );
 
+            expect(mockTraceFn.mock.calls).toMatchInlineSnapshot(`
+              [
+                [
+                  {
+                    "data": {
+                      "feature_id": "unified_swap_bridge",
+                      "srcChainId": "eip155:42161",
+                      "stxEnabled": false,
+                    },
+                    "name": "Swap Transaction Completed",
+                    "tags": {
+                      "feature": "swap",
+                    },
+                  },
+                  [Function],
+                ],
+                [
+                  {
+                    "data": {
+                      "feature_id": "unified_swap_bridge",
+                      "srcChainId": "eip155:42161",
+                      "stxEnabled": false,
+                    },
+                    "name": "Swap Transaction Approval Completed",
+                    "tags": {
+                      "feature": "swap",
+                    },
+                  },
+                  [Function],
+                ],
+              ]
+            `);
             expect(
               controller.state.txHistory[EVM_TX_META_ID]
                 .reportedSubmittedTxHash,

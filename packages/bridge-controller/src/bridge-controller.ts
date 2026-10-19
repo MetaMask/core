@@ -22,7 +22,10 @@ import {
 } from './constants/bridge.js';
 import { CHAIN_IDS } from './constants/chains.js';
 import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps.js';
-import { TraceName } from './constants/traces.js';
+import {
+  BRIDGE_FEATURE_ID_TO_FEATURE_TAG,
+  TraceName,
+} from './constants/traces.js';
 import { RequestStatus } from './types.js';
 import type {
   L1GasFees,
@@ -33,6 +36,7 @@ import type {
   BridgeControllerMessenger,
   FetchFunction,
   InputPrimaryDenomination,
+  SwapTraceRequest,
 } from './types.js';
 import { getAssetIdsForToken, toExchangeRates } from './utils/assets.js';
 import { hasSufficientBalance } from './utils/balance.js';
@@ -98,6 +102,7 @@ import {
 } from './validators/quote-request.js';
 import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
 import type { QuoteResponse } from './validators/quote-response.js';
+import type { SwapTraceFunction } from './index.js';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
@@ -277,7 +282,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     properties: CrossChainSwapsEventProperties<EventName>,
   ) => void;
 
-  readonly #trace: TraceCallback;
+  readonly #trace: SwapTraceFunction<TraceName>;
 
   readonly #config: {
     customBridgeApiBaseUrl?: string;
@@ -316,7 +321,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       eventName: EventName,
       properties: CrossChainSwapsEventProperties<EventName>,
     ) => void;
-    traceFn?: TraceCallback;
+    traceFn: SwapTraceFunction<TraceName>;
     /**
      * When provided, called to determine whether to use AssetsController for exchange rates.
      * When true, rates are read from AssetsController:getExchangeRatesForBridge instead of
@@ -343,7 +348,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#fetchFn = fetchFn;
     this.#trackMetaMetricsFn = trackMetaMetricsFn;
     this.#config = config ?? {};
-    this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
+    this.#trace = traceFn;
     this.#getUseAssetsControllerForRates =
       getUseAssetsControllerForRates ?? (() => false);
 
@@ -858,7 +863,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const [firstQuoteRequest] = quoteRequests;
     let traceResult: QuoteTraceResult = 'error';
-    let traceName = TraceName.BatchSellQuotesFetched;
+    let traceName: TraceName = TraceName.BatchSellQuotesFetched;
     if (!isBatchSellRequest) {
       traceName = isCrossChain(
         firstQuoteRequest.srcChainId,
@@ -868,9 +873,16 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         : TraceName.SwapQuotesFetched;
     }
     const tracedProviders = new Set<string>();
-    const traceWithoutImpact = async (request: TraceRequest): Promise<void> => {
+    const traceWithoutImpact = async (
+      request: Omit<SwapTraceRequest<TraceName>, 'tags'>,
+    ): Promise<void> => {
       try {
-        await this.#trace(request, () => undefined);
+        await this.#trace({
+          ...request,
+          tags: {
+            feature: BRIDGE_FEATURE_ID_TO_FEATURE_TAG[context.feature_id],
+          },
+        });
       } catch {
         // Telemetry failures must not affect quote fetching or state updates.
       }

@@ -6,6 +6,7 @@ import {
   getSwapType,
   isCrossChain,
   QuoteResponseV1,
+  BRIDGE_FEATURE_ID_TO_FEATURE_TAG,
 } from '@metamask/bridge-controller';
 
 import { TraceName } from '../constants.js';
@@ -18,6 +19,7 @@ export const getTraceParams = (
   quoteResponse: QuoteResponseV1,
   isStxEnabled: boolean,
 ) => {
+  const featureId = quoteResponse.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE;
   return {
     name: isCrossChain(
       quoteResponse.quote.srcChainId,
@@ -28,7 +30,10 @@ export const getTraceParams = (
     data: {
       srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
       stxEnabled: isStxEnabled,
-      feature_id: quoteResponse.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
+      feature_id: featureId,
+    },
+    tags: {
+      feature: BRIDGE_FEATURE_ID_TO_FEATURE_TAG[featureId],
     },
   };
 };
@@ -37,6 +42,7 @@ export const getApprovalTraceParams = (
   quoteResponse: QuoteResponseV1,
   isStxEnabled: boolean,
 ) => {
+  const featureId = quoteResponse.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE;
   return {
     name: isCrossChain(
       quoteResponse.quote.srcChainId,
@@ -47,7 +53,10 @@ export const getApprovalTraceParams = (
     data: {
       srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
       stxEnabled: isStxEnabled,
-      feature_id: quoteResponse.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
+      feature_id: featureId,
+    },
+    tags: {
+      feature: BRIDGE_FEATURE_ID_TO_FEATURE_TAG[featureId],
     },
   };
 };
@@ -61,14 +70,18 @@ export const getSwapOperationCompletedTraceParams = (
   const quoteId = historyItem.quoteId ?? historyItem.quote.requestId;
   const sourceTransactionHash = historyItem.status.srcChain.txHash;
   const destinationTransactionHash = historyItem.status.destChain?.txHash;
+  const featureId = historyItem.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE;
 
   return {
     name: TraceName.SwapOperationCompleted,
     startTime: historyItem.startTime,
+    tags: {
+      feature: BRIDGE_FEATURE_ID_TO_FEATURE_TAG[featureId],
+    },
     data: {
       srcChainId: formatChainIdToCaip(historyItem.quote.srcChainId),
       destChainId: formatChainIdToCaip(historyItem.quote.destChainId),
-      feature_id: historyItem.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
+      feature_id: featureId,
       provider: formatProviderLabel(historyItem.quote),
       swap_type: getSwapType(
         historyItem.quote.srcChainId,

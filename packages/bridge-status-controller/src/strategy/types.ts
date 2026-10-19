@@ -2,12 +2,12 @@ import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type {
   BatchSellTradesResponse,
   BridgeClientId,
+  SwapTraceFunction,
   QuoteMetadata,
   QuoteResponseV1,
   Trade,
   TxData,
 } from '@metamask/bridge-controller';
-import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   TransactionController,
   TransactionMeta,
@@ -20,6 +20,7 @@ import type {
   QuoteAndTxMetadata,
   StartPollingForBridgeTxStatusArgs,
 } from '../types.js';
+import type { TraceName } from '../constants.js';
 
 export enum SubmitStep {
   /**
@@ -137,7 +138,7 @@ export type SubmitStrategyParams<
    */
   requireApproval: boolean;
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string];
-  traceFn: TraceCallback;
+  traceFn: SwapTraceFunction<TraceName>;
   // Used for intent transactions
   fetchFn: FetchFunction;
   clientId: BridgeClientId;
