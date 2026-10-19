@@ -200,6 +200,9 @@ const config = {
     'messenger-cli': {
       teams: ['@MetaMask/core-platform'],
     },
+    'mfa-recovery-controller': {
+      teams: ['@MetaMask/web3auth'],
+    },
     'money-account-api-data-service': {
       teams: ['@MetaMask/earn'],
     },
