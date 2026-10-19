@@ -5183,14 +5183,11 @@
     }
   },
   "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/services.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
-      "count": 19
+      "count": 11
     },
     "typescript/no-unsafe-member-access": {
-      "count": 18
+      "count": 10
     },
     "typescript/no-unsafe-return": {
       "count": 3
