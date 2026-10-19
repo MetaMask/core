@@ -51,7 +51,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/local-node-utils',
   '@metamask/logging-controller',
   '@metamask/message-manager',
-  '@metamask/messenger',
   '@metamask/messenger-cli',
   '@metamask/money-account-api-data-service',
   '@metamask/money-account-balance-service',

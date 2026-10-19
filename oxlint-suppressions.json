@@ -3626,17 +3626,15 @@
       "count": 1
     }
   },
-  "packages/messenger/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/messenger/src/Messenger.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 12
     },
     "typescript/no-unsafe-return": {
       "count": 12
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/messenger/src/Messenger.ts": {
