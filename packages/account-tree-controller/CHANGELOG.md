@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Add explicit return types ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- Add explicit return types ([#10888](https://github.com/MetaMask/core/pull/10888))
   - Preventing TypeScript from inferring generic-heavy return types in the `.d.ts` output.
 
 ## [11.0.1]
