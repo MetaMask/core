@@ -5619,7 +5619,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-tree-controller@npm:^11.0.1, @metamask/account-tree-controller@workspace:packages/account-tree-controller":
+"@metamask/account-tree-controller@npm:^11.1.0, @metamask/account-tree-controller@workspace:packages/account-tree-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/account-tree-controller@workspace:packages/account-tree-controller"
   dependencies:
@@ -5894,7 +5894,7 @@ __metadata:
     "@ethereumjs/util": "npm:^9.1.0"
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.8.0"
-    "@metamask/account-tree-controller": "npm:^11.0.1"
+    "@metamask/account-tree-controller": "npm:^11.1.0"
     "@metamask/accounts-controller": "npm:^40.1.0"
     "@metamask/assets-controllers": "npm:^112.1.2"
     "@metamask/auto-changelog": "npm:^6.2.1"
@@ -5951,7 +5951,7 @@ __metadata:
     "@ethersproject/providers": "npm:^5.8.0"
     "@metamask/abi-utils": "npm:^2.0.4"
     "@metamask/account-api": "npm:^2.1.0"
-    "@metamask/account-tree-controller": "npm:^11.0.1"
+    "@metamask/account-tree-controller": "npm:^11.1.0"
     "@metamask/accounts-controller": "npm:^40.1.0"
     "@metamask/approval-controller": "npm:^10.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
@@ -6584,7 +6584,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/core-backend@workspace:packages/core-backend"
   dependencies:
-    "@metamask/account-tree-controller": "npm:^11.0.1"
+    "@metamask/account-tree-controller": "npm:^11.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/keyring-controller": "npm:^28.2.0"
@@ -6763,7 +6763,7 @@ __metadata:
   dependencies:
     "@ethersproject/bignumber": "npm:^5.8.0"
     "@ethersproject/providers": "npm:^5.8.0"
-    "@metamask/account-tree-controller": "npm:^11.0.1"
+    "@metamask/account-tree-controller": "npm:^11.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/controller-utils": "npm:^13.0.0"
@@ -8475,7 +8475,7 @@ __metadata:
   resolution: "@metamask/perps-controller@workspace:packages/perps-controller"
   dependencies:
     "@metamask/abi-utils": "npm:^2.0.4"
-    "@metamask/account-tree-controller": "npm:^11.0.1"
+    "@metamask/account-tree-controller": "npm:^11.1.0"
     "@metamask/authenticated-user-storage": "npm:^4.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.1.0"
