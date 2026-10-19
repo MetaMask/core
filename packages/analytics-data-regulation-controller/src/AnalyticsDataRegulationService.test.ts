@@ -18,13 +18,11 @@ describe('AnalyticsDataRegulationService', () => {
   const segmentRegulationsEndpoint = 'https://proxy.example.com/v1beta';
 
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
     cleanAll();
     disableNetConnect();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
     cleanAll();
     enableNetConnect();
   });
@@ -96,17 +94,12 @@ describe('AnalyticsDataRegulationService', () => {
     it('throws error when API returns 500 status', async () => {
       const analyticsId = 'test-analytics-id';
 
-      nock(segmentRegulationsEndpoint)
+      const scope = nock(segmentRegulationsEndpoint)
         .post(`/regulations/sources/${segmentSourceId}`)
+        .once()
         .reply(500);
 
-      const { rootMessenger } = getService({
-        options: {
-          policyOptions: {
-            maxRetries: 0, // Disable retries for faster test execution
-          },
-        },
-      });
+      const { rootMessenger } = getService();
 
       await expect(
         rootMessenger.call(
@@ -114,6 +107,7 @@ describe('AnalyticsDataRegulationService', () => {
           analyticsId,
         ),
       ).rejects.toThrow('Creating data deletion task failed');
+      expect(scope.isDone()).toBe(true);
     });
 
     it('throws error when API response is missing regulateId', async () => {
@@ -135,7 +129,7 @@ describe('AnalyticsDataRegulationService', () => {
           analyticsId,
         ),
       ).rejects.toThrow(
-        'Malformed response from Segment API: missing or invalid regulateId',
+        /Mutation function for "AnalyticsDataRegulationService:createDataDeletionTask" returned an unexpected response/u,
       );
     });
 
@@ -283,6 +277,57 @@ describe('AnalyticsDataRegulationService', () => {
       ).rejects.toThrow('Checking data deletion status failed');
     });
 
+    it('retries a 5xx response and returns the eventual successful result', async () => {
+      const regulationId = 'test-regulation-id';
+
+      nock(segmentRegulationsEndpoint)
+        .get(`/regulations/${regulationId}`)
+        .times(2)
+        .reply(500);
+      nock(segmentRegulationsEndpoint)
+        .get(`/regulations/${regulationId}`)
+        .reply(200, {
+          data: {
+            data: {
+              regulation: {
+                overallStatus: DATA_DELETE_STATUSES.Finished,
+              },
+            },
+          },
+        });
+
+      const { rootMessenger } = getService();
+
+      const promise = rootMessenger.call(
+        'AnalyticsDataRegulationService:checkDataDeleteStatus',
+        regulationId,
+      );
+      expect(await promise).toStrictEqual({
+        status: DATA_DELETE_RESPONSE_STATUSES.Success,
+        dataDeleteStatus: DATA_DELETE_STATUSES.Finished,
+      });
+    });
+
+    it('throws after exhausting retries on repeated 5xx responses', async () => {
+      const regulationId = 'test-regulation-id';
+
+      const scope = nock(segmentRegulationsEndpoint)
+        .get(`/regulations/${regulationId}`)
+        .times(4)
+        .reply(500);
+
+      const { rootMessenger } = getService();
+
+      const promise = rootMessenger.call(
+        'AnalyticsDataRegulationService:checkDataDeleteStatus',
+        regulationId,
+      );
+      await expect(promise).rejects.toThrow(
+        "Checking data deletion status failed with status '500'",
+      );
+      expect(scope.isDone()).toBe(true);
+    });
+
     it('returns unknown status when API response is missing overallStatus', async () => {
       const regulationId = 'test-regulation-id';
 
@@ -342,125 +387,98 @@ describe('AnalyticsDataRegulationService', () => {
     });
   });
 
-  describe('onRetry', () => {
-    it('calls retry listener when request is retried', async () => {
-      nock(segmentRegulationsEndpoint)
-        .post(`/regulations/sources/${segmentSourceId}`)
-        .times(2)
-        .reply(500);
-
-      const { service, rootMessenger } = getService({
-        options: {
-          policyOptions: {
-            maxRetries: 1,
-          },
-        },
-      });
-
-      const onRetryListener = jest.fn();
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
-        onRetryListener();
-      });
-
-      await expect(
-        rootMessenger.call(
-          'AnalyticsDataRegulationService:createDataDeletionTask',
-          'test-analytics-id',
-        ),
-      ).rejects.toThrow('Creating data deletion task failed');
-
-      expect(onRetryListener).toHaveBeenCalled();
+  describe('BaseDataService integration', () => {
+    const createPath = `/regulations/sources/${segmentSourceId}`;
+    const validCreateBody = { data: { data: { regulateId: 'reg-1' } } };
+    const statusBody = (overallStatus: string): object => ({
+      data: { data: { regulation: { overallStatus } } },
     });
-  });
 
-  describe('onBreak', () => {
-    it('calls break listener when circuit breaker opens after multiple failures', async () => {
-      nock(segmentRegulationsEndpoint)
-        .post(`/regulations/sources/${segmentSourceId}`)
-        .times(12)
-        .reply(500);
+    it('registers the invalidateQueries action', async () => {
+      const { rootMessenger } = getService();
 
-      const { service, rootMessenger } = getService();
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
-      });
-
-      const onBreakListener = jest.fn();
-      service.onBreak(onBreakListener);
-
-      // Make 3 failed requests to trigger circuit breaker
-      for (let i = 0; i < 3; i++) {
-        await expect(
-          rootMessenger.call(
-            'AnalyticsDataRegulationService:createDataDeletionTask',
-            'test-analytics-id',
-          ),
-        ).rejects.toThrow('Creating data deletion task failed');
-      }
-
-      // 4th request should trigger circuit breaker - service throws error
-      await expect(
-        rootMessenger.call(
-          'AnalyticsDataRegulationService:createDataDeletionTask',
-          'test-analytics-id',
+      expect(
+        await rootMessenger.call(
+          'AnalyticsDataRegulationService:invalidateQueries',
         ),
-      ).rejects.toThrow(
-        'Execution prevented because the circuit breaker is open',
+      ).toBeUndefined();
+    });
+
+    it('publishes cacheUpdated after checking a deletion status', async () => {
+      nock(segmentRegulationsEndpoint)
+        .get('/regulations/reg-1')
+        .reply(200, statusBody(DATA_DELETE_STATUSES.Finished));
+      const { service, messenger } = getService();
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      await service.checkDataDeleteStatus('reg-1');
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'AnalyticsDataRegulationService:cacheUpdated',
+        expect.objectContaining({ objectType: 'query' }),
       );
-
-      expect(onBreakListener).toHaveBeenCalled();
     });
-  });
 
-  describe('onDegraded', () => {
-    it('calls onDegraded listener when request takes longer than 5 seconds', async () => {
+    it('deduplicates concurrent checkDataDeleteStatus calls', async () => {
       nock(segmentRegulationsEndpoint)
-        .post(`/regulations/sources/${segmentSourceId}`)
-        .reply(200, () => {
-          jest.advanceTimersByTime(6000);
-          return {
-            data: {
-              data: {
-                regulateId: 'test-regulate-id',
-              },
-            },
-          };
-        });
+        .get('/regulations/reg-1')
+        .reply(200, statusBody(DATA_DELETE_STATUSES.Finished));
+      const secondRequest = nock(segmentRegulationsEndpoint)
+        .get('/regulations/reg-1')
+        .reply(200, statusBody(DATA_DELETE_STATUSES.Failed));
+      const { service } = getService();
 
-      const { service, rootMessenger } = getService();
-      const onDegradedListener = jest.fn();
-      service.onDegraded(onDegradedListener);
+      const [first, second] = await Promise.all([
+        service.checkDataDeleteStatus('reg-1'),
+        service.checkDataDeleteStatus('reg-1'),
+      ]);
 
-      await rootMessenger.call(
-        'AnalyticsDataRegulationService:createDataDeletionTask',
-        'test-analytics-id',
+      expect(first).toStrictEqual(second);
+      expect(secondRequest.isDone()).toBe(false);
+    });
+
+    it('refetches checkDataDeleteStatus on every sequential call', async () => {
+      nock(segmentRegulationsEndpoint)
+        .get('/regulations/reg-1')
+        .reply(200, statusBody(DATA_DELETE_STATUSES.Running));
+      nock(segmentRegulationsEndpoint)
+        .get('/regulations/reg-1')
+        .reply(200, statusBody(DATA_DELETE_STATUSES.Finished));
+      const { service } = getService();
+
+      const first = await service.checkDataDeleteStatus('reg-1');
+      const second = await service.checkDataDeleteStatus('reg-1');
+
+      expect(first.dataDeleteStatus).toBe(DATA_DELETE_STATUSES.Running);
+      expect(second.dataDeleteStatus).toBe(DATA_DELETE_STATUSES.Finished);
+    });
+
+    it('does not retry createDataDeletionTask on a 5xx response', async () => {
+      nock(segmentRegulationsEndpoint).post(createPath).reply(500);
+      const retry = nock(segmentRegulationsEndpoint)
+        .post(createPath)
+        .reply(200, validCreateBody);
+      const { service } = getService();
+
+      await expect(service.createDataDeletionTask('user-1')).rejects.toThrow(
+        "Creating data deletion task failed with status '500'",
       );
-
-      expect(onDegradedListener).toHaveBeenCalled();
+      expect(retry.isDone()).toBe(false);
     });
 
-    it('calls onDegraded listener when maximum number of retries is exceeded', async () => {
+    it('rejects a malformed create response without retrying', async () => {
       nock(segmentRegulationsEndpoint)
-        .post(`/regulations/sources/${segmentSourceId}`)
-        .times(4)
-        .reply(500);
+        .post(createPath)
+        .reply(200, { data: { data: { regulateId: '   ' } } });
+      const retry = nock(segmentRegulationsEndpoint)
+        .post(createPath)
+        .reply(200, validCreateBody);
+      const { service } = getService();
 
-      const { service, rootMessenger } = getService();
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
-      });
-      const onDegradedListener = jest.fn();
-      service.onDegraded(onDegradedListener);
-
-      await expect(
-        rootMessenger.call(
-          'AnalyticsDataRegulationService:createDataDeletionTask',
-          'test-analytics-id',
-        ),
-      ).rejects.toThrow('Creating data deletion task failed');
-
-      expect(onDegradedListener).toHaveBeenCalled();
+      await expect(service.createDataDeletionTask('user-1')).rejects.toThrow(
+        /Mutation function for "AnalyticsDataRegulationService:createDataDeletionTask" returned an unexpected response/u,
+      );
+      expect(retry.isDone()).toBe(false);
     });
   });
 });
