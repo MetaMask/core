@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `NeoBankService.getDepositInstructions`, exposed on the messenger, which returns an autoramp's PIX or US bank deposit details discriminated by `type` ([#10878](https://github.com/MetaMask/core/pull/10878))
+- Add `extractUsBankDepositInstructions` and the `UsBankDepositInstructions`, `UsBankDepositRail`, and `AutorampDepositInstructions` types for `ACH`, `Wire`, `RTP`, and `FedNow` rails ([#10878](https://github.com/MetaMask/core/pull/10878))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- `mapNeoBankAutorampToRemoteSnapshot` sets `depositRailsSummary.currency` from the deposit rail type: BRL for PIX, USD for US rails, and EUR for SEPA ([#10878](https://github.com/MetaMask/core/pull/10878))
 
 ## [27.0.1]
 
