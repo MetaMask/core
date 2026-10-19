@@ -390,7 +390,8 @@ export type BridgeControllerStateChangeEvent = ControllerStateChangeEvent<
 >;
 
 export type BridgeControllerActions =
-  BridgeControllerGetStateAction | BridgeControllerMethodActions;
+  | BridgeControllerGetStateAction
+  | BridgeControllerMethodActions;
 
 export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
 

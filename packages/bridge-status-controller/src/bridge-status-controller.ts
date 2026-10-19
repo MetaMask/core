@@ -374,13 +374,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    await this.#trace(
+    this.#trace(
       getSwapOperationCompletedTraceParams(
         historyItem,
         historyKey,
         result,
         terminalStage,
       ),
+      () => undefined,
     );
   };
 

@@ -217,12 +217,14 @@ describe('BridgeStatusController', () => {
             it.each([true, false])(
               'isDelegatedAccount=%s',
               async (isDelegatedAccount) => {
-                if (!(
-                  !gasIncluded7702 &&
-                  !gasIncluded &&
-                  !stxEnabled &&
-                  !isDelegatedAccount
-                )) {
+                if (
+                  !(
+                    !gasIncluded7702 &&
+                    !gasIncluded &&
+                    !stxEnabled &&
+                    !isDelegatedAccount
+                  )
+                ) {
                   // return;
                 }
                 const is7702 = !shouldDisable7702(

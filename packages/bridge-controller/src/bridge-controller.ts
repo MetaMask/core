@@ -876,7 +876,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       request: Omit<SwapTraceRequest<TraceName>, 'tags'>,
     ): Promise<void> => {
       try {
-        await this.#trace(
+        this.#trace(
           {
             ...request,
             tags: {
