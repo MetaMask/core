@@ -7,6 +7,7 @@ export * as Mocks from './mocks/index.js';
 
 export type {
   AuthenticationControllerPerformSignInAction,
+  AuthenticationControllerExchangeSocialAccessTokenAction,
   AuthenticationControllerPerformSignOutAction,
   AuthenticationControllerGetBearerTokenAction,
   AuthenticationControllerGetSessionProfileAction,
