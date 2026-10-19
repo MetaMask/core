@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
+
 ### Added
 
 - Add the shared `all` feed scope to `FetchFeedOptions` and export `FeedScope`. Preserve optional `eventId`, `revision`, and `occurredAt` projection metadata on `FeedItem` ([#10865](https://github.com/MetaMask/core/pull/10865))
