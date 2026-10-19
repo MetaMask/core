@@ -1,9 +1,16 @@
-/**
- * Example function that returns a greeting for the given name.
- *
- * @param name - The name to greet.
- * @returns The greeting.
- */
-export default function greeter(name: string): string {
-  return `Hello, ${name}!`;
-}
+export type {
+  MarketingConsentControllerActions,
+  MarketingConsentControllerEvents,
+  MarketingConsentControllerGetStateAction,
+  MarketingConsentControllerMessenger,
+  MarketingConsentControllerState,
+  MarketingConsentControllerStateChangedEvent,
+} from './MarketingConsentController.js';
+export {
+  MarketingConsentController,
+  getDefaultMarketingConsentControllerState,
+} from './MarketingConsentController.js';
+export type {
+  MarketingConsentControllerRefreshAction,
+  MarketingConsentControllerSetMarketingConsentAction,
+} from './MarketingConsentController-method-action-types.js';
