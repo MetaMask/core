@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Update `TraceName` to include both client-emitted and controller trace names
-- Populate the `tags` field with the active `feature` when tracing swap/bridge operations
+- Update `TraceName` to include both client-emitted and controller trace names ([#10893](https://github.com/MetaMask/core/pull/10893))
+- Populate the `tags` field with the active `feature` when tracing swap/bridge operations ([#10893](https://github.com/MetaMask/core/pull/10893))
 
 ### Changed
 
-- **BREAKING:** Require `traceFn` when initializing the BridgeStatusController
+- **BREAKING:** Require `traceFn` when initializing the BridgeStatusController ([#10893](https://github.com/MetaMask/core/pull/10893))
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
