@@ -28,6 +28,8 @@ describe('Messenger', () => {
         EventA | EventB
       >({ namespace: 'Child' });
 
+      // We purposely make no assertions here;
+      // this test file will fail if there are type errors.
       source.delegateAll({
         messenger: child,
         actions: ['A:getValue', 'B:getName'],
@@ -43,6 +45,8 @@ describe('Messenger', () => {
         namespace: 'Child',
       });
 
+      // We purposely make no assertions here;
+      // this test file will fail if there are type errors.
       source.delegateAll({
         messenger: child,
         actions: ['A:getValue'],
