@@ -1244,6 +1244,33 @@ describe('SocialService', () => {
       expect(calledUrl).toContain('newerThan=newer-cursor');
     });
 
+    it('fetches the shared all scope with projection metadata', async () => {
+      const allScopeResponse = {
+        items: [
+          {
+            ...mockFeedItem,
+            eventId: 'social.v1.feed.all.position-1.2',
+            revision: 2,
+            occurredAt: '2026-01-02T03:04:05.000Z',
+          },
+        ],
+        pagination: { olderCursor: null, newerCursor: null },
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(allScopeResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'all' });
+
+      expect(result).toStrictEqual(allScopeResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/feed?scope=all`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
     it('validates a perp feed item', async () => {
       mockFetch.mockResolvedValue({
         ok: true,

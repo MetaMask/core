@@ -477,7 +477,7 @@ function buildStoredDelegation({
   periodAmount = PERIOD_AMOUNT,
   periodDuration = PERIOD_DURATION,
   delegationHash,
-  startDate = 1_700_000_000,
+  startDate = Math.floor(Date.now() / 1000),
 }: {
   periodAmount?: bigint;
   periodDuration?: number;
@@ -736,13 +736,14 @@ describe('SubscriptionDelegationService', () => {
     });
 
     it('reuses the matching stored delegation with the latest period startDate', async () => {
+      const nowSeconds = Math.floor(Date.now() / 1000);
       const older = buildStoredDelegation({
         delegationHash: `0x${'11'.repeat(32)}`,
-        startDate: 1_700_000_000,
+        startDate: nowSeconds - 2 * 86_400,
       });
       const newer = buildStoredDelegation({
         delegationHash: `0x${'22'.repeat(32)}`,
-        startDate: 1_700_086_400,
+        startDate: nowSeconds - 86_400,
       });
       const { service, mocks } = setup({
         listDelegations: [older, newer],
@@ -765,6 +766,31 @@ describe('SubscriptionDelegationService', () => {
       });
       expect(mocks.signDelegation).not.toHaveBeenCalled();
       expect(mocks.createDelegation).not.toHaveBeenCalled();
+    });
+
+    it('signs a new delegation when the stored live startDate is older than 14 days', async () => {
+      const stored = buildStoredDelegation({
+        startDate: Math.floor(Date.now() / 1000) - 15 * 86_400,
+      });
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+        intents: [
+          {
+            account: PAYER,
+            delegationHash: stored.metadata.delegationHash,
+            chainId: CHAIN_ID,
+            status: 'active',
+            metadata: stored.metadata,
+          },
+        ],
+      });
+
+      const result = await service.prepareDelegation(REQUEST);
+
+      expect(result.disposition).toBe('created');
+      expect(result.delegationHash).not.toBe(stored.metadata.delegationHash);
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
     });
 
     it('creates and registers a replacement when forceNew is requested', async () => {
@@ -1256,11 +1282,12 @@ describe('SubscriptionDelegationService', () => {
     });
 
     it('reuses the matching payment permission with the latest period startDate', async () => {
+      const nowSeconds = Math.floor(Date.now() / 1000);
       const older = buildStoredDelegation({
-        startDate: 1_700_000_000,
+        startDate: nowSeconds - 2 * 86_400,
       });
       const newer = buildStoredDelegation({
-        startDate: 1_700_086_400,
+        startDate: nowSeconds - 86_400,
       });
       const { service, mocks } = setup({
         listDelegations: [older, newer],
@@ -1284,6 +1311,25 @@ describe('SubscriptionDelegationService', () => {
         expect.objectContaining({
           delegationHash: newer.metadata.delegationHash,
         }),
+      );
+    });
+
+    it('signs a new payment permission when the stored live startDate is older than 14 days', async () => {
+      const stored = buildStoredDelegation({
+        startDate: Math.floor(Date.now() / 1000) - 15 * 86_400,
+      });
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+      });
+
+      await service.startSubscriptionWithDelegation(START_REQUEST);
+
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledTimes(1);
+      const [cryptoRequest] = mocks.startSubscriptionWithCrypto.mock.calls[0];
+      expect(cryptoRequest.delegationHash).not.toBe(
+        stored.metadata.delegationHash,
       );
     });
 

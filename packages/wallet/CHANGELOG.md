@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.0]
+
 ### Added
 
+- **BREAKING:** Require a `reference` property on `InitializationConfiguration` for instances that have state ([#10023](https://github.com/MetaMask/core/pull/10023))
 - **BREAKING:** Add `PermissionController` to the default initialization configurations ([#10807](https://github.com/MetaMask/core/pull/10807))
   - Accepts optional `instanceOptions.permissionController.caveatSpecifications`, `permissionSpecifications` and `unrestrictedMethods`, each defaulting to empty.
 - **BREAKING:** Add `SubjectMetadataController` to the default initialization configurations ([#10807](https://github.com/MetaMask/core/pull/10807))
@@ -24,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `@metamask/permission-controller` as a dependency ([#10807](https://github.com/MetaMask/core/pull/10807))
 - Add `@metamask/selected-network-controller` as a dependency ([#10808](https://github.com/MetaMask/core/pull/10808))
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
+- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
 ## [17.1.0]
 
@@ -366,7 +373,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.1.0...@metamask/wallet@18.0.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.0.0...@metamask/wallet@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.1...@metamask/wallet@17.0.0
 [16.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.0...@metamask/wallet@16.0.1

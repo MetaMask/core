@@ -913,9 +913,10 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * Get the middleware for fetching balances via Accounts API.
    * This middleware:
    * - Supports multiple accounts in a single request
-   * - Uses unprocessedNetworks from API response to determine what to pass to next middleware
-   * - Merges response into context
-   * - Removes handled chains from request for next middleware
+   * - Fetches only chains this source currently supports
+   * - Merges that response into context
+   * - Leaves `request.chainIds` unchanged so later stages (RPC fallback,
+   *   detection, prices) still see every chain the caller asked for
    *
    * @returns The middleware function for the assets pipeline.
    */
@@ -940,12 +941,19 @@ export class AccountsApiDataSource extends AbstractDataSource<
       return next(context);
     }
 
-    let successfullyHandledChains: ChainId[] = [];
+    const chainsToFetch = this.#getChainsToFetch(request);
+    if (chainsToFetch.length === 0) {
+      return next(context);
+    }
 
     try {
-      const response = await this.fetch(request);
+      const response = await this.fetch({
+        ...request,
+        chainIds: chainsToFetch,
+      });
 
-      // Merge response into context
+      // Merge response into context. The caller's chain list stays intact:
+      // the RPC fallback re-reads omitted tokens on chains this fetch answered.
       if (response.assetsBalance) {
         context.response.assetsBalance ??= {};
         for (const [accountId, accountBalances] of Object.entries(
@@ -958,43 +966,16 @@ export class AccountsApiDataSource extends AbstractDataSource<
         }
       }
 
-      // Determine successfully handled chains (exclude unprocessed/error chains)
-      const unprocessedChains = new Set(Object.keys(response.errors ?? {}));
-      successfullyHandledChains = request.chainIds.filter(
-        (chainId) => !unprocessedChains.has(chainId),
-      );
-
-      // When token detection is off and we filtered out all balance data (e.g. new
-      // account with empty state), do not claim any chain as handled so that RPC
-      // middleware can still process them and fetch native balances (ETH, MATIC, etc.).
-      if (
-        !this.#tokenDetectionEnabled() &&
-        (!response.assetsBalance ||
-          Object.keys(response.assetsBalance).length === 0)
-      ) {
-        successfullyHandledChains = [];
+      if (response.errors && Object.keys(response.errors).length > 0) {
+        context.response.errors = {
+          ...context.response.errors,
+          ...response.errors,
+        };
       }
     } catch (error) {
       log('Middleware fetch failed', { error });
-      successfullyHandledChains = [];
     }
 
-    // Remove successfully handled chains from request for next middleware
-    if (successfullyHandledChains.length > 0) {
-      const remainingChains = request.chainIds.filter(
-        (chainId) => !successfullyHandledChains.includes(chainId),
-      );
-
-      return next({
-        ...context,
-        request: {
-          ...request,
-          chainIds: remainingChains,
-        },
-      });
-    }
-
-    // No chains handled - pass context unchanged
     return next(context);
   };
 
@@ -1011,12 +992,19 @@ export class AccountsApiDataSource extends AbstractDataSource<
       return next(context);
     }
 
-    let remainingChains = request.chainIds;
+    const chainsToFetch = this.#getChainsToFetch(request);
+    if (chainsToFetch.length === 0) {
+      return next(context);
+    }
 
     try {
-      const response = await this.fetch(request);
+      const response = await this.fetch({
+        ...request,
+        chainIds: chainsToFetch,
+      });
 
-      // Merge response into context
+      // Merge response into context. Failed chains stay on `response.errors`;
+      // the RPC fallback retries those. The caller's chain list is unchanged.
       if (response.assetsBalance) {
         context.response.assetsBalance ??= {};
         for (const [accountId, accountBalances] of Object.entries(
@@ -1034,30 +1022,17 @@ export class AccountsApiDataSource extends AbstractDataSource<
         updateMode: 'full',
       };
 
-      const errors = response.errors ?? {};
-      remainingChains = request.chainIds.filter((chainId) => errors[chainId]);
-
-      // Remaining chains are exactly the failed ones; RPC fallback retries them.
-      if (remainingChains.length > 0) {
+      if (response.errors && Object.keys(response.errors).length > 0) {
         context.response.errors = {
           ...context.response.errors,
-          ...Object.fromEntries(
-            remainingChains.map((chainId) => [chainId, errors[chainId]]),
-          ),
+          ...response.errors,
         };
       }
     } catch (error) {
       log('Middleware fetch failed', { error });
-      remainingChains = request.chainIds;
     }
 
-    return next({
-      ...context,
-      request: {
-        ...request,
-        chainIds: remainingChains,
-      },
-    });
+    return next(context);
   };
 
   // ============================================================================

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Publish `AccountActivityService:statusChanged` with status `down` for every tracked chain when enabled chain prefixes change, matching WebSocket disconnect, so those chains are released for snaps feature flag changes ([#10819](https://github.com/MetaMask/core/pull/10819))
+
+## [12.2.0]
+
+### Added
+
+- Add optional `isBasicFunctionality` and `subscribeToBasicFunctionalityChange` options to `BackendWebSocketService`. When basic functionality is off, the service does not connect or reconnect, and an open socket is closed ([#10797](https://github.com/MetaMask/core/pull/10797))
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+
 ## [12.1.0]
 
 ### Added
@@ -495,7 +509,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.2.0...HEAD
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.1.0...@metamask/core-backend@12.2.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.1...@metamask/core-backend@12.1.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.0...@metamask/core-backend@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@11.0.0...@metamask/core-backend@12.0.0
