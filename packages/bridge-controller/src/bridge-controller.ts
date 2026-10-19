@@ -876,12 +876,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       request: Omit<SwapTraceRequest<TraceName>, 'tags'>,
     ): Promise<void> => {
       try {
-        await this.#trace({
-          ...request,
-          tags: {
-            feature: BRIDGE_FEATURE_ID_TO_FEATURE_TAG[context.feature_id],
+        await this.#trace(
+          {
+            ...request,
+            tags: {
+              feature: BRIDGE_FEATURE_ID_TO_FEATURE_TAG[context.feature_id],
+            },
           },
-        });
+          () => undefined,
+        );
       } catch {
         // Telemetry failures must not affect quote fetching or state updates.
       }

@@ -524,6 +524,7 @@ describe('BridgeController SSE', function () {
                 feature: 'swap',
               },
             },
+            expect.any(Function),
           ],
           [
             {
@@ -541,6 +542,7 @@ describe('BridgeController SSE', function () {
                 feature: 'swap',
               },
             },
+            expect.any(Function),
           ],
           [
             {
@@ -556,6 +558,7 @@ describe('BridgeController SSE', function () {
                 feature: 'swap',
               },
             },
+            expect.any(Function),
           ],
         ]);
       },
