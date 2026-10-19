@@ -6,6 +6,7 @@ import {
   ROOT_AUTHORITY,
 } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   encodeTransferToCalldataPrefix,
@@ -108,7 +109,7 @@ const expected = {
   periodAmount: PERIOD_AMOUNT,
   periodDuration: PERIOD_DURATION,
   nowSeconds: NOW_SECONDS,
-  isTrialDeferred: false,
+  expectedStartDate: NOW_SECONDS,
   enforcers: {
     erc20TokenPeriodTransfer: PERIOD,
     allowedCalldata: ALLOWED_CALLDATA,
@@ -140,9 +141,10 @@ describe('makeMatchesSubscriptionDelegation', () => {
   });
 
   it('matches a deferred startDate when start is trial-deferred', () => {
+    const TRIAL_START = NOW_SECONDS + 14 * 86_400;
     const matchesTrial = makeMatchesSubscriptionDelegation({
       ...expected,
-      isTrialDeferred: true,
+      expectedStartDate: TRIAL_START,
     });
 
     expect(matchesTrial(buildEntry({ startDate: NOW_SECONDS + 86_400 }))).toBe(
@@ -151,12 +153,85 @@ describe('makeMatchesSubscriptionDelegation', () => {
   });
 
   it('rejects an immediately redeemable startDate when start is trial-deferred', () => {
+    const TRIAL_START = NOW_SECONDS + 14 * 86_400;
     const matchesTrial = makeMatchesSubscriptionDelegation({
       ...expected,
-      isTrialDeferred: true,
+      expectedStartDate: TRIAL_START,
     });
 
     expect(matchesTrial(buildEntry({ startDate: NOW_SECONDS }))).toBe(false);
+  });
+
+  const PAST_SKEW_SECONDS = 14 * 24 * 60 * 60;
+  const FUTURE_SKEW_SECONDS = 5 * 60;
+
+  it('matches a live startDate on the 14-day lower boundary', () => {
+    expect(
+      matches(buildEntry({ startDate: NOW_SECONDS - PAST_SKEW_SECONDS })),
+    ).toBe(true);
+  });
+
+  it('rejects a live startDate older than 14 days', () => {
+    expect(
+      matches(buildEntry({ startDate: NOW_SECONDS - PAST_SKEW_SECONDS - 1 })),
+    ).toBe(false);
+  });
+
+  it('matches a live startDate at the 5-minute future skew', () => {
+    expect(
+      matches(buildEntry({ startDate: NOW_SECONDS + FUTURE_SKEW_SECONDS })),
+    ).toBe(true);
+  });
+
+  it('rejects a live startDate more than 5 minutes ahead', () => {
+    expect(
+      matches(buildEntry({ startDate: NOW_SECONDS + FUTURE_SKEW_SECONDS + 1 })),
+    ).toBe(false);
+  });
+
+  it('rejects a non-positive startDate', () => {
+    const entry = buildEntry();
+    // createERC20TokenPeriodTransferTerms refuses to encode non-positive
+    // startDate. Create a valid terms blob with startDate=1 then zero out the
+    // trailing 32-byte startDate field (64 hex chars) so the terms decode
+    // successfully but yield startDate = 0, exercising the storedStartDate <= 0
+    // guard.
+    const validTerms = createERC20TokenPeriodTransferTerms({
+      tokenAddress: TOKEN,
+      periodAmount: PERIOD_AMOUNT,
+      periodDuration: PERIOD_DURATION,
+      startDate: 1,
+    });
+    entry.signedDelegation.caveats[0].terms = `${validTerms.slice(
+      0,
+      -64,
+    )}${'0'.repeat(64)}` as Hex;
+
+    expect(matches(entry)).toBe(false);
+  });
+
+  it('matches a trial startDate one second after now', () => {
+    const TRIAL_START = NOW_SECONDS + 14 * 86_400;
+    const matchesTrial = makeMatchesSubscriptionDelegation({
+      ...expected,
+      expectedStartDate: TRIAL_START,
+    });
+
+    expect(matchesTrial(buildEntry({ startDate: NOW_SECONDS + 1 }))).toBe(true);
+  });
+
+  it('rejects a trial startDate beyond the 5-minute future skew', () => {
+    const TRIAL_START = NOW_SECONDS + 14 * 86_400;
+    const matchesTrial = makeMatchesSubscriptionDelegation({
+      ...expected,
+      expectedStartDate: TRIAL_START,
+    });
+
+    expect(
+      matchesTrial(
+        buildEntry({ startDate: TRIAL_START + FUTURE_SKEW_SECONDS + 1 }),
+      ),
+    ).toBe(false);
   });
 
   it('matches case-insensitively on addresses and chain id', () => {

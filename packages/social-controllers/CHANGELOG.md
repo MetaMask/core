@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `createdAt` to `TraderProfile`. `fetchTraderProfile` accepts an ISO-8601 timestamp, or `null`, on `GET /traders/:addressOrId/profile` and still accepts responses that omit it ([#10877](https://github.com/MetaMask/core/pull/10877))
+- Add the shared `all` feed scope to `FetchFeedOptions` and export `FeedScope`. Preserve optional `eventId`, `revision`, and `occurredAt` projection metadata on `FeedItem` ([#10865](https://github.com/MetaMask/core/pull/10865))
+
 ### Changed
 
-- Bump `@metamask/core-backend` from `^12.1.0` to `^12.2.0` ([#10857](https://github.com/MetaMask/core/pull/10857))
+- Bump `@metamask/core-backend` from `^12.1.0` to `^12.3.0` ([#10857](https://github.com/MetaMask/core/pull/10857), [#10876](https://github.com/MetaMask/core/pull/10876))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
 ## [3.8.0]
 

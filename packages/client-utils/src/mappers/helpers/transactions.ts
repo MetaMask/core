@@ -4,7 +4,10 @@ import {
   isEqualCaseInsensitive as equalsIgnoreCase,
 } from '@metamask/controller-utils';
 import type { V1TransactionByHashResponse } from '@metamask/core-backend';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionReceipt,
+} from '@metamask/transaction-controller';
 import {
   TransactionStatus,
   TransactionType,
@@ -49,6 +52,58 @@ function calculateNetworkFee(
     return String(BigInt(gasUsed) * BigInt(gasPrice));
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * Calculates the OP Stack / Mantle operator fee from the receipt.
+ *
+ * Jovian receipts (with `daFootprintGasScalar`):
+ * `gasUsed * operatorFeeScalar * 100 + operatorFeeConstant`.
+ * Isthmus receipts: `gasUsed * operatorFeeScalar / 1e6 + operatorFeeConstant`.
+ *
+ * @param txReceipt - Transaction receipt.
+ * @returns Operator fee in wei, or 0 when the receipt has no operator fee fields.
+ */
+function calculateOperatorFee(
+  txReceipt: TransactionReceipt | undefined,
+): bigint {
+  const {
+    daFootprintGasScalar,
+    gasUsed,
+    operatorFeeConstant,
+    operatorFeeScalar,
+  } = txReceipt ?? {};
+
+  if (!gasUsed || !operatorFeeScalar || !operatorFeeConstant) {
+    return 0n;
+  }
+
+  const fee = BigInt(gasUsed) * BigInt(operatorFeeScalar);
+  const scaledFee =
+    daFootprintGasScalar === undefined ? fee / 1_000_000n : fee * 100n;
+
+  return scaledFee + BigInt(operatorFeeConstant);
+}
+
+/**
+ * Sums the L2, L1, and operator fees from the receipt.
+ *
+ * @param l2Fee - L2 network fee in decimal wei.
+ * @param txReceipt - Transaction receipt.
+ * @returns Total fee in decimal wei, or the L2 fee if a receipt value is invalid.
+ */
+function calculateTotalFee(
+  l2Fee: string,
+  txReceipt: TransactionReceipt | undefined,
+): string {
+  try {
+    const l1Fee = BigInt(txReceipt?.l1Fee ?? 0);
+    const operatorFee = calculateOperatorFee(txReceipt);
+
+    return String(BigInt(l2Fee) + l1Fee + operatorFee);
+  } catch {
+    return l2Fee;
   }
 }
 
@@ -133,6 +188,15 @@ export function getFees(
   return networkFee ? [networkFee] : undefined;
 }
 
+/**
+ * Builds the base network fee (in the chain's native token) for a local
+ * transaction from its receipt (`gasUsed × effectiveGasPrice`), plus the
+ * L1 and operator fees from the receipt. Falls back to `txParams.gasPrice`
+ * while pending.
+ *
+ * @param transactionGroup - Transaction group with the primary transaction.
+ * @returns Activity fee list with a single base network fee, or undefined.
+ */
 export function getLocalTransactionFees(
   transactionGroup: Pick<TransactionGroup, 'primaryTransaction'> & {
     nativeAssetSymbol?: string;
@@ -145,15 +209,18 @@ export function getLocalTransactionFees(
     return undefined;
   }
 
-  const amount = calculateNetworkFee(
-    primaryTransaction.txReceipt?.gasUsed,
-    primaryTransaction.txReceipt?.effectiveGasPrice ??
-      primaryTransaction.txParams?.gasPrice,
+  const { txReceipt } = primaryTransaction;
+
+  const l2Fee = calculateNetworkFee(
+    txReceipt?.gasUsed,
+    txReceipt?.effectiveGasPrice ?? primaryTransaction.txParams?.gasPrice,
   );
 
-  if (!amount) {
+  if (!l2Fee) {
     return undefined;
   }
+
+  const amount = calculateTotalFee(l2Fee, txReceipt);
 
   return [toNetworkFee(amount, chainId, nativeAssetSymbol)];
 }
