@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `AuthenticationController.exchangeSocialAccessToken` and the `AuthenticationController:exchangeSocialAccessToken` messenger action, exchanging the wallet's Google, Apple or Telegram social access token (`POST /api/v2/social/login`) for an access token and the canonical profile, without storing them ([#00000](https://github.com/MetaMask/core/pull/00000))
+- Add `AuthenticationController.exchangeSocialAccessToken` and the `AuthenticationController:exchangeSocialAccessToken` messenger action, exchanging the wallet's Google, Apple or Telegram social access token (`POST /api/v2/social/login`) for an access token and the canonical profile, without storing them ([#10886](https://github.com/MetaMask/core/pull/10886))
   - Add `exchangeSocialAccessToken` to the SDK's `JwtBearerAuth`, the `SocialLoginParams` type, and `SocialIdentifierNotPairedError`, thrown when the identifier was never paired to a profile
 
 ### Changed
