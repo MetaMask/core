@@ -371,11 +371,6 @@
       "count": 1
     }
   },
-  "packages/bridge-status-controller/src/bridge-status-controller.batch-sell.test.ts": {
-    "TS2345": {
-      "count": 1
-    }
-  },
   "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
     "TS2307": {
       "count": 1

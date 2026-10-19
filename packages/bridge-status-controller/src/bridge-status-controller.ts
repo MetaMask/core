@@ -1763,10 +1763,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyItem?.featureId ??
       FeatureId.UNIFIED_SWAP_BRIDGE;
 
-    if (!(
-      ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
-      eventName === UnifiedSwapBridgeEventName.StatusValidationFailed
-    )) {
+    if (
+      !(
+        ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
+        eventName === UnifiedSwapBridgeEventName.StatusValidationFailed
+      )
+    ) {
       return;
     }
 

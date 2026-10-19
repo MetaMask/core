@@ -1954,6 +1954,47 @@ describe('BridgeStatusController', () => {
           );
         },
       );
+
+      it('lets caller catch throws from a synchronous traceFn', async () => {
+        const traceFn = jest.fn(() => {
+          throw new Error('trace failed');
+        });
+
+        await withController(
+          {
+            options: {
+              state: {
+                txHistory: MockTxHistory.getPendingSwap(),
+              },
+              traceFn,
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            rootMessenger.publish(
+              'TransactionController:transactionStatusUpdated',
+              {
+                transactionMeta: {
+                  chainId: CHAIN_IDS.ARBITRUM,
+                  hash: '0xsourceTxHash',
+                  networkClientId: 'eth-id',
+                  time: Date.now(),
+                  txParams: {} as unknown as TransactionParams,
+                  type: TransactionType.swap,
+                  status: TransactionStatus.confirmed,
+                  id: 'swapTxMetaId1',
+                },
+              },
+            );
+            await flushPromises();
+
+            expect(traceFn).toHaveBeenCalled();
+            expect(
+              controller.state.txHistory.swapTxMetaId1?.status.status,
+            ).toBe(StatusTypes.COMPLETE);
+          },
+        );
+      });
     });
 
     it.each([

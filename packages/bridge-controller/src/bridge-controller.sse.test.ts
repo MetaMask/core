@@ -403,6 +403,40 @@ describe('BridgeController SSE', function () {
         }),
       );
     });
+
+    it('swallows throws from a synchronous traceFn', async () => {
+      const traceFn = jest.fn(() => {
+        throw new Error('trace failed');
+      });
+
+      await withController(
+        {
+          options: {
+            traceFn,
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          mockFetchFn.mockImplementationOnce(async () =>
+            mockSseEventSource([mockBridgeQuotesErc20Erc20V1[0]]),
+          );
+          await rootMessenger.call(
+            'BridgeController:updateBridgeQuoteRequestParams',
+            quoteRequest,
+            metricsContext,
+          );
+          jest.advanceTimersByTime(1000);
+          await advanceToNthTimerThenFlush();
+          jest.advanceTimersByTime(11000);
+          await flushPromises();
+
+          expect(traceFn).toHaveBeenCalled();
+          expect(controller.state.quotesLoadingStatus).toBe(
+            RequestStatus.FETCHED,
+          );
+          expect(controller.state.quoteFetchError).toBeNull();
+        },
+      );
+    });
   });
 
   it('should trigger quote polling if request is valid', async function () {

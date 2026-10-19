@@ -872,9 +872,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         : TraceName.SwapQuotesFetched;
     }
     const tracedProviders = new Set<string>();
-    const traceWithoutImpact = async (
+    const traceWithoutImpact = (
       request: Omit<SwapTraceRequest<TraceName>, 'tags'>,
-    ): Promise<void> => {
+    ) => {
       try {
         this.#trace(
           {
@@ -898,7 +898,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       }
       tracedProviders.add(provider);
       // Provider telemetry must not delay quote processing.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       traceWithoutImpact({
         name: TraceName.QuoteProviderFirstResult,
         startTime: quoteTraceStartTime,
@@ -1004,7 +1003,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         error,
       );
     } finally {
-      await traceWithoutImpact({
+      traceWithoutImpact({
         name: traceName,
         startTime: quoteTraceStartTime,
         data: {
