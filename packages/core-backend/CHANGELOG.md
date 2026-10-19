@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.3.0]
 
-### Uncategorized
-
-- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
-
 ### Changed
 
 - Publish `AccountActivityService:statusChanged` with status `down` for every tracked chain when enabled chain prefixes change, matching WebSocket disconnect, so those chains are released for snaps feature flag changes ([#10819](https://github.com/MetaMask/core/pull/10819))
