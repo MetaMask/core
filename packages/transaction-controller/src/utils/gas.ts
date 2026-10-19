@@ -76,7 +76,7 @@ export const DUMMY_AUTHORIZATION_SIGNATURE =
  * charge: `ACCOUNT_WRITE` is covered by the transaction base cost, and the
  * sender always exists in state as its nonce is incremented first.
  */
-export const EIP2780_DELEGATION_GAS = 35190;
+export const EIP_2780_AUTHORIZATION_GAS = 35190;
 
 /**
  * Error for a simulated transaction that failed, as opposed to the simulation
@@ -740,7 +740,7 @@ async function estimateGasType4Node({
     getDelegationAddress(txParams.from as Hex, messenger, networkClientId),
   ]);
 
-  const delegationGas = currentDelegationAddress ? 0 : EIP2780_DELEGATION_GAS;
+  const delegationGas = currentDelegationAddress ? 0 : EIP_2780_AUTHORIZATION_GAS;
 
   log('Type 4 gas using node', {
     currentDelegationAddress,

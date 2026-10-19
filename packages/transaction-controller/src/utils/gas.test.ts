@@ -35,7 +35,7 @@ import {
   DEFAULT_GAS_MULTIPLIER,
   MAX_GAS_BLOCK_PERCENT,
   DUMMY_AUTHORIZATION_SIGNATURE,
-  EIP2780_DELEGATION_GAS,
+  EIP_2780_AUTHORIZATION_GAS,
   simulateGasBatch,
 } from './gas.js';
 import { rpcRequest } from './provider.js';
@@ -1430,7 +1430,7 @@ describe('gas', () => {
           const result = await estimateType4Gas();
 
           expect(result.estimatedGas).toBe(
-            toHex(GAS_2_MOCK + EIP2780_DELEGATION_GAS),
+            toHex(GAS_2_MOCK + EIP_2780_AUTHORIZATION_GAS),
           );
           expect(result.simulationFails).toBeUndefined();
           expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
@@ -1446,7 +1446,7 @@ describe('gas', () => {
         const result = await estimateType4Gas({}, false);
 
         expect(result).toStrictEqual({
-          estimatedGas: toHex(GAS_2_MOCK + EIP2780_DELEGATION_GAS),
+          estimatedGas: toHex(GAS_2_MOCK + EIP_2780_AUTHORIZATION_GAS),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
           gasRevert: undefined,
@@ -1491,7 +1491,7 @@ describe('gas', () => {
         );
 
         expect(result.estimatedGas).toBe(
-          toHex(GAS_2_MOCK + EIP2780_DELEGATION_GAS),
+          toHex(GAS_2_MOCK + EIP_2780_AUTHORIZATION_GAS),
         );
 
         expect(getEstimateGasParams()).toStrictEqual([
