@@ -3671,6 +3671,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 12
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/messenger/src/Messenger.ts": {

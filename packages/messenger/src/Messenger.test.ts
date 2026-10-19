@@ -594,7 +594,6 @@ describe('Messenger', () => {
       let republished = false;
       messenger.subscribe('Fixture:message', (message) => {
         calls.push(`first:${message}`);
-        // eslint-disable-next-line vitest/no-conditional-in-test
         if (!republished) {
           republished = true;
           messenger.publish('Fixture:message', 'second');
@@ -624,7 +623,6 @@ describe('Messenger', () => {
       let done = false;
       messenger.subscribe('Fixture:message', (message) => {
         received.push(message);
-        // eslint-disable-next-line vitest/no-conditional-in-test
         if (!done) {
           done = true;
           messenger.publish('Fixture:message', 'b');
@@ -674,7 +672,6 @@ describe('Messenger', () => {
       let republished = false;
       delegatee.subscribe('Source:event', (message) => {
         calls.push(`delegatee:${message}`);
-        // eslint-disable-next-line vitest/no-conditional-in-test
         if (!republished) {
           republished = true;
           source.publish('Source:event', 'second');
