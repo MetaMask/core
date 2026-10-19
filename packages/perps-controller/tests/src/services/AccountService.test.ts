@@ -23,6 +23,7 @@ jest.mock('../../../src/constants/eventNames', () => ({
     WITHDRAWAL_AMOUNT: 'withdrawal_amount',
     COMPLETION_DURATION: 'completion_duration',
     ERROR_MESSAGE: 'error_message',
+    ENVIRONMENT_TYPE: 'environment_type',
   },
   PERPS_EVENT_VALUE: {
     STATUS: {
@@ -341,6 +342,96 @@ describe('AccountService', () => {
         PerpsAnalyticsEvent.WithdrawalTransaction,
         expect.objectContaining({
           status: 'executed',
+        }),
+      );
+    });
+
+    it('includes environment_type on a successful withdrawal', async () => {
+      mockProvider.withdraw.mockResolvedValue({
+        success: true,
+        txHash: '0xHash',
+      });
+
+      await accountService.withdraw({
+        provider: mockProvider,
+        params: { ...mockWithdrawParams, environmentType: 'sidepanel' },
+        context: mockContext,
+        refreshAccountState: mockRefreshAccountState,
+      });
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.WithdrawalTransaction,
+        expect.objectContaining({
+          status: 'executed',
+          environment_type: 'sidepanel',
+        }),
+      );
+    });
+
+    it('omits environment_type when withdrawal params omit it', async () => {
+      mockProvider.withdraw.mockResolvedValue({
+        success: true,
+        txHash: '0xHash',
+      });
+
+      await accountService.withdraw({
+        provider: mockProvider,
+        params: mockWithdrawParams,
+        context: mockContext,
+        refreshAccountState: mockRefreshAccountState,
+      });
+
+      const withdrawalCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock<
+          void,
+          [PerpsAnalyticsEvent, Record<string, unknown>]
+        >
+      ).mock.calls.filter(
+        (call) => call[0] === PerpsAnalyticsEvent.WithdrawalTransaction,
+      );
+      expect(withdrawalCalls.length).toBeGreaterThan(0);
+      for (const call of withdrawalCalls) {
+        expect(call[1]).not.toHaveProperty('environment_type');
+      }
+    });
+
+    it('includes environment_type on a failed withdrawal result', async () => {
+      mockProvider.withdraw.mockResolvedValue({
+        success: false,
+        error: 'Insufficient balance',
+      });
+
+      await accountService.withdraw({
+        provider: mockProvider,
+        params: { ...mockWithdrawParams, environmentType: 'popup' },
+        context: mockContext,
+        refreshAccountState: mockRefreshAccountState,
+      });
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.WithdrawalTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          environment_type: 'popup',
+        }),
+      );
+    });
+
+    it('includes environment_type when withdrawal throws', async () => {
+      mockProvider.withdraw.mockRejectedValue(new Error('Network error'));
+
+      await accountService.withdraw({
+        provider: mockProvider,
+        params: { ...mockWithdrawParams, environmentType: 'notification' },
+        context: mockContext,
+        refreshAccountState: mockRefreshAccountState,
+      });
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.WithdrawalTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          environment_type: 'notification',
         }),
       );
     });
