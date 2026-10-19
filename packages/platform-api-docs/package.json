@@ -76,6 +76,7 @@
   },
   "scriptsConfig": {
     "#default": "lavamoat/scripts.strict.json",
-    "audit-script": "lavamoat/scripts.yarn.json"
+    "audit-script": "lavamoat/scripts.yarn.json",
+    "cli": "lavamoat/workspaces/scripts.build-docs.json"
   }
 }
