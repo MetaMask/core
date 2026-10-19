@@ -672,7 +672,10 @@ export class SeedlessOnboardingController<
   /**
    * Update the password of the seedless onboarding flow.
    *
-   * Changing password will also update the encryption key, metadata store and the vault with new encrypted values.
+   * Changing password updates the Seedless/TOPRF vault, the local Keyring
+   * password, and the Keyring encryption key stored in Seedless. The
+   * password-change lifecycle is cleared only after the stored and current
+   * Keyring encryption keys have been verified to match.
    *
    * @param newPassword - The new password to update.
    * @param oldPassword - The old password to verify.
@@ -735,6 +738,8 @@ export class SeedlessOnboardingController<
           attemptChangePassword,
           'changePassword',
         );
+        await this.#changeKeyringPassword(newPassword);
+        await this.#syncAndCompleteKeyringEncryptionKeyUnlocked();
       } catch (error) {
         log('Error changing password', error);
         throw new SeedlessOnboardingError(
@@ -852,17 +857,24 @@ export class SeedlessOnboardingController<
    * @returns A promise that resolves to the success of the operation.
    */
   async setLocked(): Promise<void> {
-    return await this.#withControllerLock(async () => {
-      this.update((state) => {
-        delete state.vaultEncryptionKey;
-        delete state.vaultEncryptionSalt;
-        delete state.revokeToken;
-        delete state.accessToken;
-      });
+    return await this.#withControllerLock(
+      async () => await this.#setLockedUnlocked(),
+    );
+  }
 
-      this.#cachedDecryptedVaultData = undefined;
-      this.#isUnlocked = false;
+  /**
+   * Set the controller to locked state while the controller lock is held.
+   */
+  #setLockedUnlocked(): void {
+    this.update((state) => {
+      delete state.vaultEncryptionKey;
+      delete state.vaultEncryptionSalt;
+      delete state.revokeToken;
+      delete state.accessToken;
     });
+
+    this.#cachedDecryptedVaultData = undefined;
+    this.#isUnlocked = false;
   }
 
   /**
@@ -1233,6 +1245,47 @@ export class SeedlessOnboardingController<
     this.update((state) => {
       state.encryptedKeyringEncryptionKey = encryptedKeyringEncryptionKey;
     });
+  }
+
+  /**
+   * Change the Keyring password through the controller messenger.
+   *
+   * @param password - The new password.
+   */
+  async #changeKeyringPassword(password: string): Promise<void> {
+    await this.messenger.call('KeyringController:changePassword', password);
+  }
+
+  /**
+   * Export the current Keyring encryption key through the controller
+   * messenger.
+   *
+   * @returns The current Keyring encryption key.
+   */
+  async #exportKeyringEncryptionKey(): Promise<string> {
+    return await this.messenger.call('KeyringController:exportEncryptionKey');
+  }
+
+  /**
+   * Synchronize and verify the Keyring encryption key while the controller
+   * lock is held.
+   */
+  async #syncAndCompleteKeyringEncryptionKeyUnlocked(): Promise<void> {
+    this.#markPasswordChangeKeySyncPendingUnlocked();
+
+    const exportedKeyringEncryptionKey =
+      await this.#exportKeyringEncryptionKey();
+    await this.#storeKeyringEncryptionKeyUnlocked(exportedKeyringEncryptionKey);
+
+    const storedKeyringEncryptionKey =
+      await this.#loadKeyringEncryptionKeyUnlocked();
+    const currentKeyringEncryptionKey =
+      await this.#exportKeyringEncryptionKey();
+    if (storedKeyringEncryptionKey !== currentKeyringEncryptionKey) {
+      throw new Error('Keyring encryption key synchronization failed');
+    }
+
+    this.#completePasswordChangeUnlocked();
   }
 
   /**
@@ -2110,15 +2163,22 @@ export class SeedlessOnboardingController<
    */
   async completePasswordChange(): Promise<void> {
     await this.#withControllerLock(async () => {
-      const lifecycle = this.state.seedlessOperationLifecycle;
-      if (
-        lifecycle === undefined ||
-        !PASSWORD_RECOVERY_OPERATIONS.has(lifecycle.operation)
-      ) {
-        return;
-      }
-      this.#writeSeedlessOperationLifecycle(undefined);
+      this.#completePasswordChangeUnlocked();
     });
+  }
+
+  /**
+   * Complete password-change recovery while the controller lock is held.
+   */
+  #completePasswordChangeUnlocked(): void {
+    const lifecycle = this.state.seedlessOperationLifecycle;
+    if (
+      lifecycle === undefined ||
+      !PASSWORD_RECOVERY_OPERATIONS.has(lifecycle.operation)
+    ) {
+      return;
+    }
+    this.#writeSeedlessOperationLifecycle(undefined);
   }
 
   /**
@@ -2132,24 +2192,32 @@ export class SeedlessOnboardingController<
    */
   async markPasswordChangeKeySyncPending(): Promise<void> {
     await this.#withControllerLock(async () => {
-      const { seedlessOperationLifecycle } = this.state;
-      if (
-        seedlessOperationLifecycle &&
-        !PASSWORD_RECOVERY_OPERATIONS.has(seedlessOperationLifecycle.operation)
-      ) {
-        return;
-      }
-      if (
-        seedlessOperationLifecycle?.checkpoint ===
-        SeedlessOnboardingCheckpoint.KeySyncPending
-      ) {
-        return;
-      }
-      this.#writeSeedlessOperationLifecycle(
-        SeedlessOnboardingCheckpoint.KeySyncPending,
-        seedlessOperationLifecycle?.operation,
-      );
+      this.#markPasswordChangeKeySyncPendingUnlocked();
     });
+  }
+
+  /**
+   * Mark the password-change lifecycle as `KEY_SYNC_PENDING` while the
+   * controller lock is held.
+   */
+  #markPasswordChangeKeySyncPendingUnlocked(): void {
+    const { seedlessOperationLifecycle } = this.state;
+    if (
+      seedlessOperationLifecycle &&
+      !PASSWORD_RECOVERY_OPERATIONS.has(seedlessOperationLifecycle.operation)
+    ) {
+      return;
+    }
+    if (
+      seedlessOperationLifecycle?.checkpoint ===
+      SeedlessOnboardingCheckpoint.KeySyncPending
+    ) {
+      return;
+    }
+    this.#writeSeedlessOperationLifecycle(
+      SeedlessOnboardingCheckpoint.KeySyncPending,
+      seedlessOperationLifecycle?.operation,
+    );
   }
 
   /**

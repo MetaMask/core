@@ -39,6 +39,9 @@ export function createCustomSeedlessOnboardingMessenger(): {
   baseMessenger: RootMessenger;
   messenger: SeedlessOnboardingControllerMessenger;
   keyringControllerMessenger: MockKeyringControllerMessenger;
+  mockKeyringChangePassword: jest.Mock;
+  mockKeyringExportEncryptionKey: jest.Mock;
+  mockKeyringSetLocked: jest.Mock;
 } {
   // Create the root messenger
   const baseMessenger: RootMessenger = new Messenger({
@@ -63,6 +66,25 @@ export function createCustomSeedlessOnboardingMessenger(): {
     parent: baseMessenger,
   });
 
+  const mockKeyringChangePassword = jest.fn().mockResolvedValue(undefined);
+  const mockKeyringExportEncryptionKey = jest
+    .fn()
+    .mockReturnValue('mock-keyring-encryption-key');
+  const mockKeyringSetLocked = jest.fn().mockResolvedValue(undefined);
+
+  baseMessenger.registerActionHandler(
+    'KeyringController:changePassword',
+    mockKeyringChangePassword,
+  );
+  baseMessenger.registerActionHandler(
+    'KeyringController:exportEncryptionKey',
+    mockKeyringExportEncryptionKey,
+  );
+  baseMessenger.registerActionHandler(
+    'KeyringController:setLocked',
+    mockKeyringSetLocked,
+  );
+
   baseMessenger.delegate({
     messenger,
     actions: [
@@ -78,6 +100,9 @@ export function createCustomSeedlessOnboardingMessenger(): {
     baseMessenger,
     messenger,
     keyringControllerMessenger,
+    mockKeyringChangePassword,
+    mockKeyringExportEncryptionKey,
+    mockKeyringSetLocked,
   };
 }
 
@@ -85,6 +110,9 @@ type OverrideMessengers = {
   baseMessenger: RootMessenger;
   messenger: SeedlessOnboardingControllerMessenger;
   keyringControllerMessenger: MockKeyringControllerMessenger;
+  mockKeyringChangePassword: jest.Mock;
+  mockKeyringExportEncryptionKey: jest.Mock;
+  mockKeyringSetLocked: jest.Mock;
 };
 
 /**
@@ -99,12 +127,21 @@ export function mockSeedlessOnboardingMessenger(
   baseMessenger: RootMessenger;
   messenger: SeedlessOnboardingControllerMessenger;
   keyringControllerMessenger: MockKeyringControllerMessenger;
+  mockKeyringChangePassword: jest.Mock;
+  mockKeyringExportEncryptionKey: jest.Mock;
+  mockKeyringSetLocked: jest.Mock;
   mockKeyringGetAccounts: jest.Mock;
   mockKeyringAddAccounts: jest.Mock;
   mockAccountsListAccounts: jest.Mock;
 } {
-  const { baseMessenger, messenger, keyringControllerMessenger } =
-    overrideMessengers ?? createCustomSeedlessOnboardingMessenger();
+  const {
+    baseMessenger,
+    messenger,
+    keyringControllerMessenger,
+    mockKeyringChangePassword,
+    mockKeyringExportEncryptionKey,
+    mockKeyringSetLocked,
+  } = overrideMessengers ?? createCustomSeedlessOnboardingMessenger();
 
   const mockKeyringGetAccounts = jest.fn();
   const mockKeyringAddAccounts = jest.fn();
@@ -115,6 +152,9 @@ export function mockSeedlessOnboardingMessenger(
     baseMessenger,
     messenger,
     keyringControllerMessenger,
+    mockKeyringChangePassword,
+    mockKeyringExportEncryptionKey,
+    mockKeyringSetLocked,
     mockKeyringGetAccounts,
     mockKeyringAddAccounts,
     mockAccountsListAccounts,

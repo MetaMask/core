@@ -7,8 +7,8 @@ This document tracks the implementation of [0005-controller-owned-password-chang
 - [x] Review the current extension password-change flow.
 - [x] Confirm the existing Keyring action names.
 - [x] Register the Keyring actions in the Seedless controller messenger.
-- [ ] Extract controller-owned Keyring and key-sync helpers.
-- [ ] Move the password-change happy path into `SeedlessOnboardingController`.
+- [x] Extract controller-owned Keyring and key-sync helpers.
+- [x] Move the password-change happy path into `SeedlessOnboardingController`.
 - [ ] Add failure, locking, and checkpoint coverage.
 - [ ] Remove duplicate orchestration from client code.
 - [ ] Decide and implement controller ownership of password-sync recovery.
@@ -33,6 +33,11 @@ The controller will own:
 7. Locking both controllers when the operation fails.
 
 The existing password-sync recovery instruction API should remain unchanged during the first migration. Recovery orchestration is tracked separately below because it requires additional Keyring actions.
+
+The public `completePasswordChange` and
+`markPasswordChangeKeySyncPending` actions remain temporarily for the existing
+client-owned recovery flow. They can be removed only after recovery and all
+client callers have migrated to controller-owned orchestration.
 
 ## Action names and messenger registration
 
@@ -74,6 +79,12 @@ Completed on 2026-10-19.
 
 ### Step 1: Extract private controller helpers
 
+- [x] Extract mutex-safe unlocked helpers for Seedless locking and lifecycle
+  transitions.
+- [x] Add the Keyring action adapters and key-sync verification helper together
+  with the happy-path orchestration.
+- [ ] Add the best-effort Keyring lock helper as part of failure handling.
+
 - Add private helpers for:
   - Calling `KeyringController:changePassword`.
   - Calling `KeyringController:exportEncryptionKey`.
@@ -84,9 +95,10 @@ Completed on 2026-10-19.
 
 Acceptance criteria:
 
-- Existing public lifecycle methods retain their current behavior.
-- No mutex deadlocks are introduced.
-- Helper-level tests cover the expected call order.
+- Existing public lifecycle methods retain their current behavior. **Done**
+- No mutex deadlocks are introduced. **Done**
+- Helper-level tests cover the expected Keyring calls and lifecycle
+  transitions. **Done**
 
 ### Step 2: Move the successful password-change sequence
 
@@ -103,9 +115,11 @@ After the Seedless vault reaches `LOCAL_PASSWORD_PENDING`:
 Acceptance criteria:
 
 - The controller performs the complete sequence without client coordination.
+  **Done**
 - `LOCAL_PASSWORD_PENDING` is written before the Keyring password change.
-- `KEY_SYNC_PENDING` is written before key synchronization.
-- The lifecycle is cleared only after successful key verification.
+  **Done**
+- `KEY_SYNC_PENDING` is written before key synchronization. **Done**
+- The lifecycle is cleared only after successful key verification. **Done**
 
 ### Step 3: Implement failure and locking behavior
 
