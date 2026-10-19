@@ -1222,6 +1222,32 @@ describe('MarketingConsentController', () => {
       expect(onSaved).toHaveBeenCalledTimes(1);
     });
 
+    it('resolves without re-reading AUS when opt-in follow-up work outlasts the write', async () => {
+      const optInWork = createDeferred<void>();
+      const { controller, mocks, setAnalyticsState } = setup({
+        analyticsState: OPTED_OUT,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+      });
+      await flushPromises();
+      vi.clearAllMocks();
+      // e.g. AnalyticsController resolving geolocation after updating state.
+      mocks.optInToMarketing.mockImplementation(async () => {
+        setAnalyticsState(OPTED_IN);
+        await optInWork.promise;
+      });
+      mocks.getMarketingConsent.mockRejectedValue(new Error('AUS unavailable'));
+
+      const saving = controller.setMarketingConsent(true);
+      await flushPromises();
+      expect(writtenConsents(mocks.putMarketingConsent)).toStrictEqual([true]);
+
+      optInWork.resolve();
+
+      expect(await saving).toBeUndefined();
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+    });
+
     it('applies the change locally and resolves without waiting when signed out', async () => {
       const { controller, mocks } = setup({ analyticsState: OPTED_IN });
 

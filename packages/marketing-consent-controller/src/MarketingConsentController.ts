@@ -350,17 +350,21 @@ export class MarketingConsentController extends BaseController<
     this.#latestConsentRequest += 1;
     const request = this.#latestConsentRequest;
 
-    await this.#applyLocalConsent(enabled);
+    const applied = this.#applyLocalConsent(enabled);
 
     // Checked after applying: the change applies locally either way, and a
     // first decision is what makes syncing possible. Before sign-in finishes,
     // the change stays pending until the wallet is unlocked and signed in.
     if (!this.#isReady()) {
+      await applied;
       return;
     }
 
     try {
-      await this.#waitForSync(enabled);
+      // Wait for the sync run started above alongside AnalyticsController's
+      // follow-up work (e.g. resolving geolocation), not after it: if that
+      // work outlasts the write, waiting afterwards starts an extra AUS read.
+      await Promise.all([applied, this.#waitForSync(enabled)]);
     } catch (error) {
       // Overtaken by a newer choice, from a newer call or from other code
       // changing AnalyticsController; that choice is saved on its own.
