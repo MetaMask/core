@@ -2400,11 +2400,6 @@
       "count": 1
     }
   },
-  "packages/compliance-controller/src/ComplianceService.test.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    }
-  },
   "packages/composable-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
