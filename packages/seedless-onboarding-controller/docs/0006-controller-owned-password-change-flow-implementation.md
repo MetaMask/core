@@ -6,7 +6,7 @@ This document tracks the implementation of [0005-controller-owned-password-chang
 
 - [x] Review the current extension password-change flow.
 - [x] Confirm the existing Keyring action names.
-- [ ] Register the Keyring actions in the Seedless controller messenger.
+- [x] Register the Keyring actions in the Seedless controller messenger.
 - [ ] Extract controller-owned Keyring and key-sync helpers.
 - [ ] Move the password-change happy path into `SeedlessOnboardingController`.
 - [ ] Add failure, locking, and checkpoint coverage.
@@ -60,6 +60,15 @@ The Keyring controller already exposes these actions:
 - The Seedless controller can call all three Keyring actions through its restricted messenger.
 - No Keyring controller implementation changes are required.
 - Messenger action and type checks pass.
+
+### Messenger registration status
+
+Completed on 2026-10-19.
+
+- Added the three Keyring action types to the Seedless controller's allowed actions.
+- Delegated the actions through the Core wallet Seedless controller messenger.
+- Updated the Seedless test messenger fixture and wallet delegation test.
+- Verified the Seedless controller tests, wallet delegation test, messenger action checks, and Seedless package build.
 
 ## Implementation steps
 

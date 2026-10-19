@@ -66,7 +66,10 @@ export function createCustomSeedlessOnboardingMessenger(): {
   baseMessenger.delegate({
     messenger,
     actions: [
+      'KeyringController:changePassword',
+      'KeyringController:exportEncryptionKey',
       'KeyringController:exportSeedPhrase',
+      'KeyringController:setLocked',
       'AnalyticsController:trackEvent',
     ],
   });

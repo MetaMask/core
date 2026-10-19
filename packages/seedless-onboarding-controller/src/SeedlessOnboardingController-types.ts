@@ -8,7 +8,10 @@ import type {
   DefaultEncryptionResult,
   EncryptionResultConstraint,
   Encryptor,
+  KeyringControllerChangePasswordAction,
+  KeyringControllerExportEncryptionKeyAction,
   KeyringControllerExportSeedPhraseAction,
+  KeyringControllerSetLockedAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 
@@ -36,7 +39,10 @@ export type SeedlessOnboardingControllerActions =
 
 type AllowedActions =
   | AnalyticsControllerTrackEventAction
-  | KeyringControllerExportSeedPhraseAction;
+  | KeyringControllerChangePasswordAction
+  | KeyringControllerExportEncryptionKeyAction
+  | KeyringControllerExportSeedPhraseAction
+  | KeyringControllerSetLockedAction;
 
 // Events
 export type SeedlessOnboardingControllerStateChangeEvent =
