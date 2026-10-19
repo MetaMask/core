@@ -405,6 +405,30 @@ describe('MoneyAccountController', () => {
       expect(controller.state.defaultMoneyAccountId).toBeNull();
     });
 
+    it('sets the existing primary entropy account as the default when no default is set (upgrade safety net)', async () => {
+      const { controller } = setup({
+        accounts: [MOCK_MONEY_ACCOUNT],
+        defaultMoneyAccountId: null,
+      });
+      await controller.init();
+
+      expect(controller.state.defaultMoneyAccountId).toBe(
+        MOCK_MONEY_ACCOUNT.id,
+      );
+      expect(controller.getMoneyAccount()).toStrictEqual(MOCK_MONEY_ACCOUNT);
+    });
+
+    it('does not set a default when no primary HD keyring exists, even if other accounts do', async () => {
+      const { controller } = setup({
+        accounts: [MOCK_MPC_ACCOUNT],
+        defaultMoneyAccountId: null,
+        keyrings: [],
+      });
+      await controller.init();
+
+      expect(controller.state.defaultMoneyAccountId).toBeNull();
+    });
+
     it('is idempotent — calling init twice does not create duplicate accounts', async () => {
       const { controller } = setup();
       await controller.init();

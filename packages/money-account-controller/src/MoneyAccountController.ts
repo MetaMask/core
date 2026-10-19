@@ -185,7 +185,8 @@ export class MoneyAccountController extends BaseController<
 
   /**
    * Initializes the controller by creating a money account for the primary
-   * entropy source if one does not already exist.
+   * entropy source if one does not already exist, and by setting that account
+   * as the default if no default is set.
    */
   async init(): Promise<void> {
     this.#assertIsUnlocked();
@@ -195,6 +196,14 @@ export class MoneyAccountController extends BaseController<
       const { id, address } = await this.createMoneyAccount({
         entropySource: primaryEntropySource,
       });
+
+      // If no default money account is set — e.g. a wallet that
+      // predates `defaultMoneyAccountId` and whose migration has not run —
+      // the primary entropy source's money account (SFA) becomes the default.
+      if (this.state.defaultMoneyAccountId === null) {
+        this.setDefaultMoneyAccount(id);
+      }
+
       log(
         `Money keyring (entropy:${primaryEntropySource} - primary) account is: ${address} (${id})`,
       );

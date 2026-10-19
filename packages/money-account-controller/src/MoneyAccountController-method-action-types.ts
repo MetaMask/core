@@ -7,7 +7,8 @@ import type { MoneyAccountController } from './MoneyAccountController.js';
 
 /**
  * Initializes the controller by creating a money account for the primary
- * entropy source if one does not already exist.
+ * entropy source if one does not already exist, and by setting that account
+ * as the default if no default is set.
  */
 export type MoneyAccountControllerInitAction = {
   type: `MoneyAccountController:init`;
