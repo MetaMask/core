@@ -3083,9 +3083,6 @@
     }
   },
   "packages/geolocation-controller/src/geolocation-api-service/geolocation-api-service.test.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
     "typescript/no-unsafe-return": {
       "count": 1
     }
