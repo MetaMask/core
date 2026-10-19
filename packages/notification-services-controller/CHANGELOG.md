@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.0.0]
+
 ### Added
 
 - Add `updateNotificationPreferences` method and `NotificationServicesController:updateNotificationPreferences` action, which save a change to notification preferences in Authenticated User Storage ([#10861](https://github.com/MetaMask/core/pull/10861))
@@ -990,7 +992,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.0...HEAD
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.3...@metamask/notification-services-controller@30.0.0
 [29.0.3]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.2...@metamask/notification-services-controller@29.0.3
 [29.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.1...@metamask/notification-services-controller@29.0.2
 [29.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.0...@metamask/notification-services-controller@29.0.1
