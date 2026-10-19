@@ -375,22 +375,24 @@ function readDepositRails(depositRails: unknown): Record<string, unknown>[] {
 }
 
 /**
- * Fiat code of the first deposit rail whose type maps to one.
+ * Fiat of the rail {@link NeoBankService.getDepositInstructions} would return.
+ * Incomplete rails do not count, so a stub PIX entry cannot label an ACH account
+ * as BRL. SEPA is included when it has an IBAN, which is the EUR equivalent.
  *
  * @param depositRails - MoonPay `deposit_rails` value.
- * @returns Uppercase fiat code, or undefined when no rail maps to one.
+ * @returns Uppercase fiat code, or undefined when no rail is complete.
  */
 function readDepositRailCurrency(depositRails: unknown): string | undefined {
-  for (const rail of readDepositRails(depositRails)) {
-    const currency =
-      typeof rail.type === 'string'
-        ? DEPOSIT_RAIL_CURRENCIES[rail.type]
-        : undefined;
-    if (currency) {
-      return currency;
-    }
+  if (extractPixDepositInstructions(depositRails)) {
+    return DEPOSIT_RAIL_CURRENCIES.Pix;
   }
-  return undefined;
+  if (extractUsBankDepositInstructions(depositRails)) {
+    return DEPOSIT_RAIL_CURRENCIES.ACH;
+  }
+  const sepa = readDepositRails(depositRails).find(
+    (rail) => rail.type === 'SEPA' && readRailString(rail, 'iban'),
+  );
+  return sepa ? DEPOSIT_RAIL_CURRENCIES.SEPA : undefined;
 }
 
 /**

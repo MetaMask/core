@@ -139,19 +139,52 @@ describe('NeoBankService', () => {
     });
 
     it.each([
-      ['Pix', 'BRL'],
-      ['ACH', 'USD'],
-      ['FedNow', 'USD'],
-      ['SEPA', 'EUR'],
-    ])('reads the %s rail as currency %s', (railType, currency) => {
+      ['Pix', 'BRL', { type: 'Pix', br_code: '00020126', instruction: 'Pay' }],
+      [
+        'ACH',
+        'USD',
+        {
+          type: 'ACH',
+          recipient_name: 'Jane Doe',
+          routing_number: '021000021',
+          account_number: '123456789',
+          bank_name: 'Lead Bank',
+        },
+      ],
+      ['SEPA', 'EUR', { type: 'SEPA', iban: 'DE89370400440532013000' }],
+    ])(
+      'reads a complete %s rail as currency %s',
+      (_railType, currency, rail) => {
+        expect(
+          mapNeoBankAutorampToRemoteSnapshot({
+            id: 'ar-1',
+            status: 'Approved',
+            deposit_rails: [null, { type: 'Iban' }, rail],
+          }),
+        ).toMatchObject({
+          depositRailsSummary: { ready: true, currency },
+        });
+      },
+    );
+
+    it('ignores an incomplete PIX stub when a complete ACH rail follows it', () => {
       expect(
         mapNeoBankAutorampToRemoteSnapshot({
           id: 'ar-1',
           status: 'Approved',
-          deposit_rails: [null, { type: 'Iban' }, { type: railType }],
+          deposit_rails: [
+            { type: 'Pix' },
+            {
+              type: 'ACH',
+              recipient_name: 'Jane Doe',
+              routing_number: '021000021',
+              account_number: '123456789',
+              bank_name: 'Lead Bank',
+            },
+          ],
         }),
       ).toMatchObject({
-        depositRailsSummary: { ready: true, currency },
+        depositRailsSummary: { currency: 'USD' },
       });
     });
 
