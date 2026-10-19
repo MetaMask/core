@@ -13,7 +13,6 @@ export default mergeConfig(baseConfig, {
     },
 
     coverage: {
-      // Type tests never execute, so they have no coverage to collect.
       exclude: ['src/**/*.test-d.ts'],
 
       thresholds: {
