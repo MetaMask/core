@@ -740,7 +740,9 @@ async function estimateGasType4Node({
     getDelegationAddress(txParams.from as Hex, messenger, networkClientId),
   ]);
 
-  const delegationGas = currentDelegationAddress ? 0 : EIP_2780_AUTHORIZATION_GAS;
+  const delegationGas = currentDelegationAddress
+    ? 0
+    : EIP_2780_AUTHORIZATION_GAS;
 
   log('Type 4 gas using node', {
     currentDelegationAddress,
