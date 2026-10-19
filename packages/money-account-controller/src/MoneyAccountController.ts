@@ -31,6 +31,32 @@ import {
 
 export const controllerName = 'MoneyAccountController';
 
+/**
+ * Parameters for creating a money account.
+ *
+ * - `{ type: 'mpc' }`: create the MFA account backed by the MPC keyring.
+ * - `{ type?: 'mnemonic', entropySource }` (the default): create the SFA
+ * account backed by the `MoneyKeyring` for the given entropy source.
+ */
+export type CreateMoneyAccountParams =
+  | {
+      /**
+       * The kind of money account to create. Defaults to `'mnemonic'`.
+       */
+      type?: 'mnemonic';
+
+      /**
+       * The entropy source ID of the SRP backing the account.
+       */
+      entropySource: EntropySourceId;
+    }
+  | {
+      /**
+       * The kind of money account to create.
+       */
+      type: 'mpc';
+    };
+
 export type MoneyAccountControllerState = {
   moneyAccounts: {
     [id: MoneyAccount['id']]: MoneyAccount;
@@ -166,8 +192,9 @@ export class MoneyAccountController extends BaseController<
 
     const primaryEntropySource = this.#getPrimaryEntropySource();
     if (primaryEntropySource) {
-      const { id, address } =
-        await this.createMoneyAccount(primaryEntropySource);
+      const { id, address } = await this.createMoneyAccount({
+        entropySource: primaryEntropySource,
+      });
       log(
         `Money keyring (entropy:${primaryEntropySource} - primary) account is: ${address} (${id})`,
       );
@@ -181,36 +208,41 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Creates a money account for the given entropy source. If an account
-   * already exists for that entropy source, it is returned as-is (idempotent).
+   * Creates a money account. If an account already exists for the given
+   * source, it is returned as-is (idempotent).
    *
-   * The entropy source identifies the backing keyring:
-   * - `entropy:mpc:_`: the MPC keyring, which is created and
+   * The parameters determine the backing keyring:
+   * - `{ type: 'mpc' }`: the MPC keyring (MFA account), which is created and
    * initialized if it does not exist yet.
-   * - Any other entropy source: the `MoneyKeyring` for that entropy source, which
-   * is created if it does not exist yet.
+   * - `{ type?: 'mnemonic', entropySource }` (the default): the `MoneyKeyring`
+   * for that entropy source (SFA account), which is created if it does not
+   * exist yet.
    *
-   * @param entropySource - The entropy source ID to create the money account for.
+   * @param params - The parameters for creating the money account.
    * @returns The money account.
    */
   async createMoneyAccount(
-    entropySource: EntropySourceId,
+    params: CreateMoneyAccountParams,
   ): Promise<MoneyAccount> {
     this.#assertIsUnlocked();
 
-    // Idempotent: return existing account if already in state.
-    const existingAccount = this.getMoneyAccount({ entropySource });
+    // Idempotent: return existing account if already in state. The stored
+    // entropy source ID identifies the account for both account kinds.
+    const entropySourceId =
+      params.type === 'mpc' ? MPC_ENTROPY_SOURCE_ID : params.entropySource;
+    const existingAccount =
+      this.#getMoneyAccountByEntropySource(entropySourceId);
     if (existingAccount) {
       return existingAccount;
     }
 
     const account =
-      entropySource === MPC_ENTROPY_SOURCE_ID
+      params.type === 'mpc'
         ? await this.#createMpcKeyringAccount()
-        : await this.#createMoneyKeyringAccount(entropySource);
+        : await this.#createMoneyKeyringAccount(params.entropySource);
 
     log(
-      `Money account created: ${account.address} (${account.id}) for entropy source: ${entropySource}`,
+      `Money account created: ${account.address} (${account.id}) for entropy source: ${entropySourceId}`,
     );
     return account;
   }

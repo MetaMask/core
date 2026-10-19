@@ -20,6 +20,7 @@ export type {
   MoneyAccountControllerStateChangeEvent,
   MoneyAccountControllerEvents,
   MoneyAccountControllerMessenger,
+  CreateMoneyAccountParams,
 } from './MoneyAccountController.js';
 export type {
   MoneyAccountControllerClearStateAction,
