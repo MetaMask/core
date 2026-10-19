@@ -1,7 +1,11 @@
-import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
-import { ConstantBackoff } from '@metamask/controller-utils';
+import type { CreateServicePolicyOptions } from '@metamask/base-data-service';
+import { ConstantBackoff } from '@metamask/base-data-service';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type { MockAnyNamespace } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
 
 import {
@@ -13,6 +17,19 @@ import type { NeoBankServiceMessenger } from './NeoBankService.js';
 import { RampsEnvironment } from './RampsService.js';
 
 const STAGING_BASE = 'https://on-ramp.uat-api.cx.metamask.io';
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<NeoBankServiceMessenger>,
+  MessengerEvents<NeoBankServiceMessenger>
+>;
+
+const MOCK_AUTORAMP_RESPONSE = {
+  id: 'ar-1',
+  customer_id: 'cust-1',
+  status: 'Authorized',
+  wallet_address: '0xabc',
+};
 
 /**
  * Builds a NeoBankService with AuthenticationController bearer auth stubbed.
@@ -26,7 +43,7 @@ const STAGING_BASE = 'https://on-ramp.uat-api.cx.metamask.io';
  * `{ maxRetries: 0 }` so tests fail fast unless they opt into retries.
  * @param options.canonicalProfileId - Canonical profile id returned by the
  * stubbed `AuthenticationController:getSessionProfile` (wallet registration).
- * @returns Service instance for the test.
+ * @returns The service instance, its messenger and the root messenger.
  */
 function createService(options?: {
   environment?: RampsEnvironment;
@@ -34,8 +51,12 @@ function createService(options?: {
   omitDefaults?: boolean;
   policyOptions?: CreateServicePolicyOptions;
   canonicalProfileId?: string;
-}): NeoBankService {
-  const rootMessenger = new Messenger({
+}): {
+  service: NeoBankService;
+  messenger: NeoBankServiceMessenger;
+  rootMessenger: RootMessenger;
+} {
+  const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
   rootMessenger.registerActionHandler(
@@ -46,13 +67,12 @@ function createService(options?: {
     options?.canonicalProfileId ?? 'canonical-profile-1';
   rootMessenger.registerActionHandler(
     'AuthenticationController:getSessionProfile',
-    async () =>
-      ({
-        identifierId: 'id-1',
-        profileId: canonicalProfileId,
-        canonicalProfileId,
-        metaMetricsId: 'mm-1',
-      }) as never,
+    async () => ({
+      identifierId: 'id-1',
+      profileId: canonicalProfileId,
+      canonicalProfileId,
+      metaMetricsId: 'mm-1',
+    }),
   );
 
   const messenger = new Messenger({
@@ -67,23 +87,23 @@ function createService(options?: {
     ],
   });
 
-  if (options?.omitDefaults) {
-    return new NeoBankService({
-      messenger,
-      context: 'test',
-      fetch: globalThis.fetch.bind(globalThis),
-      baseUrlOverride: options.baseUrlOverride,
-    });
-  }
+  const service = options?.omitDefaults
+    ? new NeoBankService({
+        messenger,
+        context: 'test',
+        fetch: globalThis.fetch.bind(globalThis),
+        baseUrlOverride: options.baseUrlOverride,
+      })
+    : new NeoBankService({
+        messenger,
+        environment: options?.environment ?? RampsEnvironment.Staging,
+        context: 'test',
+        fetch: globalThis.fetch.bind(globalThis),
+        policyOptions: options?.policyOptions ?? { maxRetries: 0 },
+        baseUrlOverride: options?.baseUrlOverride,
+      });
 
-  return new NeoBankService({
-    messenger,
-    environment: options?.environment ?? RampsEnvironment.Staging,
-    context: 'test',
-    fetch: globalThis.fetch.bind(globalThis),
-    policyOptions: options?.policyOptions ?? { maxRetries: 0 },
-    baseUrlOverride: options?.baseUrlOverride,
-  });
+  return { service, messenger, rootMessenger };
 }
 
 describe('NeoBankService', () => {
@@ -192,7 +212,7 @@ describe('NeoBankService', () => {
           wallet_address: '0xabc',
         });
 
-      const service = createService();
+      const { service } = createService();
       const snapshot = await service.getAutoramp('ar-1');
 
       expect(scope.isDone()).toBe(true);
@@ -209,7 +229,7 @@ describe('NeoBankService', () => {
         .get(/\/neobank\/autoramps\/missing/u)
         .reply(404);
 
-      const service = createService();
+      const { service } = createService();
       await expect(service.getAutoramp('missing')).rejects.toThrow(
         /failed with status '404'/u,
       );
@@ -226,7 +246,7 @@ describe('NeoBankService', () => {
           status: 'Authorized',
         });
 
-      const service = createService({
+      const { service } = createService({
         policyOptions: {
           maxRetries: 1,
           backoff: new ConstantBackoff(0),
@@ -249,7 +269,7 @@ describe('NeoBankService', () => {
           status: 'Authorized',
         });
 
-      const service = createService({
+      const { service } = createService({
         policyOptions: {
           maxRetries: 1,
           backoff: new ConstantBackoff(0),
@@ -266,9 +286,9 @@ describe('NeoBankService', () => {
         .get(/\/neobank\/autoramps\/ar-1/u)
         .reply(200, { status: 'Authorized' });
 
-      const service = createService();
+      const { service } = createService();
       await expect(service.getAutoramp('ar-1')).rejects.toThrow(
-        'Malformed response received from neo-bank autoramp API',
+        /Query function for "NeoBankService:getAutoramp" returned an unexpected response/u,
       );
     });
   });
@@ -294,7 +314,7 @@ describe('NeoBankService', () => {
           },
         ]);
 
-      const service = createService();
+      const { service } = createService();
 
       expect(await service.getAutoramps()).toMatchInlineSnapshot(`
         [
@@ -325,10 +345,10 @@ describe('NeoBankService', () => {
         .query(true)
         .reply(200, { autoramps: [] });
 
-      const service = createService();
+      const { service } = createService();
 
       await expect(service.getAutoramps()).rejects.toThrow(
-        'Malformed response received from neo-bank autoramps API',
+        /Query function for "NeoBankService:getAutoramps" returned an unexpected response/u,
       );
     });
 
@@ -347,7 +367,7 @@ describe('NeoBankService', () => {
           ],
         });
 
-      const service = createService();
+      const { service } = createService();
 
       expect(await service.getAutoramps()).toMatchObject([
         { id: 'ar-1', customerId: 'cust-1', walletAddress: '0xabc' },
@@ -393,7 +413,7 @@ describe('NeoBankService', () => {
           ],
         });
 
-      const service = createService();
+      const { service } = createService();
 
       expect(
         await service.getAutoramps({ customerId: 'cust-1' }),
@@ -429,7 +449,7 @@ describe('NeoBankService', () => {
           ];
         });
 
-      const service = createService();
+      const { service } = createService();
 
       expect(
         await service.getAutoramps({ customerId: 'cust-1' }),
@@ -456,7 +476,7 @@ describe('NeoBankService', () => {
           ],
         });
 
-      const service = createService();
+      const { service } = createService();
 
       expect(await service.getPixDepositInstructions('ar-1')).toStrictEqual({
         brCode: '00020126',
@@ -471,7 +491,7 @@ describe('NeoBankService', () => {
         .query(true)
         .reply(200, { id: 'ar-1', status: 'Created', deposit_rails: [] });
 
-      const service = createService();
+      const { service } = createService();
 
       expect(await service.getPixDepositInstructions('ar-1')).toBeNull();
     });
@@ -482,10 +502,10 @@ describe('NeoBankService', () => {
         .query(true)
         .reply(200, 'null', { 'Content-Type': 'application/json' });
 
-      const service = createService();
+      const { service } = createService();
 
       await expect(service.getPixDepositInstructions('ar-1')).rejects.toThrow(
-        'Malformed response received from neo-bank autoramp API',
+        /Query function for "NeoBankService:getPixDepositInstructions" returned an unexpected response/u,
       );
     });
   });
@@ -521,7 +541,7 @@ describe('NeoBankService', () => {
           ],
         });
 
-      const service = createService();
+      const { service } = createService();
 
       expect(await service.listAutorampTransactions('ar-1')).toStrictEqual([
         {
@@ -536,6 +556,34 @@ describe('NeoBankService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
+    it('leaves optional fields undefined when they are missing or empty', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query(true)
+        .reply(200, [
+          {
+            id: 'tx-1',
+            status: 'Pending',
+            source_amount: null,
+            destination_amount: { amount: '' },
+            created_at: '',
+          },
+        ]);
+
+      const { service } = createService();
+
+      expect(await service.listAutorampTransactions('ar-1')).toStrictEqual([
+        {
+          id: 'tx-1',
+          autorampId: 'ar-1',
+          status: 'Pending',
+          sourceAmount: undefined,
+          destinationAmount: undefined,
+          createdAt: undefined,
+        },
+      ]);
+    });
+
     it('throws when a transaction is missing an id', async () => {
       nock(STAGING_BASE)
         .get('/neobank/autoramp-transactions')
@@ -545,10 +593,10 @@ describe('NeoBankService', () => {
         )
         .reply(200, { items: [{ status: 'Completed' }] });
 
-      const service = createService();
+      const { service } = createService();
 
       await expect(service.listAutorampTransactions('ar-1')).rejects.toThrow(
-        'Malformed response received from neo-bank autoramp transactions API',
+        /Query function for "NeoBankService:listAutorampTransactions" returned an unexpected response/u,
       );
     });
 
@@ -561,10 +609,10 @@ describe('NeoBankService', () => {
         )
         .reply(200, { items: [{ id: 'tx-1' }] });
 
-      const service = createService();
+      const { service } = createService();
 
       await expect(service.listAutorampTransactions('ar-1')).rejects.toThrow(
-        'Malformed response received from neo-bank autoramp transactions API',
+        /Query function for "NeoBankService:listAutorampTransactions" returned an unexpected response/u,
       );
     });
   });
@@ -584,7 +632,7 @@ describe('NeoBankService', () => {
         .matchHeader('Content-Type', 'application/json')
         .reply(200, { id: 'addr-1', ...body });
 
-      const service = createService();
+      const { service } = createService();
       const result = await service.registerPixAddress(body);
 
       expect(scope.isDone()).toBe(true);
@@ -598,7 +646,7 @@ describe('NeoBankService', () => {
         .matchHeader('Idempotency-Key', 'idem-1')
         .reply(200, { id: 'addr-1' });
 
-      const service = createService();
+      const { service } = createService();
       await service.registerPixAddress(
         { pix_key: 'k' },
         { idempotencyKey: 'idem-1' },
@@ -613,7 +661,7 @@ describe('NeoBankService', () => {
         .query(true)
         .reply(503, 'unavailable');
 
-      const service = createService({
+      const { service } = createService({
         policyOptions: {
           maxRetries: 3,
           backoff: new ConstantBackoff(0),
@@ -644,7 +692,7 @@ describe('NeoBankService', () => {
         .matchHeader('Authorization', 'Bearer test-token')
         .reply(200, { quote_id: 'q-1', amount: '100' });
 
-      const service = createService();
+      const { service } = createService();
       const result = await service.getAutorampQuote({
         amount: '100',
         currency: 'BRL',
@@ -674,7 +722,7 @@ describe('NeoBankService', () => {
           wallet_address: '0xdef',
         });
 
-      const service = createService();
+      const { service } = createService();
       const snapshot = await service.createAutoramp(body);
 
       expect(scope.isDone()).toBe(true);
@@ -697,7 +745,7 @@ describe('NeoBankService', () => {
           status: 'Pending',
         });
 
-      const service = createService();
+      const { service } = createService();
       await service.createAutoramp(
         { signed_quote: 'sig' },
         { idempotencyKey: 'create-idem' },
@@ -712,11 +760,11 @@ describe('NeoBankService', () => {
         .query(true)
         .reply(201, { status: 'Pending' });
 
-      const service = createService();
+      const { service } = createService();
       await expect(
         service.createAutoramp({ signed_quote: 'sig' }),
       ).rejects.toThrow(
-        'Malformed response received from neo-bank autoramp API',
+        /Mutation function for "NeoBankService:createAutoramp" returned an unexpected response/u,
       );
     });
   });
@@ -731,7 +779,7 @@ describe('NeoBankService', () => {
         .matchHeader('Authorization', 'Bearer test-token')
         .reply(200, { quote_id: 'q-2' });
 
-      const service = createService();
+      const { service } = createService();
       const result = await service.getAutorampQuoteForAutoramp('ar-1', {
         amount: '50',
       });
@@ -752,7 +800,7 @@ describe('NeoBankService', () => {
         .matchHeader('Content-Type', 'application/json')
         .reply(200, { quote_id: 'q-attached' });
 
-      const service = createService();
+      const { service } = createService();
       const result = await service.attachAutorampQuote('ar-1', body);
 
       expect(scope.isDone()).toBe(true);
@@ -768,7 +816,7 @@ describe('NeoBankService', () => {
         .matchHeader('Authorization', 'Bearer test-token')
         .reply(200, { id: 'cust-1', external_id: 'ext-1' });
 
-      const service = createService();
+      const { service } = createService();
       const result = await service.getCustomerByExternalId('ext-1');
 
       expect(scope.isDone()).toBe(true);
@@ -786,7 +834,7 @@ describe('NeoBankService', () => {
           external_id: 'canonical-profile-1',
         });
 
-      const service = createService();
+      const { service } = createService();
 
       expect(await service.getMoonpayCustomerId()).toBe('iron-customer-1');
     });
@@ -797,7 +845,7 @@ describe('NeoBankService', () => {
         .query({ filter: 'SelfHosted' })
         .reply(200, []);
 
-      const service = createService();
+      const { service } = createService();
 
       expect(
         await service.getWalletRegistrationStatus({
@@ -826,7 +874,7 @@ describe('NeoBankService', () => {
           disabled: false,
         });
 
-      const service = createService();
+      const { service } = createService();
 
       expect(
         await service.registerSelfHostedWallet({
@@ -848,13 +896,13 @@ describe('NeoBankService', () => {
         .get('/neobank/customers/canonical-profile-1/external')
         .reply(200, { id: 'iron-customer-1' });
 
-      const service = createService({ baseUrlOverride: overrideUrl });
+      const { service } = createService({ baseUrlOverride: overrideUrl });
 
       expect(await service.getMoonpayCustomerId()).toBe('iron-customer-1');
     });
 
     it('throws when the session profile has no usable external id', async () => {
-      const service = createService({ canonicalProfileId: '' });
+      const { service } = createService({ canonicalProfileId: '' });
 
       await expect(service.getMoonpayCustomerId()).rejects.toThrow(
         /Unable to resolve MetaMask canonical profile id/u,
@@ -878,7 +926,7 @@ describe('NeoBankService', () => {
             status: 'Authorized',
           });
 
-        const service = createService({ environment });
+        const { service } = createService({ environment });
         await service.getAutoramp('ar-1');
 
         expect(scope.isDone()).toBe(true);
@@ -894,7 +942,7 @@ describe('NeoBankService', () => {
           status: 'Authorized',
         });
 
-      const service = createService({ omitDefaults: true });
+      const { service } = createService({ omitDefaults: true });
       await service.getAutoramp('ar-1');
 
       expect(scope.isDone()).toBe(true);
@@ -910,7 +958,7 @@ describe('NeoBankService', () => {
         .query(true)
         .reply(200, { quote_id: 'q-for-ar' });
 
-      const service = createService();
+      const { service } = createService();
       await service.getAutorampQuote();
       await service.getAutorampQuoteForAutoramp('ar-1');
 
@@ -927,7 +975,7 @@ describe('NeoBankService', () => {
           status: 'Authorized',
         });
 
-      const service = createService({
+      const { service } = createService({
         baseUrlOverride: 'http://custom-neobank.test',
       });
       await service.getAutoramp('ar-1');
@@ -939,7 +987,7 @@ describe('NeoBankService', () => {
       await expect(
         createService({
           environment: 'bogus' as RampsEnvironment,
-        }).getAutoramp('ar-1'),
+        }).service.getAutoramp('ar-1'),
       ).rejects.toThrow(/Invalid environment/u);
     });
 
@@ -949,7 +997,7 @@ describe('NeoBankService', () => {
         .query(true)
         .reply(422, { error: 'bad' });
 
-      const service = createService();
+      const { service } = createService();
       await expect(
         service.registerPixAddress({ pix_key: 'k' }),
       ).rejects.toThrow(/failed with status '422'/u);
@@ -967,7 +1015,7 @@ describe('NeoBankService', () => {
         })
         .reply(200, { quote_id: 'q-nullish' });
 
-      const service = createService();
+      const { service } = createService();
       await service.getAutorampQuote({
         amount: '10',
         currency: undefined,
@@ -976,24 +1024,323 @@ describe('NeoBankService', () => {
 
       expect(scope.isDone()).toBe(true);
     });
+  });
 
-    it('registers onRetry, onBreak, and onDegraded listeners', () => {
-      const service = createService();
-      const onRetry = jest.fn();
-      const onBreak = jest.fn();
-      const onDegraded = jest.fn();
+  describe('BaseDataService integration', () => {
+    const autorampPath = '/neobank/autoramps/ar-1';
+    const createPath = '/neobank/autoramps';
+    const anyQuery = (): boolean => true;
 
-      const retrySub = service.onRetry(onRetry);
-      const breakSub = service.onBreak(onBreak);
-      const degradedSub = service.onDegraded(onDegraded);
+    it('registers the invalidateQueries action', async () => {
+      const { rootMessenger } = createService();
 
-      expect(typeof retrySub.dispose).toBe('function');
-      expect(typeof breakSub.dispose).toBe('function');
-      expect(typeof degradedSub.dispose).toBe('function');
+      expect(
+        await rootMessenger.call('NeoBankService:invalidateQueries'),
+      ).toBeUndefined();
+    });
 
-      retrySub.dispose();
-      breakSub.dispose();
-      degradedSub.dispose();
+    it('publishes cacheUpdated after reading an autoramp', async () => {
+      nock(STAGING_BASE)
+        .get(autorampPath)
+        .query(anyQuery)
+        .reply(200, MOCK_AUTORAMP_RESPONSE);
+      const { service, messenger } = createService();
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      await service.getAutoramp('ar-1');
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'NeoBankService:cacheUpdated',
+        expect.objectContaining({ objectType: 'query' }),
+      );
+    });
+
+    it('publishes cacheUpdated for a mutation without the request body in the key', async () => {
+      nock(STAGING_BASE)
+        .post('/neobank/addresses/pix')
+        .query(anyQuery)
+        .reply(200, { id: 'addr-1' });
+      const { service, messenger } = createService();
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      await service.registerPixAddress({ pix_key: 'secret@example.com' });
+
+      const mutations = publishSpy.mock.calls
+        .filter(
+          ([eventType, payload]) =>
+            eventType === 'NeoBankService:cacheUpdated' &&
+            (payload as { objectType: string }).objectType === 'mutation',
+        )
+        .flatMap(
+          ([, payload]) =>
+            (
+              payload as {
+                state: {
+                  mutations: {
+                    mutationKey: unknown;
+                  }[];
+                } | null;
+              }
+            ).state?.mutations ?? [],
+        );
+      expect(mutations.length).toBeGreaterThan(0);
+      for (const mutation of mutations) {
+        expect(mutation.mutationKey).toStrictEqual([
+          'NeoBankService:registerPixAddress',
+        ]);
+      }
+    });
+
+    it('deduplicates concurrent getAutoramp calls', async () => {
+      nock(STAGING_BASE)
+        .get(autorampPath)
+        .query(anyQuery)
+        .reply(200, MOCK_AUTORAMP_RESPONSE);
+      const secondRequest = nock(STAGING_BASE)
+        .get(autorampPath)
+        .query(anyQuery)
+        .reply(200, MOCK_AUTORAMP_RESPONSE);
+      const { service } = createService();
+
+      const [first, second] = await Promise.all([
+        service.getAutoramp('ar-1'),
+        service.getAutoramp('ar-1'),
+      ]);
+
+      expect(first).toStrictEqual(second);
+      expect(secondRequest.isDone()).toBe(false);
+    });
+
+    it('refetches getAutoramp on every sequential call', async () => {
+      nock(STAGING_BASE)
+        .get(autorampPath)
+        .query(anyQuery)
+        .reply(200, { ...MOCK_AUTORAMP_RESPONSE, status: 'Pending' });
+      nock(STAGING_BASE)
+        .get(autorampPath)
+        .query(anyQuery)
+        .reply(200, { ...MOCK_AUTORAMP_RESPONSE, status: 'Approved' });
+      const { service } = createService();
+
+      const first = await service.getAutoramp('ar-1');
+      const second = await service.getAutoramp('ar-1');
+
+      expect(first.status).toBe('Pending');
+      expect(second.status).toBe('Approved');
+    });
+
+    it('deduplicates concurrent getAutoramps calls for the same customer', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(anyQuery)
+        .reply(200, { items: [MOCK_AUTORAMP_RESPONSE] });
+      const secondRequest = nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(anyQuery)
+        .reply(200, { items: [] });
+      const { service } = createService();
+
+      const [first, second] = await Promise.all([
+        service.getAutoramps({ customerId: 'cust-1' }),
+        service.getAutoramps({ customerId: 'cust-1' }),
+      ]);
+
+      expect(first).toStrictEqual(second);
+      expect(first).toHaveLength(1);
+      expect(secondRequest.isDone()).toBe(false);
+    });
+
+    it('refetches getAutoramps on every sequential call', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(anyQuery)
+        .reply(200, { items: [] });
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query(anyQuery)
+        .reply(200, { items: [MOCK_AUTORAMP_RESPONSE] });
+      const { service } = createService();
+
+      expect(await service.getAutoramps()).toStrictEqual([]);
+      expect(await service.getAutoramps()).toHaveLength(1);
+    });
+
+    it('retries only the failed page when following getAutoramps cursors', async () => {
+      const firstPage = nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query((query) => query.cursor === undefined)
+        .once()
+        .reply(200, { items: [MOCK_AUTORAMP_RESPONSE], cursor: 'page-2' });
+      const secondPage = nock(STAGING_BASE)
+        .get('/neobank/autoramps')
+        .query((query) => query.cursor === 'page-2')
+        .reply(503)
+        .get('/neobank/autoramps')
+        .query((query) => query.cursor === 'page-2')
+        .reply(200, { items: [{ ...MOCK_AUTORAMP_RESPONSE, id: 'ar-2' }] });
+      const { service } = createService({
+        policyOptions: { maxRetries: 1, backoff: new ConstantBackoff(0) },
+      });
+
+      expect(await service.getAutoramps()).toMatchObject([
+        { id: 'ar-1' },
+        { id: 'ar-2' },
+      ]);
+      expect(firstPage.isDone()).toBe(true);
+      expect(secondPage.isDone()).toBe(true);
+    });
+
+    it('deduplicates concurrent getPixDepositInstructions calls', async () => {
+      const pixResponse = {
+        ...MOCK_AUTORAMP_RESPONSE,
+        deposit_rails: [
+          { type: 'Pix', br_code: '00020126', instruction: 'Pay with PIX' },
+        ],
+      };
+      nock(STAGING_BASE)
+        .get(autorampPath)
+        .query(anyQuery)
+        .reply(200, pixResponse);
+      const secondRequest = nock(STAGING_BASE)
+        .get(autorampPath)
+        .query(anyQuery)
+        .reply(200, { ...MOCK_AUTORAMP_RESPONSE, deposit_rails: [] });
+      const { service } = createService();
+
+      const results = await Promise.all([
+        service.getPixDepositInstructions('ar-1'),
+        service.getPixDepositInstructions('ar-1'),
+      ]);
+
+      expect(results).toStrictEqual([
+        { brCode: '00020126', instruction: 'Pay with PIX' },
+        { brCode: '00020126', instruction: 'Pay with PIX' },
+      ]);
+      expect(secondRequest.isDone()).toBe(false);
+    });
+
+    it('refetches listAutorampTransactions on every sequential call', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query(anyQuery)
+        .reply(200, [{ id: 'tx-1', status: 'Pending' }]);
+      nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query(anyQuery)
+        .reply(200, [{ id: 'tx-1', status: 'Completed' }]);
+      const { service } = createService();
+
+      const first = await service.listAutorampTransactions('ar-1');
+      const second = await service.listAutorampTransactions('ar-1');
+
+      expect(first).toMatchObject([{ id: 'tx-1', status: 'Pending' }]);
+      expect(second).toMatchObject([{ id: 'tx-1', status: 'Completed' }]);
+    });
+
+    it('deduplicates concurrent listAutorampTransactions calls', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query(anyQuery)
+        .reply(200, [{ id: 'tx-1', status: 'Pending' }]);
+      const secondRequest = nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query(anyQuery)
+        .reply(200, [{ id: 'tx-1', status: 'Completed' }]);
+      const { service } = createService();
+
+      const [first, second] = await Promise.all([
+        service.listAutorampTransactions('ar-1'),
+        service.listAutorampTransactions('ar-1'),
+      ]);
+
+      expect(first).toStrictEqual(second);
+      expect(secondRequest.isDone()).toBe(false);
+    });
+
+    it('sends createAutoramp exactly once on a 5xx response', async () => {
+      nock(STAGING_BASE).post(createPath).query(anyQuery).reply(503);
+      const retry = nock(STAGING_BASE)
+        .post(createPath)
+        .query(anyQuery)
+        .reply(200, MOCK_AUTORAMP_RESPONSE);
+      const { service } = createService({
+        policyOptions: { maxRetries: 3, backoff: new ConstantBackoff(0) },
+      });
+
+      await expect(service.createAutoramp({ quote: 'q' })).rejects.toThrow(
+        /failed with status '503'/u,
+      );
+      expect(retry.isDone()).toBe(false);
+    });
+
+    it('sends attachAutorampQuote exactly once on a 5xx response', async () => {
+      const quotesPath = '/neobank/autoramps/ar-1/quotes';
+      nock(STAGING_BASE).post(quotesPath).query(anyQuery).reply(503);
+      const retry = nock(STAGING_BASE)
+        .post(quotesPath)
+        .query(anyQuery)
+        .reply(200, { quote_id: 'q' });
+      const { service } = createService({
+        policyOptions: { maxRetries: 3, backoff: new ConstantBackoff(0) },
+      });
+
+      await expect(
+        service.attachAutorampQuote('ar-1', { signed_quote: 's' }),
+      ).rejects.toThrow(/failed with status '503'/u);
+      expect(retry.isDone()).toBe(false);
+    });
+
+    it('rejects a malformed autoramp response without retrying', async () => {
+      nock(STAGING_BASE).get(autorampPath).query(anyQuery).reply(200, {});
+      const retry = nock(STAGING_BASE)
+        .get(autorampPath)
+        .query(anyQuery)
+        .reply(200, MOCK_AUTORAMP_RESPONSE);
+      const { service } = createService({
+        policyOptions: { maxRetries: 3, backoff: new ConstantBackoff(0) },
+      });
+
+      await expect(service.getAutoramp('ar-1')).rejects.toThrow(
+        /Query function for "NeoBankService:getAutoramp" returned an unexpected response/u,
+      );
+      expect(retry.isDone()).toBe(false);
+
+      expect(await service.getAutoramp('ar-1')).toMatchObject({ id: 'ar-1' });
+    });
+
+    it('rejects a malformed transaction list without retrying', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query(anyQuery)
+        .reply(200, { transactions: [] });
+      const retry = nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query(anyQuery)
+        .reply(200, []);
+      const { service } = createService({
+        policyOptions: { maxRetries: 3, backoff: new ConstantBackoff(0) },
+      });
+
+      await expect(service.listAutorampTransactions('ar-1')).rejects.toThrow(
+        /Query function for "NeoBankService:listAutorampTransactions" returned an unexpected response/u,
+      );
+      expect(retry.isDone()).toBe(false);
+    });
+
+    it('does not retry a 4xx read', async () => {
+      nock(STAGING_BASE).get(autorampPath).query(anyQuery).reply(403);
+      const retry = nock(STAGING_BASE)
+        .get(autorampPath)
+        .query(anyQuery)
+        .reply(200, MOCK_AUTORAMP_RESPONSE);
+      const { service } = createService({
+        policyOptions: { maxRetries: 3, backoff: new ConstantBackoff(0) },
+      });
+
+      await expect(service.getAutoramp('ar-1')).rejects.toThrow(
+        /failed with status '403'/u,
+      );
+      expect(retry.isDone()).toBe(false);
     });
   });
 });
