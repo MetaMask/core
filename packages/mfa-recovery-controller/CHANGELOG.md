@@ -7,8 +7,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Initialize `mfa-recovery-controller` package ([#10847](https://github.com/MetaMask/core/pull/10847))
-
 [Unreleased]: https://github.com/MetaMask/core/
