@@ -17,12 +17,14 @@ import {
   decodeNodeAuthToken,
   decodeJWTToken,
   compareAndGetLatestToken,
+  deserializeVaultData,
   getInvalidPrimarySecretDataTypeErrorData,
   getSecretTypeFromDataType,
   isAuthTokenError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
   parseVaultData,
+  serializeVaultData,
 } from './utils.js';
 
 describe('utils', () => {
@@ -295,6 +297,40 @@ describe('utils', () => {
     it('falls back to exact expiry for malformed lifetimes', () => {
       expect(isTokenNearExpiry(100, 100, 99)).toBe(false);
       expect(isTokenNearExpiry(100, 100, 100)).toBe(true);
+    });
+  });
+
+  describe('serializeVaultData and deserializeVaultData', () => {
+    const vaultKeys = {
+      toprfEncryptionKey: new Uint8Array(32).fill(1),
+      toprfPwEncryptionKey: new Uint8Array(32).fill(2),
+      toprfAuthKeyPair: { sk: BigInt(123), pk: new Uint8Array(33).fill(3) },
+      revokeToken: 'revoke-token',
+      accessToken: 'access-token',
+    };
+
+    it('round-trips the vault data with a data encryption key', () => {
+      const dataEncryptionSeed = new Uint8Array(32).fill(4);
+      const serialized = serializeVaultData({
+        ...vaultKeys,
+        dataEncryptionSeed,
+      });
+
+      const deserialized = deserializeVaultData(parseVaultData(serialized));
+
+      expect(deserialized.dataEncryptionSeed).toStrictEqual(dataEncryptionSeed);
+      expect(deserialized.toprfEncryptionKey).toStrictEqual(
+        vaultKeys.toprfEncryptionKey,
+      );
+    });
+
+    it('omits the data encryption key from legacy vault data', () => {
+      const serialized = serializeVaultData(vaultKeys);
+
+      expect(JSON.parse(serialized)).not.toHaveProperty('dataEncryptionSeed');
+      expect(
+        deserializeVaultData(parseVaultData(serialized)).dataEncryptionSeed,
+      ).toBeUndefined();
     });
   });
 

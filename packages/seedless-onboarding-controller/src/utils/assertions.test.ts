@@ -59,6 +59,23 @@ describe('assertIsValidVaultData', () => {
   });
 
   describe('should throw VaultDataError for invalid data', () => {
+    it('should throw when dataEncryptionSeed is present but not a string', () => {
+      expect(() => {
+        assertIsValidVaultData({
+          ...createValidVaultData(),
+          dataEncryptionSeed: 123,
+        });
+      }).toThrow(
+        SeedlessOnboardingControllerErrorMessage.InvalidDataEncryptionSeed,
+      );
+    });
+
+    it('should accept vault data without a dataEncryptionSeed', () => {
+      expect(() => {
+        assertIsValidVaultData(createValidVaultData());
+      }).not.toThrow();
+    });
+
     it('should throw when value is null or undefined', () => {
       expect(() => {
         assertIsValidVaultData(null);

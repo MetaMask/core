@@ -159,4 +159,14 @@ export function assertIsValidVaultData(
       SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
     );
   }
+
+  if (
+    'dataEncryptionSeed' in value &&
+    value.dataEncryptionSeed !== undefined &&
+    typeof value.dataEncryptionSeed !== 'string'
+  ) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidDataEncryptionSeed,
+    );
+  }
 }

@@ -6,6 +6,7 @@ import { SecretType } from '../constants.js';
 import { InvalidPrimarySecretDataTypeError } from '../errors.js';
 import { SecretMetadata } from '../SecretMetadata.js';
 import type { SocialBackupsMetadata } from '../types.js';
+import { isDataEncryptionSeedItem } from './data-encryption.js';
 
 export type SecretDataTypeMigrationUpdate = {
   itemId: string;
@@ -28,14 +29,16 @@ export type SecretBackupData = Omit<SocialBackupsMetadata, 'hash'> & {
 export function parseSecretMetadata(
   secretDataItems: FetchedSecretDataItem[],
 ): SecretMetadata[] {
-  const results: SecretMetadata[] = secretDataItems.map((item) =>
-    SecretMetadata.fromRawMetadata(item.data, {
-      itemId: item.itemId,
-      dataType: item.dataType,
-      createdAt: item.createdAt,
-      storageVersion: item.version,
-    }),
-  );
+  const results: SecretMetadata[] = secretDataItems
+    .filter((item) => !isDataEncryptionSeedItem(item))
+    .map((item) =>
+      SecretMetadata.fromRawMetadata(item.data, {
+        itemId: item.itemId,
+        dataType: item.dataType,
+        createdAt: item.createdAt,
+        storageVersion: item.version,
+      }),
+    );
 
   // Sort: PrimarySrp first, then by client timestamp (oldest first).
   results.sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
@@ -118,7 +121,11 @@ export function getDataTypeMigrationUpdates(
   const updates: SecretDataTypeMigrationUpdate[] = [];
 
   for (const secret of secretDatas) {
-    if (!secret.itemId || secret.itemId === 'PW_BACKUP') {
+    if (
+      !secret.itemId ||
+      secret.itemId === 'PW_BACKUP' ||
+      isDataEncryptionSeedItem(secret)
+    ) {
       continue;
     }
 

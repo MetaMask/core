@@ -7,6 +7,7 @@ export {
 } from './assertions.js';
 export { trackIncompleteMetadataBackupEvents } from './analytics.js';
 export type { SecretBackupData } from './secret-data-utils.js';
+export { isDataEncryptionSeedItem } from './data-encryption.js';
 export {
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,

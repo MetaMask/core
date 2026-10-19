@@ -145,6 +145,12 @@ export const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControl
       includeInDebugSnapshot: true,
       usedInUi: false,
     },
+    isMfaRecoveryEnabled: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: true,
+      usedInUi: false,
+    },
   };
 
 /**
@@ -160,6 +166,7 @@ export function getInitialSeedlessOnboardingControllerStateWithDefaults(
     socialBackupsMetadata: [],
     isSeedlessOnboardingUserAuthenticated: false,
     migrationVersion: 0,
+    isMfaRecoveryEnabled: false,
     ...overrides,
   };
 
