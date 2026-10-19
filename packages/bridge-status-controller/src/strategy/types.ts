@@ -14,13 +14,13 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import type { TraceName } from '../constants.js';
 import type {
   BridgeStatusControllerMessenger,
   FetchFunction,
   QuoteAndTxMetadata,
   StartPollingForBridgeTxStatusArgs,
 } from '../types.js';
-import type { TraceName } from '../constants.js';
 
 export enum SubmitStep {
   /**

@@ -26,6 +26,7 @@ import {
   BRIDGE_FEATURE_ID_TO_FEATURE_TAG,
   TraceName,
 } from './constants/traces.js';
+import type { SwapTraceFunction } from './index.js';
 import { RequestStatus } from './types.js';
 import type {
   L1GasFees,
@@ -102,7 +103,6 @@ import {
 } from './validators/quote-request.js';
 import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
 import type { QuoteResponse } from './validators/quote-response.js';
-import type { SwapTraceFunction } from './index.js';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {

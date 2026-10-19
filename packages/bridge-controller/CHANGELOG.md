@@ -10,9 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Export trace-related constants and types to ensure client requests include required fields ([#10893](https://github.com/MetaMask/core/pull/10893))
-  - `TraceName` now includes both client-emitted and controller trace names
-  - `TraceFeatureTag` and `BRIDGE_FEATURE_ID_TO_FEATURE_TAG` for supported features
-  - `TraceOperation` for client-side operations
+  - `SwapFeatureTag` and `BRIDGE_FEATURE_ID_TO_FEATURE_TAG` for supported features
   - `SwapRelatedTraceName` filters Swap, Bridge and Batch Sell traces from client-defined `TraceName`
   - `SwapTraceRequest` defines required request fields for swap trace calls
   - `SwapTraceFunction` is the type-safe shared trace interface that works for mobile, extension and controller consumers

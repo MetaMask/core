@@ -276,7 +276,7 @@ export {
 
 export {
   BRIDGE_FEATURE_ID_TO_FEATURE_TAG,
-  TraceFeatureTag,
+  TraceFeatureTag as SwapFeatureTag,
 } from './constants/traces.js';
 
 export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge.js';
