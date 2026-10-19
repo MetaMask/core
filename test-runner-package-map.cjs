@@ -47,7 +47,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/java-tron-up',
   '@metamask/json-rpc-engine',
   '@metamask/json-rpc-middleware-stream',
-  '@metamask/keyring-controller',
   '@metamask/kyc-controller',
   '@metamask/local-node-utils',
   '@metamask/logging-controller',
