@@ -10,16 +10,6 @@ export type AssetsControllerGetAssetsAction = {
   handler: AssetsController['getAssets'];
 };
 
-export type AssetsControllerGetAssetsBalanceAction = {
-  type: `AssetsController:getAssetsBalance`;
-  handler: AssetsController['getAssetsBalance'];
-};
-
-export type AssetsControllerGetAssetMetadataAction = {
-  type: `AssetsController:getAssetMetadata`;
-  handler: AssetsController['getAssetMetadata'];
-};
-
 /**
  * Get a single combined asset (balance + metadata + price + computed
  * `fiatValue`) for an account directly from controller state.
@@ -86,11 +76,6 @@ export type AssetsControllerGetAccountAssetsByScopeAction = {
   handler: AssetsController['getAccountAssetsByScope'];
 };
 
-export type AssetsControllerGetAssetsPriceAction = {
-  type: `AssetsController:getAssetsPrice`;
-  handler: AssetsController['getAssetsPrice'];
-};
-
 /**
  * Returns exchange rates in the format expected by the bridge controller
  * (conversionRates, currencyRates, marketData, currentCurrency) so that
@@ -139,53 +124,6 @@ export type AssetsControllerAddCustomAssetAction = {
 };
 
 /**
- * Remove a custom asset from an account.
- *
- * @param accountId - The account ID to remove the custom asset from.
- * @param assetId - The CAIP-19 asset ID to remove.
- */
-export type AssetsControllerRemoveCustomAssetAction = {
-  type: `AssetsController:removeCustomAsset`;
-  handler: AssetsController['removeCustomAsset'];
-};
-
-/**
- * Get all custom assets for an account.
- *
- * @param accountId - The account ID to get custom assets for.
- * @returns Array of CAIP-19 asset IDs for the account's custom assets.
- */
-export type AssetsControllerGetCustomAssetsAction = {
-  type: `AssetsController:getCustomAssets`;
-  handler: AssetsController['getCustomAssets'];
-};
-
-/**
- * Hide an asset globally.
- * Hidden assets are excluded from the asset list returned by getAssets.
- * The hidden state is stored in assetPreferences.
- *
- * @param assetId - The CAIP-19 asset ID to hide.
- */
-export type AssetsControllerHideAssetAction = {
-  type: `AssetsController:hideAsset`;
-  handler: AssetsController['hideAsset'];
-};
-
-/**
- * Unhide an asset globally.
- * Force-fetches that asset's chain (including every visible pin) so a
- * `full` snapshot can restore the balance immediately, then re-evaluates
- * subscriptions so later polls stop excluding it.
- *
- * @param assetId - The CAIP-19 asset ID to unhide.
- */
-export type AssetsControllerUnhideAssetAction = {
-  type: `AssetsController:unhideAsset`;
-  handler: AssetsController['unhideAsset'];
-};
-
-/**
  * Set the current currency.
  *
  * @param selectedCurrency - The ISO 4217 currency code to set.
@@ -200,17 +138,10 @@ export type AssetsControllerSetSelectedCurrencyAction = {
  */
 export type AssetsControllerMethodActions =
   | AssetsControllerGetAssetsAction
-  | AssetsControllerGetAssetsBalanceAction
-  | AssetsControllerGetAssetMetadataAction
   | AssetsControllerGetAccountAssetByIDAction
   | AssetsControllerGetAccountAssetsByIDsAction
   | AssetsControllerGetAccountAssetsByScopeAction
-  | AssetsControllerGetAssetsPriceAction
   | AssetsControllerGetExchangeRatesForBridgeAction
   | AssetsControllerGetStateForTransactionPayAction
   | AssetsControllerAddCustomAssetAction
-  | AssetsControllerRemoveCustomAssetAction
-  | AssetsControllerGetCustomAssetsAction
-  | AssetsControllerHideAssetAction
-  | AssetsControllerUnhideAssetAction
   | AssetsControllerSetSelectedCurrencyAction;

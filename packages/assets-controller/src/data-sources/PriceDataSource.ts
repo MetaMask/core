@@ -231,51 +231,74 @@ export class PriceDataSource {
    * Get the middleware for enriching responses with price data.
    *
    * This middleware:
-   * 1. Extracts the response from context
-   * 2. Fetches prices for detected assets (assets without metadata)
-   * 3. Enriches the response with fetched prices
+   * 1. Collects assets from the response balances, RPC `detectedAssets`, and
+   *    each involved account's custom assets
+   * 2. Fetches prices for any of those that have no entry in `assetsPrice`
+   * 3. Always fetches ids in `request.assetsForPriceUpdate` (currency change,
+   *    forced refresh)
    * 4. Calls next() at the end to continue the middleware chain
    *
-   * Note: This middleware ONLY fetches prices for detected assets.
-   * For fetching prices for all assets, use the subscription mechanism
-   * which polls prices for all assets in the balance state.
+   * Subscription polling refreshes prices for assets that already have one.
    *
    * @returns The middleware function for the assets pipeline.
    */
   get assetsMiddleware(): Middleware {
     return forDataTypes(['price'], async (ctx, next) => {
-      // Extract response from context
       const { response, request } = ctx;
-
-      const statePrices = (this.#getAssetsState()?.assetsPrice ?? {}) as Record<
+      const state = this.#getAssetsState();
+      const statePrices = (state?.assetsPrice ?? {}) as Record<
         string,
         FungibleAssetPrice
       >;
 
       const assetIds = new Set<Caip19AssetId>();
+      const explicitPriceUpdates = new Set(request.assetsForPriceUpdate ?? []);
 
-      for (const assetId of request.assetsForPriceUpdate ?? []) {
+      for (const assetId of explicitPriceUpdates) {
         assetIds.add(assetId);
       }
 
-      // Detected assets only need a price fetch when state has none yet.
-      // Explicit assetsForPriceUpdate (e.g. currency change) are always fetched.
+      const consider = (assetId: Caip19AssetId): void => {
+        const normalizedAssetId = safeNormalizeAssetId(assetId);
+        if (
+          explicitPriceUpdates.has(assetId) ||
+          explicitPriceUpdates.has(normalizedAssetId) ||
+          assetIds.has(normalizedAssetId)
+        ) {
+          return;
+        }
+        if (
+          statePrices[assetId] === undefined &&
+          statePrices[normalizedAssetId] === undefined
+        ) {
+          assetIds.add(normalizedAssetId);
+        }
+      };
+
+      for (const accountBalances of Object.values(
+        response.assetsBalance ?? {},
+      )) {
+        for (const assetId of Object.keys(accountBalances)) {
+          consider(assetId as Caip19AssetId);
+        }
+      }
+
       for (const detectedAccountAssets of Object.values(
         response.detectedAssets ?? {},
       )) {
         for (const assetId of detectedAccountAssets) {
-          const normalizedAssetId = safeNormalizeAssetId(assetId);
-          const alreadyQueued = request.assetsForPriceUpdate?.some(
-            (queuedId) =>
-              queuedId === assetId || queuedId === normalizedAssetId,
-          );
-          if (
-            statePrices[assetId] === undefined &&
-            statePrices[normalizedAssetId] === undefined &&
-            !alreadyQueued
-          ) {
-            assetIds.add(normalizedAssetId);
-          }
+          consider(assetId);
+        }
+      }
+
+      const accountIds = new Set<string>([
+        ...Object.keys(response.assetsBalance ?? {}),
+        ...Object.keys(response.detectedAssets ?? {}),
+        ...request.accountsWithSupportedChains.map(({ account }) => account.id),
+      ]);
+      for (const accountId of accountIds) {
+        for (const assetId of state?.customAssets?.[accountId] ?? []) {
+          consider(assetId);
         }
       }
 

@@ -114,7 +114,6 @@ import {
 } from './defaults.js';
 import { projectLogger, createModuleLogger } from './logger.js';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware.js';
-import { DetectionMiddleware } from './middlewares/DetectionMiddleware.js';
 import {
   createParallelBalanceMiddleware,
   createParallelMiddleware,
@@ -212,19 +211,12 @@ const CONTROLLER_NAME = 'AssetsController' as const;
 /** Method names exposed as messenger actions (AssetsController:getAssets, etc.) */
 const MESSENGER_EXPOSED_METHODS = [
   'getAssets',
-  'getAssetsBalance',
-  'getAssetMetadata',
   'getAccountAssetByID',
   'getAccountAssetsByIDs',
   'getAccountAssetsByScope',
-  'getAssetsPrice',
   'getExchangeRatesForBridge',
   'getStateForTransactionPay',
   'addCustomAsset',
-  'removeCustomAsset',
-  'getCustomAssets',
-  'hideAsset',
-  'unhideAsset',
   'setSelectedCurrency',
 ] as const;
 
@@ -294,33 +286,7 @@ export type AssetsControllerStateChangeEvent = ControllerStateChangeEvent<
   AssetsControllerState
 >;
 
-export type AssetsControllerBalanceChangedEvent = {
-  type: `${typeof CONTROLLER_NAME}:balanceChanged`;
-  payload: [
-    {
-      accountId: AccountId;
-      assetId: Caip19AssetId;
-      previousAmount: string;
-      newAmount: string;
-    },
-  ];
-};
-
-export type AssetsControllerPriceChangedEvent = {
-  type: `${typeof CONTROLLER_NAME}:priceChanged`;
-  payload: [{ prices: Record<Caip19AssetId, AssetPrice> }];
-};
-
-export type AssetsControllerAssetsDetectedEvent = {
-  type: `${typeof CONTROLLER_NAME}:assetsDetected`;
-  payload: [{ accountId: AccountId; assetIds: Caip19AssetId[] }];
-};
-
-export type AssetsControllerEvents =
-  | AssetsControllerStateChangeEvent
-  | AssetsControllerBalanceChangedEvent
-  | AssetsControllerPriceChangedEvent
-  | AssetsControllerAssetsDetectedEvent;
+export type AssetsControllerEvents = AssetsControllerStateChangeEvent;
 
 type AllowedActions =
   // AssetsController
@@ -698,7 +664,7 @@ function effectiveAccountBalancesV6(
  * ## Core Responsibilities
  *
  * 1. **One-Time Fetch (Sync)**: For initial load, force refresh, or on-demand queries.
- *    Uses `getAssets()`, `getAssetsBalance()`, etc. with `forceUpdate: true`.
+ *    Uses `getAssets()` with `forceUpdate: true`.
  *
  * 2. **Async Subscriptions**: Subscribes to data sources for ongoing updates.
  *    Data sources push updates via callbacks; the controller updates state.
@@ -916,8 +882,6 @@ export class AssetsController extends BaseController<
 
   readonly #priceDataSource: PriceDataSource;
 
-  readonly #detectionMiddleware: DetectionMiddleware;
-
   readonly #customAssetGraduationMiddleware: CustomAssetGraduationMiddleware;
 
   readonly #rpcFallbackMiddleware: RpcFallbackMiddleware;
@@ -1059,9 +1023,6 @@ export class AssetsController extends BaseController<
       getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
       getAssetsState: (): AssetsControllerState => this.state,
       ...priceDataSourceConfig,
-    });
-    this.#detectionMiddleware = new DetectionMiddleware({
-      getAssetsState: (): AssetsControllerState => this.state,
     });
     this.#customAssetGraduationMiddleware = new CustomAssetGraduationMiddleware(
       {
@@ -1710,7 +1671,7 @@ export class AssetsController extends BaseController<
   ): DataRequest {
     const customAssets: Caip19AssetId[] = [];
     for (const account of accounts) {
-      customAssets.push(...this.getCustomAssets(account.id));
+      customAssets.push(...(this.state.customAssets[account.id] ?? []));
     }
 
     return this.#buildDataRequest(accounts, chainIds, {
@@ -1736,7 +1697,6 @@ export class AssetsController extends BaseController<
         accountsApiDataSource: this.#accountsApiDataSource,
         customAssetGraduationMiddleware: this.#customAssetGraduationMiddleware,
         rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
-        detectionMiddleware: this.#detectionMiddleware,
         tokenDataSource: this.#tokenDataSource,
         priceDataSource: this.#priceDataSource,
       },
@@ -1779,7 +1739,6 @@ export class AssetsController extends BaseController<
         accountsApiDataSource: this.#accountsApiDataSource,
         customAssetGraduationMiddleware: this.#customAssetGraduationMiddleware,
         rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
-        detectionMiddleware: this.#detectionMiddleware,
         tokenDataSource: this.#tokenDataSource,
         priceDataSource: this.#priceDataSource,
       },
@@ -1938,7 +1897,6 @@ export class AssetsController extends BaseController<
         const { response } = await this.#executeMiddlewares({
           sources: [
             createParallelBalanceMiddleware(slowSources),
-            this.#detectionMiddleware,
             ...(isBasicFunctionality
               ? [
                   createParallelMiddleware([
@@ -2008,40 +1966,6 @@ export class AssetsController extends BaseController<
       },
       parentContext,
     });
-  }
-
-  async getAssetsBalance(
-    accounts: InternalAccount[],
-    options?: {
-      chainIds?: ChainId[];
-      assetTypes?: AssetType[];
-      forceUpdate?: boolean;
-    },
-  ): Promise<Record<AccountId, Record<Caip19AssetId, AssetBalance>>> {
-    // Reuse getAssets with dataTypes: ['balance'] only
-    const assets = await this.getAssets(accounts, {
-      chainIds: options?.chainIds,
-      assetTypes: options?.assetTypes,
-      forceUpdate: options?.forceUpdate,
-      dataTypes: ['balance', 'metadata'],
-    });
-
-    // Extract just the balance from each asset
-    const result: Record<AccountId, Record<Caip19AssetId, AssetBalance>> = {};
-    for (const [accountId, accountAssets] of Object.entries(assets)) {
-      result[accountId] = {};
-      for (const [assetId, asset] of Object.entries(accountAssets)) {
-        if (asset.balance) {
-          result[accountId][assetId as Caip19AssetId] = asset.balance;
-        }
-      }
-    }
-
-    return result;
-  }
-
-  getAssetMetadata(assetId: Caip19AssetId): AssetMetadata | undefined {
-    return this.state.assetsInfo[assetId];
   }
 
   /**
@@ -2205,34 +2129,6 @@ export class AssetsController extends BaseController<
         `AssetsController.${methodName}: invalid CAIP-19 assetId "${assetId}"`,
       );
     }
-  }
-
-  async getAssetsPrice(
-    accounts: InternalAccount[],
-    options?: {
-      chainIds?: ChainId[];
-      assetTypes?: AssetType[];
-      forceUpdate?: boolean;
-    },
-  ): Promise<Record<Caip19AssetId, AssetPrice>> {
-    const assets = await this.getAssets(accounts, {
-      chainIds: options?.chainIds,
-      assetTypes: options?.assetTypes,
-      forceUpdate: options?.forceUpdate,
-      dataTypes: ['price'],
-    });
-
-    // Extract just the price from each asset (flattened across accounts)
-    const result: Record<Caip19AssetId, AssetPrice> = {};
-    for (const accountAssets of Object.values(assets)) {
-      for (const [assetId, asset] of Object.entries(accountAssets)) {
-        if (asset.price) {
-          result[assetId as Caip19AssetId] = asset.price;
-        }
-      }
-    }
-
-    return result;
   }
 
   /**
@@ -2407,16 +2303,6 @@ export class AssetsController extends BaseController<
 
     // Re-evaluate subscriptions so polls drop the removed pin.
     this.#subscribeAssets();
-  }
-
-  /**
-   * Get all custom assets for an account.
-   *
-   * @param accountId - The account ID to get custom assets for.
-   * @returns Array of CAIP-19 asset IDs for the account's custom assets.
-   */
-  getCustomAssets(accountId: AccountId): Caip19AssetId[] {
-    return this.state.customAssets[accountId] ?? [];
   }
 
   // ============================================================================
@@ -3006,9 +2892,6 @@ export class AssetsController extends BaseController<
     try {
       const previousState = this.state;
       const previousPrices = { ...this.state.assetsPrice };
-      // Use detectedAssets from response (assets without metadata)
-      const detectedAssets: Record<AccountId, Caip19AssetId[]> =
-        normalizedResponse.detectedAssets ?? {};
 
       // Track actual changes for logging
       const changedBalances: {
@@ -3294,50 +3177,7 @@ export class AssetsController extends BaseController<
             changedMetadata.length > 0 ? changedMetadata : undefined,
           changedPrices:
             changedPriceAssets.length > 0 ? changedPriceAssets : undefined,
-          newAssets:
-            Object.keys(detectedAssets).length > 0
-              ? Object.entries(detectedAssets).map(([accountId, assets]) => ({
-                  accountId,
-                  assets,
-                }))
-              : undefined,
         });
-      }
-
-      // Publish balance changed events
-      for (const change of changedBalances) {
-        this.messenger.publish('AssetsController:balanceChanged', {
-          accountId: change.accountId,
-          assetId: change.assetId as Caip19AssetId,
-          previousAmount: change.oldAmount ?? '0',
-          newAmount: change.newAmount,
-        });
-      }
-
-      // Publish price changed event with full price data
-      if (changedPriceAssets.length > 0 && normalizedResponse.assetsPrice) {
-        // Build prices object with only changed prices
-        const changedPrices: Record<Caip19AssetId, AssetPrice> = {};
-        for (const assetId of changedPriceAssets) {
-          const price =
-            normalizedResponse.assetsPrice[assetId as Caip19AssetId];
-          if (price) {
-            changedPrices[assetId as Caip19AssetId] = price;
-          }
-        }
-        this.messenger.publish('AssetsController:priceChanged', {
-          prices: changedPrices,
-        });
-      }
-
-      // Publish assets detected events
-      for (const [accountId, assetIds] of Object.entries(detectedAssets)) {
-        if (assetIds.length > 0) {
-          this.messenger.publish('AssetsController:assetsDetected', {
-            accountId,
-            assetIds,
-          });
-        }
       }
     } finally {
       releaseLock();
@@ -4273,8 +4113,8 @@ export class AssetsController extends BaseController<
   /**
    * Handle assets updated from a data source.
    * Called via the onAssetsUpdate callback passed in SubscriptionRequest when the controller subscribes to a data source.
-   * Runs detection, then (when basic functionality is enabled) token metadata and price enrichment before updating state.
-   * When basic functionality is disabled (RPC-only mode), only detection runs; token and price APIs are not used.
+   * When basic functionality is enabled, token metadata and price enrichment run before updating state. Those sources fetch only assets missing from `assetsInfo` or `assetsPrice`.
+   * When basic functionality is disabled (RPC-only mode), token and price APIs are not used.
    *
    * @param response - The data response with updated assets
    * @param sourceId - The data source ID reporting the update
@@ -4322,7 +4162,6 @@ export class AssetsController extends BaseController<
                   customAssetGraduationMiddleware:
                     this.#customAssetGraduationMiddleware,
                   rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
-                  detectionMiddleware: this.#detectionMiddleware,
                   tokenDataSource: this.#tokenDataSource,
                   priceDataSource: this.#priceDataSource,
                 },
@@ -4333,7 +4172,6 @@ export class AssetsController extends BaseController<
                   customAssetGraduationMiddleware:
                     this.#customAssetGraduationMiddleware,
                   rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
-                  detectionMiddleware: this.#detectionMiddleware,
                   tokenDataSource: this.#tokenDataSource,
                   priceDataSource: this.#priceDataSource,
                 },
@@ -4391,7 +4229,6 @@ export class AssetsController extends BaseController<
                   customAssetGraduationMiddleware:
                     this.#customAssetGraduationMiddleware,
                   rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
-                  detectionMiddleware: this.#detectionMiddleware,
                   tokenDataSource: this.#tokenDataSource,
                   priceDataSource: this.#priceDataSource,
                 },
@@ -4402,7 +4239,6 @@ export class AssetsController extends BaseController<
                   customAssetGraduationMiddleware:
                     this.#customAssetGraduationMiddleware,
                   rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
-                  detectionMiddleware: this.#detectionMiddleware,
                   tokenDataSource: this.#tokenDataSource,
                   priceDataSource: this.#priceDataSource,
                 },
@@ -4521,8 +4357,6 @@ export class AssetsController extends BaseController<
 
     // Unregister action handlers
     this.messenger.unregisterActionHandler('AssetsController:getAssets');
-    this.messenger.unregisterActionHandler('AssetsController:getAssetsBalance');
-    this.messenger.unregisterActionHandler('AssetsController:getAssetMetadata');
     this.messenger.unregisterActionHandler(
       'AssetsController:getAccountAssetByID',
     );
@@ -4532,7 +4366,6 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler(
       'AssetsController:getAccountAssetsByScope',
     );
-    this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
     this.messenger.unregisterActionHandler(
       'AssetsController:getExchangeRatesForBridge',
     );
@@ -4540,12 +4373,6 @@ export class AssetsController extends BaseController<
       'AssetsController:getStateForTransactionPay',
     );
     this.messenger.unregisterActionHandler('AssetsController:addCustomAsset');
-    this.messenger.unregisterActionHandler(
-      'AssetsController:removeCustomAsset',
-    );
-    this.messenger.unregisterActionHandler('AssetsController:getCustomAssets');
-    this.messenger.unregisterActionHandler('AssetsController:hideAsset');
-    this.messenger.unregisterActionHandler('AssetsController:unhideAsset');
     this.messenger.unregisterActionHandler(
       'AssetsController:setSelectedCurrency',
     );

@@ -921,6 +921,101 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
+  it('middleware fetches prices for response balances missing from state', async () => {
+    const { controller, apiClient } = setupController({
+      priceResponse: {
+        [MOCK_TOKEN_ASSET]: createMockPriceData(1.0),
+      },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET]: { amount: '1.5' },
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [normalizeAssetId(MOCK_TOKEN_ASSET)],
+      { currency: 'usd', includeMarketData: true },
+    );
+    expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toMatchObject({
+      price: 1.0,
+    });
+
+    controller.destroy();
+  });
+
+  it('middleware skips response balances that already have a price in state', async () => {
+    const normalizedAssetId = normalizeAssetId(MOCK_TOKEN_ASSET);
+    const { controller, apiClient } = setupController({
+      getAssetsState: (): AssetsControllerState =>
+        ({
+          assetsBalance: {},
+          assetsInfo: {},
+          customAssets: {},
+          assetsPrice: {
+            [normalizedAssetId]: createMockPriceData(1.0),
+          },
+        }) as unknown as AssetsControllerState,
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET]: { amount: '1.5' },
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(context);
+
+    controller.destroy();
+  });
+
+  it('middleware fetches prices for custom assets missing from state', async () => {
+    const { controller, apiClient } = setupController({
+      priceResponse: {
+        [MOCK_TOKEN_ASSET]: createMockPriceData(1.0),
+      },
+      getAssetsState: (): AssetsControllerState =>
+        ({
+          assetsBalance: {},
+          assetsInfo: {},
+          assetsPrice: {},
+          customAssets: {
+            'mock-account-id': [MOCK_TOKEN_ASSET],
+          },
+        }) as unknown as AssetsControllerState,
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {},
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [normalizeAssetId(MOCK_TOKEN_ASSET)],
+      { currency: 'usd', includeMarketData: true },
+    );
+
+    controller.destroy();
+  });
+
   it('middleware fetches prices for detected assets', async () => {
     const { controller, apiClient } = setupController({
       priceResponse: {

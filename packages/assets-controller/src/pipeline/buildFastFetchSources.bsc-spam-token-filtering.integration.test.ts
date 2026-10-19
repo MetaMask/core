@@ -27,7 +27,6 @@ import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { RpcDataSource } from '../data-sources/RpcDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
 import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
-import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import { RpcFallbackMiddleware } from '../middlewares/RpcFallbackMiddleware.js';
 import type {
   AccountId,
@@ -167,9 +166,6 @@ async function runPipeline(
         rpcDataSource: rpcOverride ?? rpcDataSource,
         getAssetsState: (): AssetsControllerState => state,
       }),
-      detectionMiddleware: new DetectionMiddleware({
-        getAssetsState: (): AssetsControllerState => state,
-      }),
       tokenDataSource,
       priceDataSource,
     },
@@ -191,11 +187,13 @@ async function runPipeline(
 const WALLET_PASSES = [
   {
     pass: 'first pass over a fresh wallet',
+    metadataAlreadyStored: false,
     run: async (): Promise<DataResponse> =>
       runPipeline(buildEmptyAssetsState()),
   },
   {
     pass: 'second pass over the wallet the first pass left behind',
+    metadataAlreadyStored: true,
     run: async (): Promise<DataResponse> => {
       const firstPass = await runPipeline(buildEmptyAssetsState());
       cleanAll();
@@ -216,7 +214,7 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
     cleanAll();
   });
 
-  describe.each(WALLET_PASSES)('$pass', ({ run }) => {
+  describe.each(WALLET_PASSES)('$pass', ({ run, metadataAlreadyStored }) => {
     let response: DataResponse;
 
     beforeAll(async () => {
@@ -230,12 +228,14 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
       },
     );
 
-    it.each([BALANCES, METADATA])(
-      '$surface - keeps the native BNB asset despite low occurrences',
-      ({ lookUp }) => {
-        expect(lookUp(response, BNB_ASSET_ID)).toBeDefined();
-      },
-    );
+    it('balances - keeps the native BNB asset despite low occurrences', () => {
+      expect(BALANCES.lookUp(response, BNB_ASSET_ID)).toBeDefined();
+    });
+
+    it('metadata - fetches native BNB only when state has no image yet', () => {
+      const metadata = METADATA.lookUp(response, BNB_ASSET_ID);
+      expect(metadata !== undefined).toBe(!metadataAlreadyStored);
+    });
 
     // Legitimate failing test, our middleware stack does not filter out spam
     // asset prices! This does eventually get cleaned up during unlock cleanup,
@@ -279,7 +279,7 @@ describe('assets pipeline (without graduation middleware only on v6 integration)
     return { source, requests };
   };
 
-  it.each([BALANCES, METADATA, DETECTED_ASSETS])(
+  it.each([BALANCES, METADATA])(
     '$surface - keeps the imported token despite a positive API balance and low occurrences',
     async ({ lookUp }) => {
       const response = await runPipeline(

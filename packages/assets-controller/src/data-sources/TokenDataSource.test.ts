@@ -324,9 +324,8 @@ describe('TokenDataSource', () => {
   });
 
   it('middleware heals low-occurrence balance-only assets without spam-filtering them out', async () => {
-    // Already-tracked balances missing assetsInfo are healed via assetsBalance
-    // (not detectedAssets). Spam filtering must not strip those holdings or
-    // withhold metadata — DetectionMiddleware intentionally skips them.
+    // Holdings already in state.assetsBalance but missing assetsInfo are
+    // enriched. Spam filtering must not strip those holdings.
     const lowOccurrenceAsset =
       'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
 
@@ -337,6 +336,14 @@ describe('TokenDataSource', () => {
         createMockAssetResponse(lowOccurrenceAsset, { occurrences: 1 }),
       ],
       suggestedOccurrenceFloors: { '1': 3 },
+      getAssetsState: (): Partial<AssetsControllerState> => ({
+        assetsInfo: {},
+        assetsBalance: {
+          'mock-account-id': {
+            [lowOccurrenceAsset]: { amount: '50' },
+          },
+        },
+      }),
     });
 
     const next = jest.fn().mockResolvedValue(undefined);
@@ -1053,7 +1060,7 @@ describe('TokenDataSource', () => {
 
     const next = jest.fn().mockResolvedValue(undefined);
     // Websocket-shaped update: brand-new tokens (absent from state) with
-    // seeded metadata stubs. Runs BEFORE DetectionMiddleware.
+    // seeded metadata stubs. The occurrence filter runs before metadata enrichment.
     const context = createMiddlewareContext({
       request: createDataRequest({ dataTypes: ['balance'] }),
       response: {
@@ -1351,6 +1358,33 @@ describe('TokenDataSource', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
+  it('middleware fetches metadata for custom assets missing from state even without a balance', async () => {
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
+      getAssetsState: (): Partial<AssetsControllerState> => ({
+        assetsInfo: {},
+        customAssets: {
+          'mock-account-id': [MOCK_TOKEN_ASSET],
+        },
+      }),
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {},
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      expect.arrayContaining([MOCK_TOKEN_ASSET]),
+      expect.objectContaining({ includeIconUrl: true }),
+    );
+    expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
+  });
+
   it('middleware bypasses occurrence filter for custom assets when state-stored ID is checksummed and API returns lower-case', async () => {
     // State stores customs in normalized (checksummed) form; the V3 Tokens
     // API can echo the same asset ID lower-cased. Without a case-insensitive
@@ -1575,8 +1609,8 @@ describe('TokenDataSource', () => {
     });
 
     const next = jest.fn().mockResolvedValue(undefined);
-    // detectedAssets is intentionally omitted (undefined) to mirror the real-world
-    // case where DetectionMiddleware finds zero balances and zero custom assets
+    // No balances or detected assets on the response. Native IDs are still
+    // fetched when they are missing from state.
     const context = createMiddlewareContext({
       response: {},
     });
