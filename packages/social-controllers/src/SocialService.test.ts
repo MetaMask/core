@@ -501,6 +501,90 @@ describe('SocialService', () => {
       });
     });
 
+    it('accepts and returns optional createdAt from social-api', async () => {
+      const withCreatedAt = {
+        ...mockProfileResponse,
+        profile: {
+          ...mockProfileResponse.profile,
+          createdAt: '2024-06-01T00:00:00.000Z',
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withCreatedAt),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.profile.createdAt).toBe('2024-06-01T00:00:00.000Z');
+    });
+
+    it('accepts a profile without createdAt', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockProfileResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.profile.createdAt).toBeUndefined();
+    });
+
+    it('accepts explicit null createdAt', async () => {
+      const withNullCreatedAt = {
+        ...mockProfileResponse,
+        profile: {
+          ...mockProfileResponse.profile,
+          createdAt: null,
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withNullCreatedAt),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.profile.createdAt).toBeNull();
+    });
+
+    it('throws when createdAt is not a string', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockProfileResponse,
+            profile: {
+              ...mockProfileResponse.profile,
+              createdAt: 1700000000,
+            },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTraderProfile({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
+      );
+    });
+
     it('accepts a profile without the optional 7-day per-chain breakdown', async () => {
       // The 30-day-only shape older social-api versions return.
       mockFetch.mockResolvedValue({
