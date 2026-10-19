@@ -443,30 +443,33 @@ export type NotificationPreferencesUpdate = {
 };
 
 /**
- * Applies an update over stored preferences. Fields set to `undefined` are
+ * Applies an update over stored preferences. Sections and fields the update
+ * leaves out keep their stored value, and fields set to `undefined` are
  * ignored, so a field can never be reset by leaving it out.
  *
- * @param stored - The stored preferences.
- * @param update - The change to apply.
- * @returns The merged preferences.
+ * @param storedPreferences - The preferences stored in AUS.
+ * @param update - The sections and fields the caller sent.
+ * @returns The preferences to write.
  */
 const mergeNotificationPreferences = (
-  stored: NotificationPreferences,
+  storedPreferences: NotificationPreferences,
   update: NotificationPreferencesUpdate,
 ): NotificationPreferences => {
-  const merged = { ...stored };
-  for (const [section, fields] of Object.entries(update)) {
-    const definedFields = Object.fromEntries(
-      Object.entries(fields ?? {}).filter(([, value]) => value !== undefined),
+  const preferences = { ...storedPreferences };
+  for (const [section, requestedFields] of Object.entries(update)) {
+    const changes = Object.fromEntries(
+      Object.entries(requestedFields ?? {}).filter(
+        ([, value]) => value !== undefined,
+      ),
     );
-    Object.assign(merged, {
+    Object.assign(preferences, {
       [section]: {
-        ...stored[section as keyof NotificationPreferences],
-        ...definedFields,
+        ...storedPreferences[section as keyof NotificationPreferences],
+        ...changes,
       },
     });
   }
-  return merged;
+  return preferences;
 };
 
 type FeatureAnnouncementEnv = {
