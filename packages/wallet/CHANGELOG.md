@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export an `assetsController` initialization configuration for `AssetsController`, along with the `AssetsControllerInstanceOptions` type
+  - It is not part of the default initialization configurations, because the Wallet does not yet initialize several of its dependencies (e.g. `NetworkEnablementController`, `AccountTreeController`, `SnapController`). Pass it through `initializationConfigurations` after configurations that register `NetworkEnablementController:getState`.
+  - Configure it through the new optional `instanceOptions.assetsController`, which requires a `queryApiClient`.
+
+### Changed
+
+- Add `@metamask/assets-controller` as a dependency
+
 ## [18.0.0]
 
 ### Added
