@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1339.0.0",
+  "version": "1341.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -61,7 +61,7 @@
     "skills:postinstall": "metamask-skills postinstall",
     "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:scripts:shell && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
-    "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
+    "test:packages": "yarn test:verbose --silent --coverage=false",
     "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.cjs --silent",
     "test:scripts:shell": "node_modules/bats/bin/bats scripts/*.bats",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
@@ -76,7 +76,7 @@
     "@metamask/action-utils": "^2.0.0",
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/create-release-branch": "^4.2.2",
-    "@metamask/network-controller": "^37.0.1",
+    "@metamask/network-controller": "^37.1.0",
     "@metamask/oxlint-config": "^0.1.1",
     "@metamask/oxlint-config-commonjs": "^0.1.1",
     "@metamask/oxlint-config-jest": "^0.1.1",

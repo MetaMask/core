@@ -6,6 +6,8 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance, MockedFunction } from 'vitest';
 
 import {
   PhishingController,
@@ -19,15 +21,16 @@ import type {
 import { TokenScanResultType } from './types.js';
 import type { BulkTokenScanRequest, TokenScanApiResponse } from './types.js';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  safelyExecuteWithTimeout: jest.fn(),
+vi.mock('@metamask/controller-utils', async () => ({
+  ...(await vi.importActual<typeof import('@metamask/controller-utils')>(
+    '@metamask/controller-utils',
+  )),
+  safelyExecuteWithTimeout: vi.fn(),
 }));
 
-const mockSafelyExecuteWithTimeout =
-  safelyExecuteWithTimeout as jest.MockedFunction<
-    typeof safelyExecuteWithTimeout
-  >;
+const mockSafelyExecuteWithTimeout = safelyExecuteWithTimeout as MockedFunction<
+  typeof safelyExecuteWithTimeout
+>;
 
 const controllerName = 'PhishingController';
 
@@ -98,20 +101,26 @@ function getPhishingController(options?: Partial<PhishingControllerOptions>) {
 
 describe('PhishingController - Bulk Token Scanning', () => {
   let controller: PhishingController;
-  let consoleErrorSpy: jest.SpyInstance;
-  let consoleWarnSpy: jest.SpyInstance;
+  let consoleErrorSpy: MockInstance;
+  let consoleWarnSpy: MockInstance;
 
   beforeEach(() => {
     controller = getPhishingController();
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
 
     // Reset the mock to its default behavior (pass through to real implementation)
     mockSafelyExecuteWithTimeout.mockImplementation(
-      (fn, throwOnTimeout, timeout) => {
-        return jest
-          .requireActual('@metamask/controller-utils')
-          .safelyExecuteWithTimeout(fn, throwOnTimeout, timeout);
+      async (fn, throwOnTimeout, timeout) => {
+        return (
+          await vi.importActual<typeof import('@metamask/controller-utils')>(
+            '@metamask/controller-utils',
+          )
+        ).safelyExecuteWithTimeout(fn, throwOnTimeout, timeout);
       },
     );
   });

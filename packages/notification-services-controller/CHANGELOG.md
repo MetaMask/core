@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `firebase` from `^11.10.0` to `^12.19.0` ([#10600](https://github.com/MetaMask/core/pull/10600))
 - Bump `@contentful/rich-text-html-renderer` from `^16.5.2` to `^16.6.10` ([#10712](https://github.com/MetaMask/core/pull/10712))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
 ### Deprecated
 

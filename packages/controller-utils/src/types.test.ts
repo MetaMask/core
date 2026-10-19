@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { isNetworkType, NetworkType } from './types.js';
 
 describe('types', () => {
