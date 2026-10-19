@@ -200,9 +200,7 @@ describe('secret data utilities', () => {
         keyringId: 'keyring-id',
       };
 
-      expect(
-        findSocialBackupMetadata([backup], data),
-      ).toBe(backup);
+      expect(findSocialBackupMetadata([backup], data)).toBe(backup);
     });
 
     it('finds a private key backup when the type is specified', () => {
