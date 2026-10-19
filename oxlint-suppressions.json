@@ -6656,13 +6656,13 @@
       "count": 1
     },
     "typescript/no-unsafe-assignment": {
-      "count": 66
+      "count": 86
     },
     "typescript/no-unsafe-call": {
-      "count": 9
+      "count": 15
     },
     "typescript/no-unsafe-member-access": {
-      "count": 9
+      "count": 15
     },
     "typescript/no-unsafe-return": {
       "count": 2
@@ -6681,13 +6681,13 @@
       "count": 4
     },
     "typescript/no-unsafe-assignment": {
-      "count": 46
+      "count": 53
     },
     "typescript/no-unsafe-call": {
-      "count": 21
+      "count": 23
     },
     "typescript/no-unsafe-member-access": {
-      "count": 29
+      "count": 31
     },
     "typescript/no-unsafe-return": {
       "count": 3
