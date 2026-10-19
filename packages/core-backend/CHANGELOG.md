@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `LaunchpadTokenDetailsService` for real-time launchpad token detail streaming over the shared backend WebSocket, exposing `subscribe`/`unsubscribe` by `assetId` and publishing `tokenUpdated`, `statusChanged`, and `subscriptionError` events, along with `LAUNCHPAD_TDP_SERVICE_ALLOWED_ACTIONS`/`LAUNCHPAD_TDP_SERVICE_ALLOWED_EVENTS` and launchpad event types/normalizers (`parseBatch`, `normalizeEvent`, `buildChannel`) ([#10884](https://github.com/MetaMask/core/pull/10884))
+- Add `ChannelSubscriptionManager`, a reusable per-channel WebSocket subscription lifecycle helper (reference counting, grace-period unsubscribe, unsubscribe retry, and resubscribe on reconnect) shared by `OHLCVService` and `LaunchpadTokenDetailsService` ([#10884](https://github.com/MetaMask/core/pull/10884))
+
+### Changed
+
+- Refactor `OHLCVService` to delegate its subscription lifecycle to the shared `ChannelSubscriptionManager` via composition, with no change to its public API or published events ([#10884](https://github.com/MetaMask/core/pull/10884))
+
 ## [12.3.0]
 
 ### Changed
