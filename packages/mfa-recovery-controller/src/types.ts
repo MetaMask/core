@@ -6,7 +6,7 @@ export type Identifier = {
   type: string;
   namespace: string;
   value: string;
-  verifier: unknown;
+  verifier?: unknown;
 };
 
 export type PoPChallenge = {
@@ -60,7 +60,7 @@ export type Mutation = {
 };
 
 /**
- * Hydra access token (compact JWT). Its `ext` claims bind it to one mutation:
+ * Auth API approval (compact JWT). Its `ext` claims bind it to one mutation:
  * `aal`, `request_hash`, and `identifiers_hash`.
  */
 export type AuthControllerToken = string;
@@ -237,11 +237,14 @@ export type RecoveredSecret = {
  */
 export type RecoveryAuthProvider = {
   getAuthenticatedProfileId: () => Promise<string>;
+  /**
+   * Returns the Auth API's /api/v2/recovery/approvals approval directly.
+   * `requireTwoFactor` requests recent AAL2 authentication.
+   */
   authorizeRecoveryRequest: (params: {
     requestHash: string;
     audiences: string[];
     requireTwoFactor?: boolean;
-    identifiers?: Identifier[];
   }) => Promise<AuthControllerToken>;
 };
 

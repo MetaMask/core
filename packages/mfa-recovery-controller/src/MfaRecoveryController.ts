@@ -52,7 +52,6 @@ import type {
   Mutation,
   MutationPayload,
   MutationReceipt,
-  PendingMutationPayload,
   PendingOperation,
   PendingOperationEncryptor,
   PendingRegisterPayload,
@@ -494,10 +493,7 @@ export class MfaRecoveryController extends BaseController<
       };
       await this.#persistPending(pending);
 
-      const authControllerToken = await this.#authorizeMutation(
-        mutation,
-        payload,
-      );
+      const authControllerToken = await this.#authorizeMutation(mutation);
       await this.#replicateMutation({
         ...pending,
         phase: 'writing',
@@ -507,17 +503,11 @@ export class MfaRecoveryController extends BaseController<
     });
   }
 
-  async #authorizeMutation(
-    mutation: Mutation,
-    payload: PendingMutationPayload,
-  ): Promise<AuthControllerToken> {
+  async #authorizeMutation(mutation: Mutation): Promise<AuthControllerToken> {
     return await this.#authProvider.authorizeRecoveryRequest({
       requestHash: mutation.requestHash,
       audiences: this.#escrows.map((escrow) => escrow.authAudience),
       ...(mutation.operation === 'register' ? {} : { requireTwoFactor: true }),
-      ...(pendingPayloadHasIdentifiers(payload)
-        ? { identifiers: payload.identifiers }
-        : {}),
     });
   }
 
@@ -532,10 +522,7 @@ export class MfaRecoveryController extends BaseController<
       await this.#replicateMutation({
         ...pending,
         phase: 'writing',
-        authControllerToken: await this.#authorizeMutation(
-          pending.mutation,
-          pending.payload,
-        ),
+        authControllerToken: await this.#authorizeMutation(pending.mutation),
         receipts: [],
       });
       return;
@@ -546,7 +533,7 @@ export class MfaRecoveryController extends BaseController<
   }
 
   async #replicateMutation(pending: WritingPendingOperation): Promise<void> {
-    const { mutation, payload, identifier } = pending;
+    const { mutation, identifier } = pending;
     const remainingEscrows = await this.#getRemainingEscrows(pending);
     if (remainingEscrows.length === 0) {
       await this.#clearPending();
@@ -559,7 +546,7 @@ export class MfaRecoveryController extends BaseController<
     const authControllerToken =
       claims && claims.exp > this.#now()
         ? pending.authControllerToken
-        : await this.#authorizeMutation(mutation, payload);
+        : await this.#authorizeMutation(mutation);
     const writing = { ...pending, authControllerToken };
     const authorizedEscrows =
       mutation.operation === 'register'

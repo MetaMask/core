@@ -14,7 +14,7 @@ import { chacha20poly1305 } from '@noble/ciphers/chacha';
 import { p256 } from '@noble/curves/nist';
 import stableStringify from 'json-stable-stringify';
 
-import type { EcPublicJwk, Identifier } from './types.js';
+import type { EcPublicJwk } from './types.js';
 
 const WRAP_INFO = new TextEncoder().encode('escrow-wrap-v1');
 const CHACHA_KEY_LEN = 32;
@@ -41,47 +41,6 @@ export function canonicalize(value: unknown): string {
  */
 export async function hash(value: unknown): Promise<Hex> {
   return bytesToHex(await sha256(stringToBytes(canonicalize(value))));
-}
-
-/**
- * Orders two strings by their UTF-8 bytes. The escrow sorts identifiers the same
- * way (Rust `String` ordering), so this must not be locale or UTF-16 aware.
- *
- * @param left - First string.
- * @param right - Second string.
- * @returns Negative, zero, or positive like `Array.prototype.sort` expects.
- */
-export function compareUtf8(left: string, right: string): number {
-  const leftBytes = stringToBytes(left);
-  const rightBytes = stringToBytes(right);
-  const shared = Math.min(leftBytes.length, rightBytes.length);
-  for (let index = 0; index < shared; index += 1) {
-    const difference = leftBytes[index] - rightBytes[index];
-    if (difference !== 0) {
-      return difference;
-    }
-  }
-  return leftBytes.length - rightBytes.length;
-}
-
-/**
- * Canonical identifier list bound into AuthController `identifiersHash`.
- *
- * @param identifiers - Identifier set.
- * @returns Identifier records including verifier material, sorted by the UTF-8
- * bytes of their canonical JSON.
- */
-export function canonicalizeIdentifiers(identifiers: Identifier[]): unknown {
-  return [...identifiers]
-    .map((identifier) => ({
-      namespace: identifier.namespace,
-      type: identifier.type,
-      value: identifier.value,
-      verifier: identifier.verifier,
-    }))
-    .sort((left, right) =>
-      compareUtf8(canonicalize(left), canonicalize(right)),
-    );
 }
 
 /**

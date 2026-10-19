@@ -26,11 +26,11 @@ import {
  * Usage:
  *   yarn workspace @metamask/mfa-recovery-controller run cubesigner:register -- \
  *     --wrap-key '<p256-jwk-json>' \
- *     --receipt-key '<p256-jwk-json>' \
+ *     --receipt-key '<p256-jwk-json>' --auth-audience '<audience>' \
  *     [--function-id <name-or-id>] [--version latest|v0]
  */
 const USAGE =
-  'Usage: cubesigner:register --wrap-key <p256-jwk-json> --receipt-key <p256-jwk-json> [--function-id <name-or-id>] [--version latest|v0]';
+  'Usage: cubesigner:register --wrap-key <p256-jwk-json> --receipt-key <p256-jwk-json> --auth-audience <audience> [--function-id <name-or-id>] [--version latest|v0]';
 
 const PASSKEY: Identifier = {
   type: 'passkey',
@@ -39,11 +39,10 @@ const PASSKEY: Identifier = {
   verifier: { publicKey: 'mock-passkey' },
 };
 
-const OIDC: Identifier = {
-  type: 'oidc',
+const SOCIAL: Identifier = {
+  type: 'social',
   namespace: 'https://accounts.google.com',
-  value: 'sub-1',
-  verifier: { auds: ['mock-client'] },
+  value: 'hashed-email',
 };
 
 type RootMessenger = Messenger<
@@ -107,7 +106,12 @@ function getControllerMessenger(): MfaRecoveryControllerMessenger {
 async function main(flags: Record<string, string>): Promise<void> {
   const wrapPublicKey = flags['wrap-key'];
   const receiptPublicKey = flags['receipt-key'];
-  if (wrapPublicKey === undefined || receiptPublicKey === undefined) {
+  const authAudience = flags['auth-audience'];
+  if (
+    wrapPublicKey === undefined ||
+    receiptPublicKey === undefined ||
+    authAudience === undefined
+  ) {
     console.error(USAGE);
     process.exitCode = 1;
     return;
@@ -116,6 +120,7 @@ async function main(flags: Record<string, string>): Promise<void> {
   const client = await CubeSignerClient.create(defaultUserSessionManager());
   const escrow = new CubistEscrowProvider({
     client,
+    authAudience,
     wrapPublicKey,
     receiptPublicKey,
     ...(flags['function-id'] === undefined
@@ -125,14 +130,14 @@ async function main(flags: Record<string, string>): Promise<void> {
   });
   const controller = new MfaRecoveryController({
     messenger: getControllerMessenger(),
-    authProvider: new StubAuthProvider(),
+    authProvider: new StubAuthProvider([PASSKEY, SOCIAL]),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
     escrows: [escrow],
     pendingOperationEncryptor: passthroughEncryptor,
   });
 
   const recoverySecret = new Uint8Array(randomBytes(32));
-  await controller.register(recoverySecret, [PASSKEY, OIDC]);
+  await controller.register(recoverySecret, [PASSKEY, SOCIAL]);
 
   const identifierSession = await controller.authenticateIdentifier(PASSKEY);
   const recovered = await controller.getRecoverySecret(identifierSession);

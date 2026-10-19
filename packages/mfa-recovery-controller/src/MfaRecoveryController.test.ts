@@ -15,12 +15,7 @@ import {
   createAuthControllerToken,
   passthroughEncryptor,
 } from '../tests/stubs.js';
-import {
-  canonicalizeIdentifiers,
-  generateSigningKey,
-  hash,
-  unixNow,
-} from './crypto.js';
+import { generateSigningKey, hash, unixNow } from './crypto.js';
 import { IncompleteMutationError, MutationRejectedError } from './errors.js';
 import type {
   MfaRecoveryControllerMessenger,
@@ -43,14 +38,13 @@ const PASSKEY: Identifier = {
   verifier: { publicKey: 'pk' },
 };
 
-const OIDC: Identifier = {
-  type: 'oidc',
+const SOCIAL: Identifier = {
+  type: 'social',
   namespace: 'https://accounts.google.com',
-  value: 'sub-1',
-  verifier: { auds: ['client'] },
+  value: 'hashed-email',
 };
 
-const IDENTIFIERS = [PASSKEY, OIDC];
+const IDENTIFIERS = [PASSKEY, SOCIAL];
 
 const SECRET = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
 const SECRET_2 = new Uint8Array([8, 7, 6, 5, 4, 3, 2, 1]);
@@ -710,14 +704,15 @@ describe('MfaRecoveryController', () => {
 
   describe('updateIdentifiers', () => {
     it('replaces the identifier set', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, authProvider }) => {
         await controller.register(SECRET, IDENTIFIERS);
+        authProvider.identifiers = [SOCIAL, PASSKEY];
         await controller.updateIdentifiers(
           PASSKEY,
-          [OIDC, PASSKEY],
+          [SOCIAL, PASSKEY],
           REGISTERED_EPOCH,
         );
-        const recovered = await recover(controller, OIDC);
+        const recovered = await recover(controller, SOCIAL);
         expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
       });
     });
@@ -1133,9 +1128,7 @@ describe('MfaRecoveryController', () => {
             sub: 'profile-1',
             exp: unixNow() + 60,
             requestHash: mutation.requestHash,
-            identifiersHash: await hash(
-              canonicalizeIdentifiers(payload.identifiers),
-            ),
+            identifiersHash: await hash(payload.identifiers),
           }),
           payload,
           identifier: null,
@@ -1195,9 +1188,7 @@ describe('MfaRecoveryController', () => {
             sub: 'profile-1',
             exp: unixNow() + 60,
             requestHash: mutation.requestHash,
-            identifiersHash: await hash(
-              canonicalizeIdentifiers(payload.identifiers),
-            ),
+            identifiersHash: await hash(payload.identifiers),
           }),
           payload,
           identifier: null,
@@ -1612,6 +1603,7 @@ type RootMessenger = Messenger<
 
 type WithControllerCallback<ReturnValue> = (payload: {
   controller: MfaRecoveryController;
+  authProvider: StubAuthProvider;
   rootMessenger: RootMessenger;
   controllerMessenger: MfaRecoveryControllerMessenger;
   escrowA: StubEscrowProvider;
@@ -1635,10 +1627,10 @@ function getMessenger(
 function getOptions(
   escrowA: StubEscrowProvider,
   escrowB: StubEscrowProvider,
-): MfaRecoveryControllerOptions {
+): MfaRecoveryControllerOptions & { authProvider: StubAuthProvider } {
   return {
     messenger: getMessenger(getRootMessenger()),
-    authProvider: new StubAuthProvider(),
+    authProvider: new StubAuthProvider(IDENTIFIERS),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
     escrows: [escrowA, escrowB],
     pendingOperationEncryptor: passthroughEncryptor,
@@ -1712,6 +1704,7 @@ async function withController<ReturnValue>(
   const controller = new MfaRecoveryController(options);
   return await testFunction({
     controller,
+    authProvider: options.authProvider,
     rootMessenger,
     controllerMessenger,
     escrowA,

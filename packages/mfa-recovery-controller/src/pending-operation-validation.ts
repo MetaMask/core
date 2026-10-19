@@ -114,7 +114,7 @@ export async function assertValidPendingOperation(
   if (
     token?.sub !== mutation.profileId ||
     token.ext.requestHash !== mutation.requestHash ||
-    (mutation.operation !== 'register' && (token.ext.aal ?? 0) < 2) ||
+    token.ext.aal < (mutation.operation === 'register' ? 1 : 2) ||
     ((mutation.operation === 'register' ||
       mutation.operation === 'updateIdentifiers') &&
       token.ext.identifiersHash === undefined) ||
@@ -195,8 +195,7 @@ function isIdentifier(value: unknown): value is Identifier {
     isRecord(value) &&
     typeof value.type === 'string' &&
     typeof value.namespace === 'string' &&
-    typeof value.value === 'string' &&
-    Object.prototype.hasOwnProperty.call(value, 'verifier')
+    typeof value.value === 'string'
   );
 }
 

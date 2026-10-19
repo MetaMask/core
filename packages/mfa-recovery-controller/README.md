@@ -1,13 +1,18 @@
 # `@metamask/mfa-recovery-controller`
 
-Manages MFA recovery flows across MetaMask clients. Auth and escrow storage are
-injected so the same controller can run against different identity providers and
-escrow backends.
+Coordinates MFA recovery through injected auth and escrow providers.
 
-Pending mutations are persisted as encoded encrypted `authorizing` / `writing`
-state so a crash can `resume()` the same mutation. `abort()` drops `authorizing`
-only; `writing` must `resume()`. The encoded ciphertext is stored as a string so
-BaseController state serialization preserves the encrypted value.
+Pending mutations are encrypted in controller state. `resume()` completes them;
+`abort()` is allowed only before writing. See [Architecture](ARCHITECTURE.md).
+
+## Auth API Integration
+
+`RecoveryAuthProvider` posts `{ request_hash, audiences }` to
+`/api/v2/recovery/approvals` with a Hydra bearer and returns `approval` directly.
+
+Pass Auth's `identifiers` unchanged to `register` and `updateIdentifiers`.
+Set `CubistEscrowProviderOptions.authAudience` to the escrow's
+`AUTH_CONTROLLER_AUDIENCE`.
 
 ## Installation
 
