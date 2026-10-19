@@ -444,9 +444,7 @@ export type NotificationPreferencesUpdate = {
 
 /**
  * Applies an update over stored preferences. Fields set to `undefined` are
- * ignored, so a field can never be reset by leaving it out. A section missing
- * from stored preferences (one added after they were created) starts from its
- * defaults.
+ * ignored, so a field can never be reset by leaving it out.
  *
  * @param stored - The stored preferences.
  * @param update - The change to apply.
@@ -461,10 +459,9 @@ const mergeNotificationPreferences = (
     const definedFields = Object.fromEntries(
       Object.entries(fields ?? {}).filter(([, value]) => value !== undefined),
     );
-    const key = section as keyof NotificationPreferences;
     Object.assign(merged, {
-      [key]: {
-        ...(stored[key] ?? buildFreshPreferences(false)[key]),
+      [section]: {
+        ...stored[section as keyof NotificationPreferences],
         ...definedFields,
       },
     });

@@ -2826,30 +2826,6 @@ describe('NotificationServicesController', () => {
       expect(mockGetNotificationPreferences).not.toHaveBeenCalled();
     });
 
-    it('starts a section missing from stored preferences from its defaults', async () => {
-      const { agenticCli: _agenticCli, ...withoutAgenticCli } =
-        mockPreferences();
-      const { controller, mockPutNotificationPreferences } = arrangeController(
-        false,
-        withoutAgenticCli as NotificationPreferences,
-      );
-
-      await controller.updateNotificationPreferences({
-        agenticCli: { pushNotificationsEnabled: false },
-      });
-
-      expect(mockPutNotificationPreferences).toHaveBeenCalledWith(
-        {
-          ...withoutAgenticCli,
-          agenticCli: {
-            ...DEFAULT_AGENTIC_CLI_PREFERENCES,
-            pushNotificationsEnabled: false,
-          },
-        },
-        'extension',
-      );
-    });
-
     it('returns the saved preferences when re-reading them fails', async () => {
       const { controller, mockGetNotificationPreferences } =
         arrangeController(false);
