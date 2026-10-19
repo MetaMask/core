@@ -1,6 +1,12 @@
 {
   "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "types": ["jest"]
+  },
   "references": [
+    {
+      "path": "../analytics-controller"
+    },
     {
       "path": "../authenticated-user-storage"
     },

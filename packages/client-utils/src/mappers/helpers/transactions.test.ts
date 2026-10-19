@@ -1,3 +1,6 @@
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+
 import * as tokenMetadata from './token-metadata.js';
 import {
   getFees,
@@ -9,6 +12,19 @@ import {
   isNftStandard,
   parseValueTransfers,
 } from './transactions.js';
+
+const MANTLE_TRANSACTION: TransactionMeta = {
+  chainId: '0x1388',
+  id: 'mantle-tx',
+  networkClientId: 'mantle',
+  status: TransactionStatus.confirmed,
+  time: 0,
+  txParams: { from: '0x0000000000000000000000000000000000000001' },
+  txReceipt: {
+    gasUsed: '0x5208',
+    effectiveGasPrice: '0x3b9aca00',
+  },
+};
 
 describe('transaction helpers', () => {
   afterEach(() => {
@@ -473,6 +489,67 @@ describe('transaction helpers', () => {
           symbol: 'NOTACOIN',
           assetId:
             'eip155:999999991/erc20:0x0000000000000000000000000000000000000000',
+        },
+      ]);
+    });
+
+    it.each([
+      {
+        name: 'adds the receipt L1 fee',
+        receipt: { l1Fee: '0x64' },
+        // 21_000_000_000_000 + 100
+        amount: '21000000000100',
+      },
+      {
+        name: 'adds the Jovian operator fee when daFootprintGasScalar is present',
+        receipt: {
+          daFootprintGasScalar: '0x190',
+          l1Fee: '0x64',
+          operatorFeeConstant: '0xa',
+          operatorFeeScalar: '0x1',
+        },
+        // 21_000_000_000_000 + 100 + (21_000 * 1 * 100 + 10)
+        amount: '21000002100110',
+      },
+      {
+        name: 'adds the Isthmus operator fee when daFootprintGasScalar is absent',
+        receipt: { operatorFeeConstant: '0xa', operatorFeeScalar: '0x64' },
+        // 21_000_000_000_000 + floor(21_000 * 100 / 1_000_000) + 10
+        amount: '21000000000012',
+      },
+      {
+        name: 'skips the operator fee when operatorFeeConstant is missing',
+        receipt: { l1Fee: '0x64', operatorFeeScalar: '0x1' },
+        amount: '21000000000100',
+      },
+      {
+        name: 'ignores the layer1GasFee estimate',
+        receipt: {},
+        amount: '21000000000000',
+      },
+      {
+        name: 'keeps the L2 fee when the receipt L1 fee is invalid',
+        receipt: { l1Fee: 'not-a-hex' },
+        amount: '21000000000000',
+      },
+    ])('$name', ({ receipt, amount }) => {
+      expect(
+        getLocalTransactionFees({
+          primaryTransaction: {
+            ...MANTLE_TRANSACTION,
+            layer1GasFee: '0x5f5e100',
+            txReceipt: { ...MANTLE_TRANSACTION.txReceipt, ...receipt },
+          },
+        }),
+      ).toStrictEqual([
+        {
+          type: 'base',
+          amount,
+          decimals: 18,
+          assetType: 'native',
+          symbol: 'MNT',
+          assetId:
+            'eip155:5000/erc20:0x0000000000000000000000000000000000000000',
         },
       ]);
     });

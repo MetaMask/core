@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AuthenticationController.exchangeSocialAccessToken` and the `AuthenticationController:exchangeSocialAccessToken` messenger action, exchanging the wallet's Google, Apple or Telegram social access token (`POST /api/v2/social/login`) for an access token and the canonical profile, without storing them ([#10886](https://github.com/MetaMask/core/pull/10886))
+  - Add `exchangeSocialAccessToken` to the SDK's `JwtBearerAuth`, the `SocialLoginParams` type, and `SocialIdentifierNotPairedError`, thrown when the identifier was never paired to a profile
+
 ### Changed
 
 - Bump `loglevel` from `^1.8.1` to `^1.9.2` ([#10724](https://github.com/MetaMask/core/pull/10724))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
 ## [34.0.3]
 

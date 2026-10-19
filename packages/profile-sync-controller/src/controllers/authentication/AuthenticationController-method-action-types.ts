@@ -11,6 +11,24 @@ export type AuthenticationControllerPerformSignInAction = {
 };
 
 /**
+ * Exchanges the social access token SeedlessOnboarding holds for the
+ * wallet's Google/Apple/Telegram login (`POST /api/v2/social/login`) for an
+ * access token and the canonical profile it is paired to. Shows no UI and
+ * stores nothing: SRP sessions remain the source of truth for
+ * `getBearerToken`.
+ *
+ * Throws when the wallet has no social vault or no social token, and
+ * `SocialIdentifierNotPairedError` when the identifier was never paired to
+ * a profile.
+ *
+ * @returns The access token and canonical profile.
+ */
+export type AuthenticationControllerExchangeSocialAccessTokenAction = {
+  type: `AuthenticationController:exchangeSocialAccessToken`;
+  handler: AuthenticationController['exchangeSocialAccessToken'];
+};
+
+/**
  * Marks profile pairing as needed. Clients call this when the SRP set
  * changes (e.g. a new keyring was added) so the next auto-sign-in cycle
  * re-runs `performSignIn` and re-pairs.
@@ -238,6 +256,7 @@ export type AuthenticationControllerIsSignedInAction = {
  */
 export type AuthenticationControllerMethodActions =
   | AuthenticationControllerPerformSignInAction
+  | AuthenticationControllerExchangeSocialAccessTokenAction
   | AuthenticationControllerRequestProfilePairingAction
   | AuthenticationControllerRefreshEnrolledCredentialsAction
   | AuthenticationControllerBeginCredentialEnrollmentAction

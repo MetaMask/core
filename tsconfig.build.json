@@ -158,6 +158,9 @@
       "path": "./packages/logging-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/marketing-consent-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/message-manager/tsconfig.build.json"
     },
     {
@@ -165,6 +168,9 @@
     },
     {
       "path": "./packages/messenger/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/mfa-recovery-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/money-account-api-data-service/tsconfig.build.json"
