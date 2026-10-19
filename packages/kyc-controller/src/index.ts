@@ -157,9 +157,3 @@ export type {
   MintedUkycTestToken,
   MintUkycTestTokenParams,
 } from './ukyc/testToken.js';
-
-export {
-  clearMoonPaySession,
-  MoonPayFrameHandler,
-} from './vendors/MoonPayFrameHandler.js';
-export type { MoonPayFrameHandlerOptions } from './vendors/MoonPayFrameHandler.js';

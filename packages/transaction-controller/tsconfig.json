@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "target": "ES2022"
+    "types": ["jest"]
   },
   "references": [
     {
