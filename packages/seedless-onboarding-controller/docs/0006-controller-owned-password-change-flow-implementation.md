@@ -9,7 +9,7 @@ This document tracks the implementation of [0005-controller-owned-password-chang
 - [x] Register the Keyring actions in the Seedless controller messenger.
 - [x] Extract controller-owned Keyring and key-sync helpers.
 - [x] Move the password-change happy path into `SeedlessOnboardingController`.
-- [ ] Add failure, locking, and checkpoint coverage.
+- [x] Add failure, locking, and checkpoint coverage.
 - [ ] Remove duplicate orchestration from client code.
 - [ ] Decide and implement controller ownership of password-sync recovery.
 - [ ] Update documentation and changelog.
@@ -83,7 +83,7 @@ Completed on 2026-10-19.
   transitions.
 - [x] Add the Keyring action adapters and key-sync verification helper together
   with the happy-path orchestration.
-- [ ] Add the best-effort Keyring lock helper as part of failure handling.
+- [x] Add the best-effort Keyring lock helper as part of failure handling.
 
 - Add private helpers for:
   - Calling `KeyringController:changePassword`.
@@ -123,6 +123,15 @@ Acceptance criteria:
 
 ### Step 3: Implement failure and locking behavior
 
+Progress:
+
+- [x] Preserve `LOCAL_PASSWORD_PENDING` after a Keyring password-change
+  failure.
+- [x] Preserve `KEY_SYNC_PENDING` after export, storage, or verification
+  failure.
+- [x] Lock both controllers without masking the original error.
+- [ ] Add an explicit regression test for a Seedless-controller lock failure.
+
 For every failure in the operation:
 
 - Preserve the latest persisted checkpoint.
@@ -146,9 +155,10 @@ Add tests for failures at:
 Acceptance criteria:
 
 - `LOCAL_PASSWORD_PENDING` remains recoverable after a Keyring password failure.
-- `KEY_SYNC_PENDING` remains recoverable after a key-sync failure.
-- The wallet is not left unlocked after a failed operation.
-- Error causes remain observable to callers.
+  **Done**
+- `KEY_SYNC_PENDING` remains recoverable after a key-sync failure. **Done**
+- The wallet is not left unlocked after a failed operation. **Done**
+- Error causes remain observable to callers. **Done**
 
 ### Step 4: Migrate the extension happy path
 

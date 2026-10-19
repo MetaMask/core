@@ -4690,7 +4690,12 @@ describe('SeedlessOnboardingController', () => {
             withMockAuthPubKey: true,
           }),
         },
-        async ({ controller, toprfClient, baseMessenger }) => {
+        async ({
+          controller,
+          toprfClient,
+          baseMessenger,
+          mockKeyringSetLocked,
+        }) => {
           await mockCreateToprfKeyAndBackupSeedPhrase(
             toprfClient,
             controller,
@@ -4731,6 +4736,274 @@ describe('SeedlessOnboardingController', () => {
           // not clear it.
           expect(getLifecyclePhase(controller.state)).toBe(
             SeedlessOnboardingCheckpoint.RemotePasswordPending,
+          );
+          expect(mockKeyringSetLocked).toHaveBeenCalledTimes(1);
+          expect(controller.state.accessToken).toBeUndefined();
+          expect(controller.state.revokeToken).toBeUndefined();
+        },
+      );
+    });
+
+    it('should lock both controllers if the Keyring password change fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({
+          controller,
+          toprfClient,
+          baseMessenger,
+          mockKeyringChangePassword,
+          mockKeyringSetLocked,
+        }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+          mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+          mockKeyringChangePassword.mockRejectedValueOnce(
+            new Error('Keyring password change failed'),
+          );
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:changePassword',
+              NEW_MOCK_PASSWORD,
+              MOCK_PASSWORD,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+          );
+
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessOnboardingCheckpoint.LocalPasswordPending,
+          );
+          expect(mockKeyringSetLocked).toHaveBeenCalledTimes(1);
+          expect(controller.state.accessToken).toBeUndefined();
+          expect(controller.state.revokeToken).toBeUndefined();
+        },
+      );
+    });
+
+    it('should preserve KEY_SYNC_PENDING if Keyring key synchronization fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({
+          controller,
+          toprfClient,
+          baseMessenger,
+          mockKeyringExportEncryptionKey,
+          mockKeyringSetLocked,
+        }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+          mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+          mockKeyringExportEncryptionKey.mockRejectedValueOnce(
+            new Error('Keyring encryption-key export failed'),
+          );
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:changePassword',
+              NEW_MOCK_PASSWORD,
+              MOCK_PASSWORD,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+          );
+
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessOnboardingCheckpoint.KeySyncPending,
+          );
+          expect(mockKeyringSetLocked).toHaveBeenCalledTimes(1);
+          expect(controller.state.accessToken).toBeUndefined();
+          expect(controller.state.revokeToken).toBeUndefined();
+        },
+      );
+    });
+
+    it('should preserve KEY_SYNC_PENDING if Keyring key verification fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({
+          controller,
+          toprfClient,
+          baseMessenger,
+          mockKeyringExportEncryptionKey,
+          mockKeyringSetLocked,
+        }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+          mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+          mockKeyringExportEncryptionKey
+            .mockReset()
+            .mockReturnValueOnce('key-before-sync')
+            .mockReturnValueOnce('key-after-sync');
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:changePassword',
+              NEW_MOCK_PASSWORD,
+              MOCK_PASSWORD,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+          );
+
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessOnboardingCheckpoint.KeySyncPending,
+          );
+          expect(mockKeyringSetLocked).toHaveBeenCalledTimes(1);
+          expect(controller.state.accessToken).toBeUndefined();
+          expect(controller.state.revokeToken).toBeUndefined();
+        },
+      );
+    });
+
+    it('should preserve KEY_SYNC_PENDING if storing the Keyring key fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({
+          controller,
+          toprfClient,
+          baseMessenger,
+          mockKeyringExportEncryptionKey,
+          mockKeyringSetLocked,
+        }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+          mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+          mockKeyringExportEncryptionKey.mockReturnValueOnce(undefined);
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:changePassword',
+              NEW_MOCK_PASSWORD,
+              MOCK_PASSWORD,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+          );
+
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessOnboardingCheckpoint.KeySyncPending,
+          );
+          expect(mockKeyringSetLocked).toHaveBeenCalledTimes(1);
+          expect(controller.state.accessToken).toBeUndefined();
+          expect(controller.state.revokeToken).toBeUndefined();
+        },
+      );
+    });
+
+    it('should preserve the original error if locking the Keyring fails', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({
+          controller,
+          toprfClient,
+          baseMessenger,
+          mockKeyringChangePassword,
+          mockKeyringSetLocked,
+        }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+          mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+          mockKeyringChangePassword.mockRejectedValueOnce(
+            new Error('Keyring password change failed'),
+          );
+          mockKeyringSetLocked.mockRejectedValueOnce(
+            new Error('Keyring lock failed'),
+          );
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:changePassword',
+              NEW_MOCK_PASSWORD,
+              MOCK_PASSWORD,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+          );
+
+          expect(mockKeyringSetLocked).toHaveBeenCalledTimes(1);
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessOnboardingCheckpoint.LocalPasswordPending,
           );
         },
       );

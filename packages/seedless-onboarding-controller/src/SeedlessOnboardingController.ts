@@ -690,50 +690,51 @@ export class SeedlessOnboardingController<
 
       assertCanChangePassword(this.state.seedlessOperationLifecycle);
 
-      // verify the old password of the encrypted vault
-      await this.verifyVaultPassword(oldPassword, {
-        skipLock: true, // skip lock since we already have the lock
-      });
-
-      const attemptChangePassword = async (): Promise<void> => {
-        const { latestKeyIndex } = await this.#assertPasswordInSync({
-          skipCache: true,
-          // `changePassword` writes the checkpoint before its token-refresh retry
-          // and guards concurrency itself at entry, so its own assert must
-          // not be blocked by the checkpoint it just wrote.
-          skipCheckpointCheck: true,
-        });
-        // load keyring encryption key if it exists
-        let keyringEncryptionKey: string | undefined;
-        if (this.state.encryptedKeyringEncryptionKey) {
-          keyringEncryptionKey = await this.#loadKeyringEncryptionKeyUnlocked();
-        }
-
-        // update the encryption key with new password and update the Metadata Store
-        const {
-          encKey: newEncKey,
-          pwEncKey: newPwEncKey,
-          authKeyPair: newAuthKeyPair,
-        } = await this.#changeEncryptionKey({
-          oldPassword,
-          newPassword,
-          latestKeyIndex,
-        });
-
-        this.#resetPasswordOutdatedCache();
-
-        await this.#commitPasswordChangeState({
-          password: newPassword,
-          encKey: newEncKey as Uint8Array<ArrayBuffer>,
-          pwEncKey: newPwEncKey as Uint8Array<ArrayBuffer>,
-          authKeyPair: newAuthKeyPair,
-          keyringEncryptionKey,
-          checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
-          operation: SeedlessOnboardingOperation.PasswordChange,
-        });
-      };
-
       try {
+        // verify the old password of the encrypted vault
+        await this.verifyVaultPassword(oldPassword, {
+          skipLock: true, // skip lock since we already have the lock
+        });
+
+        const attemptChangePassword = async (): Promise<void> => {
+          const { latestKeyIndex } = await this.#assertPasswordInSync({
+            skipCache: true,
+            // `changePassword` writes the checkpoint before its token-refresh retry
+            // and guards concurrency itself at entry, so its own assert must
+            // not be blocked by the checkpoint it just wrote.
+            skipCheckpointCheck: true,
+          });
+          // load keyring encryption key if it exists
+          let keyringEncryptionKey: string | undefined;
+          if (this.state.encryptedKeyringEncryptionKey) {
+            keyringEncryptionKey =
+              await this.#loadKeyringEncryptionKeyUnlocked();
+          }
+
+          // update the encryption key with new password and update the Metadata Store
+          const {
+            encKey: newEncKey,
+            pwEncKey: newPwEncKey,
+            authKeyPair: newAuthKeyPair,
+          } = await this.#changeEncryptionKey({
+            oldPassword,
+            newPassword,
+            latestKeyIndex,
+          });
+
+          this.#resetPasswordOutdatedCache();
+
+          await this.#commitPasswordChangeState({
+            password: newPassword,
+            encKey: newEncKey as Uint8Array<ArrayBuffer>,
+            pwEncKey: newPwEncKey as Uint8Array<ArrayBuffer>,
+            authKeyPair: newAuthKeyPair,
+            keyringEncryptionKey,
+            checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+            operation: SeedlessOnboardingOperation.PasswordChange,
+          });
+        };
+
         await this.#executeWithTokenRefresh(
           attemptChangePassword,
           'changePassword',
@@ -741,6 +742,7 @@ export class SeedlessOnboardingController<
         await this.#changeKeyringPassword(newPassword);
         await this.#syncAndCompleteKeyringEncryptionKeyUnlocked();
       } catch (error) {
+        await this.#lockControllersAfterPasswordChangeFailure();
         log('Error changing password', error);
         throw new SeedlessOnboardingError(
           SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
@@ -1264,6 +1266,39 @@ export class SeedlessOnboardingController<
    */
   async #exportKeyringEncryptionKey(): Promise<string> {
     return await this.messenger.call('KeyringController:exportEncryptionKey');
+  }
+
+  /**
+   * Lock the Keyring through the controller messenger.
+   */
+  async #lockKeyring(): Promise<void> {
+    await this.messenger.call('KeyringController:setLocked');
+  }
+
+  /**
+   * Lock both controllers after a password-change failure.
+   *
+   * Locking is best effort so that a lock failure cannot mask the original
+   * password-change error.
+   */
+  async #lockControllersAfterPasswordChangeFailure(): Promise<void> {
+    try {
+      this.#setLockedUnlocked();
+    } catch (error) {
+      log(
+        'Error locking Seedless controller after password change failure',
+        error,
+      );
+    }
+
+    try {
+      await this.#lockKeyring();
+    } catch (error) {
+      log(
+        'Error locking Keyring controller after password change failure',
+        error,
+      );
+    }
   }
 
   /**
