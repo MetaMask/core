@@ -7,8 +7,10 @@ Pending mutations are encrypted in controller state. `resume()` completes them;
 
 ## Auth API Integration
 
-`RecoveryAuthProvider` posts `{ request_hash, audiences }` to
-`/api/v2/recovery/approvals` with a Hydra bearer and returns `approval` directly.
+`AuthApiRecoveryAuthProvider` implements `RecoveryAuthProvider`. Supply the Auth
+API base URL, profile id, and a callback that provides a Hydra bearer with recent
+MFA when requested. The provider posts `{ request_hash, audiences }` to
+`/api/v2/recovery/approvals` and returns `approval` directly.
 
 Pass Auth's `identifiers` unchanged to `register` and `updateIdentifiers`.
 Set `CubistEscrowProviderOptions.authAudience` to the escrow's
