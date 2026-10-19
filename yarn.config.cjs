@@ -241,6 +241,20 @@ module.exports = defineConfig({
           'scripts.lint:tsconfigs:fix',
           'node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
         );
+
+        // All non-root packages must have a script that audits the
+        // permissions needed by another script in this package, so that
+        // `yarn workspace <name> run audit-script <script>` works.
+        expectWorkspaceField(
+          workspace,
+          'scripts.audit-script',
+          'node ../../scripts/audit-script.ts',
+        );
+        expectWorkspaceField(
+          workspace,
+          'scriptsConfig.audit-script',
+          'lavamoat/scripts.yarn.json',
+        );
       }
 
       if (isChildWorkspace) {

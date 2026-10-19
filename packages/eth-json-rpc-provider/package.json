@@ -32,6 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "audit-script": "node ../../scripts/audit-script.ts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -79,6 +80,7 @@
     }
   },
   "scriptsConfig": {
-    "#default": "lavamoat/scripts.strict.json"
+    "#default": "lavamoat/scripts.strict.json",
+    "audit-script": "lavamoat/scripts.yarn.json"
   }
 }
