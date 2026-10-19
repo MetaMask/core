@@ -48,9 +48,6 @@
     }
   },
   "packages/account-tree-controller/src/AccountTreeController.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 7
-    },
     "typescript/no-unsafe-argument": {
       "count": 3
     },
@@ -90,9 +87,6 @@
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/service/index.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    },
     "typescript/prefer-nullish-coalescing": {
       "count": 1
     }
@@ -125,9 +119,6 @@
   },
   "packages/account-tree-controller/src/backup-and-sync/types.ts": {
     "id-length": {
-      "count": 1
-    },
-    "typescript/explicit-function-return-type": {
       "count": 1
     }
   },
@@ -162,11 +153,6 @@
       "count": 1
     }
   },
-  "packages/account-tree-controller/src/backup-and-sync/user-storage/validation.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/backup-and-sync/utils/controller.test.ts": {
     "id-length": {
       "count": 1
@@ -189,11 +175,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 2
-    }
-  },
-  "packages/account-tree-controller/src/rules/entropy.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
     }
   },
   "packages/account-tree-controller/src/state/export.test.ts": {

@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
+### Fixed
+
+- Add explicit return types ([#10888](https://github.com/MetaMask/core/pull/10888))
+  - Preventing TypeScript from inferring generic-heavy return types in the `.d.ts` output.
+
 ## [11.0.1]
 
 ### Changed
