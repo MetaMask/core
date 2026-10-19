@@ -1,4 +1,5 @@
 import { ParsedMessage } from '@signinwithethereum/siwe-parser';
+import { describe, expect, it } from 'vitest';
 
 import { detectSIWE, isValidSIWEOrigin } from './siwe.js';
 

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-backend",
-  "version": "12.1.0",
+  "version": "12.3.0",
   "description": "Core backend services for MetaMask",
   "keywords": [
     "Ethereum",
@@ -52,7 +52,7 @@
   "dependencies": {
     "@metamask/account-tree-controller": "^11.0.1",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/keyring-controller": "^28.1.0",
+    "@metamask/keyring-controller": "^28.2.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/profile-sync-controller": "^34.0.3",
     "@metamask/remote-feature-flag-controller": "^7.0.0",

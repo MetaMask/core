@@ -11,6 +11,7 @@ export const clientController: InitializationConfiguration<
   ClientControllerMessenger
 > = {
   name: 'ClientController',
+  reference: ClientController,
   init: ({ state, messenger }) =>
     new ClientController({
       state,

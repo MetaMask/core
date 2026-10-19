@@ -91,6 +91,7 @@ export type {
   FeedItem,
   FeedPagination,
   FeedResponse,
+  FeedScope,
   FetchFeedOptions,
   FetchFollowersOptions,
   FetchTraderFollowingOptions,

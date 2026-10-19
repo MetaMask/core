@@ -1,16 +1,19 @@
+import type { Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { CacheManager } from './CacheManager.js';
 import * as utils from './utils.js';
 
 describe('CacheManager', () => {
-  let updateStateSpy: jest.Mock;
+  let updateStateSpy: Mock;
   let cache: CacheManager<{ value: string }>;
 
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-    jest
-      .spyOn(utils, 'fetchTimeNow')
-      .mockImplementation(() => Math.floor(Date.now() / 1000));
-    updateStateSpy = jest.fn();
+    vi.useFakeTimers({ now: 0 });
+    vi.spyOn(utils, 'fetchTimeNow').mockImplementation(() =>
+      Math.floor(Date.now() / 1000),
+    );
+    updateStateSpy = vi.fn();
     cache = new CacheManager<{ value: string }>({
       cacheTTL: 300, // 5 minutes
       maxCacheSize: 3,
@@ -19,8 +22,8 @@ describe('CacheManager', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
-    jest.restoreAllMocks();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   describe('constructor', () => {
@@ -67,7 +70,7 @@ describe('CacheManager', () => {
       cache.set('key1', { value: 'value1' });
 
       // Fast forward time past TTL
-      jest.advanceTimersByTime(301 * 1000);
+      vi.advanceTimersByTime(301 * 1000);
 
       expect(cache.get('key1')).toBeUndefined();
     });

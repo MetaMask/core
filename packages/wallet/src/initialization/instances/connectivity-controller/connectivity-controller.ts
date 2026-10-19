@@ -16,6 +16,7 @@ export const connectivityController: InitializationConfiguration<
   ConnectivityControllerMessenger
 > = {
   name: 'ConnectivityController',
+  reference: ConnectivityController,
   init: ({ messenger, options }) =>
     new ConnectivityController({
       messenger,
