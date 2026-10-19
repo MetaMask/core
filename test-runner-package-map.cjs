@@ -94,7 +94,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/solana-test-validator-up',
   '@metamask/stellar-quickstart-up',
   '@metamask/storage-service',
-  '@metamask/subscription-controller',
   '@metamask/transaction-controller',
   '@metamask/transaction-pay-controller',
   '@metamask/transaction-pay-middleware',
