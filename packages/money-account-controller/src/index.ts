@@ -6,7 +6,7 @@ export type {
 export {
   MPC_ENTROPY_SOURCE_ID,
   isMoneyKeyring,
-  isMpcKeyring,
+  isMpcMoneyKeyring,
 } from './utils.js';
 export {
   MoneyAccountController,

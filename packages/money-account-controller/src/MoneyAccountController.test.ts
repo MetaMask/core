@@ -122,8 +122,8 @@ class MockMoneyKeyring {
   }
 }
 
-class MockMpcKeyring {
-  readonly type = KeyringTypes.mpc;
+class MockMpcMoneyKeyring {
+  readonly type = KeyringTypes.mpcMoney;
 
   readonly #accounts: string[];
 
@@ -206,8 +206,8 @@ function setup({
         accounts: spec.accounts,
         entropySource: spec.entropySource,
       });
-    } else if (spec.type === KeyringTypes.mpc) {
-      keyring = new MockMpcKeyring({ accounts: spec.accounts });
+    } else if (spec.type === KeyringTypes.mpcMoney) {
+      keyring = new MockMpcMoneyKeyring({ accounts: spec.accounts });
     } else {
       keyring = { type: spec.type, accounts: spec.accounts };
     }
@@ -280,8 +280,8 @@ function setup({
           accounts: [],
           entropySource: (opts as { entropySource?: string })?.entropySource,
         });
-      } else if (type === KeyringTypes.mpc) {
-        keyring = new MockMpcKeyring({ accounts: [] });
+      } else if (type === KeyringTypes.mpcMoney) {
+        keyring = new MockMpcMoneyKeyring({ accounts: [] });
       } else {
         keyring = { type, accounts: [] };
       }
@@ -615,7 +615,7 @@ describe('MoneyAccountController', () => {
         const { controller, mocks, keyringEntries } = setup();
         mocks.KeyringController.addNewKeyring.mockImplementation(async () => {
           const entry = {
-            keyring: asKeyring(new MockMpcKeyring()),
+            keyring: asKeyring(new MockMpcMoneyKeyring()),
             metadata: { id: 'money-keyring-wrong', name: 'Money Keyring' },
           };
           keyringEntries.push(entry);
@@ -655,15 +655,18 @@ describe('MoneyAccountController', () => {
       });
     });
 
-    describe('MPC Keyring (MFA)', () => {
-      it('creates a new money account backed by an MPC keyring', async () => {
+    describe('MPC Money Keyring (MFA)', () => {
+      it('creates a new money account backed by an MPC Money keyring', async () => {
         const { controller, mocks } = setup({
           keyrings: [
             MOCK_HD_KEYRING,
             {
-              type: KeyringTypes.mpc,
+              type: KeyringTypes.mpcMoney,
               accounts: [MOCK_MPC_ADDRESS],
-              metadata: { id: 'mpc-keyring-1', name: 'MPC Keyring' },
+              metadata: {
+                id: 'mpc-money-keyring-1',
+                name: 'MPC Money Keyring',
+              },
             },
           ],
         });
@@ -690,14 +693,17 @@ describe('MoneyAccountController', () => {
         expect(mocks.KeyringController.addNewKeyring).not.toHaveBeenCalled();
       });
 
-      it('initializes the MPC keyring before reading its accounts', async () => {
+      it('initializes the MPC Money keyring before reading its accounts', async () => {
         const { controller, keyringEntries } = setup({
           keyrings: [
             MOCK_HD_KEYRING,
             {
-              type: KeyringTypes.mpc,
+              type: KeyringTypes.mpcMoney,
               accounts: [MOCK_MPC_ADDRESS],
-              metadata: { id: 'mpc-keyring-1', name: 'MPC Keyring' },
+              metadata: {
+                id: 'mpc-money-keyring-1',
+                name: 'MPC Money Keyring',
+              },
             },
           ],
         });
@@ -705,18 +711,18 @@ describe('MoneyAccountController', () => {
         await controller.createMoneyAccount({ type: 'mpc' });
 
         const mpcKeyring = keyringEntries[1]
-          .keyring as unknown as MockMpcKeyring;
+          .keyring as unknown as MockMpcMoneyKeyring;
         expect(mpcKeyring.initCalls).toBe(1);
       });
 
-      it('creates the MPC keyring if it does not exist yet', async () => {
+      it('creates the MPC Money keyring if it does not exist yet', async () => {
         const { controller, mocks } = setup();
 
         const account = await controller.createMoneyAccount({ type: 'mpc' });
 
         expect(account.address).toBe(MOCK_MPC_ADDRESS);
         expect(mocks.KeyringController.addNewKeyring).toHaveBeenCalledWith(
-          KeyringTypes.mpc,
+          KeyringTypes.mpcMoney,
         );
       });
 
@@ -732,51 +738,60 @@ describe('MoneyAccountController', () => {
         expect(mocks.KeyringController.withKeyring).not.toHaveBeenCalled();
       });
 
-      it('throws when multiple MPC keyrings exist', async () => {
+      it('throws when multiple MPC Money keyrings exist', async () => {
         const { controller } = setup({
           keyrings: [
             {
-              type: KeyringTypes.mpc,
+              type: KeyringTypes.mpcMoney,
               accounts: [MOCK_MPC_ADDRESS],
-              metadata: { id: 'mpc-keyring-1', name: 'MPC Keyring' },
+              metadata: {
+                id: 'mpc-money-keyring-1',
+                name: 'MPC Money Keyring',
+              },
             },
             {
-              type: KeyringTypes.mpc,
+              type: KeyringTypes.mpcMoney,
               accounts: ['0x3333333333333333333333333333333333333333'],
-              metadata: { id: 'mpc-keyring-2', name: 'MPC Keyring' },
+              metadata: {
+                id: 'mpc-money-keyring-2',
+                name: 'MPC Money Keyring',
+              },
             },
           ],
         });
 
         await expect(
           controller.createMoneyAccount({ type: 'mpc' }),
-        ).rejects.toThrow('Multiple MPC keyrings found');
+        ).rejects.toThrow('Multiple MPC Money keyrings found');
       });
 
-      it('propagates errors when the MPC keyring cannot be created', async () => {
+      it('propagates errors when the MPC Money keyring cannot be created', async () => {
         const { controller, mocks } = setup();
         mocks.KeyringController.addNewKeyring.mockRejectedValue(
-          new Error('No keyring builder for type: MPC Keyring'),
+          new Error('No keyring builder for type: MPC Money Keyring'),
         );
 
         await expect(
           controller.createMoneyAccount({ type: 'mpc' }),
-        ).rejects.toThrow('No keyring builder for type: MPC Keyring');
+        ).rejects.toThrow('No keyring builder for type: MPC Money Keyring');
       });
 
-      it('propagates errors from the MPC keyring initialization', async () => {
+      it('propagates errors from the MPC Money keyring initialization', async () => {
         const { controller, keyringEntries } = setup({
           keyrings: [
             MOCK_HD_KEYRING,
             {
-              type: KeyringTypes.mpc,
+              type: KeyringTypes.mpcMoney,
               accounts: [MOCK_MPC_ADDRESS],
-              metadata: { id: 'mpc-keyring-1', name: 'MPC Keyring' },
+              metadata: {
+                id: 'mpc-money-keyring-1',
+                name: 'MPC Money Keyring',
+              },
             },
           ],
         });
         const mpcKeyring = keyringEntries[1]
-          .keyring as unknown as MockMpcKeyring;
+          .keyring as unknown as MockMpcMoneyKeyring;
         jest
           .spyOn(mpcKeyring, 'init')
           .mockRejectedValue(new Error('MPC failure'));
@@ -786,12 +801,15 @@ describe('MoneyAccountController', () => {
         ).rejects.toThrow('MPC failure');
       });
 
-      it('throws when the created keyring is not an MPC keyring', async () => {
+      it('throws when the created keyring is not an MPC Money keyring', async () => {
         const { controller, mocks, keyringEntries } = setup();
         mocks.KeyringController.addNewKeyring.mockImplementation(async () => {
           const entry = {
             keyring: asKeyring(new MockMoneyKeyring()),
-            metadata: { id: 'mpc-keyring-wrong', name: 'MPC Keyring' },
+            metadata: {
+              id: 'mpc-money-keyring-wrong',
+              name: 'MPC Money Keyring',
+            },
           };
           keyringEntries.push(entry);
           return entry;
@@ -799,7 +817,9 @@ describe('MoneyAccountController', () => {
 
         await expect(
           controller.createMoneyAccount({ type: 'mpc' }),
-        ).rejects.toThrow('Keyring mpc-keyring-wrong has an unexpected type');
+        ).rejects.toThrow(
+          'Keyring mpc-money-keyring-wrong has an unexpected type',
+        );
       });
 
       it('throws when the keyring is locked', async () => {
@@ -817,9 +837,12 @@ describe('MoneyAccountController', () => {
           keyrings: [
             MOCK_HD_KEYRING,
             {
-              type: KeyringTypes.mpc,
+              type: KeyringTypes.mpcMoney,
               accounts: [MOCK_MPC_ADDRESS],
-              metadata: { id: 'mpc-keyring-1', name: 'MPC Keyring' },
+              metadata: {
+                id: 'mpc-money-keyring-1',
+                name: 'MPC Money Keyring',
+              },
             },
           ],
         });

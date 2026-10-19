@@ -23,7 +23,7 @@ export type MoneyAccountEntropyMpcOptions = {
  *
  * - `'mnemonic'`: the account is derived from a BIP-44 mnemonic (SRP). This is
  * the SFA (single-factor authentication) account.
- * - `'mpc'`: the account is backed by an MPC keyring. This is the MFA
+ * - `'mpc'`: the account is backed by an MPC Money keyring. This is the MFA
  * (multi-factor authentication) account.
  */
 export type MoneyAccountEntropyOptions =

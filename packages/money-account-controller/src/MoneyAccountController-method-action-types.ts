@@ -19,7 +19,7 @@ export type MoneyAccountControllerInitAction = {
  * source, it is returned as-is (idempotent).
  *
  * The parameters determine the backing keyring:
- * - `{ type: 'mpc' }`: the MPC keyring (MFA account), which is created and
+ * - `{ type: 'mpc' }`: the MPC Money keyring (MFA account), which is created and
  * initialized if it does not exist yet.
  * - `{ type?: 'mnemonic', entropySource }` (the default): the `MoneyKeyring`
  * for that entropy source (SFA account), which is created if it does not

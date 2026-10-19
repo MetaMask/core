@@ -25,7 +25,7 @@ import type { MoneyAccountControllerMethodActions } from './MoneyAccountControll
 import type { MoneyAccount, MoneyAccountEntropyOptions } from './types.js';
 import {
   isMoneyKeyring,
-  isMpcKeyring,
+  isMpcMoneyKeyring,
   MPC_ENTROPY_SOURCE_ID,
 } from './utils.js';
 
@@ -34,7 +34,7 @@ export const controllerName = 'MoneyAccountController';
 /**
  * Parameters for creating a money account.
  *
- * - `{ type: 'mpc' }`: create the MFA account backed by the MPC keyring.
+ * - `{ type: 'mpc' }`: create the MFA account backed by the MPC Money keyring.
  * - `{ type?: 'mnemonic', entropySource }` (the default): create the SFA
  * account backed by the `MoneyKeyring` for the given entropy source.
  */
@@ -136,12 +136,12 @@ export type MoneyAccountControllerMessenger = Messenger<
 >;
 
 /**
- * The shape of the MPC keyring operations used by this controller. The MPC
+ * The shape of the MPC Money keyring operations used by this controller. The MPC
  * keyring is an atomic keyring: `init` is cheap if the keyring is already
  * initialized, and long-running work is dispatched without holding the
  * keyring controller mutex.
  */
-type MpcKeyringLike = EthKeyring & {
+type MpcMoneyKeyringLike = EthKeyring & {
   init: () => Promise<void>;
 };
 
@@ -212,7 +212,7 @@ export class MoneyAccountController extends BaseController<
    * source, it is returned as-is (idempotent).
    *
    * The parameters determine the backing keyring:
-   * - `{ type: 'mpc' }`: the MPC keyring (MFA account), which is created and
+   * - `{ type: 'mpc' }`: the MPC Money keyring (MFA account), which is created and
    * initialized if it does not exist yet.
    * - `{ type?: 'mnemonic', entropySource }` (the default): the `MoneyKeyring`
    * for that entropy source (SFA account), which is created if it does not
@@ -238,7 +238,7 @@ export class MoneyAccountController extends BaseController<
 
     const account =
       params.type === 'mpc'
-        ? await this.#createMpcKeyringAccount()
+        ? await this.#createMpcMoneyKeyringAccount()
         : await this.#createMoneyKeyringAccount(params.entropySource);
 
     log(
@@ -347,24 +347,24 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Creates or reuses an account on the MPC keyring.
+   * Creates or reuses an account on the MPC Money keyring.
    *
-   * The MPC keyring is an atomic keyring: its initialization is cheap when
+   * The MPC Money keyring is an atomic keyring: its initialization is cheap when
    * already initialized, and long-running work is dispatched without holding
    * the keyring controller mutex.
    *
    * @returns The money account.
    */
-  async #createMpcKeyringAccount(): Promise<MoneyAccount> {
-    const id = await this.#ensureMpcKeyring();
+  async #createMpcMoneyKeyringAccount(): Promise<MoneyAccount> {
+    const id = await this.#ensureMpcMoneyKeyring();
 
-    const address = await this.#withMpcKeyring(id, async (keyring) => {
+    const address = await this.#withMpcMoneyKeyring(id, async (keyring) => {
       // The keyring infers the setup mode (create or import) from its own
       // state. This is a no-op if the keyring is already initialized.
       await keyring.init();
 
       // We're adding this logic to be defensive against the possibility of an
-      // MPC keyring existing without any accounts, which shouldn't normally
+      // MPC Money keyring existing without any accounts, which shouldn't normally
       // happen but we want to be sure we can handle it if it does.
       const accounts = await keyring.getAccounts();
       if (accounts.length > 0) {
@@ -372,7 +372,7 @@ export class MoneyAccountController extends BaseController<
         return mpcAddress;
       }
 
-      log(`MPC keyring (${id}) has no accounts, adding one...`);
+      log(`MPC Money keyring (${id}) has no accounts, adding one...`);
       const [mpcAddress] = await keyring.addAccounts(1);
       return mpcAddress;
     });
@@ -477,7 +477,7 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Ensures the MPC keyring exists, creating it atomically if it does not, and
+   * Ensures the MPC Money keyring exists, creating it atomically if it does not, and
    * returns its keyring ID.
    *
    * The check-or-create is performed within a single
@@ -486,25 +486,25 @@ export class MoneyAccountController extends BaseController<
    *
    * @returns The keyring ID of the existing or newly created keyring.
    */
-  async #ensureMpcKeyring(): Promise<string> {
+  async #ensureMpcMoneyKeyring(): Promise<string> {
     return (await this.messenger.call(
       'KeyringController:withController',
       async (restrictedController) => {
         const mpcKeyrings = restrictedController.keyrings.filter((entry) =>
-          isMpcKeyring(entry.keyring),
+          isMpcMoneyKeyring(entry.keyring),
         );
 
         if (mpcKeyrings.length > 1) {
-          throw new Error('Multiple MPC keyrings found');
+          throw new Error('Multiple MPC Money keyrings found');
         }
 
         if (mpcKeyrings.length === 1) {
           return mpcKeyrings[0].metadata.id;
         }
 
-        log('MPC keyring not found, creating one...');
+        log('MPC Money keyring not found, creating one...');
         const entry = await restrictedController.addNewKeyring(
-          KeyringTypes.mpc,
+          KeyringTypes.mpcMoney,
         );
         return entry.metadata.id;
       },
@@ -554,19 +554,19 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Calls `KeyringController:withKeyring` for the MPC keyring with the given
+   * Calls `KeyringController:withKeyring` for the MPC Money keyring with the given
    * ID.
    *
    * @param id - The keyring metadata ID.
-   * @param operation - Callback invoked with the resolved MPC keyring.
+   * @param operation - Callback invoked with the resolved MPC Money keyring.
    * @returns The value returned by `operation`.
    */
-  async #withMpcKeyring<Result>(
+  async #withMpcMoneyKeyring<Result>(
     id: string,
-    operation: (keyring: MpcKeyringLike) => Promise<Result>,
+    operation: (keyring: MpcMoneyKeyringLike) => Promise<Result>,
   ): Promise<Result> {
-    return await this.#withKeyring(id, isMpcKeyring, async (keyring) =>
-      operation(keyring as MpcKeyringLike),
+    return await this.#withKeyring(id, isMpcMoneyKeyring, async (keyring) =>
+      operation(keyring as MpcMoneyKeyringLike),
     );
   }
 

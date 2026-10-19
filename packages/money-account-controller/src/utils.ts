@@ -20,11 +20,11 @@ export function isMoneyKeyring(keyring: EthKeyring): keyring is MoneyKeyring {
 }
 
 /**
- * Returns `true` if the given keyring is an MPC keyring.
+ * Returns `true` if the given keyring is an MPC Money keyring.
  *
  * @param keyring - The keyring to check.
- * @returns Whether the keyring is an MPC keyring.
+ * @returns Whether the keyring is an MPC Money keyring.
  */
-export function isMpcKeyring(keyring: EthKeyring): boolean {
-  return keyring.type === KeyringTypes.mpc;
+export function isMpcMoneyKeyring(keyring: EthKeyring): boolean {
+  return keyring.type === KeyringTypes.mpcMoney;
 }
