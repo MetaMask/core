@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the shared `all` feed scope to `FetchFeedOptions` and export `FeedScope`. Preserve optional `eventId`, `revision`, and `occurredAt` projection metadata on `FeedItem` ([#10865](https://github.com/MetaMask/core/pull/10865))
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^12.1.0` to `^12.2.0` ([#10857](https://github.com/MetaMask/core/pull/10857))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
 ## [3.8.0]
 
 ### Added
