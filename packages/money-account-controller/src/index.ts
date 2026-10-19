@@ -1,13 +1,5 @@
-export type {
-  MoneyAccount,
-  MoneyAccountEntropyMpcOptions,
-  MoneyAccountEntropyOptions,
-} from './types.js';
-export {
-  MPC_ENTROPY_SOURCE_ID,
-  isMoneyKeyring,
-  isMpcMoneyKeyring,
-} from './utils.js';
+export type { MoneyAccount, MoneyAccountEntropyOptions } from './types.js';
+export { isMoneyKeyring, isMpcMoneyKeyring } from './utils.js';
 export {
   MoneyAccountController,
   controllerName,
@@ -21,6 +13,7 @@ export type {
   MoneyAccountControllerEvents,
   MoneyAccountControllerMessenger,
   CreateMoneyAccountParams,
+  GetMoneyAccountSelector,
 } from './MoneyAccountController.js';
 export type {
   MoneyAccountControllerClearStateAction,

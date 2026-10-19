@@ -45,11 +45,13 @@ export type MoneyAccountControllerSetDefaultMoneyAccountAction = {
 };
 
 /**
- * Gets a money account by id, by entropy source, or the default one.
+ * Gets a money account by id, by entropy source, the MPC-backed one, or the
+ * default one when no selector is provided.
  *
- * @param selector - Selector options for getting the money account.
- * @param selector.id - The account id to look up. Takes precedence over `entropySource`.
- * @param selector.entropySource - The entropy source ID to get the money account for.
+ * @param selector - Selector for getting the money account.
+ * @param selector.id - The account id to look up.
+ * @param selector.type - The kind of account to look up: `'mpc'` for the MPC-backed account (MFA), or `'mnemonic'` (the default) with `entropySource` for the `MoneyKeyring` account (SFA).
+ * @param selector.entropySource - The entropy source ID of the SRP-backed account to look up.
  * @returns The money account, or `undefined` if none matches.
  */
 export type MoneyAccountControllerGetMoneyAccountAction = {

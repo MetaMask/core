@@ -1,3 +1,4 @@
+import { KeyringAccountEntropyTypeOption } from '@metamask/keyring-api';
 import {
   KeyringControllerError,
   KeyringControllerErrorMessage,
@@ -13,7 +14,6 @@ import type {
 
 import type { MoneyAccount, MoneyAccountControllerMessenger } from './index.js';
 import {
-  MPC_ENTROPY_SOURCE_ID,
   MoneyAccountController,
   getDefaultMoneyAccountControllerState,
 } from './index.js';
@@ -78,7 +78,6 @@ const MOCK_MPC_ACCOUNT: MoneyAccount = {
   options: {
     entropy: {
       type: 'mpc',
-      id: MPC_ENTROPY_SOURCE_ID,
     },
     exportable: false,
   },
@@ -581,7 +580,12 @@ describe('MoneyAccountController', () => {
           entropySource: MOCK_ENTROPY_SOURCE_ID,
         });
         expect(account.address).toBe(MOCK_ADDRESS);
-        expect(account.options.entropy.id).toBe(MOCK_ENTROPY_SOURCE_ID);
+        expect(account.options.entropy).toStrictEqual({
+          type: 'mnemonic',
+          id: MOCK_ENTROPY_SOURCE_ID,
+          groupIndex: 0,
+          derivationPath: "m/44'/4392018'/0'/0",
+        });
       });
 
       it('adds an account when the money keyring exists but has no accounts', async () => {
@@ -704,7 +708,6 @@ describe('MoneyAccountController', () => {
           options: {
             entropy: {
               type: 'mpc',
-              id: MPC_ENTROPY_SOURCE_ID,
             },
           },
           methods: [...MONEY_ACCOUNT_METHODS],
@@ -715,6 +718,36 @@ describe('MoneyAccountController', () => {
         expect(controller.state.defaultMoneyAccountId).toBe(account.id);
         // The existing keyring is reused, not re-created.
         expect(mocks.KeyringController.addNewKeyring).not.toHaveBeenCalled();
+      });
+
+      it('accepts the enum value for the type', async () => {
+        const { controller } = setup({
+          keyrings: [
+            MOCK_HD_KEYRING,
+            {
+              type: KeyringTypes.mpcMoney,
+              accounts: [MOCK_MPC_ADDRESS],
+              metadata: {
+                id: 'mpc-money-keyring-1',
+                name: 'MPC Money Keyring',
+              },
+            },
+          ],
+        });
+
+        const account = await controller.createMoneyAccount({
+          type: KeyringAccountEntropyTypeOption.Mpc,
+        });
+        expect(account).toMatchObject({
+          address: MOCK_MPC_ADDRESS,
+          options: { entropy: { type: 'mpc' } },
+        });
+
+        expect(
+          controller.getMoneyAccount({
+            type: KeyringAccountEntropyTypeOption.Mpc,
+          }),
+        ).toStrictEqual(account);
       });
 
       it('initializes the MPC Money keyring before reading its accounts', async () => {
@@ -877,7 +910,7 @@ describe('MoneyAccountController', () => {
         );
         expect(account).toMatchObject({
           address: MOCK_MPC_ADDRESS,
-          options: { entropy: { type: 'mpc', id: MPC_ENTROPY_SOURCE_ID } },
+          options: { entropy: { type: 'mpc' } },
         });
       });
     });
@@ -928,14 +961,35 @@ describe('MoneyAccountController', () => {
       ).toStrictEqual(MOCK_MONEY_ACCOUNT);
     });
 
-    it('returns the account for the given entropy source (mpc)', () => {
+    it('supports an explicit mnemonic type', () => {
       const { controller } = setup({
         accounts: [MOCK_MONEY_ACCOUNT, MOCK_MPC_ACCOUNT],
       });
 
       expect(
-        controller.getMoneyAccount({ entropySource: MPC_ENTROPY_SOURCE_ID }),
-      ).toStrictEqual(MOCK_MPC_ACCOUNT);
+        controller.getMoneyAccount({
+          type: 'mnemonic',
+          entropySource: MOCK_ENTROPY_SOURCE_ID,
+        }),
+      ).toStrictEqual(MOCK_MONEY_ACCOUNT);
+    });
+
+    it("returns the MPC account for a `{ type: 'mpc' }` selector", () => {
+      const { controller } = setup({
+        accounts: [MOCK_MONEY_ACCOUNT, MOCK_MPC_ACCOUNT],
+      });
+
+      expect(controller.getMoneyAccount({ type: 'mpc' })).toStrictEqual(
+        MOCK_MPC_ACCOUNT,
+      );
+    });
+
+    it('returns undefined when no MPC account exists', () => {
+      const { controller } = setup({
+        accounts: [MOCK_MONEY_ACCOUNT],
+      });
+
+      expect(controller.getMoneyAccount({ type: 'mpc' })).toBeUndefined();
     });
 
     it('returns the account for the given id', () => {
@@ -948,17 +1002,10 @@ describe('MoneyAccountController', () => {
       ).toStrictEqual(MOCK_MPC_ACCOUNT);
     });
 
-    it('prefers id over entropySource when both are provided', () => {
-      const { controller } = setup({
-        accounts: [MOCK_MONEY_ACCOUNT, MOCK_MONEY_ACCOUNT_2],
-      });
+    it('returns undefined for an unknown id', () => {
+      const { controller } = setup({ accounts: [MOCK_MONEY_ACCOUNT] });
 
-      expect(
-        controller.getMoneyAccount({
-          id: MOCK_MONEY_ACCOUNT_2.id,
-          entropySource: MOCK_ENTROPY_SOURCE_ID,
-        }),
-      ).toStrictEqual(MOCK_MONEY_ACCOUNT_2);
+      expect(controller.getMoneyAccount({ id: 'unknown-id' })).toBeUndefined();
     });
 
     it('returns undefined for an unknown entropy source', () => {

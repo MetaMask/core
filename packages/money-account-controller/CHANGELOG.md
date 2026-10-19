@@ -16,8 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `createMoneyAccount` now takes a params object: `{ type: 'mpc' }` for the MPC-backed account (MFA), or `{ type?: 'mnemonic', entropySource }` (the default) for the `MoneyKeyring` account (SFA) for that entropy source ([#10694](https://github.com/MetaMask/core/pull/10694))
 - **BREAKING:** `MoneyAccount.options.entropy` is now a union of mnemonic and MPC entropy options (`MoneyAccountEntropyOptions`) ([#10694](https://github.com/MetaMask/core/pull/10694))
-- **BREAKING:** `getMoneyAccount()` with no selector now returns the default money account (`defaultMoneyAccountId`) instead of resolving the primary HD entropy source ([#10694](https://github.com/MetaMask/core/pull/10694))
-  - Lookup by `{ entropySource }` is still supported, and lookup by `{ id }` was added.
+- **BREAKING:** `getMoneyAccount()` now takes a selector: `{ id }` to look up by account id, `{ type: 'mpc' }` for the MPC-backed account (MFA), or `{ type?: 'mnemonic', entropySource }` (the default) for the `MoneyKeyring` account (SFA) for that entropy source ([#10694](https://github.com/MetaMask/core/pull/10694))
+  - With no selector, the default money account (`defaultMoneyAccountId`) is returned instead of resolving the primary HD entropy source.
 - `init` now sets the primary entropy source's money account (SFA) as the default when no default is set ([#10694](https://github.com/MetaMask/core/pull/10694))
   - Safety net for wallets predating `defaultMoneyAccountId`.
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.2.0` ([#10418](https://github.com/MetaMask/core/pull/10418), [#10851](https://github.com/MetaMask/core/pull/10851))

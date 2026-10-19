@@ -9,6 +9,7 @@ import type { MoneyKeyring } from '@metamask/eth-money-keyring';
 import { MONEY_DERIVATION_PATH } from '@metamask/eth-money-keyring';
 import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
+import { KeyringAccountEntropyTypeOption } from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerWithControllerAction,
@@ -23,11 +24,7 @@ import type { Hex } from '@metamask/utils';
 import { projectLogger as log } from './logger.js';
 import type { MoneyAccountControllerMethodActions } from './MoneyAccountController-method-action-types.js';
 import type { MoneyAccount, MoneyAccountEntropyOptions } from './types.js';
-import {
-  isMoneyKeyring,
-  isMpcMoneyKeyring,
-  MPC_ENTROPY_SOURCE_ID,
-} from './utils.js';
+import { isMoneyKeyring, isMpcMoneyKeyring } from './utils.js';
 
 export const controllerName = 'MoneyAccountController';
 
@@ -41,9 +38,10 @@ export const controllerName = 'MoneyAccountController';
 export type CreateMoneyAccountParams =
   | {
       /**
-       * The kind of money account to create. Defaults to `'mnemonic'`.
+       * The kind of money account to create. Defaults to
+       * `'mnemonic'` (`KeyringAccountEntropyTypeOption.Mnemonic`).
        */
-      type?: 'mnemonic';
+      type?: `${KeyringAccountEntropyTypeOption.Mnemonic}`;
 
       /**
        * The entropy source ID of the SRP backing the account.
@@ -52,9 +50,45 @@ export type CreateMoneyAccountParams =
     }
   | {
       /**
-       * The kind of money account to create.
+       * The kind of money account to create
+       * (`KeyringAccountEntropyTypeOption.Mpc`).
        */
-      type: 'mpc';
+      type: `${KeyringAccountEntropyTypeOption.Mpc}`;
+    };
+
+/**
+ * Selector for getting a money account.
+ *
+ * - `{ id }`: look up the account by its id.
+ * - `{ type: 'mpc' }`: look up the MPC-backed account (MFA).
+ * - `{ type?: 'mnemonic', entropySource }` (the default): look up the
+ * `MoneyKeyring` account (SFA) for that entropy source.
+ */
+export type GetMoneyAccountSelector =
+  | {
+      /**
+       * The id of the account to look up.
+       */
+      id: MoneyAccount['id'];
+    }
+  | {
+      /**
+       * The kind of money account to look up. Defaults to
+       * `'mnemonic'` (`KeyringAccountEntropyTypeOption.Mnemonic`).
+       */
+      type?: `${KeyringAccountEntropyTypeOption.Mnemonic}`;
+
+      /**
+       * The entropy source ID of the SRP backing the account.
+       */
+      entropySource: EntropySourceId;
+    }
+  | {
+      /**
+       * The kind of money account to look up
+       * (`KeyringAccountEntropyTypeOption.Mpc`).
+       */
+      type: `${KeyringAccountEntropyTypeOption.Mpc}`;
     };
 
 export type MoneyAccountControllerState = {
@@ -235,24 +269,21 @@ export class MoneyAccountController extends BaseController<
   ): Promise<MoneyAccount> {
     this.#assertIsUnlocked();
 
-    // Idempotent: return existing account if already in state. The stored
-    // entropy source ID identifies the account for both account kinds.
-    const entropySourceId =
-      params.type === 'mpc' ? MPC_ENTROPY_SOURCE_ID : params.entropySource;
+    // Idempotent: return existing account if already in state.
     const existingAccount =
-      this.#getMoneyAccountByEntropySource(entropySourceId);
+      params.type === KeyringAccountEntropyTypeOption.Mpc
+        ? this.#getMpcMoneyAccount()
+        : this.#getMoneyAccountByEntropySource(params.entropySource);
     if (existingAccount) {
       return existingAccount;
     }
 
     const account =
-      params.type === 'mpc'
+      params.type === KeyringAccountEntropyTypeOption.Mpc
         ? await this.#createMpcMoneyKeyringAccount()
         : await this.#createMoneyKeyringAccount(params.entropySource);
 
-    log(
-      `Money account created: ${account.address} (${account.id}) for entropy source: ${entropySourceId}`,
-    );
+    log(`Money account created: ${account.address} (${account.id})`);
     return account;
   }
 
@@ -272,33 +303,31 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Gets a money account by id, by entropy source, or the default one.
+   * Gets a money account by id, by entropy source, the MPC-backed one, or the
+   * default one when no selector is provided.
    *
-   * @param selector - Selector options for getting the money account.
-   * @param selector.id - The account id to look up. Takes precedence over `entropySource`.
-   * @param selector.entropySource - The entropy source ID to get the money account for.
+   * @param selector - Selector for getting the money account.
+   * @param selector.id - The account id to look up.
+   * @param selector.type - The kind of account to look up: `'mpc'` for the MPC-backed account (MFA), or `'mnemonic'` (the default) with `entropySource` for the `MoneyKeyring` account (SFA).
+   * @param selector.entropySource - The entropy source ID of the SRP-backed account to look up.
    * @returns The money account, or `undefined` if none matches.
    */
   getMoneyAccount(
-    selector: {
-      id?: MoneyAccount['id'];
-      entropySource?: EntropySourceId;
-    } = {},
+    selector?: GetMoneyAccountSelector,
   ): MoneyAccount | undefined {
-    if (selector.id !== undefined) {
+    if (selector === undefined) {
+      return this.#getDefaultMoneyAccount();
+    }
+
+    if ('id' in selector) {
       return this.state.moneyAccounts[selector.id];
     }
 
-    if (selector.entropySource !== undefined) {
-      return this.#getMoneyAccountByEntropySource(selector.entropySource);
+    if (selector.type === KeyringAccountEntropyTypeOption.Mpc) {
+      return this.#getMpcMoneyAccount();
     }
 
-    const defaultMoneyAccountId = this.state.defaultMoneyAccountId ?? null;
-    if (defaultMoneyAccountId === null) {
-      return undefined;
-    }
-
-    return this.state.moneyAccounts[defaultMoneyAccountId];
+    return this.#getMoneyAccountByEntropySource(selector.entropySource);
   }
 
   /**
@@ -347,7 +376,7 @@ export class MoneyAccountController extends BaseController<
     return this.#createKeyringAccount({
       address,
       entropy: {
-        type: 'mnemonic',
+        type: KeyringAccountEntropyTypeOption.Mnemonic,
         id: entropySource,
         groupIndex: 0,
         derivationPath: MONEY_DERIVATION_PATH,
@@ -389,8 +418,7 @@ export class MoneyAccountController extends BaseController<
     return this.#createKeyringAccount({
       address,
       entropy: {
-        type: 'mpc',
-        id: MPC_ENTROPY_SOURCE_ID,
+        type: KeyringAccountEntropyTypeOption.Mpc,
       },
     });
   }
@@ -435,7 +463,36 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Gets a money account by entropy source ID.
+   * Gets the default money account, if any.
+   *
+   * @returns The default money account, or `undefined` if none is set.
+   */
+  #getDefaultMoneyAccount(): MoneyAccount | undefined {
+    const { defaultMoneyAccountId } = this.state;
+    if (defaultMoneyAccountId === null) {
+      return undefined;
+    }
+
+    return this.state.moneyAccounts[defaultMoneyAccountId];
+  }
+
+  /**
+   * Gets the MPC-backed money account, if any.
+   *
+   * We should never have more than one MPC money account, but if we do, just
+   * return the first one we find.
+   *
+   * @returns The MPC-backed money account, or `undefined` if none exists.
+   */
+  #getMpcMoneyAccount(): MoneyAccount | undefined {
+    return Object.values(this.state.moneyAccounts).find(
+      (account) =>
+        account.options.entropy.type === KeyringAccountEntropyTypeOption.Mpc,
+    );
+  }
+
+  /**
+   * Gets a `MoneyKeyring` money account by entropy source ID.
    *
    * @param entropySource - The entropy source ID.
    * @returns The matching account, if any.
@@ -444,7 +501,10 @@ export class MoneyAccountController extends BaseController<
     entropySource: EntropySourceId,
   ): MoneyAccount | undefined {
     return Object.values(this.state.moneyAccounts).find(
-      (account) => account.options.entropy.id === entropySource,
+      (account) =>
+        account.options.entropy.type ===
+          KeyringAccountEntropyTypeOption.Mnemonic &&
+        account.options.entropy.id === entropySource,
     );
   }
 

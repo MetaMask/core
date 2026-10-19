@@ -1,22 +1,8 @@
 import type {
   KeyringAccount,
   KeyringAccountEntropyMnemonicOptions,
-  EntropySourceId,
+  KeyringAccountEntropyMpcOptions,
 } from '@metamask/keyring-api';
-
-/**
- * Entropy options for MPC-backed money accounts. The entropy source ID is a
- * static identifier, as the MPC architecture currently yields a single keyring
- * (and account) per wallet.
- */
-export type MoneyAccountEntropyMpcOptions = {
-  type: 'mpc';
-
-  /**
-   * The entropy source ID (e.g. `entropy:mpc:_`).
-   */
-  id: EntropySourceId;
-};
 
 /**
  * Entropy options for money accounts.
@@ -28,7 +14,7 @@ export type MoneyAccountEntropyMpcOptions = {
  */
 export type MoneyAccountEntropyOptions =
   | KeyringAccountEntropyMnemonicOptions
-  | MoneyAccountEntropyMpcOptions;
+  | KeyringAccountEntropyMpcOptions;
 
 /** A money account represents an account managed by the MoneyAccountController. */
 export type MoneyAccount = Omit<KeyringAccount, 'options'> & {
