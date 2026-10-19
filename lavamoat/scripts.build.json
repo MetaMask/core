@@ -1,7 +1,7 @@
 {
   "notes": "Allows TypeScript to use child process to spawn the native `tsc` binary.",
+  "extends": "./scripts.base.json",
   "nodeOptions": {
-    "--permission": true,
     "--allow-fs-read": ["./"],
     "--allow-fs-write": ["./"],
     "--allow-child-process": true,

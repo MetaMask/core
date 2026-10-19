@@ -1,8 +1,7 @@
 {
   "notes": "Use this one ONLY for scripts that are only creating nested Yarn processes, e.g., a composition of multiple other scripts via `yarn something && yarn something-else`.",
+  "extends": "./scripts.base.json",
   "nodeOptions": {
-    "--disable-warning": "SecurityWarning",
-    "--permission": true,
     "--allow-fs-read": ["/"],
     "--allow-fs-write": ["./"],
     "--allow-child-process": true,

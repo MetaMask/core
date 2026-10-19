@@ -1,0 +1,7 @@
+{
+  "notes": "Base configuration that should be extended by all other configs.",
+  "nodeOptions": {
+    "--disable-warning": "SecurityWarning",
+    "--permission": true
+  }
+}
