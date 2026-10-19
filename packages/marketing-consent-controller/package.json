@@ -52,7 +52,7 @@
   "dependencies": {
     "@metamask/analytics-controller": "^4.0.0",
     "@metamask/authenticated-user-storage": "^4.1.0",
-    "@metamask/base-controller": "^10.0.0",
+    "@metamask/base-controller": "^10.1.0",
     "@metamask/keyring-controller": "^28.2.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/profile-sync-controller": "^34.0.3"
