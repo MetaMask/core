@@ -6,6 +6,7 @@ import nock, { cleanAll } from 'nock';
 
 import {
   extractPixDepositInstructions,
+  extractUsBankDepositInstructions,
   mapNeoBankAutorampToRemoteSnapshot,
   NeoBankService,
 } from './NeoBankService.js';
@@ -137,6 +138,23 @@ describe('NeoBankService', () => {
       });
     });
 
+    it.each([
+      ['Pix', 'BRL'],
+      ['ACH', 'USD'],
+      ['FedNow', 'USD'],
+      ['SEPA', 'EUR'],
+    ])('reads the %s rail as currency %s', (railType, currency) => {
+      expect(
+        mapNeoBankAutorampToRemoteSnapshot({
+          id: 'ar-1',
+          status: 'Approved',
+          deposit_rails: [null, { type: 'Iban' }, { type: railType }],
+        }),
+      ).toMatchObject({
+        depositRailsSummary: { ready: true, currency },
+      });
+    });
+
     it('marks deposit rails not ready when Approved without rails', () => {
       expect(
         mapNeoBankAutorampToRemoteSnapshot({
@@ -177,6 +195,73 @@ describe('NeoBankService', () => {
         pixKey: 'pix@example.com',
         expiresAt: '2026-12-01T00:00:00Z',
       });
+    });
+  });
+
+  describe('extractUsBankDepositInstructions', () => {
+    const achRail = {
+      type: 'ACH',
+      recipient_name: 'Jane Doe',
+      routing_number: '021000021',
+      account_number: '123456789',
+      bank_name: 'Lead Bank',
+      bank_address: '1801 Main St, Kansas City, MO',
+      recipient_address: '1 Market St, San Francisco, CA',
+    };
+
+    it('returns null for a non-array deposit_rails value', () => {
+      expect(extractUsBankDepositInstructions(undefined)).toBeNull();
+      expect(extractUsBankDepositInstructions({})).toBeNull();
+    });
+
+    it('reads an ACH rail', () => {
+      expect(extractUsBankDepositInstructions([achRail])).toStrictEqual({
+        rail: 'ACH',
+        accountHolder: 'Jane Doe',
+        routingNumber: '021000021',
+        accountNumber: '123456789',
+        bankName: 'Lead Bank',
+        bankAddress: '1801 Main St, Kansas City, MO',
+        accountHolderAddress: '1 Market St, San Francisco, CA',
+      });
+    });
+
+    it('prefers ACH over a Wire rail listed first', () => {
+      expect(
+        extractUsBankDepositInstructions([
+          { ...achRail, type: 'Wire', account_number: 'wire-account' },
+          achRail,
+        ]),
+      ).toMatchObject({ rail: 'ACH', accountNumber: '123456789' });
+    });
+
+    it('skips incomplete rails and omits missing addresses', () => {
+      expect(
+        extractUsBankDepositInstructions([
+          null,
+          { type: 'Pix', br_code: '00020126' },
+          { ...achRail, routing_number: '' },
+          {
+            type: 'FedNow',
+            recipient_name: 'Jane Doe',
+            routing_number: '021000021',
+            account_number: '987654321',
+            bank_name: 'Lead Bank',
+          },
+        ]),
+      ).toStrictEqual({
+        rail: 'FedNow',
+        accountHolder: 'Jane Doe',
+        routingNumber: '021000021',
+        accountNumber: '987654321',
+        bankName: 'Lead Bank',
+      });
+    });
+
+    it('returns null when no US rail is complete', () => {
+      expect(
+        extractUsBankDepositInstructions([{ ...achRail, bank_name: 7 }]),
+      ).toBeNull();
     });
   });
 
@@ -485,6 +570,87 @@ describe('NeoBankService', () => {
       const service = createService();
 
       await expect(service.getPixDepositInstructions('ar-1')).rejects.toThrow(
+        'Malformed response received from neo-bank autoramp API',
+      );
+    });
+  });
+
+  describe('getDepositInstructions', () => {
+    it('returns the PIX rail when present', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, {
+          id: 'ar-1',
+          status: 'Approved',
+          deposit_rails: [
+            { type: 'Pix', br_code: '00020126', instruction: 'Pay with PIX' },
+          ],
+        });
+
+      const service = createService();
+
+      expect(await service.getDepositInstructions('ar-1')).toStrictEqual({
+        type: 'Pix',
+        brCode: '00020126',
+        instruction: 'Pay with PIX',
+      });
+    });
+
+    it('returns a US bank rail when there is no PIX rail', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, {
+          id: 'ar-1',
+          status: 'Approved',
+          deposit_rails: [
+            {
+              type: 'ACH',
+              recipient_name: 'Jane Doe',
+              routing_number: '021000021',
+              account_number: '123456789',
+              bank_name: 'Lead Bank',
+            },
+          ],
+        });
+
+      const service = createService();
+
+      expect(await service.getDepositInstructions('ar-1')).toStrictEqual({
+        type: 'UsBank',
+        rail: 'ACH',
+        accountHolder: 'Jane Doe',
+        routingNumber: '021000021',
+        accountNumber: '123456789',
+        bankName: 'Lead Bank',
+      });
+    });
+
+    it('returns null when no supported rail is present', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, {
+          id: 'ar-1',
+          status: 'Approved',
+          deposit_rails: [{ type: 'SEPA', iban: 'DE89' }],
+        });
+
+      const service = createService();
+
+      expect(await service.getDepositInstructions('ar-1')).toBeNull();
+    });
+
+    it('throws when the autoramp response is not an object', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, 'null', { 'Content-Type': 'application/json' });
+
+      const service = createService();
+
+      await expect(service.getDepositInstructions('ar-1')).rejects.toThrow(
         'Malformed response received from neo-bank autoramp API',
       );
     });
