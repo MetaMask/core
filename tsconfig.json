@@ -6,6 +6,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
+    "types": ["jest"],
     "paths": {
       "@metamask/utils/node": ["./packages/utils/src/node.ts"],
       "@metamask/utils": ["./packages/utils/src/index.ts"]
@@ -163,6 +164,9 @@
       "path": "./packages/logging-controller"
     },
     {
+      "path": "./packages/marketing-consent-controller"
+    },
+    {
       "path": "./packages/message-manager"
     },
     {
@@ -170,6 +174,9 @@
     },
     {
       "path": "./packages/messenger-cli"
+    },
+    {
+      "path": "./packages/mfa-recovery-controller"
     },
     {
       "path": "./packages/money-account-api-data-service"
