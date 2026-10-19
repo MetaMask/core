@@ -1,7 +1,5 @@
-import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import { BaseController } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
-import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
 import type {
   DefaultEncryptionResult,
   EncryptionResultConstraint,
@@ -19,13 +17,7 @@ import {
   ToprfSecureBackup,
   EncAccountDataType,
 } from '@metamask/toprf-secure-backup';
-import {
-  base64ToBytes,
-  bytesToBase64,
-  bytesToString,
-  stringToBytes,
-  concatBytes,
-} from '@metamask/utils';
+import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
@@ -76,12 +68,15 @@ import {
   assertIsPasswordOutdatedCacheValid,
   assertIsSeedlessOnboardingUserAuthenticated,
   assertIsValidPassword,
-  compareAndGetLatestToken,
   decodeJWTToken,
   decodeNodeAuthToken,
   deserializeVaultData,
+  decryptStringWithKey,
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
+  findSocialBackupMetadata,
+  getLatestAccessToken,
+  encryptStringWithKey,
   trackIncompleteMetadataBackupEvents,
   isAuthTokenError,
   isMaxKeyChainLengthError,
@@ -808,9 +803,10 @@ export class SeedlessOnboardingController<
     data: Uint8Array,
     type: SecretType = SecretType.Mnemonic,
   ): SocialBackupsMetadata | undefined {
-    const secretDataHash = keccak256AndHexify(data);
-    return this.state.socialBackupsMetadata.find(
-      (backup) => backup.hash === secretDataHash && backup.type === type,
+    return findSocialBackupMetadata(
+      this.state.socialBackupsMetadata,
+      data,
+      type,
     );
   }
 
@@ -1121,18 +1117,12 @@ export class SeedlessOnboardingController<
     tokenBeforeUnlock: string | undefined,
     tokenAfterUnlock: string,
   ): string {
-    let latestToken = tokenAfterUnlock;
+    const latestToken = getLatestAccessToken(
+      tokenBeforeUnlock,
+      tokenAfterUnlock,
+    );
 
-    if (
-      tokenBeforeUnlock &&
-      tokenAfterUnlock &&
-      tokenBeforeUnlock !== tokenAfterUnlock
-    ) {
-      latestToken = compareAndGetLatestToken(
-        tokenBeforeUnlock,
-        tokenAfterUnlock,
-      );
-
+    if (latestToken !== tokenAfterUnlock) {
       // Update the access token in the state with the latest access token
       this.update((state) => {
         state.accessToken = latestToken;
@@ -1279,11 +1269,7 @@ export class SeedlessOnboardingController<
   ): Promise<string> {
     const { encryptedKeyringEncryptionKey: encryptedKey } = this.state;
     assertIsEncryptedKeyringEncryptionKeySet(encryptedKey);
-    const encryptedPasswordBytes = base64ToBytes(encryptedKey);
-    const iv = encryptedPasswordBytes.slice(0, IV_LENGTH);
-    const ciphertext = encryptedPasswordBytes.slice(IV_LENGTH);
-    const password = await decrypt(encKey, iv, ciphertext);
-    return bytesToString(password);
+    return await decryptStringWithKey(encryptedKey, encKey);
   }
 
   /**
@@ -1297,11 +1283,7 @@ export class SeedlessOnboardingController<
   ): Promise<string> {
     const { encryptedSeedlessEncryptionKey: encryptedKey } = this.state;
     assertIsEncryptedSeedlessEncryptionKeySet(encryptedKey);
-    const encryptedKeyBytes = base64ToBytes(encryptedKey);
-    const iv = encryptedKeyBytes.slice(0, IV_LENGTH);
-    const ciphertext = encryptedKeyBytes.slice(IV_LENGTH);
-    const seedlessEncryptionKey = await decrypt(encKey, iv, ciphertext);
-    return bytesToString(seedlessEncryptionKey);
+    return await decryptStringWithKey(encryptedKey, encKey);
   }
 
   /**
@@ -1994,11 +1976,7 @@ export class SeedlessOnboardingController<
     keyringEncryptionKey: string,
     pwEncKey: Uint8Array<ArrayBuffer>,
   ): Promise<string> {
-    const { ciphertext, iv } = await encrypt(
-      pwEncKey,
-      stringToBytes(keyringEncryptionKey),
-    );
-    return bytesToBase64(concatBytes([iv, ciphertext]));
+    return await encryptStringWithKey(keyringEncryptionKey, pwEncKey);
   }
 
   /**
@@ -2012,11 +1990,7 @@ export class SeedlessOnboardingController<
     vaultEncryptionKey: string,
     pwEncKey: Uint8Array<ArrayBuffer>,
   ): Promise<string> {
-    const { ciphertext, iv } = await encrypt(
-      pwEncKey,
-      stringToBytes(vaultEncryptionKey),
-    );
-    return bytesToBase64(concatBytes([iv, ciphertext]));
+    return await encryptStringWithKey(vaultEncryptionKey, pwEncKey);
   }
 
   /**

@@ -8,10 +8,12 @@ export {
   assertIsValidPassword,
 } from './assertions.js';
 export { trackIncompleteMetadataBackupEvents } from './analytics.js';
+export { decryptStringWithKey, encryptStringWithKey } from './encryption.js';
 export type { SecretBackupData } from './secret-data-utils.js';
 export {
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
+  findSocialBackupMetadata,
   parseAndValidateSecretMetadataBackup,
 } from './secret-data-utils.js';
 export {
@@ -20,6 +22,7 @@ export {
   decodeNodeAuthToken,
   deserializeVaultData,
   getInvalidPrimarySecretDataTypeErrorData,
+  getLatestAccessToken,
   getSecretTypeFromDataType,
   isAuthTokenError,
   isMaxKeyChainLengthError,

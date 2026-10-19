@@ -18,6 +18,7 @@ import {
   decodeJWTToken,
   decodeNodeAuthToken,
   getInvalidPrimarySecretDataTypeErrorData,
+  getLatestAccessToken,
   getSecretTypeFromDataType,
   isAuthTokenError,
   isMaxKeyChainLengthError,
@@ -232,6 +233,30 @@ describe('utils', () => {
       const result = compareAndGetLatestToken(token1, token2);
 
       expect(result).toBe(token1);
+    });
+  });
+
+  describe('getLatestAccessToken', () => {
+    it('returns the vault token when there is no token from before unlock', () => {
+      const vaultToken = createMockJWTToken({ exp: 1500000000 });
+
+      expect(getLatestAccessToken(undefined, vaultToken)).toBe(vaultToken);
+    });
+
+    it('returns the token from before unlock when it expires later', () => {
+      const refreshedToken = createMockJWTToken({ exp: 2000000000 });
+      const vaultToken = createMockJWTToken({ exp: 1000000000 });
+
+      expect(getLatestAccessToken(refreshedToken, vaultToken)).toBe(
+        refreshedToken,
+      );
+    });
+
+    it('returns the vault token when it expires later', () => {
+      const refreshedToken = createMockJWTToken({ exp: 1000000000 });
+      const vaultToken = createMockJWTToken({ exp: 2000000000 });
+
+      expect(getLatestAccessToken(refreshedToken, vaultToken)).toBe(vaultToken);
     });
   });
 
