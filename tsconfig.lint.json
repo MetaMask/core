@@ -189,6 +189,9 @@
       "path": "./packages/message-manager/tsconfig.lint.json"
     },
     {
+      "path": "./packages/mfa-recovery-controller/tsconfig.lint.json"
+    },
+    {
       "path": "./packages/money-account-api-data-service/tsconfig.lint.json"
     },
     {
