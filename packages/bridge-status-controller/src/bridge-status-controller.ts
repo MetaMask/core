@@ -49,8 +49,8 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   MAX_ATTEMPTS,
   REFRESH_INTERVAL_MS,
-  type TraceName,
 } from './constants.js';
+import type { TraceName } from './constants.js';
 import {
   QUOTE_STATUS_BACKFILL_WINDOW_MS,
   QUOTE_STATUS_UPDATE_ENTRY_TTL,
@@ -1762,12 +1762,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyItem?.featureId ??
       FeatureId.UNIFIED_SWAP_BRIDGE;
 
-    if (
-      !(
-        ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
-        eventName === UnifiedSwapBridgeEventName.StatusValidationFailed
-      )
-    ) {
+    if (!(
+      ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
+      eventName === UnifiedSwapBridgeEventName.StatusValidationFailed
+    )) {
       return;
     }
 
