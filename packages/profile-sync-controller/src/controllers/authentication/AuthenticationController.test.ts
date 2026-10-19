@@ -9,9 +9,16 @@ import type {
 } from '@metamask/messenger';
 import { cleanAll as cleanAllNock } from 'nock';
 
-import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth.js';
+import {
+  arrangeAuthAPIs,
+  handleMockSocialLogin,
+} from '../../sdk/__fixtures__/auth.js';
 import type { LoginResponse } from '../../sdk/index.js';
-import { EmailRequiredError, Platform } from '../../sdk/index.js';
+import {
+  EmailRequiredError,
+  Platform,
+  SocialIdentifierNotPairedError,
+} from '../../sdk/index.js';
 import {
   MOCK_ACCESS_JWT,
   MOCK_MFA_CREDENTIALS_RESPONSE,
@@ -19,6 +26,7 @@ import {
   MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
   MOCK_MFA_ENROLL_EMAIL_RESPONSE,
   MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+  MOCK_SOCIAL_LOGIN_RESPONSE,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
 } from '../../sdk/mocks/auth.js';
 import {
@@ -1763,6 +1771,119 @@ describe('AuthenticationController', () => {
       expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(true);
       expect(controller.state.needsProfilePairing).toBe(true);
       expect(controller.state.needsSocialPairing).toBe(false);
+    });
+  });
+
+  describe('exchangeSocialAccessToken', () => {
+    const arrangeSocialLogin = ({
+      authConnection = 'google',
+      vault = 'encrypted',
+      socialJwt = MOCK_SOCIAL_JWT,
+    }: {
+      authConnection?: string;
+      vault?: string | null;
+      socialJwt?: string;
+    } = {}): {
+      controller: AuthenticationController;
+      baseMessenger: RootMessenger;
+    } => {
+      const {
+        messenger,
+        baseMessenger,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockSeedlessOnboardingGetState.mockReturnValue({ vault, authConnection });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(socialJwt);
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        state: mockSignedInState(),
+      });
+      return { controller, baseMessenger };
+    };
+
+    it.each([
+      ['google', 'GOOGLE'],
+      ['apple', 'APPLE'],
+      ['telegram', 'TELEGRAM'],
+    ])(
+      'exchanges the %s token for the canonical profile without storing it',
+      async (authConnection, identifierType) => {
+        const requests: { body: unknown; authorization: string }[] = [];
+        const mockSocialLoginUrl = handleMockSocialLogin(undefined, (request) =>
+          requests.push(request),
+        );
+        arrangeAuthAPIs();
+        const { controller } = arrangeSocialLogin({ authConnection });
+        const stateBefore = controller.state;
+
+        const result = await controller.exchangeSocialAccessToken();
+
+        expect(mockSocialLoginUrl.isDone()).toBe(true);
+        expect(requests).toStrictEqual([
+          {
+            body: { identifier_type: identifierType },
+            authorization: `Bearer ${MOCK_SOCIAL_JWT}`,
+          },
+        ]);
+        expect(result.token.accessToken).toBe(
+          MOCK_OATH_TOKEN_RESPONSE.access_token,
+        );
+        expect(result.profile.canonicalProfileId).toBe(
+          MOCK_SOCIAL_LOGIN_RESPONSE.profile.profile_id,
+        );
+        expect(controller.state).toBe(stateBefore);
+      },
+    );
+
+    it.each([
+      ['there is no social vault', { vault: null }],
+      ['the social provider is unknown', { authConnection: 'github' }],
+    ])('throws when %s', async (_case, options) => {
+      const mockSocialLoginUrl = handleMockSocialLogin();
+      const { controller } = arrangeSocialLogin(options);
+
+      await expect(controller.exchangeSocialAccessToken()).rejects.toThrow(
+        'exchangeSocialAccessToken - the wallet has no social login',
+      );
+      expect(mockSocialLoginUrl.isDone()).toBe(false);
+    });
+
+    it('throws when the social token is unavailable', async () => {
+      const mockSocialLoginUrl = handleMockSocialLogin();
+      const { controller } = arrangeSocialLogin({ socialJwt: '' });
+
+      await expect(controller.exchangeSocialAccessToken()).rejects.toThrow(
+        'exchangeSocialAccessToken - no social access token',
+      );
+      expect(mockSocialLoginUrl.isDone()).toBe(false);
+    });
+
+    it('throws SocialIdentifierNotPairedError when the identifier is not paired', async () => {
+      handleMockSocialLogin({
+        status: 404,
+        body: { message: 'social identifier is not paired to any profile' },
+      });
+      const { controller } = arrangeSocialLogin();
+
+      await expect(controller.exchangeSocialAccessToken()).rejects.toThrow(
+        SocialIdentifierNotPairedError,
+      );
+    });
+
+    it('is exposed via the messenger registry', async () => {
+      handleMockSocialLogin();
+      arrangeAuthAPIs();
+      const { baseMessenger } = arrangeSocialLogin();
+
+      const result = await baseMessenger.call(
+        'AuthenticationController:exchangeSocialAccessToken',
+      );
+
+      expect(result.token.accessToken).toBe(
+        MOCK_OATH_TOKEN_RESPONSE.access_token,
+      );
     });
   });
 

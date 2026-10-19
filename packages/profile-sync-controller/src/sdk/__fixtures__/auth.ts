@@ -13,6 +13,8 @@ import {
   MOCK_PROFILE_LINEAGE_URL,
   MOCK_SIWE_LOGIN_RESPONSE,
   MOCK_SIWE_LOGIN_URL,
+  MOCK_SOCIAL_LOGIN_RESPONSE,
+  MOCK_SOCIAL_LOGIN_URL,
   MOCK_SRP_LOGIN_RESPONSE,
   MOCK_SRP_LOGIN_URL,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
@@ -103,6 +105,23 @@ export const handleMockPairSocialIdentifier = (
     .reply(reply.status, reply.body);
 
   return mockPairSocialIdentifierEndpoint;
+};
+
+export const handleMockSocialLogin = (
+  mockReply?: MockReply,
+  onRequest?: (request: { body: unknown; authorization: string }) => void,
+): nock.Scope => {
+  const reply = mockReply ?? { status: 200, body: MOCK_SOCIAL_LOGIN_RESPONSE };
+  return nock(MOCK_SOCIAL_LOGIN_URL)
+    .persist()
+    .post('')
+    .reply(function (_uri, body) {
+      onRequest?.({
+        body,
+        authorization: String(this.req.headers.authorization),
+      });
+      return [reply.status, reply.body];
+    });
 };
 
 export const handleMockSrpLogin = (
