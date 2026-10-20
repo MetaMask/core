@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import util from 'util';
 import { v4 } from 'uuid';
+import type { MockedFunction } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -22,7 +23,10 @@ const { withinSandbox } = createSandbox('utils');
 // Wrap the real `v4` so it behaves normally until a test overrides it.
 vi.mock(import('uuid'), async (importOriginal) => {
   const actual = await importOriginal();
-  return { ...actual, v4: vi.fn().mockImplementation(actual.v4) };
+  return {
+    ...actual,
+    v4: vi.fn(actual.v4) as MockedFunction<typeof actual.v4>,
+  };
 });
 
 // `v4` is overloaded; naming the signature used here avoids resolving to the
@@ -682,6 +686,13 @@ describe('fs', () => {
 
     afterEach(() => {
       vi.useRealTimers();
+    });
+
+    it('uses a unique directory for each sandbox', () => {
+      const first = createSandbox('utils-fs');
+      const second = createSandbox('utils-fs');
+
+      expect(first.directoryPath).not.toBe(second.directoryPath);
     });
 
     it('does not create the sandbox directory immediately', async () => {
