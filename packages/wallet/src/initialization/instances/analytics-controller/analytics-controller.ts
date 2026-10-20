@@ -1,8 +1,8 @@
 import {
   AnalyticsController,
   getDefaultAnalyticsControllerState,
-  type AnalyticsControllerMessenger,
 } from '@metamask/analytics-controller';
+import type { AnalyticsControllerMessenger } from '@metamask/analytics-controller';
 import { Messenger } from '@metamask/messenger';
 
 import type { InitializationConfiguration } from '../../types.js';

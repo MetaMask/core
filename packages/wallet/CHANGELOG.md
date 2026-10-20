@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add `AnalyticsController` to the default initialization configurations
+- **BREAKING:** Add `AnalyticsController` to the default initialization configurations ([#10901](https://github.com/MetaMask/core/pull/10901))
   - Requires `instanceOptions.analyticsController.platformAdapter` and `instanceOptions.analyticsController.analyticsId`.
   - Accepts optional feature flags `isAnonymousEventsFeatureEnabled`, `isEventQueuePersistenceEnabled`, `isPreConsentQueueEnabled`, `isGeolocationEnabled`, and `isEventFragmentsEnabled`, each defaulting to `false`.
   - Persisted `AnalyticsController` state overrides the supplied `analyticsId` when present.
@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add `@metamask/analytics-controller` as a dependency
+- Add `@metamask/analytics-controller` as a dependency ([#10901](https://github.com/MetaMask/core/pull/10901))
 
 ## [18.0.0]
 

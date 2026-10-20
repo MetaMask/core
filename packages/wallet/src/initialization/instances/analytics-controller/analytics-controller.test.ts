@@ -1,8 +1,10 @@
 import {
   AnalyticsController,
   getDefaultAnalyticsControllerState,
-  type AnalyticsPlatformAdapter,
-  type AnalyticsTrackingEvent,
+} from '@metamask/analytics-controller';
+import type {
+  AnalyticsPlatformAdapter,
+  AnalyticsTrackingEvent,
 } from '@metamask/analytics-controller';
 import { Messenger } from '@metamask/messenger';
 
@@ -27,12 +29,19 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
   return new Messenger({ namespace: 'Root' });
 }
 
+type StubPlatformAdapter = AnalyticsPlatformAdapter & {
+  track: jest.Mock;
+  identify: jest.Mock;
+  view: jest.Mock;
+  onSetupCompleted: jest.Mock;
+};
+
 /**
  * Creates a stub platform adapter for testing.
  *
  * @returns A stub AnalyticsPlatformAdapter.
  */
-function createStubPlatformAdapter(): AnalyticsPlatformAdapter {
+function createStubPlatformAdapter(): StubPlatformAdapter {
   return {
     track: jest.fn(),
     identify: jest.fn(),
@@ -83,7 +92,10 @@ describe('analyticsController', () => {
     const messenger = analyticsController.getMessenger(getRootMessenger());
 
     const instance = analyticsController.init({
-      state: { analyticsId: PERSISTED_ANALYTICS_ID },
+      state: {
+        analyticsId: PERSISTED_ANALYTICS_ID,
+        optedIn: false,
+      },
       messenger,
       options: getAnalyticsOptions(),
     });

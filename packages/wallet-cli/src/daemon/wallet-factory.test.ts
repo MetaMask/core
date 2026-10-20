@@ -49,8 +49,6 @@ function makeMockWallet(): Wallet {
       call: jest.fn(),
       subscribe: jest.fn(),
       unsubscribe: jest.fn(),
-      // Called when the analytics stub messenger delegates its handlers up.
-      _internalRegisterDelegatedActionHandler: jest.fn(),
     },
     controllerMetadata: {},
     state: {},
@@ -100,6 +98,14 @@ describe('createWallet', () => {
     expect(MockWallet).toHaveBeenCalledTimes(2);
     const { instanceOptions } = MockWallet.mock.calls[1][0];
 
+    expect(instanceOptions.analyticsController.analyticsId).toBe(
+      '00000000-0000-4000-8000-000000000000',
+    );
+    const { platformAdapter } = instanceOptions.analyticsController;
+    expect(platformAdapter.track('event')).toBeUndefined();
+    expect(platformAdapter.identify('user')).toBeUndefined();
+    expect(platformAdapter.view('screen')).toBeUndefined();
+    expect(platformAdapter.onSetupCompleted('id')).toBeUndefined();
     expect(
       instanceOptions.approvalController?.showApprovalRequest?.(),
     ).toBeUndefined();

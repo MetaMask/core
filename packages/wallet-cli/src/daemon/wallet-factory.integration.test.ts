@@ -65,7 +65,7 @@ describe('createWallet (real Wallet, in-memory)', () => {
     }
   });
 
-  it('registers stub AnalyticsController handlers that do nothing', async () => {
+  it('wires a no-op AnalyticsController that does not report analytics', async () => {
     const { wallet, dispose } = await createWallet({
       databasePath: ':memory:',
       password: Password.from(TEST_PASSWORD),
@@ -75,12 +75,14 @@ describe('createWallet (real Wallet, in-memory)', () => {
     });
 
     try {
-      // The daemon does not report analytics, so `getState` returns an empty
-      // analytics ID (which stops `NetworkController` before it tracks) and
-      // `trackEvent` does nothing.
+      // The daemon supplies a fixed analytics ID and a no-op adapter. Default
+      // consent is opted out, so `trackEvent` does not deliver.
       expect(
         wallet.messenger.call('AnalyticsController:getState').analyticsId,
-      ).toBe('');
+      ).toBe('00000000-0000-4000-8000-000000000000');
+      expect(
+        wallet.messenger.call('AnalyticsController:getState').optedIn,
+      ).toBe(false);
       expect(
         wallet.messenger.call('AnalyticsController:trackEvent', {
           name: 'test',
