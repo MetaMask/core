@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/assets-controller` from `^19.0.0` to `^19.1.0` ([#10876](https://github.com/MetaMask/core/pull/10876))
-- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^34.1.0` ([#10905](https://github.com/MetaMask/core/pull/10905))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+- Bump `@metamask/assets-controllers` from `^112.1.2` to `^112.1.3` ([#10925](https://github.com/MetaMask/core/pull/10925))
 
 ## [82.0.3]
 
