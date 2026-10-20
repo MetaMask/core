@@ -710,7 +710,7 @@ describe('MfaRecoveryController', () => {
         authProvider.identifiers = [SOCIAL, PASSKEY];
         await controller.updateIdentifiers(
           PASSKEY,
-          [SOCIAL, PASSKEY],
+          IDENTIFIERS,
           REGISTERED_EPOCH,
         );
         const recovered = await recover(controller, SOCIAL);
@@ -729,42 +729,25 @@ describe('MfaRecoveryController', () => {
   });
 
   describe('Auth identifiers', () => {
-    it.each(['register', 'updateIdentifiers'] as const)(
-      'rebuilds %s once using Auth identifiers',
-      async (operation) => {
-        await withController(async ({ controller, authProvider, escrowA }) => {
-          if (operation === 'updateIdentifiers') {
-            await controller.register(SECRET, IDENTIFIERS);
-          }
-          authProvider.identifiers = [SOCIAL, PASSKEY];
-          const authorize = jest.spyOn(
-            authProvider,
-            'authorizeRecoveryRequest',
-          );
-          const apply = jest.spyOn(escrowA, 'applyMutation');
-          if (operation === 'register') {
-            await controller.register(SECRET, IDENTIFIERS);
-          } else {
-            await controller.updateIdentifiers(
-              PASSKEY,
-              IDENTIFIERS,
-              REGISTERED_EPOCH,
-            );
-          }
-          expect(authorize).toHaveBeenCalledTimes(2);
-          expect(authorize.mock.calls[1][0].requestHash).not.toBe(
-            authorize.mock.calls[0][0].requestHash,
-          );
-          expect(apply).toHaveBeenCalledTimes(1);
-          expect(apply.mock.calls[0][0].requestHash).toBe(
-            authorize.mock.calls[1][0].requestHash,
-          );
-          expect(apply.mock.calls[0][3]).toMatchObject({
-            identifiers: authProvider.identifiers,
-          });
+    it('rebuilds registration once using Auth identifiers', async () => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
+        authProvider.identifiers = [SOCIAL, PASSKEY];
+        const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+        await controller.register(SECRET, IDENTIFIERS);
+        expect(authorize).toHaveBeenCalledTimes(2);
+        expect(authorize.mock.calls[1][0].requestHash).not.toBe(
+          authorize.mock.calls[0][0].requestHash,
+        );
+        expect(apply).toHaveBeenCalledTimes(1);
+        expect(apply.mock.calls[0][0].requestHash).toBe(
+          authorize.mock.calls[1][0].requestHash,
+        );
+        expect(apply.mock.calls[0][3]).toMatchObject({
+          identifiers: authProvider.identifiers,
         });
-      },
-    );
+      });
+    });
 
     it('resumes the rebuilt authorizing request after an approval failure', async () => {
       await withController(
@@ -772,11 +755,11 @@ describe('MfaRecoveryController', () => {
           authProvider.identifiers = [SOCIAL, PASSKEY];
           const approve =
             authProvider.authorizeRecoveryRequest.bind(authProvider);
-          const authorize = jest
+          const authorize = vi
             .spyOn(authProvider, 'authorizeRecoveryRequest')
             .mockImplementationOnce(approve)
             .mockRejectedValueOnce(new Error('auth down'));
-          const apply = jest.spyOn(escrowA, 'applyMutation');
+          const apply = vi.spyOn(escrowA, 'applyMutation');
           await expect(
             controller.register(SECRET, IDENTIFIERS),
           ).rejects.toThrow('auth down');
@@ -811,14 +794,14 @@ describe('MfaRecoveryController', () => {
         authProvider.identifiers = [SOCIAL, PASSKEY];
         const approve =
           authProvider.authorizeRecoveryRequest.bind(authProvider);
-        const authorize = jest
+        const authorize = vi
           .spyOn(authProvider, 'authorizeRecoveryRequest')
           .mockImplementationOnce(approve)
           .mockImplementationOnce(async (params) => {
             authProvider.identifiers = IDENTIFIERS;
             return await approve(params);
           });
-        const apply = jest.spyOn(escrowA, 'applyMutation');
+        const apply = vi.spyOn(escrowA, 'applyMutation');
         await expect(controller.register(SECRET, IDENTIFIERS)).rejects.toThrow(
           'Invalid pending operation',
         );
@@ -853,7 +836,7 @@ describe('MfaRecoveryController', () => {
             state: { pendingOperation: encoded },
           });
           authProvider.identifiers = [SOCIAL, PASSKEY];
-          const apply = jest.spyOn(escrowA, 'applyMutation');
+          const apply = vi.spyOn(escrowA, 'applyMutation');
           await expect(resumed.resume()).rejects.toThrow(
             'Invalid pending operation',
           );

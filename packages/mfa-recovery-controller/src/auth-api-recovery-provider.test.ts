@@ -1,7 +1,10 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { AuthApiRecoveryAuthProvider } from './auth-api-recovery-provider.js';
 
 describe('AuthApiRecoveryAuthProvider', () => {
-  const getAccessToken = jest.fn<Promise<string>, [boolean]>();
+  const getAccessToken =
+    vi.fn<(requireTwoFactor: boolean) => Promise<string>>();
   const options = {
     baseUrl: 'https://auth.example/',
     profileId: 'profile-1',
@@ -32,27 +35,25 @@ describe('AuthApiRecoveryAuthProvider', () => {
     getAccessToken.mockResolvedValue('hydra-token');
   });
 
-  it.each([false, true])(
+  it.each([
+    [undefined, false],
+    [true, true],
+  ])(
     'returns the approval and identifiers (requireTwoFactor: %s)',
-    async (requireTwoFactor) => {
-      const fetchMock = jest
+    async (requireTwoFactor, expectedTwoFactor) => {
+      const fetchMock = vi
         .spyOn(globalThis, 'fetch')
         .mockResolvedValue(new Response(JSON.stringify(approval)));
-      const provider = new AuthApiRecoveryAuthProvider({
-        ...options,
-        ...(requireTwoFactor
-          ? { fetch: globalThis.fetch.bind(globalThis) }
-          : {}),
-      });
+      const provider = new AuthApiRecoveryAuthProvider(options);
       expect(await provider.getAuthenticatedProfileId()).toBe('profile-1');
       expect(
         await provider.authorizeRecoveryRequest({
           requestHash: '0xrequest',
           audiences: ['cubist-audience'],
-          ...(requireTwoFactor ? { requireTwoFactor } : {}),
+          requireTwoFactor,
         }),
       ).toStrictEqual(approval);
-      expect(getAccessToken).toHaveBeenCalledWith(requireTwoFactor);
+      expect(getAccessToken).toHaveBeenCalledWith(expectedTwoFactor);
       expect(fetchMock.mock.contexts[0] === globalThis).toBe(true);
       expect(fetchMock.mock.calls).toStrictEqual([
         [
@@ -74,11 +75,14 @@ describe('AuthApiRecoveryAuthProvider', () => {
   );
 
   it('surfaces an Auth API failure', async () => {
-    jest
-      .spyOn(globalThis, 'fetch')
+    const fetchMock = vi
+      .fn<typeof fetch>()
       .mockResolvedValue(new Response(null, { status: 403 }));
     await expect(
-      new AuthApiRecoveryAuthProvider(options).authorizeRecoveryRequest({
+      new AuthApiRecoveryAuthProvider({
+        ...options,
+        fetch: fetchMock,
+      }).authorizeRecoveryRequest({
         requestHash: '0xrequest',
         audiences: ['cubist-audience'],
       }),
@@ -93,9 +97,9 @@ describe('AuthApiRecoveryAuthProvider', () => {
     { ...approval, identifiers: null },
     { ...approval, identifiers: [{}] },
   ])('rejects a malformed approval response: %j', async (response) => {
-    jest
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response(JSON.stringify(response)));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(response)),
+    );
     await expect(
       new AuthApiRecoveryAuthProvider(options).authorizeRecoveryRequest({
         requestHash: '0xrequest',
