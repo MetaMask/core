@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { NUMBER_VALUES } from './__fixtures__/index.js';
 import {
   bigIntToHex,

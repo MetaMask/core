@@ -2,62 +2,62 @@
 
 import type { Infer } from '@metamask/superstruct';
 import { boolean, number, optional, string } from '@metamask/superstruct';
-import { describe, expect, test } from 'tstyche';
+import { describe, expectTypeOf, test } from 'vitest';
 
 import type { Json } from './index.js';
 import { exactOptional, object } from './index.js';
 
 describe('Json', () => {
   test('accepts valid JSON', () => {
-    expect(null).type.toBeAssignableTo<Json>();
+    expectTypeOf(null).toExtend<Json>();
 
-    expect(false).type.toBeAssignableTo<Json>();
+    expectTypeOf(false).toExtend<Json>();
 
-    expect('').type.toBeAssignableTo<Json>();
+    expectTypeOf('').toExtend<Json>();
 
-    expect(0).type.toBeAssignableTo<Json>();
+    expectTypeOf(0).toExtend<Json>();
 
-    expect([]).type.toBeAssignableTo<Json>();
+    expectTypeOf([]).toExtend<Json>();
 
-    expect({}).type.toBeAssignableTo<Json>();
+    expectTypeOf({}).toExtend<Json>();
 
-    expect([0]).type.toBeAssignableTo<Json>();
+    expectTypeOf([0]).toExtend<Json>();
 
-    expect({ a: 0 }).type.toBeAssignableTo<Json>();
+    expectTypeOf({ a: 0 }).toExtend<Json>();
 
-    expect({
+    expectTypeOf({
       deeply: [{ nested: 1 }, 'mixed', 'types', 0],
-    }).type.toBeAssignableTo<Json>();
+    }).toExtend<Json>();
 
-    expect([
+    expectTypeOf([
       'array',
       { nested: { mixed: true, types: null } },
       0,
-    ]).type.toBeAssignableTo<Json>();
+    ]).toExtend<Json>();
 
     type JsonCompatibleType = {
       c: number;
     };
     const jsonCompatibleType: JsonCompatibleType = { c: 0 };
-    expect(jsonCompatibleType).type.toBeAssignableTo<Json>();
+    expectTypeOf(jsonCompatibleType).toExtend<Json>();
   });
 
   test('rejects invalid JSON', () => {
-    expect(undefined).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(undefined).not.toExtend<Json>();
 
-    expect(new Date()).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(new Date()).not.toExtend<Json>();
 
-    expect(() => 0).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(() => 0).not.toExtend<Json>();
 
-    expect(new Set()).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(new Set()).not.toExtend<Json>();
 
-    expect(new Map()).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(new Map()).not.toExtend<Json>();
 
-    expect(Symbol('test')).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(Symbol('test')).not.toExtend<Json>();
 
-    expect({ a: new Date() }).type.not.toBeAssignableTo<Json>();
+    expectTypeOf({ a: new Date() }).not.toExtend<Json>();
 
-    expect(5 as number | undefined).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(5 as number | undefined).not.toExtend<Json>();
   });
 
   test('rejects interfaces and types with non-JSON members', () => {
@@ -67,13 +67,13 @@ describe('Json', () => {
     const interfaceWithOptionalProperty: InterfaceWithOptionalProperty = {
       a: 0,
     };
-    expect(interfaceWithOptionalProperty).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(interfaceWithOptionalProperty).not.toExtend<Json>();
 
     interface InterfaceWithDate {
       a: Date;
     }
     const interfaceWithDate: InterfaceWithDate = { a: new Date() };
-    expect(interfaceWithDate).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(interfaceWithDate).not.toExtend<Json>();
 
     interface InterfaceWithOptionalDate {
       a?: Date;
@@ -81,7 +81,7 @@ describe('Json', () => {
     const interfaceWithOptionalDate: InterfaceWithOptionalDate = {
       a: new Date(),
     };
-    expect(interfaceWithOptionalDate).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(interfaceWithOptionalDate).not.toExtend<Json>();
 
     interface InterfaceWithUndefinedTypeUnion {
       a: number | undefined;
@@ -89,25 +89,25 @@ describe('Json', () => {
     const interfaceWithUndefinedTypeUnion: InterfaceWithUndefinedTypeUnion = {
       a: 0,
     };
-    expect(interfaceWithUndefinedTypeUnion).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(interfaceWithUndefinedTypeUnion).not.toExtend<Json>();
 
     interface InterfaceWithFunction {
       a: () => number;
     }
     const interfaceWithFunction: InterfaceWithFunction = { a: () => 0 };
-    expect(interfaceWithFunction).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(interfaceWithFunction).not.toExtend<Json>();
 
     type TypeWithDate = {
       a: Date;
     };
     const typeWithDate: TypeWithDate = { a: new Date() };
-    expect(typeWithDate).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(typeWithDate).not.toExtend<Json>();
 
     type TypeWithOptionalDate = {
       a?: Date;
     };
     const typeWithOptionalDate: TypeWithOptionalDate = { a: new Date() };
-    expect(typeWithOptionalDate).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(typeWithOptionalDate).not.toExtend<Json>();
 
     type TypeWithUndefinedTypeUnion = {
       a: number | undefined;
@@ -115,25 +115,25 @@ describe('Json', () => {
     const typeWithUndefinedTypeUnion: TypeWithUndefinedTypeUnion = {
       a: 0,
     };
-    expect(typeWithUndefinedTypeUnion).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(typeWithUndefinedTypeUnion).not.toExtend<Json>();
 
     type TypeWithFunction = {
       a: () => number;
     };
     const typeWithFunction: TypeWithFunction = { a: () => 0 };
-    expect(typeWithFunction).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(typeWithFunction).not.toExtend<Json>();
 
     type TypeWithOptionalProperty = {
       a?: number | undefined;
     };
     const typeWithOptionalProperty: TypeWithOptionalProperty = { a: undefined };
-    expect(typeWithOptionalProperty).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(typeWithOptionalProperty).not.toExtend<Json>();
   });
 
   test('has known edge cases', () => {
     // The Json type doesn't protect against the `any` type. Passing `any`
     // explicitly is the point of the test, so it must not be removed.
-    expect<any>().type.toBeAssignableTo<Json>();
+    expectTypeOf<any>().toExtend<Json>();
 
     // The Json type gets confused by interfaces. This interface is valid Json,
     // but it's incompatible with the Json type.
@@ -141,7 +141,7 @@ describe('Json', () => {
       a: number;
     }
     const a: A = { a: 0 };
-    expect(a).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(a).not.toExtend<Json>();
 
     // The Json type gets confused by classes. This class instance is valid
     // Json, but it's incompatible with the Json type.
@@ -149,7 +149,7 @@ describe('Json', () => {
       a!: number;
     }
     const foo = new Foo();
-    expect(foo).type.not.toBeAssignableTo<Json>();
+    expectTypeOf(foo).not.toExtend<Json>();
   });
 });
 
@@ -164,22 +164,22 @@ describe('exactOptional', () => {
   type ExactOptionalObject = Infer<typeof exactOptionalObject>;
 
   test('distinguishes optional from exactOptional members', () => {
-    expect({ a: 0 }).type.toBeAssignableTo<ExactOptionalObject>();
-    expect({ a: 0, b: 'test' }).type.toBeAssignableTo<ExactOptionalObject>();
-    expect({
+    expectTypeOf({ a: 0 }).toExtend<ExactOptionalObject>();
+    expectTypeOf({ a: 0, b: 'test' }).toExtend<ExactOptionalObject>();
+    expectTypeOf({
       a: 0,
       b: 'test',
       c: true,
-    }).type.toBeAssignableTo<ExactOptionalObject>();
-    expect({
+    }).toExtend<ExactOptionalObject>();
+    expectTypeOf({
       a: 0,
       b: 'test',
       c: 0,
-    }).type.not.toBeAssignableTo<ExactOptionalObject>();
-    expect({
+    }).not.toExtend<ExactOptionalObject>();
+    expectTypeOf({
       a: 0,
       b: 'test',
       c: undefined,
-    }).type.not.toBeAssignableTo<ExactOptionalObject>();
+    }).not.toExtend<ExactOptionalObject>();
   });
 });

@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { utils as web3Utils } from 'web3';
 
 import {
@@ -628,9 +629,7 @@ describe('units', () => {
       units.forEach((unit) => {
         // Skip noether as it's a special case (base = 0)
         if (unit === 'noether') {
-          // eslint-disable-next-line jest/no-conditional-expect
           expect(toWei(BigInt(1), unit)).toBe(BigInt(0));
-          // eslint-disable-next-line jest/no-conditional-expect
           expect(fromWei(BigInt(1000), unit)).toBe('0');
           return;
         }

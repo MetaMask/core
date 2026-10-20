@@ -509,9 +509,15 @@ async function ensureTsconfigUpdated({
     return false;
   }
 
-  const oxfmtRc = (await import(
-    path.join(REPO_ROOT, '.oxfmtrc.json')
-  )) as FormatConfig;
+  const { default: oxfmtRc } = (await import(
+    path.join(REPO_ROOT, '.oxfmtrc.json'),
+    {
+      with: {
+        type: 'json',
+      },
+    }
+  )) as { default: FormatConfig };
+
   const updatedContent = commentJson.stringify(
     commentJson.assign(tsconfig.content, { references: [...newReferences] }),
     null,
