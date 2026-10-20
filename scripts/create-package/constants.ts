@@ -17,4 +17,4 @@ export const PLACEHOLDERS = {
   PackageName: '@metamask/package-template',
   PackageDescription: 'PACKAGE_DESCRIPTION',
   PackageDirectoryName: 'PACKAGE_DIRECTORY_NAME',
-};
+} as const;
