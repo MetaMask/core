@@ -4,16 +4,6 @@
       "count": 1
     }
   },
-  ".oxlint-plugins/rules/no-barrel-files.test.ts": {
-    "no-undef": {
-      "count": 2
-    }
-  },
-  ".oxlint-plugins/rules/no-wildcard-exports.test.ts": {
-    "no-undef": {
-      "count": 2
-    }
-  },
   ".prettierrc.cjs": {
     "import/unambiguous": {
       "count": 1

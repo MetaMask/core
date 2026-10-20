@@ -69,7 +69,7 @@ export default createConfig({
     {
       files: [
         '.github/**',
-        // '.oxlint-plugins/**',
+        '.oxlint-plugins/**',
         'yarn.config.cjs',
         'packages/bitcoin-regtest-up/**',
         'packages/local-node-utils/**',
@@ -82,6 +82,7 @@ export default createConfig({
         'oxlint.config.ts',
         'jest.config.packages.cjs',
         'jest.config.scripts.cjs',
+        'vitest.config.js',
         'vitest.config.packages.js',
         // These import their globals explicitly.
         'tests/helpers.ts',
@@ -92,8 +93,9 @@ export default createConfig({
       ],
       extends: [nodejs],
       rules: {
-        'node/no-sync': 'off',
+        'no-nodejs-modules': 'off',
         'node/no-process-env': 'off',
+        'node/no-sync': 'off',
       },
     },
 
