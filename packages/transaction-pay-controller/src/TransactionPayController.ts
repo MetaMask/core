@@ -11,8 +11,8 @@ import {
   isTransactionPayStrategy,
   TransactionPayStrategy,
 } from './constants.js';
-import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import { MaxBalanceRefresher } from './helpers/MaxBalanceRefresher.js';
+import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import type {
   GetAmountDataCallback,
   GetBalanceCallback,

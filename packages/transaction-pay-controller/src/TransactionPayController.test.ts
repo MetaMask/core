@@ -6,8 +6,8 @@ import type { Hex } from '@metamask/utils';
 import { updateFiatPayment } from './actions/update-fiat-payment.js';
 import { updatePaymentToken } from './actions/update-payment-token.js';
 import { PaymentOverride, TransactionPayStrategy } from './constants.js';
-import { TransactionPayController } from './index.js';
 import { MaxBalanceRefresher } from './helpers/MaxBalanceRefresher.js';
+import { TransactionPayController } from './index.js';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils.js';
 import { getMessengerMock } from './tests/messenger-mock.js';
 import type {

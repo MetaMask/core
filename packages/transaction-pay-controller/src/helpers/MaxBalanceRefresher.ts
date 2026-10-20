@@ -2,15 +2,15 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { noop } from 'lodash-es';
 
 import type { TransactionPayStrategy } from '../constants.js';
-import { getMaxBalanceRefreshInterval } from '../utils/feature-flags.js';
-import { updateQuotes } from '../utils/quotes.js';
-import { updateSourceAmounts } from '../utils/source-amounts.js';
 import type {
   GetBalanceCallback,
   TransactionData,
   TransactionPayControllerMessenger,
   UpdateTransactionDataCallback,
 } from '../types.js';
+import { getMaxBalanceRefreshInterval } from '../utils/feature-flags.js';
+import { updateQuotes } from '../utils/quotes.js';
+import { updateSourceAmounts } from '../utils/source-amounts.js';
 
 export class MaxBalanceRefresher {
   readonly #getBalance?: GetBalanceCallback;

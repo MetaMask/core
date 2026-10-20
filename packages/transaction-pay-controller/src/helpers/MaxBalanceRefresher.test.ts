@@ -1,14 +1,21 @@
-import {
-  TransactionType,
-  type TransactionMeta,
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import type {
+  TransactionControllerGetStateAction,
+  TransactionControllerState,
+  TransactionMeta,
 } from '@metamask/transaction-controller';
 
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { TransactionPayStrategy } from '../constants.js';
 import { getMessengerMock } from '../tests/messenger-mock.js';
 import type {
   TransactionData,
+  TransactionPaymentToken,
+  TransactionPayControllerGetStateAction,
   TransactionPayControllerMessenger,
   TransactionPaySourceAmount,
+  UpdateTransactionDataCallback,
 } from '../types.js';
 import { updateQuotes } from '../utils/quotes.js';
 import { updateSourceAmounts } from '../utils/source-amounts.js';
@@ -22,32 +29,56 @@ jest.mock('../utils/source-amounts');
 describe('MaxBalanceRefresher', () => {
   const transactionId = '123';
 
+  const getBalance = jest.fn().mockReturnValue({ balanceRaw: '9900000' });
+  const getStrategies = jest
+    .fn()
+    .mockReturnValue([TransactionPayStrategy.Relay]);
+
   let messenger: TransactionPayControllerMessenger;
-  let getControllerStateMock: jest.Mock;
-  let getRemoteFeatureFlagControllerStateMock: jest.Mock;
-  let getTransactionControllerStateMock: jest.Mock;
+  let getControllerStateMock: jest.MockedFn<
+    TransactionPayControllerGetStateAction['handler']
+  >;
+  let getRemoteFeatureFlagControllerStateMock: jest.MockedFn<
+    RemoteFeatureFlagControllerGetStateAction['handler']
+  >;
+  let getTransactionControllerStateMock: jest.MockedFn<
+    TransactionControllerGetStateAction['handler']
+  >;
   let transactionPayState: { transactionData: Record<string, TransactionData> };
 
   beforeEach(() => {
     jest.resetAllMocks();
     jest.clearAllTimers();
 
+    const mocks = getMessengerMock() as {
+      getControllerStateMock: typeof getControllerStateMock;
+      getRemoteFeatureFlagControllerStateMock: typeof getRemoteFeatureFlagControllerStateMock;
+      getTransactionControllerStateMock: typeof getTransactionControllerStateMock;
+      messenger: TransactionPayControllerMessenger;
+    };
+
     ({
       getControllerStateMock,
       getRemoteFeatureFlagControllerStateMock,
       getTransactionControllerStateMock,
       messenger,
-    } = getMessengerMock());
+    } = mocks);
 
     getTransactionControllerStateMock.mockReturnValue({
+      batchTransactionCounts: {},
+      lastFetchedBlockNumbers: {},
+      methodData: {},
+      submitHistory: [],
+      transactionBatches: [],
       transactions: [
         {
           id: transactionId,
           type: TransactionType.perpsWithdraw,
         } as TransactionMeta,
       ],
-    });
+    } satisfies TransactionControllerState);
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
         confirmations_pay_extended: {
           maxBalanceRefreshInterval: {
@@ -65,12 +96,17 @@ describe('MaxBalanceRefresher', () => {
           isMaxAmount: true,
           paymentToken: {
             address: '0xabc',
+            balanceFiat: '0',
+            balanceHuman: '0',
             balanceRaw: '0',
+            balanceUsd: '0',
             chainId: '0x1',
-          } as never,
+            decimals: 6,
+            symbol: 'USDC',
+          } satisfies TransactionPaymentToken,
           sourceAmounts: [],
           tokens: [],
-        } as TransactionData,
+        } satisfies TransactionData,
       },
     };
 
@@ -80,17 +116,23 @@ describe('MaxBalanceRefresher', () => {
   });
 
   it('passes refreshed source amounts to updateQuotes', () => {
-    const getBalance = jest.fn().mockReturnValue({ balanceRaw: '9900000' });
-    const getStrategies = jest.fn().mockReturnValue([TransactionPayStrategy.Relay]);
-    const updateTransactionData = jest.fn((id: string, callback) => {
-      callback(transactionPayState.transactionData[id]);
-    });
+    const updateTransactionData: UpdateTransactionDataCallback = jest.fn(
+      (id, callback) => {
+        callback(transactionPayState.transactionData[id]);
+      },
+    );
 
     jest.mocked(updateSourceAmounts).mockImplementation((_, data) => {
-      data!.sourceAmounts = [
+      if (!data) {
+        return;
+      }
+
+      data.sourceAmounts = [
         {
+          sourceAmountHuman: '9.9',
           sourceAmountRaw: '9900000',
-        } as TransactionPaySourceAmount,
+          targetTokenAddress: '0xabc',
+        } satisfies TransactionPaySourceAmount,
       ];
     });
 
@@ -104,31 +146,34 @@ describe('MaxBalanceRefresher', () => {
     refresher.start(transactionId);
     jest.advanceTimersByTime(5000);
 
-    expect(updateSourceAmounts).toHaveBeenCalledWith(
+    const sourceAmountCall = jest.mocked(updateSourceAmounts).mock.calls[0];
+    expect(sourceAmountCall).toStrictEqual([
       transactionId,
-      expect.objectContaining({
-        isMaxAmount: true,
-        paymentToken: expect.any(Object),
-      }),
+      transactionPayState.transactionData[transactionId],
       messenger,
       getBalance,
-    );
-    expect(updateQuotes).toHaveBeenCalledWith(
-      expect.objectContaining({
-        getStrategies,
-        messenger,
-        transactionData: expect.objectContaining({
-          sourceAmounts: [expect.objectContaining({ sourceAmountRaw: '9900000' })],
-        }),
-        transactionId,
-        updateTransactionData,
-      }),
-    );
+    ]);
 
+    const quoteRequest = jest.mocked(updateQuotes).mock.calls[0][0];
+    expect(quoteRequest.getStrategies).toBe(getStrategies);
+    expect(quoteRequest.messenger).toBe(messenger);
+    expect(quoteRequest.transactionData).toBe(
+      transactionPayState.transactionData[transactionId],
+    );
+    expect(quoteRequest.transactionData?.sourceAmounts).toStrictEqual([
+      {
+        sourceAmountHuman: '9.9',
+        sourceAmountRaw: '9900000',
+        targetTokenAddress: '0xabc',
+      },
+    ]);
+    expect(quoteRequest.transactionId).toBe(transactionId);
+    expect(quoteRequest.updateTransactionData).toBe(updateTransactionData);
   });
 
   it('does not start when no interval matches the transaction type', () => {
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
         confirmations_pay_extended: {
           maxBalanceRefreshInterval: {},
@@ -136,10 +181,13 @@ describe('MaxBalanceRefresher', () => {
       },
     });
 
-    const updateTransactionData = jest.fn();
+    const updateTransactionData = jest.fn(
+      (_id: string, _callback: Parameters<UpdateTransactionDataCallback>[1]) =>
+        undefined,
+    );
     const refresher = new MaxBalanceRefresher({
-      getBalance: jest.fn(),
-      getStrategies: jest.fn(),
+      getBalance,
+      getStrategies,
       messenger,
       updateTransactionData,
     });
@@ -154,10 +202,15 @@ describe('MaxBalanceRefresher', () => {
 
   it('does not restart an already running timer for the same transaction', () => {
     const refresher = new MaxBalanceRefresher({
-      getBalance: jest.fn(),
-      getStrategies: jest.fn(),
+      getBalance,
+      getStrategies,
       messenger,
-      updateTransactionData: jest.fn(),
+      updateTransactionData: jest.fn(
+        (
+          _id: string,
+          _callback: Parameters<UpdateTransactionDataCallback>[1],
+        ) => undefined,
+      ),
     });
 
     refresher.start(transactionId);
@@ -172,10 +225,15 @@ describe('MaxBalanceRefresher', () => {
     transactionPayState.transactionData[transactionId].isMaxAmount = false;
 
     const refresher = new MaxBalanceRefresher({
-      getBalance: jest.fn(),
-      getStrategies: jest.fn(),
+      getBalance,
+      getStrategies,
       messenger,
-      updateTransactionData: jest.fn(),
+      updateTransactionData: jest.fn(
+        (
+          _id: string,
+          _callback: Parameters<UpdateTransactionDataCallback>[1],
+        ) => undefined,
+      ),
     });
 
     const stopSpy = jest.spyOn(refresher, 'stop');
@@ -191,10 +249,15 @@ describe('MaxBalanceRefresher', () => {
 
   it('stops refreshing when requested', () => {
     const refresher = new MaxBalanceRefresher({
-      getBalance: jest.fn(),
-      getStrategies: jest.fn(),
+      getBalance,
+      getStrategies,
       messenger,
-      updateTransactionData: jest.fn(),
+      updateTransactionData: jest.fn(
+        (
+          _id: string,
+          _callback: Parameters<UpdateTransactionDataCallback>[1],
+        ) => undefined,
+      ),
     });
 
     refresher.start(transactionId);
