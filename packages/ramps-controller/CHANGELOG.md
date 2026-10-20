@@ -7,10 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `NeoBankServiceInvalidateQueriesAction`, `NeoBankServiceCacheUpdatedEvent` and `NeoBankServiceGranularCacheUpdatedEvent`, also included in `NeoBankServiceActions` and `NeoBankServiceEvents` ([#10882](https://github.com/MetaMask/core/pull/10882))
+
 ### Changed
 
+- **BREAKING:** `NeoBankService` now extends `BaseDataService` from `@metamask/base-data-service` ([#10882](https://github.com/MetaMask/core/pull/10882))
+  - `NeoBankServiceMessenger` now includes the `NeoBankService:invalidateQueries` action and `NeoBankService:cacheUpdated` events. Messengers built from `NeoBankServiceActions` / `NeoBankServiceEvents` pick these up automatically.
+  - Reads and writes now share one circuit breaker (previously each had its own).
+- `NeoBankService.getAutorampQuote`, `getAutorampQuoteForAutoramp`, `getCustomerByExternalId`, `registerPixAddress` and `attachAutorampQuote` now return `Promise<Json>` instead of `Promise<unknown>` ([#10882](https://github.com/MetaMask/core/pull/10882))
+- Concurrent identical NeoBank reads (`getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `listAutorampTransactions`, `getAutorampQuote`, `getAutorampQuoteForAutoramp`, `getCustomerByExternalId`) now share one request. Sequential reads still always hit the API ([#10882](https://github.com/MetaMask/core/pull/10882))
+  - `getAutoramps` fetches each cursor page as its own query, so a failed page is retried on its own and concurrent calls with the same `customerId` share each page request.
+- Malformed NeoBank responses now throw `Query function for "NeoBankService:<method>" returned an unexpected response: …` (or `Mutation function for "NeoBankService:createAutoramp" …`) instead of `Malformed response received from neo-bank …` ([#10882](https://github.com/MetaMask/core/pull/10882))
+  - This applies to `getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `listAutorampTransactions` and `createAutoramp`. Malformed responses are still not retried.
+- Add dependencies `@metamask/base-data-service` ^2.1.0 and `@metamask/superstruct` ^3.4.1 ([#10882](https://github.com/MetaMask/core/pull/10882))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^34.1.0` ([#10905](https://github.com/MetaMask/core/pull/10905))
+
+### Removed
+
+- **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `NeoBankService` ([#10882](https://github.com/MetaMask/core/pull/10882))
 
 ## [27.0.1]
 
