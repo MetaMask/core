@@ -2099,11 +2099,6 @@
       "count": 8
     }
   },
-  "packages/core-backend/src/api/test-utils.ts": {
-    "no-undef": {
-      "count": 9
-    }
-  },
   "packages/core-backend/src/api/token/client.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 2
@@ -3343,7 +3338,7 @@
       "count": 2
     }
   },
-  "packages/multichain-account-service/src/tests/accounts.ts": {
+  "packages/multichain-account-service/tests/accounts.ts": {
     "typescript/explicit-function-return-type": {
       "count": 7
     }
@@ -4093,11 +4088,6 @@
       "count": 1
     }
   },
-  "packages/phishing-controller/src/tests/utils.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 2
-    }
-  },
   "packages/phishing-controller/src/utils.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 2
@@ -4109,6 +4099,11 @@
     },
     "typescript/prefer-nullish-coalescing": {
       "count": 1
+    }
+  },
+  "packages/phishing-controller/tests/utils.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
     }
   },
   "packages/platform-api-docs/jest.config.cjs": {
