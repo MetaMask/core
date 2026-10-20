@@ -8,10 +8,6 @@ export default mergeConfig(baseConfig, {
     // oxlint-disable-next-line n/no-unsupported-features/node-builtins
     name: basename(import.meta.dirname),
 
-    typecheck: {
-      enabled: true,
-    },
-
     coverage: {
       exclude: ['src/**/__fixtures__/**', 'src/**/*.test-d.ts'],
 

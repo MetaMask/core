@@ -80,11 +80,5 @@
   },
   "engines": {
     "node": "^22.14.0 || ^24"
-  },
-  "lavamoat": {
-    "allowScripts": {
-      "@lavamoat/preinstall-always-fail": false,
-      "eslint-plugin-import-x>unrs-resolver": false
-    }
   }
 }

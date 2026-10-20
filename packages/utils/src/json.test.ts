@@ -48,10 +48,8 @@ import {
   JsonStruct,
 } from './index.js';
 
-vi.mock('@metamask/superstruct', async () => ({
-  ...(await vi.importActual<typeof import('@metamask/superstruct')>(
-    '@metamask/superstruct',
-  )),
+vi.mock(import('@metamask/superstruct'), async (importOriginal) => ({
+  ...(await importOriginal()),
   assert: vi.fn(),
 }));
 

@@ -20,9 +20,9 @@ import {
 const { withinSandbox } = createSandbox('utils');
 
 // Wrap the real `v4` so it behaves normally until a test overrides it.
-vi.mock('uuid', async () => {
-  const actual = await vi.importActual<typeof import('uuid')>('uuid');
-  return { ...actual, v4: vi.fn(actual.v4) };
+vi.mock(import('uuid'), async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, v4: vi.fn().mockImplementation(actual.v4) };
 });
 
 // `v4` is overloaded; naming the signature used here avoids resolving to the
