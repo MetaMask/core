@@ -10,6 +10,10 @@ export default mergeConfig(
       // oxlint-disable-next-line n/no-unsupported-features/node-builtins
       name: basename(import.meta.dirname),
 
+      typecheck: {
+        tsconfig: './tsconfig.test.json',
+      },
+
       coverage: {
         exclude: ['src/**/__fixtures__/**', 'src/**/*.test-d.ts'],
 
