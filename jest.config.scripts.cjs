@@ -41,6 +41,7 @@ module.exports = {
     // resolve them to their source rather than to a build that may not exist
     // yet.
     // NOTE: This must be synchronized with the `paths` option in `tsconfig.json`.
+    '^@metamask/error-utils$': ['<rootDir>/packages/error-utils/src/index.ts'],
     '^@metamask/type-utils$': ['<rootDir>/packages/type-utils/src/index.ts'],
     '^@metamask/utils/node$': ['<rootDir>/packages/utils/src/node.ts'],
     '^@metamask/utils$': ['<rootDir>/packages/utils/src/index.ts'],

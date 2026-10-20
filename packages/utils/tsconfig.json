@@ -12,6 +12,9 @@
   "references": [
     {
       "path": "../type-utils"
+    },
+    {
+      "path": "../error-utils"
     }
   ]
 }

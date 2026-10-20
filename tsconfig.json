@@ -122,6 +122,9 @@
       "path": "./packages/eip1193-permission-middleware"
     },
     {
+      "path": "./packages/error-utils"
+    },
+    {
       "path": "./packages/eth-block-tracker"
     },
     {
