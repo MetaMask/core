@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^34.1.0` ([#10905](https://github.com/MetaMask/core/pull/10905))
 
+### Fixed
+
+- A client without a local marketing consent decision now reads Authenticated User Storage once unlocked and signed in, and adopts the saved decision without writing it back; with no saved decision it stays undecided
+  - Previously such a client never read AUS, so its first local decision (e.g. dismissing a consent prompt after a social-login restore on a new device) overwrote the decision saved in AUS.
+
 ## [1.0.0]
 
 ### Added
