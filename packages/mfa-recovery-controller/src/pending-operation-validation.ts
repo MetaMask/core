@@ -115,9 +115,8 @@ export async function assertValidPendingOperation(
     token?.sub !== mutation.profileId ||
     token.ext.requestHash !== mutation.requestHash ||
     token.ext.aal < (mutation.operation === 'register' ? 1 : 2) ||
-    ((mutation.operation === 'register' ||
-      mutation.operation === 'updateIdentifiers') &&
-      token.ext.identifiersHash === undefined) ||
+    (pendingPayloadHasIdentifiers(payload) &&
+      token.ext.identifiersHash !== (await hash(payload.identifiers))) ||
     !isMutationReceiptArray(pending.receipts)
   ) {
     throwInvalidPendingOperation();

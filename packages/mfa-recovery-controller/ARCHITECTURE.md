@@ -163,8 +163,9 @@ Auth approvals:
 - The provider receives the mutation `requestHash` and each escrow's
   `authAudience`. Updates set `requireTwoFactor` for AAL2.
 - Approvals last five minutes. AAL2 requires MFA within the preceding five minutes.
-- `register` and `updateIdentifiers` use Auth's `identifiers` unchanged.
-  Hashing sorts object keys, not arrays, and adds no fields.
+- `register` and `updateIdentifiers` retry approval once with Auth's returned
+  identifiers if they differ. The rebuilt request is persisted as `authorizing`;
+  `writing` mutations are never rebuilt. Hashing sorts object keys, not arrays.
 - Escrows verify signatures. The controller decodes claims only for pending-state
   validation and expiry-based refresh.
 

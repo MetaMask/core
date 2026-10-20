@@ -1,7 +1,14 @@
-import { isObject } from '@metamask/utils';
+import { array, is, size, string, type } from '@metamask/superstruct';
 
 import { MfaRecoveryError } from './errors.js';
-import type { AuthControllerToken, RecoveryAuthProvider } from './types.js';
+import type { RecoveryApproval, RecoveryAuthProvider } from './types.js';
+
+const RecoveryApprovalStruct = type({
+  approval: size(string(), 1, Infinity),
+  identifiers: array(
+    type({ type: string(), namespace: string(), value: string() }),
+  ),
+});
 
 export type AuthApiRecoveryAuthProviderOptions = {
   /** Auth API origin, without /api/v2. */
@@ -34,11 +41,11 @@ export class AuthApiRecoveryAuthProvider implements RecoveryAuthProvider {
 
   /**
    * @param params - Request hash, audiences, and MFA requirement.
-   * @returns The Auth-signed approval without a Hydra exchange.
+   * @returns The Auth-signed approval and current recovery identifiers.
    */
   async authorizeRecoveryRequest(
     params: Parameters<RecoveryAuthProvider['authorizeRecoveryRequest']>[0],
-  ): Promise<AuthControllerToken> {
+  ): Promise<RecoveryApproval> {
     const token = await this.#options.getAccessToken(
       params.requireTwoFactor === true,
     );
@@ -63,16 +70,12 @@ export class AuthApiRecoveryAuthProvider implements RecoveryAuthProvider {
       );
     }
     const result: unknown = await response.json();
-    if (
-      !isObject(result) ||
-      typeof result.approval !== 'string' ||
-      !result.approval
-    ) {
+    if (!is(result, RecoveryApprovalStruct)) {
       throw new MfaRecoveryError(
         'Invalid Auth approval',
         'auth_api_response_invalid',
       );
     }
-    return result.approval;
+    return { approval: result.approval, identifiers: result.identifiers };
   }
 }

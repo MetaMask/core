@@ -7,19 +7,37 @@ describe('AuthApiRecoveryAuthProvider', () => {
     profileId: 'profile-1',
     getAccessToken,
   };
+  const approval = {
+    approval: 'signed-approval',
+    identifiers: [
+      {
+        type: 'social',
+        namespace: 'https://accounts.google.com',
+        value: 'hash',
+      },
+      {
+        type: 'passkey',
+        namespace: 'metamask.io',
+        value: 'AQID',
+        verifier: {
+          publicKey: { cose: 'AQID' },
+          rpId: 'metamask.io',
+          origins: ['https://metamask.io'],
+        },
+      },
+    ],
+  };
 
   beforeEach(() => {
     getAccessToken.mockResolvedValue('hydra-token');
   });
 
   it.each([false, true])(
-    'returns the approval directly (requireTwoFactor: %s)',
+    'returns the approval and identifiers (requireTwoFactor: %s)',
     async (requireTwoFactor) => {
       const fetchMock = jest
         .spyOn(globalThis, 'fetch')
-        .mockResolvedValue(
-          new Response(JSON.stringify({ approval: 'signed-approval' })),
-        );
+        .mockResolvedValue(new Response(JSON.stringify(approval)));
       const provider = new AuthApiRecoveryAuthProvider({
         ...options,
         ...(requireTwoFactor
@@ -33,7 +51,7 @@ describe('AuthApiRecoveryAuthProvider', () => {
           audiences: ['cubist-audience'],
           ...(requireTwoFactor ? { requireTwoFactor } : {}),
         }),
-      ).toBe('signed-approval');
+      ).toStrictEqual(approval);
       expect(getAccessToken).toHaveBeenCalledWith(requireTwoFactor);
       expect(fetchMock.mock.contexts[0] === globalThis).toBe(true);
       expect(fetchMock.mock.calls).toStrictEqual([
@@ -67,18 +85,22 @@ describe('AuthApiRecoveryAuthProvider', () => {
     ).rejects.toThrow('Authentication API returned 403');
   });
 
-  it.each([null, {}, { approval: 1 }, { approval: '' }])(
-    'rejects a malformed approval response: %j',
-    async (response) => {
-      jest
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue(new Response(JSON.stringify(response)));
-      await expect(
-        new AuthApiRecoveryAuthProvider(options).authorizeRecoveryRequest({
-          requestHash: '0xrequest',
-          audiences: ['cubist-audience'],
-        }),
-      ).rejects.toThrow('Invalid Auth approval');
-    },
-  );
+  it.each([
+    null,
+    {},
+    { ...approval, approval: 1 },
+    { ...approval, approval: '' },
+    { ...approval, identifiers: null },
+    { ...approval, identifiers: [{}] },
+  ])('rejects a malformed approval response: %j', async (response) => {
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify(response)));
+    await expect(
+      new AuthApiRecoveryAuthProvider(options).authorizeRecoveryRequest({
+        requestHash: '0xrequest',
+        audiences: ['cubist-audience'],
+      }),
+    ).rejects.toThrow('Invalid Auth approval');
+  });
 });

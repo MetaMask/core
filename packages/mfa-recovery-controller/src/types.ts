@@ -65,6 +65,11 @@ export type Mutation = {
  */
 export type AuthControllerToken = string;
 
+export type RecoveryApproval = {
+  approval: AuthControllerToken;
+  identifiers: Identifier[];
+};
+
 export type MutationReceipt = {
   mutationId: string;
   requestHash: string;
@@ -238,14 +243,14 @@ export type RecoveredSecret = {
 export type RecoveryAuthProvider = {
   getAuthenticatedProfileId: () => Promise<string>;
   /**
-   * Returns the Auth API's /api/v2/recovery/approvals approval directly.
+   * Returns the Auth API's approval and current recovery identifiers.
    * `requireTwoFactor` requests recent AAL2 authentication.
    */
   authorizeRecoveryRequest: (params: {
     requestHash: string;
     audiences: string[];
     requireTwoFactor?: boolean;
-  }) => Promise<AuthControllerToken>;
+  }) => Promise<RecoveryApproval>;
 };
 
 /**

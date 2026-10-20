@@ -25,6 +25,7 @@ import { MfaRecoveryController } from './MfaRecoveryController.js';
 import type {
   Identifier,
   IdentifierSession,
+  PendingOperation,
   RecoveredSecret,
   RecoveryEscrowProvider,
   RegisterPayload,
@@ -724,6 +725,145 @@ describe('MfaRecoveryController', () => {
           controller.updateIdentifiers(PASSKEY, [], REGISTERED_EPOCH),
         ).rejects.toThrow('Requires at least 2 identifiers');
       });
+    });
+  });
+
+  describe('Auth identifiers', () => {
+    it.each(['register', 'updateIdentifiers'] as const)(
+      'rebuilds %s once using Auth identifiers',
+      async (operation) => {
+        await withController(async ({ controller, authProvider, escrowA }) => {
+          if (operation === 'updateIdentifiers') {
+            await controller.register(SECRET, IDENTIFIERS);
+          }
+          authProvider.identifiers = [SOCIAL, PASSKEY];
+          const authorize = jest.spyOn(
+            authProvider,
+            'authorizeRecoveryRequest',
+          );
+          const apply = jest.spyOn(escrowA, 'applyMutation');
+          if (operation === 'register') {
+            await controller.register(SECRET, IDENTIFIERS);
+          } else {
+            await controller.updateIdentifiers(
+              PASSKEY,
+              IDENTIFIERS,
+              REGISTERED_EPOCH,
+            );
+          }
+          expect(authorize).toHaveBeenCalledTimes(2);
+          expect(authorize.mock.calls[1][0].requestHash).not.toBe(
+            authorize.mock.calls[0][0].requestHash,
+          );
+          expect(apply).toHaveBeenCalledTimes(1);
+          expect(apply.mock.calls[0][0].requestHash).toBe(
+            authorize.mock.calls[1][0].requestHash,
+          );
+          expect(apply.mock.calls[0][3]).toMatchObject({
+            identifiers: authProvider.identifiers,
+          });
+        });
+      },
+    );
+
+    it('resumes the rebuilt authorizing request after an approval failure', async () => {
+      await withController(
+        async ({ controller, authProvider, escrowA, options }) => {
+          authProvider.identifiers = [SOCIAL, PASSKEY];
+          const approve =
+            authProvider.authorizeRecoveryRequest.bind(authProvider);
+          const authorize = jest
+            .spyOn(authProvider, 'authorizeRecoveryRequest')
+            .mockImplementationOnce(approve)
+            .mockRejectedValueOnce(new Error('auth down'));
+          const apply = jest.spyOn(escrowA, 'applyMutation');
+          await expect(
+            controller.register(SECRET, IDENTIFIERS),
+          ).rejects.toThrow('auth down');
+          const pending = JSON.parse(
+            controller.state.pendingOperation as string,
+          ) as PendingOperation;
+          expect(pending.phase).toBe('authorizing');
+          expect(pending.payload).toMatchObject({
+            identifiers: authProvider.identifiers,
+          });
+          expect(pending.mutation.requestHash).toBe(
+            authorize.mock.calls[1][0].requestHash,
+          );
+          expect(apply).not.toHaveBeenCalled();
+          const resumed = new MfaRecoveryController({
+            ...options,
+            messenger: getMessenger(getRootMessenger()),
+            state: controller.state,
+          });
+          await resumed.resume();
+          expect(authorize).toHaveBeenCalledTimes(3);
+          expect(authorize.mock.calls[2][0].requestHash).toBe(
+            pending.mutation.requestHash,
+          );
+          expect(await resumed.getPhase()).toBe('idle');
+        },
+      );
+    });
+
+    it('stays abortable when identifiers change again on the retry', async () => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
+        authProvider.identifiers = [SOCIAL, PASSKEY];
+        const approve =
+          authProvider.authorizeRecoveryRequest.bind(authProvider);
+        const authorize = jest
+          .spyOn(authProvider, 'authorizeRecoveryRequest')
+          .mockImplementationOnce(approve)
+          .mockImplementationOnce(async (params) => {
+            authProvider.identifiers = IDENTIFIERS;
+            return await approve(params);
+          });
+        const apply = jest.spyOn(escrowA, 'applyMutation');
+        await expect(controller.register(SECRET, IDENTIFIERS)).rejects.toThrow(
+          'Invalid pending operation',
+        );
+        expect(authorize).toHaveBeenCalledTimes(2);
+        expect(apply).not.toHaveBeenCalled();
+        expect(await controller.getPhase()).toBe('authorizing');
+        await controller.abort();
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+
+    it('does not rebuild a writing mutation when refreshing its approval', async () => {
+      await withController(
+        async ({ controller, authProvider, escrowA, options }) => {
+          escrowA.failNextApplyCount = 1;
+          await expect(
+            controller.register(SECRET, IDENTIFIERS),
+          ).rejects.toBeInstanceOf(IncompleteMutationError);
+          const pending = JSON.parse(
+            controller.state.pendingOperation as string,
+          ) as WritingPendingOperation;
+          pending.authControllerToken = createAuthControllerToken({
+            sub: pending.mutation.profileId,
+            exp: 0,
+            requestHash: pending.mutation.requestHash,
+            identifiersHash: await hash(IDENTIFIERS),
+          });
+          const encoded = await passthroughEncryptor.encrypt(pending);
+          const resumed = new MfaRecoveryController({
+            ...options,
+            messenger: getMessenger(getRootMessenger()),
+            state: { pendingOperation: encoded },
+          });
+          authProvider.identifiers = [SOCIAL, PASSKEY];
+          const apply = jest.spyOn(escrowA, 'applyMutation');
+          await expect(resumed.resume()).rejects.toThrow(
+            'Invalid pending operation',
+          );
+          expect(apply).not.toHaveBeenCalled();
+          expect(resumed.state.pendingOperation).toBe(encoded);
+          authProvider.identifiers = IDENTIFIERS;
+          await resumed.resume();
+          expect(await resumed.getPhase()).toBe('idle');
+        },
+      );
     });
   });
 

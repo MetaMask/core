@@ -30,6 +30,7 @@ import type {
   PendingOperation,
   PendingOperationEncryptor,
   PoPChallenge,
+  RecoveryApproval,
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
@@ -112,14 +113,17 @@ export class StubAuthProvider implements RecoveryAuthProvider {
   async authorizeRecoveryRequest(params: {
     requestHash: string;
     requireTwoFactor?: boolean;
-  }): Promise<AuthControllerToken> {
-    return createAuthControllerToken({
-      sub: this.profileId,
-      exp: this.now() + 5 * 60,
-      requestHash: params.requestHash,
-      aal: params.requireTwoFactor ? 2 : 1,
-      identifiersHash: await hash(this.identifiers),
-    });
+  }): Promise<RecoveryApproval> {
+    return {
+      approval: createAuthControllerToken({
+        sub: this.profileId,
+        exp: this.now() + 5 * 60,
+        requestHash: params.requestHash,
+        aal: params.requireTwoFactor ? 2 : 1,
+        identifiersHash: await hash(this.identifiers),
+      }),
+      identifiers: this.identifiers,
+    };
   }
 }
 

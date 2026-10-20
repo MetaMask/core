@@ -52,6 +52,7 @@ export type {
   PendingRegisterPayload,
   PendingUpdateIdentifiersPayload,
   PendingUpdateRecoverySecretPayload,
+  RecoveryApproval,
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
