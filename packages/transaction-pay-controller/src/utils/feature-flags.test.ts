@@ -1235,6 +1235,25 @@ describe('Feature Flags Utils', () => {
       ).toBe(5000);
     });
 
+    it('returns undefined when the transaction type does not match', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            maxBalanceRefreshInterval: {
+              [TransactionType.perpsWithdraw]: 5000,
+            },
+          },
+        },
+      });
+
+      expect(
+        getMaxBalanceRefreshInterval(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBeUndefined();
+    });
+
     it('returns the configured interval without validation', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
