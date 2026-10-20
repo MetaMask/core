@@ -212,7 +212,7 @@ export class SocialRealtimeService {
       async (): Promise<void> => {
         await this.#messenger.call('BackendWebSocketService:connect');
 
-        const subscriptionToken = Symbol();
+        const subscriptionToken = Symbol('social-feed-subscription');
 
         // Each service needs its own callback and subscription lifecycle.
         const subscription = await this.#messenger.call(
@@ -283,10 +283,7 @@ export class SocialRealtimeService {
     const replacementSubscription = this.#subscription as
       | WebSocketSubscription
       | undefined;
-    if (
-      existingSubscription &&
-      existingSubscription !== this.#subscription
-    ) {
+    if (existingSubscription && existingSubscription !== this.#subscription) {
       try {
         await existingSubscription.unsubscribe();
       } catch (error) {

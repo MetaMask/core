@@ -325,18 +325,12 @@ describe('SocialRealtimeService', () => {
     }
     const firstCallback = (
       firstSubscribe[1] as {
-        callback: (notification: {
-          channel: string;
-          data: unknown;
-        }) => void;
+        callback: (notification: { channel: string; data: unknown }) => void;
       }
     ).callback;
     const secondCallback = (
       secondSubscribe[1] as {
-        callback: (notification: {
-          channel: string;
-          data: unknown;
-        }) => void;
+        callback: (notification: { channel: string; data: unknown }) => void;
       }
     ).callback;
     const notification = {
@@ -370,9 +364,7 @@ describe('SocialRealtimeService', () => {
         subscribeCount += 1;
         return Promise.resolve({
           unsubscribe:
-            subscribeCount === 1
-              ? existingUnsubscribe
-              : replacementUnsubscribe,
+            subscribeCount === 1 ? existingUnsubscribe : replacementUnsubscribe,
         });
       }
 
@@ -394,18 +386,12 @@ describe('SocialRealtimeService', () => {
     }
     const firstCallback = (
       firstSubscribe[1] as {
-        callback: (notification: {
-          channel: string;
-          data: unknown;
-        }) => void;
+        callback: (notification: { channel: string; data: unknown }) => void;
       }
     ).callback;
     const secondCallback = (
       secondSubscribe[1] as {
-        callback: (notification: {
-          channel: string;
-          data: unknown;
-        }) => void;
+        callback: (notification: { channel: string; data: unknown }) => void;
       }
     ).callback;
     const notification = {
@@ -421,10 +407,9 @@ describe('SocialRealtimeService', () => {
   });
 
   it('resubscribes after disconnect during replacement cleanup', async () => {
-    const { call, connectionStateHandler, service } = createService(
-      true,
-      ['trending'],
-    );
+    const { call, connectionStateHandler, service } = createService(true, [
+      'trending',
+    ]);
     const error = new Error('Unsubscribe failed');
     const existingUnsubscribe = jest.fn().mockImplementation(() => {
       connectionStateHandler()?.({ state: WebSocketState.DISCONNECTED });
@@ -557,10 +542,9 @@ describe('SocialRealtimeService', () => {
   });
 
   it('handles a failed replacement after disconnecting', async () => {
-    const { call, connectionStateHandler, service } = createService(
-      true,
-      ['trending'],
-    );
+    const { call, connectionStateHandler, service } = createService(true, [
+      'trending',
+    ]);
     const replacementError = new Error('Replacement failed');
     let rejectReplacement: (reason?: unknown) => void = () => undefined;
     const replacementPromise = new Promise<WebSocketSubscription>(
@@ -618,9 +602,7 @@ describe('SocialRealtimeService', () => {
         subscribeCount += 1;
         return Promise.resolve({
           unsubscribe:
-            subscribeCount === 1
-              ? existingUnsubscribe
-              : replacementUnsubscribe,
+            subscribeCount === 1 ? existingUnsubscribe : replacementUnsubscribe,
         });
       }
 
