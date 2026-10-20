@@ -23,6 +23,8 @@ export enum SecretType {
 
 export enum SeedlessOnboardingMigrationVersion {
   V1 = 1,
+  /** Secret data is encrypted with a data encryption key (DEK) layer. */
+  V2 = 2,
 }
 
 export enum SeedlessOnboardingControllerErrorMessage {
@@ -64,4 +66,5 @@ export enum SeedlessOnboardingControllerErrorMessage {
   InvalidPasswordOutdatedCache = `${controllerName} - Invalid password outdated cache provided.`,
   FailedToRefreshJWTTokens = `${controllerName} - Failed to refresh JWT tokens`,
   PrimarySrpCannotBeAddedViaAddNewSecretData = `${controllerName} - PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.`,
+  InvalidDataEncryptionSeed = `${controllerName} - Invalid data encryption seed`,
 }

@@ -65,6 +65,13 @@ import type {
   DeserializedVaultData,
 } from './types.js';
 import {
+  DATA_ENCRYPTION_SEED_ITEM_ID,
+  DATA_ENCRYPTION_SEED_LENGTH,
+  deriveDataKeys,
+  generateDataEncryptionSeed,
+  isDataEncryptionSeedItem,
+} from './utils/data-encryption.js';
+import {
   assertIsEncryptedKeyringEncryptionKeySet,
   assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
@@ -98,6 +105,116 @@ export { getInitialSeedlessOnboardingControllerStateWithDefaults } from './state
 
 const log = createModuleLogger(projectLogger, controllerName);
 
+/**
+ * Get the keys that encrypt and sign the secret data.
+ *
+ * In the DEK layout, the secret data lives in its own metadata namespace, encrypted with the
+ * derived data encryption key and signed with the derived data authentication key pair.
+ * In the legacy layout, the secret data uses the TOPRF keys.
+ *
+ * @param params - The TOPRF keys and the optional data encryption seed.
+ * @param params.encKey - The TOPRF encryption key.
+ * @param params.authKeyPair - The TOPRF authentication key pair.
+ * @param params.dataEncryptionSeed - The data encryption seed, if the DEK layout is in use.
+ * @returns The encryption key and authentication key pair for the secret data.
+ */
+async function getSecretDataKeys({
+  encKey,
+  authKeyPair,
+  dataEncryptionSeed,
+}: {
+  encKey: Uint8Array;
+  authKeyPair: KeyPair;
+  dataEncryptionSeed?: Uint8Array<ArrayBuffer>;
+}): Promise<{ encKey: Uint8Array; authKeyPair: KeyPair }> {
+  if (!dataEncryptionSeed) {
+    return { encKey, authKeyPair };
+  }
+  const { dataEncryptionKey, dataAuthKeyPair } =
+    await deriveDataKeys(dataEncryptionSeed);
+  return { encKey: dataEncryptionKey, authKeyPair: dataAuthKeyPair };
+}
+
+/**
+ * Find the data encryption seed among the items of the TOPRF namespace.
+ *
+ * @param items - The fetched and decrypted items of the TOPRF namespace.
+ * @returns The seed, or `undefined` if the secret data is in the legacy layout.
+ * @throws If the seed has an unexpected length.
+ */
+function parseDataEncryptionSeed(
+  items: FetchedSecretDataItem[],
+): Uint8Array<ArrayBuffer> | undefined {
+  const seedItem = items.find(isDataEncryptionSeedItem);
+  if (!seedItem) {
+    return undefined;
+  }
+  if (seedItem.data.length !== DATA_ENCRYPTION_SEED_LENGTH) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidDataEncryptionSeed,
+    );
+  }
+  return seedItem.data as Uint8Array<ArrayBuffer>;
+}
+
+/**
+ * Build the items for a key change in the legacy layout: sorts the secret data.
+ *
+ * The seed item is not secret metadata, so it is excluded from the sort. It is
+ * re-stored under its `itemId` so that the DEK layout can still detect it.
+ *
+ * @param items - The fetched and decrypted items.
+ * @returns The items to re-store with the new keys.
+ */
+function transformLegacyDataItems(items: FetchedSecretDataItem[]): {
+  data: Uint8Array;
+  itemId?: string;
+  dataType?: EncAccountDataType;
+  version: 'v1' | 'v2';
+}[] {
+  const secretItems = items
+    .filter((item) => !isDataEncryptionSeedItem(item))
+    .sort((a, b) =>
+      SecretMetadata.compare(
+        SecretMetadata.fromRawMetadata(a.data, { dataType: a.dataType }),
+        SecretMetadata.fromRawMetadata(b.data, { dataType: b.dataType }),
+        'asc',
+      ),
+    )
+    .map(({ data, dataType, version }) => ({
+      data,
+      dataType,
+      version: dataType === undefined ? ('v1' as const) : version,
+    }));
+  const seedItems = items.filter(isDataEncryptionSeedItem).map(({ data }) => ({
+    data,
+    itemId: DATA_ENCRYPTION_SEED_ITEM_ID,
+    version: 'v1' as const,
+  }));
+  return [...secretItems, ...seedItems];
+}
+
+/**
+ * Build the TOPRF namespace items for a key change in the DEK layout: only the seed item.
+ *
+ * The seed has no `dataType`, so it is stored as a `v1` item (the SDK requires a `dataType`
+ * for `v2` items). The secret data lives in its own namespace and is not touched.
+ *
+ * @param dataEncryptionSeed - The data encryption seed.
+ * @returns The seed item to re-store with the new keys.
+ */
+function getDataEncryptionSeedItems(
+  dataEncryptionSeed: Uint8Array<ArrayBuffer>,
+): { data: Uint8Array; itemId: string; version: 'v1' }[] {
+  return [
+    {
+      data: dataEncryptionSeed,
+      itemId: DATA_ENCRYPTION_SEED_ITEM_ID,
+      version: 'v1',
+    },
+  ];
+}
+
 const MESSENGER_EXPOSED_METHODS = [
   'fetchMetadataAccessCreds',
   'preloadToprfNodeDetails',
@@ -127,6 +244,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkMetadataAccessTokenExpired',
   'checkAccessTokenExpired',
   'runMigrations',
+  'setMfaRecoveryEnabled',
 ] as const;
 
 export class SeedlessOnboardingController<
@@ -400,12 +518,39 @@ export class SeedlessOnboardingController<
           password,
         });
       const performKeyCreationAndBackup = async (): Promise<void> => {
+        // In the DEK layout, a random data encryption seed is stored encrypted with the TOPRF
+        // encryption key, and the secret data is stored in its own namespace with the keys
+        // derived from the seed. Reuse an existing seed item if a previous attempt
+        // (e.g. retried after token refresh) already stored one.
+        let dataEncryptionSeed: Uint8Array<ArrayBuffer> | undefined;
+        if (this.state.isMfaRecoveryEnabled) {
+          dataEncryptionSeed = await this.#fetchDataEncryptionSeed(
+            encKey,
+            authKeyPair,
+          );
+          if (!dataEncryptionSeed) {
+            dataEncryptionSeed = generateDataEncryptionSeed();
+            await this.toprfClient.addSecretDataItem({
+              encKey,
+              secretData: dataEncryptionSeed,
+              authKeyPair,
+              itemId: DATA_ENCRYPTION_SEED_ITEM_ID,
+              version: 'v1',
+            });
+          }
+        }
+
         // encrypt and store the secret data
+        const secretDataKeys = await getSecretDataKeys({
+          encKey,
+          authKeyPair,
+          dataEncryptionSeed,
+        });
         const secretMetadata = await this.#encryptAndStoreSecretData({
           data: seedPhrase,
           dataType: EncAccountDataType.PrimarySrp,
-          encKey,
-          authKeyPair,
+          encKey: secretDataKeys.encKey,
+          authKeyPair: secretDataKeys.authKeyPair,
           options: {
             keyringId,
           },
@@ -424,10 +569,15 @@ export class SeedlessOnboardingController<
           rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
           rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: authKeyPair,
+          rawDataEncryptionSeed: dataEncryptionSeed,
         });
 
         // Mark migration as complete since this new backup was created with the new data format (dataType)
-        this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
+        if (dataEncryptionSeed) {
+          this.#markDekLayout();
+        } else {
+          this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
+        }
 
         // Persist local backup state after all operations succeed.
         this.#filterDupesAndUpdateSocialBackupsMetadata({
@@ -476,15 +626,22 @@ export class SeedlessOnboardingController<
         });
 
         // verify the password and unlock the vault
-        const { toprfEncryptionKey, toprfAuthKeyPair } =
-          await this.#unlockVaultAndGetVaultData();
+        const vaultData = await this.#unlockVaultAndGetVaultData();
+        const { toprfEncryptionKey, toprfAuthKeyPair } = vaultData;
+        const dataEncryptionSeed =
+          await this.#adoptDataEncryptionSeed(vaultData);
 
         // encrypt and store the secret data
+        const secretDataKeys = await getSecretDataKeys({
+          encKey: toprfEncryptionKey,
+          authKeyPair: toprfAuthKeyPair,
+          dataEncryptionSeed,
+        });
         await this.#encryptAndStoreSecretData({
           data,
           dataType,
-          encKey: toprfEncryptionKey,
-          authKeyPair: toprfAuthKeyPair,
+          encKey: secretDataKeys.encKey,
+          authKeyPair: secretDataKeys.authKeyPair,
           options,
         });
       };
@@ -515,11 +672,223 @@ export class SeedlessOnboardingController<
         skipLock: true, // skip lock since we already have the lock
       });
 
+      let migrated = false;
       if (this.state.migrationVersion < SeedlessOnboardingMigrationVersion.V1) {
-        return this.#migrateDataTypes();
+        migrated = await this.#migrateDataTypes();
       }
-      return false;
+
+      // The DEK layout migration only runs when MFA recovery is enabled.
+      if (
+        this.state.isMfaRecoveryEnabled &&
+        this.state.migrationVersion < SeedlessOnboardingMigrationVersion.V2
+      ) {
+        const migratedToDek = await this.#migrateToDataEncryptionKey();
+        migrated = migrated || migratedToDek;
+      }
+
+      return migrated;
     });
+  }
+
+  /**
+   * Enable or disable the MFA recovery (data encryption key layer) for this client.
+   *
+   * @param enabled - Whether MFA recovery is enabled.
+   */
+  setMfaRecoveryEnabled(enabled: boolean): void {
+    this.update((state) => {
+      state.isMfaRecoveryEnabled = enabled;
+    });
+  }
+
+  /**
+   * Mark the controller as using the DEK layout.
+   */
+  #markDekLayout(): void {
+    this.update((state) => {
+      state.isMfaRecoveryEnabled = true;
+      state.migrationVersion = Math.max(
+        state.migrationVersion,
+        SeedlessOnboardingMigrationVersion.V2,
+      );
+    });
+  }
+
+  /**
+   * Fetch and decrypt the items of the TOPRF namespace.
+   *
+   * @param params - The parameters for fetching the items.
+   * @param params.encKey - The TOPRF encryption key.
+   * @param params.authKeyPair - The TOPRF authentication key pair.
+   * @returns The decrypted items of the namespace.
+   */
+  async #fetchSecretDataItems({
+    encKey,
+    authKeyPair,
+  }: {
+    encKey: Uint8Array;
+    authKeyPair: KeyPair;
+  }): Promise<FetchedSecretDataItem[]> {
+    try {
+      return await this.toprfClient.fetchAllSecretDataItems({
+        decKey: encKey,
+        authKeyPair,
+      });
+    } catch (error) {
+      log('Error fetching secret data', error);
+      if (isAuthTokenError(error)) {
+        throw error;
+      }
+      throw new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
+        { cause: error },
+      );
+    }
+  }
+
+  /**
+   * Fetch and decrypt the data encryption seed, which is stored in the TOPRF namespace.
+   *
+   * @param encKey - The TOPRF encryption key.
+   * @param authKeyPair - The TOPRF authentication key pair.
+   * @returns The seed, or `undefined` if the secret data is in the legacy layout.
+   */
+  async #fetchDataEncryptionSeed(
+    encKey: Uint8Array,
+    authKeyPair: KeyPair,
+  ): Promise<Uint8Array<ArrayBuffer> | undefined> {
+    const items = await this.#fetchSecretDataItems({ encKey, authKeyPair });
+    return parseDataEncryptionSeed(items);
+  }
+
+  /**
+   * Get the data encryption seed for the vault. If the vault does not have one yet, adopt
+   * the seed stored in the TOPRF namespace, which another device may have written during
+   * its migration, and update the vault to the DEK layout.
+   *
+   * @param vaultData - The decrypted vault data.
+   * @returns The seed, or `undefined` if the secret data is in the legacy layout.
+   */
+  async #adoptDataEncryptionSeed(
+    vaultData: DeserializedVaultData,
+  ): Promise<Uint8Array<ArrayBuffer> | undefined> {
+    if (vaultData.dataEncryptionSeed) {
+      return vaultData.dataEncryptionSeed;
+    }
+    const dataEncryptionSeed = await this.#fetchDataEncryptionSeed(
+      vaultData.toprfEncryptionKey,
+      vaultData.toprfAuthKeyPair,
+    );
+    if (!dataEncryptionSeed) {
+      return undefined;
+    }
+    await this.#updateVault({
+      vaultData: { ...vaultData, dataEncryptionSeed },
+      pwEncKey: vaultData.toprfPwEncryptionKey,
+    });
+    this.#markDekLayout();
+    return dataEncryptionSeed;
+  }
+
+  /**
+   * Migrate the secret data to the DEK layout without changing the TOPRF key.
+   *
+   * Copies the legacy secret data into the data namespace, encrypted with the keys derived
+   * from a new data encryption seed, and then stores the seed in the TOPRF namespace. The
+   * legacy items stay in the TOPRF namespace; they are ignored once the seed is present.
+   * If another device stores a different seed meanwhile, that seed is adopted instead.
+   *
+   * @returns `true` if the secret data was migrated, `false` if the DEK layout was already in use.
+   */
+  async #migrateToDataEncryptionKey(): Promise<boolean> {
+    return await this.#executeWithTokenRefresh(async () => {
+      this.#assertIsAuthenticatedUser(this.state);
+      await this.#assertPasswordInSync({
+        skipCache: true,
+        skipLock: true,
+      });
+      const vaultData = await this.#unlockVaultAndGetVaultData();
+      const { toprfEncryptionKey, toprfAuthKeyPair, toprfPwEncryptionKey } =
+        vaultData;
+
+      // Another device may have migrated already; adopt the seed it stored.
+      if (await this.#adoptDataEncryptionSeed(vaultData)) {
+        return false;
+      }
+
+      const dataEncryptionSeed = generateDataEncryptionSeed();
+      const copyToDataNamespace = async (
+        items: FetchedSecretDataItem[],
+      ): Promise<void> => {
+        const secretData = transformLegacyDataItems(items);
+        if (secretData.length === 0) {
+          return;
+        }
+        const secretDataKeys = await getSecretDataKeys({
+          encKey: toprfEncryptionKey,
+          authKeyPair: toprfAuthKeyPair,
+          dataEncryptionSeed,
+        });
+        await this.toprfClient.batchAddSecretDataItems({
+          secretData,
+          encKey: secretDataKeys.encKey,
+          authKeyPair: secretDataKeys.authKeyPair,
+        });
+      };
+
+      // Copy the data before storing the seed, so any reader that finds the seed also finds the data.
+      const legacyItems = await this.#fetchSecretDataItems({
+        encKey: toprfEncryptionKey,
+        authKeyPair: toprfAuthKeyPair,
+      });
+      await copyToDataNamespace(legacyItems);
+
+      await this.toprfClient.addSecretDataItem({
+        encKey: toprfEncryptionKey,
+        secretData: dataEncryptionSeed,
+        authKeyPair: toprfAuthKeyPair,
+        itemId: DATA_ENCRYPTION_SEED_ITEM_ID,
+        version: 'v1',
+      });
+
+      // Re-check the TOPRF namespace: another device may have stored its own seed meanwhile.
+      const storedItems = await this.#fetchSecretDataItems({
+        encKey: toprfEncryptionKey,
+        authKeyPair: toprfAuthKeyPair,
+      });
+      const storedSeed = parseDataEncryptionSeed(storedItems);
+      if (
+        storedSeed &&
+        bytesToBase64(storedSeed) !== bytesToBase64(dataEncryptionSeed)
+      ) {
+        await this.#updateVault({
+          vaultData: { ...vaultData, dataEncryptionSeed: storedSeed },
+          pwEncKey: toprfPwEncryptionKey,
+        });
+        this.#markDekLayout();
+        return false;
+      }
+
+      // Copy the legacy items that were added while the migration ran.
+      const copiedItemIds = new Set(
+        legacyItems
+          .filter((item) => !isDataEncryptionSeedItem(item))
+          .map((item) => item.itemId),
+      );
+      await copyToDataNamespace(
+        storedItems.filter(
+          (item) =>
+            !isDataEncryptionSeedItem(item) && !copiedItemIds.has(item.itemId),
+        ),
+      );
+
+      await this.#updateVault({
+        vaultData: { ...vaultData, dataEncryptionSeed },
+        pwEncKey: toprfPwEncryptionKey,
+      });
+      this.#markDekLayout();
+      return true;
+    }, 'migrateToDataEncryptionKey');
   }
 
   /**
@@ -555,15 +924,19 @@ export class SeedlessOnboardingController<
    */
   async #migrateDataTypes(): Promise<boolean> {
     return await this.#executeWithTokenRefresh(async () => {
-      const { toprfEncryptionKey, toprfAuthKeyPair } =
-        await this.#unlockVaultAndGetVaultData();
+      const vaultData = await this.#unlockVaultAndGetVaultData();
+      const { toprfEncryptionKey, toprfAuthKeyPair } = vaultData;
+      const dataEncryptionSeed = await this.#adoptDataEncryptionSeed(vaultData);
+      const secretDataKeys = await getSecretDataKeys({
+        encKey: toprfEncryptionKey,
+        authKeyPair: toprfAuthKeyPair,
+        dataEncryptionSeed,
+      });
 
       let secretDatas: SecretMetadata[];
       try {
-        secretDatas = await this.#fetchAllSecretDataFromMetadataStore(
-          toprfEncryptionKey,
-          toprfAuthKeyPair,
-        );
+        secretDatas =
+          await this.#fetchAllSecretDataFromMetadataStore(secretDataKeys);
       } catch (error) {
         // If no secret data found, just update migration version
         if (
@@ -583,12 +956,12 @@ export class SeedlessOnboardingController<
         await this.toprfClient.updateSecretDataItem({
           itemId: updates[0].itemId,
           dataType: updates[0].dataType,
-          authKeyPair: toprfAuthKeyPair,
+          authKeyPair: secretDataKeys.authKeyPair,
         });
       } else if (updates.length > 1) {
         await this.toprfClient.batchUpdateSecretDataItems({
           updateItems: updates,
-          authKeyPair: toprfAuthKeyPair,
+          authKeyPair: secretDataKeys.authKeyPair,
         });
       }
 
@@ -626,12 +999,17 @@ export class SeedlessOnboardingController<
         let encKey: Uint8Array;
         let pwEncKey: Uint8Array;
         let authKeyPair: KeyPair;
+        let dataEncryptionSeed: Uint8Array<ArrayBuffer> | undefined;
 
         if (password) {
           const recoverEncKeyResult = await this.#recoverEncKey(password);
           encKey = recoverEncKeyResult.encKey;
           pwEncKey = recoverEncKeyResult.pwEncKey;
           authKeyPair = recoverEncKeyResult.authKeyPair;
+          dataEncryptionSeed = await this.#fetchDataEncryptionSeed(
+            encKey,
+            authKeyPair,
+          );
         } else {
           this.#assertIsUnlocked();
           // verify the password and unlock the vault
@@ -639,20 +1017,26 @@ export class SeedlessOnboardingController<
           encKey = keysFromVault.toprfEncryptionKey;
           pwEncKey = keysFromVault.toprfPwEncryptionKey;
           authKeyPair = keysFromVault.toprfAuthKeyPair;
+          dataEncryptionSeed =
+            await this.#adoptDataEncryptionSeed(keysFromVault);
         }
 
+        // Use the keys derived from the data encryption seed when it exists, otherwise the TOPRF keys.
         const secrets = await this.#fetchAllSecretDataFromMetadataStore(
-          encKey,
-          authKeyPair,
+          await getSecretDataKeys({ encKey, authKeyPair, dataEncryptionSeed }),
         );
 
         if (password) {
+          if (dataEncryptionSeed) {
+            this.#markDekLayout();
+          }
           // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
           await this.#createNewVaultWithAuthData({
             password,
             rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
             rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
             rawToprfAuthKeyPair: authKeyPair,
+            rawDataEncryptionSeed: dataEncryptionSeed,
           });
         }
 
@@ -697,6 +1081,7 @@ export class SeedlessOnboardingController<
           encKey: newEncKey,
           pwEncKey: newPwEncKey,
           authKeyPair: newAuthKeyPair,
+          dataEncryptionSeed,
         } = await this.#changeEncryptionKey({
           oldPassword,
           newPassword,
@@ -709,6 +1094,7 @@ export class SeedlessOnboardingController<
           rawToprfEncryptionKey: newEncKey as Uint8Array<ArrayBuffer>,
           rawToprfPwEncryptionKey: newPwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: newAuthKeyPair,
+          rawDataEncryptionSeed: dataEncryptionSeed,
         });
 
         this.#resetPasswordOutdatedCache();
@@ -903,12 +1289,20 @@ export class SeedlessOnboardingController<
         // update vault with latest globalPassword
         const { encKey, pwEncKey, authKeyPair } =
           await this.#recoverEncKey(globalPassword);
+        const dataEncryptionSeed = await this.#fetchDataEncryptionSeed(
+          encKey,
+          authKeyPair,
+        );
+        if (dataEncryptionSeed) {
+          this.#markDekLayout();
+        }
         // update and encrypt the vault with new password
         await this.#createNewVaultWithAuthData({
           password: globalPassword,
           rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
           rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: authKeyPair,
+          rawDataEncryptionSeed: dataEncryptionSeed,
         });
 
         this.#resetPasswordOutdatedCache();
@@ -968,8 +1362,11 @@ export class SeedlessOnboardingController<
     globalPassword: string;
     maxKeyChainLength: number;
   }): Promise<void> {
-    const { pwEncKey: globalPwEncKey, authKeyPair: globalAuthKeyPair } =
-      await this.#recoverEncKey(globalPassword);
+    const {
+      encKey: globalEncKey,
+      pwEncKey: globalPwEncKey,
+      authKeyPair: globalAuthKeyPair,
+    } = await this.#recoverEncKey(globalPassword);
 
     try {
       // Recover vault encryption key.
@@ -992,6 +1389,24 @@ export class SeedlessOnboardingController<
       const decryptedVaultData = await this.#unlockVaultAndGetVaultData({
         encryptionKey: vaultKey,
       });
+
+      // If the global password's secret data is in the DEK layout, keep the vault's seed in sync
+      // so that subsequent secret data operations use the derived keys.
+      const dataEncryptionSeed = await this.#fetchDataEncryptionSeed(
+        globalEncKey,
+        globalAuthKeyPair,
+      );
+      if (dataEncryptionSeed) {
+        // Persist the seed with the global password's keys, the same way `syncLatestGlobalPassword` does.
+        this.#markDekLayout();
+        await this.#createNewVaultWithAuthData({
+          password: globalPassword,
+          rawToprfEncryptionKey: globalEncKey as Uint8Array<ArrayBuffer>,
+          rawToprfPwEncryptionKey: globalPwEncKey as Uint8Array<ArrayBuffer>,
+          rawToprfAuthKeyPair: globalAuthKeyPair,
+          rawDataEncryptionSeed: dataEncryptionSeed,
+        });
+      }
       this.#setUnlocked();
 
       // Pick the latest access token - the token from state might be newer (from refreshAuthTokens)
@@ -1349,29 +1764,22 @@ export class SeedlessOnboardingController<
     }
   }
 
-  async #fetchAllSecretDataFromMetadataStore(
-    encKey: Uint8Array,
-    authKeyPair: KeyPair,
-  ): Promise<SecretMetadata[]> {
-    let secretDataItems: FetchedSecretDataItem[] = [];
-    try {
-      // fetch and decrypt the secret data from the metadata store
-      secretDataItems = await this.toprfClient.fetchAllSecretDataItems({
-        decKey: encKey,
-        authKeyPair,
-      });
-    } catch (error) {
-      log('Error fetching secret data', error);
-      if (isAuthTokenError(error)) {
-        throw error;
-      }
-      throw new SeedlessOnboardingError(
-        SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
-        {
-          cause: error,
-        },
-      );
-    }
+  /**
+   * Fetch the secret data items and parse them into secret metadata.
+   *
+   * The caller passes the keys that encrypt and sign the secret data, which are derived
+   * from the data encryption seed in the DEK layout or are the TOPRF keys otherwise.
+   *
+   * @param secretDataKeys - The encryption key and authentication key pair for the secret data.
+   * @param secretDataKeys.encKey - The encryption key for the secret data.
+   * @param secretDataKeys.authKeyPair - The authentication key pair for the secret data.
+   * @returns The parsed secret metadata, sorted with the primary SRP first.
+   */
+  async #fetchAllSecretDataFromMetadataStore(secretDataKeys: {
+    encKey: Uint8Array;
+    authKeyPair: KeyPair;
+  }): Promise<SecretMetadata[]> {
+    const secretDataItems = await this.#fetchSecretDataItems(secretDataKeys);
 
     // user must have at least one secret data
     if (secretDataItems?.length > 0) {
@@ -1398,20 +1806,30 @@ export class SeedlessOnboardingController<
     newPassword: string;
     oldPassword: string;
     latestKeyIndex?: number;
-  }): Promise<ChangeEncryptionKeyResult> {
+  }): Promise<
+    ChangeEncryptionKeyResult & {
+      dataEncryptionSeed?: Uint8Array<ArrayBuffer>;
+    }
+  > {
     this.#assertIsAuthenticatedUser(this.state);
     const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
 
     let encKey: Uint8Array;
     let pwEncKey: Uint8Array;
     let authKeyPair: KeyPair;
+    let dataEncryptionSeed: Uint8Array<ArrayBuffer> | undefined;
     let globalKeyIndex = latestKeyIndex;
     if (globalKeyIndex) {
+      const vaultData = await this.#unlockVaultAndGetVaultData({
+        password: oldPassword,
+      });
       ({
         toprfEncryptionKey: encKey,
         toprfPwEncryptionKey: pwEncKey,
         toprfAuthKeyPair: authKeyPair,
-      } = await this.#unlockVaultAndGetVaultData({ password: oldPassword }));
+      } = vaultData);
+      // The vault holds the seed for these keys, so read it from state.
+      dataEncryptionSeed = await this.#adoptDataEncryptionSeed(vaultData);
     } else {
       ({
         encKey,
@@ -1419,7 +1837,14 @@ export class SeedlessOnboardingController<
         authKeyPair,
         keyShareIndex: globalKeyIndex,
       } = await this.#recoverEncKey(oldPassword));
+      // The vault may not match the recovered keys, so read the seed from the TOPRF namespace.
+      dataEncryptionSeed = await this.#fetchDataEncryptionSeed(
+        encKey,
+        authKeyPair,
+      );
     }
+    // In the DEK layout, only the seed is re-encrypted; the secret data keeps its derived keys.
+
     const result = await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
       authConnectionId,
@@ -1431,21 +1856,11 @@ export class SeedlessOnboardingController<
       newKeyShareIndex: globalKeyIndex,
       newPassword,
       transformDataItems: (items) =>
-        items
-          .sort((a, b) =>
-            SecretMetadata.compare(
-              SecretMetadata.fromRawMetadata(a.data, { dataType: a.dataType }),
-              SecretMetadata.fromRawMetadata(b.data, { dataType: b.dataType }),
-              'asc',
-            ),
-          )
-          .map(({ data, dataType, version }) => ({
-            data,
-            dataType,
-            version: dataType === undefined ? 'v1' : version,
-          })),
+        dataEncryptionSeed
+          ? getDataEncryptionSeedItems(dataEncryptionSeed)
+          : transformLegacyDataItems(items),
     });
-    return result;
+    return { ...result, dataEncryptionSeed };
   }
 
   /**
@@ -1719,17 +2134,20 @@ export class SeedlessOnboardingController<
    * @param params.rawToprfEncryptionKey - The encryption key to encrypt the vault.
    * @param params.rawToprfPwEncryptionKey - The encryption key to encrypt the password.
    * @param params.rawToprfAuthKeyPair - The authentication key pair for Toprf operations.
+   * @param params.rawDataEncryptionSeed - The optional data encryption seed (DEK layout) to store in the vault.
    */
   async #createNewVaultWithAuthData({
     password,
     rawToprfEncryptionKey,
     rawToprfPwEncryptionKey,
     rawToprfAuthKeyPair,
+    rawDataEncryptionSeed,
   }: {
     password: string;
     rawToprfEncryptionKey: Uint8Array<ArrayBuffer>;
     rawToprfPwEncryptionKey: Uint8Array<ArrayBuffer>;
     rawToprfAuthKeyPair: KeyPair;
+    rawDataEncryptionSeed?: Uint8Array<ArrayBuffer>;
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
@@ -1742,6 +2160,7 @@ export class SeedlessOnboardingController<
       toprfPwEncryptionKey: rawToprfPwEncryptionKey,
       revokeToken,
       accessToken,
+      dataEncryptionSeed: rawDataEncryptionSeed,
     };
 
     await this.#updateVault({
@@ -2481,11 +2900,17 @@ export class SeedlessOnboardingController<
       this.#cachedDecryptedVaultData as DeserializedVaultData;
 
     await trackIncompleteMetadataBackupEvents({
-      fetchAllSecretDataFn: () =>
-        this.toprfClient.fetchAllSecretDataItems({
-          decKey: deserializedVaultData.toprfEncryptionKey,
+      fetchAllSecretDataFn: async () => {
+        const secretDataKeys = await getSecretDataKeys({
+          encKey: deserializedVaultData.toprfEncryptionKey,
           authKeyPair: deserializedVaultData.toprfAuthKeyPair,
-        }),
+          dataEncryptionSeed: deserializedVaultData.dataEncryptionSeed,
+        });
+        return this.toprfClient.fetchAllSecretDataItems({
+          decKey: secretDataKeys.encKey,
+          authKeyPair: secretDataKeys.authKeyPair,
+        });
+      },
       getPrimaryKeyringSeedPhraseFn: () =>
         this.messenger.call('KeyringController:exportSeedPhrase', {
           password,

@@ -77,6 +77,9 @@ export function serializeVaultData(data: DeserializedVaultData): string {
     toprfAuthKeyPair,
     revokeToken: data.revokeToken,
     accessToken: data.accessToken,
+    ...(data.dataEncryptionSeed
+      ? { dataEncryptionSeed: bytesToBase64(data.dataEncryptionSeed) }
+      : {}),
   });
 }
 
@@ -90,12 +93,16 @@ export function deserializeVaultData(value: VaultData): DeserializedVaultData {
   const toprfEncryptionKey = base64ToBytes(value.toprfEncryptionKey);
   const toprfPwEncryptionKey = base64ToBytes(value.toprfPwEncryptionKey);
   const toprfAuthKeyPair = deserializeAuthKeyPair(value.toprfAuthKeyPair);
+  const dataEncryptionSeed = value.dataEncryptionSeed
+    ? base64ToBytes(value.dataEncryptionSeed)
+    : undefined;
 
   return {
     ...value,
     toprfEncryptionKey,
     toprfPwEncryptionKey,
     toprfAuthKeyPair,
+    dataEncryptionSeed,
   };
 }
 

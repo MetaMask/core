@@ -190,6 +190,13 @@ export type SeedlessOnboardingControllerState =
        * Used to prevent re-running migrations.
        */
       migrationVersion: number;
+
+      /**
+       * Whether the MFA recovery (data encryption key layer) is enabled for this client.
+       * When true, secret data is encrypted with a data encryption key (DEK), which is
+       * itself encrypted with the TOPRF encryption key.
+       */
+      isMfaRecoveryEnabled: boolean;
     };
 
 /**
@@ -271,6 +278,11 @@ export type VaultData = {
    * The access token used for pairing with profile sync auth service and to access other services.
    */
   accessToken: string;
+  /**
+   * The data encryption seed (base64), encrypted under the TOPRF encryption key.
+   * From it, the data encryption key and the data authentication key pair are derived. Only present in the DEK layout.
+   */
+  dataEncryptionSeed?: string;
 };
 
 export type DeserializedVaultData = Pick<
@@ -280,6 +292,7 @@ export type DeserializedVaultData = Pick<
   toprfEncryptionKey: Uint8Array<ArrayBuffer>;
   toprfPwEncryptionKey: Uint8Array<ArrayBuffer>;
   toprfAuthKeyPair: KeyPair;
+  dataEncryptionSeed?: Uint8Array<ArrayBuffer>;
 };
 
 export type SecretDataType = Uint8Array | string | number;

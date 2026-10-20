@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add an optional data encryption seed layer for MFA recovery. When enabled, a random seed is stored as a metadata item encrypted with the TOPRF encryption key, and secret data is stored in its own metadata namespace. The data is encrypted with a key and signed with an auth key pair, both derived from the seed.
+- Add `isMfaRecoveryEnabled` controller state, persisted across sessions, which indicates whether the DEK layer is in use.
+- Add `SeedlessOnboardingController:setMfaRecoveryEnabled` action, which sets `isMfaRecoveryEnabled`.
+- Add migration version `V2`, which copies existing secret data into the data namespace and then stores the seed in the TOPRF namespace. The TOPRF key is not changed, so no password is required.
+- Secret data operations (`addNewSecretData`, `fetchAllSecretData`, and the migrations) adopt the seed from the TOPRF namespace when the vault does not have one yet, so a device that was not migrated switches to the DEK layout.
+
 ### Changed
 
+- `changePassword`, `syncLatestGlobalPassword`, and `submitGlobalPassword` handle the DEK layout, and `syncLatestGlobalPassword` and `submitGlobalPassword` set `isMfaRecoveryEnabled` when the global password's secret data uses the DEK layout.
 - Replace JS AES implementation with `@metamask/cryptography` ([#10659](https://github.com/MetaMask/core/pull/10659))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))

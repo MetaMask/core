@@ -89,6 +89,16 @@ export type SeedlessOnboardingControllerRunMigrationsAction = {
 };
 
 /**
+ * Enable or disable the MFA recovery (data encryption key layer) for this client.
+ *
+ * @param enabled - Whether MFA recovery is enabled.
+ */
+export type SeedlessOnboardingControllerSetMfaRecoveryEnabledAction = {
+  type: `SeedlessOnboardingController:setMfaRecoveryEnabled`;
+  handler: SeedlessOnboardingController['setMfaRecoveryEnabled'];
+};
+
+/**
  * Fetches all secret data items from the metadata store.
  *
  * Decrypts the secret data and returns the decrypted secret data using the recovered encryption key from the password.
@@ -384,6 +394,7 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerCreateToprfKeyAndBackupSeedPhraseAction
   | SeedlessOnboardingControllerAddNewSecretDataAction
   | SeedlessOnboardingControllerRunMigrationsAction
+  | SeedlessOnboardingControllerSetMfaRecoveryEnabledAction
   | SeedlessOnboardingControllerFetchAllSecretDataAction
   | SeedlessOnboardingControllerChangePasswordAction
   | SeedlessOnboardingControllerUpdateBackupMetadataStateAction
