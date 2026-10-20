@@ -347,6 +347,8 @@
     "./types",
     "./scripts",
     "./codeowners.ts",
-    "./knip.config.mts"
+    "./knip.config.mts",
+    "./vitest.config.packages.ts",
+    "./packages/*/vitest.config.ts"
   ]
 }

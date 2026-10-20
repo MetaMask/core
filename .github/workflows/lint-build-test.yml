@@ -88,7 +88,6 @@ jobs:
           - lint:misc:check
           - lint:teams
           - lint:tsc:check
-          - lint:tsc:vitest
           - lint:tsconfigs:all
           - messenger-action-types:check
           - readme-content:check
