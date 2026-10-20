@@ -1,4 +1,6 @@
 import { string, assert as superstructAssert } from '@metamask/superstruct';
+import type { MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   assert,
@@ -7,9 +9,9 @@ import {
   assertStruct,
 } from './assert.js';
 
-jest.mock('@metamask/superstruct', () => ({
-  ...jest.requireActual('@metamask/superstruct'),
-  assert: jest.fn(),
+vi.mock(import('@metamask/superstruct'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  assert: vi.fn(),
 }));
 
 describe('assert', () => {
@@ -49,10 +51,12 @@ describe('assertExhaustive', () => {
 });
 
 describe('assertStruct', () => {
-  beforeEach(() => {
-    const actual = jest.requireActual('@metamask/superstruct');
+  beforeEach(async () => {
+    const actual = await vi.importActual<
+      typeof import('@metamask/superstruct')
+    >('@metamask/superstruct');
     (
-      superstructAssert as jest.MockedFunction<typeof superstructAssert>
+      superstructAssert as MockedFunction<typeof superstructAssert>
     ).mockImplementation(actual.assert);
   });
 
@@ -110,7 +114,7 @@ describe('assertStruct', () => {
 
   it('includes the value thrown in the message if it is not an error', () => {
     (
-      superstructAssert as jest.MockedFunction<typeof superstructAssert>
+      superstructAssert as MockedFunction<typeof superstructAssert>
     ).mockImplementation(() => {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw 'foo.';

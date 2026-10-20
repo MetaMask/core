@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { RuntimeObject } from './index.js';
 import {
   isNonEmptyArray,
@@ -157,10 +159,14 @@ describe('miscellaneous', () => {
     });
 
     it('should return false if an exception is thrown', () => {
-      const someObject = { something: 'anything' };
-      jest.spyOn(Object, 'getPrototypeOf').mockImplementationOnce(() => {
-        throw new Error();
-      });
+      const someObject = new Proxy(
+        { something: 'anything' },
+        {
+          getPrototypeOf(): never {
+            throw new Error();
+          },
+        },
+      );
 
       expect(isPlainObject(someObject)).toBe(false);
     });
