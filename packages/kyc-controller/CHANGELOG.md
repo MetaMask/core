@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `partnerIdentityToken` to `CreateUkycSessionParams`; `KycService.createUkycSession` sends it on `POST /sessions` when provided ([#10872](https://github.com/MetaMask/core/pull/10872))
   - `KycController.startSession` now forwards the partner identity token minted for the selected vendor when creating a UKYC session
 
+### Changed
+
+- Cache successful `KycService.fetchIdosEnclaveJwks` and `KycService.fetchIdosRelayJwks` responses in the service query cache for 24 hours ([#10894](https://github.com/MetaMask/core/pull/10894))
+  - `KycService:invalidateQueries` drops the cached keys
+
 ## [0.11.0]
 
 ### Changed

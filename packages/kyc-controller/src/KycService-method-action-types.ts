@@ -128,7 +128,8 @@ export type KycServiceSubmitSessionDisclaimersAction = {
  * {@link KycService.createUkycSession}.
  *
  * This is an unauthenticated request to a well-known path on the idOS enclave
- * host, distinct from the UKYC base URL.
+ * host, distinct from the UKYC base URL. A successful response is cached in
+ * the service query cache for 24 hours.
  *
  * @returns The JWKS keys.
  */
@@ -142,7 +143,8 @@ export type KycServiceFetchIdosEnclaveJwksAction = {
  * schema's `jwtChain` from {@link KycService.createUkycSession}.
  *
  * This is an unauthenticated request to a well-known path on the idOS relay
- * host, distinct from both the UKYC base URL and the idOS enclave.
+ * host, distinct from both the UKYC base URL and the idOS enclave. A
+ * successful response is cached in the service query cache for 24 hours.
  *
  * @returns The JWKS keys.
  */
