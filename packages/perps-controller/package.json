@@ -89,7 +89,7 @@
     "@metamask/keyring-controller": "^28.2.0",
     "@metamask/keyring-internal-api": "^12.1.2",
     "@metamask/network-controller": "^37.1.0",
-    "@metamask/profile-sync-controller": "^34.0.3",
+    "@metamask/profile-sync-controller": "^34.1.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/subscription-controller": "^14.0.1",
     "@metamask/transaction-controller": "^72.2.1",
