@@ -87,6 +87,11 @@ export const hasNestedSwapTransactions = (txMeta: TransactionMeta) => {
   );
 };
 
+export const isAtomic7702BatchTx = (txMeta: TransactionMeta): boolean =>
+  txMeta.type === TransactionType.batch ||
+  hasNestedSwapTransactions(txMeta) ||
+  Boolean(txMeta.txParams?.authorizationList?.length);
+
 export const getGasFeeEstimates = async (
   messenger: BridgeStatusControllerMessenger,
   args: Parameters<TransactionController['estimateGasFee']>[0],
@@ -113,6 +118,15 @@ export const getTransactionMetaById = (
 ) => {
   return getTransactions(messenger).find(
     (tx: TransactionMeta) => tx.id === txId,
+  );
+};
+
+export const getTransactionMetaByActionId = (
+  messenger: BridgeStatusControllerMessenger,
+  actionId?: string,
+) => {
+  return getTransactions(messenger).find(
+    (tx: TransactionMeta) => tx.actionId === actionId,
   );
 };
 
@@ -584,15 +598,20 @@ export const updateTransactionsInBatch = ({
     const { txMeta, type } = tradeWithMetadata;
 
     if (txMeta) {
-      // Update the tx type from batch to swap/bridge
-      updateTransaction(
-        messenger,
-        txMeta,
-        { type },
-        `Update tx type to ${type}`,
-      );
-      const updatedTx = { ...txMeta, type };
-      return { ...tradeWithMetadata, txMeta: updatedTx, type };
+      try {
+        // Update the tx type from batch to swap/bridge
+        updateTransaction(
+          messenger,
+          txMeta,
+          { type },
+          `Update tx type to ${type}`,
+        );
+        const updatedTx = { ...txMeta, type };
+        return { ...tradeWithMetadata, txMeta: updatedTx, type };
+      } catch (error) {
+        console.warn(`Failed to update transaction type to ${type}`, error);
+        return tradeWithMetadata;
+      }
     }
 
     return tradeWithMetadata;

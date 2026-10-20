@@ -16,6 +16,7 @@ import type { Hex } from '@metamask/utils';
 
 import type { TraceName } from '../constants.js';
 import type {
+  BridgeHistoryItem,
   BridgeStatusControllerMessenger,
   FetchFunction,
   QuoteAndTxMetadata,
@@ -75,7 +76,10 @@ export type SubmitStepResult =
         /** Usually the txMeta.id of the `trade` transaction */
         newHistoryKey: string;
         /** The {@link TransactionMeta} for the `trade` transaction after it has been submitted successfully */
-        tradeMeta: TransactionMeta;
+        tradeMeta?: TransactionMeta;
+        historyItemOverrides?: Partial<
+          Pick<BridgeHistoryItem, 'approvalTxId' | 'quoteIds' | 'quote'>
+        >;
       };
     }
   | {

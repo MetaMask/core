@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.1]
+
+### Changed
+
+- Bump `@metamask/subscription-controller` from `^14.0.0` to `^14.0.1` ([#10896](https://github.com/MetaMask/core/pull/10896))
+
 ## [18.0.0]
 
 ### Added
@@ -373,7 +379,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.1...HEAD
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.0...@metamask/wallet@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.1.0...@metamask/wallet@18.0.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.0.0...@metamask/wallet@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.1...@metamask/wallet@17.0.0

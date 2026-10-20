@@ -136,6 +136,9 @@ const config = {
     'eip1193-permission-middleware': {
       teams: ['@MetaMask/core-platform'],
     },
+    'error-utils': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'eth-block-tracker': {
       teams: ['@MetaMask/core-platform'],
     },
@@ -383,6 +386,9 @@ const config = {
     },
     'transaction-pay-middleware': {
       teams: ['@MetaMask/confirmations'],
+    },
+    'type-utils': {
+      teams: ['@MetaMask/core-platform'],
     },
     'user-operation-controller': {
       teams: ['@MetaMask/confirmations'],
