@@ -7,7 +7,7 @@ import type {
   GasFeeToken,
   TransactionMeta,
 } from '../../../transaction-controller/src/index.js';
-import { getMessengerMock } from '../tests/messenger-mock.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { getFallbackGas, getGasBuffer } from './feature-flags.js';
 import {
   calculateGasCost,

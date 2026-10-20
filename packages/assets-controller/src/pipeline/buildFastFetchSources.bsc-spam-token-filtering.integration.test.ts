@@ -275,7 +275,7 @@ describe('assets pipeline (without graduation middleware only on v6 integration)
     return { source, requests };
   };
 
-  it.each([BALANCES, METADATA, DETECTED_ASSETS])(
+  it.each([BALANCES, METADATA])(
     '$surface - keeps the imported token despite a positive API balance and low occurrences',
     async ({ lookUp }) => {
       const response = await runPipeline(

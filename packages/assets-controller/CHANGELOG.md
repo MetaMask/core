@@ -13,11 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Remove `DetectionMiddleware`. `PriceDataSource` prices custom assets, balances, and metadata already in state plus balances on the current response, excluding hidden assets. `TokenDataSource` fetches metadata for state balances that have none and for response balances, and excludes hidden assets
+- **BREAKING:** Remove `DetectionMiddleware`. A balance refresh prices custom assets, balances, and metadata already in state plus balances on the current response only when they have no stored price, and excludes hidden assets. The price poll still refreshes stored prices. `TokenDataSource` fetches metadata for state balances that have none and for response balances, and excludes hidden assets
 - **BREAKING:** Remove `assetsForPriceUpdate` from `getAssets` options. Refresh an explicit asset list with `syncAssetsPrices` instead
-- Price enrichment relies on the price freshness cache to avoid redundant requests
+- A balance refresh skips tokens that already have a stored price. The price poll uses the freshness cache so a recent price is not requested again
 
-- Bump `@metamask/account-tree-controller` from `^11.0.1` to `^11.1.0` ([#10891](https://github.com/MetaMask/core/pull/10891))
+- Bump `@metamask/account-tree-controller` from `^11.0.1` to `^11.1.1` ([#10891](https://github.com/MetaMask/core/pull/10891), [#10925](https://github.com/MetaMask/core/pull/10925))
+- Bump `@metamask/assets-controllers` from `^112.1.2` to `^112.1.3` ([#10925](https://github.com/MetaMask/core/pull/10925))
 
 ## [19.1.0]
 

@@ -232,8 +232,8 @@ export class PriceDataSource {
    *
    * This middleware:
    * 1. Collects custom assets, balances, and metadata from state, plus response balances
-   * 2. Excludes hidden, non-priceable, and unsupported assets
-   * 3. Fetches stale prices according to the freshness cache
+   * 2. Excludes hidden, non-priceable, unsupported, and already-priced assets
+   * 3. Fetches the remaining prices, skipping any asked for within the freshness window
    * 4. Enriches the response and continues the middleware chain
    *
    * @returns The middleware function for the assets pipeline.
@@ -264,8 +264,18 @@ export class PriceDataSource {
         return next(ctx);
       }
 
+      const unpricedAssetIds =
+        this.#filterAssetsMissingPrice(supportedAssetIds);
+      if (unpricedAssetIds.length === 0) {
+        return next(ctx);
+      }
+
+      if (request.forceUpdate) {
+        this.#deduper.invalidateKeys(unpricedAssetIds);
+      }
+
       try {
-        const spotPrices = await this.#fetchSpotPrices(supportedAssetIds);
+        const spotPrices = await this.#fetchSpotPrices(unpricedAssetIds);
         response.assetsPrice = {
           ...(response.assetsPrice ?? {}),
           ...spotPrices,
@@ -542,6 +552,31 @@ export class PriceDataSource {
   }
 
   /**
+   * Keep asset IDs that have no stored price.
+   *
+   * A refresh only fills gaps. The price poll and `fetchAssetPrices` update
+   * prices that are already stored.
+   *
+   * @param assetIds - Normalized CAIP-19 asset IDs.
+   * @returns IDs with no entry in `assetsPrice`.
+   */
+  #filterAssetsMissingPrice(assetIds: Caip19AssetId[]): Caip19AssetId[] {
+    const storedPrices = this.#getAssetsState().assetsPrice ?? {};
+    const pricedIds = new Set<string>();
+    for (const assetId of Object.keys(storedPrices)) {
+      try {
+        pricedIds.add(
+          safeNormalizeAssetId(assetId as Caip19AssetId).toLowerCase(),
+        );
+      } catch {
+        pricedIds.add(assetId.toLowerCase());
+      }
+    }
+
+    return assetIds.filter((assetId) => !pricedIds.has(assetId.toLowerCase()));
+  }
+
+  /**
    * Price API networks supported by the v3 spot-prices endpoint
    * (`fullSupport` plus `partialSupport.spotPricesV3`).
    *
@@ -594,6 +629,8 @@ export class PriceDataSource {
   /**
    * Fetch prices for assets held by the accounts and chains in the request.
    * Reads asset IDs from balance state via the constructor `getAssetsState`.
+   * Unlike the middleware, this includes assets that already have a stored
+   * price so the poll can refresh them. The freshness cache skips recent ones.
    *
    * @param request - The data request specifying accounts and chains.
    * @returns DataResponse containing asset prices.

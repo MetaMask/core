@@ -136,6 +136,9 @@ const config = {
     'eip1193-permission-middleware': {
       teams: ['@MetaMask/core-platform'],
     },
+    'error-utils': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'eth-block-tracker': {
       teams: ['@MetaMask/core-platform'],
     },
@@ -252,6 +255,9 @@ const config = {
     },
     'network-enablement-controller': {
       teams: ['@MetaMask/metamask-assets'],
+    },
+    'node-utils': {
+      teams: ['@MetaMask/core-platform'],
     },
     'notification-services-controller': {
       teams: ['@MetaMask/engagement'],

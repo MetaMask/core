@@ -244,7 +244,7 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
         });
       });
 
-      it.each([BALANCES, METADATA, PRICES, DETECTED_ASSETS])(
+      it.each([BALANCES, METADATA, PRICES])(
         '$surface - present for the surfaced holdings after one pass',
         ({ lookUp }) => {
           expect(lookUp(result.response, ETH_ASSET_ID)).toBeDefined();
@@ -383,10 +383,8 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       ).toBeUndefined();
     });
 
-    it('refreshes the held token price through the freshness cache', () => {
-      expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
-        new Set([USDC_ASSET_ID_LOWERCASE]),
-      );
+    it('does not re-price the already-priced token', () => {
+      expect(result.mocks.priceAPI.priceBatches).toStrictEqual([]);
     });
 
     it('does not refetch metadata for the enriched token, only the native asset', () => {

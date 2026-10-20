@@ -331,6 +331,12 @@
     },
     {
       "path": "./packages/type-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/error-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/node-utils/tsconfig.lint.json"
     }
   ]
 }

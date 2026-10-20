@@ -1074,6 +1074,76 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
+  it('middleware does not fetch a token that already has a price', async () => {
+    const { controller, apiClient } = setupController({
+      getAssetsState: () =>
+        ({
+          assetsBalance: {
+            'mock-account-id': {
+              [MOCK_TOKEN_ASSET]: { amount: '1' },
+              [MOCK_NATIVE_ASSET]: { amount: '2' },
+            },
+          },
+          assetsPrice: {
+            [MOCK_TOKEN_ASSET]: { price: 1 },
+          },
+        }) as AssetsControllerState,
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+      },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET]: { amount: '1' },
+            [MOCK_NATIVE_ASSET]: { amount: '2' },
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [MOCK_NATIVE_ASSET],
+      { currency: 'usd', includeMarketData: true },
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch still requests a token that already has a price', async () => {
+    const { controller, apiClient } = setupController({
+      getAssetsState: () =>
+        ({
+          assetsBalance: {
+            'mock-account-id': {
+              [MOCK_TOKEN_ASSET]: { amount: '1' },
+            },
+          },
+          assetsPrice: {
+            [MOCK_TOKEN_ASSET]: { price: 1 },
+          },
+        }) as AssetsControllerState,
+      priceResponse: {
+        [MOCK_TOKEN_ASSET]: createMockPriceData(1.0),
+      },
+    });
+
+    await controller.fetch(createDataRequest());
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [normalizeAssetId(MOCK_TOKEN_ASSET)],
+      { currency: 'usd', includeMarketData: true },
+    );
+
+    controller.destroy();
+  });
+
   it('middleware filters out non-priceable balance assets', async () => {
     const tronBandwidthAsset =
       'tron:0x2b6653dc/slip44:bandwidth' as Caip19AssetId;

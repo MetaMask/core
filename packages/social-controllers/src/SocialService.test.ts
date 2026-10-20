@@ -1355,6 +1355,22 @@ describe('SocialService', () => {
       });
     });
 
+    it('fetches the shared trending scope', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'trending' });
+
+      expect(result).toStrictEqual(mockFeedResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/feed?scope=trending`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
     it('validates a perp feed item', async () => {
       mockFetch.mockResolvedValue({
         ok: true,

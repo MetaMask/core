@@ -1,146 +1,141 @@
-# Remove DetectionMiddleware
+# How the wallet picks token names and prices
 
 - Date: 2026-10-20
 - Status: Accepted
 - Package: `@metamask/assets-controller`
 
-`DetectionMiddleware` no longer builds a shared list for metadata and prices.
-`TokenDataSource` and `PriceDataSource` each choose their own assets from the
-request, controller state, and the current balance response.
+For each token, the wallet shows three things: how much the user holds, the
+token's name and icon, and a fiat price. Different steps fetch those three
+things. This note is about the name/icon step and the price step.
 
-This is not RPC token detection. `TokenDetector` and `tokenDetectionEnabled`
-still decide which ERC-20s a balance source reports. This note is only about
-the enrichment step that used to sit between those balances and Token / Price.
+There used to be a step in between, called detection. It built one shared list
+of "new" tokens, and both later steps could only work from that list. That
+step is gone. The name/icon step and the price step now each decide which
+tokens they need.
 
-## What detection used to do
+This is not the "token detection" setting. That setting still controls which
+Ethereum tokens the wallet scans for. This note is only about what happens
+after a balance has already been found.
 
-`DetectionMiddleware` ran on the balance data type, before Token and Price,
-and wrote two bags those sources then read:
+## Words used below
 
-- `response.detectedAssets`: assets that were genuinely new. A balance on the
-  response was included only when it was absent from both `state.assetsBalance`
-  and `state.assetsInfo`. Custom assets were included on the same rule. Anything
-  already tracked was left out on purpose. The price subscription was supposed
-  to refresh those later.
-- `request.assetsForPriceUpdate`: detected assets that had no price yet, plus
-  every balance on the response that still had no price (for example a native
-  seeded before the first price poll).
+| Word          | Meaning                                                                                                          |
+| ------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Balance       | How much of a token an account holds.                                                                            |
+| Name and icon | Symbol, name, decimals, and image. Stored as metadata.                                                           |
+| Price         | The token's value in the user's currency, such as USD.                                                           |
+| Custom token  | A token the user added by hand. We keep it even if it looks unpopular.                                           |
+| Hidden token  | A token the user chose to hide. We do not fetch it.                                                              |
+| Native token  | The chain's own coin, such as ETH on Ethereum or BNB on BNB Chain.                                               |
+| Spam          | A token that showed up in the wallet without the user asking for it, often an airdrop. We try not to show those. |
 
-Token and Price could not run until that list existed, and neither source
-could see a tracked balance that was missing metadata, or a hidden asset that
-should have been skipped. Callers that wanted prices for an explicit list
-passed `assetsForPriceUpdate` into `getAssets`, which dragged the list through
-the balance pipeline.
+## What happens on a refresh
 
-## What replaced it
+Balances are fetched first. Names, icons, and prices are filled in after that,
+then saved together.
 
-Fast, update, and websocket lanes no longer insert a detection step. After
-balances (and graduation / RPC fallback / the websocket occurrence filter,
-where those still apply), Token and Price run in parallel. Each reads state
-itself.
+### Before
 
-An explicit price refresh is `AssetsController.syncAssetsPrices(assetIds)`.
-It calls `PriceDataSource.fetchAssetPrices`, which invalidates the freshness
-cache for those ids, and merges the result into `assetsPrice`. It does not
-take an account or chain, and it does not run the balance pipeline.
-`setSelectedCurrency` uses it after invalidating the cache, passing every
-asset id currently in `assetsBalance`.
+Detection ran after balances and built one list of new tokens. Names and prices
+could only use that list. A token the user already held was left off, even when
+it had no name or no price. Names and prices waited for the list, then ran
+together.
 
 ```mermaid
 flowchart LR
-  Bal["Balance sources"] --> Enrich
-  subgraph Enrich ["Parallel"]
-    direction TB
-    T["TokenDataSource<br/>metadata for balances that need it"]
-    P["PriceDataSource<br/>prices for state + response, minus hidden"]
-  end
-  Enrich --> State["Write state"]
-  Sync["syncAssetsPrices(assetIds)"] --> PriceOnly["PriceDataSource.fetchAssetPrices<br/>bypass freshness cache"] --> State
+  Bal["Fetch balances"] --> Det["Detection<br/>one list of new tokens"]
+  Det --> Names["Names and icons<br/>only tokens on that list"]
+  Det --> Prices["Prices<br/>only tokens on that list<br/>that have no price yet"]
+  Names --> Save["Save"]
+  Prices --> Save
 ```
 
-## PriceDataSource
+### After
 
-The middleware runs when the request asks for `price`.
+Detection is gone. Names and prices start as soon as balances are back, and
+each one chooses its own tokens. Hidden tokens are skipped by both.
 
-Candidates, scoped to the request's accounts and chains:
+```mermaid
+flowchart LR
+  Bal["Fetch balances"] --> Names["Names and icons<br/>tokens that still need them"]
+  Bal --> Prices["Prices<br/>only tokens that<br/>still have no price"]
+  Names --> Save["Save"]
+  Prices --> Save
+```
 
-| Source | Account filter | Chain filter |
-| --- | --- | --- |
-| `state.assetsBalance` | Yes | Yes |
-| `state.customAssets` | Yes | Yes |
-| `state.assetsInfo` | No | Yes |
-| `response.assetsBalance` | Yes | Yes |
+Changing the display currency does not fetch balances again. Saved prices are
+cleared, then every token the user holds is priced in the new currency.
 
-Then drop:
+```mermaid
+flowchart LR
+  Change["User changes currency"] --> Clear["Clear saved prices"]
+  Clear --> Price["Price every token the user holds"]
+  Price --> Save["Save"]
+```
 
-- hidden assets (`assetPreferences.hidden`)
-- non-priceable ids (`isPriceableAsset`: staking synthetics such as
-  `slip44:*-*`, and Tron bandwidth / energy resources)
-- chains the price API does not support. An empty supported-network response
-  keeps the candidates rather than pricing nothing
+## Prices
 
-The remaining ids go through the price freshness cache (`DedupingBatchFetcher`,
-TTL from `priceFreshnessTtlMs`, otherwise the poll interval). A price fetched
-recently is not requested again. Concurrent callers share the in-flight
-request. The subscription poll uses the same cache, so a middleware fetch and
-a poll do not double-hit the API.
+A balance refresh fetches a price only when the wallet does not have one yet,
+and the token is any of these, on the accounts and chains this refresh asked
+about:
 
-`fetchAssetPrices` is the exception: it invalidates those keys first, then
-fetches. That is the path `syncAssetsPrices` and a currency change need,
-because the cached numbers are stale or in the wrong currency.
+- A token the user already holds
+- A token the user added by hand
+- A token we already have a name or icon for
+- A token that just came back in this refresh's balances
 
-## TokenDataSource
+A token that already has a price is left alone. The separate price poll updates
+those. A caller that names specific tokens uses `syncAssetsPrices`, which
+fetches them again even when a price is already stored.
 
-The middleware runs when the request asks for `metadata`.
+Hidden tokens are skipped. So are tokens that cannot have a market price, such
+as staking placeholders and Tron bandwidth or energy. Tokens on a chain the
+price service does not support are skipped too. If that service cannot be
+reached, we still ask for the tokens we had, rather than pricing nothing.
 
-`#collectMetadataAssetIds` builds two sets:
+A price the poll fetched in the last minute is not fetched again. Two polls
+that need the same price share one request.
 
-- **Needs metadata.** A state balance or a response balance that has no image
-  in the response or in `state.assetsInfo`, is not a staking-contract id, and
-  is not hidden. State balances are also limited to the request's accounts and
-  chains. Response balances are not re-filtered by account or chain; they are
-  whatever the balance source just returned.
-- **Balance heals.** State balances in the set above, plus response balances
-  that are already in `state.assetsBalance` or `state.assetsInfo`. A heal is
-  enriched and not spam-filtered. A response balance that is new to state is
-  spam-filtered.
+Changing the display currency is the exception. Those prices are in the wrong
+currency, so the cache is cleared and every token the user holds is priced
+again.
 
-Native asset ids from `getNativeAssetIds()` are always added, even when no
-balance mentioned them.
+## Names and icons
 
-Supported networks are applied before the Tokens API v3 call. After the
-response:
+A name and icon are fetched when we do not already have an image for the token.
+That includes tokens the user already holds, and tokens that just arrived in
+this refresh. Hidden tokens and staking placeholders are skipped. The chain's
+own coin is always included, even when this refresh did not mention it.
 
-| Asset | Spam rule |
-| --- | --- |
-| Native | Always kept |
-| Custom asset (user import) | Always kept |
-| mUSD | Always kept |
-| Balance heal | Kept, no occurrence filter |
-| New EVM ERC-20 | Kept only when occurrences meet the per-chain suggested floor (default 3). Missing occurrence data counts as zero and is dropped |
-| New non-EVM token | Blockaid scan |
+A token the user already holds is filled in and kept. A token that just
+appeared for the first time is checked so spam does not land in the wallet:
 
-Fetched metadata is merged onto the response. A fetch failure logs and leaves
-the response otherwise unchanged.
+| Token                          | What we do                                                                                                       |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| The chain's own coin           | Always keep it                                                                                                   |
+| A token the user added         | Always keep it                                                                                                   |
+| mUSD                           | Always keep it                                                                                                   |
+| A token the user already holds | Keep it, and fill in the missing name or icon                                                                    |
+| A new Ethereum-style token     | Keep it only if enough other sources list it. The usual bar is 3. Unknown tokens are treated as spam and dropped |
+| A new token on another chain   | Ask Blockaid, and drop it if that scan says it is malicious                                                      |
 
-## What changed for callers
+If the name-and-icon request fails, balances already fetched are left as they
+are.
 
-| Before | After |
-| --- | --- |
-| `getAssets` option `assetsForPriceUpdate` | `syncAssetsPrices(assetIds)` |
-| Import `DetectionMiddleware` | Drop it. Token and Price select assets themselves |
-| `FastFetchSources` / `UpdateSources` / `WsUpdateSources` take `detectionMiddleware` | Those types no longer have that field |
-| Only brand-new assets (absent from balance and metadata) were enriched in the pipeline pass | Tracked balances that still lack metadata are healed. Prices cover the scoped state set plus the response, and the freshness cache skips recent ones |
-| Hidden assets could still be queued | Hidden assets are excluded by both sources |
+## If you call this package
 
-## Where the code lives
+| You used to                                           | Do this now                                               |
+| ----------------------------------------------------- | --------------------------------------------------------- |
+| Pass `assetsForPriceUpdate` into `getAssets`          | Call `syncAssetsPrices` with those token ids              |
+| Import `DetectionMiddleware`                          | Delete it. Names and prices are chosen on their own       |
+| Pass `detectionMiddleware` when building a fetch lane | Stop passing it. The lane types no longer have that field |
 
-| Concern | Location |
-| --- | --- |
-| Explicit price refresh | `AssetsController.syncAssetsPrices` |
-| Currency change | `AssetsController.setSelectedCurrency` |
-| Price candidate set | `PriceDataSource.#getAssetIdsForPriceFetch` |
-| Price freshness cache | `DedupingBatchFetcher` inside `PriceDataSource` |
-| Metadata candidate set | `TokenDataSource.#collectMetadataAssetIds` |
-| Metadata middleware | `TokenDataSource.assetsMiddleware` |
-| Lane composition | `buildFastFetchSources`, `buildUpdateSources`, `buildWsUpdateSources` |
+## Where to read the code
+
+| Question                            | Start here                                                            |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| Refresh prices for a list of tokens | `AssetsController.syncAssetsPrices`                                   |
+| User changed currency               | `AssetsController.setSelectedCurrency`                                |
+| Which tokens get a price            | `PriceDataSource`                                                     |
+| Which tokens get a name and icon    | `TokenDataSource`                                                     |
+| Order of a refresh                  | `buildFastFetchSources`, `buildUpdateSources`, `buildWsUpdateSources` |

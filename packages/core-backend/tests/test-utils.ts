@@ -4,7 +4,7 @@
 
 import { QueryClient } from '@tanstack/query-core';
 
-import { ApiPlatformClient } from './ApiPlatformClient.js';
+import { ApiPlatformClient } from '../src/api/ApiPlatformClient.js';
 
 // Mock fetch globally
 export const mockFetch = jest.fn();

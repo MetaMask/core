@@ -263,6 +263,13 @@
 /packages/eip1193-permission-middleware/tsconfig.*      @MetaMask/core-platform
 /packages/eip1193-permission-middleware/typedoc.json    @MetaMask/core-platform
 
+### error-utils
+/packages/error-utils                 @MetaMask/core-platform
+/packages/error-utils/CHANGELOG.md    @MetaMask/core-platform
+/packages/error-utils/package.json    @MetaMask/core-platform
+/packages/error-utils/tsconfig.*      @MetaMask/core-platform
+/packages/error-utils/typedoc.json    @MetaMask/core-platform
+
 ### eth-block-tracker
 /packages/eth-block-tracker                 @MetaMask/core-platform
 /packages/eth-block-tracker/CHANGELOG.md    @MetaMask/core-platform
@@ -493,6 +500,13 @@
 /packages/network-enablement-controller/package.json    @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/network-enablement-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/network-enablement-controller/typedoc.json    @MetaMask/core-platform @MetaMask/metamask-assets
+
+### node-utils
+/packages/node-utils                 @MetaMask/core-platform
+/packages/node-utils/CHANGELOG.md    @MetaMask/core-platform
+/packages/node-utils/package.json    @MetaMask/core-platform
+/packages/node-utils/tsconfig.*      @MetaMask/core-platform
+/packages/node-utils/typedoc.json    @MetaMask/core-platform
 
 ### notification-services-controller
 /packages/notification-services-controller                 @MetaMask/engagement

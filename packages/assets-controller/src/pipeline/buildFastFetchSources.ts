@@ -31,9 +31,9 @@ export type FastFetchSources = {
  *
  * @param sources - The sources to place into the lane.
  * @param options - Lane options.
-   * @param options.isBasicFunctionality - When false, the lane is empty. No
-   * balance source runs here, so there is no token or price source to feed.
-   * The RPC background lane fetches balances and then runs token and price.
+ * @param options.isBasicFunctionality - When false, the lane is empty. No
+ * balance source runs here, so there is no token or price source to feed.
+ * The RPC background lane fetches balances and then runs token and price.
  * @param options.includeCustomAssetGraduation - `true` on the Accounts API v5
  * lane. The v6 lane never graduates custom assets: it sends the pins to the
  * endpoint as `includeAssetIds`, and a chain that comes back without all of

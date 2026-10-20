@@ -255,7 +255,7 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE)', () =
 
     // Unlike the v5 suite, this is not `it.failing`!
     // On v6 the backend omits the Malicious row, so the token is
-    // never in `assetsBalance` or `detectedAssets` at any pipeline stage and
+    // never in `assetsBalance` at any pipeline stage and
     // no price is ever fetched for it.
     //
     // Note we still need the unlock cleanup (`cleanSpamAssets`) to
@@ -302,7 +302,7 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) import
     return { source, requests };
   };
 
-  it.each([BALANCES, METADATA, DETECTED_ASSETS])(
+  it.each([BALANCES, METADATA])(
     '$surface - keeps the imported token the backend flags as Malicious',
     async ({ lookUp }) => {
       const { response, v6Balances } = await runPipeline(

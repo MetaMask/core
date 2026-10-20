@@ -22,6 +22,9 @@
   "references": [
     {
       "path": "../type-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../error-utils/tsconfig.build.json"
     }
   ]
 }
