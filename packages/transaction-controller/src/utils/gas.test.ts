@@ -1815,41 +1815,48 @@ describe('gas', () => {
       });
     });
 
-    it('adds upgrade authorization gas to provided gas in 7702 path when simulation fails and upgrade required', async () => {
-      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
-        {
-          chainId: CHAIN_ID_MOCK,
-          isSupported: false,
-          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
-        },
-      ]);
+    it.each([
+      ['first upgrade', undefined, 43006],
+      ['replacing an existing delegation', TO_MOCK, 7816],
+    ] as const)(
+      'adds authorization gas to provided gas for %s when estimation fails',
+      async (_title, delegationAddress, authorizationGas) => {
+        const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+          {
+            chainId: CHAIN_ID_MOCK,
+            delegationAddress,
+            isSupported: false,
+            upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+          },
+        ]);
 
-      generateEIP7702BatchTransactionMock.mockReturnValue({
-        to: TO_MOCK,
-        data: DATA_MOCK,
-      });
+        generateEIP7702BatchTransactionMock.mockReturnValue({
+          to: TO_MOCK,
+          data: DATA_MOCK,
+        });
 
-      mockQuery({
-        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
-        estimateGasError: new Error('execution reverted'),
-      });
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasError: new Error('execution reverted'),
+        });
 
-      const result = await estimateGasBatch({
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-        isAtomicBatchSupported: isAtomicBatchSupportedMock,
-        messenger: MESSENGER_MOCK,
-        transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
-      });
+        const result = await estimateGasBatch({
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          from: FROM_MOCK,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          isAtomicBatchSupported: isAtomicBatchSupportedMock,
+          messenger: MESSENGER_MOCK,
+          transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
+        });
 
-      expect(result).toStrictEqual({
-        totalGasLimit: 521000 + UPGRADE_AUTHORIZATION_GAS,
-        gasLimits: [521000 + UPGRADE_AUTHORIZATION_GAS],
-        mode: 'eip7702',
-        requiresAuthorizationList: true,
-      });
-    });
+        expect(result).toStrictEqual({
+          totalGasLimit: 521000 + authorizationGas,
+          gasLimits: [521000 + authorizationGas],
+          mode: 'eip7702',
+          requiresAuthorizationList: true,
+        });
+      },
+    );
 
     it('throws error when upgrade contract address not found', async () => {
       const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([

@@ -299,8 +299,9 @@ export async function estimateGas({
  *   provides source-token balance to subsequent sub-calls). When 7702
  *   simulation succeeds it is preferred since the bundled call has no per-tx
  *   intrinsic gas cost and produces a tighter estimate. If the sender requires
- *   an upgrade, the fallback adds `UPGRADE_AUTHORIZATION_GAS`, as the provided
- *   gas values do not include the upgrade authorization.
+ *   an upgrade, the fallback adds the authorization intrinsic gas and, if no
+ *   delegation exists yet, the delegation indicator charge. The provided gas
+ *   values do not include these authorization costs.
  *
  * @param transactions - Batch transactions to inspect.
  * @returns Parsed gas limits and total when every transaction has gas; otherwise `undefined`.
@@ -388,9 +389,12 @@ export async function estimateGasBatch({
     });
 
     if (simulationFails && providedBatchGasLimits) {
+      const upgradeGas = chainResult.delegationAddress
+        ? EIP7280_AUTHORIZATION_INTRINSIC_GAS
+        : UPGRADE_AUTHORIZATION_GAS;
       const fallbackGasLimit =
         providedBatchGasLimits.totalGasLimit +
-        (isUpgradeRequired ? UPGRADE_AUTHORIZATION_GAS : 0);
+        (isUpgradeRequired ? upgradeGas : 0);
 
       log(
         'EIP-7702 estimation failed, using batch parameter gas limits',
