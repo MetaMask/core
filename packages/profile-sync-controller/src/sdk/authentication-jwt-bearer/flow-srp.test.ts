@@ -417,6 +417,40 @@ describe('SRP MFA methods', () => {
     });
   });
 
+  it('begins authenticator app enrollment with its secret and QR code', async () => {
+    const auth = createAuth();
+    mockMfaEnroll.mockResolvedValue({
+      flowId: 'flow-id',
+      expiresAt: 1000,
+      totp: {
+        secret: 'SECRET',
+        qrCode: 'data:image/png;base64,QR',
+        setupUri: 'otpauth://totp/MetaMask?secret=SECRET',
+      },
+    });
+
+    expect(await auth.beginMfaEnrollment('totp')).toStrictEqual({
+      type: 'totp',
+      flowId: 'flow-id',
+      expiresAt: 1000,
+      secret: 'SECRET',
+      qrCode: 'data:image/png;base64,QR',
+      setupUri: 'otpauth://totp/MetaMask?secret=SECRET',
+    });
+    expect(mockMfaEnroll).toHaveBeenLastCalledWith(Env.DEV, accessToken, {
+      credential_type: 'totp',
+    });
+  });
+
+  it('rejects an authenticator app enrollment without its secret', async () => {
+    const auth = createAuth();
+    mockMfaEnroll.mockResolvedValue({ flowId: 'flow-id', expiresAt: 1000 });
+
+    await expect(auth.beginMfaEnrollment('totp')).rejects.toMatchObject({
+      mfaCode: 'invalid_response',
+    });
+  });
+
   it('uses a caller-supplied access token when beginning enrollment', async () => {
     const auth = createAuth();
     mockMfaEnroll.mockResolvedValueOnce({ flowId: 'flow-id', expiresAt: 1000 });
@@ -480,6 +514,27 @@ describe('SRP MFA methods', () => {
     );
   });
 
+  it('uses a caller-supplied access token when completing enrollment', async () => {
+    const auth = createAuth();
+    mockMfaEnrollComplete.mockResolvedValueOnce({
+      token: 'assertion-jwt',
+      expiresIn: 900,
+    });
+
+    await auth.completeMfaEnrollment(
+      'flow-id',
+      { type: 'email_otp', code: '123456' },
+      undefined,
+      'verification-token',
+    );
+
+    expect(mockMfaEnrollComplete).toHaveBeenLastCalledWith(
+      Env.DEV,
+      'verification-token',
+      expect.anything(),
+    );
+  });
+
   it('begins passkey and email verification', async () => {
     const auth = createAuth();
     mockMfaVerify
@@ -502,6 +557,27 @@ describe('SRP MFA methods', () => {
       flowId: 'email-flow',
       expiresAt: 2000,
     });
+  });
+
+  it('begins and completes authenticator app verification with its code', async () => {
+    const auth = createAuth();
+    mockMfaVerify.mockResolvedValue({ flowId: 'totp-flow', expiresAt: 3000 });
+    mockMfaVerifyComplete.mockResolvedValue({ token: 'assertion' });
+
+    expect(await auth.beginMfaVerification('totp')).toStrictEqual({
+      type: 'totp',
+      flowId: 'totp-flow',
+      expiresAt: 3000,
+    });
+    await auth.completeMfaVerification('totp-flow', {
+      type: 'totp',
+      code: '123456',
+    });
+    expect(mockMfaVerifyComplete).toHaveBeenLastCalledWith(
+      Env.DEV,
+      accessToken,
+      { credential_type: 'totp', flow_id: 'totp-flow', otp_code: '123456' },
+    );
   });
 
   it('rejects passkey verification without request data', async () => {

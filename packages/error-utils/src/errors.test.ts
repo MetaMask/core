@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   ensureError,
@@ -129,7 +130,7 @@ describe('wrapError', () => {
       let originalError;
       try {
         await fs.promises.readFile('/tmp/nonexistent', 'utf8');
-      } catch (error: any) {
+      } catch (error: unknown) {
         originalError = error;
       }
 
@@ -142,7 +143,7 @@ describe('wrapError', () => {
       let originalError;
       try {
         await fs.promises.readFile('/tmp/nonexistent', 'utf8');
-      } catch (error: any) {
+      } catch (error: unknown) {
         originalError = error;
       }
 
@@ -155,7 +156,7 @@ describe('wrapError', () => {
       let originalError;
       try {
         await fs.promises.readFile('/tmp/nonexistent', 'utf8');
-      } catch (error: any) {
+      } catch (error: unknown) {
         originalError = error;
       }
 
@@ -167,9 +168,6 @@ describe('wrapError', () => {
 
   describe('if the original error has a length === 2', () => {
     it('returns an error with cause', () => {
-      // Save original Error
-      const OriginalError = global.Error;
-
       // Create a mock error with a cause
       class MockError extends Error {
         constructor(message: string, options: { cause?: Error } = {}) {
@@ -183,9 +181,7 @@ describe('wrapError', () => {
       Object.defineProperty(MockError, 'length', { value: 2 });
 
       // Replace global Error with MockError
-      // NOTE: when we upgrade jest, change this to use:
-      // jest.replaceProperty(global, 'Error', MockError);
-      global.Error = MockError as unknown as ErrorConstructor;
+      vi.stubGlobal('Error', MockError);
 
       // Define your original error and message
       const originalError = new Error('original error');
@@ -199,7 +195,7 @@ describe('wrapError', () => {
       expect(result.cause).toBe(originalError);
 
       // Restore the original Error constructor
-      global.Error = OriginalError;
+      vi.unstubAllGlobals();
     });
   });
 
