@@ -167,6 +167,27 @@ describe('NeoBankService', () => {
       },
     );
 
+    it('ignores a PIX rail with an empty instruction when a complete ACH rail follows it', () => {
+      expect(
+        mapNeoBankAutorampToRemoteSnapshot({
+          id: 'ar-1',
+          status: 'Approved',
+          deposit_rails: [
+            { type: 'Pix', br_code: '00020126', instruction: '' },
+            {
+              type: 'ACH',
+              recipient_name: 'Jane Doe',
+              routing_number: '021000021',
+              account_number: '123456789',
+              bank_name: 'Lead Bank',
+            },
+          ],
+        }),
+      ).toMatchObject({
+        depositRailsSummary: { currency: 'USD' },
+      });
+    });
+
     it('ignores an incomplete PIX stub when a complete ACH rail follows it', () => {
       expect(
         mapNeoBankAutorampToRemoteSnapshot({

@@ -200,6 +200,31 @@ export function createAutorampAccount(input: {
 }
 
 /**
+ * Keeps a currency the client already learned when a later snapshot omits it.
+ * Readiness follows the remote snapshot. A remote currency replaces the local one.
+ *
+ * @param local - Currency summary already stored for this autoramp.
+ * @param remote - Currency summary from the latest GET or push.
+ * @returns The summary to store, or undefined when neither side has one.
+ */
+export function mergeDepositRailsSummary(
+  local: AutorampDepositRailsSummary | undefined,
+  remote: AutorampDepositRailsSummary | undefined,
+): AutorampDepositRailsSummary | undefined {
+  if (!remote) {
+    return local;
+  }
+  if (!local) {
+    return remote;
+  }
+  const currency = remote.currency ?? local.currency;
+  return {
+    ready: remote.ready,
+    ...(currency ? { currency } : {}),
+  };
+}
+
+/**
  * Apply a remote autoramp snapshot onto a local account for transition detection.
  * Pure helper — shared by refresh-on-load and websocket push paths.
  *
@@ -253,8 +278,10 @@ export function applyAutorampRemoteStatus(
     status: remoteStatus,
     lastSeenStatus: previousStatus,
     updatedAt: Date.now(),
-    depositRailsSummary:
-      remote.depositRailsSummary ?? local.depositRailsSummary,
+    depositRailsSummary: mergeDepositRailsSummary(
+      local.depositRailsSummary,
+      remote.depositRailsSummary,
+    ),
   };
 
   return {

@@ -302,7 +302,8 @@ export function extractPixDepositInstructions(
     if (
       typeof record.br_code !== 'string' ||
       record.br_code.length === 0 ||
-      typeof record.instruction !== 'string'
+      typeof record.instruction !== 'string' ||
+      record.instruction.length === 0
     ) {
       continue;
     }

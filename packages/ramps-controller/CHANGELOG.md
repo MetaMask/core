@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - `mapNeoBankAutorampToRemoteSnapshot` sets `depositRailsSummary.currency` from the first complete deposit rail: BRL for PIX, USD for US rails, and EUR for SEPA. An incomplete rail does not set it ([#10878](https://github.com/MetaMask/core/pull/10878))
 
+### Fixed
+
+- A PIX rail with an empty `instruction` is not treated as complete, so it cannot label the autoramp BRL or hide a complete US rail ([#10878](https://github.com/MetaMask/core/pull/10878))
+- Applying an autoramp snapshot keeps a previously stored `depositRailsSummary.currency` when the new snapshot omits it ([#10878](https://github.com/MetaMask/core/pull/10878))
+
 ## [27.0.1]
 
 ### Changed
