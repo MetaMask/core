@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix `AuthenticationController.completeCredentialEnrollment` failing with `aal2_required` when adding a second factor, by sending the verification token that began the enrollment, which the server now requires to complete it too ([#00000](https://github.com/MetaMask/core/pull/00000))
+- Fix `AuthenticationController.completeCredentialEnrollment` failing with `aal2_required` when adding a second factor, by sending the verification token that began the enrollment, which the server now requires to complete it too ([#10900](https://github.com/MetaMask/core/pull/10900))
   - `JwtBearerAuth.completeMfaEnrollment` accepts an optional `accessToken`, like `beginMfaEnrollment`
 
 ## [34.0.3]
