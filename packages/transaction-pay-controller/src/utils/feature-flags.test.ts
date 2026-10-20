@@ -42,7 +42,6 @@ import {
   getGasBuffer,
   getHyperliquidActivationFeeConfig,
   DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
-  getMaxBalanceRefreshInterval,
   getPayStrategiesConfig,
   getSlippage,
   getStrategy,
@@ -1188,89 +1187,6 @@ describe('Feature Flags Utils', () => {
       const { server } = getPayStrategiesConfig(messenger);
 
       expect(server.baseUrl).toBe('https://server.test');
-    });
-  });
-
-  describe('getMaxBalanceRefreshInterval', () => {
-    it('returns undefined when no interval is configured', () => {
-      expect(getMaxBalanceRefreshInterval(messenger)).toBeUndefined();
-    });
-
-    it('returns the configured interval for a direct transaction type', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            maxBalanceRefreshInterval: {
-              [TransactionType.perpsWithdraw]: 5000,
-            },
-          },
-        },
-      });
-
-      expect(
-        getMaxBalanceRefreshInterval(messenger, {
-          type: TransactionType.perpsWithdraw,
-        } as TransactionMeta),
-      ).toBe(5000);
-    });
-
-    it('matches a nested batch transaction type', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            maxBalanceRefreshInterval: {
-              [TransactionType.perpsWithdraw]: 5000,
-            },
-          },
-        },
-      });
-
-      expect(
-        getMaxBalanceRefreshInterval(messenger, {
-          type: TransactionType.batch,
-          nestedTransactions: [{ type: TransactionType.perpsWithdraw }],
-        } as TransactionMeta),
-      ).toBe(5000);
-    });
-
-    it('returns undefined when the transaction type does not match', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            maxBalanceRefreshInterval: {
-              [TransactionType.perpsWithdraw]: 5000,
-            },
-          },
-        },
-      });
-
-      expect(
-        getMaxBalanceRefreshInterval(messenger, {
-          type: TransactionType.perpsDeposit,
-        } as TransactionMeta),
-      ).toBeUndefined();
-    });
-
-    it('returns the configured interval without validation', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            maxBalanceRefreshInterval: {
-              [TransactionType.perpsWithdraw]: 0,
-            },
-          },
-        },
-      });
-
-      expect(
-        getMaxBalanceRefreshInterval(messenger, {
-          type: TransactionType.perpsWithdraw,
-        } as TransactionMeta),
-      ).toBe(0);
     });
   });
 
