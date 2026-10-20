@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { createFormatters } from './create-formatters.js';
 
 const locale = 'en-US';
@@ -74,7 +76,8 @@ describe('formatCurrency', () => {
   it('re-throws non-RangeError errors from Intl.NumberFormat', () => {
     const original = Intl.NumberFormat;
     const typeError = new TypeError('unexpected');
-    Intl.NumberFormat = jest.fn().mockImplementation(() => {
+    // Vitest only constructs a mock with a `function` implementation.
+    Intl.NumberFormat = vi.fn().mockImplementation(function () {
       throw typeError;
     }) as unknown as typeof Intl.NumberFormat;
 

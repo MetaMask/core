@@ -492,11 +492,6 @@
       "count": 5
     }
   },
-  "packages/announcement-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/app-metadata-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -1996,19 +1991,19 @@
       "count": 1
     }
   },
-  "packages/client-utils/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/client-utils/src/mappers/api-transaction-mapper.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/client-utils/src/mappers/local-transaction-mapper.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 19
+    }
+  },
+  "packages/client-utils/src/mappers/ramps-order-mapper.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/compliance-controller/jest.config.cjs": {
