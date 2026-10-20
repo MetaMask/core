@@ -9525,7 +9525,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/type-utils@workspace:packages/type-utils":
+"@metamask/type-utils@npm:^0.0.0, @metamask/type-utils@workspace:packages/type-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/type-utils@workspace:packages/type-utils"
   dependencies:
@@ -9601,6 +9601,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/superstruct": "npm:^3.4.1"
+    "@metamask/type-utils": "npm:^0.0.0"
     "@noble/hashes": "npm:^1.8.0"
     "@scure/base": "npm:^1.2.6"
     "@types/debug": "npm:^4.1.7"

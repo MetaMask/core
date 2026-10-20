@@ -1,9 +1,12 @@
-/**
- * Example function that returns a greeting for the given name.
- *
- * @param name - The name to greet.
- * @returns The greeting.
- */
-export default function greeter(name: string): string {
-  return `Hello, ${name}!`;
-}
+export type { NonEmptyArray } from './array.js';
+export { isNonEmptyArray } from './array.js';
+export type { Json } from './json.js';
+export type { Mutable, PartialOrAbsent, RuntimeObject } from './object.js';
+export {
+  getKnownPropertyNames,
+  hasProperty,
+  isNullOrUndefined,
+  isObject,
+  isPlainObject,
+} from './object.js';
+export type { PublicInterface } from './types.js';
