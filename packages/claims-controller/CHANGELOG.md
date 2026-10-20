@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4]
+
+### Uncategorized
+
+- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
+- chore(deps): update dependency typedoc-plugin-missing-exports to v4 ([#10762](https://github.com/MetaMask/core/pull/10762))
+- chore(deps): update dependency typedoc-plugin-missing-exports to ^2.3.0 ([#10710](https://github.com/MetaMask/core/pull/10710))
+- chore(deps): update dependency typedoc to ^0.28.20 ([#10731](https://github.com/MetaMask/core/pull/10731))
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.1.0` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761), [#10905](https://github.com/MetaMask/core/pull/10905))
@@ -221,7 +230,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generateMessageForClaimSignature`: generate message to sign for the claim signature.
   - `verifyClaimSignature`: verify claim signature produced by user.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.4...HEAD
+[1.0.4]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.3...@metamask/claims-controller@1.0.4
 [1.0.3]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.2...@metamask/claims-controller@1.0.3
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.1...@metamask/claims-controller@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.0...@metamask/claims-controller@1.0.1

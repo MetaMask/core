@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2]
+
 ## [1.0.1]
 
 ### Changed
@@ -27,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `initialize` method, which reads the controllers it depends on and starts syncing; call it once they are registered
   - Add `setMarketingConsent` method and `MarketingConsentController:setMarketingConsent` action, which apply a consent change, wait until Authenticated User Storage saves it; if the save fails, the change is dropped and consent is re-read from Authenticated User Storage, the source of truth
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/marketing-consent-controller@1.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/marketing-consent-controller@1.0.2...HEAD
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/marketing-consent-controller@1.0.1...@metamask/marketing-consent-controller@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/marketing-consent-controller@1.0.0...@metamask/marketing-consent-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/marketing-consent-controller@1.0.0
