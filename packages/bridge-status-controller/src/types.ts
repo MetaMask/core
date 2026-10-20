@@ -286,10 +286,11 @@ export type QuoteMetadataSerialized = {
 };
 
 export type StartPollingForBridgeTxStatusArgs = {
-  bridgeTxMeta?: Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>;
+  bridgeTxMeta?: Partial<
+    Pick<TransactionMeta, 'id' | 'hash' | 'batchId' | 'status'>
+  >;
   actionId?: string;
   batchSellData?: BridgeHistoryItem['batchSellData'];
-  quoteIds?: BridgeHistoryItem['quoteIds'];
   /**
    * @deprecated the txMeta or orderUid should be used instead
    */
