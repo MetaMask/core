@@ -141,7 +141,7 @@ sequenceDiagram
 
   rect rgba(128, 128, 128, 0.1)
   Note over C,Id: Part 1: proof key + identifier token
-  Note over C: generateSigningKey() → P-256 proof key pair
+  Note over C: generateSigningKey() → Ed25519 proof key pair
   C->>Id: getKeyBoundIdentifierToken(identifier, proofPublicKey, requestHash)
   Note over Id: binding = hash([proofPublicKey, requestHash])<br/>SIWE: personal_sign a SIWE message, Nonce = binding<br/>Passkey: WebAuthn assertion, challenge = binding
   Id-->>C: token { identifier, proofPublicKey, requestHash, providerAssertion }

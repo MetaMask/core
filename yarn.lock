@@ -8000,8 +8000,6 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@noble/ciphers": "npm:^1.3.0"
-    "@noble/curves": "npm:^1.9.7"
     "@typescript/native": "npm:typescript@^7.0.2"
     json-stable-stringify: "npm:^1.3.0"
     rimraf: "npm:^6.1.3"
