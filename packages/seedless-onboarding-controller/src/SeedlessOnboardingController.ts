@@ -681,6 +681,10 @@ export class SeedlessOnboardingController<
    * password-change lifecycle is cleared only after the stored and current
    * Keyring encryption keys have been verified to match.
    *
+   * The current password is verified before any vault or Keyring mutation. A
+   * vault decrypt failure is thrown directly, and both controllers stay
+   * unlocked.
+   *
    * @param newPassword - The new password to update.
    * @param oldPassword - The old password to verify.
    * @returns A promise that resolves to the success of the operation.
@@ -694,12 +698,14 @@ export class SeedlessOnboardingController<
 
       assertCanChangePassword(this.state.seedlessOperationLifecycle);
 
-      try {
-        // verify the old password of the encrypted vault
-        await this.verifyVaultPassword(oldPassword, {
-          skipLock: true, // skip lock since we already have the lock
-        });
+      // Confirm the current password before any vault or Keyring mutation so
+      // a decrypt failure stays a password error and both controllers stay
+      // unlocked.
+      await this.verifyVaultPassword(oldPassword, {
+        skipLock: true, // skip lock since we already have the lock
+      });
 
+      try {
         await this.#changeSeedlessPassword(newPassword, oldPassword);
         await this.#changeKeyringPassword(newPassword);
         await this.#syncAndCompleteKeyringEncryptionKeyUnlocked();

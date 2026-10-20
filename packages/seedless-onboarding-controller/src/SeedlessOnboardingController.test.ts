@@ -4576,6 +4576,59 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
+    it('should reject an incorrect old password without locking the controllers', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({
+          controller,
+          encryptor,
+          toprfClient,
+          baseMessenger,
+          mockKeyringChangePassword,
+          mockKeyringSetLocked,
+        }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          const decryptError = new Error('Incorrect password');
+          jest.spyOn(encryptor, 'decrypt').mockRejectedValueOnce(decryptError);
+          const changeEncKeySpy = jest.spyOn(toprfClient, 'changeEncKey');
+          const vaultBeforeAttempt = controller.state.vault;
+          const accessTokenBeforeAttempt = controller.state.accessToken;
+          const revokeTokenBeforeAttempt = controller.state.revokeToken;
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:changePassword',
+              NEW_MOCK_PASSWORD,
+              'wrong-password',
+            ),
+          ).rejects.toBe(decryptError);
+
+          // Password verification fails before any vault or Keyring mutation,
+          // so the wallet stays unlocked and recoverable with the current password.
+          expect(mockKeyringSetLocked).not.toHaveBeenCalled();
+          expect(mockKeyringChangePassword).not.toHaveBeenCalled();
+          expect(changeEncKeySpy).not.toHaveBeenCalled();
+          expect(controller.state.vault).toBe(vaultBeforeAttempt);
+          expect(controller.state.accessToken).toBe(accessTokenBeforeAttempt);
+          expect(controller.state.revokeToken).toBe(revokeTokenBeforeAttempt);
+          expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+        },
+      );
+    });
+
     it('preserves the password-change lifecycle when locking the controller', async () => {
       await withController(
         {
