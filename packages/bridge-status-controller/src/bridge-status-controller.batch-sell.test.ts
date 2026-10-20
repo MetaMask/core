@@ -60,6 +60,7 @@ type RootMessenger = Messenger<
 >;
 
 const addTransactionBatchFn = jest.fn();
+let mockTraceFn: jest.Mock;
 
 function getRootMessenger(): RootMessenger {
   return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
@@ -126,6 +127,8 @@ async function withController<ReturnValue>(
     clientId: BridgeClientId.EXTENSION,
     fetchFn: jest.fn(),
     addTransactionBatchFn,
+    traceFn: mockTraceFn,
+    clientProduct: 'metamask',
     ...options,
   });
   const startPollingForBridgeTxStatusSpy = jest.fn();
@@ -193,6 +196,7 @@ const mockTransferTx: BatchSellTradesResponse['transactions'][number] = {
 describe('BridgeStatusController', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockTraceFn = jest.fn(async (_request, fn) => await fn?.());
   });
 
   describe('submitBatchSell', () => {

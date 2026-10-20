@@ -1782,11 +1782,14 @@
     "typescript/no-unsafe-assignment": {
       "count": 22
     },
+    "typescript/no-unsafe-call": {
+      "count": 1
+    },
     "typescript/no-unsafe-member-access": {
       "count": 2
     },
     "typescript/no-unsafe-return": {
-      "count": 3
+      "count": 4
     }
   },
   "packages/bridge-controller/src/bridge-controller.test.ts": {
@@ -2019,11 +2022,14 @@
     "typescript/no-unsafe-assignment": {
       "count": 3
     },
+    "typescript/no-unsafe-call": {
+      "count": 1
+    },
     "typescript/no-unsafe-member-access": {
       "count": 1
     },
     "typescript/no-unsafe-return": {
-      "count": 2
+      "count": 3
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
@@ -2073,13 +2079,13 @@
       "count": 12
     },
     "typescript/no-unsafe-call": {
-      "count": 5
+      "count": 1
     },
     "typescript/no-unsafe-member-access": {
       "count": 13
     },
     "typescript/no-unsafe-return": {
-      "count": 9
+      "count": 5
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.ts": {
