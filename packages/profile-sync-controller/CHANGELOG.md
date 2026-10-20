@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add authenticator app (TOTP) support to MFA enrollment and verification ([#10914](https://github.com/MetaMask/core/pull/10914))
+  - `AuthenticationController.beginCredentialEnrollment({ type: 'totp' })` returns a `totp` challenge with the base32 `secret`, a PNG data URL `qrCode`, and a `setupUri` (`otpauth://` link) that opens an authenticator app on the same device
+  - `completeCredentialEnrollment` and `completeCredentialVerification` accept a `{ type: 'totp', code }` proof, and `beginCredentialVerification({ type: 'totp' })` returns a `totp` challenge
+  - Enrolled authenticator apps are listed in `enrolledCredentials` as `{ type: 'totp' }`
+  - The server's `totp_already_enrolled` error is thrown as `CredentialAlreadyEnrolledError`
+- Add `lastUsedAt` to every `EnrolledCredential`, from the server's `last_used_at` ([#10914](https://github.com/MetaMask/core/pull/10914))
+
+### Changed
+
+- **BREAKING:** `MFA_CREDENTIAL_TYPES`, `MfaCredentialType`, `EnrolledCredential`, `EnrollmentChallenge`, `EnrollmentProof`, `VerificationChallenge`, `VerificationProof` and `MfaErrorCode` now include TOTP (`'totp'` and `'totp_already_enrolled'`) ([#10914](https://github.com/MetaMask/core/pull/10914))
+
 ## [34.1.0]
 
 ### Added

@@ -69,7 +69,50 @@ type EnrollmentServiceResult = {
   flowId: string;
   expiresAt: number;
   publicKey?: PasskeyCreationOptions;
+  totp?: { secret: string; qrCode: string; setupUri: string };
 };
+
+/**
+ * Name an authenticator app shows for the account added from `setupUri`.
+ *
+ * The server's QR code names the account after its own Kratos config (issuer
+ * "MetaMask Identity", account "MetaMask <8 hex>" from the identity's
+ * username), which is not sent in the enrollment response. A different name
+ * is harmless: users add the account once, through either the QR code or this
+ * link, and the codes only depend on the secret and `TOTP_SETTINGS`.
+ */
+const TOTP_SETUP_LABEL = 'MetaMask';
+
+/**
+ * Settings Kratos uses for every TOTP key: its `NewKey` hard-codes 6 digits
+ * and a 30-second period, and leaves the algorithm at the library default,
+ * SHA1. They are not part of the server's configuration, and changing them
+ * would break every authenticator app already set up, so they are stable
+ * enough to copy here.
+ */
+const TOTP_SETTINGS = { algorithm: 'SHA1', digits: '6', period: '30' };
+
+/**
+ * Builds the `otpauth://` link that opens an authenticator app with the
+ * account to add, for devices that cannot scan their own screen.
+ *
+ * It is built here rather than sent by the server because Kratos does not
+ * expose it: its settings flow returns only the secret and the QR code image,
+ * and keeps the link in internal flow data that its API never returns. The
+ * server could only rebuild it the same way, from the same fixed settings, or
+ * by decoding its own QR code.
+ *
+ * @param secret - Base32 secret from the enrollment response.
+ * @returns The setup link. It contains the secret: never log or persist it.
+ */
+export function buildTotpSetupUri(secret: string): string {
+  const params = new URLSearchParams({
+    secret,
+    issuer: TOTP_SETUP_LABEL,
+    ...TOTP_SETTINGS,
+  });
+  return `otpauth://totp/${encodeURIComponent(TOTP_SETUP_LABEL)}?${params.toString()}`;
+}
 
 type VerificationServiceResult = {
   flowId: string;
@@ -107,23 +150,27 @@ type VerificationCompletionParams = {
 };
 
 /**
- * Reads a credential's enrollment date. Unlike flow deadlines, this is display
- * metadata, so an unparsable value is dropped instead of rejecting the whole
- * credential list.
+ * Reads a credential date (`enrolled_at`, `last_used_at`). Unlike flow
+ * deadlines, these are display metadata, so an unparsable value is dropped
+ * instead of rejecting the whole credential list.
  *
- * @param value - The raw `enrolled_at` value, if the server sent one.
+ * @param field - The field name, for the log.
+ * @param value - The raw value, if the server sent one.
  * @returns The epoch milliseconds, or undefined when absent or unparsable.
  */
-function parseEnrolledAt(value: string | undefined): number | undefined {
+function parseCredentialDate(
+  field: string,
+  value: string | undefined,
+): number | undefined {
   if (!value) {
     return undefined;
   }
-  const enrolledAt = Date.parse(value);
-  if (Number.isNaN(enrolledAt)) {
-    log.warn(`Ignoring unparsable MFA credential enrolled_at: ${value}`);
+  const date = Date.parse(value);
+  if (Number.isNaN(date)) {
+    log.warn(`Ignoring unparsable MFA credential ${field}: ${value}`);
     return undefined;
   }
-  return enrolledAt;
+  return date;
 }
 
 function parseExpiresAt(value: string): number {
@@ -267,6 +314,7 @@ async function throwMfaError(
   switch (code) {
     case 'credential_already_enrolled':
     case 'email_already_enrolled':
+    case 'totp_already_enrolled':
     case 'email_socially_verified':
       throw new CredentialAlreadyEnrolledError(code, message, status);
     case 'credential_not_enrolled':
@@ -380,6 +428,15 @@ export async function mfaEnroll(
     expiresAt: parseExpiresAt(json.expires_at),
     ...(json.passkey_create_data
       ? { publicKey: parsePasskeyCreateData(json.passkey_create_data) }
+      : {}),
+    ...(json.totp_secret && json.totp_qr
+      ? {
+          totp: {
+            secret: json.totp_secret,
+            qrCode: json.totp_qr,
+            setupUri: buildTotpSetupUri(json.totp_secret),
+          },
+        }
       : {}),
   };
 }
@@ -509,10 +566,15 @@ export function toEnrolledCredential(
     return null;
   }
 
-  const enrolledAt = parseEnrolledAt(credential.enrolled_at);
+  const enrolledAt = parseCredentialDate('enrolled_at', credential.enrolled_at);
+  const lastUsedAt = parseCredentialDate(
+    'last_used_at',
+    credential.last_used_at,
+  );
   const base = {
     status,
     ...(enrolledAt === undefined ? {} : { enrolledAt }),
+    ...(lastUsedAt === undefined ? {} : { lastUsedAt }),
   };
 
   if (type === 'passkey') {
@@ -535,6 +597,10 @@ export function toEnrolledCredential(
       // The spec marks `verified` optional; an active row is verified.
       verified: credential.email?.verified ?? status === 'active',
     };
+  }
+
+  if (type === 'totp') {
+    return { type, ...base };
   }
 
   log.warn(`Ignoring unsupported or incomplete MFA credential: ${type}`);
