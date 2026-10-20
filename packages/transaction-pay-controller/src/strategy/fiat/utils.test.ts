@@ -4,7 +4,7 @@ import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
-import { getMessengerMock } from '../../tests/messenger-mock.js';
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,

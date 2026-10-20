@@ -16,8 +16,8 @@ import {
   MOCK_XLM_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
   toGroupIndexRangeArray,
-} from '../tests/index.js';
-import type { RootMessenger, DeepPartial } from '../tests/index.js';
+} from '../../tests/index.js';
+import type { RootMessenger, DeepPartial } from '../../tests/index.js';
 import { AccountProviderWrapper } from './AccountProviderWrapper.js';
 import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';
 import {

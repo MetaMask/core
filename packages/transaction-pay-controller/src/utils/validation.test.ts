@@ -1,6 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
-import { getMessengerMock } from '../tests/messenger-mock.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { TransactionPayQuote } from '../types.js';
 import {
   simulateQuoteTransactions,

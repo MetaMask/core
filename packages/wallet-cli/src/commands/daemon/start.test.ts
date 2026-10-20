@@ -1,5 +1,5 @@
+import { runCommand } from '../../../tests/run-command.js';
 import { ensureDaemon } from '../../daemon/daemon-spawn.js';
-import { runCommand } from '../../test/run-command.js';
 import DaemonStart from './start.js';
 
 jest.mock('../../daemon/daemon-spawn');

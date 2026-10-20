@@ -15,6 +15,25 @@ import type { Keyring } from '@metamask/keyring-api/v2';
 import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringObject } from '@metamask/keyring-controller';
 
+import type { RootMessenger, MockAccountProvider } from '../tests/index.js';
+import {
+  MOCK_HARDWARE_ACCOUNT_1,
+  MOCK_HD_ACCOUNT_1,
+  MOCK_HD_ACCOUNT_2,
+  MOCK_MNEMONIC,
+  MOCK_SNAP_ACCOUNT_1,
+  MOCK_SNAP_ACCOUNT_2,
+  MOCK_SOL_ACCOUNT_1,
+  MockAccountBuilder,
+} from '../tests/index.js';
+import {
+  MOCK_HD_KEYRING_1,
+  MOCK_HD_KEYRING_2,
+  getMultichainAccountServiceMessenger,
+  getRootMessenger,
+  makeMockAccountProvider,
+  setupBip44AccountProvider,
+} from '../tests/index.js';
 import { traceFallback } from './analytics/index.js';
 import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf.js';
 import type {
@@ -41,25 +60,6 @@ import {
   TRX_ACCOUNT_PROVIDER_NAME,
   TrxAccountProvider,
 } from './providers/TrxAccountProvider.js';
-import type { RootMessenger, MockAccountProvider } from './tests/index.js';
-import {
-  MOCK_HARDWARE_ACCOUNT_1,
-  MOCK_HD_ACCOUNT_1,
-  MOCK_HD_ACCOUNT_2,
-  MOCK_MNEMONIC,
-  MOCK_SNAP_ACCOUNT_1,
-  MOCK_SNAP_ACCOUNT_2,
-  MOCK_SOL_ACCOUNT_1,
-  MockAccountBuilder,
-} from './tests/index.js';
-import {
-  MOCK_HD_KEYRING_1,
-  MOCK_HD_KEYRING_2,
-  getMultichainAccountServiceMessenger,
-  getRootMessenger,
-  makeMockAccountProvider,
-  setupBip44AccountProvider,
-} from './tests/index.js';
 import type { MultichainAccountServiceMessenger } from './types.js';
 import type { SentryError } from './utils.js';
 

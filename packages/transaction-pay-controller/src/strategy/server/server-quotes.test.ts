@@ -1,6 +1,7 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -8,7 +9,6 @@ import {
   PaymentOverride,
   TransactionPayStrategy,
 } from '../../constants.js';
-import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   GetDelegationTransactionCallback,
   QuoteRequest,

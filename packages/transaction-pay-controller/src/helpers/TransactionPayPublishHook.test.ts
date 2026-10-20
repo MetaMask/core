@@ -3,8 +3,8 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { TransactionPayStrategy } from '../index.js';
-import { getMessengerMock } from '../tests/messenger-mock.js';
 import type {
   TransactionPayControllerState,
   TransactionPayQuote,

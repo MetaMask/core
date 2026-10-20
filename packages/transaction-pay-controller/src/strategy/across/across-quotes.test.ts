@@ -8,13 +8,13 @@ import type {
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
   TransactionPayStrategy,
 } from '../../constants.js';
-import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { QuoteRequest } from '../../types.js';
 import {
   getGasBuffer,

@@ -10,8 +10,8 @@ import type { TransactionControllerState } from '@metamask/transaction-controlle
 import type { Hex } from '@metamask/utils';
 import { noop } from 'lodash-es';
 
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { NATIVE_TOKEN_ADDRESS } from '../constants.js';
-import { getMessengerMock } from '../tests/messenger-mock.js';
 import type {
   TransactionData,
   TransactionPayControllerState,

@@ -8,6 +8,7 @@ import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -17,7 +18,6 @@ import {
   PaymentOverride,
   POLYGON_USDCE_ADDRESS,
 } from '../../constants.js';
-import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { TransactionPayControllerGetAmountDataAction } from '../../TransactionPayController-method-action-types.js';
 import type {
   GetDelegationTransactionCallback,

@@ -6,7 +6,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
-import { getMessengerMock } from '../../tests/messenger-mock.js';
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import type { TransactionPayQuote } from '../../types.js';
 import { QuoteError } from '../../utils/validation.js';
 import { getRelayExecuteRequest } from './relay-submit-execute.js';

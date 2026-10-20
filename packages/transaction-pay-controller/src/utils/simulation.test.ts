@@ -2,7 +2,7 @@ import { SentinelChainNotSupportedError } from '@metamask/sentinel-api-service';
 import type { SentinelSimulationResponse } from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
 
-import { getMessengerMock } from '../tests/messenger-mock.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { simulateQuoteTransactions } from './simulation.js';
 import type { SimulationRequest } from './simulation.js';
 

@@ -21,8 +21,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 import deepmerge from 'deepmerge';
 
-import { traceFallback } from '../analytics/index.js';
-import type { DeepPartial, RootMessenger } from '../tests/index.js';
+import type { DeepPartial, RootMessenger } from '../../tests/index.js';
 import {
   asKeyringAccount,
   getMultichainAccountServiceMessenger,
@@ -30,7 +29,8 @@ import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
   MockAccountBuilder,
-} from '../tests/index.js';
+} from '../../tests/index.js';
+import { traceFallback } from '../analytics/index.js';
 import type { MultichainAccountServiceMessenger } from '../types.js';
 import { BtcAccountProvider } from './BtcAccountProvider.js';
 import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';

@@ -1,6 +1,6 @@
+import { runCommand } from '../../../tests/run-command.js';
 import { sendCommand } from '../../daemon/daemon-client.js';
 import { promptPassword } from '../../daemon/prompts.js';
-import { runCommand } from '../../test/run-command.js';
 import WalletUnlock from './unlock.js';
 
 jest.mock('../../daemon/daemon-client');

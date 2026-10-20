@@ -15,6 +15,11 @@
 import { QueryClient } from '@tanstack/query-core';
 
 import {
+  mockFetch,
+  createMockResponse,
+  setupTestEnvironment,
+} from '../../tests/test-utils.js';
+import {
   ApiPlatformClient,
   createApiPlatformClient,
   API_URLS,
@@ -25,11 +30,6 @@ import {
   shouldRetry,
   calculateRetryDelay,
 } from './index.js';
-import {
-  mockFetch,
-  createMockResponse,
-  setupTestEnvironment,
-} from './test-utils.js';
 
 describe('ApiPlatformClient', () => {
   let client: ApiPlatformClient;

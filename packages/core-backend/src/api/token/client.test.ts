@@ -2,13 +2,13 @@
  * Token API Client Tests - token.api.cx.metamask.io
  */
 
-import type { ApiPlatformClient } from '../ApiPlatformClient.js';
-import { API_URLS } from '../shared-types.js';
 import {
   mockFetch,
   createMockResponse,
   setupTestEnvironment,
-} from '../test-utils.js';
+} from '../../../tests/test-utils.js';
+import type { ApiPlatformClient } from '../ApiPlatformClient.js';
+import { API_URLS } from '../shared-types.js';
 import type { NetworkInfo, TokenMetadata } from './types.js';
 
 describe('TokenApiClient', () => {

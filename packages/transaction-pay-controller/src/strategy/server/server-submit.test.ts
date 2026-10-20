@@ -7,8 +7,8 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import { PaymentOverride } from '../../constants.js';
-import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayQuote,

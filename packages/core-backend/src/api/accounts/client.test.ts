@@ -2,13 +2,13 @@
  * Accounts API Client Tests - accounts.api.cx.metamask.io
  */
 
-import type { ApiPlatformClient } from '../ApiPlatformClient.js';
-import { API_URLS, HttpError } from '../shared-types.js';
 import {
   mockFetch,
   createMockResponse,
   setupTestEnvironment,
-} from '../test-utils.js';
+} from '../../../tests/test-utils.js';
+import type { ApiPlatformClient } from '../ApiPlatformClient.js';
+import { API_URLS, HttpError } from '../shared-types.js';
 import type {
   V1SupportedNetworksResponse,
   V2SupportedNetworksResponse,

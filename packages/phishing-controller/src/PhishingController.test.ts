@@ -17,6 +17,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
 import {
+  createMockStateChangePayload,
+  createMockTransaction,
+  formatHostnameToUrl,
+  TEST_ADDRESSES,
+} from '../tests/utils.js';
+import {
   ListNames,
   METAMASK_HOTLIST_DIFF_FILE,
   METAMASK_STALELIST_FILE,
@@ -37,12 +43,6 @@ import type {
   PhishingControllerMessenger,
 } from './PhishingController.js';
 import { RequestSourceFlow, RequestSourcePlatform } from './request-source.js';
-import {
-  createMockStateChangePayload,
-  createMockTransaction,
-  formatHostnameToUrl,
-  TEST_ADDRESSES,
-} from './tests/utils.js';
 import type {
   PhishingDetectionScanResult,
   AddressScanResult,
