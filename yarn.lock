@@ -8226,6 +8226,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/error-utils": "npm:^0.0.0"
+    "@metamask/type-utils": "npm:^0.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     rimraf: "npm:^6.1.3"
     typedoc: "npm:^0.28.20"

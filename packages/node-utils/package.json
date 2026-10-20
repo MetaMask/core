@@ -62,6 +62,7 @@
     "node": "^22.14.0 || ^24"
   },
   "dependencies": {
-    "@metamask/error-utils": "^0.0.0"
+    "@metamask/error-utils": "^0.0.0",
+    "@metamask/type-utils": "^0.0.0"
   }
 }
