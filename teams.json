@@ -106,5 +106,6 @@
   "metamask/cryptography": "team-core-platform",
   "metamask/package-template": "team-core-platform",
   "metamask/type-utils": "team-core-platform",
-  "metamask/error-utils": "team-core-platform"
+  "metamask/error-utils": "team-core-platform",
+  "metamask/node-utils": "team-core-platform"
 }
