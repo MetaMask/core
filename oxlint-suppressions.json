@@ -7138,6 +7138,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 2
     }
   },
   "packages/utils/src/json.ts": {
@@ -7194,6 +7197,12 @@
     },
     "typescript/no-unsafe-argument": {
       "count": 29
+    },
+    "vitest/no-conditional-expect": {
+      "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/wallet-cli/jest.config.cjs": {

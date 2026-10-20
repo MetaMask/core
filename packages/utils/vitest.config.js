@@ -13,8 +13,6 @@ export default mergeConfig(baseConfig, {
     },
 
     coverage: {
-      // Fixtures hold data rather than logic, and type tests never execute, so
-      // neither has coverage to collect.
       exclude: ['src/**/__fixtures__/**', 'src/**/*.test-d.ts'],
 
       thresholds: {

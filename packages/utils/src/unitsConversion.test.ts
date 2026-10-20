@@ -628,11 +628,8 @@ describe('units', () => {
 
       units.forEach((unit) => {
         // Skip noether as it's a special case (base = 0)
-        // eslint-disable-next-line vitest/no-conditional-in-test
         if (unit === 'noether') {
-          // eslint-disable-next-line vitest/no-conditional-expect
           expect(toWei(BigInt(1), unit)).toBe(BigInt(0));
-          // eslint-disable-next-line vitest/no-conditional-expect
           expect(fromWei(BigInt(1000), unit)).toBe('0');
           return;
         }

@@ -5,12 +5,7 @@
     "forceConsistentCasingInFileNames": true,
     "noErrorTruncation": true,
     "noUncheckedIndexedAccess": true,
-    /**
-     * `web3`, a test-only dependency, ships declaration files that do not
-     * satisfy `exactOptionalPropertyTypes`. The lint and build configurations
-     * already skip third-party declarations; the Vitest type tests run against
-     * this configuration, so it has to skip them too.
-     */
+    // Web3 declarations conflict with exactOptionalPropertyTypes.
     "skipLibCheck": true
   },
   "include": ["../../types", "./src"]
