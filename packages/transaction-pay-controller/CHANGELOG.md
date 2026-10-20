@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/assets-controller` from `^19.0.0` to `^19.1.0` ([#10876](https://github.com/MetaMask/core/pull/10876))
 
+### Fixed
+
+- Refresh max-amount source balances and quotes at feature-flagged intervals ([#10911](https://github.com/MetaMask/core/pull/10911))
+
 ## [30.1.0]
 
 ### Added
