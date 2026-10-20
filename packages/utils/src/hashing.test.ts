@@ -1,8 +1,14 @@
 import * as nobleHashes256 from '@noble/hashes/sha256';
 import * as nobleHashes512 from '@noble/hashes/sha512';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { bytesToHex, stringToBytes } from './bytes.js';
 import { sha256, sha512, sha384 } from './hashing.js';
+
+// The modules are ESM, so their exports cannot be spied on in place. Mocking
+// them in spy mode wraps each export in a spy that still calls through.
+vi.mock('@noble/hashes/sha256', { spy: true });
+vi.mock('@noble/hashes/sha512', { spy: true });
 
 describe('hash functions', () => {
   const originalSubtle = globalThis.crypto.subtle;
@@ -35,7 +41,7 @@ describe('hash functions', () => {
     });
 
     it('falls back to noble when digest function is unavailable', async () => {
-      const nobleSpy = jest.spyOn(nobleHashes256, 'sha256');
+      const nobleSpy = vi.mocked(nobleHashes256.sha256);
 
       Object.defineProperty(globalThis.crypto.subtle, 'digest', {
         value: undefined,
@@ -51,7 +57,7 @@ describe('hash functions', () => {
     });
 
     it('falls back to noble when subtle APIs are unavailable', async () => {
-      const nobleSpy = jest.spyOn(nobleHashes256, 'sha256');
+      const nobleSpy = vi.mocked(nobleHashes256.sha256);
 
       Object.defineProperty(globalThis.crypto, 'subtle', {
         value: undefined,
@@ -83,7 +89,7 @@ describe('hash functions', () => {
     });
 
     it('falls back to noble when digest function is unavailable', async () => {
-      const nobleSpy = jest.spyOn(nobleHashes512, 'sha512');
+      const nobleSpy = vi.mocked(nobleHashes512.sha512);
 
       Object.defineProperty(globalThis.crypto.subtle, 'digest', {
         value: undefined,
@@ -99,7 +105,7 @@ describe('hash functions', () => {
     });
 
     it('falls back to noble when subtle APIs are unavailable', async () => {
-      const nobleSpy = jest.spyOn(nobleHashes512, 'sha512');
+      const nobleSpy = vi.mocked(nobleHashes512.sha512);
 
       Object.defineProperty(globalThis.crypto, 'subtle', {
         value: undefined,
@@ -131,7 +137,7 @@ describe('hash functions', () => {
     });
 
     it('falls back to noble when digest function is unavailable', async () => {
-      const nobleSpy = jest.spyOn(nobleHashes512, 'sha384');
+      const nobleSpy = vi.mocked(nobleHashes512.sha384);
 
       Object.defineProperty(globalThis.crypto.subtle, 'digest', {
         value: undefined,
@@ -147,7 +153,7 @@ describe('hash functions', () => {
     });
 
     it('falls back to noble when subtle APIs are unavailable', async () => {
-      const nobleSpy = jest.spyOn(nobleHashes512, 'sha384');
+      const nobleSpy = vi.mocked(nobleHashes512.sha384);
 
       Object.defineProperty(globalThis.crypto, 'subtle', {
         value: undefined,

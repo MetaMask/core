@@ -11,6 +11,24 @@ export type AuthenticationControllerPerformSignInAction = {
 };
 
 /**
+ * Exchanges the social access token SeedlessOnboarding holds for the
+ * wallet's Google/Apple/Telegram login (`POST /api/v2/social/login`) for an
+ * access token and the canonical profile it is paired to. Shows no UI and
+ * stores nothing: SRP sessions remain the source of truth for
+ * `getBearerToken`.
+ *
+ * Throws when the wallet has no social vault or no social token, and
+ * `SocialIdentifierNotPairedError` when the identifier was never paired to
+ * a profile.
+ *
+ * @returns The access token and canonical profile.
+ */
+export type AuthenticationControllerExchangeSocialAccessTokenAction = {
+  type: `AuthenticationController:exchangeSocialAccessToken`;
+  handler: AuthenticationController['exchangeSocialAccessToken'];
+};
+
+/**
  * Marks profile pairing as needed. Clients call this when the SRP set
  * changes (e.g. a new keyring was added) so the next auto-sign-in cycle
  * re-runs `performSignIn` and re-pairs.
@@ -31,7 +49,8 @@ export type AuthenticationControllerRefreshEnrolledCredentialsAction = {
 };
 
 /**
- * Begins enrollment of a passkey or email OTP credential.
+ * Begins enrollment of a passkey, email OTP or authenticator app (TOTP)
+ * credential.
  *
  * @param request - Credential, optional email address, and trace reason.
  * @returns A challenge for the client-owned ceremony.
@@ -43,6 +62,9 @@ export type AuthenticationControllerBeginCredentialEnrollmentAction = {
 
 /**
  * Completes credential enrollment and refreshes the credential cache.
+ *
+ * It is sent with the verification token that began the enrollment, if
+ * any: once a factor is enrolled, the server requires AAL2 for both steps.
  *
  * The server returns an assertion for the new credential, which opens a
  * verification session like `completeCredentialVerification`, replacing
@@ -113,7 +135,8 @@ export type AuthenticationControllerGetVerificationTokenAction = {
 };
 
 /**
- * Clears every in-memory verification session and its expiration timer.
+ * Clears every in-memory verification session and its expiration timer,
+ * and the tokens kept for enrollments in progress.
  */
 export type AuthenticationControllerClearVerificationSessionAction = {
   type: `AuthenticationController:clearVerificationSession`;
@@ -238,6 +261,7 @@ export type AuthenticationControllerIsSignedInAction = {
  */
 export type AuthenticationControllerMethodActions =
   | AuthenticationControllerPerformSignInAction
+  | AuthenticationControllerExchangeSocialAccessTokenAction
   | AuthenticationControllerRequestProfilePairingAction
   | AuthenticationControllerRefreshEnrolledCredentialsAction
   | AuthenticationControllerBeginCredentialEnrollmentAction

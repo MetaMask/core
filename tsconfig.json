@@ -122,6 +122,9 @@
       "path": "./packages/eip1193-permission-middleware"
     },
     {
+      "path": "./packages/error-utils"
+    },
+    {
       "path": "./packages/eth-block-tracker"
     },
     {
@@ -164,6 +167,9 @@
       "path": "./packages/logging-controller"
     },
     {
+      "path": "./packages/marketing-consent-controller"
+    },
+    {
       "path": "./packages/message-manager"
     },
     {
@@ -171,6 +177,9 @@
     },
     {
       "path": "./packages/messenger-cli"
+    },
+    {
+      "path": "./packages/mfa-recovery-controller"
     },
     {
       "path": "./packages/money-account-api-data-service"
@@ -216,6 +225,9 @@
     },
     {
       "path": "./packages/network-enablement-controller"
+    },
+    {
+      "path": "./packages/node-utils"
     },
     {
       "path": "./packages/notification-services-controller"
@@ -315,6 +327,9 @@
     },
     {
       "path": "./packages/transaction-pay-middleware"
+    },
+    {
+      "path": "./packages/type-utils"
     },
     {
       "path": "./packages/user-operation-controller"

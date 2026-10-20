@@ -6,12 +6,12 @@ import type { CaipAssetType, Hex } from '@metamask/utils';
 import { hexToBigInt } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
   POLYGON_USDCE_ADDRESS,
 } from '../constants.js';
-import { getMessengerMock } from '../tests/messenger-mock.js';
 import {
   buildCaipAssetType,
   computeRawFromFiatAmount,

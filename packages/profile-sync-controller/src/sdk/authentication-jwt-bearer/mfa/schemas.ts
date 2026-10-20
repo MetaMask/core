@@ -23,7 +23,7 @@ import type { Struct } from '@metamask/superstruct';
 import { VerificationTokenInvalidError, MfaError } from '../../errors.js';
 import { asRecord } from '../../utils/as-record.js';
 
-export const MFA_CREDENTIAL_TYPES = ['passkey', 'email_otp'] as const;
+export const MFA_CREDENTIAL_TYPES = ['passkey', 'email_otp', 'totp'] as const;
 
 export const MfaCredentialTypeStruct = enums(MFA_CREDENTIAL_TYPES);
 
@@ -127,12 +127,28 @@ export const MfaVerifyCompleteResponseStruct = type({
   expires_in: integer(),
 });
 
+/** Base32 secret for an authenticator app, as `totp_secret` sends it. */
+const TotpSecretStruct = sensitive(pattern(string(), /^[A-Z2-7]+=*$/u));
+
+/**
+ * QR code for an authenticator app, as `totp_qr` sends it: a PNG data URL that
+ * clients can render as-is. It encodes the secret, so it is just as sensitive.
+ * Case-insensitive, like the scheme and media type of any data URL.
+ */
+const TotpQrCodeStruct = sensitive(
+  pattern(string(), /^data:image\/png;base64,[A-Za-z0-9+/]+=*$/iu),
+);
+
 export const MfaEnrollResponseStruct = type({
   flow_id: string(),
 
   expires_at: string(),
 
   passkey_create_data: optional(sensitive(string())),
+
+  totp_secret: optional(TotpSecretStruct),
+
+  totp_qr: optional(TotpQrCodeStruct),
 });
 
 /**
@@ -168,6 +184,7 @@ export const MfaCredentialStruct = type({
   status: string(),
 
   enrolled_at: optional(string()),
+  last_used_at: optional(string()),
   passkey: optional(MfaPasskeyDetailStruct),
   email: optional(MfaEmailDetailStruct),
 });
@@ -198,14 +215,15 @@ export const BeginEnrollmentRequestStruct = refine(
     if (value.type === 'email_otp' && value.email === undefined) {
       return 'email is required for email_otp enrollment';
     }
-    if (value.type === 'passkey' && value.email !== undefined) {
-      return 'email is not accepted for passkey enrollment';
+    if (value.type !== 'email_otp' && value.email !== undefined) {
+      return `email is not accepted for ${value.type} enrollment`;
     }
     return true;
   },
 );
 
-const EmailOtpCodeStruct = sensitive(pattern(string(), /^\d{6}$/u));
+/** A 6-digit code, from an email or an authenticator app. */
+const OtpCodeStruct = sensitive(pattern(string(), /^\d{6}$/u));
 
 const EnrollmentProofStruct = union([
   object({
@@ -213,8 +231,8 @@ const EnrollmentProofStruct = union([
     attestation: RegistrationResponseJSONStruct,
   }),
   object({
-    type: literal('email_otp'),
-    code: EmailOtpCodeStruct,
+    type: enums(['email_otp', 'totp']),
+    code: OtpCodeStruct,
   }),
 ]);
 
@@ -235,8 +253,8 @@ const VerificationProofStruct = union([
     assertion: AuthenticationResponseJSONStruct,
   }),
   object({
-    type: literal('email_otp'),
-    code: EmailOtpCodeStruct,
+    type: enums(['email_otp', 'totp']),
+    code: OtpCodeStruct,
   }),
 ]);
 
