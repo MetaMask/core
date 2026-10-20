@@ -49,6 +49,11 @@
     "test:verbose": "vitest --reporter=verbose",
     "test:watch": "vitest --watch"
   },
+  "dependencies": {
+    "@metamask/error-utils": "^0.0.0",
+    "@metamask/type-utils": "^0.0.0",
+    "uuid": "^11.1.1"
+  },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
     "@typescript/native": "npm:typescript@^7.0.2",
@@ -60,9 +65,5 @@
   },
   "engines": {
     "node": "^22.14.0 || ^24"
-  },
-  "dependencies": {
-    "@metamask/error-utils": "^0.0.0",
-    "@metamask/type-utils": "^0.0.0"
   }
 }
