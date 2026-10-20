@@ -8,6 +8,7 @@ import {
 import type {
   CaipAccountAddress,
   CaipAccountId,
+  CaipChainId,
   CaipNamespace,
   CaipReference,
   Hex,
@@ -92,6 +93,21 @@ export const getEthAccounts = (
 
   return getUniqueArrayItems(ethAccounts);
 };
+
+export function getEthAccountsForScope(
+  caip25CaveatValue: Pick<
+    Caip25CaveatValue,
+    'requiredScopes' | 'optionalScopes'
+  >,
+  scope: CaipChainId,
+) {
+  const scopeObject =
+    caip25CaveatValue.requiredScopes[scope] ??
+    caip25CaveatValue.optionalScopes[scope] ??
+    {};
+  const accounts = getEthAccountsFromScopes({ [scope]: scopeObject });
+  return getUniqueArrayItems(accounts);
+}
 
 /**
  * Sets the Ethereum (EIP155 namespaced) accounts for the given scopes object.
