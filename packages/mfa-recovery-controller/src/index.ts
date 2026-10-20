@@ -13,16 +13,21 @@ export type {
 } from './MfaRecoveryController.js';
 export type {
   MfaRecoveryControllerAbortAction,
+  MfaRecoveryControllerAcquireLockAction,
   MfaRecoveryControllerAuthenticateIdentifierAction,
   MfaRecoveryControllerGetPhaseAction,
   MfaRecoveryControllerGetRecoverySecretAction,
   MfaRecoveryControllerRegisterAction,
+  MfaRecoveryControllerReleaseLockAction,
+  MfaRecoveryControllerRenewLockAction,
   MfaRecoveryControllerResumeAction,
   MfaRecoveryControllerUpdateIdentifiersAction,
   MfaRecoveryControllerUpdateRecoverySecretAction,
 } from './MfaRecoveryController-method-action-types.js';
 export { CubistEscrowProvider } from './escrow-providers/cubist-escrow-provider.js';
 export type { CubistEscrowProviderOptions } from './escrow-providers/cubist-escrow-provider.js';
+export { RecoveryRegistrationLockProvider } from './recovery-registration-lock-provider.js';
+export type { RecoveryRegistrationLockProviderOptions } from './recovery-registration-lock-provider.js';
 export {
   IncompleteMutationError,
   MfaRecoveryError,
@@ -52,6 +57,7 @@ export type {
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
+  RecoveryLockProvider,
   RecoveryPhase,
   RecoveredSecret,
   WrappedSecret,

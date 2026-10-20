@@ -38,6 +38,7 @@ import type {
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
+  RecoveryLockProvider,
   GetRecoverySecretResponse,
   RegisterPayload,
   UpdateIdentifiersPayload,
@@ -126,6 +127,37 @@ export class StubAuthProvider implements RecoveryAuthProvider {
             ),
           }),
     });
+  }
+}
+
+/** In-memory per-profile recovery lease shared by competing test controllers. */
+export class StubRecoveryLockProvider implements RecoveryLockProvider {
+  lockId: string | null = null;
+
+  async acquire(lockId: string): Promise<void> {
+    if (this.lockId !== null && this.lockId !== lockId) {
+      throw new MfaRecoveryError(
+        'Recovery lock conflict',
+        'recovery_lock_conflict',
+      );
+    }
+    this.lockId = lockId;
+  }
+
+  async renew(lockId: string): Promise<void> {
+    if (this.lockId !== lockId) {
+      throw new MfaRecoveryError(
+        'Recovery lock conflict',
+        'recovery_lock_conflict',
+      );
+    }
+  }
+
+  async release(lockId: string): Promise<void> {
+    if (this.lockId !== null) {
+      await this.renew(lockId);
+      this.lockId = null;
+    }
   }
 }
 

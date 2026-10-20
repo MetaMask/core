@@ -59,6 +59,7 @@ import type {
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
+  RecoveryLockProvider,
   RecoveryPhase,
   RecoveredSecret,
   WrappedSecret,
@@ -68,6 +69,9 @@ import type {
 const CONTROLLER_NAME = 'MfaRecoveryController';
 
 const MESSENGER_EXPOSED_METHODS = [
+  'acquireLock',
+  'renewLock',
+  'releaseLock',
   'register',
   'updateRecoverySecret',
   'updateIdentifiers',
@@ -79,6 +83,8 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 export type MfaRecoveryControllerState = {
+  /** Persisted operation ID for recovery lease acquisition and retries. */
+  lockId: string | null;
   /**
    * Encrypted pending mutation, or `null` when idle.
    */
@@ -86,6 +92,12 @@ export type MfaRecoveryControllerState = {
 };
 
 const mfaRecoveryControllerMetadata = {
+  lockId: {
+    persist: true,
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    usedInUi: false,
+  },
   pendingOperation: {
     persist: true,
     includeInDebugSnapshot: false,
@@ -98,7 +110,7 @@ const mfaRecoveryControllerMetadata = {
  * @returns The default {@link MfaRecoveryController} state.
  */
 export function getDefaultMfaRecoveryControllerState(): MfaRecoveryControllerState {
-  return { pendingOperation: null };
+  return { lockId: null, pendingOperation: null };
 }
 
 export type MfaRecoveryControllerGetStateAction = ControllerGetStateAction<
@@ -145,6 +157,9 @@ export type MfaRecoveryControllerOptions = {
    * Authenticates the MetaMask profile and issues request-bound attestations.
    */
   authProvider: RecoveryAuthProvider;
+
+  /** Coordinates recovery operations through the registration service. */
+  lockProvider: RecoveryLockProvider;
 
   /**
    * Obtains key-bound identifier tokens from an IdP.
@@ -199,6 +214,8 @@ export class MfaRecoveryController extends BaseController<
 > {
   readonly #authProvider: RecoveryAuthProvider;
 
+  readonly #lockProvider: RecoveryLockProvider;
+
   readonly #identifierAuthProvider: RecoveryIdentifierAuthProvider;
 
   readonly #escrows: RecoveryEscrowProvider[];
@@ -209,10 +226,13 @@ export class MfaRecoveryController extends BaseController<
 
   #lock: Promise<void> = Promise.resolve();
 
+  #leaseAcquired = false;
+
   constructor({
     messenger,
     state,
     authProvider,
+    lockProvider,
     identifierAuthProvider,
     escrows,
     pendingOperationEncryptor,
@@ -240,6 +260,7 @@ export class MfaRecoveryController extends BaseController<
     });
 
     this.#authProvider = authProvider;
+    this.#lockProvider = lockProvider;
     this.#identifierAuthProvider = identifierAuthProvider;
     this.#escrows = [...escrows];
     this.#encryptor = pendingOperationEncryptor;
@@ -249,6 +270,67 @@ export class MfaRecoveryController extends BaseController<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Acquires the lease before the client reads or changes Auth identifiers.
+   */
+  async acquireLock(): Promise<void> {
+    await this.#withLock(async () => {
+      if (this.#leaseAcquired) {
+        throw new MfaRecoveryError(
+          'A recovery operation already holds the lock',
+          'recovery_lock_held',
+        );
+      }
+      await this.#acquireRecoveryLock();
+    });
+  }
+
+  /**
+   * Renews an existing lease without recreating an expired one.
+   */
+  async renewLock(): Promise<void> {
+    const { lockId } = this.state;
+    if (lockId === null) {
+      throw new MfaRecoveryError(
+        'Acquire the recovery lock first',
+        'recovery_lock_required',
+      );
+    }
+    try {
+      await this.#lockProvider.renew(lockId);
+      if (this.state.lockId === lockId) {
+        this.#leaseAcquired = true;
+      }
+    } catch (error) {
+      if (this.state.lockId === lockId) {
+        this.#leaseAcquired = false;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Releases the lease after completion; pending mutations must finish first.
+   */
+  async releaseLock(): Promise<void> {
+    await this.#withLock(async () => {
+      if (this.state.pendingOperation !== null) {
+        throw new MfaRecoveryError(
+          'A pending mutation must be resumed or aborted first',
+          'pending_mutation',
+        );
+      }
+      const { lockId } = this.state;
+      if (lockId !== null) {
+        await this.#lockProvider.release(lockId);
+        this.#leaseAcquired = false;
+        this.update((state) => {
+          state.lockId = null;
+        });
+      }
+    });
   }
 
   /**
@@ -378,6 +460,7 @@ export class MfaRecoveryController extends BaseController<
           'invalid_identifier_session',
         );
       }
+      await this.#ensureRecoveryLock();
       const available = await this.#getAvailableEscrows();
       if (available.length === 0) {
         throw new MfaRecoveryError(
@@ -463,6 +546,7 @@ export class MfaRecoveryController extends BaseController<
         );
       }
 
+      await this.#ensureRecoveryLock();
       await this.#assertEscrowsAvailable(this.#escrows);
 
       const profileId = await this.#authProvider.getAuthenticatedProfileId();
@@ -526,6 +610,7 @@ export class MfaRecoveryController extends BaseController<
     }
 
     if (pending.phase === 'authorizing') {
+      await this.#ensureRecoveryLock();
       await this.#assertEscrowsAvailable(this.#escrows);
       await this.#replicateMutation({
         ...pending,
@@ -582,6 +667,7 @@ export class MfaRecoveryController extends BaseController<
       ),
     );
 
+    await this.renewLock();
     await this.#persistPending(writing);
     const results = await Promise.allSettled(
       remainingEscrows.map((escrow, index) =>
@@ -815,6 +901,26 @@ export class MfaRecoveryController extends BaseController<
     this.update((state) => {
       state.pendingOperation = null;
     });
+  }
+
+  async #acquireRecoveryLock(): Promise<void> {
+    const lockId = this.state.lockId ?? randomId();
+    this.update((state) => {
+      state.lockId = lockId;
+    });
+    await this.#lockProvider.acquire(lockId);
+    this.#leaseAcquired = true;
+  }
+
+  async #ensureRecoveryLock(): Promise<void> {
+    if (this.#leaseAcquired) {
+      return;
+    }
+    if (this.state.lockId === null) {
+      await this.#acquireRecoveryLock();
+    } else {
+      await this.renewLock();
+    }
   }
 
   async #withLock<ReturnValue>(
