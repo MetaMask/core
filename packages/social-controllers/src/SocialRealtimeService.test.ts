@@ -3,6 +3,8 @@ import type {
   BackendWebSocketServiceMessenger,
   WebSocketSubscription,
 } from '@metamask/core-backend';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   SOCIAL_FEED_CHANNELS,
@@ -13,14 +15,14 @@ import {
 describe('SocialRealtimeService', () => {
   type ConnectionStateHandler = (connection: { state: WebSocketState }) => void;
 
-  type BackendCall = jest.Mock<unknown, [string, unknown?]>;
+  type BackendCall = Mock<(method: string, params?: unknown) => unknown>;
 
   type TestHarness = {
     call: BackendCall;
     connectionStateHandler: () => ConnectionStateHandler | undefined;
     messenger: BackendWebSocketServiceMessenger;
     service: SocialRealtimeService;
-    unsubscribe: jest.Mock;
+    unsubscribe: Mock;
   };
 
   const event = {
@@ -54,8 +56,8 @@ describe('SocialRealtimeService', () => {
     scopes: ('all' | 'trending')[] = ['trending'],
   ): TestHarness => {
     let connectionStateHandler: ConnectionStateHandler | undefined;
-    const unsubscribe = jest.fn().mockResolvedValue(undefined);
-    const call: BackendCall = jest.fn(
+    const unsubscribe = vi.fn().mockResolvedValue(undefined);
+    const call: BackendCall = vi.fn(
       (action: string, _options?: unknown): unknown => {
         if (action === 'BackendWebSocketService:connect') {
           return Promise.resolve();
@@ -74,7 +76,7 @@ describe('SocialRealtimeService', () => {
     );
     const messenger = {
       call,
-      subscribe: jest.fn(
+      subscribe: vi.fn(
         (_event: string, handler: ConnectionStateHandler): void => {
           connectionStateHandler = handler;
         },
@@ -116,7 +118,7 @@ describe('SocialRealtimeService', () => {
 
   it('subscribes and forwards valid feed events', async () => {
     const { call, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addListener(listener);
 
     await service.setActive(true);
@@ -139,7 +141,7 @@ describe('SocialRealtimeService', () => {
 
   it('subscribes to all selected feed scopes together', async () => {
     const { call, service } = createService(true, ['all', 'trending']);
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addListener(listener);
 
     await service.setActive(true);
@@ -166,7 +168,7 @@ describe('SocialRealtimeService', () => {
 
   it('forwards every valid event in a batched notification', async () => {
     const { call, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addListener(listener);
 
     await service.setActive(true);
@@ -196,7 +198,7 @@ describe('SocialRealtimeService', () => {
 
   it('drops malformed items without rejecting valid items in a batch', async () => {
     const { call, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addListener(listener);
 
     await service.setActive(true);
@@ -211,7 +213,7 @@ describe('SocialRealtimeService', () => {
 
   it('ignores non-object feed events', async () => {
     const { call, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addListener(listener);
 
     await service.setActive(true);
@@ -235,7 +237,7 @@ describe('SocialRealtimeService', () => {
     'ignores feed events with an invalid %s field',
     async (_field, invalid) => {
       const { call, service } = createService();
-      const listener = jest.fn();
+      const listener = vi.fn();
       service.addListener(listener);
 
       await service.setActive(true);
@@ -250,7 +252,7 @@ describe('SocialRealtimeService', () => {
 
   it('ignores notifications for other channels', async () => {
     const { call, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addListener(listener);
 
     await service.setActive(true);
@@ -309,7 +311,7 @@ describe('SocialRealtimeService', () => {
 
   it('forwards overlapping events once during scope replacement', async () => {
     const { call, service } = createService(true, ['trending']);
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addListener(listener);
 
     await service.setActive(true);
@@ -347,11 +349,11 @@ describe('SocialRealtimeService', () => {
 
   it('cleans up a replacement when the existing subscription cleanup fails', async () => {
     const { call, service } = createService(true, ['trending']);
-    const existingUnsubscribe = jest
+    const existingUnsubscribe = vi
       .fn()
       .mockRejectedValue(new Error('Unsubscribe failed'));
-    const replacementUnsubscribe = jest.fn().mockResolvedValue(undefined);
-    const listener = jest.fn();
+    const replacementUnsubscribe = vi.fn().mockResolvedValue(undefined);
+    const listener = vi.fn();
     let subscribeCount = 0;
     service.addListener(listener);
 
@@ -411,7 +413,7 @@ describe('SocialRealtimeService', () => {
       'trending',
     ]);
     const error = new Error('Unsubscribe failed');
-    const existingUnsubscribe = jest.fn().mockImplementation(() => {
+    const existingUnsubscribe = vi.fn().mockImplementation(() => {
       connectionStateHandler()?.({ state: WebSocketState.DISCONNECTED });
       return Promise.reject(error);
     });
@@ -428,7 +430,7 @@ describe('SocialRealtimeService', () => {
           unsubscribe:
             subscribeCount === 1
               ? existingUnsubscribe
-              : jest.fn().mockResolvedValue(undefined),
+              : vi.fn().mockResolvedValue(undefined),
         });
       }
 
@@ -450,10 +452,10 @@ describe('SocialRealtimeService', () => {
 
   it('handles deactivation while replacing scopes', async () => {
     const { call, service } = createService(true, ['trending']);
-    const existingUnsubscribe = jest
+    const existingUnsubscribe = vi
       .fn()
       .mockRejectedValue(new Error('Unsubscribe failed'));
-    const replacementUnsubscribe = jest.fn().mockResolvedValue(undefined);
+    const replacementUnsubscribe = vi.fn().mockResolvedValue(undefined);
     let resolveReplacement: (value: WebSocketSubscription) => void = () =>
       undefined;
     const replacementPromise = new Promise<WebSocketSubscription>(
@@ -493,12 +495,12 @@ describe('SocialRealtimeService', () => {
 
   it('cleans up after deactivation during a failed scope replacement', async () => {
     const { call, service } = createService(true, ['trending']);
-    const existingUnsubscribe = jest
+    const existingUnsubscribe = vi
       .fn()
       .mockRejectedValueOnce(new Error('Existing cleanup failed'))
       .mockResolvedValue(undefined);
     const replacementError = new Error('Replacement failed');
-    const listener = jest.fn();
+    const listener = vi.fn();
     let rejectReplacement: (reason?: unknown) => void = () => undefined;
     const replacementPromise = new Promise<WebSocketSubscription>(
       (_resolve, reject): void => {
@@ -543,8 +545,8 @@ describe('SocialRealtimeService', () => {
 
   it('retains requested scopes after cleanup fails during deactivation', async () => {
     const { call, service } = createService(true, ['trending']);
-    const replacementUnsubscribe = jest.fn().mockResolvedValue(undefined);
-    const existingUnsubscribe = jest
+    const replacementUnsubscribe = vi.fn().mockResolvedValue(undefined);
+    const existingUnsubscribe = vi
       .fn()
       .mockImplementationOnce(() => {
         service.setActive(false).catch(() => undefined);
@@ -610,7 +612,7 @@ describe('SocialRealtimeService', () => {
       if (action === 'BackendWebSocketService:subscribe') {
         subscribeCount += 1;
         return subscribeCount === 1
-          ? Promise.resolve({ unsubscribe: jest.fn() })
+          ? Promise.resolve({ unsubscribe: vi.fn() })
           : replacementPromise;
       }
 
@@ -630,11 +632,11 @@ describe('SocialRealtimeService', () => {
 
   it('retries failed replacement cleanup', async () => {
     const { call, service } = createService(true, ['trending']);
-    const existingUnsubscribe = jest
+    const existingUnsubscribe = vi
       .fn()
       .mockRejectedValueOnce(new Error('Unsubscribe failed'))
       .mockResolvedValue(undefined);
-    const replacementUnsubscribe = jest
+    const replacementUnsubscribe = vi
       .fn()
       .mockRejectedValueOnce(new Error('Replacement cleanup failed'))
       .mockRejectedValueOnce(new Error('Replacement cleanup still failed'))
@@ -670,9 +672,9 @@ describe('SocialRealtimeService', () => {
 
   it('preserves the active feed when replacing scopes fails', async () => {
     const { call, service } = createService(true, ['trending']);
-    const existingUnsubscribe = jest.fn().mockResolvedValue(undefined);
+    const existingUnsubscribe = vi.fn().mockResolvedValue(undefined);
     const error = new Error('WebSocket unavailable');
-    const listener = jest.fn();
+    const listener = vi.fn();
     let subscribeCount = 0;
     service.addListener(listener);
 
@@ -820,8 +822,8 @@ describe('SocialRealtimeService', () => {
 
   it('creates an owned subscription when the feed channel already has one', async () => {
     const { call, service, unsubscribe } = createService();
-    const listener = jest.fn();
-    const existingUnsubscribe = jest.fn().mockResolvedValue(undefined);
+    const listener = vi.fn();
+    const existingUnsubscribe = vi.fn().mockResolvedValue(undefined);
     const existingSubscription = {
       unsubscribe: existingUnsubscribe,
     } as unknown as WebSocketSubscription;
@@ -935,7 +937,7 @@ describe('SocialRealtimeService', () => {
 
   it('ignores an initial connected notification instead of reporting a reconnect', async () => {
     const { call, connectionStateHandler, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addReconnectListener(listener);
 
     await service.setActive(true);
@@ -1042,7 +1044,7 @@ describe('SocialRealtimeService', () => {
         return Promise.reject(error);
       }
 
-      return Promise.resolve({ unsubscribe: jest.fn() });
+      return Promise.resolve({ unsubscribe: vi.fn() });
     });
 
     await expect(service.setActive(true)).rejects.toBe(error);
@@ -1060,8 +1062,8 @@ describe('SocialRealtimeService', () => {
 
   it('removes feed and reconnect listeners', () => {
     const { service } = createService();
-    const removeFeedListener = service.addListener(jest.fn());
-    const removeReconnectListener = service.addReconnectListener(jest.fn());
+    const removeFeedListener = service.addListener(vi.fn());
+    const removeReconnectListener = service.addReconnectListener(vi.fn());
 
     expect(removeFeedListener()).toBe(true);
     expect(removeReconnectListener()).toBe(true);
@@ -1085,7 +1087,7 @@ describe('SocialRealtimeService', () => {
 
   it('notifies active feed listeners after a socket reconnects', async () => {
     const { connectionStateHandler, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addReconnectListener(listener);
 
     await service.setActive(true);
@@ -1098,7 +1100,7 @@ describe('SocialRealtimeService', () => {
 
   it('does not notify reconnect listeners when resubscription fails', async () => {
     const { call, connectionStateHandler, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addReconnectListener(listener);
 
     await service.setActive(true);
@@ -1106,7 +1108,7 @@ describe('SocialRealtimeService', () => {
       if (action === 'BackendWebSocketService:connect') {
         return Promise.reject(new Error('WebSocket unavailable'));
       }
-      return Promise.resolve({ unsubscribe: jest.fn() });
+      return Promise.resolve({ unsubscribe: vi.fn() });
     });
 
     connectionStateHandler()?.({ state: WebSocketState.DISCONNECTED });
