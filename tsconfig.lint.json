@@ -328,6 +328,9 @@
     },
     {
       "path": "./packages/advanced-chart-core/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/type-utils/tsconfig.lint.json"
     }
   ]
 }

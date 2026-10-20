@@ -13,10 +13,15 @@
   "exclude": [
     "./jest.config.packages.ts",
     "**/*.test.ts",
-    "**/*.tst.ts",
+    "**/*.test-d.ts",
     "**/jest.config.ts",
     "./src/**/__fixtures__/**/*",
     "./src/**/__mocks__/**/*",
     "./src/**/__snapshots__/**/*"
+  ],
+  "references": [
+    {
+      "path": "../type-utils/tsconfig.build.json"
+    }
   ]
 }

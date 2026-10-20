@@ -317,6 +317,9 @@
       "path": "./packages/transaction-pay-middleware/tsconfig.build.json"
     },
     {
+      "path": "./packages/type-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/user-operation-controller/tsconfig.build.json"
     },
     {

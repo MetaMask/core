@@ -141,6 +141,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/transaction-pay-middleware`](packages/transaction-pay-middleware)
+- [`@metamask/type-utils`](packages/type-utils)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
 - [`@metamask/utils`](packages/utils)
 - [`@metamask/wallet`](packages/wallet)

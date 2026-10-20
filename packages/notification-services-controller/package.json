@@ -79,7 +79,7 @@
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/keyring-controller": "^28.2.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/profile-sync-controller": "^34.0.3",
+    "@metamask/profile-sync-controller": "^34.1.0",
     "@metamask/utils": "^12.0.0",
     "bignumber.js": "^9.1.2",
     "firebase": "^12.19.0",

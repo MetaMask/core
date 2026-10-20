@@ -314,6 +314,14 @@ export class AuthenticationController extends BaseController<
   readonly #verificationSessions = new Map<string, VerificationSession>();
 
   /**
+   * Verification tokens that authorized an enrollment's begin, by flow ID.
+   * The server asks for the same AAL2 proof when it is completed, which can
+   * be minutes later (for example, while the user finds an email code), past
+   * the default session age.
+   */
+  readonly #enrollmentAccessTokens = new Map<string, string>();
+
+  /**
    * Sequence number of the most recently started credentials refresh. Only
    * that refresh may write the cache, so a slower, earlier request cannot
    * overwrite a newer list (e.g. an explicit refresh landing after an
@@ -1029,7 +1037,8 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Begins enrollment of a passkey or email OTP credential.
+   * Begins enrollment of a passkey, email OTP or authenticator app (TOTP)
+   * credential.
    *
    * @param request - Credential, optional email address, and trace reason.
    * @returns A challenge for the client-owned ceremony.
@@ -1060,11 +1069,17 @@ export class AuthenticationController extends BaseController<
         }),
     );
     this.#assertAuthSessionEpoch(sessionEpoch, 'beginCredentialEnrollment');
+    if (accessToken) {
+      this.#enrollmentAccessTokens.set(challenge.flowId, accessToken);
+    }
     return challenge;
   }
 
   /**
    * Completes credential enrollment and refreshes the credential cache.
+   *
+   * It is sent with the verification token that began the enrollment, if
+   * any: once a factor is enrolled, the server requires AAL2 for both steps.
    *
    * The server returns an assertion for the new credential, which opens a
    * verification session like `completeCredentialVerification`, replacing
@@ -1100,8 +1115,12 @@ export class AuthenticationController extends BaseController<
           request.flowId,
           request.proof,
           primaryEntropySourceId,
+          this.#enrollmentAccessTokens.get(request.flowId),
         ),
     );
+    // Only after success: a failed attempt can be retried on this flow, and
+    // needs the same token.
+    this.#enrollmentAccessTokens.delete(request.flowId);
 
     try {
       await this.#openVerificationSessionFromAssertion(assertion, {
@@ -1334,13 +1353,15 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Clears every in-memory verification session and its expiration timer.
+   * Clears every in-memory verification session and its expiration timer,
+   * and the tokens kept for enrollments in progress.
    */
   public clearVerificationSession(): void {
     for (const { timer } of this.#verificationSessions.values()) {
       clearTimeout(timer);
     }
     this.#verificationSessions.clear();
+    this.#enrollmentAccessTokens.clear();
   }
 
   /**
