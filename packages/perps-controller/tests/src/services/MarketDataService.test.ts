@@ -1569,24 +1569,47 @@ describe('MarketDataService', () => {
         expect(mockProvider.getMarkets).not.toHaveBeenCalled();
       });
 
-      it('applies the allowlist unless skipFilters is set', async () => {
+      it('applies the allowlist to the snapshot', async () => {
         const allowed = await serviceWithTerminal.getMarkets({
           provider: mockProvider,
           params: { useTerminalApi: true },
           context: snapshotContext(),
           isMarketAllowed: (symbol) => symbol === 'BTC',
         });
-        const unfiltered = await serviceWithTerminal.getMarkets({
-          provider: mockProvider,
-          params: { useTerminalApi: true, skipFilters: true },
-          context: snapshotContext(),
-          isMarketAllowed: (symbol) => symbol === 'BTC',
-        });
 
         expect(allowed).toEqual([snapshotInfos[0]]);
-        expect(unfiltered).toEqual(snapshotInfos);
         expect(mockProvider.getMarkets).not.toHaveBeenCalled();
       });
+
+      it.each([undefined, false, true])(
+        'discovers markets outside snapshot DEXes with skipFilters and useTerminalApi=%s',
+        async (useTerminalApi) => {
+          const providerMarkets: MarketInfo[] = [
+            ...snapshotInfos,
+            {
+              name: 'flx:TSLA',
+              szDecimals: 2,
+              maxLeverage: 10,
+              marginTableId: 1,
+            },
+          ];
+          mockProvider.getMarkets.mockResolvedValue(providerMarkets);
+          const params = { skipFilters: true, useTerminalApi };
+
+          const result = await serviceWithTerminal.getMarkets({
+            provider: mockProvider,
+            params,
+            context: snapshotContext(),
+            isMarketAllowed: (symbol) => symbol === 'BTC',
+          });
+
+          expect(result).toEqual(providerMarkets);
+          expect(mockProvider.getMarkets).toHaveBeenCalledTimes(1);
+          expect(mockProvider.getMarkets).toHaveBeenCalledWith(params);
+          expect(fetchGlobalSnapshot).not.toHaveBeenCalled();
+          expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+        },
+      );
 
       it('applies dex and symbol filters to the snapshot list', async () => {
         const byDex = await serviceWithTerminal.getMarkets({

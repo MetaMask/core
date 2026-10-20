@@ -796,6 +796,8 @@ export class MarketDataService {
    * Handles full orchestration: tracing, error logging, state management, and provider delegation.
    * A configured global snapshot is the market list, whether or not
    * `useTerminalApi` is set. A rejected snapshot falls back to the provider.
+   * `skipFilters` uses provider discovery because the snapshot DEX set is
+   * restricted to the configured allowlist.
    * Without a snapshot URL, `useTerminalApi` still reads the legacy Terminal
    * list and falls back to the provider on failure.
    *
@@ -864,6 +866,7 @@ export class MarketDataService {
       let snapshotAttempted = false;
       if (
         snapshotUrlConfigured &&
+        !params?.skipFilters &&
         globalSnapshot &&
         this.#deps.terminalMarketService?.fetchGlobalSnapshot
       ) {
