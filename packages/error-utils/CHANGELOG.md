@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ensureError`, `getErrorMessage`, `isErrorWithCode`, `isErrorWithMessage`, `isErrorWithStack`, and `wrapError` functions, moved from `@metamask/utils` ([#10917](https://github.com/MetaMask/core/pull/10917))
+
 [Unreleased]: https://github.com/MetaMask/core/
