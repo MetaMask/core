@@ -91,24 +91,33 @@ export type MfaVerifyCompleteRequest = {
   otp_code?: string;
 };
 
-export type EnrolledCredential =
-  | {
-      type: 'passkey';
-      status: MfaCredentialStatus;
-      enrolledAt?: number;
-      displayName?: string;
-    }
-  | {
-      type: 'email_otp';
-      status: MfaCredentialStatus;
-      enrolledAt?: number;
-      /**
-       * Absent when the server lists an email method without its address; the
-       * API marks the address optional.
-       */
-      email?: string;
-      verified: boolean;
-    };
+type EnrolledCredentialBase = {
+  status: MfaCredentialStatus;
+  /** Epoch milliseconds, when the server sent a valid date. */
+  enrolledAt?: number;
+  /** Epoch milliseconds of the last verification, when the server sent one. */
+  lastUsedAt?: number;
+};
+
+export type EnrolledCredential = EnrolledCredentialBase &
+  (
+    | {
+        type: 'passkey';
+        displayName?: string;
+      }
+    | {
+        type: 'email_otp';
+        /**
+         * Absent when the server lists an email method without its address;
+         * the API marks the address optional.
+         */
+        email?: string;
+        verified: boolean;
+      }
+    | {
+        type: 'totp';
+      }
+  );
 
 /**
  * Caller-supplied context attached to MFA trace spans. `operation` names the
@@ -129,6 +138,27 @@ export type EnrollmentChallenge =
       type: 'email_otp';
       flowId: string;
       expiresAt: number;
+    }
+  | {
+      type: 'totp';
+      flowId: string;
+      expiresAt: number;
+      /**
+       * Base32 secret for the user's authenticator app, for manual entry or an
+       * `otpauth://` link. Never log or persist it.
+       */
+      secret: string;
+      /**
+       * PNG data URL of the QR code encoding the secret; render it as-is. Never
+       * log or persist it.
+       */
+      qrCode: string;
+      /**
+       * `otpauth://` link that opens an authenticator app on this device with
+       * the account to add, since a phone cannot scan its own screen. Contains
+       * the secret: never log or persist it.
+       */
+      setupUri: string;
     };
 
 export type EnrollmentProof =
@@ -137,7 +167,7 @@ export type EnrollmentProof =
       attestation: RegistrationResponseJSON;
     }
   | {
-      type: 'email_otp';
+      type: 'email_otp' | 'totp';
       code: string;
     };
 
@@ -149,7 +179,7 @@ export type VerificationChallenge =
       publicKey: PublicKeyCredentialRequestOptionsJSON;
     }
   | {
-      type: 'email_otp';
+      type: 'email_otp' | 'totp';
       flowId: string;
       expiresAt: number;
     };
@@ -160,7 +190,7 @@ export type VerificationProof =
       assertion: AuthenticationResponseJSON;
     }
   | {
-      type: 'email_otp';
+      type: 'email_otp' | 'totp';
       code: string;
     };
 
@@ -217,6 +247,7 @@ export type MfaErrorCode =
   | 'max_passkeys_reached'
   | 'max_identifiers_reached'
   | 'email_already_enrolled'
+  | 'totp_already_enrolled'
   | 'credential_already_enrolled'
   | 'credential_not_enrolled'
   | 'email_socially_verified'
