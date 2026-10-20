@@ -183,7 +183,13 @@
       "path": "./packages/logging-controller/tsconfig.lint.json"
     },
     {
+      "path": "./packages/marketing-consent-controller/tsconfig.lint.json"
+    },
+    {
       "path": "./packages/message-manager/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/mfa-recovery-controller/tsconfig.lint.json"
     },
     {
       "path": "./packages/money-account-api-data-service/tsconfig.lint.json"
@@ -193,6 +199,9 @@
     },
     {
       "path": "./packages/money-account-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/money-account-mfa-whitelist/tsconfig.lint.json"
     },
     {
       "path": "./packages/money-account-upgrade-controller/tsconfig.lint.json"
@@ -300,6 +309,9 @@
       "path": "./packages/transaction-pay-controller/tsconfig.lint.json"
     },
     {
+      "path": "./packages/transaction-pay-middleware/tsconfig.lint.json"
+    },
+    {
       "path": "./packages/user-operation-controller/tsconfig.lint.json"
     },
     {
@@ -316,6 +328,15 @@
     },
     {
       "path": "./packages/advanced-chart-core/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/type-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/error-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/node-utils/tsconfig.lint.json"
     }
   ]
 }

@@ -11,6 +11,7 @@
 
 /** @type {import('@yarnpkg/types')} */
 const { defineConfig } = require('@yarnpkg/types');
+const { PACKAGES_ON_JEST } = require('./test-runner-package-map.cjs');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
 const { basename, resolve } = require('path');
@@ -686,36 +687,87 @@ function expectCorrectWorkspaceChangelogScripts(workspace) {
  * Expect that the workspace has scripts for running tests.
  *
  * If the workspace has a `test:types` script (i.e. it runs type tests in
- * addition to Jest tests), it must have scripts that run both Jest and the type
- * tests, otherwise just Jest.
+ * addition to unit tests), it must have scripts that run both the unit tests and
+ * the type tests, otherwise just the unit tests.
  *
- * It must also provide scripts that allow Jest to be run in silent mode, clean
- * mode, verbose mode, and watch mode.
+ * It must also provide scripts that allow the tests to be run in silent mode,
+ * clean mode, verbose mode, and watch mode.
  *
  * @param {Workspace} workspace - The workspace to check.
  */
 function expectTestScripts(workspace) {
-  expectWorkspaceField(
-    workspace,
-    'scripts.test:watch',
-    'NODE_OPTIONS=--experimental-vm-modules jest --watch',
-  );
-
-  if (workspace.manifest.scripts['test:types'] === undefined) {
+  // Delete this block, and PACKAGES_ON_JEST, once no package is on Jest.
+  if (PACKAGES_ON_JEST.has(workspace.ident)) {
     expectWorkspaceField(
       workspace,
-      'scripts.test',
-      'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+      'scripts.test:watch',
+      'NODE_OPTIONS=--experimental-vm-modules jest --watch',
     );
+
+    if (workspace.manifest.scripts['test:types'] === undefined) {
+      expectWorkspaceField(
+        workspace,
+        'scripts.test',
+        'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:clean',
+        'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:verbose',
+        'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+      );
+    } else {
+      expectWorkspaceField(
+        workspace,
+        'scripts.test',
+        'yarn test:unit && yarn test:types',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:clean',
+        'yarn test:unit:clean && yarn test:types',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:verbose',
+        'yarn test:unit:verbose && yarn test:types',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:unit',
+        'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:unit:clean',
+        'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+      );
+      expectWorkspaceField(
+        workspace,
+        'scripts.test:unit:verbose',
+        'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+      );
+    }
+    return;
+  }
+
+  expectWorkspaceField(workspace, 'scripts.test:watch', 'vitest --watch');
+
+  if (workspace.manifest.scripts['test:types'] === undefined) {
+    expectWorkspaceField(workspace, 'scripts.test', 'vitest');
     expectWorkspaceField(
       workspace,
       'scripts.test:clean',
-      'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+      'vitest --clearCache',
     );
     expectWorkspaceField(
       workspace,
       'scripts.test:verbose',
-      'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+      'vitest --reporter=verbose',
     );
   } else {
     expectWorkspaceField(
@@ -733,20 +785,16 @@ function expectTestScripts(workspace) {
       'scripts.test:verbose',
       'yarn test:unit:verbose && yarn test:types',
     );
-    expectWorkspaceField(
-      workspace,
-      'scripts.test:unit',
-      'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-    );
+    expectWorkspaceField(workspace, 'scripts.test:unit', 'vitest');
     expectWorkspaceField(
       workspace,
       'scripts.test:unit:clean',
-      'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+      'vitest --clearCache',
     );
     expectWorkspaceField(
       workspace,
       'scripts.test:unit:verbose',
-      'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+      'vitest --reporter=verbose',
     );
   }
 }

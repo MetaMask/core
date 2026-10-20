@@ -3,6 +3,17 @@ import commonjs from '@metamask/oxlint-config-commonjs';
 import jest from '@metamask/oxlint-config-jest';
 import nodejs from '@metamask/oxlint-config-nodejs';
 import typescript from '@metamask/oxlint-config-typescript';
+import vitest from '@metamask/oxlint-config-vitest';
+
+import { getJestWorkspaceLocations } from './test-runner-package-map.cjs';
+
+const jestTestFiles = (await getJestWorkspaceLocations()).flatMap(
+  (location) => [
+    `${location}/**/*.test.ts`,
+    `${location}/**/test/**`,
+    `${location}/**/tests/**`,
+  ],
+);
 
 export default createConfig({
   extends: [base],
@@ -59,11 +70,28 @@ export default createConfig({
         'packages/platform-api-docs/**',
         'packages/wallet-cli/**',
         '**/scripts/**',
+        'oxlint.config.ts',
+        'jest.config.packages.cjs',
+        'jest.config.scripts.cjs',
+        'vitest.config.packages.js',
+        // These import their globals explicitly.
+        'tests/helpers.ts',
+        'tests/matchers.ts',
+        'tests/scripts-setup.ts',
+        'tests/setupAfterEnv/**',
+        'tests/vitest/**',
       ],
       extends: [nodejs],
       rules: {
         'node/no-sync': 'off',
         'node/no-process-env': 'off',
+      },
+    },
+
+    {
+      files: ['test-runner-package-map.cjs'],
+      rules: {
+        'import/unambiguous': 'off',
       },
     },
 
@@ -74,20 +102,40 @@ export default createConfig({
         'packages/*/jest.environment.cjs',
         'packages/*/jest.config.integration.cjs',
         'packages/*/jest.config.unit.cjs',
-        '**/*.test.ts',
-        '**/test/**',
-        '**/tests/**',
+        'scripts/**/*.test.ts',
+        ...jestTestFiles,
       ],
       extends: [nodejs, jest],
+      plugins: ['typescript'],
       rules: {
         'node/no-sync': 'off',
         'node/no-process-env': 'off',
+        'typescript/no-unsafe-assignment': 'off',
       },
     },
 
     {
       files: ['packages/advanced-chart-core/**'],
       env: { browser: true },
+    },
+
+    {
+      files: [
+        'tests/vitest/**',
+        'vitest.config.packages.js',
+        'packages/*/vitest.config.js',
+        'packages/*/**/*.test.ts',
+        'packages/*/**/test/**',
+        'packages/*/**/tests/**',
+      ],
+      excludeFiles: jestTestFiles,
+      extends: [nodejs, vitest],
+      plugins: ['typescript'],
+      rules: {
+        'node/no-sync': 'off',
+        'node/no-process-env': 'off',
+        'typescript/no-unsafe-assignment': 'off',
+      },
     },
 
     {

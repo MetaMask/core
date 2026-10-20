@@ -501,6 +501,90 @@ describe('SocialService', () => {
       });
     });
 
+    it('accepts and returns optional createdAt from social-api', async () => {
+      const withCreatedAt = {
+        ...mockProfileResponse,
+        profile: {
+          ...mockProfileResponse.profile,
+          createdAt: '2024-06-01T00:00:00.000Z',
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withCreatedAt),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.profile.createdAt).toBe('2024-06-01T00:00:00.000Z');
+    });
+
+    it('accepts a profile without createdAt', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockProfileResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.profile.createdAt).toBeUndefined();
+    });
+
+    it('accepts explicit null createdAt', async () => {
+      const withNullCreatedAt = {
+        ...mockProfileResponse,
+        profile: {
+          ...mockProfileResponse.profile,
+          createdAt: null,
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withNullCreatedAt),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.profile.createdAt).toBeNull();
+    });
+
+    it('throws when createdAt is not a string', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockProfileResponse,
+            profile: {
+              ...mockProfileResponse.profile,
+              createdAt: 1700000000,
+            },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTraderProfile({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
+      );
+    });
+
     it('accepts a profile without the optional 7-day per-chain breakdown', async () => {
       // The 30-day-only shape older social-api versions return.
       mockFetch.mockResolvedValue({
@@ -1242,6 +1326,49 @@ describe('SocialService', () => {
       expect(calledUrl).toContain('limit=25');
       expect(calledUrl).toContain('olderThan=older-cursor');
       expect(calledUrl).toContain('newerThan=newer-cursor');
+    });
+
+    it('fetches the shared all scope with projection metadata', async () => {
+      const allScopeResponse = {
+        items: [
+          {
+            ...mockFeedItem,
+            eventId: 'social.v1.feed.all.position-1.2',
+            revision: 2,
+            occurredAt: '2026-01-02T03:04:05.000Z',
+          },
+        ],
+        pagination: { olderCursor: null, newerCursor: null },
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(allScopeResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'all' });
+
+      expect(result).toStrictEqual(allScopeResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/feed?scope=all`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('fetches the shared trending scope', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'trending' });
+
+      expect(result).toStrictEqual(mockFeedResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/feed?scope=trending`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
     });
 
     it('validates a perp feed item', async () => {

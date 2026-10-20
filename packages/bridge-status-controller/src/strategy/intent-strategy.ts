@@ -154,7 +154,8 @@ export async function* submitIntentHandler(
   args: SubmitStrategyParams<TxData>,
 ): AsyncGenerator<SubmitStepResult, void, void> {
   // TODO handle STX/batch approvals
-  const approvalTxId = await handleEvmApprovals(args);
+  const approvalTxMeta = await handleEvmApprovals(args);
+  const approvalTxId = approvalTxMeta?.id;
   approvalTxId && (await waitForTxConfirmation(args.messenger, approvalTxId));
 
   // TODO add to history after approval tx is confirmed

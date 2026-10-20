@@ -1,5 +1,8 @@
 {
   "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "types": ["jest"]
+  },
   "references": [
     {
       "path": "../base-controller"
@@ -23,5 +26,5 @@
       "path": "../utils"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "./tests"]
 }

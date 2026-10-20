@@ -9,16 +9,26 @@ import type {
 } from '@metamask/messenger';
 import { cleanAll as cleanAllNock } from 'nock';
 
-import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth.js';
+import {
+  arrangeAuthAPIs,
+  handleMockSocialLogin,
+} from '../../sdk/__fixtures__/auth.js';
+import { buildTotpSetupUri } from '../../sdk/authentication-jwt-bearer/mfa/services.js';
 import type { LoginResponse } from '../../sdk/index.js';
-import { EmailRequiredError, Platform } from '../../sdk/index.js';
+import {
+  EmailRequiredError,
+  Platform,
+  SocialIdentifierNotPairedError,
+} from '../../sdk/index.js';
 import {
   MOCK_ACCESS_JWT,
   MOCK_MFA_CREDENTIALS_RESPONSE,
   MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
   MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
   MOCK_MFA_ENROLL_EMAIL_RESPONSE,
+  MOCK_MFA_ENROLL_TOTP_RESPONSE,
   MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+  MOCK_SOCIAL_LOGIN_RESPONSE,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
 } from '../../sdk/mocks/auth.js';
 import {
@@ -1766,6 +1776,119 @@ describe('AuthenticationController', () => {
     });
   });
 
+  describe('exchangeSocialAccessToken', () => {
+    const arrangeSocialLogin = ({
+      authConnection = 'google',
+      vault = 'encrypted',
+      socialJwt = MOCK_SOCIAL_JWT,
+    }: {
+      authConnection?: string;
+      vault?: string | null;
+      socialJwt?: string;
+    } = {}): {
+      controller: AuthenticationController;
+      baseMessenger: RootMessenger;
+    } => {
+      const {
+        messenger,
+        baseMessenger,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockSeedlessOnboardingGetState.mockReturnValue({ vault, authConnection });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(socialJwt);
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        state: mockSignedInState(),
+      });
+      return { controller, baseMessenger };
+    };
+
+    it.each([
+      ['google', 'GOOGLE'],
+      ['apple', 'APPLE'],
+      ['telegram', 'TELEGRAM'],
+    ])(
+      'exchanges the %s token for the canonical profile without storing it',
+      async (authConnection, identifierType) => {
+        const requests: { body: unknown; authorization: string }[] = [];
+        const mockSocialLoginUrl = handleMockSocialLogin(undefined, (request) =>
+          requests.push(request),
+        );
+        arrangeAuthAPIs();
+        const { controller } = arrangeSocialLogin({ authConnection });
+        const stateBefore = controller.state;
+
+        const result = await controller.exchangeSocialAccessToken();
+
+        expect(mockSocialLoginUrl.isDone()).toBe(true);
+        expect(requests).toStrictEqual([
+          {
+            body: { identifier_type: identifierType },
+            authorization: `Bearer ${MOCK_SOCIAL_JWT}`,
+          },
+        ]);
+        expect(result.token.accessToken).toBe(
+          MOCK_OATH_TOKEN_RESPONSE.access_token,
+        );
+        expect(result.profile.canonicalProfileId).toBe(
+          MOCK_SOCIAL_LOGIN_RESPONSE.profile.profile_id,
+        );
+        expect(controller.state).toBe(stateBefore);
+      },
+    );
+
+    it.each([
+      ['there is no social vault', { vault: null }],
+      ['the social provider is unknown', { authConnection: 'github' }],
+    ])('throws when %s', async (_case, options) => {
+      const mockSocialLoginUrl = handleMockSocialLogin();
+      const { controller } = arrangeSocialLogin(options);
+
+      await expect(controller.exchangeSocialAccessToken()).rejects.toThrow(
+        'exchangeSocialAccessToken - the wallet has no social login',
+      );
+      expect(mockSocialLoginUrl.isDone()).toBe(false);
+    });
+
+    it('throws when the social token is unavailable', async () => {
+      const mockSocialLoginUrl = handleMockSocialLogin();
+      const { controller } = arrangeSocialLogin({ socialJwt: '' });
+
+      await expect(controller.exchangeSocialAccessToken()).rejects.toThrow(
+        'exchangeSocialAccessToken - no social access token',
+      );
+      expect(mockSocialLoginUrl.isDone()).toBe(false);
+    });
+
+    it('throws SocialIdentifierNotPairedError when the identifier is not paired', async () => {
+      handleMockSocialLogin({
+        status: 404,
+        body: { message: 'social identifier is not paired to any profile' },
+      });
+      const { controller } = arrangeSocialLogin();
+
+      await expect(controller.exchangeSocialAccessToken()).rejects.toThrow(
+        SocialIdentifierNotPairedError,
+      );
+    });
+
+    it('is exposed via the messenger registry', async () => {
+      handleMockSocialLogin();
+      arrangeAuthAPIs();
+      const { baseMessenger } = arrangeSocialLogin();
+
+      const result = await baseMessenger.call(
+        'AuthenticationController:exchangeSocialAccessToken',
+      );
+
+      expect(result.token.accessToken).toBe(
+        MOCK_OATH_TOKEN_RESPONSE.access_token,
+      );
+    });
+  });
+
   describe('requestProfilePairing', () => {
     it('flips needsProfilePairing from false to true', () => {
       const metametrics = createMockAuthMetaMetrics();
@@ -2646,6 +2769,42 @@ describe('MFA credential enrollment', () => {
         reason: { operation: 'settings.addPasskey' },
       }),
     ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+  });
+
+  it('enrolls an authenticator app without touching the SRP session', async () => {
+    mockEndpointMfaEnroll({
+      status: 200,
+      body: MOCK_MFA_ENROLL_TOTP_RESPONSE,
+    });
+    mockEndpointMfaEnrollComplete();
+    mockEndpointMfaCredentials();
+    const { controller } = createController();
+    const sessionBefore =
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]];
+
+    expect(
+      await controller.beginCredentialEnrollment({
+        type: 'totp',
+        reason: { operation: 'settings.addAuthenticatorApp' },
+      }),
+    ).toStrictEqual({
+      type: 'totp',
+      flowId: 'enroll-totp-flow-id',
+      expiresAt: Date.parse('2099-09-07T14:30:00Z'),
+      secret: MOCK_MFA_ENROLL_TOTP_RESPONSE.totp_secret,
+      qrCode: MOCK_MFA_ENROLL_TOTP_RESPONSE.totp_qr,
+      setupUri: buildTotpSetupUri(MOCK_MFA_ENROLL_TOTP_RESPONSE.totp_secret),
+    });
+    await controller.completeCredentialEnrollment({
+      flowId: 'enroll-totp-flow-id',
+      proof: { type: 'totp', code: '123456' },
+      reason: { operation: 'settings.addAuthenticatorApp' },
+    });
+
+    // Only email enrollment adds a token claim that needs a new SRP session.
+    expect(
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]],
+    ).toStrictEqual(sessionBefore);
   });
 
   it('completes passkey enrollment, refreshes the cache and traces the caller operation', async () => {
@@ -3621,6 +3780,142 @@ describe('MFA credential verification', () => {
     } finally {
       fetchSpy.mockRestore();
     }
+  });
+
+  describe('enrollment completion bearer', () => {
+    const emailProof = { type: 'email_otp' as const, code: '123456' };
+
+    /**
+     * Mocks the next fetch with a JSON response, letting later calls reach
+     * nock.
+     *
+     * @param body - Response body.
+     * @param status - Response status.
+     * @returns The fetch spy.
+     */
+    function mockNextFetch(
+      body: unknown,
+      status = 200,
+    ): jest.SpiedFunction<typeof fetch> {
+      return jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          new globalThis.Response(JSON.stringify(body), { status }),
+        );
+    }
+
+    /**
+     * Reads the bearer token of a fetch call.
+     *
+     * @param fetchSpy - The fetch spy.
+     * @param call - Call index.
+     * @returns The token from the `Authorization` header.
+     */
+    function getBearer(
+      fetchSpy: jest.SpiedFunction<typeof fetch>,
+      call = 0,
+    ): string | null | undefined {
+      return new globalThis.Headers(fetchSpy.mock.calls[call]?.[1]?.headers)
+        .get('Authorization')
+        ?.replace('Bearer ', '');
+    }
+
+    /**
+     * Begins an email enrollment while a verification session is live.
+     *
+     * @returns The controller and the session's token.
+     */
+    async function beginWithSession(): Promise<{
+      controller: AuthenticationController;
+      verificationToken: string | undefined;
+    }> {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const verificationToken = controller.getVerificationToken()?.accessToken;
+      const fetchSpy = mockNextFetch(MOCK_MFA_ENROLL_EMAIL_RESPONSE);
+      try {
+        await controller.beginCredentialEnrollment({
+          type: 'email_otp',
+          email: 'user@example.com',
+          reason: { operation: 'settings.addEmail' },
+        });
+      } finally {
+        fetchSpy.mockRestore();
+      }
+      return { controller, verificationToken };
+    }
+
+    /**
+     * Completes the email enrollment started by `beginWithSession`.
+     *
+     * @param controller - Controller under test.
+     * @returns The completion promise.
+     */
+    async function complete(
+      controller: AuthenticationController,
+    ): Promise<unknown> {
+      return controller.completeCredentialEnrollment({
+        flowId: MOCK_MFA_ENROLL_EMAIL_RESPONSE.flow_id,
+        proof: emailProof,
+        reason: { operation: 'settings.addEmail' },
+      });
+    }
+
+    beforeEach(() => {
+      mockEndpointAccessToken({
+        status: 200,
+        body: MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
+      });
+      mockEndpointMfaCredentials();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('completes with the token that began it, even past the default session age', async () => {
+      const { controller, verificationToken } = await beginWithSession();
+      expect(verificationToken).toBeDefined();
+      const now = Date.now();
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValue(now + ENROLLMENT_MAX_SESSION_AGE_MS + 60_000);
+
+      const fetchSpy = mockNextFetch(MOCK_MFA_ENROLL_COMPLETE_RESPONSE);
+      await complete(controller);
+
+      expect(getBearer(fetchSpy)).toBe(verificationToken);
+    });
+
+    it('keeps the token for a code retried on the same flow', async () => {
+      const { controller, verificationToken } = await beginWithSession();
+
+      const failedSpy = mockNextFetch(
+        { code: 'invalid_code', message: 'Invalid code' },
+        400,
+      );
+      await expect(complete(controller)).rejects.toBeDefined();
+      expect(getBearer(failedSpy)).toBe(verificationToken);
+      failedSpy.mockRestore();
+
+      const retrySpy = mockNextFetch(MOCK_MFA_ENROLL_COMPLETE_RESPONSE);
+      await complete(controller);
+      expect(getBearer(retrySpy)).toBe(verificationToken);
+    });
+
+    it('sends the base token once the verification session is cleared', async () => {
+      const { controller } = await beginWithSession();
+      controller.clearVerificationSession();
+
+      const fetchSpy = mockNextFetch(MOCK_MFA_ENROLL_COMPLETE_RESPONSE);
+      await complete(controller);
+
+      expect(getBearer(fetchSpy)).toBe(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
+          .accessToken,
+      );
+    });
   });
 
   it('surfaces aal2_required from enrollment', async () => {

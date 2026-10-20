@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-metrics-controller",
-  "version": "5.1.3",
+  "version": "5.1.4",
   "description": "Manages user profile metrics",
   "keywords": [
     "Ethereum",
@@ -50,13 +50,13 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^40.0.0",
-    "@metamask/base-controller": "^10.0.0",
+    "@metamask/accounts-controller": "^40.1.0",
+    "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/keyring-controller": "^28.1.0",
+    "@metamask/keyring-controller": "^28.2.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/polling-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^34.0.3",
+    "@metamask/profile-sync-controller": "^35.0.0",
     "@metamask/snaps-controllers": "^19.0.1",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
@@ -68,7 +68,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
-    "@metamask/keyring-internal-api": "^12.1.1",
+    "@metamask/keyring-internal-api": "^12.1.2",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.3.1",

@@ -139,6 +139,24 @@ export type BackendWebSocketServiceOptions = {
   /** Optional callback to determine if connection should be enabled (default: always enabled) */
   isEnabled?: () => boolean;
 
+  /**
+   * Getter for basic functionality (matches the "Basic functionality" setting).
+   * When it returns true, the backend WebSocket may connect. When false, the
+   * service does not connect or reconnect, and an open socket is closed.
+   * Defaults to () => true when omitted.
+   */
+  isBasicFunctionality?: () => boolean;
+
+  /**
+   * Called by the service with an onChange callback. The consumer subscribes to
+   * its basic-functionality source and invokes onChange when the value changes.
+   * The service re-reads `isBasicFunctionality()` and connects or disconnects.
+   * May return an unsubscribe function, which is called on destroy. Optional.
+   */
+  subscribeToBasicFunctionalityChange?: (
+    onChange: () => void,
+  ) => void | (() => void);
+
   /** Optional callback to trace performance of WebSocket operations (default: no-op) */
   traceFn?: TraceCallback;
 };
@@ -272,6 +290,7 @@ export type BackendWebSocketServiceMessenger = Messenger<
  * - Call connect() when app opens/foregrounds
  * - Call disconnect() when app closes/backgrounds
  * - Provide isEnabled() callback (feature flag)
+ * - Provide isBasicFunctionality() when Basic Functionality can be turned off
  * - Call destroy() on app termination
  *
  * Real-Time Performance Optimizations:
@@ -290,10 +309,21 @@ export class BackendWebSocketService {
   readonly #messenger: BackendWebSocketServiceMessenger;
 
   readonly #options: Required<
-    Omit<BackendWebSocketServiceOptions, 'messenger' | 'isEnabled' | 'traceFn'>
+    Pick<
+      BackendWebSocketServiceOptions,
+      | 'url'
+      | 'timeout'
+      | 'reconnectDelay'
+      | 'maxReconnectDelay'
+      | 'requestTimeout'
+    >
   >;
 
   readonly #isEnabled: (() => boolean) | undefined;
+
+  readonly #isBasicFunctionality: () => boolean;
+
+  #unsubscribeBasicFunctionality: (() => void) | undefined;
 
   readonly #trace: TraceCallback;
 
@@ -348,6 +378,8 @@ export class BackendWebSocketService {
   constructor(options: BackendWebSocketServiceOptions) {
     this.#messenger = options.messenger;
     this.#isEnabled = options.isEnabled;
+    this.#isBasicFunctionality =
+      options.isBasicFunctionality ?? ((): boolean => true);
     // Default to no-op trace function to keep core platform-agnostic
     this.#trace =
       options.traceFn ??
@@ -373,6 +405,47 @@ export class BackendWebSocketService {
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+
+    if (options.subscribeToBasicFunctionalityChange) {
+      const unsubscribe = options.subscribeToBasicFunctionalityChange(() => {
+        this.#handleBasicFunctionalityChange();
+      });
+      if (typeof unsubscribe === 'function') {
+        this.#unsubscribeBasicFunctionality = unsubscribe;
+      }
+    }
+  }
+
+  /**
+   * Whether a connection attempt is allowed.
+   *
+   * Both gates are required when provided: the product feature flag and the
+   * user's Basic Functionality setting.
+   *
+   * @returns True when the socket may connect.
+   */
+  #isConnectionAllowed(): boolean {
+    if (this.#isEnabled && !this.#isEnabled()) {
+      return false;
+    }
+    return this.#isBasicFunctionality();
+  }
+
+  /**
+   * Apply a Basic Functionality change. The getter is the source of truth.
+   *
+   * Turning the setting off uses the same `disconnect()` path as lock and
+   * sign-out. `connect()` already refuses to open a socket while the setting
+   * is off.
+   */
+  #handleBasicFunctionalityChange(): void {
+    if (!this.#isBasicFunctionality()) {
+      this.disconnect();
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.connect();
   }
 
   /**
@@ -421,8 +494,9 @@ export class BackendWebSocketService {
    *
    * Connection Requirements (all must be true):
    * 1. Feature enabled (isEnabled() = true)
-   * 2. Wallet unlocked (checked by getBearerToken)
-   * 3. User signed in (checked by getBearerToken)
+   * 2. Basic functionality enabled (isBasicFunctionality() = true)
+   * 3. Wallet unlocked (checked by getBearerToken)
+   * 4. User signed in (checked by getBearerToken)
    *
    * Platform code should call this when app opens/foregrounds.
    * Automatically called on KeyringController:unlock event.
@@ -430,12 +504,10 @@ export class BackendWebSocketService {
    * @returns Promise that resolves when connection is established
    */
   async connect(): Promise<void> {
-    // Priority 1: Check if feature is enabled via callback (feature flag check)
-    // If feature is disabled, stop all connection attempts
-    if (this.#isEnabled && !this.#isEnabled()) {
-      // Clear any pending reconnection attempts since feature is disabled
-      this.#clearTimers();
-      this.#reconnectAttempts = 0;
+    // Feature flag and Basic Functionality must both allow the socket.
+    // A closed gate does not open a socket. Closing an open socket is
+    // disconnect(), which Basic Functionality off calls directly.
+    if (!this.#isConnectionAllowed()) {
       return;
     }
 
@@ -458,7 +530,7 @@ export class BackendWebSocketService {
 
     // Create and store the connection promise IMMEDIATELY (before any async operations)
     // This ensures subsequent connect() calls will wait for this promise instead of creating new connections
-    this.#connectionPromise = (async (): Promise<void> => {
+    const connectionPromise = (async (): Promise<void> => {
       // Priority 2: Check authentication requirements (signed in)
       let bearerToken: string;
       try {
@@ -474,31 +546,49 @@ export class BackendWebSocketService {
         throw error;
       }
 
+      // A gate may have closed while awaiting the token
+      if (!this.#isConnectionAllowed()) {
+        return;
+      }
+
       // Establish the actual WebSocket connection
       await this.#establishConnection(bearerToken);
     })();
+    this.#connectionPromise = connectionPromise;
 
     try {
-      await this.#connectionPromise;
+      await connectionPromise;
     } catch {
       // Always schedule reconnect on any failure
       // Exponential backoff will prevent aggressive retries
       this.#scheduleReconnect();
     } finally {
-      // Clear the connection promise when done (success or failure)
-      this.#connectionPromise = null;
+      // Only clear the attempt this call owns. onclose nulls the field before
+      // this runs, and a newer connect() may already have stored its promise.
+      if (this.#connectionPromise === connectionPromise) {
+        this.#connectionPromise = null;
+      }
     }
   }
 
   /**
-   * Closes WebSocket connection
+   * Closes the WebSocket and cancels a queued reconnect.
+   *
+   * The timer is cleared before the early return. Lock, sign-out, and Basic
+   * Functionality off all call this, including when the socket is already gone
+   * and `onclose` will not run. `clearTimeout` has to run first: assigning
+   * `#reconnectTimer` to null leaves the callback scheduled.
    */
   disconnect(): void {
+    if (this.#reconnectTimer) {
+      clearTimeout(this.#reconnectTimer);
+      this.#reconnectTimer = null;
+    }
+
     if (this.#state === WebSocketState.DISCONNECTED || !this.#ws) {
       return;
     }
 
-    // Close WebSocket with manual disconnect code and reason
     this.#ws.close(MANUAL_DISCONNECT_CODE, MANUAL_DISCONNECT_REASON);
 
     log('WebSocket manually disconnected');
@@ -807,6 +897,9 @@ export class BackendWebSocketService {
    * Called when service is being destroyed or app is terminating
    */
   destroy(): void {
+    this.#unsubscribeBasicFunctionality?.();
+    this.#unsubscribeBasicFunctionality = undefined;
+
     // Always clear timers first to prevent reconnection attempts after destruction
     // This handles the case where destroy() is called while DISCONNECTED with a pending reconnect timer
     this.#clearTimers();
@@ -994,6 +1087,13 @@ export class BackendWebSocketService {
             this.#setState(WebSocketState.CONNECTED);
             this.#connectedAt = Date.now();
 
+            // Basic Functionality may have turned off during the handshake
+            if (!this.#isBasicFunctionality()) {
+              this.disconnect();
+              resolve();
+              return;
+            }
+
             // Only reset after connection stays stable for a period (10 seconds)
             // This prevents rapid reconnect loops when server accepts then immediately closes
             this.#stableConnectionTimer = setTimeout(() => {
@@ -1019,7 +1119,6 @@ export class BackendWebSocketService {
               return;
             }
 
-            // Detect if this is a manual disconnect or service cleanup based on close code
             const isManualDisconnect =
               event.code === MANUAL_DISCONNECT_CODE &&
               event.reason === MANUAL_DISCONNECT_REASON;
@@ -1326,16 +1425,9 @@ export class BackendWebSocketService {
     });
 
     this.#reconnectTimer = setTimeout(() => {
-      // Clear timer reference first
+      // Null the timer before connect(). connect() returns early while a
+      // timer id is still set, including when a gate is closed.
       this.#reconnectTimer = null;
-
-      // Check if connection is still enabled before reconnecting
-      if (this.#isEnabled && !this.#isEnabled()) {
-        this.#reconnectAttempts = 0;
-        // Create new backoff sequence when disabled
-        this.#newBackoff();
-        return;
-      }
 
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.connect();

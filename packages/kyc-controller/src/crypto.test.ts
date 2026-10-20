@@ -165,6 +165,13 @@ describe('crypto', () => {
       );
     });
 
+    it('throws when a non-JSON string fails base64 decoding', () => {
+      const keypair = generateKeyPair();
+      expect(() =>
+        decryptCredentials('not-decryptable', keypair.privateKey),
+      ).toThrow(/opaque string/u);
+    });
+
     it('throws for an object missing required fields', () => {
       const keypair = generateKeyPair();
       expect(() =>

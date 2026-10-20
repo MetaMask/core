@@ -33,6 +33,7 @@ export class MfaError extends Error {
 /**
  * The credential cannot be enrolled because an equivalent one already exists:
  * `email_already_enrolled` (this profile already has a verified email),
+ * `totp_already_enrolled` (this profile already has an authenticator app),
  * `email_socially_verified` (the email is verified through a social login), or
  * `credential_already_enrolled` (the email or passkey is enrolled on another
  * profile; the profiles must be paired or the credential removed).
@@ -42,6 +43,7 @@ export class CredentialAlreadyEnrolledError extends MfaError {
     code:
       | 'credential_already_enrolled'
       | 'email_already_enrolled'
+      | 'totp_already_enrolled'
       | 'email_socially_verified',
     message: string,
     status = HTTP_STATUS_CODES.CONFLICT,
@@ -271,6 +273,19 @@ export class PairConflictError extends PairError {
   constructor(message: string) {
     super(message);
     this.name = 'PairConflictError';
+  }
+}
+
+/**
+ * Thrown when `POST /api/v2/social/login` returns 404: the social identifier
+ * was never paired to a profile, so there is nothing to log in to.
+ */
+export class SocialIdentifierNotPairedError extends SignInError {
+  readonly status = HTTP_STATUS_CODES.NOT_FOUND;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'SocialIdentifierNotPairedError';
   }
 }
 

@@ -1,4 +1,5 @@
 import { Interface } from '@ethersproject/abi';
+import { describe, expect, it } from 'vitest';
 
 import { encodeFunctionData } from './abi.js';
 

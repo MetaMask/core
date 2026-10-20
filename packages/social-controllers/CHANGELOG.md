@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.9.0]
+
+### Added
+
+- Add optional `createdAt` to `TraderProfile`. `fetchTraderProfile` accepts an ISO-8601 timestamp, or `null`, on `GET /traders/:addressOrId/profile` and still accepts responses that omit it ([#10877](https://github.com/MetaMask/core/pull/10877))
+- Add the shared `all` feed scope to `FetchFeedOptions` and export `FeedScope`. Preserve optional `eventId`, `revision`, and `occurredAt` projection metadata on `FeedItem` ([#10865](https://github.com/MetaMask/core/pull/10865))
+- Add the `trending` feed scope to `FetchFeedOptions` and export `FeedScope` for policy-filtered trending feed reads ([#10895](https://github.com/MetaMask/core/pull/10895))
+- Add explicit `all` and `trending` scope subscriptions to `SocialRealtimeService` and validate hydrated realtime feed events before forwarding them ([#10924](https://github.com/MetaMask/core/pull/10924))
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^12.1.0` to `^12.3.0` ([#10857](https://github.com/MetaMask/core/pull/10857), [#10876](https://github.com/MetaMask/core/pull/10876))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+
+## [3.8.0]
+
 ### Added
 
 - Add `createCopyTradeIntent` method to `SocialService` (and the `SocialService:createCopyTradeIntent` messenger action). Calls `POST /v1/copy-trade-intents` with the comment origin, the copier's CAIP-10 account, and the execution (a swaps `quoteId` or a perps `oid`), and returns the validated `CopyTradeIntentResponse`. Both 201 (created) and 200 (existing intent) resolve ([#10823](https://github.com/MetaMask/core/pull/10823))
@@ -280,7 +297,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.9.0...HEAD
+[3.9.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.8.0...@metamask/social-controllers@3.9.0
+[3.8.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.7.0...@metamask/social-controllers@3.8.0
 [3.7.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.6.0...@metamask/social-controllers@3.7.0
 [3.6.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.5.0...@metamask/social-controllers@3.6.0
 [3.5.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.4.0...@metamask/social-controllers@3.5.0

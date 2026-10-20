@@ -50,7 +50,8 @@ export type KycServiceCreateMoonpaySessionAction = {
  *
  * @param params - The parameters.
  * @param params.vendor - Identity vendor (e.g. `iron` for Money/VBA).
- * @param params.email - Email associated with the customer.
+ * @param params.partnerIdentityToken - Partner identity token minted by
+ * `AuthenticationController:getPartnerIdentityToken`.
  * @returns The vendor customer record (subset validated for controller use).
  */
 export type KycServiceCreateVendorCustomerAction = {
@@ -127,7 +128,8 @@ export type KycServiceSubmitSessionDisclaimersAction = {
  * {@link KycService.createUkycSession}.
  *
  * This is an unauthenticated request to a well-known path on the idOS enclave
- * host, distinct from the UKYC base URL.
+ * host, distinct from the UKYC base URL. A successful response is cached in
+ * the service query cache for 24 hours.
  *
  * @returns The JWKS keys.
  */
@@ -141,7 +143,8 @@ export type KycServiceFetchIdosEnclaveJwksAction = {
  * schema's `jwtChain` from {@link KycService.createUkycSession}.
  *
  * This is an unauthenticated request to a well-known path on the idOS relay
- * host, distinct from both the UKYC base URL and the idOS enclave.
+ * host, distinct from both the UKYC base URL and the idOS enclave. A
+ * successful response is cached in the service query cache for 24 hours.
  *
  * @returns The JWKS keys.
  */
@@ -167,6 +170,8 @@ export type KycServiceFetchIdosRelayJwksAction = {
  * @param params - The session parameters.
  * @param params.aal2Token - AAL2 authentication token used as the
  * Authorization bearer value.
+ * @param params.partnerIdentityToken - Optional partner identity token for
+ * the session's vendor audience, sent as `partnerIdentityToken`.
  * @returns The UKYC session id and encryption schemas.
  */
 export type KycServiceCreateUkycSessionAction = {

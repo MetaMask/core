@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "types": ["jest"]
+  },
+  "references": [
+    {
+      "path": "../delegation-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../money-account-utils"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
+  "include": ["../../types", "./src", "./tests"]
+}

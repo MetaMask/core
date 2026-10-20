@@ -6,6 +6,7 @@ import type {
 } from '@metamask/messenger';
 
 import { flushPromises } from '../../../tests/helpers.js';
+import { toBase64Url } from './encoding.js';
 import {
   getDefaultKycControllerState,
   KycController,
@@ -107,19 +108,36 @@ describe('KycController', () => {
 
         const result = await controller.startSession({
           vendor: 'iron',
-          email: 'a@b.co',
           aal2Token: AAL2_TOKEN,
         });
 
+        expect(handlers.putIdentitySharingConsent).toHaveBeenCalledWith({
+          audience: 'iron',
+          granted: true,
+        });
+        expect(handlers.getPartnerIdentityToken).toHaveBeenCalledWith(
+          ['email'],
+          'iron',
+        );
+        expect(
+          handlers.putIdentitySharingConsent.mock.invocationCallOrder[0],
+        ).toBeLessThan(
+          handlers.getPartnerIdentityToken.mock.invocationCallOrder[0],
+        );
         expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
           vendor: 'iron',
-          email: 'a@b.co',
+          partnerIdentityToken: unsignedJwt({
+            ext: { email: 'a@b.co', email_verified: true },
+          }),
         });
         expect(handlers.createUkycSession).toHaveBeenCalledWith(
           expect.objectContaining({
             residenceCountry: 'USA',
             vendor: 'iron',
             aal2Token: AAL2_TOKEN,
+            partnerIdentityToken: unsignedJwt({
+              ext: { email: 'a@b.co', email_verified: true },
+            }),
           }),
         );
         expect(
@@ -141,10 +159,7 @@ describe('KycController', () => {
           sessionStatus('pending'),
         );
 
-        const result = await controller.startSession({
-          vendor: 'iron',
-          email: 'a@b.co',
-        });
+        const result = await controller.startSession({ vendor: 'iron' });
 
         expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
@@ -173,10 +188,7 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
           expect(
-            await controller.startSession({
-              vendor: 'iron',
-              email: 'a@b.co',
-            }),
+            await controller.startSession({ vendor: 'iron' }),
           ).toStrictEqual(sessionStatus('pending'));
           expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
@@ -214,7 +226,7 @@ describe('KycController', () => {
           handlers.setAuthorizations.mockResolvedValue(refreshed);
 
           expect(
-            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            await controller.startSession({ vendor: 'iron' }),
           ).toStrictEqual(refreshed);
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
@@ -252,7 +264,7 @@ describe('KycController', () => {
           handlers.setAuthorizations.mockResolvedValue(stored);
 
           expect(
-            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            await controller.startSession({ vendor: 'iron' }),
           ).toStrictEqual(stored);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
@@ -284,7 +296,7 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(pendingAuth);
 
           expect(
-            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            await controller.startSession({ vendor: 'iron' }),
           ).toStrictEqual(pendingAuth);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
@@ -315,7 +327,7 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(approvedExpired);
 
           expect(
-            await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            await controller.startSession({ vendor: 'iron' }),
           ).toStrictEqual(approvedExpired);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
@@ -338,9 +350,9 @@ describe('KycController', () => {
         handlers.getSessionStatusForVendor.mockResolvedValue(expired);
         handlers.setAuthorizations.mockResolvedValue(refreshed);
 
-        expect(
-          await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
-        ).toStrictEqual(refreshed);
+        expect(await controller.startSession({ vendor: 'iron' })).toStrictEqual(
+          refreshed,
+        );
         expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.getSessionStatus).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
@@ -366,7 +378,7 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(null);
 
           await expect(
-            controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            controller.startSession({ vendor: 'iron' }),
           ).rejects.toThrow('No session was found');
         },
       );
@@ -393,7 +405,7 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(missingId);
 
           await expect(
-            controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+            controller.startSession({ vendor: 'iron' }),
           ).rejects.toThrow('No session was found');
           expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
         },
@@ -403,12 +415,15 @@ describe('KycController', () => {
     it('throws when email does not match the initialized session', async () => {
       await withController(
         { options: { state: { email: 'a@b.co' } } },
-        async ({ controller }) => {
-          await expect(
-            controller.startSession({
-              vendor: 'iron',
-              email: 'other@b.co',
+        async ({ controller, handlers }) => {
+          handlers.getPartnerIdentityToken.mockResolvedValue(
+            unsignedJwt({
+              ext: { email: 'other@b.co', email_verified: true },
             }),
+          );
+
+          await expect(
+            controller.startSession({ vendor: 'iron' }),
           ).rejects.toThrow(
             'KycController already initialized with a different email',
           );
@@ -421,10 +436,7 @@ describe('KycController', () => {
         { options: { state: { vendor: 'moonpay' } } },
         async ({ controller }) => {
           await expect(
-            controller.startSession({
-              vendor: 'iron',
-              email: 'a@b.co',
-            }),
+            controller.startSession({ vendor: 'iron' }),
           ).rejects.toThrow(
             'KycController already initialized with a different vendor',
           );
@@ -439,10 +451,7 @@ describe('KycController', () => {
           handlers.getGeoCountry.mockResolvedValue('DEU');
 
           await expect(
-            controller.startSession({
-              vendor: 'iron',
-              email: 'a@b.co',
-            }),
+            controller.startSession({ vendor: 'iron' }),
           ).rejects.toThrow(
             'KycController already initialized with a different geoCountry',
           );
@@ -451,16 +460,140 @@ describe('KycController', () => {
       );
     });
 
+    it('throws when no verified email can be resolved', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getPartnerIdentityToken.mockRejectedValue(
+          Object.assign(new Error('email_required'), { status: 422 }),
+        );
+
+        await expect(
+          controller.startSession({ vendor: 'iron' }),
+        ).rejects.toThrow('KycController missing verified email for vendor');
+      });
+    });
+
+    it('resumes a stored session when the partner identity token is missing', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'stored@b.co',
+              vendor: 'iron',
+              geoCountry: 'USA',
+              sessionStatus: sessionStatus('pending'),
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getPartnerIdentityToken.mockRejectedValue(
+            Object.assign(new Error('email_required'), { status: 422 }),
+          );
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+          expect(
+            await controller.startSession({ vendor: 'iron' }),
+          ).toStrictEqual(sessionStatus('pending'));
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(controller.state.email).toBe('stored@b.co');
+        },
+      );
+    });
+
+    it('does not create a customer from stored email when the partner identity token is missing', async () => {
+      await withController(
+        { options: { state: { email: 'stored@b.co' } } },
+        async ({ controller, handlers }) => {
+          handlers.getPartnerIdentityToken.mockRejectedValue(
+            Object.assign(new Error('email_required'), { status: 422 }),
+          );
+          handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+          await expect(
+            controller.startSession({
+              vendor: 'iron',
+              aal2Token: AAL2_TOKEN,
+            }),
+          ).rejects.toThrow(
+            'KycController missing partner identity token for vendor',
+          );
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('requests a moonpay-audience partner identity token', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getPartnerIdentityToken.mockResolvedValue(
+          unsignedJwt({
+            ext: { email: 'moonpay@example.com', email_verified: true },
+          }),
+        );
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+        await controller.startSession({
+          vendor: 'moonpay',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(handlers.putIdentitySharingConsent).toHaveBeenCalledWith({
+          audience: 'moonpay',
+          granted: true,
+        });
+        expect(handlers.getPartnerIdentityToken).toHaveBeenCalledWith(
+          ['email'],
+          'moonpay',
+        );
+        expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
+          vendor: 'moonpay',
+          partnerIdentityToken: unsignedJwt({
+            ext: { email: 'moonpay@example.com', email_verified: true },
+          }),
+        });
+        expect(handlers.createUkycSession).toHaveBeenCalledWith(
+          expect.objectContaining({
+            vendor: 'moonpay',
+            partnerIdentityToken: unsignedJwt({
+              ext: { email: 'moonpay@example.com', email_verified: true },
+            }),
+          }),
+        );
+      });
+    });
+
+    it('does not mint a partner identity token when consent recording fails', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.putIdentitySharingConsent.mockRejectedValue(
+          new Error('consent failed'),
+        );
+
+        await expect(
+          controller.startSession({ vendor: 'iron' }),
+        ).rejects.toThrow('consent failed');
+        expect(handlers.getPartnerIdentityToken).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rethrows non-422 partner identity token errors', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getPartnerIdentityToken.mockRejectedValue(
+          new Error('token mint failed'),
+        );
+
+        await expect(
+          controller.startSession({ vendor: 'iron' }),
+        ).rejects.toThrow('token mint failed');
+      });
+    });
+
     it('does not create a session when aal2Token is missing', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getGeoCountry.mockResolvedValue('USA');
         handlers.getSessionStatusForVendor.mockResolvedValue(null);
 
         await expect(
-          controller.startSession({
-            vendor: 'iron',
-            email: 'a@b.co',
-          }),
+          controller.startSession({ vendor: 'iron' }),
         ).rejects.toThrow(/aal2Token is required to create a KYC session/u);
         expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
@@ -478,7 +611,6 @@ describe('KycController', () => {
         await expect(
           controller.startSession({
             vendor: 'iron',
-            email: 'a@b.co',
             aal2Token: AAL2_TOKEN,
           }),
         ).rejects.toThrow('customer failed');
@@ -498,12 +630,11 @@ describe('KycController', () => {
         await expect(
           controller.startSession({
             vendor: 'iron',
-            email: 'a@b.co',
             aal2Token: AAL2_TOKEN,
           }),
         ).rejects.toMatchObject({
           message:
-            'Unable to fetch the signing keys needed to verify this session. Please try again.',
+            'KycController.#verifyWrappingKeys: Unable to fetch JWKS needed to verify wrapping keys.',
           cause: fetchError,
         });
         expect(handlers.setAuthorizations).not.toHaveBeenCalled();
@@ -524,12 +655,11 @@ describe('KycController', () => {
         await expect(
           controller.startSession({
             vendor: 'iron',
-            email: 'a@b.co',
             aal2Token: AAL2_TOKEN,
           }),
         ).rejects.toMatchObject({
           message:
-            'Unable to verify the session encryption keys. Please try again.',
+            'KycController.#verifyWrappingKeys: Failed to verify the wrapping keys.',
           cause: verificationError,
         });
         expect(handlers.setAuthorizations).not.toHaveBeenCalled();
@@ -1513,6 +1643,8 @@ type RootMessenger = Messenger<
 
 type ServiceHandlers = {
   getGeoCountry: jest.Mock;
+  getPartnerIdentityToken: jest.Mock;
+  putIdentitySharingConsent: jest.Mock;
   fetchVendorDisclaimers: jest.Mock;
   createMoonpaySession: jest.Mock;
   createVendorCustomer: jest.Mock;
@@ -1552,6 +1684,18 @@ const ENCRYPTION_SCHEMA = {
   serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
   jwtChain: 'jwt.chain.sig',
 };
+
+/**
+ * Builds an unsigned JWT whose payload is the given JSON object.
+ *
+ * @param payload - Claims to encode in the JWT payload.
+ * @returns A three-segment JWT string.
+ */
+function unsignedJwt(payload: unknown): string {
+  const encode = (value: unknown): string =>
+    toBase64Url(new TextEncoder().encode(JSON.stringify(value)));
+  return `${encode({ alg: 'none', typ: 'JWT' })}.${encode(payload)}.sig`;
+}
 
 /**
  * Builds a UKYC session-creation payload with encryption schemas.
@@ -1677,6 +1821,8 @@ function withController<ReturnValue>(
       'KycService:getSessionStatusForVendor',
       'UserStorageController:performGetStorage',
       'UserStorageController:performSetStorage',
+      'AuthenticationController:getPartnerIdentityToken',
+      'AuthenticatedUserStorageService:putIdentitySharingConsent',
     ],
     events: [],
     messenger,
@@ -1684,6 +1830,12 @@ function withController<ReturnValue>(
 
   const handlers: ServiceHandlers = {
     getGeoCountry: jest.fn().mockResolvedValue('USA'),
+    getPartnerIdentityToken: jest
+      .fn()
+      .mockResolvedValue(
+        unsignedJwt({ ext: { email: 'a@b.co', email_verified: true } }),
+      ),
+    putIdentitySharingConsent: jest.fn().mockResolvedValue(undefined),
     fetchVendorDisclaimers: jest.fn().mockResolvedValue([]),
     createMoonpaySession: jest.fn().mockResolvedValue({ sessionToken: 'sess' }),
     createVendorCustomer: jest.fn().mockResolvedValue({
@@ -1780,6 +1932,14 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:getSessionStatusForVendor',
     handlers.getSessionStatusForVendor,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getPartnerIdentityToken',
+    handlers.getPartnerIdentityToken,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:putIdentitySharingConsent',
+    handlers.putIdentitySharingConsent,
   );
   rootMessenger.registerActionHandler(
     'UserStorageController:performGetStorage',

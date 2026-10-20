@@ -20,6 +20,7 @@ import {
   type,
 } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
+import { Duration, inMilliseconds } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import { alpha2ToAlpha3 } from './countryCodes.js';
@@ -272,14 +273,14 @@ const SessionDisclaimersResponseStruct = type({
 // === PARAM TYPES ===
 
 export type CreateMoonpaySessionParams = {
-  email: string;
+  partnerIdentityToken: string;
   termsAcceptedAt: string;
   disclaimerIds: string[];
 };
 
 export type CreateVendorCustomerParams = {
   vendor: KycVendor;
-  email: string;
+  partnerIdentityToken: string;
 };
 
 export type SubmitVendorDisclaimersParams = {
@@ -341,6 +342,12 @@ export type CreateUkycSessionParams = {
    * token.
    */
   aal2Token: string;
+  /**
+   * Partner identity token minted by
+   * `AuthenticationController:getPartnerIdentityToken` for the session's
+   * vendor audience. Omitted from the request body when not provided.
+   */
+  partnerIdentityToken?: string;
 };
 
 /**
@@ -375,14 +382,19 @@ export type ResetWrappingKeysParams = {
   sessionClientPublicKey: string;
 };
 
+// Successful well-known JWKS responses stay fresh for one day. Issuer keys
+// rotate infrequently, and session creation verifies against them more than once.
+const JWKS_CACHE_TTL_MS = inMilliseconds(1, Duration.Day);
+
 // === SERVICE DEFINITION ===
 
 /**
  * `KycService` communicates with the Universal KYC (UKYC) backend to drive the
- * identity + document-verification flow. It is stateless and platform-agnostic:
- * HTTP is performed through the runtime's native `fetch` (or an injected
- * `fetch` when provided), and the auth bearer token and geolocation come from
- * other controllers via the messenger.
+ * identity + document-verification flow. It does not persist session state and
+ * is platform-agnostic: HTTP is performed through the runtime's native `fetch`
+ * (or an injected `fetch` when provided), and the auth bearer token and
+ * geolocation come from other controllers via the messenger. Successful
+ * well-known JWKS responses are kept in the service query cache for 24 hours.
  *
  * HTTP endpoints call `#requestJson` (via the injected or native `fetch`).
  */
@@ -543,7 +555,8 @@ export class KycService extends BaseDataService<
    *
    * @param params - The parameters.
    * @param params.vendor - Identity vendor (e.g. `iron` for Money/VBA).
-   * @param params.email - Email associated with the customer.
+   * @param params.partnerIdentityToken - Partner identity token minted by
+   * `AuthenticationController:getPartnerIdentityToken`.
    * @returns The vendor customer record (subset validated for controller use).
    */
   async createVendorCustomer(
@@ -552,7 +565,9 @@ export class KycService extends BaseDataService<
     const url = new URL(`/vendors/${params.vendor}/customers`, this.#baseUrl);
     const data = await this.#requestJson(url, {
       method: 'POST',
-      body: JSON.stringify({ email: params.email }),
+      body: JSON.stringify({
+        partnerIdentityToken: params.partnerIdentityToken,
+      }),
     });
     return this.#validateResponse(
       data,
@@ -682,6 +697,12 @@ export class KycService extends BaseDataService<
   /**
    * Fetches a well-known JWKS from `baseUrl`.
    *
+   * A successful response stays fresh in the service query cache for 24 hours.
+   * A later call for the same URL within that window returns the cached keys.
+   * Failed and malformed responses are not cached. Concurrent callers for the
+   * same URL share one in-flight request. `KycService:invalidateQueries` drops
+   * the cached keys.
+   *
    * @param baseUrl - Host base URL that serves `/.well-known/jwks.json`.
    * @param responseLabel - Label used in malformed-response errors.
    * @param missingConfigMessage - Error thrown when `baseUrl` is empty.
@@ -696,12 +717,22 @@ export class KycService extends BaseDataService<
       throw new Error(missingConfigMessage);
     }
     const url = new URL(UKYC_JWKS_PATH, baseUrl);
-    const data = await this.#requestJson(
-      url,
-      { method: 'GET' },
-      { authenticated: false },
-    );
-    return this.#validateResponse(data, JwksResponseStruct, responseLabel);
+    return this.fetchQuery({
+      queryKey: [`${serviceName}:fetchWellKnownJwks`, url.toString()],
+      queryFn: async () => {
+        const data = await this.#requestJson(
+          url,
+          { method: 'GET' },
+          { authenticated: false },
+        );
+        return this.#validateResponse(data, JwksResponseStruct, responseLabel);
+      },
+      staleTime: JWKS_CACHE_TTL_MS,
+      // fetchQuery does not subscribe an observer, so the entry is inactive
+      // immediately. Without gcTime the default 5-minute GC would drop it
+      // while it is still fresh.
+      gcTime: JWKS_CACHE_TTL_MS,
+    });
   }
 
   /**
@@ -710,7 +741,8 @@ export class KycService extends BaseDataService<
    * {@link KycService.createUkycSession}.
    *
    * This is an unauthenticated request to a well-known path on the idOS enclave
-   * host, distinct from the UKYC base URL.
+   * host, distinct from the UKYC base URL. A successful response is cached in
+   * the service query cache for 24 hours.
    *
    * @returns The JWKS keys.
    */
@@ -727,7 +759,8 @@ export class KycService extends BaseDataService<
    * schema's `jwtChain` from {@link KycService.createUkycSession}.
    *
    * This is an unauthenticated request to a well-known path on the idOS relay
-   * host, distinct from both the UKYC base URL and the idOS enclave.
+   * host, distinct from both the UKYC base URL and the idOS enclave. A
+   * successful response is cached in the service query cache for 24 hours.
    *
    * @returns The JWKS keys.
    */
@@ -756,6 +789,8 @@ export class KycService extends BaseDataService<
    * @param params - The session parameters.
    * @param params.aal2Token - AAL2 authentication token used as the
    * Authorization bearer value.
+   * @param params.partnerIdentityToken - Optional partner identity token for
+   * the session's vendor audience, sent as `partnerIdentityToken`.
    * @returns The UKYC session id and encryption schemas.
    */
   async createUkycSession(
@@ -775,10 +810,12 @@ export class KycService extends BaseDataService<
         body: JSON.stringify({
           vendorId: params.vendor ?? 'moonpay',
           vendorUserId: 'mockedId',
-          jwtToken: 'mock-jwt-token', // TODO: Remove this from the kyc-api
           sessionClientPublicKey: params.sessionClientPublicKey,
           residenceCountry: params.residenceCountry,
           vendorMetadata: params.vendorMetadata ?? {},
+          ...(params.partnerIdentityToken && {
+            partnerIdentityToken: params.partnerIdentityToken,
+          }),
         }),
       },
       { bearerToken: params.aal2Token },

@@ -1346,6 +1346,50 @@ describe('AccountActivityService', () => {
         );
       });
 
+      it('switches account channels without publishing tracked chains down', async () => {
+        jest.useFakeTimers();
+        jest.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          await withService(async ({ messenger, rootMessenger, mocks }) => {
+            const statusChangedEventListener = jest.fn();
+            messenger.subscribe(
+              'AccountActivityService:statusChanged',
+              statusChangedEventListener,
+            );
+            const systemCallback = getSystemNotificationCallback(mocks);
+
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:1'], status: 'up' },
+              timestamp: 1000,
+            });
+            jest.advanceTimersByTime(1000);
+            statusChangedEventListener.mockClear();
+
+            mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+              createMockInternalAccount({ address: '0x123abc' }),
+            ]);
+            mocks.findSubscriptionsByChannelPrefix.mockReturnValue([
+              { unsubscribe: jest.fn() },
+            ]);
+
+            rootMessenger.publish(
+              'AccountTreeController:selectedAccountGroupChange',
+              '',
+              '',
+            );
+            await completeAsyncOperations();
+
+            expect(mocks.findSubscriptionsByChannelPrefix).toHaveBeenCalled();
+            expect(statusChangedEventListener).not.toHaveBeenCalled();
+          });
+        } finally {
+          jest.restoreAllMocks();
+          jest.useRealTimers();
+        }
+      });
+
       it('should resubscribe to selected account when WebSocket connects', async () => {
         await withService(
           { accountAddress: '0x123abc' },
@@ -1469,6 +1513,122 @@ describe('AccountActivityService', () => {
           expect(mocks.subscribe).not.toHaveBeenCalled();
           expect(mocks.findSubscriptionsByChannelPrefix).not.toHaveBeenCalled();
         });
+      });
+
+      it('publishes every tracked chain as down when a migration flag change unsubscribes account activity', async () => {
+        jest.useFakeTimers();
+        jest.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          await withService(async ({ messenger, rootMessenger, mocks }) => {
+            const statusChangedEventListener = jest.fn();
+            messenger.subscribe(
+              'AccountActivityService:statusChanged',
+              statusChangedEventListener,
+            );
+            const systemCallback = getSystemNotificationCallback(mocks);
+            const solanaChainId = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+            const tronChainId = 'tron:mainnet';
+
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: {
+                chainIds: ['eip155:1', solanaChainId, tronChainId],
+                status: 'up',
+              },
+              timestamp: 1000,
+            });
+            jest.advanceTimersByTime(1000);
+            statusChangedEventListener.mockClear();
+
+            mocks.getFeatureFlagState.mockReturnValue(featureFlagState(0));
+            mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+              createMockInternalAccount({ address: '0xevmaccount' }),
+            ]);
+            mocks.findSubscriptionsByChannelPrefix.mockReturnValue([
+              { unsubscribe: jest.fn() },
+            ]);
+
+            rootMessenger.publish(
+              'RemoteFeatureFlagController:stateChange',
+              featureFlagState(0),
+              [],
+            );
+            await completeAsyncOperations();
+
+            expect(statusChangedEventListener).toHaveBeenCalledTimes(1);
+            expect(statusChangedEventListener).toHaveBeenCalledWith({
+              chainIds: ['eip155:1', solanaChainId, tronChainId],
+              status: 'down',
+              timestamp: expect.any(Number),
+            });
+            expect(mocks.findSubscriptionsByChannelPrefix).toHaveBeenCalled();
+
+            // The backend decides which chains are up again after resubscribe.
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: {
+                chainIds: ['eip155:1', solanaChainId],
+                status: 'up',
+              },
+              timestamp: 2000,
+            });
+            jest.advanceTimersByTime(1000);
+            expect(statusChangedEventListener).toHaveBeenCalledTimes(2);
+            expect(statusChangedEventListener).toHaveBeenLastCalledWith({
+              chainIds: ['eip155:1', solanaChainId],
+              status: 'up',
+            });
+          });
+        } finally {
+          jest.restoreAllMocks();
+          jest.useRealTimers();
+        }
+      });
+
+      it('flushes every pending chain as down when a migration flag change unsubscribes account activity', async () => {
+        jest.useFakeTimers();
+        jest.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          await withService(async ({ messenger, rootMessenger, mocks }) => {
+            const statusChangedEventListener = jest.fn();
+            messenger.subscribe(
+              'AccountActivityService:statusChanged',
+              statusChangedEventListener,
+            );
+            const systemCallback = getSystemNotificationCallback(mocks);
+            const solanaChainId = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+
+            systemCallback({
+              event: 'system-notification',
+              channel: 'system-notifications.v1.account-activity.v1',
+              data: { chainIds: ['eip155:1', solanaChainId], status: 'up' },
+              timestamp: 1000,
+            });
+
+            mocks.getFeatureFlagState.mockReturnValue(featureFlagState(0));
+            rootMessenger.publish(
+              'RemoteFeatureFlagController:stateChange',
+              featureFlagState(0),
+              [],
+            );
+            await completeAsyncOperations();
+
+            expect(statusChangedEventListener).toHaveBeenCalledTimes(1);
+            expect(statusChangedEventListener).toHaveBeenCalledWith({
+              chainIds: ['eip155:1', solanaChainId],
+              status: 'down',
+              timestamp: expect.any(Number),
+            });
+
+            jest.advanceTimersByTime(1000);
+            expect(statusChangedEventListener).toHaveBeenCalledTimes(1);
+          });
+        } finally {
+          jest.restoreAllMocks();
+          jest.useRealTimers();
+        }
       });
 
       it('does not resubscribe on flag change when the websocket is not connected', async () => {

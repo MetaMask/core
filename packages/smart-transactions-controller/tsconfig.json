@@ -2,7 +2,8 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "noErrorTruncation": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "types": ["jest"]
   },
   "references": [
     {
