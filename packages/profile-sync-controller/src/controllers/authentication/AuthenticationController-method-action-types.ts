@@ -62,6 +62,9 @@ export type AuthenticationControllerBeginCredentialEnrollmentAction = {
 /**
  * Completes credential enrollment and refreshes the credential cache.
  *
+ * It is sent with the verification token that began the enrollment, if
+ * any: once a factor is enrolled, the server requires AAL2 for both steps.
+ *
  * The server returns an assertion for the new credential, which opens a
  * verification session like `completeCredentialVerification`, replacing
  * any earlier one. If that exchange fails, the earlier session is kept:
@@ -131,7 +134,8 @@ export type AuthenticationControllerGetVerificationTokenAction = {
 };
 
 /**
- * Clears every in-memory verification session and its expiration timer.
+ * Clears every in-memory verification session and its expiration timer,
+ * and the tokens kept for enrollments in progress.
  */
 export type AuthenticationControllerClearVerificationSessionAction = {
   type: `AuthenticationController:clearVerificationSession`;

@@ -480,6 +480,27 @@ describe('SRP MFA methods', () => {
     );
   });
 
+  it('uses a caller-supplied access token when completing enrollment', async () => {
+    const auth = createAuth();
+    mockMfaEnrollComplete.mockResolvedValueOnce({
+      token: 'assertion-jwt',
+      expiresIn: 900,
+    });
+
+    await auth.completeMfaEnrollment(
+      'flow-id',
+      { type: 'email_otp', code: '123456' },
+      undefined,
+      'verification-token',
+    );
+
+    expect(mockMfaEnrollComplete).toHaveBeenLastCalledWith(
+      Env.DEV,
+      'verification-token',
+      expect.anything(),
+    );
+  });
+
   it('begins passkey and email verification', async () => {
     const auth = createAuth();
     mockMfaVerify

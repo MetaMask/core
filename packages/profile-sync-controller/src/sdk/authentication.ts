@@ -131,12 +131,14 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     flowId: string,
     proof: EnrollmentProof,
     entropySourceId?: string,
+    accessToken?: string,
   ): Promise<MfaVerificationAssertion> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.completeMfaEnrollment(
       flowId,
       proof,
       entropySourceId,
+      accessToken,
     );
   }
 
