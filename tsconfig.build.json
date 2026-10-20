@@ -221,6 +221,9 @@
       "path": "./packages/network-enablement-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/node-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/notification-services-controller/tsconfig.build.json"
     },
     {

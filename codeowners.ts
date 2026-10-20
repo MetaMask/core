@@ -256,6 +256,9 @@ const config = {
     'network-enablement-controller': {
       teams: ['@MetaMask/metamask-assets'],
     },
+    'node-utils': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'notification-services-controller': {
       teams: ['@MetaMask/engagement'],
     },
