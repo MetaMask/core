@@ -1,13 +1,13 @@
 // This file is intended to be used only in a Node.js context.
 /* eslint-disable import-x/no-nodejs-modules */
 
+import type { Json } from '@metamask/type-utils';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { v4 as uuidV4 } from 'uuid';
 
 import { isErrorWithCode, wrapError } from './errors.js';
-import type { Json } from './json.js';
 
 /**
  * Information about the file sandbox provided to tests that need temporary

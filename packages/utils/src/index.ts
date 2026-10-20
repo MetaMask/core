@@ -45,3 +45,20 @@ export {
   getValueOfUnit,
   unitMap,
 } from './unitsConversion.js';
+
+// Re-exports for backwards compatibility.
+export type {
+  Json,
+  Mutable,
+  NonEmptyArray,
+  PartialOrAbsent,
+  RuntimeObject,
+  RuntimeObject as PlainObject,
+} from '@metamask/type-utils';
+export {
+  getKnownPropertyNames,
+  hasProperty,
+  isNullOrUndefined,
+  isObject,
+  isPlainObject,
+} from '@metamask/type-utils';

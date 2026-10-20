@@ -3,5 +3,10 @@
   "compilerOptions": {
     "outDir": "./.tsc-lint-cache",
     "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo"
-  }
+  },
+  "references": [
+    {
+      "path": "../type-utils/tsconfig.lint.json"
+    }
+  ]
 }
