@@ -302,8 +302,6 @@ describe('json', () => {
       expect(isValidJson(value)).toBe(true);
     });
 
-    // The fixtures include a revoked proxy and a throwing getter, which
-    // Vitest cannot serialise into a test name, so index them instead.
     it.each(JSON_VALIDATION_FIXTURES)(
       'works on complex object %#',
       ({ value, valid }) => {
