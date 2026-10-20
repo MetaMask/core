@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: fix tsconfig references ([#10919](https://github.com/MetaMask/core/pull/10919))
-
 ### Added
 
 - Add authenticator app (TOTP) support to MFA enrollment and verification ([#10914](https://github.com/MetaMask/core/pull/10914))
