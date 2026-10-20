@@ -1,9 +1,9 @@
 import fs from 'fs';
-import { when } from 'jest-when';
 import os from 'os';
 import path from 'path';
 import util from 'util';
 import { v4 } from 'uuid';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createSandbox,
@@ -20,15 +20,14 @@ import {
 const { withinSandbox } = createSandbox('utils');
 
 // Wrap the real `v4` so it behaves normally until a test overrides it.
-jest.mock('uuid', () => {
-  const actual = jest.requireActual('uuid');
-  // This is how to mock an ES-compatible module in Jest.
-  return { __esModule: true, ...actual, v4: jest.fn(actual.v4) };
+vi.mock(import('uuid'), async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, v4: vi.fn().mockImplementation(actual.v4) };
 });
 
 // `v4` is overloaded; naming the signature used here avoids resolving to the
 // last overload, which returns a `Uint8Array`.
-const v4Mock = jest.mocked<() => string>(v4);
+const v4Mock = vi.mocked<() => string>(v4);
 
 const mockUuidV4 = (value: string): void => {
   v4Mock.mockReturnValue(value);
@@ -441,9 +440,7 @@ describe('fs', () => {
       const error: any = new Error('oops');
       error.code = 'ESOMETHING';
       error.stack = 'some stack';
-      when(jest.spyOn(fs.promises, 'stat'))
-        .calledWith(entryPath)
-        .mockRejectedValue(error);
+      const statSpy = vi.spyOn(fs.promises, 'stat').mockRejectedValue(error);
 
       await expect(fileExists(entryPath)).rejects.toThrow(
         expect.objectContaining({
@@ -453,6 +450,7 @@ describe('fs', () => {
           cause: error,
         }),
       );
+      expect(statSpy).toHaveBeenCalledWith(entryPath);
     });
   });
 
@@ -500,9 +498,7 @@ describe('fs', () => {
       const error: any = new Error('oops');
       error.code = 'ESOMETHING';
       error.stack = 'some stack';
-      when(jest.spyOn(fs.promises, 'stat'))
-        .calledWith(entryPath)
-        .mockRejectedValue(error);
+      const statSpy = vi.spyOn(fs.promises, 'stat').mockRejectedValue(error);
 
       await expect(directoryExists(entryPath)).rejects.toThrow(
         expect.objectContaining({
@@ -511,6 +507,7 @@ describe('fs', () => {
           stack: expect.any(String),
         }),
       );
+      expect(statSpy).toHaveBeenCalledWith(entryPath);
     });
   });
 
@@ -610,12 +607,7 @@ describe('fs', () => {
         const error: any = new Error('oops');
         error.code = 'ESOMETHING';
         error.stack = 'some stack';
-        when(jest.spyOn(fs.promises, 'rm'))
-          .calledWith(filePath, {
-            recursive: true,
-            force: true,
-          })
-          .mockRejectedValue(error);
+        const rmSpy = vi.spyOn(fs.promises, 'rm').mockRejectedValue(error);
 
         await expect(forceRemove(filePath)).rejects.toThrow(
           expect.objectContaining({
@@ -625,6 +617,10 @@ describe('fs', () => {
             cause: error,
           }),
         );
+        expect(rmSpy).toHaveBeenCalledWith(filePath, {
+          recursive: true,
+          force: true,
+        });
       });
     });
 
@@ -661,12 +657,7 @@ describe('fs', () => {
         const error: any = new Error('oops');
         error.code = 'ESOMETHING';
         error.stack = 'some stack';
-        when(jest.spyOn(fs.promises, 'rm'))
-          .calledWith(directoryPath, {
-            recursive: true,
-            force: true,
-          })
-          .mockRejectedValue(error);
+        const rmSpy = vi.spyOn(fs.promises, 'rm').mockRejectedValue(error);
 
         await expect(forceRemove(directoryPath)).rejects.toThrow(
           expect.objectContaining({
@@ -676,17 +667,21 @@ describe('fs', () => {
             stack: expect.any(String),
           }),
         );
+        expect(rmSpy).toHaveBeenCalledWith(directoryPath, {
+          recursive: true,
+          force: true,
+        });
       });
     });
   });
 
   describe('createSandbox', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('does not create the sandbox directory immediately', async () => {

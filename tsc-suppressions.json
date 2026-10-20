@@ -312,7 +312,7 @@
       "count": 1
     },
     "TS2345": {
-      "count": 1
+      "count": 2
     },
     "TS2769": {
       "count": 1
@@ -337,7 +337,7 @@
       "count": 1
     },
     "TS2345": {
-      "count": 1
+      "count": 2
     },
     "TS6305": {
       "count": 1
@@ -372,8 +372,8 @@
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.batch-sell.test.ts": {
-    "TS2345": {
-      "count": 1
+    "TS2322": {
+      "count": 5
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
@@ -403,11 +403,6 @@
     },
     "TS2353": {
       "count": 2
-    }
-  },
-  "packages/bridge-status-controller/test/mock-batch-sell-erc20-erc20.ts": {
-    "TS2315": {
-      "count": 1
     }
   },
   "packages/chain-agnostic-permission/src/operators/caip-permission-operator-session-scopes.test.ts": {

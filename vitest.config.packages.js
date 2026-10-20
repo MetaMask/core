@@ -39,6 +39,10 @@ export default defineConfig({
     mockReset: true,
     restoreMocks: true,
 
+    typecheck: {
+      enabled: true,
+    },
+
     coverage: {
       enabled: true,
 

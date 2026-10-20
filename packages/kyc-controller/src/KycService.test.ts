@@ -381,6 +381,44 @@ describe('KycService', () => {
       ).toStrictEqual(response);
     });
 
+    it('sends the partner identity token when provided', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) =>
+            body.partnerIdentityToken === 'partner-identity-token',
+        )
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          aal2Token: AAL2_TOKEN,
+          partnerIdentityToken: 'partner-identity-token',
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('omits the partner identity token when not provided', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) => !('partnerIdentityToken' in body),
+        )
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).toStrictEqual(response);
+    });
+
     it('authenticates session creation with the aal2 token', async () => {
       nock(MOCK_API_URL)
         .post(

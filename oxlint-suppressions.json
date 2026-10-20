@@ -1782,11 +1782,14 @@
     "typescript/no-unsafe-assignment": {
       "count": 22
     },
+    "typescript/no-unsafe-call": {
+      "count": 1
+    },
     "typescript/no-unsafe-member-access": {
       "count": 2
     },
     "typescript/no-unsafe-return": {
-      "count": 3
+      "count": 4
     }
   },
   "packages/bridge-controller/src/bridge-controller.test.ts": {
@@ -2016,20 +2019,17 @@
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.batch-sell.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    },
     "typescript/no-unsafe-assignment": {
-      "count": 9
+      "count": 3
     },
     "typescript/no-unsafe-call": {
-      "count": 2
+      "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 11
+      "count": 1
     },
     "typescript/no-unsafe-return": {
-      "count": 4
+      "count": 3
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
@@ -2079,13 +2079,13 @@
       "count": 12
     },
     "typescript/no-unsafe-call": {
-      "count": 5
+      "count": 1
     },
     "typescript/no-unsafe-member-access": {
       "count": 13
     },
     "typescript/no-unsafe-return": {
-      "count": 7
+      "count": 5
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.ts": {
@@ -3645,11 +3645,6 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 1
-    }
-  },
-  "packages/mfa-recovery-controller/jest.config.cjs": {
-    "import/unambiguous": {
       "count": 1
     }
   },
@@ -7060,25 +7055,8 @@
       "count": 8
     }
   },
-  "packages/utils/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/utils/src/assert.test.ts": {
     "no-throw-literal": {
-      "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
       "count": 1
     }
   },
@@ -7128,29 +7106,15 @@
       "count": 2
     }
   },
-  "packages/utils/src/errors.test.ts": {
-    "typescript/no-explicit-any": {
-      "count": 3
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 3
-    }
-  },
   "packages/utils/src/fs.test.ts": {
     "typescript/no-explicit-any": {
       "count": 20
     },
-    "typescript/no-unsafe-argument": {
-      "count": 12
-    },
     "typescript/no-unsafe-assignment": {
-      "count": 23
+      "count": 22
     },
     "typescript/no-unsafe-member-access": {
-      "count": 9
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
+      "count": 8
     }
   },
   "packages/utils/src/fs.ts": {
@@ -7162,16 +7126,13 @@
     "no-throw-literal": {
       "count": 7
     },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
-      "count": 3
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
+      "count": 2
     },
     "typescript/no-unsafe-return": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
       "count": 2
     }
   },
@@ -7186,14 +7147,6 @@
       "count": 1
     }
   },
-  "packages/utils/src/json.tst.ts": {
-    "id-length": {
-      "count": 1
-    },
-    "typescript/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/utils/src/logging.test.ts": {
     "typescript/no-explicit-any": {
       "count": 2
@@ -7202,33 +7155,18 @@
       "count": 2
     }
   },
-  "packages/utils/src/misc.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    }
-  },
-  "packages/utils/src/misc.ts": {
-    "typescript/no-explicit-any": {
-      "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    }
-  },
-  "packages/utils/src/misc.tst.ts": {
-    "typescript/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/utils/src/unitsConversion.test.ts": {
     "typescript/no-explicit-any": {
       "count": 29
     },
     "typescript/no-unsafe-argument": {
       "count": 29
+    },
+    "vitest/no-conditional-expect": {
+      "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/wallet-cli/jest.config.cjs": {
