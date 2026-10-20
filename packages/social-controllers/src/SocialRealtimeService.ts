@@ -107,6 +107,8 @@ export class SocialRealtimeService {
 
   #scopes: SocialFeedRealtimeScope[];
 
+  #scopeUpdatePromise: Promise<void> | undefined;
+
   #active = false;
 
   #subscription: WebSocketSubscription | undefined;
@@ -168,18 +170,45 @@ export class SocialRealtimeService {
 
   async setScopes(scopes: readonly SocialFeedRealtimeScope[]): Promise<void> {
     const normalizedScopes = normalizeScopes(scopes);
+
+    const scopeUpdate = this.#scopeUpdatePromise
+      ? this.#scopeUpdatePromise
+          .catch(() => undefined)
+          .then(() => this.#applyScopes(normalizedScopes))
+      : this.#applyScopes(normalizedScopes);
+    this.#scopeUpdatePromise = scopeUpdate;
+
+    try {
+      await scopeUpdate;
+    } finally {
+      if (this.#scopeUpdatePromise === scopeUpdate) {
+        this.#scopeUpdatePromise = Promise.resolve();
+      }
+    }
+  }
+
+  async #applyScopes(
+    normalizedScopes: SocialFeedRealtimeScope[],
+  ): Promise<void> {
     if (!this.#active) {
       this.#scopes = normalizedScopes;
       return;
     }
 
     const previousScopes = this.#scopes;
+    const connectionVersion = this.#connectionVersion;
     this.#scopes = normalizedScopes;
 
     try {
       await this.#resubscribeToFeed();
     } catch (error) {
-      this.#scopes = previousScopes;
+      if (
+        this.#active &&
+        this.#connectionVersion === connectionVersion &&
+        this.#subscription
+      ) {
+        this.#scopes = previousScopes;
+      }
       throw error;
     }
   }
@@ -192,6 +221,7 @@ export class SocialRealtimeService {
       return;
     }
 
+    await this.#retryPendingUnsubscriptions();
     await this.#subscribeToFeed();
   }
 
@@ -293,6 +323,7 @@ export class SocialRealtimeService {
         } else {
           this.#subscription = undefined;
           this.#subscriptionToken = undefined;
+          this.#pendingUnsubscriptions.add(existingSubscription);
         }
 
         if (replacementSubscription) {

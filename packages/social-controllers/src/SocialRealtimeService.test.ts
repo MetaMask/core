@@ -541,6 +541,54 @@ describe('SocialRealtimeService', () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it('retains requested scopes after cleanup fails during deactivation', async () => {
+    const { call, service } = createService(true, ['trending']);
+    const replacementUnsubscribe = jest.fn().mockResolvedValue(undefined);
+    const existingUnsubscribe = jest
+      .fn()
+      .mockImplementationOnce(() => {
+        service.setActive(false).catch(() => undefined);
+        return Promise.reject(new Error('Existing cleanup failed'));
+      })
+      .mockResolvedValue(undefined);
+    let subscribeCount = 0;
+
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:subscribe') {
+        subscribeCount += 1;
+        return Promise.resolve({
+          unsubscribe:
+            subscribeCount === 1 ? existingUnsubscribe : replacementUnsubscribe,
+        });
+      }
+
+      return Promise.resolve();
+    });
+
+    await service.setActive(true);
+    await expect(service.setScopes(['all'])).rejects.toThrow(
+      'Existing cleanup failed',
+    );
+    await service.setActive(true);
+
+    const subscribeCalls = call.mock.calls.filter(
+      ([action]) => action === 'BackendWebSocketService:subscribe',
+    );
+    const latestSubscribe = subscribeCalls[2];
+    if (!latestSubscribe) {
+      throw new Error('Missing reactivation subscription call');
+    }
+
+    expect(existingUnsubscribe).toHaveBeenCalledTimes(2);
+    expect(
+      (latestSubscribe[1] as { channels: string[] }).channels,
+    ).toStrictEqual([SOCIAL_FEED_CHANNELS.all]);
+  });
+
   it('handles a failed replacement after disconnecting', async () => {
     const { call, connectionStateHandler, service } = createService(true, [
       'trending',
@@ -691,6 +739,61 @@ describe('SocialRealtimeService', () => {
     expect(
       (secondSubscribe[1] as { channels: string[] }).channels,
     ).toStrictEqual([SOCIAL_FEED_CHANNELS.all]);
+  });
+
+  it('serializes concurrent scope updates', async () => {
+    const { call, service, unsubscribe } = createService(true, ['trending']);
+    const firstError = new Error('First replacement failed');
+    let rejectFirstReplacement: (reason?: unknown) => void = () => undefined;
+    const firstReplacement = new Promise<WebSocketSubscription>(
+      (_resolve, reject): void => {
+        rejectFirstReplacement = reject;
+      },
+    );
+    let subscribeCount = 0;
+
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:subscribe') {
+        subscribeCount += 1;
+        if (subscribeCount === 2) {
+          return firstReplacement;
+        }
+        return Promise.resolve({ unsubscribe });
+      }
+
+      return Promise.resolve();
+    });
+
+    await service.setActive(true);
+    const firstUpdate = service.setScopes(['all']);
+    await Promise.resolve();
+    await Promise.resolve();
+    const secondUpdate = service.setScopes(['all', 'trending']);
+    rejectFirstReplacement(firstError);
+
+    await expect(firstUpdate).rejects.toBe(firstError);
+    await secondUpdate;
+
+    const subscribeCalls = call.mock.calls.filter(
+      ([action]) => action === 'BackendWebSocketService:subscribe',
+    );
+    expect(subscribeCalls).toHaveLength(3);
+    const firstReplacementCall = subscribeCalls[1];
+    const secondReplacementCall = subscribeCalls[2];
+    if (!firstReplacementCall || !secondReplacementCall) {
+      throw new Error('Missing concurrent scope replacement calls');
+    }
+
+    expect(
+      (firstReplacementCall[1] as { channels: string[] }).channels,
+    ).toStrictEqual([SOCIAL_FEED_CHANNELS.all]);
+    expect(
+      (secondReplacementCall[1] as { channels: string[] }).channels,
+    ).toStrictEqual([SOCIAL_FEED_CHANNELS.all, SOCIAL_FEED_CHANNELS.trending]);
   });
 
   it('rejects an empty scope set', async () => {
