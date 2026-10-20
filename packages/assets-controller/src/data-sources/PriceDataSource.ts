@@ -554,26 +554,18 @@ export class PriceDataSource {
   /**
    * Keep asset IDs that have no stored price.
    *
-   * A refresh only fills gaps. The price poll and `fetchAssetPrices` update
-   * prices that are already stored.
+   * Callers pass ids already normalized by `#getAssetIdsForPriceFetch`. A
+   * lower-case id stored by the price API does not match that checksummed id.
+   *
+   * The price poll and `fetchAssetPrices` update prices that are already stored.
    *
    * @param assetIds - Normalized CAIP-19 asset IDs.
-   * @returns IDs with no entry in `assetsPrice`.
+   * @returns IDs with no entry in `assetsPrice` under that id.
    */
   #filterAssetsMissingPrice(assetIds: Caip19AssetId[]): Caip19AssetId[] {
     const storedPrices = this.#getAssetsState().assetsPrice ?? {};
-    const pricedIds = new Set<string>();
-    for (const assetId of Object.keys(storedPrices)) {
-      try {
-        pricedIds.add(
-          safeNormalizeAssetId(assetId as Caip19AssetId).toLowerCase(),
-        );
-      } catch {
-        pricedIds.add(assetId.toLowerCase());
-      }
-    }
 
-    return assetIds.filter((assetId) => !pricedIds.has(assetId.toLowerCase()));
+    return assetIds.filter((assetId) => storedPrices[assetId] === undefined);
   }
 
   /**

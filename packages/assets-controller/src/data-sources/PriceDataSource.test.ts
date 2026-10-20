@@ -1085,9 +1085,9 @@ describe('PriceDataSource', () => {
             },
           },
           assetsPrice: {
-            [MOCK_TOKEN_ASSET]: { price: 1 },
+            [normalizeAssetId(MOCK_TOKEN_ASSET)]: { price: 1 },
           },
-        }) as AssetsControllerState,
+        }) as unknown as AssetsControllerState,
       priceResponse: {
         [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
       },
@@ -1128,7 +1128,7 @@ describe('PriceDataSource', () => {
           assetsPrice: {
             [MOCK_TOKEN_ASSET]: { price: 1 },
           },
-        }) as AssetsControllerState,
+        }) as unknown as AssetsControllerState,
       priceResponse: {
         [MOCK_TOKEN_ASSET]: createMockPriceData(1.0),
       },
