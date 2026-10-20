@@ -25,7 +25,7 @@ import type {
   Simplify,
   Optionalize,
 } from '@metamask/superstruct';
-import { Json } from '@metamask/type-utils';
+import type { Json } from '@metamask/type-utils';
 import { hasProperty } from '@metamask/type-utils';
 
 import type { AssertionErrorConstructor } from './assert.js';
