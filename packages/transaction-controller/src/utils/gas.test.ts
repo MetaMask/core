@@ -34,7 +34,6 @@ import {
   updateGas,
   DEFAULT_GAS_MULTIPLIER,
   MAX_GAS_BLOCK_PERCENT,
-  DUMMY_AUTHORIZATION_SIGNATURE,
   EIP_2780_AUTHORIZATION_GAS,
   EIP7280_AUTHORIZATION_INTRINSIC_GAS,
   UPGRADE_AUTHORIZATION_GAS,
@@ -989,7 +988,7 @@ describe('gas', () => {
       },
     );
 
-    it('forwards the complete transaction shape in estimate request', async () => {
+    it('preserves execution parameters while omitting unsigned authorizations in the node fallback', async () => {
       const accessList = [
         {
           address: '0x0000000000000000000000000000000000000001',
@@ -1026,17 +1025,8 @@ describe('gas', () => {
           {
             ...TRANSACTION_META_MOCK.txParams,
             accessList,
-            authorizationList: [
-              {
-                ...AUTHORIZATION_LIST_MOCK[0],
-                chainId: CHAIN_ID_MOCK,
-                nonce: '0x1',
-                r: DUMMY_AUTHORIZATION_SIGNATURE,
-                s: DUMMY_AUTHORIZATION_SIGNATURE,
-                yParity: '0x1',
-              },
-            ],
-            type: TransactionEnvelopeType.setCode,
+            authorizationList: undefined,
+            type: undefined,
             value: '0x0',
           },
           'latest',
@@ -1107,15 +1097,6 @@ describe('gas', () => {
       authorizationList: AUTHORIZATION_LIST_MOCK,
       to: TRANSACTION_META_MOCK.txParams.from,
       type: TransactionEnvelopeType.setCode,
-    };
-
-    const DUMMY_SIGNED_AUTHORIZATION_MOCK = {
-      address: AUTHORIZATION_LIST_MOCK[0].address,
-      chainId: CHAIN_ID_MOCK,
-      nonce: '0x1',
-      r: DUMMY_AUTHORIZATION_SIGNATURE,
-      s: DUMMY_AUTHORIZATION_SIGNATURE,
-      yParity: '0x1',
     };
 
     /**
@@ -1196,8 +1177,8 @@ describe('gas', () => {
     }
 
     /**
-     * Get the expected node estimate request with dummy signatures and the
-     * delegation of the sender overridden.
+     * Get the expected node estimate request without unsigned authorizations
+     * and with the delegation of the sender overridden.
      *
      * @param txParams - Overrides for the expected transaction parameters.
      * @returns The expected eth_estimateGas parameters.
@@ -1208,7 +1189,8 @@ describe('gas', () => {
       return [
         {
           ...TYPE_4_TX_PARAMS_MOCK,
-          authorizationList: [DUMMY_SIGNED_AUTHORIZATION_MOCK],
+          authorizationList: undefined,
+          type: undefined,
           ...txParams,
         },
         'latest',
@@ -1434,14 +1416,14 @@ describe('gas', () => {
           (): void => mockSimulationResponse({ gasLimit: '0x0' }),
         ],
       ])(
-        'uses node estimate with delegation gas if simulation %s',
+        'uses node estimate with intrinsic and delegation gas if simulation %s',
         async (_title, mockSimulation) => {
           mockSimulation();
 
           const result = await estimateType4Gas();
 
           expect(result.estimatedGas).toBe(
-            toHex(GAS_2_MOCK + EIP_2780_AUTHORIZATION_GAS),
+            toHex(GAS_2_MOCK + 7816 + EIP_2780_AUTHORIZATION_GAS),
           );
           expect(result.simulationFails).toBeUndefined();
           expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
@@ -1453,11 +1435,11 @@ describe('gas', () => {
     });
 
     describe('with unsigned authorizations and no simulation', () => {
-      it('uses node estimate with delegation override and delegation gas', async () => {
+      it('uses node estimate without unsigned authorizations and adds intrinsic and delegation gas', async () => {
         const result = await estimateType4Gas({}, false);
 
         expect(result).toStrictEqual({
-          estimatedGas: toHex(GAS_2_MOCK + EIP_2780_AUTHORIZATION_GAS),
+          estimatedGas: toHex(GAS_2_MOCK + 7816 + EIP_2780_AUTHORIZATION_GAS),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
           gasRevert: undefined,
@@ -1477,52 +1459,70 @@ describe('gas', () => {
         });
       });
 
-      it('does not add delegation gas if sender already delegated', async () => {
-        mockNode({
-          senderCode: `${DELEGATION_PREFIX}${'1'.repeat(40)}`,
-        });
+      it.each([1, 2])(
+        'adds only intrinsic gas for %i unsigned authorizations if sender already delegated',
+        async (count) => {
+          mockNode({
+            senderCode: `${DELEGATION_PREFIX}${'1'.repeat(40)}`,
+          });
 
-        const result = await estimateType4Gas({}, false);
+          const result = await estimateType4Gas(
+            {
+              authorizationList: Array.from(
+                { length: count },
+                () => AUTHORIZATION_LIST_MOCK[0],
+              ),
+            },
+            false,
+          );
 
-        expect(result.estimatedGas).toBe(toHex(GAS_2_MOCK));
-      });
+          expect(result.estimatedGas).toBe(toHex(GAS_2_MOCK + count * 7816));
+          expect(getEstimateGasParams()).toStrictEqual([
+            getExpectedNodeOverrideParams(),
+          ]);
+        },
+      );
 
-      it('adds delegation gas once for multiple unsigned authorizations', async () => {
-        const secondAddress = '0x456' as Hex;
+      it.each([
+        ['not delegated', '0x', EIP_2780_AUTHORIZATION_GAS],
+        ['already delegated', `${DELEGATION_PREFIX}${'1'.repeat(40)}`, 0],
+      ] as const)(
+        'preserves signed authorizations and adds intrinsic gas only for unsigned entries when %s',
+        async (_title, senderCode, delegationGas) => {
+          mockNode({ senderCode });
+          const secondAddress = '0x456' as Hex;
 
-        const result = await estimateType4Gas(
-          {
-            authorizationList: [
-              ...AUTHORIZATION_LIST_MOCK,
-              { address: secondAddress },
-              SIGNED_AUTHORIZATION_MOCK,
-            ],
-          },
-          false,
-        );
-
-        expect(result.estimatedGas).toBe(
-          toHex(GAS_2_MOCK + EIP_2780_AUTHORIZATION_GAS),
-        );
-
-        expect(getEstimateGasParams()).toStrictEqual([
-          [
-            expect.objectContaining({
+          const result = await estimateType4Gas(
+            {
               authorizationList: [
-                DUMMY_SIGNED_AUTHORIZATION_MOCK,
-                { ...DUMMY_SIGNED_AUTHORIZATION_MOCK, address: secondAddress },
+                ...AUTHORIZATION_LIST_MOCK,
+                { address: secondAddress },
                 SIGNED_AUTHORIZATION_MOCK,
               ],
-            }),
-            'latest',
-            {
-              [TRANSACTION_META_MOCK.txParams.from]: {
-                code: DELEGATION_PREFIX + remove0x(secondAddress),
-              },
             },
-          ],
-        ]);
-      });
+            false,
+          );
+
+          expect(result.estimatedGas).toBe(
+            toHex(GAS_2_MOCK + 2 * 7816 + delegationGas),
+          );
+
+          expect(getEstimateGasParams()).toStrictEqual([
+            [
+              expect.objectContaining({
+                authorizationList: [SIGNED_AUTHORIZATION_MOCK],
+                type: TransactionEnvelopeType.setCode,
+              }),
+              'latest',
+              {
+                [TRANSACTION_META_MOCK.txParams.from]: {
+                  code: DELEGATION_PREFIX + remove0x(secondAddress),
+                },
+              },
+            ],
+          ]);
+        },
+      );
 
       it('returns simulationFails if node estimate fails', async () => {
         mockNode({ estimateGasError: new Error('Estimate failed') });

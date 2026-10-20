@@ -94,7 +94,7 @@ export const DUMMY_AUTHORIZATION_SIGNATURE =
 export const EIP_2780_AUTHORIZATION_GAS = 35190;
 
 /**
- * Intrinsic gas cost for the authorization portion of an EIP-7280 upgrade.
+ * Intrinsic gas cost for each authorization omitted from the node estimate.
  */
 export const EIP7280_AUTHORIZATION_INTRINSIC_GAS = 7816;
 
@@ -660,10 +660,10 @@ async function getLatestBlock(
  * authority of each authorization so that it can apply any EIP-2780 runtime
  * authorization charges.
  * - If the Simulation API is disabled, unsupported or unavailable, the selected
- * node estimates the transaction with dummy signatures and the delegation of the
- * sender overridden, and the EIP-2780 delegation charge is added if the sender
- * is not yet delegated. A simulated transaction error is not retried using the
- * node.
+ * node estimates the transaction without unsigned authorizations and with the
+ * delegation of the sender overridden. Intrinsic gas is added for each omitted
+ * authorization, plus the EIP-2780 delegation charge if the sender is not yet
+ * delegated. A simulated transaction error is not retried using the node.
  *
  * @param options - The options object.
  * @param options.authorizationList - The original authorization list of the transaction.
@@ -743,18 +743,19 @@ async function estimateGasType4({
  * Estimate the gas for a type 4 transaction with unsigned authorizations using
  * the selected node.
  *
- * Unsigned authorizations are sent with dummy signatures, so the node charges
- * their intrinsic gas but skips them at runtime. Their authority is the sender,
- * so the delegation of the sender is set with a state override, and the
- * EIP-2780 charge for a new delegation indicator is added once if the sender
- * is not yet delegated. Signed authorizations are charged by the node.
+ * Unsigned authorizations are omitted from the node request and their intrinsic
+ * gas is added manually per entry. Their authority is the sender, so the
+ * delegation of the sender is set with a state override, and the EIP-2780 charge
+ * for a new delegation indicator is added once if the sender is not yet
+ * delegated. Signed authorizations remain in the request and are charged by the
+ * node.
  *
  * @param options - The options object.
  * @param options.authorizationList - The original authorization list of the transaction.
  * @param options.messenger - The messenger instance for communication.
  * @param options.networkClientId - The network client ID.
  * @param options.txParams - The normalized transaction parameters.
- * @returns The estimated gas including the delegation charge.
+ * @returns The estimated gas including omitted authorization costs.
  */
 async function estimateGasType4Node({
   authorizationList,
@@ -770,6 +771,14 @@ async function estimateGasType4Node({
   const unsignedAuthorizations = authorizationList.filter(
     (authorization) => !isAuthorizationSigned(authorization),
   );
+  const signedAuthorizations = authorizationList.filter(isAuthorizationSigned);
+  const nodeTxParams = {
+    ...txParams,
+    authorizationList: signedAuthorizations.length
+      ? signedAuthorizations
+      : undefined,
+    type: signedAuthorizations.length ? txParams.type : undefined,
+  };
 
   // Unsigned authorizations are signed by the sender, and the last valid
   // authorization for an authority sets its delegation.
@@ -777,10 +786,17 @@ async function estimateGasType4Node({
     unsignedAuthorizations[unsignedAuthorizations.length - 1].address;
 
   const [nodeGas, currentDelegationAddress] = await Promise.all([
-    estimateGasNode(messenger, networkClientId, txParams, delegationAddress),
+    estimateGasNode(
+      messenger,
+      networkClientId,
+      nodeTxParams,
+      delegationAddress,
+    ),
     getDelegationAddress(txParams.from as Hex, messenger, networkClientId),
   ]);
 
+  const intrinsicGas =
+    unsignedAuthorizations.length * EIP7280_AUTHORIZATION_INTRINSIC_GAS;
   const delegationGas = currentDelegationAddress
     ? 0
     : EIP_2780_AUTHORIZATION_GAS;
@@ -788,10 +804,11 @@ async function estimateGasType4Node({
   log('Type 4 gas using node', {
     currentDelegationAddress,
     delegationGas,
+    intrinsicGas,
     nodeGas,
   });
 
-  return BNToHex(hexToBN(nodeGas).addn(delegationGas));
+  return BNToHex(hexToBN(nodeGas).addn(intrinsicGas + delegationGas));
 }
 
 /**
