@@ -2,6 +2,7 @@ import { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
 import { providerErrors } from '@metamask/rpc-errors';
 import type { StructError } from '@metamask/superstruct';
 import { any, validate } from '@metamask/superstruct';
+import type { Hex } from '@metamask/utils';
 
 import type { WalletMiddlewareKeyValues } from '../wallet.js';
 import {
@@ -20,7 +21,10 @@ jest.mock('@metamask/superstruct', () => ({
 
 const ADDRESS_MOCK = '0xABCDabcdABCDabcdABCDabcdABCDabcdABCDabcd';
 const createContext = (): MiddlewareContext<WalletMiddlewareKeyValues> =>
-  new MiddlewareContext<WalletMiddlewareKeyValues>([['origin', 'test']]);
+  new MiddlewareContext<WalletMiddlewareKeyValues>([
+    ['origin', 'test'],
+    ['networkClientId', 'test-client-id'],
+  ]);
 
 const STRUCT_ERROR_MOCK = {
   failures: () => [
@@ -38,21 +42,31 @@ const STRUCT_ERROR_MOCK = {
 describe('Validation Utils', () => {
   const validateMock = jest.mocked(validate);
 
-  let getAccountsMock: jest.MockedFn<(origin: string) => Promise<string[]>>;
+  let getAccountsMock: jest.MockedFn<
+    (origin: string, scope: string) => Promise<string[]>
+  >;
+  let getNetworkClientByIdMock: jest.MockedFn<
+    (id: string) => { configuration: { chainId: Hex } }
+  >;
 
   beforeEach(() => {
     jest.resetAllMocks();
 
     getAccountsMock = jest.fn().mockResolvedValue([ADDRESS_MOCK]);
+    getNetworkClientByIdMock = jest
+      .fn()
+      .mockReturnValue({ configuration: { chainId: '0x1' } });
   });
 
   describe('validateAndNormalizeKeyholder', () => {
     it('returns lowercase address', async () => {
       const result = await validateAndNormalizeKeyholder(
         ADDRESS_MOCK,
+        undefined,
         createContext(),
         {
           getAccounts: getAccountsMock,
+          getNetworkClientById: getNetworkClientByIdMock,
         },
       );
 
@@ -63,17 +77,29 @@ describe('Validation Utils', () => {
       getAccountsMock.mockResolvedValueOnce([]);
 
       await expect(
-        validateAndNormalizeKeyholder(ADDRESS_MOCK, createContext(), {
-          getAccounts: getAccountsMock,
-        }),
+        validateAndNormalizeKeyholder(
+          ADDRESS_MOCK,
+          undefined,
+          createContext(),
+          {
+            getAccounts: getAccountsMock,
+            getNetworkClientById: getNetworkClientByIdMock,
+          },
+        ),
       ).rejects.toThrow(providerErrors.unauthorized());
     });
 
     it('throws if address is not string', async () => {
       await expect(
-        validateAndNormalizeKeyholder(123 as never, createContext(), {
-          getAccounts: getAccountsMock,
-        }),
+        validateAndNormalizeKeyholder(
+          123 as never,
+          undefined,
+          createContext(),
+          {
+            getAccounts: getAccountsMock,
+            getNetworkClientById: getNetworkClientByIdMock,
+          },
+        ),
       ).rejects.toThrow(
         'Invalid parameters: must provide an Ethereum address.',
       );
@@ -81,8 +107,9 @@ describe('Validation Utils', () => {
 
     it('throws if address is empty string', async () => {
       await expect(
-        validateAndNormalizeKeyholder('' as never, createContext(), {
+        validateAndNormalizeKeyholder('' as never, undefined, createContext(), {
           getAccounts: getAccountsMock,
+          getNetworkClientById: getNetworkClientByIdMock,
         }),
       ).rejects.toThrow(
         'Invalid parameters: must provide an Ethereum address.',
@@ -91,8 +118,9 @@ describe('Validation Utils', () => {
 
     it('throws if address length is not 40', async () => {
       await expect(
-        validateAndNormalizeKeyholder('0x123', createContext(), {
+        validateAndNormalizeKeyholder('0x123', undefined, createContext(), {
           getAccounts: getAccountsMock,
+          getNetworkClientById: getNetworkClientByIdMock,
         }),
       ).rejects.toThrow(
         'Invalid parameters: must provide an Ethereum address.',
