@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Update `TraceName` to include both client-emitted and controller trace names ([#10893](https://github.com/MetaMask/core/pull/10893))
+- Populate the `tags` field with the active `feature` when tracing swap/bridge operations ([#10893](https://github.com/MetaMask/core/pull/10893))
+
 ### Changed
 
+- **BREAKING:** Require `traceFn` when initializing the BridgeStatusController ([#10893](https://github.com/MetaMask/core/pull/10893))
 - Update batch-strategy and batch-sell-strategy history persistence ([#10814](https://github.com/MetaMask/core/pull/10814))
   - add a history item before submitting transactions. This enables the `TransactionController:transactionStatusUpdated` listener to match the txMeta with history and determine whether to publish the Failed event
   - include latest `TransactionStatus` when rekey-ing or adding to history
@@ -17,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - rekey to the trade's `actionId` if the approval succeeds
   - rekey to the trade's `id` on confirmation
 - Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^34.1.0` ([#10905](https://github.com/MetaMask/core/pull/10905))
+- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
 ### Fixed
 
@@ -24,10 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Pre-submit history: evm keyed by actionId, batch + batch-sell keyed by batchId
   - After tx exists: listener publishes Failed; submitTx returns the txMeta
   - Before tx exists: submitTx catch publishes Failed
-- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
-- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
-- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
-- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
 ## [76.4.0]
 
