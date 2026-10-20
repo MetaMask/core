@@ -53,9 +53,24 @@ export type UpdateGasRequest = {
   txMeta: TransactionMeta;
 };
 
+/**
+ * How the gas limits of a batch are applied.
+ * - `eip7702` - A single gas limit for the outer EIP-7702 transaction.
+ * - `separate` - One gas limit per transaction, submitted separately.
+ */
+export type EstimateGasBatchMode = 'eip7702' | 'separate';
+
 export type EstimateGasBatchResult = {
+  /** Gas limits, with a single entry if `mode` is `eip7702`. */
   gasLimits: number[];
+
+  /** How the gas limits are applied. */
+  mode: EstimateGasBatchMode;
+
+  /** Whether the outer EIP-7702 transaction upgrades the sender. */
   requiresAuthorizationList?: true;
+
+  /** Total of all gas limits. */
   totalGasLimit: number;
 };
 
@@ -77,6 +92,19 @@ export const DUMMY_AUTHORIZATION_SIGNATURE =
  * sender always exists in state as its nonce is incremented first.
  */
 export const EIP_2780_AUTHORIZATION_GAS = 35190;
+
+/**
+ * Intrinsic gas cost for the authorization portion of an EIP-7280 upgrade.
+ */
+export const EIP7280_AUTHORIZATION_INTRINSIC_GAS = 7816;
+
+/**
+ * Gas for the upgrade authorization of the sender that is not included in the
+ * sum of the provided gas values of a batch: the EIP-7280 intrinsic cost of an
+ * authorization plus the delegation indicator charge.
+ */
+export const UPGRADE_AUTHORIZATION_GAS =
+  EIP7280_AUTHORIZATION_INTRINSIC_GAS + EIP_2780_AUTHORIZATION_GAS;
 
 /**
  * Error for a simulated transaction that failed, as opposed to the simulation
@@ -270,7 +298,9 @@ export async function estimateGas({
  *   standalone (e.g. predict-withdraw, where the batch's first sub-call
  *   provides source-token balance to subsequent sub-calls). When 7702
  *   simulation succeeds it is preferred since the bundled call has no per-tx
- *   intrinsic gas cost and produces a tighter estimate.
+ *   intrinsic gas cost and produces a tighter estimate. If the sender requires
+ *   an upgrade, the fallback adds `UPGRADE_AUTHORIZATION_GAS`, as the provided
+ *   gas values do not include the upgrade authorization.
  *
  * @param transactions - Batch transactions to inspect.
  * @returns Parsed gas limits and total when every transaction has gas; otherwise `undefined`.
@@ -358,15 +388,21 @@ export async function estimateGasBatch({
     });
 
     if (simulationFails && providedBatchGasLimits) {
+      const fallbackGasLimit =
+        providedBatchGasLimits.totalGasLimit +
+        (isUpgradeRequired ? UPGRADE_AUTHORIZATION_GAS : 0);
+
       log(
         'EIP-7702 estimation failed, using batch parameter gas limits',
-        providedBatchGasLimits,
+        { fallbackGasLimit },
         simulationFails,
       );
+
       return {
-        gasLimits: [providedBatchGasLimits.totalGasLimit],
+        gasLimits: [fallbackGasLimit],
+        mode: 'eip7702',
         ...(isUpgradeRequired ? { requiresAuthorizationList: true } : {}),
-        totalGasLimit: providedBatchGasLimits.totalGasLimit,
+        totalGasLimit: fallbackGasLimit,
       };
     }
 
@@ -376,6 +412,7 @@ export async function estimateGasBatch({
 
     return {
       gasLimits: [totalGasLimit],
+      mode: 'eip7702',
       ...(isUpgradeRequired ? { requiresAuthorizationList: true } : {}),
       totalGasLimit,
     };
@@ -384,7 +421,7 @@ export async function estimateGasBatch({
   const providedBatchGasLimits = getProvidedBatchGasLimits(transactions);
   if (providedBatchGasLimits) {
     log('Using batch parameter gas limits', providedBatchGasLimits);
-    return providedBatchGasLimits;
+    return { ...providedBatchGasLimits, mode: 'separate' };
   }
 
   const { gasLimits: gasLimitsHex } = await simulateGasBatch({
@@ -406,7 +443,7 @@ export async function estimateGasBatch({
 
   log('Simulated batch gas limits', { totalGasLimit, gasLimits });
 
-  return { totalGasLimit, gasLimits };
+  return { gasLimits, mode: 'separate', totalGasLimit };
 }
 
 /**

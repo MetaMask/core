@@ -326,6 +326,8 @@ describe('Across Submit', () => {
       });
       estimateGasBatchMock.mockResolvedValue({
         gasLimits: [123456],
+        mode: 'eip7702',
+        totalGasLimit: 123456,
       });
 
       await submitAcrossQuotes({
@@ -504,6 +506,8 @@ describe('Across Submit', () => {
     it('submits 7702 batches without estimated gas when estimation returns multiple gas limits', async () => {
       estimateGasBatchMock.mockResolvedValue({
         gasLimits: [123456, 234567],
+        mode: 'separate',
+        totalGasLimit: 358023,
       });
 
       await submitAcrossQuotes({
@@ -525,6 +529,64 @@ describe('Across Submit', () => {
         expect.objectContaining({
           disable7702: false,
           gasLimit7702: undefined,
+        }),
+      );
+    });
+
+    it('submits 7702 batches without estimated gas when estimation returns a single separate gas limit', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [123456],
+        mode: 'separate',
+        totalGasLimit: 123456,
+      });
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [QUOTE_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' }],
+          },
+        },
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: undefined,
+        }),
+      );
+    });
+
+    it('detects an EIP-7702 outer result from the gas limit count if mode is missing', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [123456],
+        totalGasLimit: 123456,
+      } as Awaited<ReturnType<typeof estimateGasBatchMock>>);
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [QUOTE_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' }],
+          },
+        },
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: expect.any(String),
         }),
       );
     });
