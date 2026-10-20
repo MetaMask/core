@@ -26,7 +26,25 @@ export type ProofOfOwnershipServiceSignAction = {
 };
 
 /**
+ * Sign proofs of ownership for multiple accounts.
+ *
+ * EVM accounts continue to sign through the keyring one account at a time.
+ * Snap-backed accounts are grouped by snap ID and sent through the
+ * `signProofOfOwnershipBatch` snap method once per snap.
+ *
+ * @param data - The account/nonce pairs to prove ownership of.
+ * @returns Per-item proof or error results in input order.
+ * @throws if a snap batch request rejects, returns a malformed response, or
+ * returns a result count/account ordering that does not match the request.
+ */
+export type ProofOfOwnershipServiceSignBatchAction = {
+  type: `ProofOfOwnershipService:signBatch`;
+  handler: ProofOfOwnershipService['signBatch'];
+};
+
+/**
  * Union of all ProofOfOwnershipService action types.
  */
 export type ProofOfOwnershipServiceMethodActions =
-  ProofOfOwnershipServiceSignAction;
+  | ProofOfOwnershipServiceSignAction
+  | ProofOfOwnershipServiceSignBatchAction;
