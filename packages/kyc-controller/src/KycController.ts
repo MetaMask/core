@@ -50,7 +50,8 @@ import type {
   KycVendorSigning,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
-import { assertAttestedServerPublicKey, type Jwk } from './ukyc/jwtChain.js';
+import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
+import type { Jwk } from './ukyc/jwtChain.js';
 import {
   getOrCreateLocalUserSecret,
   UkycLocalUserSecretStore,
