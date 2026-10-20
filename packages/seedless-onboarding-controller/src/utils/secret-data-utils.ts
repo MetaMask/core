@@ -17,6 +17,33 @@ export type SecretBackupData = Omit<SocialBackupsMetadata, 'hash'> & {
 };
 
 /**
+ * Sort and normalize secret data before changing the TOPRF encryption key.
+ *
+ * The input is copied before sorting so callers retain their original item
+ * order.
+ *
+ * @param items - Secret data fetched from the metadata store.
+ * @returns The sorted fields accepted by the password-change operation.
+ */
+export function prepareSecretDataItemsForPasswordChange(
+  items: FetchedSecretDataItem[],
+): Pick<FetchedSecretDataItem, 'data' | 'dataType' | 'version'>[] {
+  return [...items]
+    .sort((a, b) =>
+      SecretMetadata.compare(
+        SecretMetadata.fromRawMetadata(a.data, { dataType: a.dataType }),
+        SecretMetadata.fromRawMetadata(b.data, { dataType: b.dataType }),
+        'asc',
+      ),
+    )
+    .map(({ data, dataType, version }) => ({
+      data,
+      dataType,
+      version: dataType === undefined ? 'v1' : version,
+    }));
+}
+
+/**
  * Parse and sort secret metadata fetched from the metadata store.
  *
  * Primary SRP items are ordered first, then remaining items by client

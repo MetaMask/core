@@ -80,9 +80,9 @@ Completed on 2026-10-19.
 ### Step 1: Extract private controller helpers
 
 - [x] Extract mutex-safe unlocked helpers for Seedless locking and lifecycle
-  transitions.
+      transitions.
 - [x] Add the Keyring action adapters and key-sync verification helper together
-  with the happy-path orchestration.
+      with the happy-path orchestration.
 - [x] Add the best-effort Keyring lock helper as part of failure handling.
 
 - Add private helpers for:
@@ -126,9 +126,9 @@ Acceptance criteria:
 Progress:
 
 - [x] Preserve `LOCAL_PASSWORD_PENDING` after a Keyring password-change
-  failure.
+      failure.
 - [x] Preserve `KEY_SYNC_PENDING` after export, storage, or verification
-  failure.
+      failure.
 - [x] Lock both controllers without masking the original error.
 - [ ] Add an explicit regression test for a Seedless-controller lock failure.
 

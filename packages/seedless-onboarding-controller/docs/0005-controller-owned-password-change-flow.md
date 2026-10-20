@@ -6,6 +6,7 @@ Social login password change has multiple sub-operations and strictly requires t
 Currently, the client (metamask extension or mobile) is responsible for orchestrating the password changes in both Seedless/TOPRF and local Keyring areas.
 
 This exposes the high risks of breaking issues;
+
 - Incorrect orchestration from the client
 - Different flows in client sides
 

@@ -104,7 +104,10 @@ export type SeedlessOnboardingControllerFetchAllSecretDataAction = {
 /**
  * Update the password of the seedless onboarding flow.
  *
- * Changing password will also update the encryption key, metadata store and the vault with new encrypted values.
+ * Changing password updates the Seedless/TOPRF vault, the local Keyring
+ * password, and the Keyring encryption key stored in Seedless. The
+ * password-change lifecycle is cleared only after the stored and current
+ * Keyring encryption keys have been verified to match.
  *
  * @param newPassword - The new password to update.
  * @param oldPassword - The old password to verify.
