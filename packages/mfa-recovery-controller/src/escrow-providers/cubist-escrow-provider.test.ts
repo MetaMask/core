@@ -76,6 +76,7 @@ describe('CubistEscrowProvider', () => {
   it('uses the cubist escrow id and the pinned wrap key', () => {
     const { provider } = createProvider();
     expect(provider.id).toBe('cubist');
+    expect(provider.authAudience).toBe('gamma.signer.cubist.dev');
     expect(provider.wrapPublicKey).toBe(wrapKey.publicKey);
   });
 
@@ -411,6 +412,7 @@ function createProvider(
   return {
     provider: new CubistEscrowProvider({
       client,
+      authAudience: 'gamma.signer.cubist.dev',
       wrapPublicKey: wrapKey.publicKey,
       receiptPublicKey: receiptKey.publicKey,
       functionId: options.functionId,

@@ -37,7 +37,7 @@ export function countDistinctIdentifiers(identifiers: Identifier[]): number {
  * `escrow-challenge` once escrow OTP commands exist.
  */
 export const IDENTIFIER_AUTH_MODES: Record<string, IdentifierAuthMode> = {
-  oidc: 'key-bound',
+  social: 'key-bound',
   passkey: 'key-bound',
   siwe: 'key-bound',
 };

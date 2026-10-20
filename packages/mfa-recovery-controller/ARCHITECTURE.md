@@ -34,19 +34,18 @@ flowchart LR
 | --------------------------- | --------------------------------------------------------------------------- |
 | `pendingOperation`          | Only persisted field: encrypted `authorizing` / `writing` blob, or `null`   |
 | `escrows[]`                 | Build-time replica set; non-empty, unique `id`s; mutations require **all**  |
-| `authProvider`              | Profile id + request-bound AuthController token (Hydra JWT)                 |
+| `authProvider`              | Profile id + request-bound Auth API approval                                |
 | `identifierAuthProvider`    | Key-bound IdP assertion (passkey / OIDC / SIWE)                             |
 | `pendingOperationEncryptor` | Encrypts / decrypts the pending blob with wallet secure storage             |
 | `now`                       | Clock (Unix seconds) for AuthController token expiry; defaults to `unixNow` |
 | `#withLock`                 | Serializes every public method except `authenticateIdentifier`              |
 
-Each escrow has two identities: `id` is the replica id used in mutation
-`audiences` and receipts; `authAudience` is the audience the AuthController
-token must carry for that escrow. They are independent (Cubist uses `"cubist"`
-for both).
+`id` identifies the replica in mutations and receipts; `authAudience` identifies
+the approval audience. Cubist uses `id: "cubist"` and an `authAudience` matching
+`AUTH_CONTROLLER_AUDIENCE`.
 
 Identifier types pick the auth mode from a trusted table, not a client flag:
-`passkey` / `oidc` / `siwe` → key-bound. Any other type is rejected with
+`passkey` / `social` / `siwe` → key-bound. Any other type is rejected with
 `unknown_identifier_type`. `emailOtp` / `smsOtp` escrow-challenge is not wired
 yet (MFA-605 / MFA-606 / MFA-568).
 
@@ -159,15 +158,16 @@ sequenceDiagram
   end
 ```
 
-AuthController token request:
+Auth approvals:
 
-- `requestHash` is the mutation `requestHash`; `audiences` is every escrow's
-  `authAudience`.
-- Updates set `requireTwoFactor`. `register` and `updateIdentifiers` pass the
-  payload `identifiers` so the token is bound to them.
-- The token is a compact Hydra JWT. The controller decodes its claims without
-  verifying the signature (escrows verify it) and only uses them for
-  pending-state checks and the `exp` refresh.
+- The provider receives the mutation `requestHash` and each escrow's
+  `authAudience`. Updates set `requireTwoFactor` for AAL2.
+- Approvals last five minutes. AAL2 requires MFA within the preceding five minutes.
+- `register` and `updateIdentifiers` retry approval once with Auth's returned
+  identifiers if they differ. The rebuilt request is persisted as `authorizing`;
+  `writing` mutations are never rebuilt. Hashing sorts object keys, not arrays.
+- Escrows verify signatures. The controller decodes claims only for pending-state
+  validation and expiry-based refresh.
 
 Receipts:
 
@@ -202,8 +202,8 @@ every attempt, so the identifier provider must be able to authenticate again.
 ## Cubist store sequence
 
 The controller does not call CubeSigner, the registration API, or
-`KeyringController`. A Cubist deploy injects one `CubistEscrowProvider`
-(`id` and `authAudience`: `"cubist"`). The caller proves OIDC, calls
+`KeyringController`. A Cubist deploy injects one `CubistEscrowProvider`.
+The caller proves OIDC, calls
 `ensure-user`, opens the session, and constructs the provider with the
 authenticated `CubeSignerClient` and the pinned wrap and receipt public keys
 before `register`.
@@ -244,7 +244,7 @@ sequenceDiagram
   Ctrl->>Auth: getAuthenticatedProfileId
   Ctrl->>Ctrl: persist authorizing
   Ctrl->>Auth: authorizeRecoveryRequest
-  Auth-->>Ctrl: AuthController token (Hydra JWT)
+  Auth-->>Ctrl: Auth API approval
   Ctrl->>Ctrl: wrap secret, persist writing
   Ctrl->>Escrow: applyMutation
   Escrow-->>Ctrl: receipt
@@ -325,7 +325,7 @@ the highest one. The next mutation still requires `resume()` first.
 ```mermaid
 flowchart TD
   Start[identifier + requestHash] --> Mode{trusted type?}
-  Mode -->|passkey / oidc / siwe| KB[fresh proof key, IdP key-bound token]
+  Mode -->|passkey / social / siwe| KB[fresh proof key, IdP key-bound token]
   KB --> Chal[each escrow generateChallenge]
   Chal --> PoP[sign PoP over hash of token + challengeId + requestHash]
   Mode -->|emailOtp / smsOtp| Todo[TODO MFA-605 / MFA-606 / MFA-568]

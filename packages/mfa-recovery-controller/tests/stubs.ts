@@ -2,7 +2,6 @@ import { bytesToBase64, bytesToHex, stringToBytes } from '@metamask/utils';
 
 import { decodeAuthControllerToken } from '../src/auth-controller-token.js';
 import {
-  canonicalizeIdentifiers,
   decodeHex,
   decryptFromPublic,
   encryptToPublic,
@@ -31,6 +30,7 @@ import type {
   PendingOperation,
   PendingOperationEncryptor,
   PoPChallenge,
+  RecoveryApproval,
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
@@ -56,7 +56,7 @@ const CHALLENGE_TTL_SECS = 5 * 60;
 
 /**
  * Builds an unsigned compact JWT carrying the claims the controller reads from
- * an AuthController (Hydra) access token.
+ * an Auth API approval.
  *
  * @param claims - Token claims.
  * @param claims.sub - The profile id.
@@ -70,7 +70,7 @@ export function createAuthControllerToken({
   sub,
   exp,
   requestHash,
-  aal,
+  aal = 1,
   identifiersHash,
 }: {
   sub: string;
@@ -100,6 +100,12 @@ export class StubAuthProvider implements RecoveryAuthProvider {
 
   now: () => number = unixNow;
 
+  identifiers: Identifier[];
+
+  constructor(identifiers: Identifier[] = []) {
+    this.identifiers = identifiers;
+  }
+
   async getAuthenticatedProfileId(): Promise<string> {
     return this.profileId;
   }
@@ -107,21 +113,17 @@ export class StubAuthProvider implements RecoveryAuthProvider {
   async authorizeRecoveryRequest(params: {
     requestHash: string;
     requireTwoFactor?: boolean;
-    identifiers?: Identifier[];
-  }): Promise<AuthControllerToken> {
-    return createAuthControllerToken({
-      sub: this.profileId,
-      exp: this.now() + 60 * 60,
-      requestHash: params.requestHash,
-      aal: params.requireTwoFactor ? 2 : 1,
-      ...(params.identifiers === undefined
-        ? {}
-        : {
-            identifiersHash: await hash(
-              canonicalizeIdentifiers(params.identifiers),
-            ),
-          }),
-    });
+  }): Promise<RecoveryApproval> {
+    return {
+      approval: createAuthControllerToken({
+        sub: this.profileId,
+        exp: this.now() + 5 * 60,
+        requestHash: params.requestHash,
+        aal: params.requireTwoFactor ? 2 : 1,
+        identifiersHash: await hash(this.identifiers),
+      }),
+      identifiers: this.identifiers,
+    };
   }
 }
 
@@ -557,7 +559,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   ): Promise<void> {
     if (
       decodeAuthControllerToken(token)?.ext.identifiersHash !==
-      (await hash(canonicalizeIdentifiers(identifiers)))
+      (await hash(identifiers))
     ) {
       throw new MfaRecoveryError(
         'Identifier ownership not approved',

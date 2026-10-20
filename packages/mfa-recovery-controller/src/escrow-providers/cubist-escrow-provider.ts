@@ -22,7 +22,6 @@ import type {
 } from '../types.js';
 
 const ESCROW_ID = 'cubist';
-const AUTH_AUDIENCE = 'cubist';
 const DEFAULT_FUNCTION_ID = 'cubist_secret_escrow';
 const DEFAULT_VERSION: Version = 'latest';
 
@@ -39,6 +38,10 @@ export type CubistEscrowProviderOptions = {
    * Authenticated CubeSigner client used to invoke the escrow C2F.
    */
   client: CubeSignerClient;
+  /**
+   * Must match the escrow's AUTH_CONTROLLER_AUDIENCE configuration.
+   */
+  authAudience: string;
   /**
    * C2F name or named-policy id. Defaults to `cubist_secret_escrow`.
    */
@@ -60,7 +63,7 @@ export type CubistEscrowProviderOptions = {
 export class CubistEscrowProvider implements RecoveryEscrowProvider {
   readonly id = ESCROW_ID;
 
-  readonly authAudience = AUTH_AUDIENCE;
+  readonly authAudience: string;
 
   readonly wrapPublicKey: string;
 
@@ -76,6 +79,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
    * @param options - CubeSigner client, pinned keys, and optional C2F id/version.
    */
   constructor(options: CubistEscrowProviderOptions) {
+    this.authAudience = options.authAudience;
     this.wrapPublicKey = options.wrapPublicKey;
     this.#receiptPublicKey = options.receiptPublicKey;
     this.#client = options.client;
