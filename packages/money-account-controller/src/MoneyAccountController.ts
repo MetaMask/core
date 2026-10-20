@@ -1,19 +1,14 @@
-import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { MONEY_DERIVATION_PATH } from '@metamask/eth-money-keyring';
 import {
   AccountCreationType,
-  EthAccountType,
-  EthMethod,
-  EthScope,
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
-import type { EntropySourceId } from '@metamask/keyring-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import type { Keyring as KeyringV2 } from '@metamask/keyring-api/v2';
 import type {
   KeyringControllerGetStateAction,
@@ -22,11 +17,10 @@ import type {
 } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { Hex } from '@metamask/utils';
 
 import { projectLogger as log } from './logger.js';
 import type { MoneyAccountControllerMethodActions } from './MoneyAccountController-method-action-types.js';
-import type { MoneyAccount, MoneyAccountEntropyOptions } from './types.js';
+import type { MoneyAccount } from './types.js';
 import { isMoneyKeyring } from './utils.js';
 
 export const controllerName = 'MoneyAccountController';
@@ -136,17 +130,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'setDefaultMoneyAccount',
   'clearState',
   'init',
-] as const;
-
-/**
- * The signing methods supported by money accounts.
- */
-const MONEY_ACCOUNT_METHODS = [
-  EthMethod.PersonalSign,
-  EthMethod.SignTypedDataV1,
-  EthMethod.SignTypedDataV3,
-  EthMethod.SignTypedDataV4,
-  // TODO: Update this once the `keyring-api` package supports `SignEip7702Authorization` method.
 ] as const;
 
 export type MoneyAccountControllerGetStateAction = ControllerGetStateAction<
@@ -296,7 +279,7 @@ export class MoneyAccountController extends BaseController<
     }
 
     // Idempotent: return existing account if already in state.
-    const existingAccount = this.#getMoneyAccountByEntropySource(entropySource);
+    const existingAccount = this.#getMoneyAccount(entropySource);
     if (existingAccount) {
       return existingAccount;
     }
@@ -354,7 +337,7 @@ export class MoneyAccountController extends BaseController<
       return undefined;
     }
 
-    return this.#getMoneyAccountByEntropySource(entropySource);
+    return this.#getMoneyAccount(entropySource);
   }
 
   /**
@@ -373,6 +356,10 @@ export class MoneyAccountController extends BaseController<
 
   /**
    * Creates or reuses a `MoneyKeyring` account for the given entropy source.
+   *
+   * The entropy options of the created account are reused from the account
+   * reported by the keyring, so that metadata like the derivation path always
+   * matches what the keyring actually derived (including the address index).
    *
    * @param entropySource - The entropy source ID to create the money account for.
    * @returns The money account.
@@ -396,15 +383,11 @@ export class MoneyAccountController extends BaseController<
       throw new Error('Money Keyring account creation failed');
     }
 
-    return this.#createKeyringAccount({
-      address: createdAccount.address as Hex,
-      entropy: {
-        type: KeyringAccountEntropyTypeOption.Mnemonic,
-        id: entropySource,
-        groupIndex: 0,
-        derivationPath: MONEY_DERIVATION_PATH,
-      },
-    });
+    if (!this.#isMnemonicMoneyAccount(createdAccount)) {
+      throw new Error('Money Keyring account has unexpected options');
+    }
+
+    return this.#persistMoneyAccount(createdAccount);
   }
 
   /**
@@ -433,45 +416,58 @@ export class MoneyAccountController extends BaseController<
       );
     }
 
-    return this.#createKeyringAccount({
-      address: existingAccount.address as Hex,
-      entropy: {
-        type: KeyringAccountEntropyTypeOption.Mpc,
-      },
-    });
+    if (!this.#isMpcMoneyAccount(existingAccount)) {
+      throw new Error('MPC Money keyring account has unexpected options');
+    }
+
+    return this.#persistMoneyAccount(existingAccount);
   }
 
   /**
-   * Builds a money account for the given address and entropy options, stores
-   * it in state, and returns it. If no default account is set, the new account
-   * becomes the default.
+   * Returns `true` if the given keyring account is a valid mnemonic money
+   * account, as expected from a `MoneyKeyring` account: mnemonic entropy
+   * options, and non-exportable.
    *
-   * @param params - The parameters for creating the account.
-   * @param params.address - The account address.
-   * @param params.entropy - The entropy options of the backing keyring.
+   * @param account - The keyring account to check.
+   * @returns Whether the account is a valid mnemonic money account.
+   */
+  #isMnemonicMoneyAccount(account: KeyringAccount): account is MoneyAccount {
+    return (
+      account.options.entropy?.type ===
+        KeyringAccountEntropyTypeOption.Mnemonic &&
+      account.options.exportable === false
+    );
+  }
+
+  /**
+   * Returns `true` if the given keyring account is a valid MPC money account,
+   * as expected from an MPC Money keyring account: MPC entropy options, and
+   * non-exportable.
+   *
+   * @param account - The keyring account to check.
+   * @returns Whether the account is a valid MPC money account.
+   */
+  #isMpcMoneyAccount(account: KeyringAccount): account is MoneyAccount {
+    return (
+      account.options.entropy?.type === KeyringAccountEntropyTypeOption.Mpc &&
+      account.options.exportable === false
+    );
+  }
+
+  /**
+   * Stores the given money account in state and returns it as-is. If no
+   * default account is set, the new account becomes the default.
+   *
+   * The account is the one reported by the backing keyring, reused as-is:
+   * identity (`id`, `type`, `address`, `scopes`), entropy options, methods,
+   * and non-exportability (`exportable: false`). The account ID is
+   * deterministic based on the account address, so it is stable across
+   * sessions and clients.
+   *
+   * @param account - The money account as reported by the backing keyring.
    * @returns The money account.
    */
-  #createKeyringAccount({
-    address,
-    entropy,
-  }: {
-    address: Hex;
-    entropy: MoneyAccountEntropyOptions;
-  }): MoneyAccount {
-    const account: MoneyAccount = {
-      // This is an EVM account, so let's re-use the deterministic ID generation logic of
-      // EVM accounts.
-      id: getUUIDFromAddressOfNormalAccount(address),
-      type: EthAccountType.Eoa,
-      address,
-      scopes: [EthScope.Eoa],
-      options: {
-        entropy,
-        exportable: false,
-      },
-      methods: [...MONEY_ACCOUNT_METHODS],
-    };
-
+  #persistMoneyAccount(account: MoneyAccount): MoneyAccount {
     this.update((state) => {
       state.moneyAccounts[account.id] = account;
       state.defaultMoneyAccountId ??= account.id;
@@ -515,7 +511,7 @@ export class MoneyAccountController extends BaseController<
    * @param entropySource - The entropy source ID.
    * @returns The matching account, if any.
    */
-  #getMoneyAccountByEntropySource(
+  #getMoneyAccount(
     entropySource: EntropySourceId,
   ): MoneyAccount | undefined {
     return Object.values(this.state.moneyAccounts).find(
