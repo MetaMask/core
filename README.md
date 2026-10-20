@@ -110,6 +110,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/network-connection-banner-controller`](packages/network-connection-banner-controller)
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/network-enablement-controller`](packages/network-enablement-controller)
+- [`@metamask/node-utils`](packages/node-utils)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
 - [`@metamask/passkey-controller`](packages/passkey-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)

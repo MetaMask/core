@@ -227,6 +227,9 @@
       "path": "./packages/network-enablement-controller"
     },
     {
+      "path": "./packages/node-utils"
+    },
+    {
       "path": "./packages/notification-services-controller"
     },
     {
