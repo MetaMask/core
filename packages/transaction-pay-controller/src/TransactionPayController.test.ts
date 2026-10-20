@@ -58,6 +58,7 @@ describe('TransactionPayController', () => {
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
   let messenger: TransactionPayControllerMessenger;
   let getKeyringControllerStateMock: jest.Mock;
+  let getTransactionControllerStateMock: jest.Mock;
 
   /**
    * Create a TransactionPayController.
@@ -81,6 +82,16 @@ describe('TransactionPayController', () => {
     const mocks = getMessengerMock({ skipRegister: true });
     messenger = mocks.messenger;
     getKeyringControllerStateMock = mocks.getKeyringControllerStateMock;
+    getTransactionControllerStateMock = mocks.getTransactionControllerStateMock;
+
+    getTransactionControllerStateMock.mockReturnValue({
+      transactions: [TRANSACTION_META_MOCK],
+    });
+
+    mocks.messenger.registerActionHandler(
+      'TransactionController:getState',
+      getTransactionControllerStateMock,
+    );
 
     getKeyringControllerStateMock.mockReturnValue({
       isUnlocked: true,
