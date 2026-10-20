@@ -20,10 +20,12 @@ import {
 import type { PairProfilesResponse } from './authentication-jwt-bearer/services.js';
 import type {
   AccessToken,
+  LoginResponse,
   UserProfile,
   Pair,
   PairSocialIdentifierParams,
   ProfileIdentifier,
+  SocialLoginParams,
   OidcTokenAudience,
   OidcTokenClaims,
   UserProfileLineage,
@@ -185,6 +187,13 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   ): Promise<ProfileIdentifier[] | undefined> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.pairSocialIdentifier(params, authAccessToken);
+  }
+
+  async exchangeSocialAccessToken(
+    params: SocialLoginParams,
+  ): Promise<LoginResponse> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.exchangeSocialAccessToken(params);
   }
 
   async signMessage(

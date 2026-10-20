@@ -5,6 +5,9 @@
   },
   "references": [
     {
+      "path": "../analytics-controller"
+    },
+    {
       "path": "../authenticated-user-storage"
     },
     {

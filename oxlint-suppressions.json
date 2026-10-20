@@ -48,9 +48,6 @@
     }
   },
   "packages/account-tree-controller/src/AccountTreeController.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 7
-    },
     "typescript/no-unsafe-argument": {
       "count": 3
     },
@@ -90,9 +87,6 @@
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/service/index.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    },
     "typescript/prefer-nullish-coalescing": {
       "count": 1
     }
@@ -125,9 +119,6 @@
   },
   "packages/account-tree-controller/src/backup-and-sync/types.ts": {
     "id-length": {
-      "count": 1
-    },
-    "typescript/explicit-function-return-type": {
       "count": 1
     }
   },
@@ -162,11 +153,6 @@
       "count": 1
     }
   },
-  "packages/account-tree-controller/src/backup-and-sync/user-storage/validation.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/backup-and-sync/utils/controller.test.ts": {
     "id-length": {
       "count": 1
@@ -189,11 +175,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 2
-    }
-  },
-  "packages/account-tree-controller/src/rules/entropy.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 1
     }
   },
   "packages/account-tree-controller/src/state/export.test.ts": {
@@ -249,31 +230,22 @@
       "count": 1
     }
   },
-  "packages/accounts-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 17
-    },
-    "typescript/no-unsafe-call": {
-      "count": 2
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 3
+      "count": 14
     },
     "typescript/unbound-method": {
       "count": 9
     }
   },
+  "packages/accounts-controller/tests/expectations.ts": {
+    "typescript/no-unsafe-assignment": {
+      "count": 2
+    }
+  },
   "packages/accounts-controller/tests/mocks.ts": {
     "no-unused-vars": {
       "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 2
     }
   },
   "packages/address-book-controller/jest.config.cjs": {
@@ -2044,20 +2016,14 @@
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.batch-sell.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    },
     "typescript/no-unsafe-assignment": {
-      "count": 9
-    },
-    "typescript/no-unsafe-call": {
-      "count": 2
+      "count": 3
     },
     "typescript/no-unsafe-member-access": {
-      "count": 11
+      "count": 1
     },
     "typescript/no-unsafe-return": {
-      "count": 4
+      "count": 2
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
@@ -2113,7 +2079,7 @@
       "count": 13
     },
     "typescript/no-unsafe-return": {
-      "count": 7
+      "count": 9
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.ts": {
@@ -3278,11 +3244,6 @@
       "count": 11
     }
   },
-  "packages/keyring-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/keyring-controller/src/KeyringController.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 1
@@ -3297,10 +3258,13 @@
       "count": 1
     },
     "typescript/no-unsafe-return": {
-      "count": 2
+      "count": 1
     },
     "typescript/unbound-method": {
       "count": 19
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/keyring-controller/src/KeyringController.ts": {
@@ -3656,17 +3620,15 @@
       "count": 1
     }
   },
-  "packages/messenger/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/messenger/src/Messenger.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 12
     },
     "typescript/no-unsafe-return": {
       "count": 12
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/messenger/src/Messenger.ts": {
@@ -5183,14 +5145,11 @@
     }
   },
   "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/services.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
     "typescript/no-unsafe-assignment": {
-      "count": 19
+      "count": 11
     },
     "typescript/no-unsafe-member-access": {
-      "count": 18
+      "count": 10
     },
     "typescript/no-unsafe-return": {
       "count": 3

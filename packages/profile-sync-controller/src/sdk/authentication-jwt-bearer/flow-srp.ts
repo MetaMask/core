@@ -35,6 +35,7 @@ import {
   getUserProfileLineage,
   pairProfiles,
   pairSocialIdentifier,
+  socialLogin,
 } from './services.js';
 import type { PairProfilesResponse } from './services.js';
 import type {
@@ -50,6 +51,7 @@ import type {
   OidcTokenClaims,
   PairSocialIdentifierParams,
   ProfileIdentifier,
+  SocialLoginParams,
   SrpLoginTag,
   UserProfile,
   UserProfileLineage,
@@ -400,6 +402,26 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       authAccessToken,
       this.#config.env,
     );
+  }
+
+  /**
+   * Exchanges a social access token for an access token and the canonical
+   * profile its identifier is paired to. Nothing is stored: SRP
+   * sessions stay the source of truth for `getAccessToken`.
+   *
+   * @param params - Social identifier type and social JWT.
+   * @returns The access token and canonical profile.
+   */
+  async exchangeSocialAccessToken(
+    params: SocialLoginParams,
+  ): Promise<LoginResponse> {
+    const authResponse = await socialLogin(params, this.#config.env);
+    const token = await authorizeOIDC(
+      authResponse.token,
+      this.#config.env,
+      this.#config.platform,
+    );
+    return { profile: authResponse.profile, token };
   }
 
   async pairSrpProfiles(

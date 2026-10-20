@@ -6,7 +6,6 @@ const { workspaces } = require('./package.json');
 // Do not add to this list: new packages are expected to use Vitest.
 const PACKAGES_ON_JEST = new Set([
   '@metamask/account-tree-controller',
-  '@metamask/accounts-controller',
   '@metamask/address-book-controller',
   '@metamask/advanced-chart-core',
   '@metamask/ai-controllers',
@@ -48,12 +47,10 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/java-tron-up',
   '@metamask/json-rpc-engine',
   '@metamask/json-rpc-middleware-stream',
-  '@metamask/keyring-controller',
   '@metamask/kyc-controller',
   '@metamask/local-node-utils',
   '@metamask/logging-controller',
   '@metamask/message-manager',
-  '@metamask/messenger',
   '@metamask/messenger-cli',
   '@metamask/money-account-api-data-service',
   '@metamask/money-account-balance-service',

@@ -1,4 +1,5 @@
 import type { Patch } from 'immer';
+import { describe, expect, it, vi } from 'vitest';
 
 import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger.js';
 import type { ActionConstraint } from './Messenger.js';
@@ -175,7 +176,7 @@ describe('Messenger', () => {
     it('allows overriding the action handler in child classes', () => {
       type Action = { type: 'Fixture:ping'; handler: () => string };
 
-      const handler = jest.fn().mockReturnValue('foo');
+      const handler = vi.fn().mockReturnValue('foo');
 
       class CustomMessenger extends Messenger<'Fixture', Action> {
         protected getAction(
@@ -189,7 +190,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const realHandler = jest.fn().mockReturnValue('bar');
+      const realHandler = vi.fn().mockReturnValue('bar');
       messenger.registerActionHandler('Fixture:ping', realHandler);
 
       expect(messenger.call('Fixture:ping')).toBe('foo');
@@ -219,7 +220,7 @@ describe('Messenger', () => {
 
       expect(() =>
         // @ts-expect-error Intentionally invalid parameter
-        messenger.registerActionHandler('Fixture:count', jest.fn()),
+        messenger.registerActionHandler('Fixture:count', vi.fn()),
       ).toThrow(
         `Only allowed registering action handlers prefixed by 'Different:'`,
       );
@@ -437,7 +438,7 @@ describe('Messenger', () => {
         events: ['Fixture:message'],
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       childMessenger.subscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello');
 
@@ -452,7 +453,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello');
 
@@ -466,7 +467,7 @@ describe('Messenger', () => {
         namespace: MOCK_ANY_NAMESPACE,
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello');
 
@@ -489,7 +490,7 @@ describe('Messenger', () => {
         parent: parentMessenger,
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       parentMessenger.subscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello');
 
@@ -505,8 +506,8 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const messageHandler = jest.fn();
-      const pingHandler = jest.fn();
+      const messageHandler = vi.fn();
+      const pingHandler = vi.fn();
       messenger.subscribe('Fixture:message', messageHandler);
       messenger.subscribe('Fixture:ping', pingHandler);
 
@@ -525,7 +526,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribe('Fixture:ping', handler);
       messenger.publish('Fixture:ping');
 
@@ -542,7 +543,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello', 'there');
 
@@ -556,7 +557,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.subscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello');
@@ -571,8 +572,8 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler1 = jest.fn();
-      const handler2 = jest.fn();
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
       messenger.subscribe('Fixture:message', handler1);
       messenger.subscribe('Fixture:message', handler2);
       messenger.publish('Fixture:message', 'hello');
@@ -707,7 +708,7 @@ describe('Messenger', () => {
           eventType: 'Fixture:complexMessage',
           getPayload: () => [state],
         });
-        const handler = jest.fn();
+        const handler = vi.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -737,7 +738,7 @@ describe('Messenger', () => {
           eventType: 'Fixture:complexMessage',
           getPayload: () => [state],
         });
-        const handler = jest.fn();
+        const handler = vi.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -767,7 +768,7 @@ describe('Messenger', () => {
           eventType: 'Fixture:complexMessage',
           getPayload: () => [state],
         });
-        const handler = jest.fn();
+        const handler = vi.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -797,7 +798,7 @@ describe('Messenger', () => {
           eventType: 'Fixture:complexMessage',
           getPayload: () => [state],
         });
-        const handler = jest.fn();
+        const handler = vi.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -823,7 +824,7 @@ describe('Messenger', () => {
         const messenger = new Messenger<'Fixture', never, MessageEvent>({
           namespace: 'Fixture',
         });
-        const handler = jest.fn();
+        const handler = vi.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -849,7 +850,7 @@ describe('Messenger', () => {
         const messenger = new Messenger<'Fixture', never, MessageEvent>({
           namespace: 'Fixture',
         });
-        const handler = jest.fn();
+        const handler = vi.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -874,7 +875,7 @@ describe('Messenger', () => {
         const messenger = new Messenger<'Fixture', never, MessageEvent>({
           namespace: 'Fixture',
         });
-        const handler = jest.fn();
+        const handler = vi.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -897,7 +898,7 @@ describe('Messenger', () => {
           namespace: 'Fixture',
         });
 
-        const handler = jest.fn();
+        const handler = vi.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -920,7 +921,7 @@ describe('Messenger', () => {
           namespace: 'Fixture',
         });
 
-        const handler = jest.fn();
+        const handler = vi.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -941,7 +942,7 @@ describe('Messenger', () => {
           namespace: 'Fixture',
         });
 
-        const handler = jest.fn();
+        const handler = vi.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -976,7 +977,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
         parent: parentMessenger,
       });
-      const handler = jest.fn();
+      const handler = vi.fn();
 
       messenger.registerInitialEventPayload({
         eventType: 'Fixture:complexMessage',
@@ -1005,9 +1006,9 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler1 = jest.fn();
-      const handler2 = jest.fn();
-      const selector = jest.fn((obj: Record<string, unknown>) => obj.prop1);
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
+      const selector = vi.fn((obj: Record<string, unknown>) => obj.prop1);
       messenger.subscribe('Fixture:complexMessage', handler1, selector);
       messenger.subscribe('Fixture:complexMessage', handler2, selector);
       messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
@@ -1033,7 +1034,7 @@ describe('Messenger', () => {
     });
 
     it('captures subscriber errors using captureException', () => {
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
         captureException,
@@ -1041,7 +1042,7 @@ describe('Messenger', () => {
       });
       const exampleError = new Error('Example error');
 
-      const handler = jest.fn(() => {
+      const handler = vi.fn(() => {
         throw exampleError;
       });
       messenger.subscribe('Fixture:message', handler);
@@ -1052,7 +1053,7 @@ describe('Messenger', () => {
     });
 
     it('captures subscriber thrown non-errors using captureException', () => {
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
         captureException,
@@ -1060,7 +1061,7 @@ describe('Messenger', () => {
       });
       const exampleException = 'Non-error thrown value';
 
-      const handler = jest.fn(() => {
+      const handler = vi.fn(() => {
         // Intentionally throw a non-Error to test that Messenger wraps it
         // eslint-disable-next-line @typescript-eslint/only-throw-error
         throw exampleException;
@@ -1075,7 +1076,7 @@ describe('Messenger', () => {
     });
 
     it('captures subscriber errors using inherited captureException', () => {
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const parentMessenger = new Messenger<'Parent', never, MessageEvent>({
         captureException,
@@ -1092,7 +1093,7 @@ describe('Messenger', () => {
       });
       const exampleError = new Error('Example error');
 
-      const handler = jest.fn(() => {
+      const handler = vi.fn(() => {
         throw exampleError;
       });
       messenger.subscribe('Fixture:message', handler);
@@ -1103,15 +1104,15 @@ describe('Messenger', () => {
     });
 
     it('logs subscriber errors to console if no captureException provided', () => {
-      const consoleError = jest.fn();
-      jest.spyOn(console, 'error').mockImplementation(consoleError);
+      const consoleError = vi.fn();
+      vi.spyOn(console, 'error').mockImplementation(consoleError);
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
       });
       const exampleError = new Error('Example error');
 
-      const handler = jest.fn(() => {
+      const handler = vi.fn(() => {
         throw exampleError;
       });
       messenger.subscribe('Fixture:message', handler);
@@ -1124,14 +1125,14 @@ describe('Messenger', () => {
     it('continues calling subscribers when one throws', () => {
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
-        captureException: jest.fn(),
+        captureException: vi.fn(),
         namespace: 'Fixture',
       });
 
-      const handler1 = jest.fn(() => {
+      const handler1 = vi.fn(() => {
         throw new Error('Example error');
       });
-      const handler2 = jest.fn();
+      const handler2 = vi.fn();
       messenger.subscribe('Fixture:message', handler1);
       messenger.subscribe('Fixture:message', handler2);
 
@@ -1149,7 +1150,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.unsubscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello');
@@ -1165,7 +1166,7 @@ describe('Messenger', () => {
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
       });
-      const stub = jest.fn();
+      const stub = vi.fn();
       const handler = (current: string, previous: string | undefined): void => {
         stub(current, previous);
       };
@@ -1184,7 +1185,7 @@ describe('Messenger', () => {
       const messenger = new Messenger<'Other', never, MessageEvent>({
         namespace: 'Other',
       });
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribe('Fixture:message', handler);
 
       // @ts-expect-error Intentionally invalid parameter
@@ -1221,7 +1222,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       expect(() => messenger.unsubscribe('Fixture:message', handler)).toThrow(
         'Subscription not found for event: Fixture:message',
       );
@@ -1233,8 +1234,8 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler1 = jest.fn();
-      const handler2 = jest.fn();
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
       messenger.subscribe('Fixture:message', handler1);
 
       expect(() => messenger.unsubscribe('Fixture:message', handler2)).toThrow(
@@ -1254,7 +1255,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribeOnce('Fixture:message', handler);
       messenger.publish('Fixture:message', 'foo');
       messenger.publish('Fixture:message', 'bar');
@@ -1274,7 +1275,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribeOnce('Fixture:message', handler, {
         selector: ({ value }) => value,
       });
@@ -1296,7 +1297,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribeOnce('Fixture:message', handler, {
         condition: (value) => value === 'bar',
       });
@@ -1318,7 +1319,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribeOnce('Fixture:message', handler, {
         selector: ({ value }) => value,
         condition: (value) => value === 'bar',
@@ -1430,7 +1431,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.clearEventSubscriptions('Fixture:message');
       messenger.publish('Fixture:message', 'hello');
@@ -1462,7 +1463,7 @@ describe('Messenger', () => {
         never,
         ExampleEvent
       >({ namespace: 'Destination' });
-      const subscriber = jest.fn();
+      const subscriber = vi.fn();
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
         events: ['Source:event'],
@@ -1483,7 +1484,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = jest.fn();
+      const handler = vi.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.clearSubscriptions();
       messenger.publish('Fixture:message', 'hello');
@@ -1513,7 +1514,7 @@ describe('Messenger', () => {
         never,
         ExampleEvent
       >({ namespace: 'Destination' });
-      const subscriber = jest.fn();
+      const subscriber = vi.fn();
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
         events: ['Source:event'],
@@ -1729,7 +1730,7 @@ describe('Messenger', () => {
         never,
         ExampleEvent
       >({ namespace: 'Destination' });
-      const subscriber = jest.fn();
+      const subscriber = vi.fn();
 
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
@@ -1782,7 +1783,7 @@ describe('Messenger', () => {
         never,
         ExampleEvent
       >({ namespace: 'Destination' });
-      const subscriber = jest.fn();
+      const subscriber = vi.fn();
 
       sourceMessenger.registerInitialEventPayload({
         eventType: 'Source:event',
@@ -1818,7 +1819,7 @@ describe('Messenger', () => {
         never,
         ExampleEvent
       >({ namespace: 'Destination' });
-      const subscriber = jest.fn();
+      const subscriber = vi.fn();
 
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
@@ -1854,7 +1855,7 @@ describe('Messenger', () => {
         ExampleAction,
         never
       >({ namespace: 'Destination' });
-      const handler = jest.fn((input) => input.length);
+      const handler = vi.fn((input) => input.length);
       sourceMessenger.registerActionHandler('Source:getLength', handler);
 
       sourceMessenger.delegate({
@@ -1880,7 +1881,7 @@ describe('Messenger', () => {
         ExampleAction,
         never
       >({ namespace: 'Destination' });
-      const handler = jest.fn((input) => input.length);
+      const handler = vi.fn((input) => input.length);
 
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
@@ -1907,8 +1908,8 @@ describe('Messenger', () => {
         ExampleAction,
         never
       >({ namespace: 'Destination' });
-      const handler1 = jest.fn((input) => input.length);
-      const handler2 = jest.fn((input) => input.length);
+      const handler1 = vi.fn((input) => input.length);
+      const handler2 = vi.fn((input) => input.length);
       // registration happens before delegation
       sourceMessenger.registerActionHandler('Source:getLength', handler1);
 
@@ -1938,8 +1939,8 @@ describe('Messenger', () => {
         ExampleAction,
         never
       >({ namespace: 'Destination' });
-      const handler1 = jest.fn((input) => input.length);
-      const handler2 = jest.fn((input) => input.length);
+      const handler1 = vi.fn((input) => input.length);
+      const handler2 = vi.fn((input) => input.length);
 
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
@@ -1969,7 +1970,7 @@ describe('Messenger', () => {
         ExampleAction,
         never
       >({ namespace: 'Destination' });
-      const handler = jest.fn((input) => input.length);
+      const handler = vi.fn((input) => input.length);
       sourceMessenger.registerActionHandler('Source:getLength', handler);
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
@@ -2023,7 +2024,7 @@ describe('Messenger', () => {
         ExampleAction,
         never
       >({ namespace: 'Destination' });
-      const handler = jest.fn((input) => input.length);
+      const handler = vi.fn((input) => input.length);
       sourceMessenger.registerActionHandler('Source:getLength', handler);
 
       sourceMessenger.delegate({
@@ -2077,7 +2078,7 @@ describe('Messenger', () => {
       expect(childMessenger.call('Source:getValue')).toBe(42);
 
       // Child can now subscribe to the delegated event
-      const subscriber = jest.fn();
+      const subscriber = vi.fn();
 
       childMessenger.subscribe('Source:stateChange', subscriber);
       sourceMessenger.publish('Source:stateChange', { value: 1 });
@@ -2149,7 +2150,7 @@ describe('Messenger', () => {
         never,
         ExampleEvent
       >({ namespace: 'Destination' });
-      const subscriber = jest.fn();
+      const subscriber = vi.fn();
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
         events: ['Source:event'],
@@ -2189,7 +2190,7 @@ describe('Messenger', () => {
         never,
         ExampleFirstEvent | ExampleSecondEvent
       >({ namespace: 'Destination' });
-      const subscriber = jest.fn();
+      const subscriber = vi.fn();
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
         events: ['Source:firstEvent'],
@@ -2228,8 +2229,8 @@ describe('Messenger', () => {
         never,
         ExampleEvent
       >({ namespace: 'SecondDestination' });
-      const firstSubscriber = jest.fn();
-      const secondSubscriber = jest.fn();
+      const firstSubscriber = vi.fn();
+      const secondSubscriber = vi.fn();
       sourceMessenger.delegate({
         messenger: firstDelegatedMessenger,
         events: ['Source:event'],
@@ -2275,7 +2276,7 @@ describe('Messenger', () => {
         never,
         ExampleEvent
       >({ namespace: 'SecondDestination' });
-      const firstSubscriber = jest.fn();
+      const firstSubscriber = vi.fn();
       sourceMessenger.delegate({
         messenger: firstDelegatedMessenger,
         events: ['Source:event'],
@@ -2331,7 +2332,7 @@ describe('Messenger', () => {
         ExampleAction,
         never
       >({ namespace: 'Destination' });
-      const handler = jest.fn((input) => input.length);
+      const handler = vi.fn((input) => input.length);
 
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
@@ -2374,7 +2375,7 @@ describe('Messenger', () => {
         ExampleFirstAction | ExampleSecondAction,
         never
       >({ namespace: 'Destination' });
-      const handler = jest.fn((input) => input.length);
+      const handler = vi.fn((input) => input.length);
 
       sourceMessenger.delegate({
         messenger: delegatedMessenger,
@@ -2421,7 +2422,7 @@ describe('Messenger', () => {
         ExampleAction,
         never
       >({ namespace: 'SecondDestination' });
-      const handler = jest.fn((input) => input.length);
+      const handler = vi.fn((input) => input.length);
 
       sourceMessenger.delegate({
         messenger: firstDelegatedMessenger,
@@ -2483,7 +2484,7 @@ describe('Messenger', () => {
         ExampleAction,
         never
       >({ namespace: 'SecondDestination' });
-      const handler = jest.fn((input) => input.length);
+      const handler = vi.fn((input) => input.length);
       sourceMessenger.delegate({
         messenger: firstDelegatedMessenger,
         actions: ['Source:getLength'],

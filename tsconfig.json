@@ -164,6 +164,9 @@
       "path": "./packages/logging-controller"
     },
     {
+      "path": "./packages/marketing-consent-controller"
+    },
+    {
       "path": "./packages/message-manager"
     },
     {
