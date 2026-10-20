@@ -1,5 +1,8 @@
 import type { KeyringAccount } from '@metamask/keyring-api';
-import type { RestrictedController } from '@metamask/keyring-controller';
+import type {
+  KeyringEntry,
+  RestrictedController,
+} from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -32,7 +35,7 @@ type Mocks = {
 
 type SetupOptions = {
   enabled?: boolean;
-  keyringEntries?: { keyring: { type: string } }[];
+  keyringEntries?: KeyringEntry[];
   createdAccounts?: KeyringAccount[];
 };
 
@@ -59,12 +62,11 @@ function buildKeyringAccount(address: string): KeyringAccount {
  * @param type - The keyring type.
  * @returns A minimal keyring entry for tests.
  */
-function buildKeyringEntry(type: string): {
-  keyring: { type: string };
-  metadata: { id: string; name: string };
-} {
+function buildKeyringEntry(type: string): KeyringEntry {
   return {
-    keyring: { type },
+    // Only the `type` that the service selects on is relevant here; the
+    // real keyring instances carry far more state than these tests need.
+    keyring: { type } as unknown as KeyringEntry['keyring'],
     metadata: { id: `id-${type}`, name: type },
   };
 }
@@ -79,7 +81,7 @@ function buildKeyringEntry(type: string): {
  */
 function mockWithController(
   mocks: Mocks,
-  initialEntries: { keyring: { type: string } }[] = [],
+  initialEntries: KeyringEntry[] = [],
 ): {
   addNewKeyring: MockedFunction<RestrictedController['addNewKeyring']>;
 } {
@@ -97,7 +99,7 @@ function mockWithController(
         },
         addNewKeyring,
         removeKeyring: vi.fn(),
-      } as RestrictedController),
+      }),
   );
   return { addNewKeyring };
 }
@@ -114,7 +116,13 @@ function mockWithKeyringV2(mocks: Mocks, createAccounts: Mock): void {
   mocks.KeyringController.withKeyringV2.mockImplementation(
     async (
       _selector: unknown,
-      operation: ({ keyring }: { keyring: unknown }) => unknown,
+      operation: ({
+        keyring,
+        metadata,
+      }: {
+        keyring: unknown;
+        metadata: unknown;
+      }) => unknown,
     ) =>
       await operation({
         keyring: { type: 'watch-only', createAccounts },
