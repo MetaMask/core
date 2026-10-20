@@ -18,9 +18,8 @@
     "noUncheckedIndexedAccess": true,
     "types": ["jest"],
     "paths": {
-      "@metamask/type-utils": ["./packages/type-utils/src/index.ts"],
-      "@metamask/utils/node": ["./packages/utils/src/node.ts"],
-      "@metamask/utils": ["./packages/utils/src/index.ts"]
+      "@metamask/node-utils": ["./packages/node-utils/src/index.ts"],
+      "@metamask/type-utils": ["./packages/type-utils/src/index.ts"]
     }
   },
   "include": ["./scripts/**/*.ts", "./scripts/**/*.mts"],

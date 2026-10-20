@@ -1,4 +1,4 @@
-import { createSandbox, writeFile, readFile } from '@metamask/utils/node';
+import { createSandbox, writeFile, readFile } from '@metamask/node-utils';
 import { promises as fs } from 'fs';
 import path from 'path';
 
