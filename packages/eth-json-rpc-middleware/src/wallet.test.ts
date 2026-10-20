@@ -107,6 +107,52 @@ describe('wallet', () => {
       expect(witnessedTxParams[0]).toStrictEqual(txParams);
     });
 
+    it('uses the chain ID of the transaction as the scope', async () => {
+      const getAccounts = jest.fn().mockResolvedValue(testAddresses.slice());
+      const processTransaction = async (): Promise<string> => testTxHash;
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTransaction,
+          }),
+        ],
+      });
+      const payload = {
+        method: 'eth_sendTransaction',
+        params: [{ from: testAddresses[0], chainId: '0x89' }],
+      };
+
+      await engine.handle(...createHandleParams(payload));
+
+      expect(getAccounts).toHaveBeenCalledWith('test-origin', 'eip155:137');
+    });
+
+    it('uses the chain ID of the network client as the scope if the transaction has no chain ID and the context has no scope', async () => {
+      const getAccounts = jest.fn().mockResolvedValue(testAddresses.slice());
+      const getNetworkClientByIdMock = jest.fn(getNetworkClientById);
+      const processTransaction = async (): Promise<string> => testTxHash;
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById: getNetworkClientByIdMock,
+            processTransaction,
+          }),
+        ],
+      });
+      const payload = {
+        method: 'eth_sendTransaction',
+        params: [{ from: testAddresses[0] }],
+      };
+
+      await engine.handle(...createHandleParams(payload));
+
+      expect(getNetworkClientByIdMock).toHaveBeenCalledWith('test-client-id');
+      expect(getAccounts).toHaveBeenCalledWith('test-origin', 'eip155:1');
+    });
+
     it('throws when provided an invalid address', async () => {
       const getAccounts = async (): Promise<string[]> =>
         testAddresses.slice(0, 2);
