@@ -6,7 +6,6 @@ export * from './checksum.js';
 export * from './coercers.js';
 export * from './collections.js';
 export type * from './encryption-types.js';
-export * from './errors.js';
 export * from './hashing.js';
 export type { Hex } from './hex.js';
 export {
@@ -47,6 +46,14 @@ export {
 } from './unitsConversion.js';
 
 // Re-exports for backwards compatibility.
+export {
+  ensureError,
+  getErrorMessage,
+  isErrorWithCode,
+  isErrorWithMessage,
+  isErrorWithStack,
+  wrapError,
+} from '@metamask/error-utils';
 export type {
   Json,
   Mutable,

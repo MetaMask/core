@@ -7100,14 +7100,6 @@
       "count": 2
     }
   },
-  "packages/utils/src/errors.test.ts": {
-    "typescript/no-explicit-any": {
-      "count": 3
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 3
-    }
-  },
   "packages/utils/src/fs.test.ts": {
     "typescript/no-explicit-any": {
       "count": 20

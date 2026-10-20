@@ -263,6 +263,13 @@
 /packages/eip1193-permission-middleware/tsconfig.*      @MetaMask/core-platform
 /packages/eip1193-permission-middleware/typedoc.json    @MetaMask/core-platform
 
+### error-utils
+/packages/error-utils                 @MetaMask/core-platform
+/packages/error-utils/CHANGELOG.md    @MetaMask/core-platform
+/packages/error-utils/package.json    @MetaMask/core-platform
+/packages/error-utils/tsconfig.*      @MetaMask/core-platform
+/packages/error-utils/typedoc.json    @MetaMask/core-platform
+
 ### eth-block-tracker
 /packages/eth-block-tracker                 @MetaMask/core-platform
 /packages/eth-block-tracker/CHANGELOG.md    @MetaMask/core-platform
