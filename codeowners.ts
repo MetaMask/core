@@ -384,6 +384,9 @@ const config = {
     'transaction-pay-middleware': {
       teams: ['@MetaMask/confirmations'],
     },
+    'type-utils': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'user-operation-controller': {
       teams: ['@MetaMask/confirmations'],
     },
