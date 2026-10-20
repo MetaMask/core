@@ -159,8 +159,6 @@ describe('miscellaneous', () => {
     });
 
     it('should return false if an exception is thrown', () => {
-      // Vitest reads `Object.getPrototypeOf` itself while installing a mock
-      // implementation, so a throwing proxy trap stands in for a spy here.
       const someObject = new Proxy(
         { something: 'anything' },
         {
