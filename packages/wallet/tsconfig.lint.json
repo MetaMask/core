@@ -27,6 +27,9 @@
       "path": "../claims-controller/tsconfig.lint.json"
     },
     {
+      "path": "../client-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../config-registry-controller/tsconfig.lint.json"
     },
     {
@@ -42,16 +45,25 @@
       "path": "../keyring-controller/tsconfig.lint.json"
     },
     {
+      "path": "../logging-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../network-controller/tsconfig.lint.json"
     },
     {
       "path": "../passkey-controller/tsconfig.lint.json"
     },
     {
+      "path": "../permission-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../remote-feature-flag-controller/tsconfig.lint.json"
     },
     {
       "path": "../seedless-onboarding-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../selected-network-controller/tsconfig.lint.json"
     },
     {
       "path": "../shield-controller/tsconfig.lint.json"

@@ -18,15 +18,16 @@ import {
   isRelayValidationEnabled,
 } from '../../utils/feature-flags.js';
 import {
+  buildPolymarketDepositWalletSimulation,
+  isPredictWithdraw,
+} from '../../utils/polymarket/withdraw.js';
+import {
   validateQuoteExecution,
   QuoteError,
   isQuoteError,
 } from '../../utils/validation.js';
 import type { QuoteSimulation } from '../../utils/validation.js';
-import {
-  buildPolymarketDepositWalletSimulation,
-  isPredictWithdraw,
-} from './polymarket/withdraw.js';
+import { getRelayDepositData } from './deposit-step.js';
 import { getRelayExecuteRequest } from './relay-submit-execute.js';
 import { getRelaySubmitCalls } from './relay-submit.js';
 import type { RelayExecuteRequest, RelayQuote } from './types.js';
@@ -110,11 +111,12 @@ async function buildValidationSimulation(
   quote: TransactionPayQuote<RelayQuote>,
 ): Promise<QuoteSimulation> {
   if (quote.request.isPolymarketDepositWallet) {
-    return await buildPolymarketDepositWalletSimulation(
-      quote,
-      quote.request.from,
-      request.messenger,
-    );
+    return await buildPolymarketDepositWalletSimulation({
+      depositData: getRelayDepositData(quote.original),
+      from: quote.request.from,
+      messenger: request.messenger,
+      sourceAmountRaw: quote.sourceAmount.raw,
+    });
   }
 
   const { calls } = await getRelaySubmitCalls({

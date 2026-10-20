@@ -1,5 +1,8 @@
 {
   "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "types": ["jest"]
+  },
   "references": [
     {
       "path": "../accounts-controller"
@@ -12,6 +15,9 @@
     },
     {
       "path": "../claims-controller"
+    },
+    {
+      "path": "../client-controller"
     },
     {
       "path": "../config-registry-controller"
@@ -32,6 +38,9 @@
       "path": "../keyring-controller"
     },
     {
+      "path": "../logging-controller"
+    },
+    {
       "path": "../messenger"
     },
     {
@@ -41,10 +50,16 @@
       "path": "../passkey-controller"
     },
     {
+      "path": "../permission-controller"
+    },
+    {
       "path": "../remote-feature-flag-controller"
     },
     {
       "path": "../seedless-onboarding-controller"
+    },
+    {
+      "path": "../selected-network-controller"
     },
     {
       "path": "../shield-controller"

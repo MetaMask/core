@@ -8,21 +8,13 @@ module.exports = {
   collectCoverage: true,
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected
-  collectCoverageFrom: [
-    '<rootDir>/.oxlint-plugins/**/*.ts',
-    '<rootDir>/scripts/**/*.ts',
-  ],
+  collectCoverageFrom: ['<rootDir>/scripts/**/*.ts'],
 
   // The directory where Jest should output its coverage files
   coverageDirectory: '<rootDir>/scripts/coverage',
 
   // An array of regexp pattern strings used to skip coverage collection
-  coveragePathIgnorePatterns: [
-    // The plugin entrypoint only registers rules, so there is no logic to
-    // test; each rule is tested on its own.
-    '/.oxlint-plugins/metamask-core.ts',
-    '/package-template/',
-  ],
+  coveragePathIgnorePatterns: ['/package-template/'],
 
   // Indicates which provider should be used to instrument code for coverage
   coverageProvider: 'babel',
@@ -33,12 +25,6 @@ module.exports = {
   // An object that configures minimum threshold enforcement for coverage results
   // <rootDir> does not work here.
   coverageThreshold: {
-    './.oxlint-plugins/**/*.ts': {
-      branches: 100,
-      functions: 100,
-      lines: 100,
-      statements: 100,
-    },
     './scripts/create-package/**/*.ts': {
       branches: 100,
       functions: 100,
@@ -51,9 +37,12 @@ module.exports = {
     // Strip .js extensions from relative imports so Jest resolves them to
     // the TypeScript source files.
     '^(\\.{1,2}/.+)\\.js$': '$1',
-    // `@metamask/utils` lives in this repo, so resolve it to its source rather
-    // than to a build that may not exist yet.
+    // `@metamask/utils` and `@metamask/type-utils` live in this repo, so
+    // resolve them to their source rather than to a build that may not exist
+    // yet.
     // NOTE: This must be synchronized with the `paths` option in `tsconfig.json`.
+    '^@metamask/error-utils$': ['<rootDir>/packages/error-utils/src/index.ts'],
+    '^@metamask/type-utils$': ['<rootDir>/packages/type-utils/src/index.ts'],
     '^@metamask/utils/node$': ['<rootDir>/packages/utils/src/node.ts'],
     '^@metamask/utils$': ['<rootDir>/packages/utils/src/index.ts'],
     '^uuid$': require.resolve('uuid'),
@@ -91,7 +80,6 @@ module.exports = {
 
   // The glob patterns Jest uses to detect test files
   testMatch: [
-    '<rootDir>/.oxlint-plugins/**/?(*.)+(spec|test).[tj]s?(x)',
     '<rootDir>/scripts/**/__tests__/**/*.[jt]s?(x)',
     '<rootDir>/scripts/**/?(*.)+(spec|test).[tj]s?(x)',
   ],

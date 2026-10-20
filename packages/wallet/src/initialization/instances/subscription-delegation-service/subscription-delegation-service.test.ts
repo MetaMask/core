@@ -59,6 +59,7 @@ describe('subscriptionDelegationService', () => {
         'SubscriptionController:getState',
         'SubscriptionController:getPricing',
         'SubscriptionController:getSubscriptions',
+        'SubscriptionController:isUserEligibleForTrial',
         'SubscriptionController:startSubscriptionWithCrypto',
       ],
     });

@@ -22,7 +22,10 @@ import {
   RATE_HISTORY_STALE_TIME_MS,
   VAULT_RATE_STALE_TIME_MS,
 } from './constants.js';
-import { MoneyAccountApiResponseValidationError } from './errors.js';
+import {
+  MoneyAccountApiHttpError,
+  MoneyAccountApiResponseValidationError,
+} from './errors.js';
 import { projectLogger, createModuleLogger } from './logger.js';
 import type { MoneyAccountApiDataServiceMethodActions } from './money-account-api-data-service-method-action-types.js';
 import type {
@@ -324,8 +327,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
         const response = await fetch(url, { headers });
 
         if (!response.ok) {
-          throw new HttpError(
-            response.status,
+          throw await MoneyAccountApiHttpError.fromResponse(
+            response,
             `Money Account API positions request failed with status '${response.status}'`,
           );
         }
@@ -390,8 +393,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
             });
 
             if (!response.ok) {
-              throw new HttpError(
-                response.status,
+              throw await MoneyAccountApiHttpError.fromResponse(
+                response,
                 `Money Account API interest request failed with status '${response.status}'`,
               );
             }
@@ -475,8 +478,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
               });
 
               if (!response.ok) {
-                throw new HttpError(
-                  response.status,
+                throw await MoneyAccountApiHttpError.fromResponse(
+                  response,
                   `Money Account API history request failed with status '${response.status}'`,
                 );
               }
@@ -545,8 +548,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
             });
 
             if (!response.ok) {
-              throw new HttpError(
-                response.status,
+              throw await MoneyAccountApiHttpError.fromResponse(
+                response,
                 `Money Account API rate-history request failed with status '${response.status}'`,
               );
             }
@@ -611,8 +614,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
             });
 
             if (!response.ok) {
-              throw new HttpError(
-                response.status,
+              throw await MoneyAccountApiHttpError.fromResponse(
+                response,
                 `Money Account API vault rate request failed with status '${response.status}'`,
               );
             }

@@ -6,12 +6,16 @@
 import type { KycController } from './KycController.js';
 
 /**
- * Starts a KYC session for the given vendor and email. Reuses a latest
- * vendor session when one exists; otherwise creates a UKYC session.
+ * Starts a KYC session for the given vendor. Reuses a latest vendor session
+ * when one exists; otherwise creates a UKYC session.
+ *
+ * The verified email stored on controller state comes from the partner
+ * identity token. When that request returns HTTP 422, a stored email is
+ * kept for an existing session. Creating a vendor customer and UKYC session
+ * requires the token, which both requests send as `partnerIdentityToken`.
  *
  * @param params - The session parameters.
  * @param params.vendor - Identity vendor for the session.
- * @param params.email - Account email associated with the session.
  * @param params.aal2Token - AAL2 authentication token. Required only when a
  * UKYC session must be created, where it is sent as the Authorization bearer
  * value. Omit it when reusing an existing session.
@@ -60,10 +64,13 @@ export type KycControllerGetProviderFlowStatusAction = {
 };
 
 /**
- * Returns the current session status and starts polling when it is not yet
- * terminal.
+ * Returns the session already stored on state.
  *
- * @returns The current session status.
+ * Starts session-status polling when `finalStatus` is not `approved`,
+ * `rejected`, or `retry`. Does not fetch status or refresh capability
+ * authorization.
+ *
+ * @returns The session status stored at call time.
  * @throws If there is no session on state.
  */
 export type KycControllerRefreshSessionStatusAction = {
@@ -99,9 +106,11 @@ export type KycControllerFetchSessionStatusOnceAction = {
 /**
  * Starts polling `GET /sessions/{id}/status` for
  * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
- * the result onto state only when the payload changed. The loop stops once
- * `finalStatus` is `approved`, `rejected`, or `retry`, or when
- * {@link reset} / {@link clearState} runs.
+ * the result onto state only when the payload changed. The first poll runs
+ * immediately. Each later wait starts at 10 seconds and grows by 10 seconds
+ * after every poll, including a failed one. Starting the loop again resets
+ * that delay. The loop stops once `finalStatus` is `approved`, `rejected`,
+ * or `retry`, or when {@link reset} / {@link clearState} runs.
  *
  * @throws If there is no current session id to poll.
  */
@@ -151,10 +160,9 @@ export type KycControllerRecordSessionDisclaimersAction = {
 };
 
 /**
- * Fetches session-scoped disclaimers and reports whether every document is
- * consented and credential reuse was accepted.
+ * Fetches the current session status and reports whether consent was given.
  *
- * @returns Whether session disclaimers are complete.
+ * @returns Whether `consentStatus` is `given`.
  * @throws If there is no session on state.
  */
 export type KycControllerHasCompletedSessionDisclaimersAction = {

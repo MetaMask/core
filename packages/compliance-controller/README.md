@@ -20,7 +20,6 @@ or
 ## Usage
 
 ```typescript
-import { Messenger } from '@metamask/messenger';
 import {
   ComplianceController,
   ComplianceService,
@@ -31,6 +30,7 @@ import type {
   ComplianceServiceActions,
   ComplianceServiceEvents,
 } from '@metamask/compliance-controller';
+import { Messenger } from '@metamask/messenger';
 
 // Set up the root messenger
 const rootMessenger = new Messenger<

@@ -23,6 +23,9 @@ export type SocialServiceFetchLeaderboardAction = {
  *
  * Calls `GET ${baseUrl}/traders/${addressOrId}/profile`.
  *
+ * `profile.createdAt` is optional. When present it is an ISO-8601 timestamp
+ * for when the social-api profile row was inserted.
+ *
  * @param options - Options bag.
  * @param options.addressOrId - Wallet address or Clicker profile ID.
  * @returns The trader profile response.
@@ -129,7 +132,8 @@ export type SocialServiceFetchPositionByIdAction = {
  * `pagination.newerCursor` as `newerThan` to fetch newer items.
  *
  * @param options - Options bag.
- * @param options.scope - `following` (default) or `leaderboard`.
+ * @param options.scope - `following` (default), `leaderboard`, `all`, or
+ * `trending`.
  * @param options.chains - Filter by one or more chains.
  * @param options.limit - Number of results per page.
  * @param options.olderThan - Cursor for older items (scroll down).
@@ -250,6 +254,27 @@ export type SocialServiceRemoveCommentReactionAction = {
 export type SocialServiceCreateSwapCommentAction = {
   type: `SocialService:createSwapComment`;
   handler: SocialService['createSwapComment'];
+};
+
+/**
+ * Records that the current user is copying a trade from a social post, so
+ * the copy can be detected and attributed to the post's author.
+ *
+ * Calls `POST ${baseUrl}/copy-trade-intents`. Send swaps before submission
+ * with the Bridge quote id, and perps right after submission with the
+ * returned order id. The endpoint is idempotent per profile, origin, and
+ * execution id: it answers 201 for a new intent and 200 with the existing
+ * one on a retry.
+ *
+ * @param options - Options bag.
+ * @param options.origin - Comment the trade was copied from.
+ * @param options.copierAccount - CAIP-10 account placing the trade.
+ * @param options.execution - Swap quote id or perps order id.
+ * @returns The created or existing copy-trade intent.
+ */
+export type SocialServiceCreateCopyTradeIntentAction = {
+  type: `SocialService:createCopyTradeIntent`;
+  handler: SocialService['createCopyTradeIntent'];
 };
 
 /**
@@ -432,6 +457,7 @@ export type SocialServiceMethodActions =
   | SocialServiceReactToCommentAction
   | SocialServiceRemoveCommentReactionAction
   | SocialServiceCreateSwapCommentAction
+  | SocialServiceCreateCopyTradeIntentAction
   | SocialServiceFetchFollowingAction
   | SocialServiceFetchMyFollowingAction
   | SocialServiceFetchMyFollowersAction

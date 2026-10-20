@@ -56,6 +56,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchIdosEnclaveJwks',
   'fetchIdosRelayJwks',
   'createUkycSession',
+  'resetWrappingKeys',
   'setAuthorizations',
   'createJourney',
   'getSessionStatus',
@@ -225,6 +226,7 @@ const SessionStatusResponseStruct = type({
   vendorStatus: string(),
   consentStatus: optional(string()),
   idOSStatus: optional(string()),
+  capabilityAuthorizationStatus: optional(string()),
 });
 
 // Vendor customer subset — `type` (not `object`) keeps extra vendor fields from
@@ -270,14 +272,14 @@ const SessionDisclaimersResponseStruct = type({
 // === PARAM TYPES ===
 
 export type CreateMoonpaySessionParams = {
-  email: string;
+  partnerIdentityToken: string;
   termsAcceptedAt: string;
   disclaimerIds: string[];
 };
 
 export type CreateVendorCustomerParams = {
   vendor: KycVendor;
-  email: string;
+  partnerIdentityToken: string;
 };
 
 export type SubmitVendorDisclaimersParams = {
@@ -339,6 +341,12 @@ export type CreateUkycSessionParams = {
    * token.
    */
   aal2Token: string;
+  /**
+   * Partner identity token minted by
+   * `AuthenticationController:getPartnerIdentityToken` for the session's
+   * vendor audience. Omitted from the request body when not provided.
+   */
+  partnerIdentityToken?: string;
 };
 
 /**
@@ -360,6 +368,17 @@ export type SetAuthorizationsParams = {
 
 export type GetSessionStatusParams = {
   sessionId: string;
+};
+
+export type ResetWrappingKeysParams = {
+  /** UKYC session id whose wrapping keys should be reissued. */
+  sessionId: string;
+  /**
+   * The client's per-session X25519 public key (unpadded base64url). Generated
+   * with the matching private key used to wrap the refreshed authorizations,
+   * so the session server can open those boxes.
+   */
+  sessionClientPublicKey: string;
 };
 
 // === SERVICE DEFINITION ===
@@ -530,7 +549,8 @@ export class KycService extends BaseDataService<
    *
    * @param params - The parameters.
    * @param params.vendor - Identity vendor (e.g. `iron` for Money/VBA).
-   * @param params.email - Email associated with the customer.
+   * @param params.partnerIdentityToken - Partner identity token minted by
+   * `AuthenticationController:getPartnerIdentityToken`.
    * @returns The vendor customer record (subset validated for controller use).
    */
   async createVendorCustomer(
@@ -539,7 +559,9 @@ export class KycService extends BaseDataService<
     const url = new URL(`/vendors/${params.vendor}/customers`, this.#baseUrl);
     const data = await this.#requestJson(url, {
       method: 'POST',
-      body: JSON.stringify({ email: params.email }),
+      body: JSON.stringify({
+        partnerIdentityToken: params.partnerIdentityToken,
+      }),
     });
     return this.#validateResponse(
       data,
@@ -743,6 +765,8 @@ export class KycService extends BaseDataService<
    * @param params - The session parameters.
    * @param params.aal2Token - AAL2 authentication token used as the
    * Authorization bearer value.
+   * @param params.partnerIdentityToken - Optional partner identity token for
+   * the session's vendor audience, sent as `partnerIdentityToken`.
    * @returns The UKYC session id and encryption schemas.
    */
   async createUkycSession(
@@ -762,10 +786,12 @@ export class KycService extends BaseDataService<
         body: JSON.stringify({
           vendorId: params.vendor ?? 'moonpay',
           vendorUserId: 'mockedId',
-          jwtToken: 'mock-jwt-token', // TODO: Remove this from the kyc-api
           sessionClientPublicKey: params.sessionClientPublicKey,
           residenceCountry: params.residenceCountry,
           vendorMetadata: params.vendorMetadata ?? {},
+          ...(params.partnerIdentityToken && {
+            partnerIdentityToken: params.partnerIdentityToken,
+          }),
         }),
       },
       { bearerToken: params.aal2Token },
@@ -774,6 +800,42 @@ export class KycService extends BaseDataService<
       data,
       UkycSessionResponseStruct,
       'UKYC sessions',
+    );
+  }
+
+  /**
+   * Reissues wrapping keys for an existing UKYC session
+   * (`POST /sessions/{sessionId}/wrapping-keys`).
+   *
+   * The client registers a new per-session X25519 public key so the server can
+   * open boxes sealed with the matching private key. The response matches
+   * {@link KycService.createUkycSession}: a session id plus per-secret
+   * encryption schemas (`encryptionDataKey` and `ukycCapabilityToken`) used to
+   * wrap and submit authorizations.
+   *
+   * @param params - The session whose wrapping keys should be reset.
+   * @param params.sessionId - UKYC session id.
+   * @param params.sessionClientPublicKey - Per-session X25519 public key
+   * (unpadded base64url) registered on the session.
+   * @returns The session id and fresh encryption schemas.
+   */
+  async resetWrappingKeys(
+    params: ResetWrappingKeysParams,
+  ): Promise<UkycSessionResponse> {
+    const url = new URL(
+      `/sessions/${encodeURIComponent(params.sessionId)}/wrapping-keys`,
+      this.#baseUrl,
+    );
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        sessionClientPublicKey: params.sessionClientPublicKey,
+      }),
+    });
+    return this.#validateResponse(
+      data,
+      UkycSessionResponseStruct,
+      'wrapping keys',
     );
   }
 

@@ -119,6 +119,9 @@ describe('createWallet', () => {
     expect(instanceOptions.remoteFeatureFlagController.clientVersion).toBe(
       '0.0.0',
     );
+    expect(
+      instanceOptions.selectedNetworkController.domainProxyMap,
+    ).toBeInstanceOf(Map);
     expect(instanceOptions.storageService.storage).toBeInstanceOf(
       InMemoryStorageAdapter,
     );

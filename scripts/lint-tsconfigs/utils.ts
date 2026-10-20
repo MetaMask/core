@@ -1,10 +1,11 @@
-import { readJsonFile, readFile, fileExists } from '@metamask/utils/node';
 import * as commentJson from 'comment-json';
 import { execa } from 'execa';
 import fs from 'fs';
 import type { FormatConfig } from 'oxfmt';
 import { format as oxfmtFormat } from 'oxfmt';
 import path from 'path';
+
+import { fileExists, readFile, readJsonFile } from '../lib/utils.ts';
 
 const REPO_ROOT = path.join(import.meta.dirname, '..', '..');
 
@@ -508,9 +509,15 @@ async function ensureTsconfigUpdated({
     return false;
   }
 
-  const oxfmtRc = (await import(
-    path.join(REPO_ROOT, '.oxfmtrc.json')
-  )) as FormatConfig;
+  const { default: oxfmtRc } = (await import(
+    path.join(REPO_ROOT, '.oxfmtrc.json'),
+    {
+      with: {
+        type: 'json',
+      },
+    }
+  )) as { default: FormatConfig };
+
   const updatedContent = commentJson.stringify(
     commentJson.assign(tsconfig.content, { references: [...newReferences] }),
     null,

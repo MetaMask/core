@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RuleTester } from 'oxlint/plugins-dev';
+import { describe, it } from 'vitest';
 
 import { noBarrelFiles } from './no-barrel-files.ts';
 

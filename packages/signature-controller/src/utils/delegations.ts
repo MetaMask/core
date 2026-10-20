@@ -68,12 +68,10 @@ export function decodePermissionFromRequest({
   if (
     !(
       // isHexAddress requires a lowercase hex string
-      (
-        isHexAddress(delegate?.toLowerCase()) &&
-        isHexAddress(delegator?.toLowerCase()) &&
-        isStrictHexString(authority) &&
-        caveats
-      )
+      isHexAddress(delegate?.toLowerCase()) &&
+      isHexAddress(delegator?.toLowerCase()) &&
+      isStrictHexString(authority) &&
+      caveats
     )
   ) {
     return undefined;

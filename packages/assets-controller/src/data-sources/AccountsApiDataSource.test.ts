@@ -1753,6 +1753,45 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('middleware copies v5 unprocessed-chain errors onto the pipeline context', async () => {
+    const { controller } = await setupController({
+      unprocessedNetworks: ['eip155:1'],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: { errors: { [CHAIN_POLYGON]: 'existing' } },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.errors?.[CHAIN_MAINNET]).toBe(
+      'Unprocessed by Accounts API',
+    );
+    expect(context.response.errors?.[CHAIN_POLYGON]).toBe('existing');
+
+    controller.destroy();
+  });
+
+  it('middleware copies timed-out v5 chains onto the pipeline context', async () => {
+    const { controller, apiClient } = await setupController({
+      fetchTimeoutMs: 10,
+    });
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockImplementationOnce(
+      () => new Promise(() => undefined),
+    );
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext();
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.errors?.[CHAIN_MAINNET]).toContain('timed out');
+
+    controller.destroy();
+  });
+
   it('middleware forwards full updateMode from v6 fetches', async () => {
     const { controller } = await setupController({
       remoteFeatureFlags: { assetsAccountsApiV6: true },
@@ -1796,7 +1835,7 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
-  it('middleware removes handled chains from next request', async () => {
+  it('middleware keeps every requested chain for later lane stages', async () => {
     const { controller } = await setupController({ supportedChains: [1] });
 
     const next = jest.fn().mockResolvedValue(undefined);
@@ -1809,7 +1848,7 @@ describe('AccountsApiDataSource', () => {
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({
         request: expect.objectContaining({
-          chainIds: [CHAIN_POLYGON],
+          chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
         }),
       }),
     );
@@ -2266,7 +2305,7 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
-    it('claims handled chains on v6 when tokenDetectionEnabled is false', async () => {
+    it('keeps requested chains on v6 when tokenDetectionEnabled is false', async () => {
       const { controller } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: true },
         tokenDetectionEnabled: (): boolean => false,
@@ -2294,7 +2333,7 @@ describe('AccountsApiDataSource', () => {
       expect(nextFn).toHaveBeenCalledWith(
         expect.objectContaining({
           request: expect.objectContaining({
-            chainIds: [],
+            chainIds: [CHAIN_MAINNET],
           }),
         }),
       );

@@ -26,6 +26,7 @@ import {
   TrxMethod,
   TrxScope,
 } from '@metamask/keyring-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -2187,6 +2188,49 @@ describe('AccountTreeController', () => {
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
       });
+    });
+
+    it('adds a watch-only account to a watch-only wallet', () => {
+      const mockWatchOnlyAccount: InternalAccount = {
+        id: 'mock-watch-only-id-1',
+        address: '0xABC',
+        options: {},
+        // Watch-only accounts expose no signing methods.
+        methods: [],
+        type: EthAccountType.Eoa,
+        scopes: [EthScope.Eoa],
+        metadata: {
+          name: '',
+          keyring: { type: KeyringType.WatchOnly },
+          importTime: 0,
+          lastSelected: 0,
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [mockWatchOnlyAccount],
+        keyrings: [],
+      });
+
+      controller.init();
+
+      const walletId = toAccountWalletId(
+        AccountWalletType.Keyring,
+        KeyringType.WatchOnly,
+      );
+      const groupId = toAccountGroupId(walletId, mockWatchOnlyAccount.address);
+
+      const wallet = controller.getAccountWalletObject(walletId);
+      expect(wallet).toBeDefined();
+      expect(wallet?.metadata).toStrictEqual({
+        name: 'Watch-only accounts',
+        keyring: { type: KeyringType.WatchOnly },
+      });
+      expect(Object.keys(wallet?.groups ?? {})).toStrictEqual([groupId]);
+
+      const group = controller.getAccountGroupObject(groupId);
+      expect(group?.accounts).toStrictEqual([mockWatchOnlyAccount.id]);
+      expect(group?.metadata.name).toBe('Watch-only Account 1');
     });
 
     it('adds a new wallet to the tree', () => {

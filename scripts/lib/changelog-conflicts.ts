@@ -1,10 +1,11 @@
 import type { ReleaseChanges } from '@metamask/auto-changelog';
 import { oxfmt, parseChangelog } from '@metamask/auto-changelog';
-import { getErrorMessage } from '@metamask/utils';
 import { execa } from 'execa';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { gt } from 'semver';
+
+import { getErrorMessage } from './utils.ts';
 
 export const ROOT_WORKSPACE = path.resolve(import.meta.dirname, '../..');
 

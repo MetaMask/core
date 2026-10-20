@@ -1,4 +1,5 @@
 import { RuleTester } from 'oxlint/plugins-dev';
+import { describe, it } from 'vitest';
 
 import { noWildcardExports } from './no-wildcard-exports.ts';
 

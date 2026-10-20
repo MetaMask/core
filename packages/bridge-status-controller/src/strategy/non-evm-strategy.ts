@@ -38,6 +38,7 @@ const handleTronApproval = async (
           quoteResponse.approval,
           quoteResponse,
           args.selectedAccount,
+          true,
         );
         return txMeta.id;
       }

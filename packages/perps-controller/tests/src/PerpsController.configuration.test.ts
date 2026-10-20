@@ -1437,6 +1437,34 @@ describe('PerpsController', () => {
       expect(mockProvider.reconnect).toHaveBeenCalled();
     });
 
+    it('tags reconnect errors for the existing connection widgets', async () => {
+      const error = new Error('Reconnect failed');
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      markControllerAsInitialized();
+      mockProvider.reconnect.mockRejectedValue(error);
+
+      await controller.reconnect();
+
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+        error,
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            feature: 'perps',
+            operation: 'connection_management',
+            component: 'PerpsConnectionManager',
+            action: 'connection_connection',
+          }),
+          context: {
+            name: 'PerpsController',
+            data: expect.objectContaining({
+              method: 'reconnect',
+              operation: 'websocket_reconnect',
+            }),
+          },
+        }),
+      );
+    });
+
     it('reconnect does nothing when provider does not support method', async () => {
       // Arrange
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));

@@ -9,10 +9,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `partnerIdentityToken` to `CreateUkycSessionParams`; `KycService.createUkycSession` sends it on `POST /sessions` when provided ([#10872](https://github.com/MetaMask/core/pull/10872))
+  - `KycController.startSession` now forwards the partner identity token minted for the selected vendor when creating a UKYC session
+
+## [0.11.0]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+
+### Removed
+
+- **BREAKING:** Remove `MoonPayFrameHandler`, `MoonPayFrameHandlerOptions`, and `clearMoonPaySession` ([#10850](https://github.com/MetaMask/core/pull/10850))
+  - Clients that embedded MoonPay Check/Auth frames must implement that protocol themselves
+
+## [0.10.0]
+
+### Added
+
+- Add `@metamask/authenticated-user-storage` `^4.1.0` as a dependency ([#10452](https://github.com/MetaMask/core/pull/10452))
+
+### Changed
+
+- **BREAKING:** `KycController` now requires messenger actions `AuthenticatedUserStorageService:putIdentitySharingConsent` and `AuthenticationController:getPartnerIdentityToken` ([#10452](https://github.com/MetaMask/core/pull/10452))
+- **BREAKING:** `KycService.createVendorCustomer` and `KycService.createMoonpaySession` take `partnerIdentityToken` instead of a plaintext `email` ([#10452](https://github.com/MetaMask/core/pull/10452))
+  - `POST /vendors/{vendor}/customers` sends `{ partnerIdentityToken }`
+  - `POST /vendors/moonpay/sessions` sends `partnerIdentityToken` instead of `email`
+  - `KycController.startSession` forwards the token minted by `AuthenticationController:getPartnerIdentityToken`
+- Remove the `email` parameter from `KycController.startSession` and the `KycController:startSession` messenger action ([#10452](https://github.com/MetaMask/core/pull/10452))
+  - Email is resolved from a partner identity token. The token's `ext.email` is used only when `ext.email_verified` is `true`
+  - If that request returns HTTP 422 (`EmailRequiredError`), `startSession` throws when it must create a vendor customer or the controller has no stored email
+- `KycService.createUkycSession` no longer sends a `jwtToken` field on `POST /sessions` ([#10630](https://github.com/MetaMask/core/pull/10630))
+
+## [0.9.0]
+
+### Added
+
+- Add `KycService.resetWrappingKeys`, which posts `POST /sessions/{sessionId}/wrapping-keys` with `sessionClientPublicKey` and returns `UkycSessionResponse` ([#10692](https://github.com/MetaMask/core/pull/10692))
+- Export `CAPABILITY_AUTHORIZATION_STATUSES`, `CAPABILITY_AUTHORIZATION_STATUSES_TO_REFRESH`, `FINAL_STATUSES_TO_SKIP_AUTH_REFRESH`, `needsCapabilityAuthorizationRefresh`, `KYC_STATUSES`, and `FINAL_STATUSES_TO_STOP_POLLING` ([#10692](https://github.com/MetaMask/core/pull/10692))
+
+### Changed
+
+- Refresh and resubmit the UKYC capability authorization when `capabilityAuthorizationStatus` is `new` or `expired` while resuming a session in `startSession` (skipped when `finalStatus` is `approved` or `rejected`) ([#10692](https://github.com/MetaMask/core/pull/10692))
+- Space `KycController` session-status polls with a linear backoff. The first poll is immediate, the next waits 10 seconds, and each later wait grows by 10 seconds. Starting polling again resets the delay ([#10764](https://github.com/MetaMask/core/pull/10764))
+
+## [0.8.0]
+
+### Added
+
 - Added exported `KYC_STATUSES` and `TERMINAL_SESSION_STATUSES`, so consumers can reuse the KYC status vocabulary and the terminal session-status set (`approved`, `rejected`, `retry`) from the package entry point instead of redefining them locally ([#10771](https://github.com/MetaMask/core/pull/10771))
 
 ### Changed
 
+- `KycController.hasCompletedSessionDisclaimers` now reports completion from session `consentStatus === 'given'` instead of fetching the session disclaimer catalog ([#10760](https://github.com/MetaMask/core/pull/10760))
+  - This no longer throws a 409 when the session is already in a terminal state
 - Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
 
 ## [0.7.0]
@@ -134,7 +185,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.11.0...HEAD
+[0.11.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.10.0...@metamask/kyc-controller@0.11.0
+[0.10.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.9.0...@metamask/kyc-controller@0.10.0
+[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.8.0...@metamask/kyc-controller@0.9.0
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.7.0...@metamask/kyc-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.1...@metamask/kyc-controller@0.7.0
 [0.6.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.0...@metamask/kyc-controller@0.6.1
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.5.0...@metamask/kyc-controller@0.6.0

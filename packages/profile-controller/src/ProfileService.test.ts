@@ -35,7 +35,7 @@ const mockProfileResponse = {
   updated_at: '2024-01-02T00:00:00Z',
 };
 
-const mockXConnectResponse = {
+const mockConnectXResponse = {
   x_user_id: 'x-user-123',
   x_profile_url: 'https://x.com/degengirl',
   username: 'degengirl',
@@ -161,6 +161,21 @@ describe('ProfileService', () => {
       await expect(service.getProfile('profile-123')).rejects.toThrow(
         'returned an unexpected response',
       );
+    });
+
+    it('serves repeated calls from the cache', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockProfileResponse),
+      });
+
+      const service = createService();
+      await service.getProfile('profile-123');
+      const result = await service.getProfile('profile-123');
+
+      expect(result).toStrictEqual(mockProfileResponse);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -463,7 +478,7 @@ describe('ProfileService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockXConnectResponse),
+        json: () => Promise.resolve(mockConnectXResponse),
       });
 
       const params: ConnectXParams = {
@@ -473,7 +488,7 @@ describe('ProfileService', () => {
       const service = createService();
       const result = await service.connectX(params);
 
-      expect(result).toStrictEqual(mockXConnectResponse);
+      expect(result).toStrictEqual(mockConnectXResponse);
       expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/profiles/x/connect`, {
         method: 'POST',
         headers: {
@@ -482,6 +497,56 @@ describe('ProfileService', () => {
         },
         body: JSON.stringify(params),
       });
+    });
+
+    it('invalidates the cached profile so the next getProfile reflects the connection', async () => {
+      const connectedProfileResponse = {
+        ...mockProfileResponse,
+        connected_to_x: true,
+      };
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockProfileResponse),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockConnectXResponse),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(connectedProfileResponse),
+        });
+
+      const service = createService();
+      await service.getProfile('profile-123');
+      await service.connectX({ code: 'auth-code-123', state: 'state-xyz' });
+      const result = await service.getProfile('profile-123');
+
+      expect(result).toStrictEqual(connectedProfileResponse);
+    });
+
+    it('keeps the cached profile when the connect request fails', async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockProfileResponse),
+        })
+        .mockResolvedValueOnce({ ok: false, status: 401 });
+
+      const service = createService();
+      await service.getProfile('profile-123');
+      await expect(
+        service.connectX({ code: 'auth-code-123', state: 'state-xyz' }),
+      ).rejects.toThrow(`${ProfileServiceErrorMessage.CONNECT_X_FAILED}: 401`);
+      const result = await service.getProfile('profile-123');
+
+      expect(result).toStrictEqual(mockProfileResponse);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
     it('throws HttpError on non-ok response', async () => {
@@ -514,13 +579,13 @@ describe('ProfileService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockXConnectResponse),
+        json: () => Promise.resolve(mockConnectXResponse),
       });
 
       const service = createService();
       const result = await service.getXAccount();
 
-      expect(result).toStrictEqual(mockXConnectResponse);
+      expect(result).toStrictEqual(mockConnectXResponse);
       expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/profiles/x/account`, {
         headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
       });
@@ -547,6 +612,81 @@ describe('ProfileService', () => {
 
       await expect(service.getXAccount()).rejects.toThrow(
         'returned an unexpected response',
+      );
+    });
+  });
+
+  describe('disconnectX', () => {
+    it('sends DELETE to the profile X endpoint', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204, json: () => null });
+
+      const service = createService();
+      await service.disconnectX('profile-123');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/profiles/profile-123/x`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+        },
+      );
+    });
+
+    it('invalidates the cached profile so the next getProfile reflects the disconnection', async () => {
+      const connectedProfileResponse = {
+        ...mockProfileResponse,
+        connected_to_x: true,
+      };
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(connectedProfileResponse),
+        })
+        .mockResolvedValueOnce({ ok: true, status: 204, json: () => null })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockProfileResponse),
+        });
+
+      const service = createService();
+      await service.getProfile('profile-123');
+      await service.disconnectX('profile-123');
+      const result = await service.getProfile('profile-123');
+
+      expect(result).toStrictEqual(mockProfileResponse);
+    });
+
+    it('encodes the profile ID in the URL', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204, json: () => null });
+
+      const service = createService();
+      await service.disconnectX('user/with/slashes');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/profiles/user%2Fwith%2Fslashes/x`,
+        expect.anything(),
+      );
+    });
+
+    it('resolves when the API returns 404 (already disconnected)', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = createService();
+
+      await service.disconnectX('profile-123');
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(service.disconnectX('profile-123')).rejects.toThrow(
+        `${ProfileServiceErrorMessage.DISCONNECT_X_FAILED}: 500`,
       );
     });
   });

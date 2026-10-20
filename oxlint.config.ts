@@ -3,6 +3,17 @@ import commonjs from '@metamask/oxlint-config-commonjs';
 import jest from '@metamask/oxlint-config-jest';
 import nodejs from '@metamask/oxlint-config-nodejs';
 import typescript from '@metamask/oxlint-config-typescript';
+import vitest from '@metamask/oxlint-config-vitest';
+
+import { getJestWorkspaceLocations } from './test-runner-package-map.cjs';
+
+const jestTestFiles = (await getJestWorkspaceLocations()).flatMap(
+  (location) => [
+    `${location}/**/*.test.ts`,
+    `${location}/**/test/**`,
+    `${location}/**/tests/**`,
+  ],
+);
 
 export default createConfig({
   extends: [base],
@@ -58,6 +69,7 @@ export default createConfig({
     {
       files: [
         '.github/**',
+        // '.oxlint-plugins/**',
         'yarn.config.cjs',
         'packages/bitcoin-regtest-up/**',
         'packages/local-node-utils/**',
@@ -67,12 +79,28 @@ export default createConfig({
         'packages/platform-api-docs/**',
         'packages/wallet-cli/**',
         '**/scripts/**',
-        '.oxlint-plugins/**',
+        'oxlint.config.ts',
+        'jest.config.packages.cjs',
+        'jest.config.scripts.cjs',
+        'vitest.config.packages.js',
+        // These import their globals explicitly.
+        'tests/helpers.ts',
+        'tests/matchers.ts',
+        'tests/scripts-setup.ts',
+        'tests/setupAfterEnv/**',
+        'tests/vitest/**',
       ],
       extends: [nodejs],
       rules: {
         'node/no-sync': 'off',
         'node/no-process-env': 'off',
+      },
+    },
+
+    {
+      files: ['test-runner-package-map.cjs'],
+      rules: {
+        'import/unambiguous': 'off',
       },
     },
 
@@ -83,20 +111,41 @@ export default createConfig({
         'packages/*/jest.environment.cjs',
         'packages/*/jest.config.integration.cjs',
         'packages/*/jest.config.unit.cjs',
-        '**/*.test.ts',
-        '**/test/**',
-        '**/tests/**',
+        'scripts/**/*.test.ts',
+        ...jestTestFiles,
       ],
       extends: [nodejs, jest],
+      plugins: ['typescript'],
       rules: {
         'node/no-sync': 'off',
         'node/no-process-env': 'off',
+        'typescript/no-unsafe-assignment': 'off',
       },
     },
 
     {
       files: ['packages/advanced-chart-core/**'],
       env: { browser: true },
+    },
+
+    {
+      files: [
+        '.oxlint-plugins/**/*.test.ts',
+        'tests/vitest/**',
+        'vitest.config.packages.js',
+        'packages/*/vitest.config.js',
+        'packages/*/**/*.test.ts',
+        'packages/*/**/test/**',
+        'packages/*/**/tests/**',
+      ],
+      excludeFiles: jestTestFiles,
+      extends: [nodejs, vitest],
+      plugins: ['typescript'],
+      rules: {
+        'node/no-sync': 'off',
+        'node/no-process-env': 'off',
+        'typescript/no-unsafe-assignment': 'off',
+      },
     },
 
     {
@@ -124,6 +173,34 @@ export default createConfig({
               ts: 'ignorePackages',
               js: 'never',
             },
+          },
+        ],
+      },
+    },
+
+    {
+      files: ['scripts/**/*.ts'],
+      excludeFiles: ['scripts/**/*.test.ts'],
+      rules: {
+        // Disallow importing from `@metamask/utils(/node)` in scripts, since
+        // it uses non-erasable syntax, so type stripping with Node.js does not
+        // work. We can remove this once we update it to remove the non-erasable
+        // syntax.
+        'eslint/no-restricted-imports': [
+          'error',
+          {
+            paths: [
+              {
+                name: '@metamask/utils',
+                message:
+                  'Do not import from `@metamask/utils` in scripts. If required, copy the function to `./scripts/lib/utils.ts` instead.',
+              },
+              {
+                name: '@metamask/utils/node',
+                message:
+                  'Do not import from `@metamask/utils/node` in scripts. If required, copy the function to `./scripts/lib/utils.ts` instead.',
+              },
+            ],
           },
         ],
       },

@@ -3870,9 +3870,8 @@ export class TransactionController extends BaseController<
         this,
         chainId,
       ),
-      getConfirmedTransactions: this.#getNonceTrackerTransactions.bind(
+      getConfirmedTransactions: this.#getNonceTrackerConfirmedTransactions.bind(
         this,
-        [TransactionStatus.confirmed],
         chainId,
       ),
     });
@@ -3946,6 +3945,17 @@ export class TransactionController extends BaseController<
     pendingTransactionTracker.hub.on(
       'transaction-updated',
       this.updateTransaction.bind(this),
+    );
+  }
+
+  #getNonceTrackerConfirmedTransactions(
+    chainId: string,
+    address: string,
+  ): NonceTrackerTransaction[] {
+    return this.#getNonceTrackerTransactions(
+      [TransactionStatus.confirmed],
+      address,
+      chainId,
     );
   }
 

@@ -8,7 +8,11 @@ import type {
 import nock, { cleanAll as nockCleanAll } from 'nock';
 
 import { Env, MONEY_ACCOUNT_API_URL_MAP } from './constants.js';
-import { MoneyAccountApiResponseValidationError } from './errors.js';
+import {
+  MoneyAccountApiHttpError,
+  MoneyAccountApiResponseValidationError,
+  REDACTED_ADDRESS,
+} from './errors.js';
 import type {
   MoneyAccountApiDataServiceMessenger,
   MoneyAccountApiDataServiceTraceCallback,
@@ -658,6 +662,49 @@ describe('MoneyAccountApiDataService', () => {
           window: '7d',
         }),
       ).rejects.toThrow(HttpError);
+      service.destroy();
+    });
+
+    it('includes the redacted response body and diagnostic headers on non-2xx responses', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/interest`)
+        .query({
+          vault_address: MOCK_VAULT_ADDRESS,
+          window: 'since_inception',
+        })
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(
+          400,
+          {
+            message: `'${MOCK_ADDRESS}' is an invalid address`,
+            error: 'Bad Request',
+            statusCode: 400,
+          },
+          { 'X-Amzn-Trace-Id': 'Root=1-abc' },
+        );
+
+      const error = await service
+        .fetchInterest(MOCK_ADDRESS, {
+          vaultAddress: MOCK_VAULT_ADDRESS,
+          window: 'since_inception',
+        })
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(MoneyAccountApiHttpError);
+      expect(error).toMatchObject({
+        httpStatus: 400,
+        responseBody: JSON.stringify({
+          message: `'${REDACTED_ADDRESS}' is an invalid address`,
+          error: 'Bad Request',
+          statusCode: 400,
+        }),
+        responseHeaders: {
+          'content-type': 'application/json',
+          'x-amzn-trace-id': 'Root=1-abc',
+        },
+      });
       service.destroy();
     });
 

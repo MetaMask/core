@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0]
+
+### Added
+
+- Add `MoneyAccountApiHttpError`, a subclass of `HttpError` that carries a sanitized `responseBody` (hex addresses redacted, truncated to 1000 characters) and allowlisted diagnostic `responseHeaders` ([#10822](https://github.com/MetaMask/core/pull/10822))
+
+### Changed
+
+- Non-2xx responses from every endpoint now throw `MoneyAccountApiHttpError` instead of a plain `HttpError` ([#10822](https://github.com/MetaMask/core/pull/10822))
+
 ## [2.1.0]
 
 ### Added
@@ -86,7 +96,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch cursor-paginated cash-flow history (`fetchHistory`)
   - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.2.0...HEAD
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.1.0...@metamask/money-account-api-data-service@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.0.0...@metamask/money-account-api-data-service@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@1.0.0...@metamask/money-account-api-data-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.1...@metamask/money-account-api-data-service@1.0.0

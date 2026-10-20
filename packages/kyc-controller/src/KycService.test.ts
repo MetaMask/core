@@ -159,7 +159,7 @@ describe('KycService', () => {
 
       expect(
         await service.createMoonpaySession({
-          email: 'a@b.co',
+          partnerIdentityToken: 'partner-identity-token',
           termsAcceptedAt: '2026-01-01T00:00:00.000Z',
           disclaimerIds: ['1'],
         }),
@@ -172,7 +172,7 @@ describe('KycService', () => {
 
       await expect(
         service.createMoonpaySession({
-          email: 'a@b.co',
+          partnerIdentityToken: 'partner-identity-token',
           termsAcceptedAt: '2026-01-01T00:00:00.000Z',
           disclaimerIds: ['1'],
         }),
@@ -266,7 +266,7 @@ describe('KycService', () => {
         .post(
           '/sessions',
           (body: Record<string, unknown>) =>
-            body.jwtToken === 'mock-jwt-token' &&
+            body.jwtToken === undefined &&
             body.vendorId === 'moonpay' &&
             body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
             body.residenceCountry === RESIDENCE_COUNTRY &&
@@ -281,6 +281,44 @@ describe('KycService', () => {
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { foo: 'bar' },
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('sends the partner identity token when provided', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) =>
+            body.partnerIdentityToken === 'partner-identity-token',
+        )
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          aal2Token: AAL2_TOKEN,
+          partnerIdentityToken: 'partner-identity-token',
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('omits the partner identity token when not provided', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) => !('partnerIdentityToken' in body),
+        )
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           aal2Token: AAL2_TOKEN,
         }),
       ).toStrictEqual(response);
@@ -329,6 +367,67 @@ describe('KycService', () => {
           aal2Token: AAL2_TOKEN,
         }),
       ).rejects.toThrow(/Malformed response received from UKYC sessions API/u);
+    });
+  });
+
+  describe('resetWrappingKeys', () => {
+    const encryptionSchema: EncryptionSchema = {
+      serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
+      jwtChain: 'jwt.chain.sig',
+    };
+    const response = {
+      sessionId: 'sid',
+      encryptionDataKey: encryptionSchema,
+      ukycCapabilityToken: {
+        ...encryptionSchema,
+        jwtChain: 'capability.jwt.chain',
+      },
+    };
+
+    it('posts wrapping-keys and returns encryption schemas', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions/sid/wrapping-keys',
+          (body: Record<string, unknown>) =>
+            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY,
+        )
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.resetWrappingKeys({
+          sessionId: 'sid',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('url-encodes the session id', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/a%2Fb/wrapping-keys')
+        .reply(200, { ...response, sessionId: 'a/b' });
+      const { service } = getService();
+
+      expect(
+        await service.resetWrappingKeys({
+          sessionId: 'a/b',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+        }),
+      ).toStrictEqual({ ...response, sessionId: 'a/b' });
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid/wrapping-keys')
+        .reply(200, { unexpected: true });
+      const { service } = getService();
+
+      await expect(
+        service.resetWrappingKeys({
+          sessionId: 'sid',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+        }),
+      ).rejects.toThrow(/Malformed response received from wrapping keys API/u);
     });
   });
 
@@ -440,6 +539,9 @@ describe('KycService', () => {
         kycStatus: 'approved',
         vendor: 'sumsub',
         vendorStatus: 'GREEN',
+        consentStatus: 'given',
+        idOSStatus: 'active',
+        capabilityAuthorizationStatus: 'stored',
       };
       nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
       const { service } = getService();
@@ -600,7 +702,9 @@ describe('KycService', () => {
   describe('createVendorCustomer', () => {
     it('creates an Iron customer and returns the validated subset', async () => {
       nock(MOCK_API_URL)
-        .post('/vendors/iron/customers', { email: 'a@b.co' })
+        .post('/vendors/iron/customers', {
+          partnerIdentityToken: 'partner-identity-token',
+        })
         .reply(200, {
           id: 'iron-1',
           email: 'a@b.co',
@@ -616,7 +720,10 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
+        await service.createVendorCustomer({
+          vendor: 'iron',
+          partnerIdentityToken: 'partner-identity-token',
+        }),
       ).toMatchObject({
         id: 'iron-1',
         email: 'a@b.co',
@@ -631,7 +738,7 @@ describe('KycService', () => {
       await expect(
         service.createVendorCustomer({
           vendor: 'iron',
-          email: 'a@b.co',
+          partnerIdentityToken: 'partner-identity-token',
         }),
       ).rejects.toThrow(
         /Malformed response received from vendor customers API/u,
@@ -640,7 +747,9 @@ describe('KycService', () => {
 
     it('sends one request per call when two calls overlap', async () => {
       const scope = nock(MOCK_API_URL)
-        .post('/vendors/iron/customers', { email: 'a@b.co' })
+        .post('/vendors/iron/customers', {
+          partnerIdentityToken: 'partner-identity-token',
+        })
         .times(2)
         .reply(200, {
           id: 'iron-1',
@@ -650,8 +759,14 @@ describe('KycService', () => {
       const { service } = getService();
 
       await Promise.all([
-        service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
-        service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
+        service.createVendorCustomer({
+          vendor: 'iron',
+          partnerIdentityToken: 'partner-identity-token',
+        }),
+        service.createVendorCustomer({
+          vendor: 'iron',
+          partnerIdentityToken: 'partner-identity-token',
+        }),
       ]);
 
       expect(scope.isDone()).toBe(true);

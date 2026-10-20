@@ -115,7 +115,6 @@ describe('server-support', () => {
     );
 
     it.each([
-      ['atomic', { atomic: false }, ServerUnsupportedReason.NonAtomic],
       [
         'hyperliquidActivationFeeUsd',
         { hyperliquidActivationFeeUsd: '1' },
@@ -127,11 +126,6 @@ describe('server-support', () => {
         ServerUnsupportedReason.DirectMusdMoneyAccount,
       ],
       ['isMaxAmount', { isMaxAmount: true }, ServerUnsupportedReason.MaxAmount],
-      [
-        'isPolymarketDepositWallet',
-        { isPolymarketDepositWallet: true },
-        ServerUnsupportedReason.PolymarketDepositWallet,
-      ],
     ] as const)(
       'returns %s reason for an unsupported capability',
       (_name, overrides, expected) => {
@@ -147,6 +141,20 @@ describe('server-support', () => {
           requests: [REQUEST_MOCK, { ...REQUEST_MOCK, isMaxAmount: true }],
         }),
       ).toBe(ServerUnsupportedReason.MaxAmount);
+    });
+
+    it('supports non-atomic requests', () => {
+      expect(
+        getReason({ requests: [{ ...REQUEST_MOCK, atomic: false }] }),
+      ).toBeUndefined();
+    });
+
+    it('supports Polymarket deposit wallet requests', () => {
+      expect(
+        getReason({
+          requests: [{ ...REQUEST_MOCK, isPolymarketDepositWallet: true }],
+        }),
+      ).toBeUndefined();
     });
 
     it('ignores capability flags that are explicitly false or undefined', () => {

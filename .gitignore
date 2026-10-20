@@ -15,13 +15,11 @@ package-lock.json
 # Build preview message
 preview-build-message.txt
 
-examples/*/coverage
+**/coverage
 examples/*/dist
 examples/*/api-docs
-packages/*/coverage
 packages/*/dist
 packages/*/api-docs
-scripts/coverage
 
 # yarn v3 (w/o zero-install)
 # See: https://yarnpkg.com/getting-started/qa#which-files-should-be-gitignored

@@ -284,6 +284,10 @@ describe('PERPS_EVENT_VALUE.SECTION_NAME', () => {
     expect(PERPS_EVENT_VALUE.SECTION_NAME.TOP_MOVERS).toBe('top_movers');
   });
 
+  it('exports EXPLORE', () => {
+    expect(PERPS_EVENT_VALUE.SECTION_NAME.EXPLORE).toBe('explore');
+  });
+
   it('exports EXPLORE_CRYPTO', () => {
     expect(PERPS_EVENT_VALUE.SECTION_NAME.EXPLORE_CRYPTO).toBe(
       'explore_crypto',
@@ -304,6 +308,12 @@ describe('PERPS_EVENT_VALUE.SECTION_NAME', () => {
 
   it('exports EXPLORE_FOREX', () => {
     expect(PERPS_EVENT_VALUE.SECTION_NAME.EXPLORE_FOREX).toBe('explore_forex');
+  });
+
+  it('exports RECENTLY_ADDED', () => {
+    expect(PERPS_EVENT_VALUE.SECTION_NAME.RECENTLY_ADDED).toBe(
+      'recently_added',
+    );
   });
 
   it('exports RECENT_ACTIVITY', () => {

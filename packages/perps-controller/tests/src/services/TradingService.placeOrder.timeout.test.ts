@@ -177,6 +177,7 @@ describe('TradingService.placeOrder — order submission timeout', () => {
       .calls[0][0];
     expect(endTraceArgs.data?.reason).toBe('late_error');
     expect(endTraceArgs.data?.success).toBe(false);
+    expect(endTraceArgs.status).toBe('error');
     expect(jest.getTimerCount()).toBe(0);
   });
 

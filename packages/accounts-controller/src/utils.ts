@@ -46,12 +46,18 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.snap: {
       return 'Snap Account';
     }
+    case KeyringType.WatchOnly: {
+      return 'Watch-only Account';
+    }
     // NOTE: We don't use those keyrings/accounts within this controller. However, since this
     // function only use the keyring type to return a name, we still support it here in case
     // clients need it.
     // FIXME: This should probably live in the `KeyringController` package instead.
     case KeyringTypes.money: {
       return 'Money';
+    }
+    case KeyringTypes.mpcMoney: {
+      return 'MPC Money';
     }
     case KeyringTypes.mpc: {
       return 'MPC';
@@ -127,6 +133,18 @@ export function isSnapKeyringV2Type(
 }
 
 /**
+ * Check if a keyring type is a watch-only keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is considered a watch-only keyring, false otherwise.
+ */
+export function isWatchOnlyKeyringType(
+  keyringType: KeyringTypes | KeyringType | string,
+): boolean {
+  return keyringType === (KeyringType.WatchOnly as string);
+}
+
+/**
  * Check if a keyring type is a simple keyring.
  *
  * @param keyringType - The account's keyring type.
@@ -161,17 +179,19 @@ export function isMoneyKeyringType(
 }
 
 /**
- * Check if a keyring type is a MPC keyring.
+ * Check if a keyring type is a MPC Money keyring.
  *
  * @param keyringType - The account's keyring type.
- * @returns True if the keyring type is a MPC keyring, false otherwise.
+ * @returns True if the keyring type is a MPC Money keyring, false otherwise.
  */
-export function isMpcKeyringType(keyringType: KeyringTypes | string): boolean {
-  return keyringType === (KeyringTypes.mpc as string);
+export function isMpcMoneyKeyringType(
+  keyringType: KeyringTypes | string,
+): boolean {
+  return keyringType === (KeyringTypes.mpcMoney as string);
 }
 
 /**
- * Check if a keyring type is a skipped keyring (Money or MPC keyring).
+ * Check if a keyring type is a skipped keyring (Money or MPC Money keyring).
  *
  * A skipped keyring is one that should be ignored during account
  * re-synchronization with the `KeyringController` (through `:stateChange` events
@@ -183,7 +203,7 @@ export function isMpcKeyringType(keyringType: KeyringTypes | string): boolean {
 export function isSkippedKeyringType(
   keyringType: KeyringTypes | string,
 ): boolean {
-  return isMoneyKeyringType(keyringType) || isMpcKeyringType(keyringType);
+  return isMoneyKeyringType(keyringType) || isMpcMoneyKeyringType(keyringType);
 }
 
 /**

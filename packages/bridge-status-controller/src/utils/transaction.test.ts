@@ -1619,11 +1619,60 @@ describe('Bridge Status Controller Transaction Utils', () => {
       });
     });
 
-    it('should include Tron options when trade is Tron', () => {
-      const createClientRequestSpy = jest
-        .spyOn(snaps, 'getClientRequest')
-        .mockReturnValue({ mocked: true } as never);
+    it('should include Tron options, including swap asset IDs, when trade is Tron', () => {
+      const tronTrade = {
+        raw_data_hex: 'abcdef',
+        raw_data: {
+          contract: [{ type: 'TransferContract' }],
+        },
+        visible: true,
+      } as never;
 
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const sourceAssetId =
+        'tron:728126428/trc20:TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+      const destAssetId =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+
+      const result = snaps.getClientRequest(
+        tronTrade,
+        ChainId.TRON,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
+        sourceAssetId,
+        destAssetId,
+      );
+
+      expect(result).toMatchObject({
+        origin: 'metamask',
+        snapId: 'test-snap-id',
+        handler: 'onClientRequest',
+        request: {
+          id: expect.any(String),
+          jsonrpc: '2.0',
+          method: 'signAndSendTransaction',
+          params: {
+            transaction: 'q83v',
+            scope: formatChainIdToCaip(ChainId.TRON),
+            accountId: 'test-account-id',
+            options: {
+              visible: true,
+              type: 'TransferContract',
+              sourceAssetId,
+              destAssetId,
+            },
+          },
+        },
+      });
+    });
+
+    it('should omit Tron asset ID options when source and destination asset IDs are not provided', () => {
       const tronTrade = {
         raw_data_hex: 'abcdef',
         raw_data: {
@@ -1646,29 +1695,31 @@ describe('Bridge Status Controller Transaction Utils', () => {
         mockAccount.metadata.snap.id,
       );
 
-      expect(result).toStrictEqual({ mocked: true });
-      expect(createClientRequestSpy.mock.calls).toMatchInlineSnapshot(`
-        [
-          [
-            {
-              "raw_data": {
-                "contract": [
-                  {
-                    "type": "TransferContract",
-                  },
-                ],
-              },
-              "raw_data_hex": "abcdef",
-              "visible": true,
+      expect(result).toMatchObject({
+        origin: 'metamask',
+        snapId: 'test-snap-id',
+        handler: 'onClientRequest',
+        request: {
+          id: expect.any(String),
+          jsonrpc: '2.0',
+          method: 'signAndSendTransaction',
+          params: {
+            transaction: 'q83v',
+            scope: formatChainIdToCaip(ChainId.TRON),
+            accountId: 'test-account-id',
+            options: {
+              visible: true,
+              type: 'TransferContract',
             },
-            728126428,
-            "test-account-id",
-            "test-snap-id",
-          ],
-        ]
-      `);
-
-      createClientRequestSpy.mockRestore();
+          },
+        },
+      });
+      expect(
+        (result.request.params as { options: Record<string, unknown> }).options,
+      ).not.toHaveProperty('sourceAssetId');
+      expect(
+        (result.request.params as { options: Record<string, unknown> }).options,
+      ).not.toHaveProperty('destAssetId');
     });
 
     it('should include Stellar source and destination asset IDs as options when trade is Stellar', () => {
@@ -1752,7 +1803,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       ).not.toHaveProperty('destAssetId');
     });
 
-    it('should not include asset ID options for Bitcoin trades even when asset IDs are provided', () => {
+    it('should include Bitcoin asset ID options when asset IDs are provided', () => {
       const bitcoinTrade = {
         unsignedPsbtBase64: 'AAAABg==',
       } as never;
@@ -1776,10 +1827,50 @@ describe('Bridge Status Controller Transaction Utils', () => {
         destAssetId,
       );
 
+      expect(result).toMatchObject({
+        origin: 'metamask',
+        snapId: 'test-snap-id',
+        handler: 'onClientRequest',
+        request: {
+          id: expect.any(String),
+          jsonrpc: '2.0',
+          method: 'signAndSendTransaction',
+          params: {
+            transaction: 'AAAABg==',
+            scope: formatChainIdToCaip(ChainId.BTC),
+            accountId: 'test-account-id',
+            options: {
+              sourceAssetId,
+              destAssetId,
+            },
+          },
+        },
+      });
+    });
+
+    it('should omit Bitcoin asset ID options when source and destination asset IDs are not provided', () => {
+      const bitcoinTrade = {
+        unsignedPsbtBase64: 'AAAABg==',
+      } as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const result = snaps.getClientRequest(
+        bitcoinTrade,
+        ChainId.BTC,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
+      );
+
       expect(result.request.params).not.toHaveProperty('options');
     });
 
-    it('should not include asset ID options for Solana trades even when asset IDs are provided', () => {
+    it('should include Solana asset ID options when asset IDs are provided', () => {
       const solanaTrade = 'ABCD' as never;
 
       const mockAccount = {
@@ -1799,6 +1890,44 @@ describe('Bridge Status Controller Transaction Utils', () => {
         mockAccount.metadata.snap.id,
         sourceAssetId,
         destAssetId,
+      );
+
+      expect(result).toMatchObject({
+        origin: 'metamask',
+        snapId: 'test-snap-id',
+        handler: 'onClientRequest',
+        request: {
+          id: expect.any(String),
+          jsonrpc: '2.0',
+          method: 'signAndSendTransaction',
+          params: {
+            transaction: 'ABCD',
+            scope: formatChainIdToCaip(ChainId.SOLANA),
+            accountId: 'test-account-id',
+            options: {
+              sourceAssetId,
+              destAssetId,
+            },
+          },
+        },
+      });
+    });
+
+    it('should omit Solana asset ID options when source and destination asset IDs are not provided', () => {
+      const solanaTrade = 'ABCD' as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const result = snaps.getClientRequest(
+        solanaTrade,
+        ChainId.SOLANA,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
       );
 
       expect(result.request.params).not.toHaveProperty('options');

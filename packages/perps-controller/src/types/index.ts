@@ -7,7 +7,10 @@ import type {
 } from '@metamask/utils';
 
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig.js';
+import type { PerpsMaxSlippageSource } from '../constants/eventNames.js';
 import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
+import type { PerpsErrorDetails } from '../errors.js';
+import type { PerpsErrorCode } from '../perpsErrorCodes.js';
 import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
@@ -202,6 +205,11 @@ export type TrackingData = {
   // close events when present; omitted entirely when unavailable.
   hlFeeRate?: number;
 
+  // Slippage context for trade and close transaction analytics.
+  maxSlippageBps?: number;
+  maxSlippageSource?: PerpsMaxSlippageSource;
+  estimatedSlippageBps?: number;
+
   // Pay with any token: true when user paid with a custom token (not Perps balance)
   tradeWithToken?: boolean;
   mmPayTokenSelected?: string; // Token symbol when tradeWithToken is true
@@ -341,6 +349,12 @@ export type OrderParams = {
 
   // Optional tracking data for MetaMetrics events
   trackingData?: TrackingData;
+  /**
+   * When true, the provider returns a venue failure without logging it.
+   * The caller reports that failure under its own operation. Not sent to the venue.
+   * Flip sets this so Lighter does not consume the single Sentry event as `place_order`.
+   */
+  deferProviderErrorReport?: boolean;
 
   // Multi-provider routing (optional: defaults to active/default provider).
   providerId?: PerpsProviderType;
@@ -470,6 +484,10 @@ export type OrderResult = {
    */
   orderId?: string;
   error?: string;
+  /** Stable error classification for client-side translation. */
+  errorCode?: PerpsErrorCode;
+  /** Optional structured data for the classified error. */
+  errorDetails?: PerpsErrorDetails;
   filledSize?: string; // Amount filled
   // Full normalized size submitted to the exchange (post precision rounding,
   // USD recalculation, and any $10-minimum retry). Present only when the
@@ -2993,6 +3011,13 @@ export const PerpsTraceOperations = {
 export type PerpsTraceValue = string | number | boolean;
 
 /**
+ * Terminal status of a Perps trace.
+ *
+ * Platform adapters map this value to their tracing SDK's span status.
+ */
+export type PerpsTraceStatus = 'ok' | 'error';
+
+/**
  * Properties allowed in analytics events. More constrained than unknown.
  * Named PerpsAnalyticsProperties to avoid conflict with PERPS_EVENT_PROPERTY
  * constant object from eventNames.ts (which contains property key names).
@@ -3106,6 +3131,7 @@ export type PerpsTracer = {
   endTrace(params: {
     name: PerpsTraceName;
     id: string;
+    status?: PerpsTraceStatus;
     data?: Record<string, PerpsTraceValue>;
   }): void;
 

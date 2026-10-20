@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `daFootprintGasScalar`, `operatorFeeScalar`, `operatorFeeConstant`, and `tokenRatio` fields to `TransactionReceipt` for OP Stack / Mantle Arsia receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/core-backend` from `^12.1.0` to `^12.3.0` ([#10857](https://github.com/MetaMask/core/pull/10857), [#10876](https://github.com/MetaMask/core/pull/10876))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+### Fixed
+
+- Exclude the unused gas refund from `nativeBalanceChange` when the simulation credits the sender without debiting the gas cost ([#10614](https://github.com/MetaMask/core/pull/10614))
+  - On Arc the simulated state diff credits the fee recipient and, when the gas limit exceeds the gas used, refunds the sender's unused gas, but never debits the upfront gas, so a value-0 call was reported as an incoming native balance and a native send under-reported its decrease.
+
+## [72.2.1]
+
+### Changed
+
+- Bump `@metamask/rpc-errors` from `^7.0.2` to `^7.0.3` ([#10718](https://github.com/MetaMask/core/pull/10718))
+- Bump `@metamask/core-backend` from `^12.0.1` to `^12.1.0` ([#10788](https://github.com/MetaMask/core/pull/10788))
+
+### Fixed
+
+- Count confirmed transactions when choosing the next nonce, so a mined transaction is not reused when `eth_getTransactionCount` is still behind that transaction ([#10803](https://github.com/MetaMask/core/pull/10803))
+
 ## [72.2.0]
 
 ### Added
@@ -29,7 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Include a `RedeemerEnforcer` caveat in EIP-7702 gas fee token simulations via `suggestFees.withRedeemerEnforcer` ([#10615](https://github.com/MetaMask/core/pull/10615))
-
 - Bump `ethereum-cryptography` from `^2.1.2` to `^2.2.1` ([#10485](https://github.com/MetaMask/core/pull/10485))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@ethersproject/wallet` from `^5.7.0` to `^5.8.0` ([#10484](https://github.com/MetaMask/core/pull/10484))
@@ -2824,7 +2850,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.2.1...HEAD
+[72.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.2.0...@metamask/transaction-controller@72.2.1
 [72.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.1.0...@metamask/transaction-controller@72.2.0
 [72.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.1...@metamask/transaction-controller@72.1.0
 [72.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.0...@metamask/transaction-controller@72.0.1

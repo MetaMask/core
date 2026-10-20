@@ -27,7 +27,6 @@ export type ProfileControllerGetXProfileAction = {
 
 /**
  * Creates a new MetaMask profile, updates state, and returns the created profile.
- * If the user had previously connected X, also updates xProfile in state.
  *
  * @param params - The profile creation parameters.
  * @returns The created MetaMask profile.
@@ -81,9 +80,10 @@ export type ProfileControllerCheckUsernameAvailabilityAction = {
 };
 
 /**
- * Completes the X OAuth PKCE flow, updates xProfile in state, and returns the X profile.
+ * Completes the X OAuth flow for the profile in state and returns the
+ * linked X profile. Updates controller state with the linked X profile.
  *
- * @param params - The parameters for the X OAuth PKCE flow.
+ * @param params - The parameters for the X OAuth flow.
  * @param params.code - The OAuth authorization code from the X redirect.
  * @param params.state - The state parameter returned by the X redirect.
  * @returns The linked X profile.
@@ -94,13 +94,51 @@ export type ProfileControllerConnectXAction = {
 };
 
 /**
- * Fetches the X account linked to the current profile, updates state, and returns the X profile.
+ * Fetches the X account linked to the authenticated profile, updates state,
+ * and returns the X profile. The profile is resolved server-side from the
+ * verified bearer token.
  *
  * @returns The linked X profile.
  */
 export type ProfileControllerFetchAndUpdateXAccountAction = {
   type: `ProfileController:fetchAndUpdateXAccount`;
   handler: ProfileController['fetchAndUpdateXAccount'];
+};
+
+/**
+ * Fetches a profile by its identifier and updates state.
+ *
+ * @param profileId - The profile identifier to fetch.
+ * @returns The fetched profile.
+ */
+export type ProfileControllerFetchAndUpdateProfileAction = {
+  type: `ProfileController:fetchAndUpdateProfile`;
+  handler: ProfileController['fetchAndUpdateProfile'];
+};
+
+/**
+ * Initiates the X OAuth flow by fetching the authorization URL from the backend.
+ * The profile is resolved server-side from the verified bearer token.
+ * Returns session data for the caller to use; nothing is stored in controller state.
+ *
+ * @returns The X authorization URL and state parameter.
+ */
+export type ProfileControllerGetXAuthorizationUrlAction = {
+  type: `ProfileController:getXAuthorizationUrl`;
+  handler: ProfileController['getXAuthorizationUrl'];
+};
+
+/**
+ * Disconnects the X account linked to the given profile. If the given
+ * profile matches the profile in state, clears `xProfile` from state and
+ * marks the profile in state as no longer connected to X.
+ *
+ * @param profileId - The ID of the profile to disconnect the linked X account
+ * from (sourced from {@link getProfile}).
+ */
+export type ProfileControllerDisconnectXAction = {
+  type: `ProfileController:disconnectX`;
+  handler: ProfileController['disconnectX'];
 };
 
 /**
@@ -115,4 +153,7 @@ export type ProfileControllerMethodActions =
   | ProfileControllerDeleteProfileAction
   | ProfileControllerCheckUsernameAvailabilityAction
   | ProfileControllerConnectXAction
-  | ProfileControllerFetchAndUpdateXAccountAction;
+  | ProfileControllerFetchAndUpdateXAccountAction
+  | ProfileControllerFetchAndUpdateProfileAction
+  | ProfileControllerGetXAuthorizationUrlAction
+  | ProfileControllerDisconnectXAction;

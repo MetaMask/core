@@ -1,8 +1,4 @@
-import {
-  createParallelBalanceMiddleware,
-  createParallelMiddleware,
-} from '../middlewares/ParallelMiddleware.js';
-import type { BalanceSource } from '../middlewares/ParallelMiddleware.js';
+import { createParallelMiddleware } from '../middlewares/ParallelMiddleware.js';
 import type { AssetsDataSource } from '../types.js';
 
 /**
@@ -13,8 +9,7 @@ import type { AssetsDataSource } from '../types.js';
  * actually run, not which are supplied.
  */
 export type FastFetchSources = {
-  accountsApiDataSource: BalanceSource;
-  stakedBalanceDataSource: BalanceSource;
+  accountsApiDataSource: AssetsDataSource;
   customAssetGraduationMiddleware: AssetsDataSource;
   rpcFallbackMiddleware: AssetsDataSource;
   detectionMiddleware: AssetsDataSource;
@@ -23,7 +18,7 @@ export type FastFetchSources = {
 };
 
 /**
- * Compose the fast fetch lane: balances in parallel → custom-asset graduation →
+ * Compose the fast fetch lane: Accounts API balances → custom-asset graduation →
  * RPC fallback → detection → token metadata and prices in parallel.
  *
  * Snap and RPC balance sources are deliberately absent — the controller runs
@@ -38,8 +33,10 @@ export type FastFetchSources = {
  *
  * @param sources - The sources to place into the lane.
  * @param options - Lane options.
- * @param options.isBasicFunctionality - When false, only the staking balance and
- * detection run; no network-backed source is used.
+ * @param options.isBasicFunctionality - When false, the lane is empty. No
+ * balance source runs here, so detection would have nothing to scan and no
+ * token or price source to feed. The RPC background lane fetches balances and
+ * runs detection after them.
  * @param options.includeCustomAssetGraduation - `true` on the Accounts API v5
  * lane. The v6 lane never graduates custom assets: it sends the pins to the
  * endpoint as `includeAssetIds`, and a chain that comes back without all of
@@ -55,7 +52,6 @@ export function buildFastFetchSources(
 ): AssetsDataSource[] {
   const {
     accountsApiDataSource,
-    stakedBalanceDataSource,
     customAssetGraduationMiddleware,
     rpcFallbackMiddleware,
     detectionMiddleware,
@@ -64,14 +60,11 @@ export function buildFastFetchSources(
   } = sources;
 
   if (!options.isBasicFunctionality) {
-    return [stakedBalanceDataSource, detectionMiddleware];
+    return [];
   }
 
   return [
-    createParallelBalanceMiddleware([
-      accountsApiDataSource,
-      stakedBalanceDataSource,
-    ]),
+    accountsApiDataSource,
     ...(options.includeCustomAssetGraduation
       ? [customAssetGraduationMiddleware]
       : []),

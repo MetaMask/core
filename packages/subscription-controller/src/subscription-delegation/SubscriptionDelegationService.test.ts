@@ -17,6 +17,8 @@ import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   SubscriptionControllerErrorMessage,
@@ -212,24 +214,25 @@ type StartSubscriptionWithCryptoResult = ReturnType<
 >;
 
 type Mocks = {
-  listDelegations: jest.Mock;
-  createDelegation: jest.Mock<Promise<void>, CreateDelegationArgs>;
-  signDelegation: jest.Mock<Promise<Hex>, [SignDelegationParams]>;
-  verifyDelegation: jest.Mock<
-    Promise<VerifyDelegationResponse>,
-    [VerifyDelegationParams]
+  listDelegations: Mock;
+  createDelegation: Mock<(...args: CreateDelegationArgs) => Promise<void>>;
+  signDelegation: Mock<(arg: SignDelegationParams) => Promise<Hex>>;
+  verifyDelegation: Mock<
+    (arg: VerifyDelegationParams) => Promise<VerifyDelegationResponse>
   >;
-  getIntentsByAddress: jest.Mock;
-  createIntents: jest.Mock<CreateIntentsResult, CreateIntentsArgs>;
-  getRemoteFeatureFlagState: jest.Mock;
-  fetchBalanceWithFallback: jest.Mock;
-  getPricing: jest.Mock;
-  getSubscriptions: jest.Mock;
-  getSubscriptionState: jest.Mock;
-  forceUpgradeAccount: jest.Mock;
-  startSubscriptionWithCrypto: jest.Mock<
-    StartSubscriptionWithCryptoResult,
-    StartSubscriptionWithCryptoArgs
+  getIntentsByAddress: Mock;
+  createIntents: Mock<(...args: CreateIntentsArgs) => CreateIntentsResult>;
+  getRemoteFeatureFlagState: Mock;
+  fetchBalanceWithFallback: Mock;
+  getPricing: Mock;
+  getSubscriptions: Mock;
+  getSubscriptionState: Mock;
+  isUserEligibleForTrial: Mock<(arg: ProductType) => Promise<boolean>>;
+  forceUpgradeAccount: Mock;
+  startSubscriptionWithCrypto: Mock<
+    (
+      ...args: StartSubscriptionWithCryptoArgs
+    ) => StartSubscriptionWithCryptoResult
   >;
 };
 
@@ -247,15 +250,15 @@ function setup(
   } = {},
 ) {
   const mocks: Mocks = {
-    listDelegations: jest.fn().mockResolvedValue(options.listDelegations ?? []),
-    createDelegation: jest
-      .fn<Promise<void>, CreateDelegationArgs>()
+    listDelegations: vi.fn().mockResolvedValue(options.listDelegations ?? []),
+    createDelegation: vi
+      .fn<(...args: CreateDelegationArgs) => Promise<void>>()
       .mockResolvedValue(undefined),
-    signDelegation: jest
-      .fn<Promise<Hex>, [SignDelegationParams]>()
+    signDelegation: vi
+      .fn<(arg: SignDelegationParams) => Promise<Hex>>()
       .mockResolvedValue(SIGNATURE),
-    verifyDelegation: jest
-      .fn<Promise<VerifyDelegationResponse>, [VerifyDelegationParams]>()
+    verifyDelegation: vi
+      .fn<(arg: VerifyDelegationParams) => Promise<VerifyDelegationResponse>>()
       .mockImplementation(async ({ signedDelegation }) => {
         if (options.verify) {
           return options.verify;
@@ -266,28 +269,40 @@ function setup(
         });
         return { valid: true, delegationHash };
       }),
-    createIntents: jest
-      .fn<CreateIntentsResult, CreateIntentsArgs>()
+    createIntents: vi
+      .fn<(...args: CreateIntentsArgs) => CreateIntentsResult>()
       .mockResolvedValue([]),
-    getRemoteFeatureFlagState: jest.fn().mockReturnValue({
+    getRemoteFeatureFlagState: vi.fn().mockReturnValue({
       remoteFeatureFlags: options.remoteFeatureFlags ?? REMOTE_FEATURE_FLAGS,
       cacheTimestamp: 0,
     }),
-    fetchBalanceWithFallback: jest
+    fetchBalanceWithFallback: vi
       .fn()
       .mockResolvedValue(options.balance ?? SUFFICIENT_BALANCE),
-    getPricing: jest.fn().mockResolvedValue(options.pricing ?? PRICING),
-    getSubscriptions: jest.fn().mockResolvedValue(options.subscriptions ?? []),
-    getSubscriptionState: jest.fn().mockReturnValue({
+    getPricing: vi.fn().mockResolvedValue(options.pricing ?? PRICING),
+    getSubscriptions: vi.fn().mockResolvedValue(options.subscriptions ?? []),
+    getSubscriptionState: vi.fn().mockReturnValue({
       trialedProducts: options.trialedProducts ?? [
         PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
       ],
     }),
-    forceUpgradeAccount: jest.fn().mockResolvedValue(undefined),
-    startSubscriptionWithCrypto: jest
-      .fn<StartSubscriptionWithCryptoResult, StartSubscriptionWithCryptoArgs>()
+    isUserEligibleForTrial: vi
+      .fn<(arg: ProductType) => Promise<boolean>>()
+      .mockImplementation(async (product) => {
+        const trialedProducts = options.trialedProducts ?? [
+          PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        ];
+        return !trialedProducts.includes(product);
+      }),
+    forceUpgradeAccount: vi.fn().mockResolvedValue(undefined),
+    startSubscriptionWithCrypto: vi
+      .fn<
+        (
+          ...args: StartSubscriptionWithCryptoArgs
+        ) => StartSubscriptionWithCryptoResult
+      >()
       .mockResolvedValue(STARTED_SUBSCRIPTION),
-    getIntentsByAddress: jest.fn(),
+    getIntentsByAddress: vi.fn(),
   };
   mocks.getIntentsByAddress.mockImplementation(async () => {
     if (options.intents !== undefined) {
@@ -341,6 +356,10 @@ function setup(
     | {
         type: 'SubscriptionController:getState';
         handler: Mocks['getSubscriptionState'];
+      }
+    | {
+        type: 'SubscriptionController:isUserEligibleForTrial';
+        handler: Mocks['isUserEligibleForTrial'];
       }
     | {
         type: 'MoneyAccountUpgradeController:forceUpgradeAccount';
@@ -414,6 +433,10 @@ function setup(
     mocks.getSubscriptionState,
   );
   rootMessenger.registerActionHandler(
+    'SubscriptionController:isUserEligibleForTrial',
+    mocks.isUserEligibleForTrial,
+  );
+  rootMessenger.registerActionHandler(
     'MoneyAccountUpgradeController:forceUpgradeAccount',
     mocks.forceUpgradeAccount,
   );
@@ -441,6 +464,7 @@ function setup(
       'SubscriptionController:getPricing',
       'SubscriptionController:getSubscriptions',
       'SubscriptionController:getState',
+      'SubscriptionController:isUserEligibleForTrial',
       'MoneyAccountUpgradeController:forceUpgradeAccount',
       'SubscriptionController:startSubscriptionWithCrypto',
     ],
@@ -459,7 +483,7 @@ function buildStoredDelegation({
   periodAmount = PERIOD_AMOUNT,
   periodDuration = PERIOD_DURATION,
   delegationHash,
-  startDate = 1_700_000_000,
+  startDate = Math.floor(Date.now() / 1000),
 }: {
   periodAmount?: bigint;
   periodDuration?: number;
@@ -603,8 +627,8 @@ describe('SubscriptionDelegationService', () => {
     });
 
     it('offsets the period startDate by pricing trialPeriodDays when trial is requested', async () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
 
       try {
         const { service, mocks } = setup();
@@ -618,13 +642,13 @@ describe('SubscriptionDelegationService', () => {
           Math.floor(Date.now() / 1000) + PRICE.trialPeriodDays * 86_400,
         );
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
     it('does not apply pricing trialPeriodDays when trial is not requested', async () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
 
       try {
         const { service, mocks } = setup();
@@ -635,7 +659,7 @@ describe('SubscriptionDelegationService', () => {
           Math.floor(Date.now() / 1000),
         );
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -718,13 +742,14 @@ describe('SubscriptionDelegationService', () => {
     });
 
     it('reuses the matching stored delegation with the latest period startDate', async () => {
+      const nowSeconds = Math.floor(Date.now() / 1000);
       const older = buildStoredDelegation({
         delegationHash: `0x${'11'.repeat(32)}`,
-        startDate: 1_700_000_000,
+        startDate: nowSeconds - 2 * 86_400,
       });
       const newer = buildStoredDelegation({
         delegationHash: `0x${'22'.repeat(32)}`,
-        startDate: 1_700_086_400,
+        startDate: nowSeconds - 86_400,
       });
       const { service, mocks } = setup({
         listDelegations: [older, newer],
@@ -747,6 +772,31 @@ describe('SubscriptionDelegationService', () => {
       });
       expect(mocks.signDelegation).not.toHaveBeenCalled();
       expect(mocks.createDelegation).not.toHaveBeenCalled();
+    });
+
+    it('signs a new delegation when the stored live startDate is older than 14 days', async () => {
+      const stored = buildStoredDelegation({
+        startDate: Math.floor(Date.now() / 1000) - 15 * 86_400,
+      });
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+        intents: [
+          {
+            account: PAYER,
+            delegationHash: stored.metadata.delegationHash,
+            chainId: CHAIN_ID,
+            status: 'active',
+            metadata: stored.metadata,
+          },
+        ],
+      });
+
+      const result = await service.prepareDelegation(REQUEST);
+
+      expect(result.disposition).toBe('created');
+      expect(result.delegationHash).not.toBe(stored.metadata.delegationHash);
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
     });
 
     it('creates and registers a replacement when forceNew is requested', async () => {
@@ -1170,7 +1220,7 @@ describe('SubscriptionDelegationService', () => {
   describe('startSubscriptionWithDelegation', () => {
     it('ensures readiness, commits payment permission, and starts the subscription without requesting approval', async () => {
       const { service, mocks, messenger } = setup();
-      const callSpy = jest.spyOn(messenger, 'call');
+      const callSpy = vi.spyOn(messenger, 'call');
 
       const result =
         await service.startSubscriptionWithDelegation(START_REQUEST);
@@ -1238,11 +1288,12 @@ describe('SubscriptionDelegationService', () => {
     });
 
     it('reuses the matching payment permission with the latest period startDate', async () => {
+      const nowSeconds = Math.floor(Date.now() / 1000);
       const older = buildStoredDelegation({
-        startDate: 1_700_000_000,
+        startDate: nowSeconds - 2 * 86_400,
       });
       const newer = buildStoredDelegation({
-        startDate: 1_700_086_400,
+        startDate: nowSeconds - 86_400,
       });
       const { service, mocks } = setup({
         listDelegations: [older, newer],
@@ -1266,6 +1317,25 @@ describe('SubscriptionDelegationService', () => {
         expect.objectContaining({
           delegationHash: newer.metadata.delegationHash,
         }),
+      );
+    });
+
+    it('signs a new payment permission when the stored live startDate is older than 14 days', async () => {
+      const stored = buildStoredDelegation({
+        startDate: Math.floor(Date.now() / 1000) - 15 * 86_400,
+      });
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+      });
+
+      await service.startSubscriptionWithDelegation(START_REQUEST);
+
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.createDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledTimes(1);
+      const [cryptoRequest] = mocks.startSubscriptionWithCrypto.mock.calls[0];
+      expect(cryptoRequest.delegationHash).not.toBe(
+        stored.metadata.delegationHash,
       );
     });
 
@@ -1448,8 +1518,79 @@ describe('SubscriptionDelegationService', () => {
       expect(mocks.startSubscriptionWithCrypto).not.toHaveBeenCalled();
     });
 
+    it('starts a paid subscription when Money Account Plus is not eligible for a trial', async () => {
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      const { service, mocks } = setup({ trialedProducts: [] });
+      mocks.isUserEligibleForTrial.mockResolvedValue(false);
+
+      const result =
+        await service.startSubscriptionWithDelegation(START_REQUEST);
+      nowSpy.mockRestore();
+
+      expect(result).toStrictEqual(STARTED_SUBSCRIPTION);
+
+      expect(mocks.isUserEligibleForTrial).toHaveBeenCalledWith(
+        PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+      );
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isTrialRequested: false,
+          assertTrialEligibility: true,
+        }),
+      );
+      expect(getSignedPeriodStartDate(mocks)).toBe(1_700_000_000);
+    });
+
+    it('requests a trial and defers the delegation start when the user is eligible', async () => {
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      const { service, mocks } = setup({ trialedProducts: [] });
+      mocks.isUserEligibleForTrial.mockResolvedValue(true);
+
+      await service.startSubscriptionWithDelegation(START_REQUEST);
+      nowSpy.mockRestore();
+
+      expect(mocks.isUserEligibleForTrial).toHaveBeenCalledWith(
+        PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+      );
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isTrialRequested: true,
+        }),
+      );
+      expect(getSignedPeriodStartDate(mocks)).toBe(
+        1_700_000_000 + PRICE.trialPeriodDays * 86_400,
+      );
+    });
+
+    it('does not request a trial when the price has no trial period even if the user is eligible', async () => {
+      const { service, mocks } = setup({
+        trialedProducts: [],
+        pricing: {
+          ...PRICING,
+          products: [
+            {
+              name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+              prices: [{ ...PRICE, trialPeriodDays: 0 }],
+            },
+          ],
+        },
+      });
+      mocks.isUserEligibleForTrial.mockResolvedValue(true);
+
+      await service.startSubscriptionWithDelegation(START_REQUEST);
+
+      expect(mocks.isUserEligibleForTrial).toHaveBeenCalledWith(
+        PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+      );
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isTrialRequested: false,
+        }),
+      );
+    });
+
     it('defers the payment permission when a trial is requested', async () => {
-      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
       const { service, mocks } = setup({ trialedProducts: [] });
 
       await service.startSubscriptionWithDelegation(START_REQUEST);

@@ -86,6 +86,7 @@ export type ProfileServiceCheckUsernameAvailabilityAction = {
 
 /**
  * Fetches the X OAuth PKCE authorization URL and its associated state parameter.
+ * The profile is resolved server-side from the verified bearer token.
  *
  * @returns An object containing the authorization URL and the state token.
  * @throws {HttpError} If the API returns a non-2xx response.
@@ -98,6 +99,7 @@ export type ProfileServiceGetXAuthUrlAction = {
 
 /**
  * Completes the X OAuth PKCE flow and links the X account to the profile.
+ * The profile is resolved server-side from the verified bearer token.
  *
  * @param params - The OAuth callback code and state from the X redirect.
  * @returns The linked X account data.
@@ -111,6 +113,7 @@ export type ProfileServiceConnectXAction = {
 
 /**
  * Fetches the X account currently linked to the authenticated profile.
+ * The profile is resolved server-side from the verified bearer token.
  *
  * @returns The linked X account data.
  * @throws {HttpError} If the API returns a non-2xx response.
@@ -119,6 +122,20 @@ export type ProfileServiceConnectXAction = {
 export type ProfileServiceGetXAccountAction = {
   type: `ProfileService:getXAccount`;
   handler: ProfileService['getXAccount'];
+};
+
+/**
+ * Disconnects the X account linked to the given profile.
+ * A `404` response is treated as success (the X account is already
+ * disconnected, or the profile is unknown), making the operation idempotent.
+ *
+ * @param profileId - The ID of the profile to disconnect the linked X account from.
+ * @returns The result of the mutation.
+ * @throws {HttpError} If the API returns a non-2xx response other than `404`.
+ */
+export type ProfileServiceDisconnectXAction = {
+  type: `ProfileService:disconnectX`;
+  handler: ProfileService['disconnectX'];
 };
 
 /**
@@ -133,4 +150,5 @@ export type ProfileServiceMethodActions =
   | ProfileServiceCheckUsernameAvailabilityAction
   | ProfileServiceGetXAuthUrlAction
   | ProfileServiceConnectXAction
-  | ProfileServiceGetXAccountAction;
+  | ProfileServiceGetXAccountAction
+  | ProfileServiceDisconnectXAction;

@@ -60,7 +60,7 @@ yarn workspace @metamask/wallet-cli run test:e2e
 - **Net-connect allowlist.** The shared test setup
   (`tests/setupAfterEnv/nock.ts`) disables all real network connections before
   every test as a safety net. This suite re-enables **only** `127.0.0.1:<the
-anvil port>` in its `beforeEach` and restores the block in `afterEach`, so
+  anvil port>` in its `beforeEach` and restores the block in `afterEach`, so
   the safety net stays in place everywhere else. HTTP calls to anvil go through
   `node:http` because the shared `tests/setup.ts` deletes `globalThis.fetch`
   (so nock/undici can intercept), leaving no global `fetch` to use.

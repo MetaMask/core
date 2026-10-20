@@ -13,6 +13,11 @@ import type {
   LighterWasmCall,
 } from '../../../src/types/lighter-types.js';
 import {
+  PERPS_ERROR_ACTION,
+  PERPS_ERROR_COMPONENT,
+  PERPS_ERROR_OPERATION,
+} from '../../../src/utils/errorContext.js';
+import {
   MAIN_SIGNATURE,
   OTHER_MAIN_ADDRESS,
 } from '../../helpers/agentFixtures.js';
@@ -371,10 +376,16 @@ describe('LighterProvider with accountSigner', () => {
             feature: PERPS_CONSTANTS.FeatureName,
             provider: 'LighterProvider',
             network: 'testnet',
+            operation: PERPS_ERROR_OPERATION.ConnectionManagement,
+            action: PERPS_ERROR_ACTION.ConnectionConnection,
+            component: PERPS_ERROR_COMPONENT.ConnectionManager,
           },
           context: {
             name: 'LighterProvider.prepareTradingWallet',
-            data: { isTestnet: true },
+            data: {
+              method: 'prepareTradingWallet',
+              isTestnet: true,
+            },
           },
         },
       ],

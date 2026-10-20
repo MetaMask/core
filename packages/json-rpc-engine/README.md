@@ -94,11 +94,11 @@ the `context` will be copied over._
 #### Converting a V2 engine
 
 ```ts
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import {
   asLegacyMiddleware,
   JsonRpcEngineV2,
 } from '@metamask/json-rpc-engine/v2';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
 const legacyEngine = new JsonRpcEngine();
 
@@ -114,11 +114,11 @@ legacyEngine.push(asLegacyMiddleware(v2Engine));
 #### Converting V2 middleware
 
 ```ts
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import {
   asLegacyMiddleware,
   type JsonRpcMiddleware,
 } from '@metamask/json-rpc-engine/v2';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
 // Convert a single V2 middleware
 const middleware1: JsonRpcMiddleware<JsonRpcRequest> = ({ request }) => {
@@ -711,15 +711,11 @@ middleware pipelines:
 
 ```ts
 const requestEngine = JsonRpcEngineV2.create({
-  middleware: [
-    /* Request-only middleware */
-  ],
+  middleware: [/* Request-only middleware */],
 });
 
 const notificationEngine = JsonRpcEngineV2.create({
-  middleware: [
-    /* Notification-only middleware */
-  ],
+  middleware: [/* Notification-only middleware */],
 });
 
 const orchestratorEngine = JsonRpcEngineV2.create({

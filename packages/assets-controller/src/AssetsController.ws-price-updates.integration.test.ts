@@ -2,6 +2,11 @@ import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 import { cleanAll } from 'nock';
 
+import {
+  STATE_METADATA_SURFACE,
+  STATE_PRICES_SURFACE,
+  stateBalancesSurface,
+} from './__fixtures__/assetSurfaces.js';
 import { createMockMessengers } from './__fixtures__/MockAssetControllerMessenger.js';
 import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from './__fixtures__/mockTokenApi.js';
@@ -31,7 +36,6 @@ import {
   buildEmptyAssetsState,
   buildEthHeldUnpricedState,
   buildUsdcHeldAndPricedState,
-  getIgnoringCase,
   SEEDED_USDC_PRICE,
 } from './__fixtures__/ws-price-updates/wsWallet.js';
 import { AssetsController } from './AssetsController.js';
@@ -48,26 +52,9 @@ import type { AssetsControllerState } from './AssetsController.js';
  * the same pass as the balance update.
  */
 
-type StateSurface = {
-  surface: string;
-  lookUp: (state: AssetsControllerState, assetId: string) => unknown;
-};
-
-const BALANCES: StateSurface = {
-  surface: 'balances',
-  lookUp: (state, assetId) =>
-    getIgnoringCase(state.assetsBalance[WS_ACCOUNT_ID] ?? {}, assetId),
-};
-
-const METADATA: StateSurface = {
-  surface: 'metadata',
-  lookUp: (state, assetId) => getIgnoringCase(state.assetsInfo, assetId),
-};
-
-const PRICES: StateSurface = {
-  surface: 'prices',
-  lookUp: (state, assetId) => getIgnoringCase(state.assetsPrice, assetId),
-};
+const BALANCES = stateBalancesSurface(WS_ACCOUNT_ID);
+const METADATA = STATE_METADATA_SURFACE;
+const PRICES = STATE_PRICES_SURFACE;
 
 /** The update lanes the remote feature flags switch the controller between. */
 const UPDATE_LANES: { name: string; remoteFeatureFlags?: FeatureFlags }[] = [
@@ -170,10 +157,7 @@ async function runWsEvent({
 
       await waitFor(() => {
         for (const update of event.updates) {
-          const landed = getIgnoringCase(
-            controller.state.assetsBalance[WS_ACCOUNT_ID] ?? {},
-            update.asset.type,
-          );
+          const landed = BALANCES.lookUp(controller.state, update.asset.type);
           if (landed === undefined) {
             throw new Error('Websocket balances have not landed yet');
           }

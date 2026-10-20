@@ -50,7 +50,8 @@ export type KycServiceCreateMoonpaySessionAction = {
  *
  * @param params - The parameters.
  * @param params.vendor - Identity vendor (e.g. `iron` for Money/VBA).
- * @param params.email - Email associated with the customer.
+ * @param params.partnerIdentityToken - Partner identity token minted by
+ * `AuthenticationController:getPartnerIdentityToken`.
  * @returns The vendor customer record (subset validated for controller use).
  */
 export type KycServiceCreateVendorCustomerAction = {
@@ -167,11 +168,34 @@ export type KycServiceFetchIdosRelayJwksAction = {
  * @param params - The session parameters.
  * @param params.aal2Token - AAL2 authentication token used as the
  * Authorization bearer value.
+ * @param params.partnerIdentityToken - Optional partner identity token for
+ * the session's vendor audience, sent as `partnerIdentityToken`.
  * @returns The UKYC session id and encryption schemas.
  */
 export type KycServiceCreateUkycSessionAction = {
   type: `KycService:createUkycSession`;
   handler: KycService['createUkycSession'];
+};
+
+/**
+ * Reissues wrapping keys for an existing UKYC session
+ * (`POST /sessions/{sessionId}/wrapping-keys`).
+ *
+ * The client registers a new per-session X25519 public key so the server can
+ * open boxes sealed with the matching private key. The response matches
+ * {@link KycService.createUkycSession}: a session id plus per-secret
+ * encryption schemas (`encryptionDataKey` and `ukycCapabilityToken`) used to
+ * wrap and submit authorizations.
+ *
+ * @param params - The session whose wrapping keys should be reset.
+ * @param params.sessionId - UKYC session id.
+ * @param params.sessionClientPublicKey - Per-session X25519 public key
+ * (unpadded base64url) registered on the session.
+ * @returns The session id and fresh encryption schemas.
+ */
+export type KycServiceResetWrappingKeysAction = {
+  type: `KycService:resetWrappingKeys`;
+  handler: KycService['resetWrappingKeys'];
 };
 
 /**
@@ -240,6 +264,7 @@ export type KycServiceMethodActions =
   | KycServiceFetchIdosEnclaveJwksAction
   | KycServiceFetchIdosRelayJwksAction
   | KycServiceCreateUkycSessionAction
+  | KycServiceResetWrappingKeysAction
   | KycServiceSetAuthorizationsAction
   | KycServiceCreateJourneyAction
   | KycServiceGetSessionStatusAction

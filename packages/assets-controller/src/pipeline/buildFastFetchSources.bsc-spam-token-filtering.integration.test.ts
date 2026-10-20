@@ -1,11 +1,16 @@
 import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
 
+import {
+  RESPONSE_DETECTED_ASSETS_SURFACE,
+  RESPONSE_METADATA_SURFACE,
+  RESPONSE_PRICES_SURFACE,
+  responseBalancesSurface,
+} from '../__fixtures__/assetSurfaces.js';
 import { mockBscSpamApis } from '../__fixtures__/bsc-spam-token/api-responses/index.js';
 import {
   buildBscSpamAccount,
   buildEmptyAssetsState,
-  getIgnoringCase,
 } from '../__fixtures__/bsc-spam-token/bscSpamWallet.js';
 import { registerBscSpamNetwork } from '../__fixtures__/bsc-spam-token/messenger.js';
 import {
@@ -20,7 +25,6 @@ import { createTestApiClient } from '../__fixtures__/mockTokenApi.js';
 import { AccountsApiDataSource } from '../data-sources/AccountsApiDataSource.js';
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { RpcDataSource } from '../data-sources/RpcDataSource.js';
-import { StakedBalanceDataSource } from '../data-sources/StakedBalanceDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
 import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
 import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
@@ -47,39 +51,10 @@ import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
  * Integration Expectation - CDOGE is correctly filtered out.
  */
 
-type ResponseSurface = {
-  surface: string;
-  lookUp: (response: DataResponse, assetId: string) => unknown;
-};
-
-const BALANCES: ResponseSurface = {
-  surface: 'balances',
-  lookUp: (response, assetId) =>
-    getIgnoringCase(
-      response.assetsBalance?.[BSC_SPAM_ACCOUNT_ID] ?? {},
-      assetId,
-    ),
-};
-
-const METADATA: ResponseSurface = {
-  surface: 'metadata',
-  lookUp: (response, assetId) =>
-    getIgnoringCase(response.assetsInfo ?? {}, assetId),
-};
-
-const PRICES: ResponseSurface = {
-  surface: 'prices',
-  lookUp: (response, assetId) =>
-    getIgnoringCase(response.assetsPrice ?? {}, assetId),
-};
-
-const DETECTED_ASSETS: ResponseSurface = {
-  surface: 'detected assets',
-  lookUp: (response, assetId) =>
-    Object.values(response.detectedAssets ?? {})
-      .flat()
-      .find((detectedId) => detectedId.toLowerCase() === assetId.toLowerCase()),
-};
+const BALANCES = responseBalancesSurface(BSC_SPAM_ACCOUNT_ID);
+const METADATA = RESPONSE_METADATA_SURFACE;
+const PRICES = RESPONSE_PRICES_SURFACE;
+const DETECTED_ASSETS = RESPONSE_DETECTED_ASSETS_SURFACE;
 
 async function runPipeline(
   state: AssetsControllerState,
@@ -126,11 +101,6 @@ async function runPipeline(
         chainIds,
         getNativeAssetForChain: () => BNB_ASSET_ID,
       }),
-  });
-
-  const stakedBalanceDataSource = new StakedBalanceDataSource({
-    messenger: assetsControllerMessenger,
-    onActiveChainsUpdated: jest.fn(),
   });
 
   const rpcDataSource = new RpcDataSource({
@@ -184,7 +154,6 @@ async function runPipeline(
   const sources = buildFastFetchSources(
     {
       accountsApiDataSource,
-      stakedBalanceDataSource,
       customAssetGraduationMiddleware: new CustomAssetGraduationMiddleware({
         getSelectedAccountId: (): AccountId => BSC_SPAM_ACCOUNT_ID,
         removeCustomAsset: (): void => {
@@ -213,7 +182,6 @@ async function runPipeline(
   });
 
   accountsApiDataSource.destroy();
-  stakedBalanceDataSource.destroy();
   rpcDataSource.destroy();
   queryApiClient.clear();
 

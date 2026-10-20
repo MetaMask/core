@@ -237,7 +237,9 @@ export class AccountTreeController extends BaseController<
 
     // Initialize backup and sync config
     this.#backupAndSyncConfig = {
-      emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => {
+      emitAnalyticsEventFn: (
+        event: BackupAndSyncEmitAnalyticsEventParams,
+      ): void => {
         return config?.backupAndSync?.onBackupAndSyncEvent?.(
           formatAnalyticsEvent(event),
         );
@@ -348,7 +350,7 @@ export class AccountTreeController extends BaseController<
    * names, metadata, etc..) and will automatically update the controller's
    * state with it.
    */
-  init() {
+  init(): void {
     if (this.#initialized) {
       // We prevent re-initilializing the state multiple times. Though, we can use
       // `reinit` to re-init everything from scratch.
@@ -456,7 +458,7 @@ export class AccountTreeController extends BaseController<
    * This is done in one single (atomic) `update` block to avoid having a temporary
    * cleared state. Use this when you need to force a full re-init even if already initialized.
    */
-  reinit() {
+  reinit(): void {
     log('Re-initializing...');
     this.#initialized = false;
     this.init();
@@ -523,7 +525,7 @@ export class AccountTreeController extends BaseController<
   #applyAccountWalletMetadata(
     state: AccountTreeControllerState,
     walletId: AccountWalletId,
-  ) {
+  ): void {
     const wallet = state.accountTree.wallets[walletId];
     const persistedMetadata = state.accountWalletsMetadata[walletId];
 
@@ -730,7 +732,7 @@ export class AccountTreeController extends BaseController<
       allowComputedName?: boolean;
       nextNaturalNameIndex?: number;
     } = {},
-  ) {
+  ): void {
     const wallet = state.accountTree.wallets[walletId];
     const group = wallet.groups[groupId];
     const persistedGroupMetadata = state.accountGroupsMetadata[groupId];
@@ -1002,7 +1004,7 @@ export class AccountTreeController extends BaseController<
    */
   getAccountsFromSelectedAccountGroup(
     selector?: AccountSelector<InternalAccount>,
-  ) {
+  ): InternalAccount[] {
     const groupId = this.getSelectedAccountGroup();
     if (!groupId) {
       return [];
@@ -1271,7 +1273,7 @@ export class AccountTreeController extends BaseController<
     state: AccountTreeControllerState,
     walletId: AccountWalletId,
     groupId: AccountGroupId,
-  ) {
+  ): AccountTreeControllerState {
     const { wallets } = state.accountTree;
 
     delete wallets[walletId].groups[groupId];

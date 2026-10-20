@@ -26,7 +26,7 @@ import {
   TransactionStatus,
 } from '@metamask/transaction-controller';
 import type { Patch } from 'immer';
-import { toASCII } from 'punycode/punycode.js';
+import punycode from 'punycode/punycode.js';
 
 import { findSimilarAddresses } from './address-poisoning.js';
 import { CacheManager } from './CacheManager.js';
@@ -1078,7 +1078,7 @@ export class PhishingController extends BaseController<
    * @returns Whether the origin is an unapproved origin.
    */
   testOrigin(origin: string): PhishingDetectorResult {
-    const punycodeOrigin = toASCII(origin);
+    const punycodeOrigin = punycode.toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
     const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
 
@@ -1116,7 +1116,7 @@ export class PhishingController extends BaseController<
    * @returns An object indicating whether the URL's domain is blocked and relevant metadata.
    */
   isBlockedRequest(origin: string): PhishingDetectorResult {
-    const punycodeOrigin = toASCII(origin);
+    const punycodeOrigin = punycode.toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
     if (this.state.whitelist.includes(hostname || punycodeOrigin)) {
       return { result: false, type: PhishingDetectorResultType.All }; // Same as whitelisted match returned by detector.check(...).
@@ -1130,7 +1130,7 @@ export class PhishingController extends BaseController<
    * @param origin - The origin to mark as approved.
    */
   bypass(origin: string) {
-    const punycodeOrigin = toASCII(origin);
+    const punycodeOrigin = punycode.toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
     const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
     const { whitelist, whitelistPaths } = this.state;

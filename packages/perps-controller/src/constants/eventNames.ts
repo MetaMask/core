@@ -183,6 +183,7 @@ export const PERPS_EVENT_PROPERTY = {
   MAX_SLIPPAGE_PCT: 'max_slippage_pct',
   MAX_SLIPPAGE_SOURCE: 'max_slippage_source',
   ESTIMATED_SLIPPAGE_PCT: 'estimated_slippage_pct',
+  PRICE_DELTA_BPS: 'price_delta_bps',
 
   // Account setup / abstraction mode (PERPS_ACCOUNT_SETUP)
   ABSTRACTION_MODE: 'abstraction_mode',
@@ -433,10 +434,12 @@ export const PERPS_EVENT_VALUE = {
     WHATS_HAPPENING: 'whats_happening',
     PRODUCTS: 'products',
     TOP_MOVERS: 'top_movers',
+    EXPLORE: 'explore',
     EXPLORE_CRYPTO: 'explore_crypto',
     EXPLORE_COMMODITIES: 'explore_commodities',
     EXPLORE_STOCKS: 'explore_stocks',
     EXPLORE_FOREX: 'explore_forex',
+    RECENTLY_ADDED: 'recently_added',
     RECENT_ACTIVITY: 'recent_activity',
   },
   INTERACTION_TYPE: {
@@ -692,3 +695,6 @@ export const PERPS_EVENT_VALUE = {
     ASSET_DETAILS: 'asset_details',
   },
 } as const;
+
+export type PerpsMaxSlippageSource =
+  (typeof PERPS_EVENT_VALUE.MAX_SLIPPAGE_SOURCE)[keyof typeof PERPS_EVENT_VALUE.MAX_SLIPPAGE_SOURCE];

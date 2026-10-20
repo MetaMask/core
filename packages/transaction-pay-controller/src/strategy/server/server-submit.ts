@@ -5,6 +5,7 @@ import {
 } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type {
+  BatchTransactionParams,
   TransactionMeta,
   TransactionParams,
   TransactionType,
@@ -30,7 +31,12 @@ import {
   logGasPaymentOutcome,
   resolveGasPayment,
 } from '../../utils/gas-payment.js';
+import {
+  submitPolymarketWithdraw,
+  sweepPolymarketDepositWallet,
+} from '../../utils/polymarket/withdraw.js';
 import { getNetworkClientId } from '../../utils/provider.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -43,6 +49,7 @@ import {
   waitForTransactionConfirmed,
 } from '../../utils/transaction.js';
 import { RELAY_DEPOSIT_TYPES } from '../relay/constants.js';
+import { getServerDepositData } from './deposit-step.js';
 import { getServerStatus, submitServerIntent } from './server-api.js';
 import type {
   ServerQuote,
@@ -54,6 +61,13 @@ import type {
 import { ServerStatus } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'server-strategy');
+
+/**
+ * Placeholder returned when an intent confirms without reporting a
+ * target-chain transaction hash, so there is no settlement to read amounts
+ * from.
+ */
+const MISSING_TARGET_HASH = '0x' as Hex;
 
 const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
   name: { name: 'name', type: 'string' },
@@ -73,6 +87,12 @@ const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
 type StepTransaction = {
   params: TransactionParams;
   type?: TransactionType;
+};
+
+/** Terminal outcome of a server intent. */
+type ServerCompletion = {
+  status: ServerStatus.Confirmed | ServerStatus.Failed | ServerStatus.Refunded;
+  targetHash?: Hex;
 };
 
 function isSignatureStep(
@@ -131,6 +151,8 @@ async function executeSingleServerQuote(
     },
   );
 
+  const isDepositWallet = Boolean(quote.request.isPolymarketDepositWallet);
+
   // Phase 1: off-chain signature steps (e.g. Relay authorize, HyperLiquid deposit).
   // Use quote.request.from (resolved accountOverride) not transaction.txParams.from.
   const signatureSteps = quote.original.steps.filter(isSignatureStep);
@@ -139,18 +161,54 @@ async function executeSingleServerQuote(
     await submitSignatureStep(step, quote.request.from, messenger);
   }
 
-  // Phase 2: on-chain transaction steps (if any).
-  await submitTransactionSteps(quote, messenger, transaction);
+  // Phase 2: on-chain transaction steps (if any). A deposit wallet withdraw
+  // replaces them with an unwrap straight to the provider deposit address.
+  let preSubmitUsdceBalance: bigint | undefined;
 
-  // Phase 3: poll until the intent is confirmed on the target chain.
-  const targetHash = await waitForServerCompletion(
+  if (isDepositWallet) {
+    preSubmitUsdceBalance = await submitDepositWalletWithdraw(
+      quote,
+      messenger,
+      transaction,
+    );
+  } else {
+    await submitTransactionSteps(quote, messenger, transaction);
+  }
+
+  // Phase 3: poll until the intent settles on the target chain.
+  const completion = await waitForServerCompletion(
     quote.original,
     messenger,
     transaction.id,
   );
 
-  log('Server request completed', targetHash);
+  log('Server request completed', completion);
 
+  // A deposit wallet sweeps leftover USDC.e back into pUSD whatever the
+  // outcome, so a refund is restored before the failure is reported.
+  if (preSubmitUsdceBalance !== undefined) {
+    await sweepPolymarketDepositWallet({
+      from: quote.request.from,
+      isRefund: completion.status === ServerStatus.Refunded,
+      messenger,
+      preSubmitUsdceBalance,
+    });
+  }
+
+  if (completion.status !== ServerStatus.Confirmed) {
+    throw new Error(`Server intent ${completion.status.toLowerCase()}`);
+  }
+
+  const targetHash = completion.targetHash ?? MISSING_TARGET_HASH;
+
+  // Phase 4: submit the calls the quote could not execute itself, now that the
+  // funds have settled on the target chain.
+  const secondLegHash = quote.requiresSecondLeg
+    ? await submitServerSecondLeg(quote, messenger, transaction, targetHash)
+    : undefined;
+
+  // Only complete once every leg has landed, so a failed second leg does not
+  // leave the parent transaction flagged as achieved.
   updateTransaction(
     {
       transactionId: transaction.id,
@@ -162,7 +220,126 @@ async function executeSingleServerQuote(
     },
   );
 
-  return { transactionHash: targetHash };
+  return { transactionHash: secondLegHash ?? targetHash };
+}
+
+/**
+ * Submit the calls a server quote could not execute itself, from the account
+ * the funds settled on.
+ *
+ * @param quote - Server quote.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ * @param targetHash - Hash of the settlement on the target chain.
+ * @returns Hash of the second-leg transaction, if available.
+ */
+async function submitServerSecondLeg(
+  quote: TransactionPayQuote<ServerQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+  targetHash: Hex | undefined,
+): Promise<Hex | undefined> {
+  const { from, isPostQuote, recipient, targetChainId, targetTokenAddress } =
+    quote.request;
+
+  const { transactionHash } = await submitSecondLeg({
+    chainId: targetChainId,
+    from: recipient ?? from,
+    // Post-quote flows carry no calls of their own, so the payment override
+    // builds the batch for the settled amount.
+    getCalls: isPostQuote
+      ? async (sourceAmountRaw): Promise<BatchTransactionParams[]> =>
+          await buildPaymentOverrideCalls({
+            messenger,
+            quote,
+            sourceAmountRaw,
+            transaction,
+          })
+      : undefined,
+    messenger,
+    settlementHash: targetHash === MISSING_TARGET_HASH ? undefined : targetHash,
+    tokenAddress: targetTokenAddress,
+    transaction,
+  });
+
+  return transactionHash;
+}
+
+/**
+ * Build the second-leg batch from the payment override for the settled amount.
+ *
+ * @param options - Build options.
+ * @param options.messenger - Controller messenger.
+ * @param options.quote - Server quote that settled.
+ * @param options.sourceAmountRaw - Settled amount in raw units.
+ * @param options.transaction - Original transaction meta.
+ * @returns The batch calls.
+ */
+async function buildPaymentOverrideCalls({
+  messenger,
+  quote,
+  sourceAmountRaw,
+  transaction,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<ServerQuote>;
+  sourceAmountRaw: string;
+  transaction: TransactionMeta;
+}): Promise<BatchTransactionParams[]> {
+  const { transactionData } = messenger.call(
+    'TransactionPayController:getState',
+  );
+
+  const amount = new BigNumber(sourceAmountRaw)
+    .shiftedBy(-quote.original.output.decimals)
+    .toFixed();
+
+  const { calls } = await messenger.call(
+    'TransactionPayController:getPaymentOverrideData',
+    {
+      amount,
+      transaction,
+      transactionData: transactionData[transaction.id],
+    },
+  );
+
+  return calls;
+}
+
+/**
+ * Unwrap the deposit wallet's pUSD straight to the provider deposit address.
+ *
+ * @param quote - Server quote.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ * @returns The deposit wallet's USDC.e balance before submission, so the sweep
+ * can detect a refund.
+ */
+async function submitDepositWalletWithdraw(
+  quote: TransactionPayQuote<ServerQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+): Promise<bigint> {
+  const { preSubmitUsdceBalance, sourceHash } = await submitPolymarketWithdraw({
+    depositData: getServerDepositData(quote.original),
+    from: quote.request.from,
+    messenger,
+    sourceAmountRaw: quote.sourceAmount.raw,
+  });
+
+  updateTransaction(
+    {
+      transactionId: transaction.id,
+      messenger,
+      note: 'Add source hash from deposit wallet withdraw',
+    },
+    (tx) => {
+      tx.metamaskPay ??= {};
+      tx.metamaskPay.sourceHash = sourceHash;
+    },
+  );
+
+  return preSubmitUsdceBalance;
 }
 
 /**
@@ -260,10 +437,16 @@ async function buildStepTransactions(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): Promise<StepTransaction[]> {
-  const { from, isPostQuote, paymentOverride } = quote.request;
+  const { atomic, from, isPostQuote, paymentOverride } = quote.request;
   const { gasLimits, maxFeePerGas, maxPriorityFeePerGas } =
     quote.original.client;
   const originalType = getEffectiveTransactionType(transaction);
+
+  // Client gas limits are estimated in submission order, so any prepended
+  // transactions come first and the quote steps take the trailing limits.
+  const stepGasLimits = gasLimits.slice(
+    Math.max(gasLimits.length - transactionSteps.length, 0),
+  );
 
   const quoteStepTransactions = transactionSteps.map((step, i) =>
     buildStepTransaction(
@@ -271,14 +454,16 @@ async function buildStepTransactions(
       i,
       transactionSteps.length,
       from,
-      gasLimits,
+      stepGasLimits,
       maxFeePerGas,
       maxPriorityFeePerGas,
       originalType,
     ),
   );
 
-  if (paymentOverride) {
+  // Non-atomic flows run the override calls as a second leg once the funds
+  // settle, so prepending them here would run them twice.
+  if (paymentOverride && atomic !== false) {
     return prependPaymentOverrideTransactions(
       quoteStepTransactions,
       quote,
@@ -506,7 +691,8 @@ async function prependPostQuoteTransactions(
     quote.request.from.toLowerCase() !==
     (transaction.txParams.from as Hex).toLowerCase();
 
-  const { maxFeePerGas, maxPriorityFeePerGas } = quote.original.client;
+  const { gasLimits, maxFeePerGas, maxPriorityFeePerGas } =
+    quote.original.client;
 
   let prependedParams: TransactionParams;
 
@@ -530,6 +716,12 @@ async function prependPostQuoteTransactions(
   prependedParams.maxPriorityFeePerGas = maxPriorityFeePerGas
     ? toHex(maxPriorityFeePerGas)
     : undefined;
+
+  // The original transaction is estimated ahead of the quote steps, so it owns
+  // the leading limit when each transaction has its own.
+  if (gasLimits.length > quoteStepTransactions.length) {
+    prependedParams.gas = toHex(gasLimits[0]);
+  }
 
   log('Prepending post-quote original tx', { hasAccountOverride });
 
@@ -939,11 +1131,22 @@ function deriveEIP712DomainType(
     .map((key) => DOMAIN_FIELD_MAP[key]);
 }
 
+/**
+ * Poll the server until the intent reaches a terminal status.
+ *
+ * Failures are returned rather than thrown so callers can clean up first, such
+ * as sweeping a deposit wallet refund. Timeouts still throw.
+ *
+ * @param quote - Server quote being polled.
+ * @param messenger - Controller messenger.
+ * @param transactionId - ID of the parent transaction.
+ * @returns The terminal status and the target-chain hash when reported.
+ */
 async function waitForServerCompletion(
   quote: ServerQuote,
   messenger: TransactionPayControllerMessenger,
   transactionId: string,
-): Promise<Hex | undefined> {
+): Promise<ServerCompletion> {
   const pollingInterval = getServerPollingInterval(messenger);
   const pollingTimeout = getServerPollingTimeout(messenger);
   const hasTimeout = pollingTimeout !== undefined && pollingTimeout > 0;
@@ -991,15 +1194,14 @@ async function waitForServerCompletion(
         );
       }
 
-      if (statusResponse.status === ServerStatus.Confirmed) {
-        return statusResponse.targetHash ?? '0x';
-      }
+      const { status, targetHash } = statusResponse;
 
       if (
-        statusResponse.status === ServerStatus.Failed ||
-        statusResponse.status === ServerStatus.Refunded
+        status === ServerStatus.Confirmed ||
+        status === ServerStatus.Failed ||
+        status === ServerStatus.Refunded
       ) {
-        throw new Error(`Server intent ${statusResponse.status.toLowerCase()}`);
+        return { status, targetHash };
       }
     }
 

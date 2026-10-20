@@ -39,8 +39,8 @@ they will be ignored.
 #### Converting a legacy engine
 
 ```ts
-import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import { asV2Middleware, JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 
 const legacyEngine = new JsonRpcEngine();
 legacyEngine.push(/* ... */);
@@ -55,8 +55,8 @@ const v2Engine = JsonRpcEngineV2.create({
 You can also directly convert one or more legacy middlewares without creating an engine:
 
 ```ts
-import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import { asV2Middleware } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 
 // Convert a single legacy middleware
 const middleware1 = (req, res, next, end) => {

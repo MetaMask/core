@@ -133,6 +133,7 @@ import {
   buildWsUpdateSources,
   executeAssetsPipeline,
 } from './pipeline/index.js';
+import { trackAssetsLoading } from './trackAssetsLoading.js';
 import type {
   AccountId,
   AssetsControllerState,
@@ -493,6 +494,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  assetsLoadingStatus: {
+    persist: false,
+    includeInStateLogs: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 };
@@ -1232,7 +1239,7 @@ export class AssetsController extends BaseController<
         this.#handleNetworkAdded(networkConfiguration.chainId);
         this.#refreshAssetsAfterNetworkAdded(
           networkConfiguration.chainId,
-        ).catch((error) => {
+        ).catch((error: unknown) => {
           log('Failed to refresh assets after network added', { error });
         });
       },
@@ -1389,7 +1396,7 @@ export class AssetsController extends BaseController<
       chainIds: [caipChainId],
       forceUpdate: true,
       bypassServerCache: true,
-    }).catch((error) => {
+    }).catch((error: unknown) => {
       log('Failed to refresh assets after transaction event', { error });
     });
   }
@@ -1612,6 +1619,7 @@ export class AssetsController extends BaseController<
   // PUBLIC API: QUERY METHODS
   // ============================================================================
 
+  @trackAssetsLoading
   async getAssets(
     accounts: InternalAccount[],
     options?: {
@@ -1626,6 +1634,7 @@ export class AssetsController extends BaseController<
        */
       bypassServerCache?: boolean;
       dataTypes?: DataType[];
+      /** Specific CAIP-19 asset IDs whose prices should be refreshed. */
       assetsForPriceUpdate?: Caip19AssetId[];
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
@@ -1725,7 +1734,6 @@ export class AssetsController extends BaseController<
     const fastSources = buildFastFetchSources(
       {
         accountsApiDataSource: this.#accountsApiDataSource,
-        stakedBalanceDataSource: this.#stakedBalanceDataSource,
         customAssetGraduationMiddleware: this.#customAssetGraduationMiddleware,
         rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
         detectionMiddleware: this.#detectionMiddleware,
@@ -1769,7 +1777,6 @@ export class AssetsController extends BaseController<
     const fastSources = buildFastFetchSources(
       {
         accountsApiDataSource: this.#accountsApiDataSource,
-        stakedBalanceDataSource: this.#stakedBalanceDataSource,
         customAssetGraduationMiddleware: this.#customAssetGraduationMiddleware,
         rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
         detectionMiddleware: this.#detectionMiddleware,
@@ -1947,7 +1954,7 @@ export class AssetsController extends BaseController<
         });
         await this.#updateState(response);
       },
-    }).catch((error) => log('Background pipeline failed', { error }));
+    }).catch((error: unknown) => log('Background pipeline failed', { error }));
   }
 
   #emitFastFetchTraces({
@@ -2593,7 +2600,7 @@ export class AssetsController extends BaseController<
       dataTypes: ['price'],
       chainIds,
       assetsForPriceUpdate,
-    }).catch((error) => {
+    }).catch((error: unknown) => {
       log('Failed to fetch missing prices', { error });
     });
   }
@@ -3748,6 +3755,10 @@ export class AssetsController extends BaseController<
 
   /**
    * Subscribe to staked balance updates.
+   * This is the only staked-balance path: subscribe fetches immediately, then
+   * polls, and the data source refreshes again when a confirmed transaction
+   * touches the staking contract. The fast fetch lane does not query it.
+   *
    * Unlike regular balance data sources, the staked balance data source provides
    * supplementary data and does not participate in chain-claiming.
    *
@@ -4227,7 +4238,7 @@ export class AssetsController extends BaseController<
     this.getAssets(accounts, {
       forceUpdate: true,
       dataTypes: ['balance', 'metadata'],
-    }).catch((error) => {
+    }).catch((error: unknown) => {
       log('Failed to refresh assets after network change', { error });
     });
   }

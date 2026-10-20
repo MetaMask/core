@@ -17,6 +17,11 @@ import {
   getServerPollingInterval,
   getServerPollingTimeout,
 } from '../../utils/feature-flags.js';
+import {
+  submitPolymarketWithdraw,
+  sweepPolymarketDepositWallet,
+} from '../../utils/polymarket/withdraw.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import { getLiveTokenBalance } from '../../utils/token.js';
 import {
   collectTransactionIds,
@@ -25,7 +30,7 @@ import {
 } from '../../utils/transaction.js';
 import { getServerStatus, submitServerIntent } from './server-api.js';
 import { submitServerQuotes } from './server-submit.js';
-import { ServerProviderName, ServerStatus } from './types.js';
+import { ServerStatus } from './types.js';
 import type { ServerQuote, ServerSignatureStep } from './types.js';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -33,6 +38,8 @@ jest.mock('@metamask/controller-utils', () => ({
   successfulFetch: jest.fn(),
 }));
 jest.mock('../../utils/feature-flags');
+jest.mock('../../utils/polymarket/withdraw');
+jest.mock('../../utils/second-leg');
 jest.mock('../../utils/token', () => ({
   ...jest.requireActual('../../utils/token'),
   getLiveTokenBalance: jest.fn(),
@@ -92,7 +99,7 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
     raw: '1000000',
     token: '0x6666666666666666666666666666666666666666',
   },
-  provider: ServerProviderName.Relay,
+  provider: 'relay',
   steps: [
     {
       type: 'transaction' as const,
@@ -229,7 +236,7 @@ describe('submitServerQuotes', () => {
       chainId: 137,
       data: DELEGATION_MOCK.data,
       id: ORIGINAL_QUOTE_MOCK.id,
-      provider: ServerProviderName.Relay,
+      provider: 'relay',
       to: DELEGATION_MOCK.to,
       value: '16',
     });
@@ -299,6 +306,154 @@ describe('submitServerQuotes', () => {
 
     expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
     expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe('second leg', () => {
+    const SECOND_LEG_HASH_MOCK = '0xsecondleg' as Hex;
+    const RECIPIENT_MOCK = '0x9999999999999999999999999999999999999999' as Hex;
+
+    const submitSecondLegMock = jest.mocked(submitSecondLeg);
+
+    beforeEach(() => {
+      submitSecondLegMock.mockResolvedValue({
+        transactionHash: SECOND_LEG_HASH_MOCK,
+      });
+
+      getServerStatusMock.mockResolvedValue({
+        status: ServerStatus.Confirmed,
+        targetHash: TARGET_HASH_MOCK,
+      });
+
+      request.quotes = [{ ...cloneDeep(QUOTE_MOCK), requiresSecondLeg: true }];
+    });
+
+    it('submits the second leg with the settlement hash and target token address', async () => {
+      const result = await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith({
+        chainId: '0x1',
+        from: QUOTE_FROM_MOCK,
+        getCalls: undefined,
+        messenger,
+        settlementHash: TARGET_HASH_MOCK,
+        tokenAddress: '0x6666666666666666666666666666666666666666',
+        transaction: expect.objectContaining({
+          id: ORIGINAL_TRANSACTION_ID_MOCK,
+        }),
+      });
+      expect(result).toStrictEqual({ transactionHash: SECOND_LEG_HASH_MOCK });
+    });
+
+    it('submits from the quote recipient when set', async () => {
+      request.quotes = [
+        {
+          ...cloneDeep(QUOTE_MOCK),
+          request: { ...QUOTE_MOCK.request, recipient: RECIPIENT_MOCK },
+          requiresSecondLeg: true,
+        },
+      ];
+
+      await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({ from: RECIPIENT_MOCK }),
+      );
+    });
+
+    it('falls back to the settlement hash when the second leg returns none', async () => {
+      submitSecondLegMock.mockResolvedValue({ transactionHash: undefined });
+
+      const result = await submitServerQuotes(request);
+
+      expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
+    });
+
+    it('passes no settlement hash when the intent confirmed without one', async () => {
+      getServerStatusMock.mockResolvedValue({
+        status: ServerStatus.Confirmed,
+        targetHash: undefined,
+      });
+
+      await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({ settlementHash: undefined }),
+      );
+    });
+
+    it('builds post-quote calls from the payment override for the settled amount', async () => {
+      const overrideCalls = [
+        { data: '0xdeposit' as Hex, to: RECIPIENT_MOCK, value: '0x0' as Hex },
+      ];
+
+      getControllerStateMock.mockReturnValue({
+        transactionData: { [ORIGINAL_TRANSACTION_ID_MOCK]: { tokens: [] } },
+        transactions: [],
+      });
+      getPaymentOverrideDataMock.mockResolvedValue({ calls: overrideCalls });
+
+      request.quotes = [
+        {
+          ...cloneDeep(QUOTE_MOCK),
+          request: { ...QUOTE_MOCK.request, atomic: false, isPostQuote: true },
+          requiresSecondLeg: true,
+        },
+      ];
+
+      await submitServerQuotes(request);
+
+      const { getCalls } = submitSecondLegMock.mock.calls[0][0];
+
+      expect(await getCalls?.('1500000')).toStrictEqual(overrideCalls);
+      expect(getPaymentOverrideDataMock).toHaveBeenCalledWith({
+        amount: '1.5',
+        transaction: expect.objectContaining({
+          id: ORIGINAL_TRANSACTION_ID_MOCK,
+        }),
+        transactionData: { tokens: [] },
+      });
+    });
+
+    it('passes no call builder when the flow is not post-quote', async () => {
+      await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({ getCalls: undefined }),
+      );
+    });
+
+    it('is skipped when the quote embedded the calls', async () => {
+      request.quotes = [cloneDeep(QUOTE_MOCK)];
+
+      const result = await submitServerQuotes(request);
+
+      expect(submitSecondLegMock).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
+    });
+
+    it('marks the intent complete only after the second leg is submitted', async () => {
+      let isIntentCompleteDuringSecondLeg: boolean | undefined;
+
+      submitSecondLegMock.mockImplementation(async () => {
+        isIntentCompleteDuringSecondLeg = currentTransaction.isIntentComplete;
+        return { transactionHash: SECOND_LEG_HASH_MOCK };
+      });
+
+      await submitServerQuotes(request);
+
+      expect(isIntentCompleteDuringSecondLeg).toBeUndefined();
+      expect(currentTransaction.isIntentComplete).toBe(true);
+    });
+
+    it('does not mark the intent complete when the second leg fails', async () => {
+      submitSecondLegMock.mockRejectedValue(new Error('Second leg failed'));
+
+      await expect(submitServerQuotes(request)).rejects.toThrow(
+        'Second leg failed',
+      );
+
+      expect(currentTransaction.isIntentComplete).toBeUndefined();
+    });
   });
 
   it('marks the parent transaction isIntentComplete after confirmation', async () => {
@@ -448,6 +603,113 @@ describe('submitServerQuotes', () => {
     await submitServerQuotes(request);
 
     expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe('Polymarket deposit wallet', () => {
+    const DEPOSIT_DATA_MOCK =
+      `0xa9059cbb${'1'.padStart(64, '0')}${'2'.padStart(64, '0')}` as Hex;
+    const PRE_SUBMIT_BALANCE_MOCK = 5n;
+
+    const submitPolymarketWithdrawMock = jest.mocked(submitPolymarketWithdraw);
+    const sweepPolymarketDepositWalletMock = jest.mocked(
+      sweepPolymarketDepositWallet,
+    );
+
+    beforeEach(() => {
+      submitPolymarketWithdrawMock.mockResolvedValue({
+        preSubmitUsdceBalance: PRE_SUBMIT_BALANCE_MOCK,
+        sourceHash: SOURCE_HASH_MOCK,
+      });
+
+      getServerStatusMock.mockResolvedValue({
+        status: ServerStatus.Confirmed,
+        targetHash: TARGET_HASH_MOCK,
+      });
+
+      request.quotes = [
+        {
+          ...cloneDeep(QUOTE_MOCK),
+          original: {
+            ...ORIGINAL_QUOTE_MOCK,
+            gasless: false,
+            steps: [
+              {
+                chainId: 137,
+                data: DEPOSIT_DATA_MOCK,
+                to: '0x4444444444444444444444444444444444444444',
+                type: 'transaction' as const,
+                value: '0',
+              },
+            ],
+          },
+          request: { ...QUOTE_MOCK.request, isPolymarketDepositWallet: true },
+        },
+      ];
+    });
+
+    it('unwraps to the deposit address instead of submitting the quote steps', async () => {
+      const result = await submitServerQuotes(request);
+
+      expect(submitPolymarketWithdrawMock).toHaveBeenCalledWith({
+        depositData: DEPOSIT_DATA_MOCK,
+        from: QUOTE_FROM_MOCK,
+        messenger,
+        sourceAmountRaw: QUOTE_MOCK.sourceAmount.raw,
+      });
+      expect(submitServerIntentMock).not.toHaveBeenCalled();
+      expect(addTxMock).not.toHaveBeenCalled();
+      expect(addTxBatchMock).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
+    });
+
+    it('records the unwrap hash as the source hash', async () => {
+      await submitServerQuotes(request);
+
+      expect(currentTransaction.metamaskPay?.sourceHash).toBe(SOURCE_HASH_MOCK);
+    });
+
+    it('sweeps leftover USDC.e after confirmation', async () => {
+      await submitServerQuotes(request);
+
+      expect(sweepPolymarketDepositWalletMock).toHaveBeenCalledWith({
+        from: QUOTE_FROM_MOCK,
+        isRefund: false,
+        messenger,
+        preSubmitUsdceBalance: PRE_SUBMIT_BALANCE_MOCK,
+      });
+    });
+
+    it('sweeps the refund before reporting a refunded intent', async () => {
+      getServerStatusMock.mockResolvedValue({ status: ServerStatus.Refunded });
+
+      await expect(submitServerQuotes(request)).rejects.toThrow(
+        'Server intent refunded',
+      );
+
+      expect(sweepPolymarketDepositWalletMock).toHaveBeenCalledWith(
+        expect.objectContaining({ isRefund: true }),
+      );
+    });
+
+    it('sweeps before reporting a failed intent', async () => {
+      getServerStatusMock.mockResolvedValue({ status: ServerStatus.Failed });
+
+      await expect(submitServerQuotes(request)).rejects.toThrow(
+        'Server intent failed',
+      );
+
+      expect(sweepPolymarketDepositWalletMock).toHaveBeenCalledWith(
+        expect.objectContaining({ isRefund: false }),
+      );
+    });
+
+    it('does not sweep for other flows', async () => {
+      request.quotes = [cloneDeep(QUOTE_MOCK)];
+
+      await submitServerQuotes(request);
+
+      expect(sweepPolymarketDepositWalletMock).not.toHaveBeenCalled();
+    });
   });
 
   describe('non-gasless fallback', () => {
@@ -1124,6 +1386,86 @@ describe('submitServerQuotes', () => {
               }),
             }),
           ]),
+        }),
+      );
+    });
+
+    it('does not prepend payment override calls for non-atomic flows', async () => {
+      await submitServerQuotes(
+        buildRequest({
+          request: {
+            ...QUOTE_MOCK.request,
+            atomic: false,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        }),
+      );
+
+      expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+      expect(addTxMock).toHaveBeenCalled();
+    });
+
+    it('prepends the original tx for non-atomic Money Account post-quote flows', async () => {
+      await submitServerQuotes(
+        buildRequest({
+          request: {
+            ...QUOTE_MOCK.request,
+            atomic: false,
+            from: ORIGINAL_FROM_MOCK,
+            isPostQuote: true,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        }),
+      );
+
+      expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+      expect(addTxBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({
+                to: TRANSACTION_META_MOCK.txParams.to,
+              }),
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({
+                to: '0x4444444444444444444444444444444444444444',
+              }),
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('assigns the leading gas limit to the prepended original tx', async () => {
+      await submitServerQuotes(
+        buildRequest({
+          original: {
+            ...ORIGINAL_QUOTE_MOCK,
+            client: {
+              ...ORIGINAL_QUOTE_MOCK.client,
+              gasLimits: [100000, 50000],
+            },
+            gasless: false,
+          },
+          request: {
+            ...QUOTE_MOCK.request,
+            from: ORIGINAL_FROM_MOCK,
+            isPostQuote: true,
+          },
+        }),
+      );
+
+      expect(addTxBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({ gas: '0x186a0' }),
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({ gas: '0xc350' }),
+            }),
+          ],
         }),
       );
     });

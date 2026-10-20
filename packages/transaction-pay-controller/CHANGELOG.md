@@ -7,9 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support Predict withdraw in `ServerStrategy` ([#10702](https://github.com/MetaMask/core/pull/10702))
+  - Polymarket deposit wallet withdrawals unwrap directly to a provider deposit address, then sweep any leftover or refunded USDC.e back into the deposit wallet.
+  - Polymarket deposit wallet withdrawals have no source network fee, as the Polymarket relayer pays origin gas.
+  - Non-atomic post-quote payment overrides, such as withdrawing to a Money Account, settle on the override recipient and run the override calls as a second leg.
+  - Post-quote quotes honour `refundTo`, include the original transaction in gas estimation, and reserve the gas fee token cost from the source amount.
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
+- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/assets-controller` from `^19.0.0` to `^19.1.0` ([#10876](https://github.com/MetaMask/core/pull/10876))
+- Bump `@metamask/ramps-controller` from `^27.0.1` to `^27.0.2` ([#10925](https://github.com/MetaMask/core/pull/10925))
+
+## [30.1.0]
+
+### Added
+
+- Support submitting target calls as a separate second leg when the quote provider cannot execute them ([#10501](https://github.com/MetaMask/core/pull/10501))
+  - Add `requiresSecondLeg` to `TransactionPayQuote`.
+  - `ServerStrategy` now supports non-atomic requests.
+  - Non-atomic quotes settle funds on the account that executes the calls.
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
+- Fail fiat and second-leg submissions when the settled amount cannot be read from an on-chain transaction, rather than falling back to `order.cryptoAmount` or the quote minimum ([#10501](https://github.com/MetaMask/core/pull/10501))
+- Bump `@metamask/assets-controller` from `^18.0.1` to `^19.0.0` ([#10788](https://github.com/MetaMask/core/pull/10788))
+
+### Fixed
+
+- Zero source network fees for Relay quotes on Polymarket deposit-wallet Predict withdraws, as the Polymarket relayer pays origin gas ([#10501](https://github.com/MetaMask/core/pull/10501))
+- Set `isIntentComplete` on the parent transaction only after the non-atomic second leg of a Relay quote is submitted, so a failed second leg no longer leaves a failed transaction flagged as complete ([#10501](https://github.com/MetaMask/core/pull/10501))
 
 ## [30.0.3]
 
@@ -1688,7 +1722,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.1.0...HEAD
+[30.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.3...@metamask/transaction-pay-controller@30.1.0
 [30.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.2...@metamask/transaction-pay-controller@30.0.3
 [30.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.1...@metamask/transaction-pay-controller@30.0.2
 [30.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.0...@metamask/transaction-pay-controller@30.0.1

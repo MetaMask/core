@@ -572,6 +572,9 @@ exports[`AssetsController (Accounts API v6): BNB Chain spam token (CDOGE) genera
       "type": "native",
     },
   },
+  "assetsLoadingStatus": {
+    "b1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d": "loaded",
+  },
   "assetsPrice": {
     "eip155:56/erc20:0x003d87d02A2A01E9E8a20f507C83E15DD83A33d1": {
       "allTimeHigh": 5.46,

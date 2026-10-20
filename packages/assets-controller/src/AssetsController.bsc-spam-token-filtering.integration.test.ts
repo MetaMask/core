@@ -1,11 +1,15 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import { cleanAll } from 'nock';
 
+import {
+  STATE_METADATA_SURFACE,
+  STATE_PRICES_SURFACE,
+  stateBalancesSurface,
+} from './__fixtures__/assetSurfaces.js';
 import { mockBscSpamApis } from './__fixtures__/bsc-spam-token/api-responses/index.js';
 import {
   buildBscSpamAccount,
   buildEmptyAssetsState,
-  getIgnoringCase,
 } from './__fixtures__/bsc-spam-token/bscSpamWallet.js';
 import { registerBscSpamControllerActions } from './__fixtures__/bsc-spam-token/messenger.js';
 import {
@@ -33,26 +37,9 @@ import type { AssetsControllerState } from './AssetsController.js';
  * suite below).
  */
 
-type StateSurface = {
-  surface: string;
-  lookUp: (state: AssetsControllerState, assetId: string) => unknown;
-};
-
-const BALANCES: StateSurface = {
-  surface: 'balances',
-  lookUp: (state, assetId) =>
-    getIgnoringCase(state.assetsBalance[BSC_SPAM_ACCOUNT_ID] ?? {}, assetId),
-};
-
-const METADATA: StateSurface = {
-  surface: 'metadata',
-  lookUp: (state, assetId) => getIgnoringCase(state.assetsInfo, assetId),
-};
-
-const PRICES: StateSurface = {
-  surface: 'prices',
-  lookUp: (state, assetId) => getIgnoringCase(state.assetsPrice, assetId),
-};
+const BALANCES = stateBalancesSurface(BSC_SPAM_ACCOUNT_ID);
+const METADATA = STATE_METADATA_SURFACE;
+const PRICES = STATE_PRICES_SURFACE;
 
 type WithControllerCallback<ReturnValue> = (args: {
   controller: AssetsController;

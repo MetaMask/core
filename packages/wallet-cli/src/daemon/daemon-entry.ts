@@ -160,10 +160,8 @@ async function main(): Promise<void> {
       // Exposes the callable surface for discovery: it grows silently as
       // controllers are wired, so consumers need a way to see it without a
       // hand-kept catalog that would rot.
-      listActions: defineHandler(
-        literal(null),
-        async (): Promise<Json> =>
-          constructedWallet.messenger.getRegisteredActionTypes(),
+      listActions: defineHandler(literal(null), async (): Promise<Json> =>
+        constructedWallet.messenger.getRegisteredActionTypes(),
       ),
       // Dedicated send handler; see `runSendTransaction` for why the generic
       // `call` dispatch cannot carry a broadcast result.

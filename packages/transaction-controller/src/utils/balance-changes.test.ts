@@ -1,7 +1,9 @@
 import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
+import { toHex } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+import BN from 'bn.js';
 
 import { simulateTransactions } from '../api/simulation-api.js';
 import type {
@@ -485,6 +487,416 @@ describe('Balance Change Utils', () => {
           gasUsed: undefined,
           simulationRevert: undefined,
         });
+      });
+
+      it('ignores unused gas refund when state diff omits the fee debit', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: 498346296506492,
+              gasUsed: '0x6e56',
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde0b6b3a7640000' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde53616373c77c4' },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x1c53e49fa787c' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0x186a0',
+            value: '0x0',
+          },
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toBeUndefined();
+      });
+
+      it('ignores unused gas refund on native send when state diff omits the fee debit', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: 373521438549000,
+              gasUsed: '0x5208',
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde0b6b3a7640000' },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xdbf04e2d48c9348' },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x2386f26fc10000' },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x153b73ca92408' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0xc350',
+            value: '0x2386f26fc10000',
+          },
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: '0x2386f26fc10000',
+          isDecrease: true,
+          newBalance: '0xdbd2fc137a30000',
+          previousBalance: '0xde0b6b3a7640000',
+        });
+      });
+
+      it('reports incoming balance beyond unused gas refund when state diff omits the fee debit', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: 498346296506492,
+              gasUsed: '0x6e56',
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde0b6b3a7640000' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde8c394dc02f7c4' },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x1c53e49fa787c' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0x186a0',
+            value: '0x0',
+          },
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: '0x38d7ea4c68000',
+          isDecrease: false,
+          newBalance: '0xde444324c2a8000',
+          previousBalance: '0xde0b6b3a7640000',
+        });
+      });
+
+      it('ignores only gas cost when sender is debited the gas cost', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: 373521438549000,
+              gasUsed: '0x5208',
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde0b6b3a7640000' },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xdbbdc09faf9dbf8' },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x2386f26fc10000' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0xc350',
+            value: '0x2386f26fc10000',
+          },
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: '0x2386f26fc10000',
+          isDecrease: true,
+          newBalance: '0xdbd2fc137a30000',
+          previousBalance: '0xde0b6b3a7640000',
+        });
+      });
+
+      it('reports balance as is when state diff omits the fee debit and all gas is used', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: 373521438549000,
+              gasUsed: '0x5208',
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde0b6b3a7640000' },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xdbd2fc137a30000' },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x2386f26fc10000' },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x153b73ca92408' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0x5208',
+            value: '0x2386f26fc10000',
+          },
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: '0x2386f26fc10000',
+          isDecrease: true,
+          newBalance: '0xdbd2fc137a30000',
+          previousBalance: '0xde0b6b3a7640000',
+        });
+      });
+
+      it('ignores unused gas refund when gas cost is a decimal string', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: '498346296506492' as unknown as number,
+              gasUsed: '0x6e56',
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde0b6b3a7640000' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde53616373c77c4' },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x1c53e49fa787c' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0x186a0',
+            value: '0x0',
+          },
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toBeUndefined();
+      });
+
+      it.each([
+        ['gas used is zero', '0x186a0', '0x0'],
+        ['gas limit is below gas used', '0x5208', '0x6e56'],
+        ['gas limit is missing', undefined, '0x6e56'],
+      ])(
+        'reports balance as is when state diff omits the fee debit and %s',
+        async (_title, gas, gasUsed) => {
+          simulateTransactionsMock.mockResolvedValueOnce({
+            transactions: [
+              {
+                ...defaultResponseTx,
+                gasCost: 498346296506492,
+                gasUsed,
+                stateDiff: {
+                  pre: {
+                    [USER_ADDRESS_MOCK]: { balance: '0xde0b6b3a7640000' },
+                  },
+                  post: {
+                    [USER_ADDRESS_MOCK]: { balance: '0xde53616373c77c4' },
+                    [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x1c53e49fa787c' },
+                  },
+                },
+              },
+            ],
+          } as unknown as SimulationResponse);
+
+          const result = await getBalanceChanges({
+            ...REQUEST_MOCK,
+            txParams: {
+              ...REQUEST_MOCK.txParams,
+              gas,
+              value: '0x0',
+            },
+          });
+
+          expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+            difference: '0x47f628fd877c4',
+            isDecrease: false,
+            newBalance: '0xde53616373c77c4',
+            previousBalance: '0xde0b6b3a7640000',
+          });
+        },
+      );
+
+      it('does not report a decrease when state diff omits the fee debit and the refund', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: 498346296506492,
+              gasUsed: '0x6e56',
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde0b6b3a7640000' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde0b6b3a7640000' },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x1c53e49fa787c' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0x186a0',
+            value: '0x0',
+          },
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toBeUndefined();
+      });
+
+      it('reports only the value on native send when state diff omits the fee debit and the refund', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: 498346296506492,
+              gasUsed: '0x6e56',
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde0b6b3a7640000' },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xdbd2fc137a30000' },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x2386f26fc10000' },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x1c53e49fa787c' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0x186a0',
+            value: '0x2386f26fc10000',
+          },
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: '0x2386f26fc10000',
+          isDecrease: true,
+          newBalance: '0xdbd2fc137a30000',
+          previousBalance: '0xde0b6b3a7640000',
+        });
+      });
+
+      it('reports only the batched native value when state diff omits the fee debit', async () => {
+        const batchedValue = new BN('10100000000000000');
+        const previousBalance = new BN('1000000000000000000');
+        const refund = new BN('1265961203693508');
+        const newBalance = previousBalance.sub(batchedValue).add(refund);
+
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: 498346296506492,
+              gasUsed: '0x6e56',
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: toHex(previousBalance) },
+                  [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: toHex(newBalance) },
+                  [OTHER_ADDRESS_MOCK]: { balance: toHex(batchedValue) },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x1c53e49fa787c' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0x186a0',
+            value: '0x0',
+          },
+          nestedTransactions: [
+            { to: OTHER_ADDRESS_MOCK, value: '0x2386f26fc10000' },
+            { to: OTHER_ADDRESS_MOCK, value: '0x5af3107a4000' },
+          ],
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toStrictEqual({
+          difference: toHex(batchedValue),
+          isDecrease: true,
+          newBalance: toHex(previousBalance.sub(batchedValue)),
+          previousBalance: toHex(previousBalance),
+        });
+      });
+
+      it('ignores unused gas refund when state diff omits the fee debit and value is missing', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              gasCost: 498346296506492,
+              gasUsed: '0x6e56',
+              stateDiff: {
+                pre: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde0b6b3a7640000' },
+                },
+                post: {
+                  [USER_ADDRESS_MOCK]: { balance: '0xde53616373c77c4' },
+                  [CONTRACT_ADDRESS_1_MOCK]: { balance: '0x1c53e49fa787c' },
+                },
+              },
+            },
+          ],
+        } as unknown as SimulationResponse);
+
+        const { value, ...txParamsWithoutValue } = REQUEST_MOCK.txParams;
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: { ...txParamsWithoutValue, gas: '0x186a0' },
+        });
+
+        expect(result.simulationData.nativeBalanceChange).toBeUndefined();
       });
 
       it('looks up the sender balance using a case-insensitive address', async () => {

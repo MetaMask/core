@@ -1,16 +1,18 @@
-/* eslint-disable jest/expect-expect */
-
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+/* eslint-disable vitest/expect-expect */
 import type {
   MessengerActions,
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
+import type { DataWithOptionalCause } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
+import type { Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import type {
   AddApprovalOptions,
   ApprovalControllerActions,
@@ -33,7 +35,9 @@ import {
   NoApprovalFlowsError,
 } from './errors.js';
 
-jest.mock('nanoid');
+type ExpectedError = { message: string; code?: number };
+
+vi.mock('nanoid');
 
 type AllActions = MessengerActions<ApprovalControllerMessenger>;
 
@@ -41,7 +45,7 @@ type AllEvents = MessengerEvents<ApprovalControllerMessenger>;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
-const nanoidMock = jest.mocked(nanoid);
+const nanoidMock = vi.mocked(nanoid);
 
 const PENDING_APPROVALS_STORE_KEY = 'pendingApprovals';
 const APPROVAL_FLOWS_STORE_KEY = 'approvalFlows';
@@ -216,23 +220,47 @@ function getApprovalCountParamsError() {
 }
 
 /**
- * Get an error.
+ * Describe an expected error.
  *
  * @param message - The error message.
- * @param code - The error code.
- * @returns An Error.
+ * @param code - The JSON-RPC error code, where the error carries one.
+ * @returns The expected error.
  */
-function getError(message: string, code?: number) {
-  const err = {
-    name: 'Error',
-    message,
-  } as { name: string; message: string; code?: number };
+function getError(message: string, code?: number): ExpectedError {
+  return { message, code };
+}
 
-  if (code !== undefined) {
-    err.code = code;
+/**
+ * Assert that an operation throws the expected error.
+ *
+ * `expect(...).toThrow()` given a plain object only compares its `message`, so
+ * the codes these helpers describe have never actually been asserted. Reading
+ * the thrown error directly lets us check both.
+ *
+ * The operation is invoked exactly once, because several of these mutate
+ * controller state.
+ *
+ * @param operation - The operation expected to throw.
+ * @param expected - The expected error's message and, where it has one, code.
+ */
+function expectToThrowError(
+  operation: () => unknown,
+  expected: ExpectedError,
+): void {
+  let thrown: unknown;
+  try {
+    operation();
+  } catch (error) {
+    thrown = error;
   }
 
-  return err;
+  expect(thrown).toBeDefined();
+  expect(thrown).toBeInstanceOf(Error);
+  const error = thrown as Error & { code?: number };
+  expect(error.message).toBe(expected.message);
+  // Asserted unconditionally: `expected.code` is `undefined` for the errors that
+  // do not carry one, which is exactly what those errors should have.
+  expect(error.code).toBe(expected.code);
 }
 
 /**
@@ -260,13 +288,13 @@ function getMessengers() {
 
 describe('approval controller', () => {
   let approvalController: ApprovalController;
-  let showApprovalRequest: jest.Mock;
+  let showApprovalRequest: Mock;
 
   beforeEach(() => {
     nanoidMock.mockReturnValue('TestId');
-    jest.spyOn(global.console, 'info').mockImplementation(() => undefined);
+    vi.spyOn(global.console, 'info').mockImplementation(() => undefined);
 
-    showApprovalRequest = jest.fn();
+    showApprovalRequest = vi.fn();
 
     approvalController = new ApprovalController({
       messenger: getMessengers().approvalControllerMessenger,
@@ -276,57 +304,73 @@ describe('approval controller', () => {
 
   describe('add', () => {
     it('validates input', () => {
-      expect(() =>
-        approvalController.add({
-          id: null,
-          origin: 'bar.baz',
-        } as unknown as AddApprovalOptions),
-      ).toThrow(getInvalidIdError());
+      expectToThrowError(
+        () =>
+          approvalController.add({
+            id: null,
+            origin: 'bar.baz',
+          } as unknown as AddApprovalOptions),
+        getInvalidIdError(),
+      );
 
-      expect(() =>
-        approvalController.add({ id: 'foo' } as unknown as AddApprovalOptions),
-      ).toThrow(getInvalidOriginError());
+      expectToThrowError(
+        () =>
+          approvalController.add({
+            id: 'foo',
+          } as unknown as AddApprovalOptions),
+        getInvalidOriginError(),
+      );
 
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: true,
-        } as unknown as AddApprovalOptions),
-      ).toThrow(getInvalidOriginError());
+      expectToThrowError(
+        () =>
+          approvalController.add({
+            id: 'foo',
+            origin: true,
+          } as unknown as AddApprovalOptions),
+        getInvalidOriginError(),
+      );
 
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: {},
-        } as unknown as AddApprovalOptions),
-      ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
+      expectToThrowError(
+        () =>
+          approvalController.add({
+            id: 'foo',
+            origin: 'bar.baz',
+            type: {},
+          } as unknown as AddApprovalOptions),
+        getInvalidTypeError(errorCodes.rpc.internal),
+      );
 
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: '',
-        } as unknown as AddApprovalOptions),
-      ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
+      expectToThrowError(
+        () =>
+          approvalController.add({
+            id: 'foo',
+            origin: 'bar.baz',
+            type: '',
+          } as unknown as AddApprovalOptions),
+        getInvalidTypeError(errorCodes.rpc.internal),
+      );
 
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: 'type',
-          requestData: 'foo',
-        } as unknown as AddApprovalOptions),
-      ).toThrow(getInvalidRequestDataError());
+      expectToThrowError(
+        () =>
+          approvalController.add({
+            id: 'foo',
+            origin: 'bar.baz',
+            type: 'type',
+            requestData: 'foo',
+          } as unknown as AddApprovalOptions),
+        getInvalidRequestDataError(),
+      );
 
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: 'type',
-          requestState: 'foo',
-        } as unknown as AddApprovalOptions),
-      ).toThrow(getInvalidRequestStateError());
+      expectToThrowError(
+        () =>
+          approvalController.add({
+            id: 'foo',
+            origin: 'bar.baz',
+            type: 'type',
+            requestState: 'foo',
+          } as unknown as AddApprovalOptions),
+        getInvalidRequestStateError(),
+      );
     });
 
     it('adds correctly specified entry', () => {
@@ -439,9 +483,15 @@ describe('approval controller', () => {
         approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE }),
       ).not.toThrow();
 
-      expect(() =>
-        approvalController.add({ id: 'foo', origin: 'fizz.buzz', type: TYPE }),
-      ).toThrow(getIdCollisionError('foo'));
+      expectToThrowError(
+        () =>
+          approvalController.add({
+            id: 'foo',
+            origin: 'fizz.buzz',
+            type: TYPE,
+          }),
+        getIdCollisionError('foo'),
+      );
     });
 
     it('throws on origin and type collision', () => {
@@ -453,13 +503,15 @@ describe('approval controller', () => {
         }),
       ).not.toThrow();
 
-      expect(() =>
-        approvalController.add({
-          id: 'foo1',
-          origin: 'bar.baz',
-          type: 'myType',
-        }),
-      ).toThrow(getOriginTypeCollisionError('bar.baz', 'myType'));
+      expectToThrowError(
+        () =>
+          approvalController.add({
+            id: 'foo1',
+            origin: 'bar.baz',
+            type: 'myType',
+          }),
+        getOriginTypeCollisionError('bar.baz', 'myType'),
+      );
     });
 
     it('does not throw on origin and type collision if type excluded', () => {
@@ -548,21 +600,25 @@ describe('approval controller', () => {
     });
 
     it('validates input', () => {
-      expect(() => approvalController.getApprovalCount()).toThrow(
+      expectToThrowError(
+        () => approvalController.getApprovalCount(),
         getApprovalCountParamsError(),
       );
 
-      expect(() => approvalController.getApprovalCount({})).toThrow(
+      expectToThrowError(
+        () => approvalController.getApprovalCount({}),
         getApprovalCountParamsError(),
       );
 
-      expect(() =>
-        approvalController.getApprovalCount({ origin: null } as never),
-      ).toThrow(getApprovalCountParamsError());
+      expectToThrowError(
+        () => approvalController.getApprovalCount({ origin: null } as never),
+        getApprovalCountParamsError(),
+      );
 
-      expect(() =>
-        approvalController.getApprovalCount({ type: false } as never),
-      ).toThrow(getApprovalCountParamsError());
+      expectToThrowError(
+        () => approvalController.getApprovalCount({ type: false } as never),
+        getApprovalCountParamsError(),
+      );
     });
 
     it('gets the count when specifying origin and type', () => {
@@ -723,29 +779,36 @@ describe('approval controller', () => {
 
   describe('has', () => {
     it('validates input', () => {
-      expect(() => approvalController.hasRequest()).toThrow(
+      expectToThrowError(
+        () => approvalController.hasRequest(),
         getInvalidHasParamsError(),
       );
 
-      expect(() => approvalController.hasRequest({})).toThrow(
+      expectToThrowError(
+        () => approvalController.hasRequest({}),
         getInvalidHasParamsError(),
       );
 
-      expect(() =>
-        approvalController.hasRequest({ id: true } as never),
-      ).toThrow(getInvalidHasIdError());
+      expectToThrowError(
+        () => approvalController.hasRequest({ id: true } as never),
+        getInvalidHasIdError(),
+      );
 
-      expect(() =>
-        approvalController.hasRequest({ origin: true } as never),
-      ).toThrow(getInvalidHasOriginError());
+      expectToThrowError(
+        () => approvalController.hasRequest({ origin: true } as never),
+        getInvalidHasOriginError(),
+      );
 
-      expect(() =>
-        approvalController.hasRequest({ type: true } as never),
-      ).toThrow(getInvalidHasTypeError());
+      expectToThrowError(
+        () => approvalController.hasRequest({ type: true } as never),
+        getInvalidHasTypeError(),
+      );
 
-      expect(() =>
-        approvalController.hasRequest({ origin: 'foo', type: true } as never),
-      ).toThrow(getInvalidHasTypeError());
+      expectToThrowError(
+        () =>
+          approvalController.hasRequest({ origin: 'foo', type: true } as never),
+        getInvalidHasTypeError(),
+      );
     });
 
     it('returns true for existing entry by id', async () => {
@@ -876,7 +939,8 @@ describe('approval controller', () => {
     });
 
     it('throws on unknown id', () => {
-      expect(() => approvalController.acceptRequest('foo')).toThrow(
+      expectToThrowError(
+        () => approvalController.acceptRequest('foo'),
         getIdNotFoundError('foo'),
       );
     });
@@ -1135,9 +1199,10 @@ describe('approval controller', () => {
     });
 
     it('throws on unknown id', () => {
-      expect(() =>
-        approvalController.rejectRequest('foo', new Error('bar')),
-      ).toThrow(getIdNotFoundError('foo'));
+      expectToThrowError(
+        () => approvalController.rejectRequest('foo', new Error('bar')),
+        getIdNotFoundError('foo'),
+      );
     });
 
     it('deletes entry', () => {
@@ -1237,7 +1302,7 @@ describe('approval controller', () => {
     });
 
     it('deletes existing entries', async () => {
-      const rejectSpy = jest.spyOn(approvalController, 'rejectRequest');
+      const rejectSpy = vi.spyOn(approvalController, 'rejectRequest');
 
       approvalController
         .add({ id: 'foo2', origin: 'bar.baz', type: 'myType' })
@@ -1262,10 +1327,12 @@ describe('approval controller', () => {
         type: 'myType',
       });
 
-      approvalController.clearRequests(new JsonRpcError(1000, 'foo'));
-      await expect(rejectPromise).rejects.toThrow(
-        new JsonRpcError(1000, 'foo'),
-      );
+      const rejectionError: JsonRpcError<DataWithOptionalCause> =
+        new JsonRpcError(1000, 'foo');
+      approvalController.clearRequests(rejectionError);
+      // `rejects.toThrow(error)` compares only the message and the class, so the
+      // code would go unchecked. This asserts the caller's error arrives intact.
+      await expect(rejectPromise).rejects.toBe(rejectionError);
     });
 
     it('does not clear approval flows', async () => {
@@ -1301,12 +1368,14 @@ describe('approval controller', () => {
     });
 
     it('throws on unknown id', () => {
-      expect(() =>
-        approvalController.updateRequestState({
-          id: 'foo',
-          requestState: { foo: 'bar' },
-        }),
-      ).toThrow(getIdNotFoundError('foo'));
+      expectToThrowError(
+        () =>
+          approvalController.updateRequestState({
+            id: 'foo',
+            requestState: { foo: 'bar' },
+          }),
+        getIdNotFoundError('foo'),
+      );
     });
   });
 
@@ -1392,7 +1461,7 @@ describe('approval controller', () => {
 
         const expectedFlow = {
           // We're not making an assertion conditionally, we're using a helper.
-          // eslint-disable-next-line jest/no-conditional-expect
+          // eslint-disable-next-line vitest/no-conditional-expect
           id: opts?.id ?? expect.any(String),
           loadingText: opts?.loadingText ?? null,
         };

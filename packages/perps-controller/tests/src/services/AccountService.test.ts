@@ -485,7 +485,21 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      expect(mockDeps.logger.error).toHaveBeenCalled();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(error, {
+        tags: {
+          feature: 'perps',
+          operation: 'financial_operations',
+          action: 'financial_withdrawal',
+        },
+        context: {
+          name: 'AccountService.withdraw',
+          data: expect.objectContaining({
+            method: 'withdraw',
+            assetId: mockWithdrawParams.assetId,
+            amount: mockWithdrawParams.amount,
+          }),
+        },
+      });
     });
 
     it('updates state with error on exception', async () => {

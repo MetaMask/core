@@ -11,8 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/slip44` from `^4.3.0` to `^4.5.0` ([#10736](https://github.com/MetaMask/core/pull/10736))
-- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
-- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.1.0` ([#10717](https://github.com/MetaMask/core/pull/10717))
+- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.1` ([#10772](https://github.com/MetaMask/core/pull/10772), [#10817](https://github.com/MetaMask/core/pull/10817))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.3.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
 ### Fixed
 

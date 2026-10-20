@@ -9,8 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/subscription-controller` from `^14.0.0` to `^14.0.1` ([#10896](https://github.com/MetaMask/core/pull/10896))
+
+## [20.1.0]
+
+### Added
+
+- Add `PERPS_EVENT_VALUE.SECTION_NAME.EXPLORE` (`explore`) and `RECENTLY_ADDED` (`recently_added`) so home impressions for the Explore table and the Recently added rail use controller constants ([#10824](https://github.com/MetaMask/core/pull/10824))
+- Add `PERPS_ERROR_CODES.PRICE_MOVED` and optional `errorCode` and `errorDetails` on `OrderResult`, so a failed placement can be localized without parsing `OrderResult.error` ([#10385](https://github.com/MetaMask/core/pull/10385))
+  - Export `isPerpsErrorCode`, `PriceMovedErrorDetails`, and `PerpsErrorDetails`. `PriceMovedErrorDetails` carries unformatted `priceDeltaBps`, `maxSlippageBps`, `expectedPrice`, and `currentPrice`
+  - `createErrorResult` copies `errorCode` and `errorDetails` when the failure is a structured controller error. HyperLiquid mapped rejections, including an immediate-match rejection (`IOC_CANCEL`) and `EXCHANGE_ACCOUNT_NOT_FOUND`, now set `errorCode`; `OrderResult.error` stays the same message
+  - A USD-derived order whose price moved past `maxSlippageBps` (or the default market slippage) reports `PRICE_MOVED`. The message still starts with `Price moved too much:`; the expected and current prices in it use HyperLiquid price formatting
+- Add `PERPS_EVENT_PROPERTY.PRICE_DELTA_BPS` (`price_delta_bps`) and export `PerpsMaxSlippageSource`. Trade and close analytics now include `failure_reason` from `errorCode` when one is present, `price_delta_bps` for a `PRICE_MOVED` rejection, and `max_slippage_pct`, `max_slippage_source`, and `estimated_slippage_pct` from the caller's tracking data. Raw `error_message` is still sent. Failed close events also include `close_type`, derived from the requested size, including when the provider throws. That property previously appeared only on executed closes ([#10385](https://github.com/MetaMask/core/pull/10385))
+
+### Changed
+
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/abi-utils` from `^2.0.3` to `^2.0.4` ([#10715](https://github.com/MetaMask/core/pull/10715))
+- Perps error logs include bounded `feature`, `operation`, `action`, and `component` tags for connection, order, position, deposit, and withdrawal failures, while retaining diagnostic values in the log context ([#10681](https://github.com/MetaMask/core/pull/10681))
+- Trade traces pass an explicit `ok` or `error` status to `PerpsTracer.endTrace`, the place-order payment-token attribute is named `pay_token_symbol` so Sentry does not scrub its value, and Lighter trading failures are forwarded to Sentry with their original provider message and bounded operation/action tags ([#10685](https://github.com/MetaMask/core/pull/10685))
+
+### Fixed
+
+- Log deposit transaction failures that reject after confirmation, for both deposit-only and deposit-and-order, with `financial_operations` / `financial_deposit` tags, and leave user cancellation unlogged ([#10681](https://github.com/MetaMask/core/pull/10681))
+- Log flip results that resolve `success: false` with `position_management` / `flip_position` tags, and leave `KEYRING_LOCKED` and `EXCHANGE_ACCOUNT_NOT_FOUND` unlogged ([#10681](https://github.com/MetaMask/core/pull/10681))
+- Add optional `OrderParams.deferProviderErrorReport`. A flip sets it so HyperLiquid and Lighter do not log `place_order` for that failure, and `flipPosition` logs it once as `position_management` / `flip_position`. Delegated close failures likewise log once as `position_management` / `close_position`. Expected signer, account, session, and selected local-validation outcomes stay unlogged ([#10681](https://github.com/MetaMask/core/pull/10681))
+- Skip the calculation-time price guard for exact-size HyperLiquid orders, including a full close that submits the live position size. Those orders are no longer rejected locally when `priceAtCalculation` is stale; the venue's slippage-capped limit still applies. The guard still runs for USD-derived sizing ([#10385](https://github.com/MetaMask/core/pull/10385))
 
 ## [20.0.0]
 
@@ -1211,7 +1236,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.1.0...HEAD
+[20.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.0.0...@metamask/perps-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@19.0.0...@metamask/perps-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...@metamask/perps-controller@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.0...@metamask/perps-controller@18.0.1

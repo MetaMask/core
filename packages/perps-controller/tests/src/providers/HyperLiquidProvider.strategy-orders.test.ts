@@ -1964,6 +1964,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
             [
               { message: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED },
               {
+                tags: {
+                  operation: 'position_management',
+                  action: 'position_tpsl_update',
+                },
                 context: {
                   data: {
                     method: 'updatePositionTPSL',
@@ -2000,6 +2004,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
           [
             { message: 'Order price too far' },
             {
+              tags: {
+                operation: 'position_management',
+                action: 'position_tpsl_update',
+              },
               context: {
                 data: {
                   method: 'updatePositionTPSL',

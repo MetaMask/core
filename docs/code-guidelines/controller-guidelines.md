@@ -66,7 +66,9 @@ export type TransactionsControllerMessenger = Messenger<
 >;
 
 // 🚫 Name is repeated.
-export class TransactionsController extends BaseController<'TransactionsController' /*,  ... */> {
+export class TransactionsController extends BaseController<
+  'TransactionsController' /*,  ... */
+> {
   constructor(/* ... */) {
     // 🚫 Name is repeated.
     super({ name: 'TransactionsController' /* ... */ });
@@ -1385,8 +1387,8 @@ export const preferencesControllerSelectors = {
 
 /* === packages/nft-controller/src/NftController.ts === */
 
-import { createSelector } from 'reselect';
 import { preferencesControllerSelectors } from '@metamask/preferences-controller';
+import { createSelector } from 'reselect';
 
 const selectPreferencesControllerState = createSelector(
   [

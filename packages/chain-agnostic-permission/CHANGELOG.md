@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
+- Bump `@metamask/rpc-errors` from `^7.0.2` to `^7.0.3` ([#10718](https://github.com/MetaMask/core/pull/10718))
 
 ## [2.0.0]
 

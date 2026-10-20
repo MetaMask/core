@@ -9,8 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+## [18.2.1]
+
+### Changed
+
 - Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.2.0` ([#10652](https://github.com/MetaMask/core/pull/10652), [#10772](https://github.com/MetaMask/core/pull/10772))
 - Bump `ethereum-cryptography` from `^2.2.1` to `^3.2.0` ([#10599](https://github.com/MetaMask/core/pull/10599))
+
+### Fixed
+
+- Fix Node.js 24 compatibility by accessing `toASCII` through the CommonJS `punycode` module default export. ([#10812](https://github.com/MetaMask/core/pull/10812))
 
 ## [18.2.0]
 
@@ -703,7 +714,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.1...HEAD
+[18.2.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.0...@metamask/phishing-controller@18.2.1
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.1...@metamask/phishing-controller@18.2.0
 [18.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.0...@metamask/phishing-controller@18.1.1
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.0.0...@metamask/phishing-controller@18.1.0

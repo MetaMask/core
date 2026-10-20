@@ -122,7 +122,7 @@
       "count": 1
     },
     "TS2554": {
-      "count": 10
+      "count": 9
     },
     "TS2739": {
       "count": 4
@@ -312,7 +312,7 @@
       "count": 1
     },
     "TS2345": {
-      "count": 1
+      "count": 2
     },
     "TS2769": {
       "count": 1
@@ -337,7 +337,7 @@
       "count": 1
     },
     "TS2345": {
-      "count": 1
+      "count": 2
     },
     "TS6305": {
       "count": 1
@@ -372,8 +372,8 @@
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.batch-sell.test.ts": {
-    "TS2345": {
-      "count": 1
+    "TS2322": {
+      "count": 5
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
@@ -403,11 +403,6 @@
     },
     "TS2353": {
       "count": 2
-    }
-  },
-  "packages/bridge-status-controller/test/mock-batch-sell-erc20-erc20.ts": {
-    "TS2315": {
-      "count": 1
     }
   },
   "packages/chain-agnostic-permission/src/operators/caip-permission-operator-session-scopes.test.ts": {
@@ -1190,7 +1185,7 @@
       "count": 2
     },
     "TS2741": {
-      "count": 168
+      "count": 167
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit-execute.test.ts": {
@@ -1226,11 +1221,14 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {
+    "TS2345": {
+      "count": 1
+    },
     "TS2352": {
-      "count": 2
+      "count": 7
     },
     "TS2741": {
-      "count": 39
+      "count": 55
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-submit.test.ts": {
@@ -1247,16 +1245,16 @@
       "count": 6
     }
   },
-  "packages/transaction-pay-controller/src/utils/ma-vault-deposit.test.ts": {
-    "TS2352": {
-      "count": 1
-    }
-  },
   "packages/transaction-pay-controller/src/utils/provider.test.ts": {
     "TS2353": {
       "count": 1
     },
     "TS7006": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/second-leg.test.ts": {
+    "TS2352": {
       "count": 1
     }
   },

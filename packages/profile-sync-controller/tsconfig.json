@@ -1,11 +1,11 @@
 {
   "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "types": ["jest"]
+  },
   "references": [
     {
       "path": "../base-controller"
-    },
-    {
-      "path": "../cryptography/"
     },
     {
       "path": "../controller-utils"
@@ -24,6 +24,9 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../cryptography"
     }
   ],
   "include": ["../../types", "./src"]

@@ -56,17 +56,6 @@ export function buildEmptyAssetsState(
   };
 }
 
-export function getIgnoringCase(
-  record: Record<string, unknown>,
-  assetId: string,
-): unknown {
-  const lowerId = assetId.toLowerCase();
-  const match = Object.keys(record).find(
-    (key) => key.toLowerCase() === lowerId,
-  );
-  return match === undefined ? undefined : record[match];
-}
-
 /** A seeded USDC spot price, as a wallet that has already priced USDC holds it. */
 export const SEEDED_USDC_PRICE = {
   assetPriceType: 'fungible' as const,

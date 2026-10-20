@@ -25,21 +25,11 @@ import type {
   Simplify,
   Optionalize,
 } from '@metamask/superstruct';
+import type { Json } from '@metamask/type-utils';
+import { hasProperty } from '@metamask/type-utils';
 
 import type { AssertionErrorConstructor } from './assert.js';
 import { assertStruct } from './assert.js';
-import { hasProperty } from './misc.js';
-
-/**
- * Any JSON-compatible value.
- */
-export type Json =
-  | null
-  | boolean
-  | number
-  | string
-  | Json[]
-  | { [prop: string]: Json };
 
 /**
  * A helper type to make properties with `undefined` in their type optional, but
@@ -53,15 +43,15 @@ export type Json =
  * ```
  */
 export type ObjectOptional<Schema extends Record<string, unknown>> = {
-  [Key in keyof Schema as Schema[Key] extends ExactOptionalGuard
-    ? Key
-    : never]?: Schema[Key] extends ExactOptionalGuard & (infer Original)
+  [
+    Key in keyof Schema as Schema[Key] extends ExactOptionalGuard ? Key : never
+  ]?: Schema[Key] extends ExactOptionalGuard & (infer Original)
     ? Original
     : never;
 } & {
-  [Key in keyof Schema as Schema[Key] extends ExactOptionalGuard
-    ? never
-    : Key]: Schema[Key];
+  [
+    Key in keyof Schema as Schema[Key] extends ExactOptionalGuard ? never : Key
+  ]: Schema[Key];
 };
 
 /**

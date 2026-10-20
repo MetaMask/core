@@ -517,8 +517,10 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     expect(result).toBeDefined();
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to add to bridge history'),
-      expect.any(Error),
+      expect.stringContaining(
+        'Failed to persist transaction to history and start polling.',
+      ),
+      new Error('boom'),
     );
 
     consoleSpy.mockRestore();

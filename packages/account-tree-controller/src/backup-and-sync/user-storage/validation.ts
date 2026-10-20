@@ -17,7 +17,7 @@ import {
  * @param error - The StructError thrown during validation.
  * @returns A formatted string of validation error messages.
  */
-const formatValidationErrorMessages = (error: StructError) => {
+const formatValidationErrorMessages = (error: StructError): string => {
   const validationFailures = error
     .failures()
     .map(({ path, message }) => `[${path.join('.')}] ${message}`)
