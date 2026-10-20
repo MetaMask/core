@@ -73,6 +73,68 @@ describe('Validation Utils', () => {
       expect(result).toBe(ADDRESS_MOCK.toLowerCase());
     });
 
+    it.each([
+      ['hex string', '0x89'],
+      ['number', 137],
+      ['decimal string', '137'],
+    ])(
+      'uses the explicit chain ID as the scope if it is a %s',
+      async (_description, chainId) => {
+        await validateAndNormalizeKeyholder(
+          ADDRESS_MOCK,
+          chainId,
+          new MiddlewareContext<WalletMiddlewareKeyValues>([
+            ['origin', 'test'],
+            ['scope', 'eip155:5'],
+          ]),
+          {
+            getAccounts: getAccountsMock,
+            getNetworkClientById: getNetworkClientByIdMock,
+          },
+        );
+
+        expect(getAccountsMock).toHaveBeenCalledWith('test', 'eip155:137');
+        expect(getNetworkClientByIdMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it('uses the scope from the context if there is no chain ID', async () => {
+      await validateAndNormalizeKeyholder(
+        ADDRESS_MOCK,
+        undefined,
+        new MiddlewareContext<WalletMiddlewareKeyValues>([
+          ['origin', 'test'],
+          ['scope', 'eip155:5'],
+        ]),
+        {
+          getAccounts: getAccountsMock,
+          getNetworkClientById: getNetworkClientByIdMock,
+        },
+      );
+
+      expect(getAccountsMock).toHaveBeenCalledWith('test', 'eip155:5');
+      expect(getNetworkClientByIdMock).not.toHaveBeenCalled();
+    });
+
+    it('uses the chain ID of the network client if there is no chain ID or scope', async () => {
+      getNetworkClientByIdMock.mockReturnValueOnce({
+        configuration: { chainId: '0xa' },
+      });
+
+      await validateAndNormalizeKeyholder(
+        ADDRESS_MOCK,
+        undefined,
+        createContext(),
+        {
+          getAccounts: getAccountsMock,
+          getNetworkClientById: getNetworkClientByIdMock,
+        },
+      );
+
+      expect(getNetworkClientByIdMock).toHaveBeenCalledWith('test-client-id');
+      expect(getAccountsMock).toHaveBeenCalledWith('test', 'eip155:10');
+    });
+
     it('throws if address not returned by get accounts hook', async () => {
       getAccountsMock.mockResolvedValueOnce([]);
 
