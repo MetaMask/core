@@ -8,6 +8,9 @@
       "path": "../base-controller"
     },
     {
+      "path": "../cryptography/"
+    },
+    {
       "path": "../controller-utils"
     },
     {
@@ -24,9 +27,6 @@
     },
     {
       "path": "../utils"
-    },
-    {
-      "path": "../cryptography"
     }
   ],
   "include": ["../../types", "./src"]

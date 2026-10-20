@@ -2,22 +2,22 @@
   "extends": "../../tsconfig.packages.json",
   "references": [
     {
-      "path": "../analytics-controller"
+      "path": "../analytics-controller/tsconfig.json"
     },
     {
-      "path": "../authenticated-user-storage"
+      "path": "../authenticated-user-storage/tsconfig.json"
     },
     {
-      "path": "../base-controller"
+      "path": "../base-controller/tsconfig.json"
     },
     {
-      "path": "../keyring-controller"
+      "path": "../keyring-controller/tsconfig.json"
     },
     {
-      "path": "../messenger"
+      "path": "../messenger/tsconfig.json"
     },
     {
-      "path": "../profile-sync-controller"
+      "path": "../profile-sync-controller/tsconfig.json"
     }
   ],
   "include": ["../../types", "./src"]

@@ -5,22 +5,22 @@
   },
   "references": [
     {
-      "path": "../base-controller"
+      "path": "../base-controller/tsconfig.json"
     },
     {
-      "path": "../messenger"
+      "path": "../messenger/tsconfig.json"
     },
     {
-      "path": "../utils"
+      "path": "../utils/tsconfig.json"
     },
     {
-      "path": "../base-data-service"
+      "path": "../base-data-service/tsconfig.json"
     },
     {
-      "path": "../profile-sync-controller"
+      "path": "../profile-sync-controller/tsconfig.json"
     },
     {
-      "path": "../controller-utils"
+      "path": "../controller-utils/tsconfig.json"
     }
   ],
   "include": ["../../types", "./src"]
