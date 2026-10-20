@@ -3,7 +3,7 @@ import * as commentJson from 'comment-json';
 import type { Stats } from 'fs';
 import path from 'path';
 
-import { MonorepoFiles } from './constants.ts';
+import { MONOREPO_FILES } from './constants.ts';
 import type { PackageData } from './utils.ts';
 
 // `jest.mock` does not apply to ES modules, so the module registry is stubbed
@@ -60,11 +60,11 @@ describe('create-package/utils', () => {
 
       readFile.mockImplementation(async (filePath) => {
         switch (path.basename(filePath)) {
-          case MonorepoFiles.TsConfig:
+          case MONOREPO_FILES.TsConfig:
             return tsConfig;
-          case MonorepoFiles.TsConfigBuild:
+          case MONOREPO_FILES.TsConfigBuild:
             return tsConfigBuild;
-          case MonorepoFiles.PackageJson:
+          case MONOREPO_FILES.PackageJson:
             return packageJson;
           default:
             throw new Error(`Unexpected file: ${path.basename(filePath)}`);
