@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
+- chore: bump accounts (`keyring*-api`) deps ([#10844](https://github.com/MetaMask/core/pull/10844))
+- chore(dev-deps): bump `oxfmt` from `^0.44.0` to `^0.72.0` ([#10785](https://github.com/MetaMask/core/pull/10785))
+- chore: bump accounts deps ([#10792](https://github.com/MetaMask/core/pull/10792))
+- fix(deps): update dependency @metamask/rpc-errors to ^7.0.3 ([#10718](https://github.com/MetaMask/core/pull/10718))
+- fix(deps): update dependency @metamask/keyring-api to ^24.1.0 ([#10717](https://github.com/MetaMask/core/pull/10717))
+- chore(deps): update dependency @metamask/providers to ^22.1.1 ([#10709](https://github.com/MetaMask/core/pull/10709))
+- chore(deps): update dependency typedoc-plugin-missing-exports to v4 ([#10762](https://github.com/MetaMask/core/pull/10762))
+- chore(deps): update dependency typedoc-plugin-missing-exports to ^2.3.0 ([#10710](https://github.com/MetaMask/core/pull/10710))
+- fix(deps): update dependency @metamask/keyring-internal-api to ^12.1.0 ([#10733](https://github.com/MetaMask/core/pull/10733))
+
 ### Added
 
 - Add `AuthenticationController.exchangeSocialAccessToken` and the `AuthenticationController:exchangeSocialAccessToken` messenger action, exchanging the wallet's Google, Apple or Telegram social access token (`POST /api/v2/social/login`) for an access token and the canonical profile, without storing them ([#10886](https://github.com/MetaMask/core/pull/10886))
