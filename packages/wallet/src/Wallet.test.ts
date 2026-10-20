@@ -39,8 +39,19 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
   },
 };
 
+const TEST_ANALYTICS_ID = '11111111-1111-4111-8111-111111111111';
+
 function getInstanceOptions(): WalletOptions['instanceOptions'] {
   return {
+    analyticsController: {
+      platformAdapter: {
+        track: jest.fn(),
+        identify: jest.fn(),
+        view: jest.fn(),
+        onSetupCompleted: jest.fn(),
+      },
+      analyticsId: TEST_ANALYTICS_ID,
+    },
     connectivityController: {
       connectivityAdapter: new AlwaysOnlineAdapter(),
     },
@@ -187,7 +198,7 @@ describe('Wallet', () => {
 
     const results = await wallet.init();
 
-    expect(results).toHaveLength(6);
+    expect(results).toHaveLength(7);
   });
 
   it('disallows modifying the messenger', async () => {

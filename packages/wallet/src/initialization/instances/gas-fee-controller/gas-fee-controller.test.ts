@@ -204,6 +204,15 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
 
 function getInstanceOptions(): WalletOptions['instanceOptions'] {
   return {
+    analyticsController: {
+      platformAdapter: {
+        track: jest.fn(),
+        identify: jest.fn(),
+        view: jest.fn(),
+        onSetupCompleted: jest.fn(),
+      },
+      analyticsId: '11111111-1111-4111-8111-111111111111',
+    },
     connectivityController: {
       connectivityAdapter: new AlwaysOnlineAdapter(),
     },
