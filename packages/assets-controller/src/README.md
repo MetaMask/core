@@ -21,11 +21,8 @@ The `AssetsController` is a unified asset management system that provides real-t
 │  ├───────────────────┤               │                   │                   │
 │  │       RPC         │               │                   │                   │
 │  ├───────────────────┤               ├───────────────────┤                   │
-│  │     Detection     │               │     Detection     │                   │
-│  ├───────────────────┤               ├───────────────────┤                   │
-│  │       Token       │               │       Token       │                   │
-│  ├───────────────────┤               ├───────────────────┤                   │
-│  │       Price       │               │       Price       │                   │
+│  │   Token + Price   │               │   Token + Price   │                   │
+│  │    (parallel)     │               │    (parallel)     │                   │
 │  └───────────────────┘               └───────────────────┘                   │
 │                                                                              │
 │  On-demand data fetch                Process incoming updates                │
