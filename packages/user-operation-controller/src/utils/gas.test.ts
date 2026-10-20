@@ -11,7 +11,7 @@ import type {
 } from '../types.js';
 import { updateGas } from './gas.js';
 
-vi.mock('../helpers/Bundler', () => ({
+vi.mock(import('../helpers/Bundler.js'), () => ({
   Bundler: vi.fn(),
 }));
 

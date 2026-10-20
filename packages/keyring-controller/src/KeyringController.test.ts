@@ -25,6 +25,7 @@ import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
+import { v4 as uuidV4 } from 'uuid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mocked } from 'vitest';
 
@@ -72,12 +73,10 @@ type RootMessenger = Messenger<
   AllKeyringControllerEvents
 >;
 
-vi.mock('uuid', async () => {
-  return {
-    ...(await vi.importActual<typeof import('uuid')>('uuid')),
-    v4: (): string => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-  };
-});
+vi.mock(import('uuid'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  v4: vi.fn(),
+}));
 
 const input =
   '{"version":3,"id":"534e0199-53f6-41a9-a8fe-d504702ee5e8","address":"b97c80fab7a3793bbe746864db80d236f1345ea7",' +
@@ -138,6 +137,12 @@ function createVault(keyrings: SerializedKeyring[] = defaultKeyrings): string {
 }
 
 describe('KeyringController', () => {
+  beforeEach(() => {
+    vi.mocked<() => string>(uuidV4).mockReturnValue(
+      '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+    );
+  });
+
   afterEach(() => {
     vi.resetAllMocks();
   });
