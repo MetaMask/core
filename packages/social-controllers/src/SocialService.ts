@@ -151,6 +151,7 @@ const TraderProfileStruct = structType({
   allAddresses: array(string()),
   name: string(),
   imageUrl: optional(nullable(string())),
+  createdAt: optional(nullable(string())),
 });
 
 const TraderStatsStruct = structType({
@@ -287,6 +288,9 @@ const FeedItemStruct = assign(
     firstTradeAt: optional(nullable(number())),
     holdTimeMs: optional(nullable(number())),
     entryPriceUsd: optional(nullable(number())),
+    eventId: optional(string()),
+    revision: optional(number()),
+    occurredAt: optional(string()),
   }),
 );
 
@@ -551,6 +555,9 @@ export class SocialService extends BaseDataService<
    *
    * Calls `GET ${baseUrl}/traders/${addressOrId}/profile`.
    *
+   * `profile.createdAt` is optional. When present it is an ISO-8601 timestamp
+   * for when the social-api profile row was inserted.
+   *
    * @param options - Options bag.
    * @param options.addressOrId - Wallet address or Clicker profile ID.
    * @returns The trader profile response.
@@ -759,7 +766,8 @@ export class SocialService extends BaseDataService<
    * `pagination.newerCursor` as `newerThan` to fetch newer items.
    *
    * @param options - Options bag.
-   * @param options.scope - `following` (default) or `leaderboard`.
+   * @param options.scope - `following` (default), `leaderboard`, `all`, or
+   * `trending`.
    * @param options.chains - Filter by one or more chains.
    * @param options.limit - Number of results per page.
    * @param options.olderThan - Cursor for older items (scroll down).

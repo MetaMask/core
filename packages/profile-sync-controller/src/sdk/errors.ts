@@ -275,6 +275,19 @@ export class PairConflictError extends PairError {
 }
 
 /**
+ * Thrown when `POST /api/v2/social/login` returns 404: the social identifier
+ * was never paired to a profile, so there is nothing to log in to.
+ */
+export class SocialIdentifierNotPairedError extends SignInError {
+  readonly status = HTTP_STATUS_CODES.NOT_FOUND;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'SocialIdentifierNotPairedError';
+  }
+}
+
+/**
  * Thrown when `POST /api/v2/oidc/token` returns 422: this profile has no
  * verified email on record. Consumers should send the user through email
  * OTP (or Google pair) and retry.

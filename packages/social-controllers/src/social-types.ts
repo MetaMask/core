@@ -143,6 +143,12 @@ export type TraderProfile = {
   allAddresses: string[];
   name: string;
   imageUrl?: string | null;
+  /**
+   * When the social-api profile row was created, as an ISO-8601 timestamp.
+   * Omitted on older social-api builds. This is the row insert time, which can
+   * predate the trader claiming a username and avatar.
+   */
+  createdAt?: string | null;
 };
 
 export type TraderStats = {
@@ -362,6 +368,12 @@ export type FeedItem = Position & {
    * `null` when the position is flat. Absent on older social-api builds.
    */
   entryPriceUsd?: number | null;
+  /** Stable event ID for the shared feed-all projection. */
+  eventId?: string;
+  /** Projection revision for the shared feed-all item. */
+  revision?: number;
+  /** ISO timestamp for the shared feed-all projection event. */
+  occurredAt?: string;
 };
 
 export type ReactToCommentOptions = {
@@ -664,10 +676,11 @@ export type FetchTokenFeedOptions = {
 export type FetchFeedOptions = {
   /**
    * Which feed to fetch: `following` (personalized to the current user,
-   * identified server-side from the JWT) or `leaderboard` (generic, shared by
-   * all users). Defaults to `following` server-side when omitted.
+   * identified server-side from the JWT), `leaderboard` (generic, shared by
+   * all users), or `all` (the shared feed-all projection). Defaults to
+   * `following` server-side when omitted.
    */
-  scope?: 'following' | 'leaderboard';
+  scope?: FeedScope;
   /**
    * Filter by one or more chains, given as CAIP-2 chain ids (e.g.
    * `eip155:8453`). Omit for the server defaults.
@@ -680,6 +693,8 @@ export type FetchFeedOptions = {
   /** Cursor for newer items (pull to refresh). Use `pagination.newerCursor`. */
   newerThan?: string;
 };
+
+export type FeedScope = 'following' | 'leaderboard' | 'all' | 'trending';
 
 export type FetchPositionByIdOptions = {
   /** Unique position ID (UUID). */

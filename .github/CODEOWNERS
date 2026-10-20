@@ -361,6 +361,13 @@
 /packages/logging-controller/tsconfig.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/logging-controller/typedoc.json    @MetaMask/confirmations @MetaMask/core-platform
 
+### marketing-consent-controller
+/packages/marketing-consent-controller                 @MetaMask/engagement
+/packages/marketing-consent-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/engagement
+/packages/marketing-consent-controller/package.json    @MetaMask/core-platform @MetaMask/engagement
+/packages/marketing-consent-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/engagement
+/packages/marketing-consent-controller/typedoc.json    @MetaMask/core-platform @MetaMask/engagement
+
 ### message-manager
 /packages/message-manager                 @MetaMask/confirmations
 /packages/message-manager/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
@@ -381,6 +388,13 @@
 /packages/messenger-cli/package.json    @MetaMask/core-platform
 /packages/messenger-cli/tsconfig.*      @MetaMask/core-platform
 /packages/messenger-cli/typedoc.json    @MetaMask/core-platform
+
+### mfa-recovery-controller
+/packages/mfa-recovery-controller                 @MetaMask/web3auth
+/packages/mfa-recovery-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/web3auth
+/packages/mfa-recovery-controller/package.json    @MetaMask/core-platform @MetaMask/web3auth
+/packages/mfa-recovery-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/web3auth
+/packages/mfa-recovery-controller/typedoc.json    @MetaMask/core-platform @MetaMask/web3auth
 
 ### money-account-api-data-service
 /packages/money-account-api-data-service                 @MetaMask/earn

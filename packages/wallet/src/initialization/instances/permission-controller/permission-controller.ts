@@ -13,6 +13,7 @@ export const permissionController: InitializationConfiguration<
   PermissionControllerMessenger
 > = {
   name: 'PermissionController',
+  reference: PermissionController,
   init: ({ state, messenger, options }) =>
     new PermissionController({
       state,

@@ -367,6 +367,9 @@
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.batch-sell.test.ts": {
+    "TS2322": {
+      "count": 5
+    },
     "TS2345": {
       "count": 1
     }
@@ -398,11 +401,6 @@
     },
     "TS2353": {
       "count": 2
-    }
-  },
-  "packages/bridge-status-controller/test/mock-batch-sell-erc20-erc20.ts": {
-    "TS2315": {
-      "count": 1
     }
   },
   "packages/chain-agnostic-permission/src/operators/caip-permission-operator-session-scopes.test.ts": {
@@ -1228,7 +1226,7 @@
       "count": 7
     },
     "TS2741": {
-      "count": 56
+      "count": 55
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-submit.test.ts": {

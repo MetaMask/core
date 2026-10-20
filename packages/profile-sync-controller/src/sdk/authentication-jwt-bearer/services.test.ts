@@ -6,6 +6,7 @@ import {
   PairError,
   RateLimitedError,
   EmailRequiredError,
+  SocialIdentifierNotPairedError,
 } from '../errors.js';
 import {
   getNonce,
@@ -14,6 +15,7 @@ import {
   pairIdentifiers,
   pairProfiles,
   pairSocialIdentifier,
+  socialLogin,
   getUserProfileLineage,
   getCustomerServiceToken,
   getPartnerIdentityToken,
@@ -24,6 +26,7 @@ import {
   PAIR_IDENTIFIERS,
   PAIR_PROFILES_URL,
   PAIR_SOCIAL_IDENTIFIER_URL,
+  SOCIAL_LOGIN_URL,
   PROFILE_LINEAGE_URL,
   CUSTOMER_SERVICE_TOKEN_URL,
   PARTNER_IDENTITY_TOKEN_URL,
@@ -122,6 +125,12 @@ describe('services', () => {
     it('should build correct SIWE_LOGIN_URL', () => {
       expect(SIWE_LOGIN_URL(Env.DEV)).toBe(
         'https://authentication.dev-api.cx.metamask.io/api/v2/siwe/login',
+      );
+    });
+
+    it('should build correct SOCIAL_LOGIN_URL', () => {
+      expect(SOCIAL_LOGIN_URL(Env.DEV)).toBe(
+        'https://authentication.dev-api.cx.metamask.io/api/v2/social/login',
       );
     });
 
@@ -1238,6 +1247,123 @@ describe('services', () => {
       const calledUrl = mockFetch.mock.calls[0][0];
       expect(calledUrl.toString()).toContain('api.cx.metamask.io');
       expect(calledUrl.toString()).toContain('/profile/pair/identifier');
+    });
+  });
+
+  describe('socialLogin', () => {
+    const mockSocialLoginResponse = {
+      token: 'social-login-jwt',
+      expires_in: 3600,
+      profile: {
+        identifier_id: 'id-social',
+        metametrics_id: 'metametrics-1',
+        profile_id: 'canonical-1',
+        paired_identifier_ids: [{ id: 'id-social', type: 'GOOGLE' }],
+      },
+      profile_aliases: [
+        {
+          alias_profile_id: 'alias-1',
+          canonical_profile_id: 'canonical-1',
+          identifier_ids: [{ id: 'id-srp', type: 'SRP' }],
+        },
+      ],
+    };
+
+    it('sends the social token as Bearer and the identifier type', async () => {
+      mockFetch.mockResolvedValue(createMockResponse(mockSocialLoginResponse));
+
+      await socialLogin(
+        { identifierType: 'GOOGLE', socialJwt: 'social-jwt' },
+        Env.DEV,
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        SOCIAL_LOGIN_URL(Env.DEV),
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer social-jwt',
+          },
+          body: JSON.stringify({ identifier_type: 'GOOGLE' }),
+        }),
+      );
+    });
+
+    it('returns the canonical profile', async () => {
+      mockFetch.mockResolvedValue(createMockResponse(mockSocialLoginResponse));
+
+      expect(
+        await socialLogin(
+          { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+          Env.DEV,
+        ),
+      ).toStrictEqual({
+        token: 'social-login-jwt',
+        expiresIn: 3600,
+        profile: {
+          identifierId: 'id-social',
+          metaMetricsId: 'metametrics-1',
+          profileId: 'canonical-1',
+          canonicalProfileId: 'canonical-1',
+          pairedIdentifierIds: [{ id: 'id-social', type: 'GOOGLE' }],
+        },
+        profileAliases: [
+          {
+            aliasProfileId: 'alias-1',
+            canonicalProfileId: 'canonical-1',
+            identifierIds: [{ id: 'id-srp', type: 'SRP' }],
+          },
+        ],
+      });
+    });
+
+    it('throws SocialIdentifierNotPairedError on 404', async () => {
+      mockFetch.mockResolvedValue(
+        createMockResponse(
+          {
+            message: 'social identifier is not paired to any profile',
+            error: 'not_found',
+          },
+          { ok: false, status: 404 },
+        ),
+      );
+
+      const login = socialLogin(
+        { identifierType: 'GOOGLE', socialJwt: 'social-jwt' },
+        Env.DEV,
+      );
+
+      await expect(login).rejects.toThrow(SocialIdentifierNotPairedError);
+      await expect(login).rejects.toThrow(SignInError);
+      await expect(login).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('throws SignInError on other error responses', async () => {
+      mockFetch.mockResolvedValue(
+        createMockResponse(
+          { message: 'invalid or expired social token', error: 'unauthorized' },
+          { ok: false, status: 401 },
+        ),
+      );
+
+      await expect(
+        socialLogin(
+          { identifierType: 'GOOGLE', socialJwt: 'social-jwt' },
+          Env.DEV,
+        ),
+      ).rejects.toMatchObject({ name: 'SignInError' });
+    });
+
+    it('throws SignInError on network failure', async () => {
+      mockFetch.mockRejectedValue(new Error('Connection refused'));
+
+      await expect(
+        socialLogin(
+          { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+          Env.DEV,
+        ),
+      ).rejects.toThrow(SignInError);
     });
   });
 

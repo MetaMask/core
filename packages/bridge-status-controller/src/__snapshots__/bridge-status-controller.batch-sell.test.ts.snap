@@ -1,0 +1,87 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`BridgeStatusController submitBatchSell rethrows addTransactionBatchFn error if there is no matching txMeta for the batch 2`] = `
+{
+  "account": "0xaccount1",
+  "actionId": undefined,
+  "approvalTxId": undefined,
+  "batchId": "batchId1",
+  "completionTime": 1779922719705,
+  "estimatedProcessingTimeInSeconds": 60,
+  "featureId": "batch_sell",
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "location": "Unknown",
+  "originalTransactionId": undefined,
+  "quoteId": undefined,
+  "slippagePercentage": 0,
+  "startTime": 1718217600000,
+  "status": {
+    "srcChain": {
+      "chainId": 10,
+      "txHash": undefined,
+    },
+    "status": "FAILED",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": undefined,
+}
+`;
+
+exports[`BridgeStatusController submitBatchSell returns undefined if there is no matching txMeta for the batch 2`] = `
+{
+  "account": "0xaccount1",
+  "actionId": undefined,
+  "approvalTxId": undefined,
+  "batchId": "batchId1",
+  "completionTime": 1779922719705,
+  "estimatedProcessingTimeInSeconds": 60,
+  "featureId": "batch_sell",
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "location": "Unknown",
+  "originalTransactionId": undefined,
+  "quoteId": undefined,
+  "slippagePercentage": 0,
+  "startTime": 1718217600000,
+  "status": {
+    "srcChain": {
+      "chainId": 10,
+      "txHash": undefined,
+    },
+    "status": "FAILED",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": undefined,
+}
+`;
+
+exports[`BridgeStatusController submitBatchSell silences addTransactionBatchFn error if there is a matching txMeta for the batch 2`] = `
+{
+  "account": "0xaccount1",
+  "actionId": undefined,
+  "approvalTxId": undefined,
+  "batchId": "batchId1",
+  "estimatedProcessingTimeInSeconds": 60,
+  "featureId": "batch_sell",
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "location": "Unknown",
+  "originalTransactionId": "1",
+  "quoteId": undefined,
+  "slippagePercentage": 0,
+  "startTime": 1718217600000,
+  "status": {
+    "srcChain": {
+      "chainId": 10,
+      "txHash": undefined,
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "1",
+}
+`;

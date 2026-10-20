@@ -212,6 +212,7 @@ type ControllerConfig = {
 
 const MESSENGER_EXPOSED_METHODS = [
   'performSignIn',
+  'exchangeSocialAccessToken',
   'performSignOut',
   'getBearerToken',
   'getSessionProfile',
@@ -741,6 +742,42 @@ export class AuthenticationController extends BaseController<
       }
       throw error;
     }
+  }
+
+  /**
+   * Exchanges the social access token SeedlessOnboarding holds for the
+   * wallet's Google/Apple/Telegram login (`POST /api/v2/social/login`) for an
+   * access token and the canonical profile it is paired to. Shows no UI and
+   * stores nothing: SRP sessions remain the source of truth for
+   * `getBearerToken`.
+   *
+   * Throws when the wallet has no social vault or no social token, and
+   * `SocialIdentifierNotPairedError` when the identifier was never paired to
+   * a profile.
+   *
+   * @returns The access token and canonical profile.
+   */
+  public async exchangeSocialAccessToken(): Promise<LoginResponse> {
+    const identifierType = this.#identifierTypeFromSeedlessState(
+      this.messenger.call('SeedlessOnboardingController:getState'),
+    );
+    if (identifierType === 'SRP') {
+      throw new Error(
+        'exchangeSocialAccessToken - the wallet has no social login',
+      );
+    }
+
+    const socialJwt = await this.messenger.call(
+      'SeedlessOnboardingController:getAccessToken',
+    );
+    if (!socialJwt) {
+      throw new Error('exchangeSocialAccessToken - no social access token');
+    }
+
+    return await this.#auth.exchangeSocialAccessToken({
+      identifierType,
+      socialJwt,
+    });
   }
 
   #clearNeedsSocialPairing(): void {
