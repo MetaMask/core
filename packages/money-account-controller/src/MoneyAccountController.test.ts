@@ -1,4 +1,9 @@
 import { KeyringAccountEntropyTypeOption } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  KeyringAccount,
+} from '@metamask/keyring-api';
+import type { Keyring as KeyringV2 } from '@metamask/keyring-api/v2';
 import {
   KeyringControllerError,
   KeyringControllerErrorMessage,
@@ -90,10 +95,25 @@ type RootMessenger = Messenger<
   MessengerEvents<MoneyAccountControllerMessenger>
 >;
 
-// `withKeyring`'s callback requires an `EthKeyring`, but our mock keyrings
+// `withKeyringV2`'s callback requires a V2 `Keyring`, but our mock keyrings
 // only implement the subset of methods the controller actually calls.
 function asKeyring(keyring: object): EthKeyring {
   return keyring as unknown as EthKeyring;
+}
+
+function asV2Keyring(keyring: object): KeyringV2 {
+  return keyring as unknown as KeyringV2;
+}
+
+function toV2Account(address: string): KeyringAccount {
+  return {
+    id: `mock-v2-account-${address}`,
+    type: 'eip155:eoa',
+    address,
+    scopes: ['eip155:0'],
+    methods: [...MONEY_ACCOUNT_METHODS],
+    options: {},
+  };
 }
 
 class MockMoneyKeyring {
@@ -121,7 +141,50 @@ class MockMoneyKeyring {
   }
 }
 
-class MockMpcMoneyKeyring {
+/** Mirrors the V2 `MoneyKeyring` wrapper from `@metamask/eth-money-keyring/v2`. */
+class MockMoneyKeyringV2 {
+  readonly #inner: MockMoneyKeyring;
+
+  constructor(inner: MockMoneyKeyring) {
+    this.#inner = inner;
+  }
+
+  async getAccounts(): Promise<KeyringAccount[]> {
+    return (await this.#inner.getAccounts()).map(toV2Account);
+  }
+
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<KeyringAccount[]> {
+    if (options.type !== 'bip44:derive-index') {
+      throw new Error(
+        `MoneyKeyring: unsupported account creation type: ${options.type}`,
+      );
+    }
+
+    if (options.entropySource !== this.#inner.entropySource) {
+      throw new Error(
+        `MoneyKeyring: entropy source mismatch: expected '${this.#inner.entropySource}', got '${options.entropySource}'`,
+      );
+    }
+
+    if (options.groupIndex !== 0) {
+      throw new Error(
+        'MoneyKeyring: supports only creating the first account, groupIndex must be 0',
+      );
+    }
+
+    const accounts = await this.#inner.getAccounts();
+    if (accounts.length > 0) {
+      return accounts.map(toV2Account);
+    }
+
+    const [address] = await this.#inner.addAccounts(1);
+    return [toV2Account(address)];
+  }
+}
+
+class MockMpcKeyring {
   readonly type = KeyringTypes.mpcMoney;
 
   readonly #accounts: string[];
@@ -139,10 +202,18 @@ class MockMpcMoneyKeyring {
   async getAccounts(): Promise<string[]> {
     return [...this.#accounts];
   }
+}
 
-  async addAccounts(_n: number): Promise<string[]> {
-    this.#accounts.push(MOCK_MPC_ADDRESS);
-    return [MOCK_MPC_ADDRESS];
+/** Mirrors the V2 `MpcKeyring` wrapper from `@metamask/keyring-eth-mpc/v2`. */
+class MockMpcKeyringV2 {
+  readonly #inner: MockMpcKeyring;
+
+  constructor(inner: MockMpcKeyring) {
+    this.#inner = inner;
+  }
+
+  async getAccounts(): Promise<KeyringAccount[]> {
+    return (await this.#inner.getAccounts()).map(toV2Account);
   }
 }
 
@@ -155,6 +226,7 @@ type MockKeyringSpec = {
 
 type MockKeyringEntry = {
   keyring: EthKeyring;
+  keyringV2?: KeyringV2;
   metadata: { id: string; name: string };
 };
 
@@ -171,6 +243,25 @@ type AllMoneyAccountControllerActions =
 type AllMoneyAccountControllerEvents =
   MessengerEvents<MoneyAccountControllerMessenger>;
 
+function buildMockKeyrings(
+  type: string,
+  accounts: string[],
+  entropySource?: string,
+): { keyring: object; keyringV2: object | undefined } {
+  if (type === KeyringTypes.money) {
+    const inner = new MockMoneyKeyring({ accounts, entropySource });
+    return { keyring: inner, keyringV2: new MockMoneyKeyringV2(inner) };
+  }
+
+  if (type === KeyringTypes.mpcMoney) {
+    const inner = new MockMpcKeyring({ accounts });
+    return { keyring: inner, keyringV2: new MockMpcKeyringV2(inner) };
+  }
+
+  // No V2 builder is registered for other keyring types.
+  return { keyring: { type, accounts }, keyringV2: undefined };
+}
+
 function setup({
   accounts = [],
   defaultMoneyAccountId,
@@ -184,33 +275,31 @@ function setup({
   mocks: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     KeyringController: {
-      withKeyring: jest.Mock;
       withController: jest.Mock;
+      withKeyringV2: jest.Mock;
       addNewKeyring: jest.Mock;
     };
   };
 } {
   const mocks = {
     KeyringController: {
-      withKeyring: jest.fn(),
       withController: jest.fn(),
+      withKeyringV2: jest.fn(),
       addNewKeyring: jest.fn(),
     },
   };
 
   const keyringEntries: MockKeyringEntry[] = keyrings.map((spec) => {
-    let keyring: object;
-    if (spec.type === KeyringTypes.money) {
-      keyring = new MockMoneyKeyring({
-        accounts: spec.accounts,
-        entropySource: spec.entropySource,
-      });
-    } else if (spec.type === KeyringTypes.mpcMoney) {
-      keyring = new MockMpcMoneyKeyring({ accounts: spec.accounts });
-    } else {
-      keyring = { type: spec.type, accounts: spec.accounts };
-    }
-    return { keyring: asKeyring(keyring), metadata: spec.metadata };
+    const { keyring, keyringV2 } = buildMockKeyrings(
+      spec.type,
+      spec.accounts,
+      spec.entropySource,
+    );
+    return {
+      keyring: asKeyring(keyring),
+      keyringV2: keyringV2 === undefined ? undefined : asV2Keyring(keyringV2),
+      metadata: spec.metadata,
+    };
   });
 
   const rootMessenger = new Messenger<
@@ -229,24 +318,19 @@ function setup({
     vault: '',
   }));
 
-  // Simulates `KeyringController:withKeyring`, resolving the selector against
-  // the current keyring entries.
-  mocks.KeyringController.withKeyring.mockImplementation(
+  // Simulates `KeyringController:withKeyringV2`, resolving the selector
+  // against the current keyring entries.
+  mocks.KeyringController.withKeyringV2.mockImplementation(
     async (
-      selector: { id: string } | { filter: (keyring: EthKeyring) => boolean },
+      selector: { id: string },
       callback: (entry: {
-        keyring: EthKeyring;
+        keyring: KeyringV2;
         metadata: { id: string; name: string };
       }) => Promise<unknown>,
     ) => {
-      const entry =
-        'id' in selector
-          ? keyringEntries.find(
-              (candidate) => candidate.metadata.id === selector.id,
-            )
-          : keyringEntries.find((candidate) =>
-              selector.filter(candidate.keyring),
-            );
+      const entry = keyringEntries.find(
+        (candidate) => candidate.metadata.id === selector.id,
+      );
 
       if (!entry) {
         throw new KeyringControllerError(
@@ -254,13 +338,19 @@ function setup({
         );
       }
 
-      return callback({ keyring: entry.keyring, metadata: entry.metadata });
+      if (!entry.keyringV2) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.KeyringV2NotSupported,
+        );
+      }
+
+      return callback({ keyring: entry.keyringV2, metadata: entry.metadata });
     },
   );
 
   rootMessenger.registerActionHandler(
-    'KeyringController:withKeyring',
-    mocks.KeyringController.withKeyring,
+    'KeyringController:withKeyringV2',
+    mocks.KeyringController.withKeyringV2,
   );
 
   // Simulates `KeyringController:withController`: mutually exclusive execution
@@ -273,20 +363,15 @@ function setup({
       // at this point if the controller were not mutually exclusive.
       await Promise.resolve();
 
-      let keyring: object;
-      if (type === KeyringTypes.money) {
-        keyring = new MockMoneyKeyring({
-          accounts: [],
-          entropySource: (opts as { entropySource?: string })?.entropySource,
-        });
-      } else if (type === KeyringTypes.mpcMoney) {
-        keyring = new MockMpcMoneyKeyring({ accounts: [] });
-      } else {
-        keyring = { type, accounts: [] };
-      }
+      const { keyring, keyringV2 } = buildMockKeyrings(
+        type,
+        [],
+        (opts as { entropySource?: string } | undefined)?.entropySource,
+      );
 
       const entry: MockKeyringEntry = {
         keyring: asKeyring(keyring),
+        keyringV2: keyringV2 === undefined ? undefined : asV2Keyring(keyringV2),
         metadata: {
           id: `created-keyring-${keyringEntries.length}`,
           name: type,
@@ -330,7 +415,7 @@ function setup({
   rootMessenger.delegate({
     actions: [
       'KeyringController:getState',
-      'KeyringController:withKeyring',
+      'KeyringController:withKeyringV2',
       'KeyringController:withController',
     ],
     events: [],
@@ -459,6 +544,7 @@ describe('MoneyAccountController', () => {
       it('creates a new money account with the correct shape', async () => {
         const { controller } = setup();
         const account = await controller.createMoneyAccount({
+          type: 'mnemonic',
           entropySource: MOCK_ENTROPY_SOURCE_ID,
         });
         expect(account).toMatchObject({
@@ -478,11 +564,10 @@ describe('MoneyAccountController', () => {
         expect(typeof account.id).toBe('string');
       });
 
-      it('supports an explicit mnemonic type', async () => {
+      it('defaults to the primary entropy source when none is provided', async () => {
         const { controller } = setup();
         const account = await controller.createMoneyAccount({
           type: 'mnemonic',
-          entropySource: MOCK_ENTROPY_SOURCE_ID,
         });
         expect(account).toMatchObject({
           address: MOCK_ADDRESS,
@@ -492,9 +577,20 @@ describe('MoneyAccountController', () => {
         });
       });
 
+      it('throws when no entropy source is provided and no primary HD keyring exists', async () => {
+        const { controller } = setup({ keyrings: [] });
+
+        await expect(
+          controller.createMoneyAccount({ type: 'mnemonic' }),
+        ).rejects.toThrow(
+          'No entropy source provided, and no primary HD keyring found',
+        );
+      });
+
       it('persists the created account to state and sets it as the default', async () => {
         const { controller } = setup();
         const account = await controller.createMoneyAccount({
+          type: 'mnemonic',
           entropySource: MOCK_ENTROPY_SOURCE_ID,
         });
         expect(controller.state.moneyAccounts[account.id]).toStrictEqual(
@@ -508,6 +604,7 @@ describe('MoneyAccountController', () => {
           accounts: [MOCK_MONEY_ACCOUNT],
         });
         const account = await controller.createMoneyAccount({
+          type: 'mnemonic',
           entropySource: MOCK_OTHER_ENTROPY_SOURCE_ID,
         });
         expect(account.id).not.toBe(MOCK_MONEY_ACCOUNT.id);
@@ -521,16 +618,18 @@ describe('MoneyAccountController', () => {
           accounts: [MOCK_MONEY_ACCOUNT],
         });
         const account = await controller.createMoneyAccount({
+          type: 'mnemonic',
           entropySource: MOCK_ENTROPY_SOURCE_ID,
         });
         expect(account).toStrictEqual(MOCK_MONEY_ACCOUNT);
         expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
-        expect(mocks.KeyringController.withKeyring).not.toHaveBeenCalled();
+        expect(mocks.KeyringController.withKeyringV2).not.toHaveBeenCalled();
       });
 
       it('creates the money keyring if it does not exist yet', async () => {
         const { controller, mocks } = setup();
         const account = await controller.createMoneyAccount({
+          type: 'mnemonic',
           entropySource: MOCK_ENTROPY_SOURCE_ID,
         });
 
@@ -555,6 +654,7 @@ describe('MoneyAccountController', () => {
           ],
         });
         const account = await controller.createMoneyAccount({
+          type: 'mnemonic',
           entropySource: MOCK_ENTROPY_SOURCE_ID,
         });
 
@@ -577,6 +677,7 @@ describe('MoneyAccountController', () => {
         });
 
         const account = await controller.createMoneyAccount({
+          type: 'mnemonic',
           entropySource: MOCK_ENTROPY_SOURCE_ID,
         });
         expect(account.address).toBe(MOCK_ADDRESS);
@@ -601,6 +702,7 @@ describe('MoneyAccountController', () => {
           ],
         });
         const account = await controller.createMoneyAccount({
+          type: 'mnemonic',
           entropySource: MOCK_ENTROPY_SOURCE_ID,
         });
         expect(account.address).toBe(MOCK_ADDRESS);
@@ -611,9 +713,11 @@ describe('MoneyAccountController', () => {
 
         await Promise.all([
           controller.createMoneyAccount({
+            type: 'mnemonic',
             entropySource: MOCK_ENTROPY_SOURCE_ID,
           }),
           controller.createMoneyAccount({
+            type: 'mnemonic',
             entropySource: MOCK_ENTROPY_SOURCE_ID,
           }),
         ]);
@@ -634,27 +738,74 @@ describe('MoneyAccountController', () => {
 
         await expect(
           controller.createMoneyAccount({
+            type: 'mnemonic',
             entropySource: MOCK_ENTROPY_SOURCE_ID,
           }),
         ).rejects.toThrow('Unexpected keyring error');
       });
 
-      it('throws when the created keyring is not a Money Keyring', async () => {
-        const { controller, mocks, keyringEntries } = setup();
-        mocks.KeyringController.addNewKeyring.mockImplementation(async () => {
-          const entry = {
-            keyring: asKeyring(new MockMpcMoneyKeyring()),
-            metadata: { id: 'money-keyring-wrong', name: 'Money Keyring' },
-          };
-          keyringEntries.push(entry);
-          return entry;
-        });
+      it('rethrows unexpected errors from withKeyringV2', async () => {
+        const { controller, mocks } = setup();
+
+        const unexpectedError = new Error('Unexpected V2 keyring error');
+        mocks.KeyringController.withKeyringV2.mockRejectedValue(
+          unexpectedError,
+        );
 
         await expect(
           controller.createMoneyAccount({
+            type: 'mnemonic',
             entropySource: MOCK_ENTROPY_SOURCE_ID,
           }),
-        ).rejects.toThrow('Keyring money-keyring-wrong has an unexpected type');
+        ).rejects.toThrow('Unexpected V2 keyring error');
+      });
+
+      it('throws when account creation returns no account', async () => {
+        const { controller, keyringEntries } = setup({
+          keyrings: [
+            MOCK_HD_KEYRING,
+            {
+              type: KeyringTypes.money,
+              accounts: [MOCK_ADDRESS],
+              metadata: { id: 'money-keyring-1', name: 'Money Keyring' },
+              entropySource: MOCK_ENTROPY_SOURCE_ID,
+            },
+          ],
+        });
+        const keyringV2 = keyringEntries[1]
+          .keyringV2 as unknown as MockMoneyKeyringV2;
+        jest.spyOn(keyringV2, 'createAccounts').mockResolvedValue([]);
+
+        await expect(
+          controller.createMoneyAccount({
+            type: 'mnemonic',
+            entropySource: MOCK_ENTROPY_SOURCE_ID,
+          }),
+        ).rejects.toThrow('Money Keyring account creation failed');
+      });
+
+      it('throws when no V2 wrapper is registered for the keyring type', async () => {
+        const { controller, keyringEntries } = setup({
+          keyrings: [
+            MOCK_HD_KEYRING,
+            {
+              type: KeyringTypes.money,
+              accounts: [MOCK_ADDRESS],
+              metadata: { id: 'money-keyring-1', name: 'Money Keyring' },
+              entropySource: MOCK_ENTROPY_SOURCE_ID,
+            },
+          ],
+        });
+        keyringEntries[1].keyringV2 = undefined;
+
+        await expect(
+          controller.createMoneyAccount({
+            type: 'mnemonic',
+            entropySource: MOCK_ENTROPY_SOURCE_ID,
+          }),
+        ).rejects.toThrow(
+          'KeyringController - The selected keyring does not support the KeyringV2 API.',
+        );
       });
 
       it('throws when the keyring is locked', async () => {
@@ -662,6 +813,7 @@ describe('MoneyAccountController', () => {
 
         await expect(
           controller.createMoneyAccount({
+            type: 'mnemonic',
             entropySource: MOCK_ENTROPY_SOURCE_ID,
           }),
         ).rejects.toThrow(
@@ -674,7 +826,7 @@ describe('MoneyAccountController', () => {
 
         const account = await rootMessenger.call(
           'MoneyAccountController:createMoneyAccount',
-          { entropySource: MOCK_ENTROPY_SOURCE_ID },
+          { type: 'mnemonic', entropySource: MOCK_ENTROPY_SOURCE_ID },
         );
         expect(account).toMatchObject({
           address: MOCK_ADDRESS,
@@ -684,7 +836,7 @@ describe('MoneyAccountController', () => {
     });
 
     describe('MPC Money Keyring (MFA)', () => {
-      it('creates a new money account backed by an MPC Money keyring', async () => {
+      it('creates a new money account backed by an existing MPC Money keyring', async () => {
         const { controller, mocks } = setup({
           keyrings: [
             MOCK_HD_KEYRING,
@@ -699,7 +851,9 @@ describe('MoneyAccountController', () => {
           ],
         });
 
-        const account = await controller.createMoneyAccount({ type: 'mpc' });
+        const account = await controller.createMoneyAccount({
+          type: 'mpc',
+        });
 
         expect(account).toMatchObject({
           address: MOCK_MPC_ADDRESS,
@@ -716,7 +870,7 @@ describe('MoneyAccountController', () => {
           account,
         );
         expect(controller.state.defaultMoneyAccountId).toBe(account.id);
-        // The existing keyring is reused, not re-created.
+        // The MPC Money keyring is never created by this controller.
         expect(mocks.KeyringController.addNewKeyring).not.toHaveBeenCalled();
       });
 
@@ -750,7 +904,7 @@ describe('MoneyAccountController', () => {
         ).toStrictEqual(account);
       });
 
-      it('initializes the MPC Money keyring before reading its accounts', async () => {
+      it('does not initialize the MPC Money keyring', async () => {
         const { controller, keyringEntries } = setup({
           keyrings: [
             MOCK_HD_KEYRING,
@@ -768,19 +922,31 @@ describe('MoneyAccountController', () => {
         await controller.createMoneyAccount({ type: 'mpc' });
 
         const mpcKeyring = keyringEntries[1]
-          .keyring as unknown as MockMpcMoneyKeyring;
-        expect(mpcKeyring.initCalls).toBe(1);
+          .keyring as unknown as MockMpcKeyring;
+        expect(mpcKeyring.initCalls).toBe(0);
       });
 
-      it('creates the MPC Money keyring if it does not exist yet', async () => {
-        const { controller, mocks } = setup();
+      it('throws when the MPC Money keyring has no accounts (not initialized)', async () => {
+        const { controller, keyringEntries } = setup({
+          keyrings: [
+            MOCK_HD_KEYRING,
+            {
+              type: KeyringTypes.mpcMoney,
+              accounts: [],
+              metadata: {
+                id: 'mpc-money-keyring-1',
+                name: 'MPC Money Keyring',
+              },
+            },
+          ],
+        });
 
-        const account = await controller.createMoneyAccount({ type: 'mpc' });
-
-        expect(account.address).toBe(MOCK_MPC_ADDRESS);
-        expect(mocks.KeyringController.addNewKeyring).toHaveBeenCalledWith(
-          KeyringTypes.mpcMoney,
-        );
+        await expect(
+          controller.createMoneyAccount({ type: 'mpc' }),
+        ).rejects.toThrow('MPC Money keyring has no account');
+        const mpcKeyring = keyringEntries[1]
+          .keyring as unknown as MockMpcKeyring;
+        expect(mpcKeyring.initCalls).toBe(0);
       });
 
       it('returns the existing account without touching the keyring controller (idempotent)', async () => {
@@ -788,11 +954,22 @@ describe('MoneyAccountController', () => {
           accounts: [MOCK_MPC_ACCOUNT],
         });
 
-        const account = await controller.createMoneyAccount({ type: 'mpc' });
+        const account = await controller.createMoneyAccount({
+          type: 'mpc',
+        });
 
         expect(account).toStrictEqual(MOCK_MPC_ACCOUNT);
         expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
-        expect(mocks.KeyringController.withKeyring).not.toHaveBeenCalled();
+        expect(mocks.KeyringController.withKeyringV2).not.toHaveBeenCalled();
+      });
+
+      it('throws when no MPC Money keyring is registered', async () => {
+        const { controller, mocks } = setup();
+
+        await expect(
+          controller.createMoneyAccount({ type: 'mpc' }),
+        ).rejects.toThrow('MPC Money keyring not found');
+        expect(mocks.KeyringController.addNewKeyring).not.toHaveBeenCalled();
       });
 
       it('throws when multiple MPC Money keyrings exist', async () => {
@@ -822,19 +999,8 @@ describe('MoneyAccountController', () => {
         ).rejects.toThrow('Multiple MPC Money keyrings found');
       });
 
-      it('propagates errors when the MPC Money keyring cannot be created', async () => {
-        const { controller, mocks } = setup();
-        mocks.KeyringController.addNewKeyring.mockRejectedValue(
-          new Error('No keyring builder for type: MPC Money Keyring'),
-        );
-
-        await expect(
-          controller.createMoneyAccount({ type: 'mpc' }),
-        ).rejects.toThrow('No keyring builder for type: MPC Money Keyring');
-      });
-
-      it('propagates errors from the MPC Money keyring initialization', async () => {
-        const { controller, keyringEntries } = setup({
+      it('rethrows unexpected errors from withKeyringV2', async () => {
+        const { controller, mocks } = setup({
           keyrings: [
             MOCK_HD_KEYRING,
             {
@@ -847,36 +1013,13 @@ describe('MoneyAccountController', () => {
             },
           ],
         });
-        const mpcKeyring = keyringEntries[1]
-          .keyring as unknown as MockMpcMoneyKeyring;
-        jest
-          .spyOn(mpcKeyring, 'init')
-          .mockRejectedValue(new Error('MPC failure'));
-
-        await expect(
-          controller.createMoneyAccount({ type: 'mpc' }),
-        ).rejects.toThrow('MPC failure');
-      });
-
-      it('throws when the created keyring is not an MPC Money keyring', async () => {
-        const { controller, mocks, keyringEntries } = setup();
-        mocks.KeyringController.addNewKeyring.mockImplementation(async () => {
-          const entry = {
-            keyring: asKeyring(new MockMoneyKeyring()),
-            metadata: {
-              id: 'mpc-money-keyring-wrong',
-              name: 'MPC Money Keyring',
-            },
-          };
-          keyringEntries.push(entry);
-          return entry;
-        });
-
-        await expect(
-          controller.createMoneyAccount({ type: 'mpc' }),
-        ).rejects.toThrow(
-          'Keyring mpc-money-keyring-wrong has an unexpected type',
+        mocks.KeyringController.withKeyringV2.mockRejectedValue(
+          new Error('Unexpected V2 keyring error'),
         );
+
+        await expect(
+          controller.createMoneyAccount({ type: 'mpc' }),
+        ).rejects.toThrow('Unexpected V2 keyring error');
       });
 
       it('throws when the keyring is locked', async () => {
@@ -957,21 +1100,30 @@ describe('MoneyAccountController', () => {
       });
 
       expect(
-        controller.getMoneyAccount({ entropySource: MOCK_ENTROPY_SOURCE_ID }),
-      ).toStrictEqual(MOCK_MONEY_ACCOUNT);
-    });
-
-    it('supports an explicit mnemonic type', () => {
-      const { controller } = setup({
-        accounts: [MOCK_MONEY_ACCOUNT, MOCK_MPC_ACCOUNT],
-      });
-
-      expect(
         controller.getMoneyAccount({
           type: 'mnemonic',
           entropySource: MOCK_ENTROPY_SOURCE_ID,
         }),
       ).toStrictEqual(MOCK_MONEY_ACCOUNT);
+    });
+
+    it('defaults to the primary entropy source for mnemonic selectors', () => {
+      const { controller } = setup({
+        accounts: [MOCK_MONEY_ACCOUNT, MOCK_MONEY_ACCOUNT_2],
+      });
+
+      expect(controller.getMoneyAccount({ type: 'mnemonic' })).toStrictEqual(
+        MOCK_MONEY_ACCOUNT,
+      );
+    });
+
+    it('returns undefined for a mnemonic selector when no primary HD keyring exists', () => {
+      const { controller } = setup({
+        accounts: [MOCK_MONEY_ACCOUNT],
+        keyrings: [],
+      });
+
+      expect(controller.getMoneyAccount({ type: 'mnemonic' })).toBeUndefined();
     });
 
     it("returns the MPC account for a `{ type: 'mpc' }` selector", () => {
@@ -1012,7 +1164,10 @@ describe('MoneyAccountController', () => {
       const { controller } = setup();
 
       expect(
-        controller.getMoneyAccount({ entropySource: 'unknown-entropy-source' }),
+        controller.getMoneyAccount({
+          type: 'mnemonic',
+          entropySource: 'unknown-entropy-source',
+        }),
       ).toBeUndefined();
     });
 
@@ -1039,6 +1194,7 @@ describe('MoneyAccountController', () => {
 
       expect(
         rootMessenger.call('MoneyAccountController:getMoneyAccount', {
+          type: 'mnemonic',
           entropySource: MOCK_ENTROPY_SOURCE_ID,
         }),
       ).toStrictEqual(MOCK_MONEY_ACCOUNT);

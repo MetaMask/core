@@ -3741,11 +3741,6 @@
       "count": 1
     }
   },
-  "packages/money-account-controller/src/MoneyAccountController.ts": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "packages/money-account-mfa-whitelist/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1

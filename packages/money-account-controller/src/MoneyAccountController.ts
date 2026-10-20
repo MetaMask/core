@@ -5,48 +5,56 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { MoneyKeyring } from '@metamask/eth-money-keyring';
 import { MONEY_DERIVATION_PATH } from '@metamask/eth-money-keyring';
-import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  EthAccountType,
+  EthMethod,
+  EthScope,
+  KeyringAccountEntropyTypeOption,
+} from '@metamask/keyring-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
-import { KeyringAccountEntropyTypeOption } from '@metamask/keyring-api';
+import type { Keyring as KeyringV2 } from '@metamask/keyring-api/v2';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerWithControllerAction,
-  KeyringControllerWithKeyringAction,
-  KeyringMetadata,
+  KeyringControllerWithKeyringV2Action,
 } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import { EthKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import { projectLogger as log } from './logger.js';
 import type { MoneyAccountControllerMethodActions } from './MoneyAccountController-method-action-types.js';
 import type { MoneyAccount, MoneyAccountEntropyOptions } from './types.js';
-import { isMoneyKeyring, isMpcMoneyKeyring } from './utils.js';
+import { isMoneyKeyring } from './utils.js';
 
 export const controllerName = 'MoneyAccountController';
 
 /**
  * Parameters for creating a money account.
  *
+ * - `{ type: 'mnemonic' }`: create the SFA account backed by the `MoneyKeyring`
+ * for the given entropy source, defaulting to the primary HD keyring's entropy
+ * source when omitted.
  * - `{ type: 'mpc' }`: create the MFA account backed by the MPC Money keyring.
- * - `{ type?: 'mnemonic', entropySource }` (the default): create the SFA
- * account backed by the `MoneyKeyring` for the given entropy source.
+ * The keyring cannot be created by this controller — it requires
+ * client-specific parameters — so it must already be registered with the
+ * keyring controller.
  */
 export type CreateMoneyAccountParams =
   | {
       /**
-       * The kind of money account to create. Defaults to
-       * `'mnemonic'` (`KeyringAccountEntropyTypeOption.Mnemonic`).
+       * The kind of money account to create
+       * (`KeyringAccountEntropyTypeOption.Mnemonic`).
        */
-      type?: `${KeyringAccountEntropyTypeOption.Mnemonic}`;
+      type: `${KeyringAccountEntropyTypeOption.Mnemonic}`;
 
       /**
-       * The entropy source ID of the SRP backing the account.
+       * The entropy source ID of the SRP backing the account. Defaults to the
+       * primary HD keyring's entropy source.
        */
-      entropySource: EntropySourceId;
+      entropySource?: EntropySourceId;
     }
   | {
       /**
@@ -61,8 +69,9 @@ export type CreateMoneyAccountParams =
  *
  * - `{ id }`: look up the account by its id.
  * - `{ type: 'mpc' }`: look up the MPC-backed account (MFA).
- * - `{ type?: 'mnemonic', entropySource }` (the default): look up the
- * `MoneyKeyring` account (SFA) for that entropy source.
+ * - `{ type: 'mnemonic', entropySource? }`: look up the `MoneyKeyring` account
+ * (SFA) for that entropy source, defaulting to the primary HD keyring's
+ * entropy source when omitted.
  */
 export type GetMoneyAccountSelector =
   | {
@@ -73,15 +82,16 @@ export type GetMoneyAccountSelector =
     }
   | {
       /**
-       * The kind of money account to look up. Defaults to
-       * `'mnemonic'` (`KeyringAccountEntropyTypeOption.Mnemonic`).
+       * The kind of money account to look up
+       * (`KeyringAccountEntropyTypeOption.Mnemonic`).
        */
-      type?: `${KeyringAccountEntropyTypeOption.Mnemonic}`;
+      type: `${KeyringAccountEntropyTypeOption.Mnemonic}`;
 
       /**
-       * The entropy source ID of the SRP backing the account.
+       * The entropy source ID of the SRP backing the account. Defaults to the
+       * primary HD keyring's entropy source.
        */
-      entropySource: EntropySourceId;
+      entropySource?: EntropySourceId;
     }
   | {
       /**
@@ -151,7 +161,7 @@ export type MoneyAccountControllerActions =
 type AllowedActions =
   | KeyringControllerGetStateAction
   | KeyringControllerWithControllerAction
-  | KeyringControllerWithKeyringAction;
+  | KeyringControllerWithKeyringV2Action;
 
 export type MoneyAccountControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -168,16 +178,6 @@ export type MoneyAccountControllerMessenger = Messenger<
   MoneyAccountControllerActions | AllowedActions,
   MoneyAccountControllerEvents | AllowedEvents
 >;
-
-/**
- * The shape of the MPC Money keyring operations used by this controller. The MPC
- * keyring is an atomic keyring: `init` is cheap if the keyring is already
- * initialized, and long-running work is dispatched without holding the
- * keyring controller mutex.
- */
-type MpcMoneyKeyringLike = EthKeyring & {
-  init: () => Promise<void>;
-};
 
 /**
  * Controller for managing money accounts.
@@ -228,10 +228,11 @@ export class MoneyAccountController extends BaseController<
     const primaryEntropySource = this.#getPrimaryEntropySource();
     if (primaryEntropySource) {
       const { id, address } = await this.createMoneyAccount({
+        type: KeyringAccountEntropyTypeOption.Mnemonic,
         entropySource: primaryEntropySource,
       });
 
-      // If no default money account is set — e.g. a wallet that
+      // Safety net: if no default money account is set — e.g. a wallet that
       // predates `defaultMoneyAccountId` and whose migration has not run —
       // the primary entropy source's money account (SFA) becomes the default.
       if (this.state.defaultMoneyAccountId === null) {
@@ -255,11 +256,16 @@ export class MoneyAccountController extends BaseController<
    * source, it is returned as-is (idempotent).
    *
    * The parameters determine the backing keyring:
-   * - `{ type: 'mpc' }`: the MPC Money keyring (MFA account), which is created and
-   * initialized if it does not exist yet.
-   * - `{ type?: 'mnemonic', entropySource }` (the default): the `MoneyKeyring`
-   * for that entropy source (SFA account), which is created if it does not
-   * exist yet.
+   * - `{ type: 'mpc' }`: the MPC Money keyring (MFA account), which is fully
+   * managed by the client — the keyring and its account must already exist,
+   * otherwise this throws.
+   * - `{ type: 'mnemonic', entropySource? }`: the `MoneyKeyring` for that
+   * entropy source (SFA account), defaulting to the primary HD keyring's
+   * entropy source, which is created if it does not exist yet.
+   *
+   * NOTE: Both paths use the V2 keyring wrappers, so V2 builders must be
+   * registered with the `KeyringController` for the `Money Keyring` and
+   * `MPC Money Keyring` keyring types.
    *
    * @param params - The parameters for creating the money account.
    * @returns The money account.
@@ -269,21 +275,36 @@ export class MoneyAccountController extends BaseController<
   ): Promise<MoneyAccount> {
     this.#assertIsUnlocked();
 
+    if (params.type === KeyringAccountEntropyTypeOption.Mpc) {
+      // Idempotent: return existing account if already in state.
+      const existingAccount = this.#getMpcMoneyAccount();
+      if (existingAccount) {
+        return existingAccount;
+      }
+
+      const account = await this.#createMpcMoneyKeyringAccount();
+      log(`MPC money account created: ${account.address} (${account.id})`);
+      return account;
+    }
+
+    const entropySource =
+      params.entropySource ?? this.#getPrimaryEntropySource();
+    if (entropySource === undefined) {
+      throw new Error(
+        'No entropy source provided, and no primary HD keyring found',
+      );
+    }
+
     // Idempotent: return existing account if already in state.
-    const existingAccount =
-      params.type === KeyringAccountEntropyTypeOption.Mpc
-        ? this.#getMpcMoneyAccount()
-        : this.#getMoneyAccountByEntropySource(params.entropySource);
+    const existingAccount = this.#getMoneyAccountByEntropySource(entropySource);
     if (existingAccount) {
       return existingAccount;
     }
 
-    const account =
-      params.type === KeyringAccountEntropyTypeOption.Mpc
-        ? await this.#createMpcMoneyKeyringAccount()
-        : await this.#createMoneyKeyringAccount(params.entropySource);
-
-    log(`Money account created: ${account.address} (${account.id})`);
+    const account = await this.#createMoneyKeyringAccount(entropySource);
+    log(
+      `Money account created: ${account.address} (${account.id}) for entropy source: ${entropySource}`,
+    );
     return account;
   }
 
@@ -308,8 +329,8 @@ export class MoneyAccountController extends BaseController<
    *
    * @param selector - Selector for getting the money account.
    * @param selector.id - The account id to look up.
-   * @param selector.type - The kind of account to look up: `'mpc'` for the MPC-backed account (MFA), or `'mnemonic'` (the default) with `entropySource` for the `MoneyKeyring` account (SFA).
-   * @param selector.entropySource - The entropy source ID of the SRP-backed account to look up.
+   * @param selector.type - The kind of account to look up: `'mpc'` for the MPC-backed account (MFA), or `'mnemonic'` with an optional `entropySource` for the `MoneyKeyring` account (SFA).
+   * @param selector.entropySource - The entropy source ID of the SRP-backed account to look up. Defaults to the primary HD keyring's entropy source.
    * @returns The money account, or `undefined` if none matches.
    */
   getMoneyAccount(
@@ -327,7 +348,13 @@ export class MoneyAccountController extends BaseController<
       return this.#getMpcMoneyAccount();
     }
 
-    return this.#getMoneyAccountByEntropySource(selector.entropySource);
+    const entropySource =
+      selector.entropySource ?? this.#getPrimaryEntropySource();
+    if (entropySource === undefined) {
+      return undefined;
+    }
+
+    return this.#getMoneyAccountByEntropySource(entropySource);
   }
 
   /**
@@ -353,28 +380,24 @@ export class MoneyAccountController extends BaseController<
   async #createMoneyKeyringAccount(
     entropySource: EntropySourceId,
   ): Promise<MoneyAccount> {
-    const id = await this.#ensureMoneyKeyring(entropySource);
+    const keyringId = await this.#ensureMoneyKeyring(entropySource);
 
-    const address = await this.#withMoneyKeyring(id, async (keyring) => {
-      // We're adding this logic to be defensive against the possibility of a money keyring
-      // existing without any accounts, which shouldn't normally happen but we want to be
-      // sure we can handle it if it does.
-      // If there are no accounts, we'll add one and then get the address.
-      const accounts = await keyring.getAccounts();
-      if (accounts.length > 0) {
-        const [moneyAddress] = accounts;
-        return moneyAddress;
-      }
+    const [createdAccount] = await this.#withKeyringV2(
+      keyringId,
+      async (keyring) =>
+        keyring.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource,
+          groupIndex: 0,
+        }),
+    );
 
-      log(
-        `Money keyring (id:${id}, entropy:${entropySource}) has no accounts, creating one...`,
-      );
-      const [moneyAddress] = await keyring.addAccounts(1);
-      return moneyAddress;
-    });
+    if (!createdAccount) {
+      throw new Error('Money Keyring account creation failed');
+    }
 
     return this.#createKeyringAccount({
-      address,
+      address: createdAccount.address as Hex,
       entropy: {
         type: KeyringAccountEntropyTypeOption.Mnemonic,
         id: entropySource,
@@ -385,38 +408,33 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Creates or reuses an account on the MPC Money keyring.
+   * Creates the money account backed by the MPC Money keyring, reusing the
+   * account already managed by the keyring.
    *
-   * The MPC Money keyring is an atomic keyring: its initialization is cheap when
-   * already initialized, and long-running work is dispatched without holding
-   * the keyring controller mutex.
+   * The MPC Money keyring is fully managed by the client — it requires
+   * client-specific parameters to be created, and its account is created
+   * during its own initialization — so neither the keyring nor its account can
+   * be created by this controller. The keyring must already be registered and
+   * initialized, otherwise this throws.
    *
    * @returns The money account.
    */
   async #createMpcMoneyKeyringAccount(): Promise<MoneyAccount> {
-    const id = await this.#ensureMpcMoneyKeyring();
+    const keyringId = this.#ensureMpcMoneyKeyring();
 
-    const address = await this.#withMpcMoneyKeyring(id, async (keyring) => {
-      // The keyring infers the setup mode (create or import) from its own
-      // state. This is a no-op if the keyring is already initialized.
-      await keyring.init();
+    const [existingAccount] = await this.#withKeyringV2(
+      keyringId,
+      async (keyring) => keyring.getAccounts(),
+    );
 
-      // We're adding this logic to be defensive against the possibility of an
-      // MPC Money keyring existing without any accounts, which shouldn't normally
-      // happen but we want to be sure we can handle it if it does.
-      const accounts = await keyring.getAccounts();
-      if (accounts.length > 0) {
-        const [mpcAddress] = accounts;
-        return mpcAddress;
-      }
-
-      log(`MPC Money keyring (${id}) has no accounts, adding one...`);
-      const [mpcAddress] = await keyring.addAccounts(1);
-      return mpcAddress;
-    });
+    if (!existingAccount) {
+      throw new Error(
+        'MPC Money keyring has no account; it must be initialized by the client before creating an MPC money account',
+      );
+    }
 
     return this.#createKeyringAccount({
-      address,
+      address: existingAccount.address as Hex,
       entropy: {
         type: KeyringAccountEntropyTypeOption.Mpc,
       },
@@ -546,97 +564,53 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Ensures the MPC Money keyring exists, creating it atomically if it does not, and
-   * returns its keyring ID.
+   * Ensures the MPC Money keyring exists and returns its keyring ID.
    *
-   * The check-or-create is performed within a single
-   * `KeyringController:withController` transaction, which is mutually
-   * exclusive and rolls back on error.
+   * The MPC Money keyring cannot be created by this controller — it requires
+   * client-specific parameters — so it must already be registered with the
+   * keyring controller, otherwise this throws.
    *
-   * @returns The keyring ID of the existing or newly created keyring.
+   * @returns The keyring ID of the MPC Money keyring.
    */
-  async #ensureMpcMoneyKeyring(): Promise<string> {
-    return (await this.messenger.call(
-      'KeyringController:withController',
-      async (restrictedController) => {
-        const mpcKeyrings = restrictedController.keyrings.filter((entry) =>
-          isMpcMoneyKeyring(entry.keyring),
-        );
-
-        if (mpcKeyrings.length > 1) {
-          throw new Error('Multiple MPC Money keyrings found');
-        }
-
-        if (mpcKeyrings.length === 1) {
-          return mpcKeyrings[0].metadata.id;
-        }
-
-        log('MPC Money keyring not found, creating one...');
-        const entry = await restrictedController.addNewKeyring(
-          KeyringTypes.mpcMoney,
-        );
-        return entry.metadata.id;
-      },
-    )) as string;
-  }
-
-  /**
-   * Calls `KeyringController:withKeyring` for the keyring with the given ID.
-   *
-   * @param id - The keyring metadata ID.
-   * @param assertType - Verifies the resolved keyring has the expected type.
-   * @param operation - Callback invoked with the resolved keyring.
-   * @returns The value returned by `operation`.
-   */
-  async #withKeyring<Result>(
-    id: string,
-    assertType: (keyring: EthKeyring) => boolean,
-    operation: (keyring: EthKeyring) => Promise<Result>,
-  ): Promise<Result> {
-    return (await this.messenger.call(
-      'KeyringController:withKeyring',
-      { id },
-      async ({ keyring }) => {
-        if (!assertType(keyring)) {
-          throw new Error(`Keyring ${id} has an unexpected type`);
-        }
-        return operation(keyring);
-      },
-    )) as Result;
-  }
-
-  /**
-   * Calls `KeyringController:withKeyring` for the `MoneyKeyring` with the
-   * given ID.
-   *
-   * @param id - The keyring metadata ID.
-   * @param operation - Callback invoked with the resolved `MoneyKeyring`.
-   * @returns The value returned by `operation`.
-   */
-  async #withMoneyKeyring<Result>(
-    id: string,
-    operation: (keyring: MoneyKeyring) => Promise<Result>,
-  ): Promise<Result> {
-    return await this.#withKeyring(id, isMoneyKeyring, async (keyring) =>
-      operation(keyring as MoneyKeyring),
+  #ensureMpcMoneyKeyring(): string {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    const mpcMoneyKeyrings = keyrings.filter(
+      (keyring) => keyring.type === KeyringTypes.mpcMoney,
     );
+
+    if (mpcMoneyKeyrings.length === 0) {
+      throw new Error(
+        'MPC Money keyring not found; it must be registered by the client before creating an MPC money account',
+      );
+    }
+
+    if (mpcMoneyKeyrings.length > 1) {
+      throw new Error('Multiple MPC Money keyrings found');
+    }
+
+    return mpcMoneyKeyrings[0].metadata.id;
   }
 
   /**
-   * Calls `KeyringController:withKeyring` for the MPC Money keyring with the given
+   * Calls `KeyringController:withKeyringV2` for the V2 keyring with the given
    * ID.
    *
+   * NOTE: A V2 builder must be registered with the `KeyringController` for
+   * the keyring's type, otherwise this throws.
+   *
    * @param id - The keyring metadata ID.
-   * @param operation - Callback invoked with the resolved MPC Money keyring.
+   * @param operation - Callback invoked with the resolved V2 keyring.
    * @returns The value returned by `operation`.
    */
-  async #withMpcMoneyKeyring<Result>(
+  async #withKeyringV2<Result>(
     id: string,
-    operation: (keyring: MpcMoneyKeyringLike) => Promise<Result>,
+    operation: (keyring: KeyringV2) => Promise<Result>,
   ): Promise<Result> {
-    return await this.#withKeyring(id, isMpcMoneyKeyring, async (keyring) =>
-      operation(keyring as MpcMoneyKeyringLike),
-    );
+    return (await this.messenger.call(
+      'KeyringController:withKeyringV2',
+      { id },
+      async ({ keyring }) => operation(keyring),
+    )) as Result;
   }
 
   /**

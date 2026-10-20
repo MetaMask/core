@@ -20,11 +20,16 @@ export type MoneyAccountControllerInitAction = {
  * source, it is returned as-is (idempotent).
  *
  * The parameters determine the backing keyring:
- * - `{ type: 'mpc' }`: the MPC Money keyring (MFA account), which is created and
- * initialized if it does not exist yet.
- * - `{ type?: 'mnemonic', entropySource }` (the default): the `MoneyKeyring`
- * for that entropy source (SFA account), which is created if it does not
- * exist yet.
+ * - `{ type: 'mpc' }`: the MPC Money keyring (MFA account), which is fully
+ * managed by the client — the keyring and its account must already exist,
+ * otherwise this throws.
+ * - `{ type: 'mnemonic', entropySource? }`: the `MoneyKeyring` for that
+ * entropy source (SFA account), defaulting to the primary HD keyring's
+ * entropy source, which is created if it does not exist yet.
+ *
+ * NOTE: Both paths use the V2 keyring wrappers, so V2 builders must be
+ * registered with the `KeyringController` for the `Money Keyring` and
+ * `MPC Money Keyring` keyring types.
  *
  * @param params - The parameters for creating the money account.
  * @returns The money account.
@@ -50,8 +55,8 @@ export type MoneyAccountControllerSetDefaultMoneyAccountAction = {
  *
  * @param selector - Selector for getting the money account.
  * @param selector.id - The account id to look up.
- * @param selector.type - The kind of account to look up: `'mpc'` for the MPC-backed account (MFA), or `'mnemonic'` (the default) with `entropySource` for the `MoneyKeyring` account (SFA).
- * @param selector.entropySource - The entropy source ID of the SRP-backed account to look up.
+ * @param selector.type - The kind of account to look up: `'mpc'` for the MPC-backed account (MFA), or `'mnemonic'` with an optional `entropySource` for the `MoneyKeyring` account (SFA).
+ * @param selector.entropySource - The entropy source ID of the SRP-backed account to look up. Defaults to the primary HD keyring's entropy source.
  * @returns The money account, or `undefined` if none matches.
  */
 export type MoneyAccountControllerGetMoneyAccountAction = {

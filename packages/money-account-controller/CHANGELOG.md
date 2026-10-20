@@ -9,15 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add support for MPC-backed money accounts (MFA accounts) via `createMoneyAccount({ type: 'mpc' })` ([#10694](https://github.com/MetaMask/core/pull/10694))
+- Add support for MPC-backed money accounts (MFA accounts) via `createMoneyAccount({ type: 'mpc' })`. The MPC Money keyring is fully managed by the client — it requires client-specific parameters to be created, and its account is created during its own initialization — so both the keyring and its account must already exist, otherwise this throws ([#10694](https://github.com/MetaMask/core/pull/10694))
 - Add `setDefaultMoneyAccount` and a persisted `defaultMoneyAccountId` state field, so consumers know which money account is preferred ([#10694](https://github.com/MetaMask/core/pull/10694))
 
 ### Changed
 
-- **BREAKING:** `createMoneyAccount` now takes a params object: `{ type: 'mpc' }` for the MPC-backed account (MFA), or `{ type?: 'mnemonic', entropySource }` (the default) for the `MoneyKeyring` account (SFA) for that entropy source ([#10694](https://github.com/MetaMask/core/pull/10694))
+- **BREAKING:** `createMoneyAccount` now takes a params object: `{ type: 'mpc' }` for the MPC-backed account (MFA), or `{ type: 'mnemonic', entropySource? }` for the `MoneyKeyring` account (SFA), defaulting to the primary HD keyring's entropy source when `entropySource` is omitted ([#10694](https://github.com/MetaMask/core/pull/10694))
 - **BREAKING:** `MoneyAccount.options.entropy` is now a union of mnemonic and MPC entropy options (`MoneyAccountEntropyOptions`) ([#10694](https://github.com/MetaMask/core/pull/10694))
-- **BREAKING:** `getMoneyAccount()` now takes a selector: `{ id }` to look up by account id, `{ type: 'mpc' }` for the MPC-backed account (MFA), or `{ type?: 'mnemonic', entropySource }` (the default) for the `MoneyKeyring` account (SFA) for that entropy source ([#10694](https://github.com/MetaMask/core/pull/10694))
+- **BREAKING:** `getMoneyAccount()` now takes a selector: `{ id }` to look up by account id, `{ type: 'mpc' }` for the MPC-backed account (MFA), or `{ type: 'mnemonic', entropySource? }` for the `MoneyKeyring` account (SFA), defaulting to the primary HD keyring's entropy source when `entropySource` is omitted ([#10694](https://github.com/MetaMask/core/pull/10694))
   - With no selector, the default money account (`defaultMoneyAccountId`) is returned instead of resolving the primary HD entropy source.
+- The controller now uses the V2 keyring wrappers (`KeyringController:withKeyringV2` and `createAccounts`) instead of the legacy V1 keyring APIs, so V2 builders must be registered with the `KeyringController` for the `Money Keyring` and `MPC Money Keyring` keyring types ([#10694](https://github.com/MetaMask/core/pull/10694))
 - `init` now sets the primary entropy source's money account (SFA) as the default when no default is set ([#10694](https://github.com/MetaMask/core/pull/10694))
   - Safety net for wallets predating `defaultMoneyAccountId`.
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.2.0` ([#10418](https://github.com/MetaMask/core/pull/10418), [#10851](https://github.com/MetaMask/core/pull/10851))

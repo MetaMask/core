@@ -1,5 +1,5 @@
 export type { MoneyAccount, MoneyAccountEntropyOptions } from './types.js';
-export { isMoneyKeyring, isMpcMoneyKeyring } from './utils.js';
+export { isMoneyKeyring } from './utils.js';
 export {
   MoneyAccountController,
   controllerName,
