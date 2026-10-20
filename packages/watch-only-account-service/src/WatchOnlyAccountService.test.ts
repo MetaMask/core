@@ -34,7 +34,7 @@ type Mocks = {
 };
 
 type SetupOptions = {
-  enabled?: boolean;
+  isEnabled?: () => boolean;
   keyringEntries?: KeyringEntry[];
   createdAccounts?: KeyringAccount[];
 };
@@ -135,14 +135,15 @@ function mockWithKeyringV2(mocks: Mocks, createAccounts: Mock): void {
  * Constructs the service under test with its messenger and mocks.
  *
  * @param args - The arguments.
- * @param args.enabled - Whether the watch-only support is enabled.
+ * @param args.isEnabled - A callback returning whether the watch-only support
+ * is enabled.
  * @param args.keyringEntries - Initial keyring entries.
  * @param args.createdAccounts - The keyring accounts returned by the v2
  * keyring's `createAccounts`.
  * @returns The service, root messenger, mocks, and key mock fns.
  */
 function setup({
-  enabled = undefined,
+  isEnabled = undefined,
   keyringEntries = [],
   createdAccounts = [],
 }: SetupOptions = {}): {
@@ -188,7 +189,7 @@ function setup({
     messenger,
     // Omit the key entirely when unset, so both the default and the
     // explicitly-provided branches are exercised.
-    ...(enabled === undefined ? {} : { enabled }),
+    ...(isEnabled === undefined ? {} : { isEnabled }),
   });
 
   return { service, rootMessenger, mocks, addNewKeyring, createAccounts };
@@ -197,7 +198,7 @@ function setup({
 describe('WatchOnlyAccountService', () => {
   describe('constructor', () => {
     it('registers the exposed methods as action handlers', () => {
-      const { rootMessenger } = setup({ enabled: true });
+      const { rootMessenger } = setup({ isEnabled: () => true });
 
       expect(rootMessenger.call('WatchOnlyAccountService:isEnabled')).toBe(
         true,
@@ -214,9 +215,23 @@ describe('WatchOnlyAccountService', () => {
       );
     });
 
-    it('returns the value passed at construction time', () => {
-      const { rootMessenger } = setup({ enabled: true });
+    it('returns the value from the callback', () => {
+      const { rootMessenger } = setup({ isEnabled: () => true });
 
+      expect(rootMessenger.call('WatchOnlyAccountService:isEnabled')).toBe(
+        true,
+      );
+    });
+
+    it('reflects changes to the callback result over time', () => {
+      let enabled = false;
+      const { rootMessenger } = setup({ isEnabled: () => enabled });
+
+      expect(rootMessenger.call('WatchOnlyAccountService:isEnabled')).toBe(
+        false,
+      );
+
+      enabled = true;
       expect(rootMessenger.call('WatchOnlyAccountService:isEnabled')).toBe(
         true,
       );
@@ -226,7 +241,7 @@ describe('WatchOnlyAccountService', () => {
   describe('createAccount', () => {
     it('throws a WatchOnlyAccountDisabledError when disabled', async () => {
       const { service, addNewKeyring, createAccounts } = setup({
-        enabled: false,
+        isEnabled: () => false,
       });
 
       await expect(service.createAccount(WATCH_ONLY_ADDRESS)).rejects.toThrow(
@@ -237,9 +252,24 @@ describe('WatchOnlyAccountService', () => {
       expect(createAccounts).not.toHaveBeenCalled();
     });
 
+    it('consults the callback on each call', async () => {
+      let enabled = true;
+      const { service } = setup({
+        isEnabled: () => enabled,
+        createdAccounts: [buildKeyringAccount(WATCH_ONLY_ADDRESS)],
+      });
+
+      await service.createAccount(WATCH_ONLY_ADDRESS);
+
+      enabled = false;
+      await expect(service.createAccount(WATCH_ONLY_ADDRESS)).rejects.toThrow(
+        WatchOnlyAccountDisabledError,
+      );
+    });
+
     it('creates the watch-only keyring if it does not exist yet', async () => {
       const { service, addNewKeyring } = setup({
-        enabled: true,
+        isEnabled: () => true,
         createdAccounts: [buildKeyringAccount(WATCH_ONLY_ADDRESS)],
       });
 
@@ -251,7 +281,7 @@ describe('WatchOnlyAccountService', () => {
 
     it('reuses the existing watch-only keyring if present', async () => {
       const { service, addNewKeyring } = setup({
-        enabled: true,
+        isEnabled: () => true,
         keyringEntries: [buildKeyringEntry('watch-only')],
         createdAccounts: [buildKeyringAccount(WATCH_ONLY_ADDRESS)],
       });
@@ -264,7 +294,7 @@ describe('WatchOnlyAccountService', () => {
     it('imports the account by address and returns it', async () => {
       const account = buildKeyringAccount(WATCH_ONLY_ADDRESS);
       const { service, createAccounts } = setup({
-        enabled: true,
+        isEnabled: () => true,
         createdAccounts: [account],
       });
 
@@ -278,7 +308,7 @@ describe('WatchOnlyAccountService', () => {
     });
 
     it('throws if no account was created by the keyring', async () => {
-      const { service } = setup({ enabled: true });
+      const { service } = setup({ isEnabled: () => true });
 
       await expect(service.createAccount(WATCH_ONLY_ADDRESS)).rejects.toThrow(
         'No watch-only account was created.',
@@ -287,7 +317,7 @@ describe('WatchOnlyAccountService', () => {
 
     it('propagates errors thrown by the keyring', async () => {
       const { service, createAccounts } = setup({
-        enabled: true,
+        isEnabled: () => true,
         createdAccounts: [buildKeyringAccount(WATCH_ONLY_ADDRESS)],
       });
       createAccounts.mockRejectedValue(new Error('Invalid address'));
@@ -298,7 +328,7 @@ describe('WatchOnlyAccountService', () => {
     });
 
     it('propagates errors thrown while creating the keyring', async () => {
-      const { service, mocks } = setup({ enabled: true });
+      const { service, mocks } = setup({ isEnabled: () => true });
       mocks.KeyringController.withController.mockRejectedValue(
         new Error('Keyring creation failed'),
       );

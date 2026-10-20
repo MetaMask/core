@@ -60,12 +60,12 @@ export type WatchOnlyAccountServiceOptions = {
   messenger: WatchOnlyAccountServiceMessenger;
 
   /**
-   * Whether the watch-only support is enabled. When disabled, the service
-   * refuses to create watch-only accounts. Callers are expected to pass the
-   * feature gate (e.g. a compile-time dev-mode flag) so that the gating
-   * decision is made once, at construction time.
+   * A callback that determines whether the watch-only support is currently
+   * enabled. When disabled, the service refuses to create watch-only
+   * accounts. The callback is consulted on each call, so the gating decision
+   * can be made dynamically (e.g. driven by a remote feature flag).
    */
-  enabled?: boolean;
+  isEnabled?: () => boolean;
 };
 
 /**
@@ -84,19 +84,28 @@ export class WatchOnlyAccountService {
 
   readonly #messenger: WatchOnlyAccountServiceMessenger;
 
-  readonly #enabled: boolean;
+  /**
+   * A callback that determines whether the watch-only support is currently
+   * enabled.
+   */
+  readonly #isEnabled: () => boolean;
 
   /**
    * Constructs a new {@link WatchOnlyAccountService}.
    *
    * @param options - The constructor arguments.
    * @param options.messenger - The messenger suited for this service.
-   * @param options.enabled - Whether the watch-only support is enabled.
+   * @param options.isEnabled - A callback that determines whether the
+   * watch-only support is currently enabled. Defaults to a callback that
+   * always returns `false`.
    */
-  constructor({ messenger, enabled = false }: WatchOnlyAccountServiceOptions) {
+  constructor({
+    messenger,
+    isEnabled = (): boolean => false,
+  }: WatchOnlyAccountServiceOptions) {
     this.name = serviceName;
     this.#messenger = messenger;
-    this.#enabled = enabled;
+    this.#isEnabled = isEnabled;
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -110,7 +119,7 @@ export class WatchOnlyAccountService {
    * @returns `true` if the watch-only support is enabled.
    */
   isEnabled(): boolean {
-    return this.#enabled;
+    return this.#isEnabled();
   }
 
   /**
@@ -156,7 +165,7 @@ export class WatchOnlyAccountService {
    * disabled.
    */
   #ensureWatchOnlyEnabled(): void {
-    if (!this.#enabled) {
+    if (!this.#isEnabled()) {
       throw new WatchOnlyAccountDisabledError();
     }
   }

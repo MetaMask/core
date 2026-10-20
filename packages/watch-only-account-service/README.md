@@ -8,7 +8,7 @@ Service for managing watch-only accounts
 
 - **Account creation** — Imports an EVM account by address into the `"watch-only"` keyring. No secret material is ever involved, and the resulting account cannot sign. Resolving the corresponding internal account and selecting it is left to the client.
 - **Keyring plumbing** — Atomically creates the watch-only keyring if it does not exist yet.
-- **Feature gating** — Takes an `enabled` flag at construction time (typically a compile-time dev-mode flag) and refuses to create accounts while disabled.
+- **Feature gating** — Takes an `isEnabled` callback and refuses to create accounts while it reports the feature as disabled. The callback is consulted on each call, so the gate can change dynamically (e.g. driven by a remote feature flag).
 
 The service exposes its functionality through the MetaMask messenger pattern and depends on the `KeyringController`.
 
