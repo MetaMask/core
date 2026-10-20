@@ -5,13 +5,14 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { bytesToHex } from '@metamask/utils';
+import { bytesToHex, createDeferredPromise } from '@metamask/utils';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
   StubAuthProvider,
   StubEscrowProvider,
   StubIdentifierAuthProvider,
+  StubRecoveryLockProvider,
   createAuthControllerToken,
   passthroughEncryptor,
 } from '../tests/stubs.js';
@@ -31,6 +32,7 @@ import { MfaRecoveryController } from './MfaRecoveryController.js';
 import type {
   Identifier,
   IdentifierSession,
+  PendingOperation,
   RecoveredSecret,
   RecoveryEscrowProvider,
   RegisterPayload,
@@ -63,6 +65,7 @@ describe('MfaRecoveryController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           {
+            "lockId": null,
             "pendingOperation": null,
           }
         `);
@@ -76,6 +79,7 @@ describe('MfaRecoveryController', () => {
           new MfaRecoveryController({
             messenger: getMessenger(rootMessenger),
             authProvider: new StubAuthProvider(),
+            lockProvider: new StubRecoveryLockProvider(),
             identifierAuthProvider: new StubIdentifierAuthProvider(),
             escrows: [],
             pendingOperationEncryptor: passthroughEncryptor,
@@ -92,6 +96,7 @@ describe('MfaRecoveryController', () => {
           new MfaRecoveryController({
             messenger: getMessenger(rootMessenger),
             authProvider: new StubAuthProvider(),
+            lockProvider: new StubRecoveryLockProvider(),
             identifierAuthProvider: new StubIdentifierAuthProvider(),
             escrows: [
               new StubEscrowProvider('escrow-a', wrapKey, receiptKey),
@@ -138,6 +143,7 @@ describe('MfaRecoveryController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "lockId": null,
             "pendingOperation": null,
           }
         `);
@@ -157,6 +163,202 @@ describe('MfaRecoveryController', () => {
             "pendingOperation": null,
           }
         `);
+      });
+    });
+  });
+
+  describe('recovery lock', () => {
+    it('acquires once per workflow and renews only before an escrow write', async () => {
+      await withController(async ({ controller, options }) => {
+        const acquire = vi.spyOn(options.lockProvider, 'acquire');
+        const renew = vi.spyOn(options.lockProvider, 'renew');
+        await controller.acquireLock();
+        await controller.register(SECRET, IDENTIFIERS);
+        await recover(controller, PASSKEY);
+        expect(acquire).toHaveBeenCalledTimes(1);
+        expect(renew).toHaveBeenCalledTimes(1);
+
+        await controller.releaseLock();
+        renew.mockClear();
+        await recover(controller, PASSKEY);
+        expect(acquire).toHaveBeenCalledTimes(2);
+        expect(renew).not.toHaveBeenCalled();
+      });
+    });
+
+    it('persists the lock ID before acquisition and reuses it after a lost response', async () => {
+      await withController(async ({ controller, options }) => {
+        const acquire = vi
+          .spyOn(options.lockProvider, 'acquire')
+          .mockImplementationOnce(async (lockId) => {
+            expect(controller.state.lockId).toBe(lockId);
+            throw new Error('response lost');
+          });
+
+        await expect(controller.acquireLock()).rejects.toThrow('response lost');
+        const { lockId } = controller.state;
+        await controller.acquireLock();
+        expect(acquire.mock.calls).toStrictEqual([[lockId], [lockId]]);
+        await controller.releaseLock();
+        expect(controller.state.lockId).toBeNull();
+        await controller.releaseLock();
+      });
+    });
+
+    it('blocks a competing controller before contacting Auth or escrow', async () => {
+      await withController(async ({ controller, options, escrowA }) => {
+        await controller.acquireLock();
+        const competing = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+        });
+        const approval = vi.spyOn(
+          options.authProvider,
+          'authorizeRecoveryRequest',
+        );
+        const availability = vi.spyOn(escrowA, 'isAvailable');
+        await expect(competing.register(SECRET, IDENTIFIERS)).rejects.toThrow(
+          'Recovery lock conflict',
+        );
+        expect(approval).not.toHaveBeenCalled();
+        expect(availability).not.toHaveBeenCalled();
+
+        await controller.releaseLock();
+        await competing.acquireLock();
+        await competing.register(SECRET, IDENTIFIERS);
+        await competing.releaseLock();
+      });
+    });
+
+    it('does not share an acquired lease with a second client workflow', async () => {
+      await withController(async ({ controller }) => {
+        await controller.acquireLock();
+        await expect(controller.acquireLock()).rejects.toThrow(
+          'A recovery operation already holds the lock',
+        );
+        await controller.renewLock();
+        await controller.releaseLock();
+        await controller.acquireLock();
+      });
+    });
+
+    it('ignores a successful renewal response after release', async () => {
+      await withController(async ({ controller, options }) => {
+        const deferred = createDeferredPromise();
+        await controller.acquireLock();
+        vi.spyOn(options.lockProvider, 'renew').mockReturnValueOnce(
+          deferred.promise,
+        );
+        const renewal = controller.renewLock();
+        await controller.releaseLock();
+        deferred.resolve();
+        await renewal;
+
+        await controller.acquireLock();
+        await expect(controller.acquireLock()).rejects.toThrow(
+          'A recovery operation already holds the lock',
+        );
+      });
+    });
+
+    it('does not clear a new lease when an old renewal fails', async () => {
+      await withController(async ({ controller, options }) => {
+        const deferred = createDeferredPromise();
+        await controller.acquireLock();
+        vi.spyOn(options.lockProvider, 'renew').mockReturnValueOnce(
+          deferred.promise,
+        );
+        const renewal = controller.renewLock();
+        await controller.releaseLock();
+        await controller.acquireLock();
+        deferred.reject(new Error('renewal failed'));
+        await expect(renewal).rejects.toThrow('renewal failed');
+
+        await expect(controller.acquireLock()).rejects.toThrow(
+          'A recovery operation already holds the lock',
+        );
+      });
+    });
+
+    it('stops before writing if the lease expires during authorization', async () => {
+      await withController(async ({ controller, options, escrowA }) => {
+        const authorize = options.authProvider.authorizeRecoveryRequest.bind(
+          options.authProvider,
+        );
+        vi.spyOn(
+          options.authProvider,
+          'authorizeRecoveryRequest',
+        ).mockImplementationOnce(async (params) => {
+          options.lockProvider.lockId = null;
+          return await authorize(params);
+        });
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+        await expect(controller.register(SECRET, IDENTIFIERS)).rejects.toThrow(
+          'Recovery lock conflict',
+        );
+        expect(apply).not.toHaveBeenCalled();
+        expect(await controller.getPhase()).toBe('authorizing');
+        await expect(controller.releaseLock()).rejects.toThrow(
+          'A pending mutation must be resumed or aborted first',
+        );
+
+        const restarted = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          state: controller.state,
+        });
+        await expect(restarted.resume()).rejects.toThrow(
+          'Recovery lock conflict',
+        );
+        await restarted.acquireLock();
+        await restarted.resume();
+        await restarted.releaseLock();
+      });
+    });
+
+    it('retains the lease and mutation for an uncertain write and restart', async () => {
+      await withController(async ({ controller, options, escrowA }) => {
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+        const pending = JSON.parse(
+          controller.state.pendingOperation as string,
+        ) as PendingOperation;
+        const { lockId } = controller.state;
+        await expect(controller.releaseLock()).rejects.toThrow(
+          'A pending mutation must be resumed or aborted first',
+        );
+        const restarted = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          state: controller.state,
+        });
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+
+        await restarted.resume();
+
+        expect(apply.mock.calls[0][0]).toStrictEqual(pending.mutation);
+        expect(restarted.state.lockId).toBe(lockId);
+        await restarted.releaseLock();
+      });
+    });
+
+    it('rejects renewal without a lock and reads after a known lease loss', async () => {
+      await withController(async ({ controller, options, escrowA }) => {
+        await expect(controller.renewLock()).rejects.toThrow(
+          'Acquire the recovery lock first',
+        );
+        await controller.register(SECRET, IDENTIFIERS);
+        options.lockProvider.lockId = null;
+        await expect(controller.renewLock()).rejects.toThrow(
+          'Recovery lock conflict',
+        );
+        const read = vi.spyOn(escrowA, 'getSecret');
+        await expect(recover(controller, PASSKEY)).rejects.toThrow(
+          'Recovery lock conflict',
+        );
+        expect(read).not.toHaveBeenCalled();
       });
     });
   });
@@ -196,7 +398,7 @@ describe('MfaRecoveryController', () => {
 
         expect(listener).toHaveBeenCalled();
         expect(listener).toHaveBeenLastCalledWith(
-          { pendingOperation: null },
+          { lockId: controller.state.lockId, pendingOperation: null },
           expect.any(Array),
         );
       });
@@ -770,6 +972,7 @@ describe('MfaRecoveryController', () => {
             ...options,
             messenger: getMessenger(getRootMessenger()),
             state: {
+              ...controller.state,
               pendingOperation: await passthroughEncryptor.encrypt(pending),
             },
           });
@@ -969,6 +1172,7 @@ describe('MfaRecoveryController', () => {
           ...options,
           messenger: getMessenger(getRootMessenger()),
           state: {
+            ...controller.state,
             pendingOperation: await passthroughEncryptor.encrypt(authorizing),
           },
         });
@@ -1036,7 +1240,7 @@ describe('MfaRecoveryController', () => {
           const resumed = new MfaRecoveryController({
             ...options,
             messenger: getMessenger(getRootMessenger()),
-            state: { pendingOperation: writing },
+            state: { ...controller.state, pendingOperation: writing },
           });
           await resumed.resume();
           expect(await resumed.getPhase()).toBe('idle');
@@ -1316,7 +1520,10 @@ describe('MfaRecoveryController', () => {
         const resumed = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger()),
-          state: { pendingOperation: JSON.stringify(pending) },
+          state: {
+            ...controller.state,
+            pendingOperation: JSON.stringify(pending),
+          },
         });
         await resumed.resume();
         expect(await resumed.getPhase()).toBe('idle');
@@ -1628,7 +1835,9 @@ type WithControllerCallback<ReturnValue> = (payload: {
   controllerMessenger: MfaRecoveryControllerMessenger;
   escrowA: StubEscrowProvider;
   escrowB: StubEscrowProvider;
-  options: MfaRecoveryControllerOptions;
+  options: MfaRecoveryControllerOptions & {
+    lockProvider: StubRecoveryLockProvider;
+  };
 }) => Promise<ReturnValue> | ReturnValue;
 
 function getRootMessenger(): RootMessenger {
@@ -1647,10 +1856,13 @@ function getMessenger(
 function getOptions(
   escrowA: StubEscrowProvider,
   escrowB: StubEscrowProvider,
-): MfaRecoveryControllerOptions {
+): MfaRecoveryControllerOptions & {
+  lockProvider: StubRecoveryLockProvider;
+} {
   return {
     messenger: getMessenger(getRootMessenger()),
     authProvider: new StubAuthProvider(),
+    lockProvider: new StubRecoveryLockProvider(),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
     escrows: [escrowA, escrowB],
     pendingOperationEncryptor: passthroughEncryptor,

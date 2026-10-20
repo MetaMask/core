@@ -32,13 +32,15 @@ flowchart LR
 
 | Piece                       | Role                                                                        |
 | --------------------------- | --------------------------------------------------------------------------- |
-| `pendingOperation`          | Only persisted field: encrypted `authorizing` / `writing` blob, or `null`   |
+| `pendingOperation`          | Persisted encrypted `authorizing` / `writing` blob, or `null`               |
+| `lockId`                    | Persisted lease ID for retries and restart                                  |
 | `escrows[]`                 | Build-time replica set; non-empty, unique `id`s; mutations require **all**  |
 | `authProvider`              | Profile id + request-bound AuthController token (Hydra JWT)                 |
+| `lockProvider`              | Per-profile lease; API renewal only with 30 seconds or less remaining       |
 | `identifierAuthProvider`    | Key-bound IdP assertion (passkey / OIDC / SIWE)                             |
 | `pendingOperationEncryptor` | Encrypts / decrypts the pending blob with wallet secure storage             |
 | `now`                       | Clock (Unix seconds) for AuthController token expiry; defaults to `unixNow` |
-| `#withLock`                 | Serializes every public method except `authenticateIdentifier`              |
+| `#withLock`                 | Local serialization except identifier auth and lease renewal                |
 
 Each escrow has two identities: `id` is the replica id used in mutation
 `audiences` and receipts; `authAudience` is the audience the AuthController
@@ -68,7 +70,9 @@ matches the hash computed over its hex-encoded form.
 
 Public surface (all exposed as messenger actions): `register`,
 `updateRecoverySecret`, `updateIdentifiers`, `authenticateIdentifier`,
-`getRecoverySecret`, `resume`, `abort`, `getPhase`.
+`getRecoverySecret`, `resume`, `abort`, `getPhase`, `acquireLock`, `renewLock`,
+`releaseLock`. Auth changes and escrow writes share a per-profile lease (see
+[Recovery Lock](README.md#recovery-lock)).
 
 ## State machine
 

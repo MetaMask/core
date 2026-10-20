@@ -254,6 +254,13 @@ export type RecoveryAuthProvider = {
   }) => Promise<AuthControllerToken>;
 };
 
+/** Coordinates one recovery operation per authenticated profile. */
+export type RecoveryLockProvider = {
+  acquire: (lockId: string) => Promise<void>;
+  renew: (lockId: string) => Promise<void>;
+  release: (lockId: string) => Promise<void>;
+};
+
 /**
  * Obtains a key-bound identifier assertion from an IdP (OIDC, Passkey, SIWE).
  */
