@@ -168,6 +168,8 @@ export type KycServiceFetchIdosRelayJwksAction = {
  * @param params - The session parameters.
  * @param params.aal2Token - AAL2 authentication token used as the
  * Authorization bearer value.
+ * @param params.partnerIdentityToken - Optional partner identity token for
+ * the session's vendor audience, sent as `partnerIdentityToken`.
  * @returns The UKYC session id and encryption schemas.
  */
 export type KycServiceCreateUkycSessionAction = {
