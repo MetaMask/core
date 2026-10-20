@@ -12,34 +12,49 @@ import {
   validate,
 } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
+import { hexToBigInt } from '@metamask/utils';
 
 import type { WalletMiddlewareContext } from '../wallet.js';
 import { parseTypedMessage } from './normalize.js';
+
+type GetNetworkClientById = (id: string) => {
+  configuration: { chainId: Hex };
+};
 
 /**
  * Validates and normalizes a keyholder address for transaction- and
  * signature-related operations.
  *
  * @param address - The Ethereum address to validate and normalize.
+ * @param chainId - An explicit chain ID for the request, if any.
  * @param context - The context of the request.
  * @param options - The options for the validation.
- * @param options.getAccounts - The function to get the accounts for the origin.
+ * @param options.getAccounts - The function to get the accounts for the origin and scope.
+ * @param options.getNetworkClientById - The function to get a network client by ID.
  * @returns The normalized address, if valid. Otherwise, throws
  * an error
  */
 export async function validateAndNormalizeKeyholder(
   address: Hex,
+  chainId: string | number | undefined,
   context: WalletMiddlewareContext,
-  { getAccounts }: { getAccounts: (origin: string) => Promise<string[]> },
+  {
+    getAccounts,
+    getNetworkClientById,
+  }: {
+    getAccounts: (origin: string, scope: string) => Promise<string[]>;
+    getNetworkClientById: GetNetworkClientById;
+  },
 ): Promise<Hex> {
   if (
     typeof address === 'string' &&
     address.length > 0 &&
     resemblesAddress(address)
   ) {
+    const scope = getRequestScope(chainId, context, getNetworkClientById);
     // Ensure that an "unauthorized" error is thrown if the requester
     // does not have the `eth_accounts` permission.
-    const accounts = await getAccounts(context.assertGet('origin'));
+    const accounts = await getAccounts(context.assertGet('origin'), scope);
 
     const normalizedAccounts: string[] = accounts.map((_address) =>
       _address.toLowerCase(),
@@ -57,6 +72,37 @@ export async function validateAndNormalizeKeyholder(
   throw rpcErrors.invalidParams({
     message: `Invalid parameters: must provide an Ethereum address.`,
   });
+}
+
+/**
+ * Determines the CAIP-2 scope for a JSON-RPC request. Uses, in order
+ * of precedence: the given chain ID, the `scope` in the request context, and
+ * the chain ID of the request's network client.
+ *
+ * @param chainId - An explicit chain ID, if the request specifies one.
+ * @param context - The context of the request.
+ * @param getNetworkClientById - Hook to look up a network client by ID.
+ * @returns The CAIP-2 scope of the request.
+ */
+function getRequestScope(
+  chainId: string | number | undefined,
+  context: WalletMiddlewareContext,
+  getNetworkClientById: GetNetworkClientById,
+): string {
+  // This assumes all variants of chain ID can be parsed by the BigInt constructor
+  if (chainId) {
+    return `eip155:${BigInt(chainId).toString(10)}`;
+  }
+
+  const contextScope = context.get('scope');
+  if (contextScope) {
+    return contextScope;
+  }
+
+  const networkClient = getNetworkClientById(
+    context.assertGet('networkClientId'),
+  );
+  return `eip155:${hexToBigInt(networkClient.configuration.chainId).toString(10)}`;
 }
 
 /**
