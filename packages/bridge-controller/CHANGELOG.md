@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [83.0.0]
+
 ### Added
 
 - Export trace-related constants and types to ensure client requests include required fields ([#10893](https://github.com/MetaMask/core/pull/10893))
@@ -19,11 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Require `traceFn` when initializing the BridgeController ([#10893](https://github.com/MetaMask/core/pull/10893))
-
-## [82.0.4]
-
-### Changed
-
 - Bump `@metamask/keyring-api` from `^24.1.0` to `^24.3.0` ([#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
@@ -2164,8 +2161,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.4...HEAD
-[82.0.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.3...@metamask/bridge-controller@82.0.4
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.0.0...HEAD
+[83.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.3...@metamask/bridge-controller@83.0.0
 [82.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.2...@metamask/bridge-controller@82.0.3
 [82.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.1...@metamask/bridge-controller@82.0.2
 [82.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.0...@metamask/bridge-controller@82.0.1
