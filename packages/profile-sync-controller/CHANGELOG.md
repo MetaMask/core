@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [34.1.0]
+
 ### Added
 
 - Add `AuthenticationController.exchangeSocialAccessToken` and the `AuthenticationController:exchangeSocialAccessToken` messenger action, exchanging the wallet's Google, Apple or Telegram social access token (`POST /api/v2/social/login`) for an access token and the canonical profile, without storing them ([#10886](https://github.com/MetaMask/core/pull/10886))
@@ -1077,7 +1079,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.1.0...HEAD
+[34.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.3...@metamask/profile-sync-controller@34.1.0
 [34.0.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.2...@metamask/profile-sync-controller@34.0.3
 [34.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.1...@metamask/profile-sync-controller@34.0.2
 [34.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.0...@metamask/profile-sync-controller@34.0.1

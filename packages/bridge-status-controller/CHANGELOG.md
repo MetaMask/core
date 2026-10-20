@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - if an approval is required, key initial historyItem by `actionId`
   - rekey to the trade's `actionId` if the approval succeeds
   - rekey to the trade's `id` on confirmation
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^34.1.0` ([#10905](https://github.com/MetaMask/core/pull/10905))
 
 ### Fixed
 
