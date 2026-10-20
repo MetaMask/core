@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `mode` to the `estimateGasBatch` result, `eip7702-outer` for a single gas limit of the outer EIP-7702 transaction or `per-transaction` for one gas limit per transaction, and export the `EstimateGasBatchMode` and `EstimateGasBatchResult` types ([#10790](https://github.com/MetaMask/core/pull/10790))
+- Add optional `daFootprintGasScalar`, `operatorFeeScalar`, `operatorFeeConstant`, and `tokenRatio` fields to `TransactionReceipt` for OP Stack / Mantle Arsia receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
 - Estimate type-4 transactions with an authorization list as one outer transaction, instead of combining separate upgrade and execution estimates and subtracting 21,000 intrinsic gas, so the estimate includes the EIP-2780 runtime authorization charges ([#10783](https://github.com/MetaMask/core/pull/10783))
   - If all authorizations are signed, use `eth_estimateGas` on the selected network for the exact transaction.
   - Otherwise, send one Simulation API request with an `authorizationList` containing the authority of each entry: the sender for unsigned entries, and the recovered signer for pre-signed entries. Estimation fails if a signer cannot be recovered.
@@ -19,10 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
-- Bump `@metamask/core-backend` from `^12.1.0` to `^12.2.0` ([#10857](https://github.com/MetaMask/core/pull/10857))
+- Bump `@metamask/core-backend` from `^12.1.0` to `^12.3.0` ([#10857](https://github.com/MetaMask/core/pull/10857), [#10876](https://github.com/MetaMask/core/pull/10876))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
-- When the outer EIP-7702 estimate in `estimateGasBatch` fails and the sender requires an upgrade, add 43,006 gas to the sum of the provided gas values for the upgrade authorization, which the provided values do not include ([#10790](https://github.com/MetaMask/core/pull/10790))
 
 ### Fixed
 
