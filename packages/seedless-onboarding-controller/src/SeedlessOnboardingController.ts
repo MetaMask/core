@@ -1,7 +1,5 @@
-import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import { BaseController } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
-import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
 import type {
   DefaultEncryptionResult,
   EncryptionResultConstraint,
@@ -19,23 +17,22 @@ import {
   ToprfSecureBackup,
   EncAccountDataType,
 } from '@metamask/toprf-secure-backup';
-import {
-  base64ToBytes,
-  bytesToBase64,
-  bytesToString,
-  stringToBytes,
-  concatBytes,
-} from '@metamask/utils';
+import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Mutex } from 'async-mutex';
 
+import { getPasswordSyncInstruction } from './checkpoint.js';
 import type { AuthConnection } from './constants.js';
 import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
+  PASSWORD_RECOVERY_OPERATIONS,
   SecretType,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
+  SeedlessOnboardingOperation,
+  SeedlessOnboardingCheckpoint,
+  PasswordSyncInstruction,
   Web3AuthNetwork,
 } from './constants.js';
 import {
@@ -45,7 +42,7 @@ import {
 } from './errors.js';
 import { projectLogger, createModuleLogger } from './logger.js';
 import { SecretMetadata } from './SecretMetadata.js';
-import type {
+import {
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
 } from './SeedlessOnboardingController-types.js';
@@ -65,17 +62,21 @@ import type {
   DeserializedVaultData,
 } from './types.js';
 import {
+  assertCanChangePassword,
   assertIsEncryptedKeyringEncryptionKeySet,
   assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
   assertIsSeedlessOnboardingUserAuthenticated,
   assertIsValidPassword,
-  compareAndGetLatestToken,
   decodeJWTToken,
   decodeNodeAuthToken,
   deserializeVaultData,
+  decryptStringWithKey,
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
+  findSocialBackupMetadata,
+  getLatestAccessToken,
+  encryptStringWithKey,
   trackIncompleteMetadataBackupEvents,
   isAuthTokenError,
   isMaxKeyChainLengthError,
@@ -98,6 +99,14 @@ export { getInitialSeedlessOnboardingControllerStateWithDefaults } from './state
 
 const log = createModuleLogger(projectLogger, controllerName);
 
+type UpdatedVaultState = Pick<
+  SeedlessOnboardingControllerState,
+  | 'vault'
+  | 'vaultEncryptionKey'
+  | 'vaultEncryptionSalt'
+  | 'encryptedSeedlessEncryptionKey'
+>;
+
 const MESSENGER_EXPOSED_METHODS = [
   'fetchMetadataAccessCreds',
   'preloadToprfNodeDetails',
@@ -106,15 +115,16 @@ const MESSENGER_EXPOSED_METHODS = [
   'addNewSecretData',
   'fetchAllSecretData',
   'changePassword',
+  'completePasswordChange',
+  'markPasswordChangeKeySyncPending',
+  'resolvePasswordSyncState',
+  'reconcilePassword',
   'updateBackupMetadataState',
   'verifyVaultPassword',
   'getSecretDataBackupState',
   'submitPassword',
   'identifyIncompleteMetadataBackup',
   'setLocked',
-  'syncLatestGlobalPassword',
-  'submitGlobalPassword',
-  'checkIsPasswordOutdated',
   'getIsUserAuthenticated',
   'clearState',
   'storeKeyringEncryptionKey',
@@ -472,7 +482,6 @@ export class SeedlessOnboardingController<
       const performBackup = async (): Promise<void> => {
         await this.#assertPasswordInSync({
           skipCache: true,
-          skipLock: true, // skip lock since we already have the lock
         });
 
         // verify the password and unlock the vault
@@ -512,7 +521,6 @@ export class SeedlessOnboardingController<
 
       await this.#assertPasswordInSync({
         skipCache: true,
-        skipLock: true, // skip lock since we already have the lock
       });
 
       if (this.state.migrationVersion < SeedlessOnboardingMigrationVersion.V1) {
@@ -676,6 +684,9 @@ export class SeedlessOnboardingController<
   ): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
+
+      assertCanChangePassword(this.state.seedlessOperationLifecycle);
+
       // verify the old password of the encrypted vault
       await this.verifyVaultPassword(oldPassword, {
         skipLock: true, // skip lock since we already have the lock
@@ -684,12 +695,15 @@ export class SeedlessOnboardingController<
       const attemptChangePassword = async (): Promise<void> => {
         const { latestKeyIndex } = await this.#assertPasswordInSync({
           skipCache: true,
-          skipLock: true, // skip lock since we already have the lock
+          // `changePassword` writes the checkpoint before its token-refresh retry
+          // and guards concurrency itself at entry, so its own assert must
+          // not be blocked by the checkpoint it just wrote.
+          skipCheckpointCheck: true,
         });
         // load keyring encryption key if it exists
         let keyringEncryptionKey: string | undefined;
         if (this.state.encryptedKeyringEncryptionKey) {
-          keyringEncryptionKey = await this.loadKeyringEncryptionKey();
+          keyringEncryptionKey = await this.#loadKeyringEncryptionKeyUnlocked();
         }
 
         // update the encryption key with new password and update the Metadata Store
@@ -703,20 +717,17 @@ export class SeedlessOnboardingController<
           latestKeyIndex,
         });
 
-        // update and encrypt the vault with new password
-        await this.#createNewVaultWithAuthData({
-          password: newPassword,
-          rawToprfEncryptionKey: newEncKey as Uint8Array<ArrayBuffer>,
-          rawToprfPwEncryptionKey: newPwEncKey as Uint8Array<ArrayBuffer>,
-          rawToprfAuthKeyPair: newAuthKeyPair,
-        });
-
         this.#resetPasswordOutdatedCache();
 
-        // store the keyring encryption key if it exists
-        if (keyringEncryptionKey) {
-          await this.storeKeyringEncryptionKey(keyringEncryptionKey);
-        }
+        await this.#commitPasswordChangeState({
+          password: newPassword,
+          encKey: newEncKey as Uint8Array<ArrayBuffer>,
+          pwEncKey: newPwEncKey as Uint8Array<ArrayBuffer>,
+          authKeyPair: newAuthKeyPair,
+          keyringEncryptionKey,
+          checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+          operation: SeedlessOnboardingOperation.PasswordChange,
+        });
       };
 
       try {
@@ -792,9 +803,10 @@ export class SeedlessOnboardingController<
     data: Uint8Array,
     type: SecretType = SecretType.Mnemonic,
   ): SocialBackupsMetadata | undefined {
-    const secretDataHash = keccak256AndHexify(data);
-    return this.state.socialBackupsMetadata.find(
-      (backup) => backup.hash === secretDataHash && backup.type === type,
+    return findSocialBackupMetadata(
+      this.state.socialBackupsMetadata,
+      data,
+      type,
     );
   }
 
@@ -811,37 +823,7 @@ export class SeedlessOnboardingController<
    */
   async submitPassword(password: string): Promise<void> {
     return await this.#withControllerLock(async () => {
-      // get the access token from the state before unlocking, it might be the new token set from the `refreshAuthTokens` method.
-      const { accessToken: accessTokenBeforeUnlock } = this.state;
-
-      const deserializedVaultData = await this.#unlockVaultAndGetVaultData({
-        password,
-      });
-
-      const accessTokenFromDecryptedVault = deserializedVaultData.accessToken;
-
-      // Pick the latest access token - the token from state might be newer (from refreshAuthTokens)
-      // than the token stored in the vault.
-      const latestAccessToken = this.#pickLatestAccessToken(
-        accessTokenBeforeUnlock,
-        accessTokenFromDecryptedVault,
-      );
-
-      // update the state and vault with the latest access token `ONLY` if it's different from the current access token in the state.
-      if (latestAccessToken !== accessTokenFromDecryptedVault) {
-        const updatedVaultData = {
-          ...deserializedVaultData,
-          accessToken: latestAccessToken,
-        };
-
-        await this.#updateVault({
-          password,
-          vaultData: updatedVaultData,
-          pwEncKey: deserializedVaultData.toprfPwEncryptionKey,
-        });
-      }
-
-      this.#setUnlocked();
+      await this.#unlockVaultAndReconcileAccessToken(password);
 
       this.#identifyIncompleteMetadataBackup(password);
     });
@@ -884,66 +866,35 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Sync the latest global password to the controller.
-   * reset vault with latest globalPassword,
-   * persist the latest global password authPubKey
+   * Rewrite the local Seedless vault under the latest global password.
    *
-   * @param params - The parameters for syncing the latest global password.
-   * @param params.globalPassword - The latest global password.
-   * @returns A promise that resolves to the success of the operation.
-   */
-  async syncLatestGlobalPassword({
-    globalPassword,
-  }: {
-    globalPassword: string;
-  }): Promise<void> {
-    return await this.#withControllerLock(async () => {
-      this.#assertIsUnlocked();
-      const doSyncPassword = async (): Promise<void> => {
-        // update vault with latest globalPassword
-        const { encKey, pwEncKey, authKeyPair } =
-          await this.#recoverEncKey(globalPassword);
-        // update and encrypt the vault with new password
-        await this.#createNewVaultWithAuthData({
-          password: globalPassword,
-          rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
-          rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
-          rawToprfAuthKeyPair: authKeyPair,
-        });
-
-        this.#resetPasswordOutdatedCache();
-      };
-      return await this.#executeWithTokenRefresh(
-        doSyncPassword,
-        'syncLatestGlobalPassword',
-      );
-    });
-  }
-
-  /**
-   * @description Unlock the controller with the latest global password.
+   * Rewrites the local Seedless vault under the latest global password,
+   * re-encrypts `encryptedKeyringEncryptionKey` under the new wrapping key,
+   * and resets the password-outdated cache. Must be called while the
+   * controller lock is held (or from a context that does not hold the lock,
+   * in which case the caller manages locking).
    *
-   * @param params - The parameters for unlocking the controller.
-   * @param params.maxKeyChainLength - The maximum chain length of the pwd encryption keys.
-   * @param params.globalPassword - The latest global password.
-   * @returns A promise that resolves to the success of the operation.
+   * @param globalPassword - The latest global password.
    */
-  async submitGlobalPassword({
-    globalPassword,
-    maxKeyChainLength = 5,
-  }: {
-    globalPassword: string;
-    maxKeyChainLength?: number;
-  }): Promise<void> {
-    return await this.#withControllerLock(async () => {
-      return await this.#executeWithTokenRefresh(async () => {
-        const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
-        await this.#submitGlobalPassword({
-          targetAuthPubKey: currentDeviceAuthPubKey,
-          globalPassword,
-          maxKeyChainLength,
-        });
-      }, 'submitGlobalPassword');
+  async #syncLatestGlobalPasswordInner(globalPassword: string): Promise<void> {
+    // Decrypt under the old wrapping key before the vault rewrite so the
+    // ciphertext can be persisted under the new `toprfPwEncryptionKey`.
+    let keyringEncryptionKey: string | undefined;
+    if (this.state.encryptedKeyringEncryptionKey) {
+      keyringEncryptionKey = await this.#loadKeyringEncryptionKeyUnlocked();
+    }
+
+    const { encKey, pwEncKey, authKeyPair } =
+      await this.#recoverEncKey(globalPassword);
+    this.#resetPasswordOutdatedCache();
+    await this.#commitPasswordChangeState({
+      password: globalPassword,
+      encKey: encKey as Uint8Array<ArrayBuffer>,
+      pwEncKey: pwEncKey as Uint8Array<ArrayBuffer>,
+      authKeyPair,
+      keyringEncryptionKey,
+      checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+      operation: SeedlessOnboardingOperation.PasswordSync,
     });
   }
 
@@ -995,7 +946,8 @@ export class SeedlessOnboardingController<
       this.#setUnlocked();
 
       // Pick the latest access token - the token from state might be newer (from refreshAuthTokens)
-      // than the token stored in the vault. The vault will be updated later by syncLatestGlobalPassword.
+      // than the token stored in the vault. The vault will be updated later
+      // by the password-sync flow.
       this.#pickLatestAccessToken(
         accessTokenBeforeUnlock,
         decryptedVaultData.accessToken,
@@ -1020,12 +972,10 @@ export class SeedlessOnboardingController<
    * @param options.globalAuthPubKey - The global auth public key to compare with the current auth public key.
    * If not provided, the global auth public key will be fetched from the backend.
    * @param options.skipCache - If true, bypass the cache and force a fresh check.
-   * @param options.skipLock - Whether to skip the lock acquisition. (to prevent deadlock in case the caller already acquired the lock)
    * @returns A promise that resolves to true if the password is outdated, false otherwise.
    */
-  async checkIsPasswordOutdated(options?: {
+  async #checkIsPasswordOutdated(options?: {
     skipCache?: boolean;
-    skipLock?: boolean;
     globalAuthPubKey?: SEC1EncodedPublicKey;
   }): Promise<boolean> {
     const doCheckIsPasswordExpired = async (): Promise<boolean> => {
@@ -1087,10 +1037,7 @@ export class SeedlessOnboardingController<
     };
 
     return await this.#executeWithTokenRefresh(
-      async () =>
-        options?.skipLock
-          ? await doCheckIsPasswordExpired()
-          : await this.#withControllerLock(doCheckIsPasswordExpired),
+      async () => await doCheckIsPasswordExpired(),
       'checkIsPasswordOutdated',
     );
   }
@@ -1120,6 +1067,45 @@ export class SeedlessOnboardingController<
   }
 
   /**
+   * Unlock the vault with a password and keep a newer `accessToken` if one was
+   * stored in state by `refreshAuthTokens` before unlock.
+   *
+   * `#unlockVaultAndGetVaultData` writes the vault token over
+   * `state.accessToken`. Snapshot the pre-unlock token, pick the latest, and
+   * persist it into the vault when it differs. Caller must hold the controller
+   * lock.
+   *
+   * @param password - The password to unlock the vault with.
+   */
+  async #unlockVaultAndReconcileAccessToken(password: string): Promise<void> {
+    const { accessToken: accessTokenBeforeUnlock } = this.state;
+
+    const deserializedVaultData = await this.#unlockVaultAndGetVaultData({
+      password,
+    });
+
+    const accessTokenFromDecryptedVault = deserializedVaultData.accessToken;
+
+    const latestAccessToken = this.#pickLatestAccessToken(
+      accessTokenBeforeUnlock,
+      accessTokenFromDecryptedVault,
+    );
+
+    if (latestAccessToken !== accessTokenFromDecryptedVault) {
+      await this.#updateVault({
+        password,
+        vaultData: {
+          ...deserializedVaultData,
+          accessToken: latestAccessToken,
+        },
+        pwEncKey: deserializedVaultData.toprfPwEncryptionKey,
+      });
+    }
+
+    this.#setUnlocked();
+  }
+
+  /**
    * Compares two access tokens and picks the latest one based on JWT expiration.
    * If the tokens are different, the state is updated with the latest token.
    *
@@ -1131,18 +1117,12 @@ export class SeedlessOnboardingController<
     tokenBeforeUnlock: string | undefined,
     tokenAfterUnlock: string,
   ): string {
-    let latestToken = tokenAfterUnlock;
+    const latestToken = getLatestAccessToken(
+      tokenBeforeUnlock,
+      tokenAfterUnlock,
+    );
 
-    if (
-      tokenBeforeUnlock &&
-      tokenAfterUnlock &&
-      tokenBeforeUnlock !== tokenAfterUnlock
-    ) {
-      latestToken = compareAndGetLatestToken(
-        tokenBeforeUnlock,
-        tokenAfterUnlock,
-      );
-
+    if (latestToken !== tokenAfterUnlock) {
       // Update the access token in the state with the latest access token
       this.update((state) => {
         state.accessToken = latestToken;
@@ -1154,12 +1134,21 @@ export class SeedlessOnboardingController<
 
   /**
    * Clears the current state of the SeedlessOnboardingController.
+   *
+   * Waits for any in-flight controller operation before clearing state and
+   * releases the in-memory decrypted vault data.
+   *
+   * @returns A promise that resolves once the state has been cleared.
    */
-  clearState(): void {
-    const defaultState =
-      getInitialSeedlessOnboardingControllerStateWithDefaults();
-    this.update(() => {
-      return defaultState;
+  async clearState(): Promise<void> {
+    await this.#withControllerLock(async () => {
+      const defaultState =
+        getInitialSeedlessOnboardingControllerStateWithDefaults();
+      this.update(() => {
+        return defaultState;
+      });
+      this.#cachedDecryptedVaultData = undefined;
+      this.#isUnlocked = false;
     });
   }
 
@@ -1217,12 +1206,33 @@ export class SeedlessOnboardingController<
    * Store the keyring encryption key in state, encrypted under the current
    * encryption key.
    *
+   * Remains lifecycle-neutral: the client calls this during recovery without
+   * advancing the lifecycle checkpoint.
+   *
    * @param keyringEncryptionKey - The keyring encryption key.
    */
   async storeKeyringEncryptionKey(keyringEncryptionKey: string): Promise<void> {
+    await this.#withControllerLock(async () => {
+      await this.#storeKeyringEncryptionKeyUnlocked(keyringEncryptionKey);
+    });
+  }
+
+  /**
+   * Store the keyring encryption key in state while the controller lock is
+   * held.
+   *
+   * @param keyringEncryptionKey - The keyring encryption key.
+   */
+  async #storeKeyringEncryptionKeyUnlocked(
+    keyringEncryptionKey: string,
+  ): Promise<void> {
     const { toprfPwEncryptionKey: encKey } =
       await this.#unlockVaultAndGetVaultData();
-    await this.#storeKeyringEncryptionKey(encKey, keyringEncryptionKey);
+    const encryptedKeyringEncryptionKey =
+      await this.#encryptKeyringEncryptionKey(keyringEncryptionKey, encKey);
+    this.update((state) => {
+      state.encryptedKeyringEncryptionKey = encryptedKeyringEncryptionKey;
+    });
   }
 
   /**
@@ -1232,31 +1242,20 @@ export class SeedlessOnboardingController<
    * @returns The keyring encryption key.
    */
   async loadKeyringEncryptionKey(): Promise<string> {
-    const { toprfPwEncryptionKey: encKey } =
-      await this.#unlockVaultAndGetVaultData();
-    return await this.#loadKeyringEncryptionKey(encKey);
+    return await this.#withControllerLock(
+      async () => await this.#loadKeyringEncryptionKeyUnlocked(),
+    );
   }
 
   /**
-   * Encrypt the keyring encryption key and store it in state.
+   * Load the keyring encryption key while the controller lock is held.
    *
-   * @param encKey - The encryption key.
-   * @param keyringEncryptionKey - The keyring encryption key.
+   * @returns The keyring encryption key.
    */
-  async #storeKeyringEncryptionKey(
-    encKey: Uint8Array<ArrayBuffer>,
-    keyringEncryptionKey: string,
-  ): Promise<void> {
-    const { ciphertext, iv } = await encrypt(
-      encKey,
-      stringToBytes(keyringEncryptionKey),
-    );
-    const encryptedKeyringEncryptionKey = concatBytes([iv, ciphertext]);
-    this.update((state) => {
-      state.encryptedKeyringEncryptionKey = bytesToBase64(
-        encryptedKeyringEncryptionKey,
-      );
-    });
+  async #loadKeyringEncryptionKeyUnlocked(): Promise<string> {
+    const { toprfPwEncryptionKey: encKey } =
+      await this.#unlockVaultAndGetVaultData();
+    return await this.#loadKeyringEncryptionKey(encKey);
   }
 
   /**
@@ -1270,11 +1269,7 @@ export class SeedlessOnboardingController<
   ): Promise<string> {
     const { encryptedKeyringEncryptionKey: encryptedKey } = this.state;
     assertIsEncryptedKeyringEncryptionKeySet(encryptedKey);
-    const encryptedPasswordBytes = base64ToBytes(encryptedKey);
-    const iv = encryptedPasswordBytes.slice(0, IV_LENGTH);
-    const ciphertext = encryptedPasswordBytes.slice(IV_LENGTH);
-    const password = await decrypt(encKey, iv, ciphertext);
-    return bytesToString(password);
+    return await decryptStringWithKey(encryptedKey, encKey);
   }
 
   /**
@@ -1288,11 +1283,7 @@ export class SeedlessOnboardingController<
   ): Promise<string> {
     const { encryptedSeedlessEncryptionKey: encryptedKey } = this.state;
     assertIsEncryptedSeedlessEncryptionKeySet(encryptedKey);
-    const encryptedKeyBytes = base64ToBytes(encryptedKey);
-    const iv = encryptedKeyBytes.slice(0, IV_LENGTH);
-    const ciphertext = encryptedKeyBytes.slice(IV_LENGTH);
-    const seedlessEncryptionKey = await decrypt(encKey, iv, ciphertext);
-    return bytesToString(seedlessEncryptionKey);
+    return await decryptStringWithKey(encryptedKey, encKey);
   }
 
   /**
@@ -1420,6 +1411,15 @@ export class SeedlessOnboardingController<
         keyShareIndex: globalKeyIndex,
       } = await this.#recoverEncKey(oldPassword));
     }
+
+    // Persist the lifecycle before the first remote mutation so a later
+    // crash or lost response leaves a recovery signal. The password change
+    // is never retried; recovery reconciles local state via the existing
+    // password-sync flow.
+    this.#writeSeedlessOperationLifecycle(
+      SeedlessOnboardingCheckpoint.RemotePasswordPending,
+    );
+
     const result = await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
       authConnectionId,
@@ -1777,61 +1777,11 @@ export class SeedlessOnboardingController<
     pwEncKey: Uint8Array<ArrayBuffer>;
   }): Promise<void> {
     await this.#withVaultLock(async () => {
-      const serializedVaultData = serializeVaultData(vaultData);
-
-      const { vaultEncryptionKey, vaultEncryptionSalt, vault } = this.state;
-
-      const updatedState: Partial<SeedlessOnboardingControllerState> = {
-        vault,
-        vaultEncryptionKey,
-        vaultEncryptionSalt,
-        encryptedSeedlessEncryptionKey:
-          this.state.encryptedSeedlessEncryptionKey,
-      };
-
-      // if the password is provided (not undefined), encrypt the vault with the password
-      // We gonna prioritize the password encryption here, in case of the operation is `Change Password`.
-      // We don't wanna re-use the old encryption key from the state.
-      if (password !== undefined) {
-        assertIsValidPassword(password);
-
-        // Note that vault encryption using the password is a very costly operation as it involves deriving the encryption key
-        // from the password using an intentionally slow key derivation function.
-        // We should make sure that we only call it very intentionally.
-        const { vault: updatedEncVault, exportedKeyString } =
-          await this.#vaultEncryptor.encryptWithDetail(
-            password,
-            serializedVaultData,
-          );
-
-        updatedState.vault = updatedEncVault;
-        updatedState.vaultEncryptionKey = exportedKeyString;
-        updatedState.vaultEncryptionSalt = JSON.parse(updatedEncVault).salt;
-
-        // encrypt the seedless encryption key with the password encryption key from TOPRF network
-        updatedState.encryptedSeedlessEncryptionKey =
-          await this.#encryptSeedlessEncryptionKey(exportedKeyString, pwEncKey);
-      } else if (vaultEncryptionKey && vaultEncryptionSalt) {
-        const encryptionKey =
-          await this.#vaultEncryptor.importKey(vaultEncryptionKey);
-        const updatedEncVault = await this.#vaultEncryptor.encryptWithKey(
-          encryptionKey,
-          serializedVaultData,
-        );
-
-        // NOTE: Referenced from keyring-controller!
-        // We need to include the salt used to derive the encryption key, to be able to derive it from password again.
-        updatedEncVault.salt = vaultEncryptionSalt;
-
-        updatedState.vault = JSON.stringify(updatedEncVault);
-        updatedState.vaultEncryptionKey = vaultEncryptionKey;
-        updatedState.vaultEncryptionSalt = vaultEncryptionSalt;
-      } else {
-        // neither password nor encryption key is provided
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.MissingCredentials,
-        );
-      }
+      const updatedState = await this.#createUpdatedVaultState({
+        password,
+        vaultData,
+        pwEncKey,
+      });
 
       // update the state with the updated vault data
       this.update((state) => {
@@ -1848,6 +1798,188 @@ export class SeedlessOnboardingController<
   }
 
   /**
+   * Create the updated vault state without persisting it.
+   *
+   * This method must be called while the vault lock is held. Keeping vault
+   * encryption separate from the state update allows password-change flows to
+   * combine the vault fields with their other state changes in one update.
+   *
+   * @param params - The parameters for updating the vault.
+   * @param params.password - The optional password to encrypt the vault.
+   * @param params.vaultData - The raw vault data to update the vault with.
+   * @param params.pwEncKey - The global password encryption key.
+   * @returns The prepared vault state.
+   */
+  async #createUpdatedVaultState({
+    password,
+    vaultData,
+    pwEncKey,
+  }: {
+    password?: string;
+    vaultData: DeserializedVaultData;
+    pwEncKey: Uint8Array<ArrayBuffer>;
+  }): Promise<UpdatedVaultState> {
+    const serializedVaultData = serializeVaultData(vaultData);
+
+    const { vaultEncryptionKey, vaultEncryptionSalt, vault } = this.state;
+
+    const updatedState: UpdatedVaultState = {
+      vault,
+      vaultEncryptionKey,
+      vaultEncryptionSalt,
+      encryptedSeedlessEncryptionKey: this.state.encryptedSeedlessEncryptionKey,
+    };
+
+    // if the password is provided (not undefined), encrypt the vault with the password
+    // We gonna prioritize the password encryption here, in case of the operation is `Change Password`.
+    // We don't wanna re-use the old encryption key from the state.
+    if (password !== undefined) {
+      assertIsValidPassword(password);
+
+      // Note that vault encryption using the password is a very costly operation as it involves deriving the encryption key
+      // from the password using an intentionally slow key derivation function.
+      // We should make sure that we only call it very intentionally.
+      const { vault: updatedEncVault, exportedKeyString } =
+        await this.#vaultEncryptor.encryptWithDetail(
+          password,
+          serializedVaultData,
+        );
+
+      updatedState.vault = updatedEncVault;
+      updatedState.vaultEncryptionKey = exportedKeyString;
+      updatedState.vaultEncryptionSalt = JSON.parse(updatedEncVault).salt;
+
+      // encrypt the seedless encryption key with the password encryption key from TOPRF network
+      updatedState.encryptedSeedlessEncryptionKey =
+        await this.#encryptSeedlessEncryptionKey(exportedKeyString, pwEncKey);
+    } else if (vaultEncryptionKey && vaultEncryptionSalt) {
+      const encryptionKey =
+        await this.#vaultEncryptor.importKey(vaultEncryptionKey);
+      const updatedEncVault = await this.#vaultEncryptor.encryptWithKey(
+        encryptionKey,
+        serializedVaultData,
+      );
+
+      // NOTE: Referenced from keyring-controller!
+      // We need to include the salt used to derive the encryption key, to be able to derive it from password again.
+      updatedEncVault.salt = vaultEncryptionSalt;
+
+      updatedState.vault = JSON.stringify(updatedEncVault);
+      updatedState.vaultEncryptionKey = vaultEncryptionKey;
+      updatedState.vaultEncryptionSalt = vaultEncryptionSalt;
+    } else {
+      // neither password nor encryption key is provided
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.MissingCredentials,
+      );
+    }
+
+    return updatedState;
+  }
+
+  /**
+   * Persist the local Seedless state for a password operation in one update.
+   *
+   * This is intentionally separate from the generic vault creation path. The
+   * password boundary includes the vault, authentication public key, Keyring
+   * encryption key, and lifecycle checkpoint.
+   *
+   * @param params - The password-operation state to persist.
+   * @param params.password - The password to encrypt the vault with.
+   * @param params.encKey - The TOPRF encryption key.
+   * @param params.pwEncKey - The TOPRF password encryption key.
+   * @param params.authKeyPair - The TOPRF authentication key pair.
+   * @param params.keyringEncryptionKey - The decrypted Keyring encryption key.
+   * @param params.checkpoint - The lifecycle checkpoint to persist.
+   * @param params.operation - The password lifecycle operation to persist.
+   */
+  async #commitPasswordChangeState({
+    password,
+    encKey,
+    pwEncKey,
+    authKeyPair,
+    keyringEncryptionKey,
+    checkpoint,
+    operation,
+  }: {
+    password: string;
+    encKey: Uint8Array<ArrayBuffer>;
+    pwEncKey: Uint8Array<ArrayBuffer>;
+    authKeyPair: KeyPair;
+    keyringEncryptionKey?: string;
+    checkpoint: SeedlessOnboardingCheckpoint;
+    operation: SeedlessOnboardingOperation;
+  }): Promise<void> {
+    this.#assertIsAuthenticatedUser(this.state);
+
+    // The remote Seedless change is committed. Persist the boundary so
+    // recovery knows the remote password is new.
+    this.#writeSeedlessOperationLifecycle(
+      SeedlessOnboardingCheckpoint.LocalStatePending,
+      operation,
+    );
+
+    const { accessToken, revokeToken } =
+      await this.#getAccessTokenAndRevokeToken(password);
+    const vaultData: DeserializedVaultData = {
+      toprfAuthKeyPair: authKeyPair,
+      toprfEncryptionKey: encKey,
+      toprfPwEncryptionKey: pwEncKey,
+      revokeToken,
+      accessToken,
+    };
+
+    await this.#withVaultLock(async () => {
+      const updatedVaultState = await this.#createUpdatedVaultState({
+        password,
+        vaultData,
+        pwEncKey,
+      });
+      const encryptedKeyringEncryptionKey =
+        keyringEncryptionKey === undefined
+          ? undefined
+          : await this.#encryptKeyringEncryptionKey(
+              keyringEncryptionKey,
+              pwEncKey,
+            );
+
+      this.update((state) => {
+        state.vault = updatedVaultState.vault;
+        state.vaultEncryptionKey = updatedVaultState.vaultEncryptionKey;
+        state.vaultEncryptionSalt = updatedVaultState.vaultEncryptionSalt;
+        state.encryptedSeedlessEncryptionKey =
+          updatedVaultState.encryptedSeedlessEncryptionKey;
+        state.authPubKey = bytesToBase64(authKeyPair.pk);
+        if (encryptedKeyringEncryptionKey !== undefined) {
+          state.encryptedKeyringEncryptionKey = encryptedKeyringEncryptionKey;
+        }
+        state.seedlessOperationLifecycle = {
+          operation,
+          checkpoint,
+        };
+      });
+
+      this.#cachedDecryptedVaultData = vaultData;
+    });
+
+    this.#setUnlocked();
+  }
+
+  /**
+   * Encrypt the Keyring encryption key with the TOPRF password encryption key.
+   *
+   * @param keyringEncryptionKey - The Keyring encryption key.
+   * @param pwEncKey - The TOPRF password encryption key.
+   * @returns The encrypted Keyring encryption key in base64 format.
+   */
+  async #encryptKeyringEncryptionKey(
+    keyringEncryptionKey: string,
+    pwEncKey: Uint8Array<ArrayBuffer>,
+  ): Promise<string> {
+    return await encryptStringWithKey(keyringEncryptionKey, pwEncKey);
+  }
+
+  /**
    * Encrypt the seedless encryption key with the password encryption key from TOPRF network.
    *
    * @param vaultEncryptionKey - The key which is used to encrypt the vault.
@@ -1858,11 +1990,7 @@ export class SeedlessOnboardingController<
     vaultEncryptionKey: string,
     pwEncKey: Uint8Array<ArrayBuffer>,
   ): Promise<string> {
-    const { ciphertext, iv } = await encrypt(
-      pwEncKey,
-      stringToBytes(vaultEncryptionKey),
-    );
-    return bytesToBase64(concatBytes([iv, ciphertext]));
+    return await encryptStringWithKey(vaultEncryptionKey, pwEncKey);
   }
 
   /**
@@ -1942,6 +2070,258 @@ export class SeedlessOnboardingController<
     return await withLock(this.#vaultOperationMutex, callback);
   }
 
+  /**
+   * Persist a lifecycle boundary to controller state.
+   *
+   * The lifecycle is a recovery signal only; it is not proof that a remote or
+   * local operation completed. Recovery must always re-verify actual remote
+   * and local state.
+   *
+   * Must be called while the controller lock is held.
+   *
+   * @param checkpoint - The lifecycle checkpoint to persist, or `undefined` to
+   * clear the lifecycle.
+   * @param operation - The operation to persist with the checkpoint.
+   */
+  #writeSeedlessOperationLifecycle(
+    checkpoint: SeedlessOnboardingCheckpoint | undefined,
+    operation: SeedlessOnboardingOperation = SeedlessOnboardingOperation.PasswordChange,
+  ): void {
+    this.update((state) => {
+      if (checkpoint) {
+        state.seedlessOperationLifecycle = {
+          operation,
+          checkpoint,
+        };
+      } else {
+        state.seedlessOperationLifecycle = undefined;
+      }
+    });
+  }
+
+  /**
+   * Complete password-change recovery.
+   *
+   * Call this after the current Keyring encryption key has been synchronized
+   * and all required local writes have succeeded. The controller clears the
+   * lifecycle so the next unlock is normal.
+   *
+   * @returns A promise that resolves once recovery has been completed.
+   */
+  async completePasswordChange(): Promise<void> {
+    await this.#withControllerLock(async () => {
+      const lifecycle = this.state.seedlessOperationLifecycle;
+      if (
+        lifecycle === undefined ||
+        !PASSWORD_RECOVERY_OPERATIONS.has(lifecycle.operation)
+      ) {
+        return;
+      }
+      this.#writeSeedlessOperationLifecycle(undefined);
+    });
+  }
+
+  /**
+   * Mark the password-change lifecycle as `KEY_SYNC_PENDING`.
+   *
+   * Called by the client coordinator before it synchronizes the current
+   * Keyring encryption key to Seedless. The controller only records the
+   * boundary; it does not perform or verify synchronization.
+   *
+   * @returns A promise that resolves once the checkpoint has been persisted.
+   */
+  async markPasswordChangeKeySyncPending(): Promise<void> {
+    await this.#withControllerLock(async () => {
+      const { seedlessOperationLifecycle } = this.state;
+      if (
+        seedlessOperationLifecycle &&
+        !PASSWORD_RECOVERY_OPERATIONS.has(seedlessOperationLifecycle.operation)
+      ) {
+        return;
+      }
+      if (
+        seedlessOperationLifecycle?.checkpoint ===
+        SeedlessOnboardingCheckpoint.KeySyncPending
+      ) {
+        return;
+      }
+      this.#writeSeedlessOperationLifecycle(
+        SeedlessOnboardingCheckpoint.KeySyncPending,
+        seedlessOperationLifecycle?.operation,
+      );
+    });
+  }
+
+  /**
+   * Resolve the password-sync instruction without consuming a password.
+   *
+   * Checks the remote password before routing recovery for every valid
+   * password-sync checkpoint. The checkpoint then determines the next local
+   * recovery instruction when the passwords are in sync.
+   *
+   * @param options - The options.
+   * @param options.skipCache - Whether to bypass the outdated cache. Recovery
+   * checkpoints always bypass the cache.
+   * @returns The sync/recovery instruction.
+   * @throws If another operation is active or the password state cannot be
+   * established.
+   */
+  async resolvePasswordSyncState(options?: {
+    skipCache?: boolean;
+  }): Promise<PasswordSyncInstruction> {
+    // The checkpoint snapshot and any resulting check or transition must share
+    // the controller lock. Otherwise a concurrent password change can advance
+    // the checkpoint after it is read and before this method acts on it.
+    return await this.#withControllerLock(async () => {
+      const { seedlessOperationLifecycle } = this.state;
+      if (
+        seedlessOperationLifecycle &&
+        !PASSWORD_RECOVERY_OPERATIONS.has(seedlessOperationLifecycle.operation)
+      ) {
+        throw new SeedlessOnboardingError(
+          SeedlessOnboardingControllerErrorMessage.OperationInProgress,
+        );
+      }
+      const checkpoint = seedlessOperationLifecycle?.checkpoint;
+      const isPasswordOutdated = await this.#checkIsPasswordOutdated({
+        // Recovery checkpoints must always use a fresh remote comparison.
+        skipCache: checkpoint !== undefined || options?.skipCache,
+      });
+      const instruction = getPasswordSyncInstruction(
+        checkpoint,
+        isPasswordOutdated,
+      );
+      if (instruction === PasswordSyncInstruction.InSync) {
+        // The local password matches. Clear a stale checkpoint.
+        this.#writeSeedlessOperationLifecycle(undefined);
+      }
+      return instruction;
+    });
+  }
+
+  /**
+   * Reconcile the local Seedless password with the remote password.
+   *
+   * For `LOCAL_STATE_PENDING` it re-runs the existing password-sync flow
+   * (chain unlock + local vault rewrite) with the new password and advances
+   * the checkpoint to `LOCAL_PASSWORD_PENDING`. These operations are
+   * idempotent, so re-running them is safe whether or not the local Seedless
+   * vault was already rewritten. The controller is left unlocked.
+   *
+   * For `LOCAL_PASSWORD_PENDING` or `KEY_SYNC_PENDING` the local Seedless vault
+   * is already rewritten. The method unlocks it with the supplied password so
+   * `loadKeyringEncryptionKey` and `storeKeyringEncryptionKey` work after a
+   * restart, without repeating remote TOPRF recovery or a vault rewrite. A
+   * newer `accessToken` from `refreshAuthTokens` is kept instead of being
+   * overwritten by the vault copy.
+   *
+   * It always re-checks whether the remote password is outdated, including when
+   * the local Seedless vault was already rewritten. If it is, it runs the same
+   * password-sync flow, advances to `LOCAL_PASSWORD_PENDING`, and returns
+   * `ReconcileKeyring` so the client can reconcile the local Keyring. If the
+   * remote password is current, the checkpoint determines whether the client
+   * must reconcile the Keyring, sync its key, or do nothing.
+   *
+   * The client remains responsible for the Keyring side (classifying the local
+   * Keyring via `KeyringController:verifyPassword` and running the old-Keyring
+   * or new-Keyring branch), because this controller does not depend on
+   * `KeyringController`. See
+   * [0003](./docs/0003-controller-owned-password-change-recovery-plan.md).
+   *
+   * @param params - The reconciliation parameters.
+   * @param params.globalPassword - The current global password.
+   * @param params.maxKeyChainLength - The maximum chain length of the pwd encryption keys. @default 5
+   * @returns The reconciliation instruction.
+   * @throws If recovery cannot establish the current password state.
+   */
+  async reconcilePassword({
+    globalPassword,
+    maxKeyChainLength = 5,
+  }: {
+    globalPassword: string;
+    maxKeyChainLength?: number;
+  }): Promise<PasswordSyncInstruction> {
+    return await this.#withControllerLock(async () => {
+      const { seedlessOperationLifecycle } = this.state;
+      if (
+        seedlessOperationLifecycle &&
+        !PASSWORD_RECOVERY_OPERATIONS.has(seedlessOperationLifecycle.operation)
+      ) {
+        throw new SeedlessOnboardingError(
+          SeedlessOnboardingControllerErrorMessage.OperationInProgress,
+        );
+      }
+      const checkpoint = seedlessOperationLifecycle?.checkpoint;
+      const isPasswordOutdated = await this.#checkIsPasswordOutdated({
+        skipCache: true,
+      });
+      let instruction = getPasswordSyncInstruction(
+        checkpoint,
+        isPasswordOutdated,
+      );
+
+      if (
+        instruction === PasswordSyncInstruction.ReconcileKeyring ||
+        instruction === PasswordSyncInstruction.SyncKey
+      ) {
+        // Vault is already rewritten; unlock locally so Keyring key load/store
+        // works after a restart without repeating TOPRF recovery.
+        await this.#unlockVaultAndReconcileAccessToken(globalPassword);
+      }
+
+      if (instruction === PasswordSyncInstruction.InSync) {
+        // Clear the checkpoint if available.
+        this.#writeSeedlessOperationLifecycle(undefined);
+      } else {
+        // Update the checkpoint to the current operation.
+        this.#writeSeedlessOperationLifecycle(
+          checkpoint,
+          SeedlessOnboardingOperation.PasswordSync,
+        );
+
+        if (instruction === PasswordSyncInstruction.PasswordOutdated) {
+          // The instruction says current device password is outdated.
+          // We will run the password-sync flow with the new password.
+          await this.#runPasswordSyncFlow(globalPassword, maxKeyChainLength);
+          // After the password-sync flow is completed, update the next instruction to reconcile the local Keyring.
+          instruction = PasswordSyncInstruction.ReconcileKeyring;
+        }
+      }
+
+      return instruction;
+    });
+  }
+
+  /**
+   * Re-run the password-sync flow (chain unlock + local vault rewrite) with
+   * the supplied password.
+   *
+   * Both operations are idempotent if the local Seedless vault is already
+   * synced, so this is safe to re-run during recovery or a plain
+   * another-device sync. The controller is left unlocked. Caller must hold
+   * the controller lock.
+   *
+   * @param globalPassword - The current global password.
+   * @param maxKeyChainLength - The maximum chain length of the pwd encryption keys. @default 5
+   */
+  async #runPasswordSyncFlow(
+    globalPassword: string,
+    maxKeyChainLength: number = 5,
+  ): Promise<void> {
+    await this.#executeWithTokenRefresh(async () => {
+      const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
+      await this.#submitGlobalPassword({
+        targetAuthPubKey: currentDeviceAuthPubKey,
+        globalPassword,
+        maxKeyChainLength,
+      });
+    }, 'submitGlobalPassword');
+    await this.#executeWithTokenRefresh(
+      async () => await this.#syncLatestGlobalPasswordInner(globalPassword),
+      'syncLatestGlobalPassword',
+    );
+  }
+
   #assertIsUnlocked(): void {
     if (!this.#isUnlocked) {
       throw new Error(
@@ -1980,18 +2360,41 @@ export class SeedlessOnboardingController<
    *
    * @param options - The options for asserting the password is in sync.
    * @param options.skipCache - Whether to skip the cache check.
-   * @param options.skipLock - Whether to skip the lock acquisition. (to prevent deadlock in case the caller already acquired the lock)
+   * @param options.skipCheckpointCheck - Whether to skip the
+   * `seedlessOperationLifecycle` guard. Only `changePassword` should set this:
+   * it guards concurrency itself at entry and writes the lifecycle before its
+   * token-refresh retry, so its own internal assert must not be blocked by the
+   * lifecycle it just wrote.
    * @returns The global auth public key and the latest key index.
    * @throws If the password is outdated.
    */
   async #assertPasswordInSync(options?: {
     skipCache?: boolean;
-    skipLock?: boolean;
+    /**
+     * Skip the `seedlessOperationLifecycle` guard. Only `changePassword`
+     * should set this: it guards concurrency itself at entry and writes the
+     * lifecycle before its token-refresh retry, so its own internal assert
+     * must not be blocked by the lifecycle it just wrote.
+     */
+    skipCheckpointCheck?: boolean;
   }): Promise<{
     authPubKey: SEC1EncodedPublicKey;
     latestKeyIndex: number;
   }> {
     this.#assertIsAuthenticatedUser(this.state);
+
+    // Block TOPRF operations while an operation is unresolved. The
+    // controller mutex serializes in-process calls, but a previous change may
+    // have left a persisted checkpoint after a crash. Running a fresh TOPRF
+    // operation against ambiguous state could corrupt recovery. Recovery
+    // itself bypasses this assert (it calls the password-sync primitives
+    // directly), so this guard does not block reconciliation. `changePassword`
+    // passes `skipCheckpointCheck` because it writes the checkpoint before its
+    // own token-refresh retry and already guards concurrency at entry.
+    if (!options?.skipCheckpointCheck) {
+      assertCanChangePassword(this.state.seedlessOperationLifecycle);
+    }
+
     const {
       nodeAuthTokens,
       authConnectionId,
@@ -2015,7 +2418,7 @@ export class SeedlessOnboardingController<
           },
         );
       });
-    const isPasswordOutdated = await this.checkIsPasswordOutdated({
+    const isPasswordOutdated = await this.#checkIsPasswordOutdated({
       ...options,
       globalAuthPubKey: authPubKey,
     });

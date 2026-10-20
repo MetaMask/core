@@ -18,15 +18,14 @@ export type {
   SeedlessOnboardingControllerAddNewSecretDataAction,
   SeedlessOnboardingControllerFetchAllSecretDataAction,
   SeedlessOnboardingControllerChangePasswordAction,
+  SeedlessOnboardingControllerCompletePasswordChangeAction,
+  SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction,
   SeedlessOnboardingControllerUpdateBackupMetadataStateAction,
   SeedlessOnboardingControllerVerifyVaultPasswordAction,
   SeedlessOnboardingControllerGetSecretDataBackupStateAction,
   SeedlessOnboardingControllerSubmitPasswordAction,
   SeedlessOnboardingControllerIdentifyIncompleteMetadataBackupAction,
   SeedlessOnboardingControllerSetLockedAction,
-  SeedlessOnboardingControllerSyncLatestGlobalPasswordAction,
-  SeedlessOnboardingControllerSubmitGlobalPasswordAction,
-  SeedlessOnboardingControllerCheckIsPasswordOutdatedAction,
   SeedlessOnboardingControllerGetIsUserAuthenticatedAction,
   SeedlessOnboardingControllerClearStateAction,
   SeedlessOnboardingControllerStoreKeyringEncryptionKeyAction,
@@ -39,6 +38,8 @@ export type {
   SeedlessOnboardingControllerCheckMetadataAccessTokenExpiredAction,
   SeedlessOnboardingControllerCheckAccessTokenExpiredAction,
   SeedlessOnboardingControllerRunMigrationsAction,
+  SeedlessOnboardingControllerResolvePasswordSyncStateAction,
+  SeedlessOnboardingControllerReconcilePasswordAction,
 } from './SeedlessOnboardingController-method-action-types.js';
 export type {
   AuthenticatedUserDetails,
@@ -48,12 +49,16 @@ export type {
   RecoveryErrorData,
   InvalidPrimarySecretDataTypeErrorData,
 } from './types.js';
+export type { SeedlessOperationLifecycle } from './constants.js';
 export {
   Web3AuthNetwork,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
+  SeedlessOnboardingOperation,
+  SeedlessOnboardingCheckpoint,
   AuthConnection,
   SecretType,
+  PasswordSyncInstruction,
 } from './constants.js';
 export { SecretMetadata } from './SecretMetadata.js';
 export {
