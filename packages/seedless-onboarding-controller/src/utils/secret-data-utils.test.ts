@@ -20,6 +20,7 @@ import {
   findSocialBackupMetadata,
   parseAndValidateSecretMetadataBackup,
   parseSecretMetadata,
+  prepareSecretDataItemsForPasswordChange,
 } from './secret-data-utils.js';
 
 describe('secret data utilities', () => {
@@ -139,6 +140,47 @@ describe('secret data utilities', () => {
 
       expect(updates).toStrictEqual([
         { itemId: 'primary-srp', dataType: EncAccountDataType.PrimarySrp },
+      ]);
+    });
+  });
+
+  describe('prepareSecretDataItemsForPasswordChange', () => {
+    it('sorts secrets without mutating the input and normalizes legacy versions', () => {
+      const importedSrp = createFetchedSecretDataItem({
+        ...ImportedSRP1,
+        itemId: 'imported-srp',
+      });
+      const primarySrp = createFetchedSecretDataItem({
+        ...PrimarySRP2,
+        itemId: 'primary-srp',
+      });
+      const legacyPrivateKey = createFetchedSecretDataItem({
+        ...PrivateKey1,
+        itemId: 'private-key',
+      });
+      const items = [importedSrp, legacyPrivateKey, primarySrp];
+      const originalItems = [...items];
+
+      const result = prepareSecretDataItemsForPasswordChange(items);
+
+      expect(items).toStrictEqual(originalItems);
+      expect(items[0]).toBe(importedSrp);
+      expect(result).toStrictEqual([
+        {
+          data: primarySrp.data,
+          dataType: primarySrp.dataType,
+          version: primarySrp.version,
+        },
+        {
+          data: legacyPrivateKey.data,
+          dataType: legacyPrivateKey.dataType,
+          version: 'v1',
+        },
+        {
+          data: importedSrp.data,
+          dataType: importedSrp.dataType,
+          version: importedSrp.version,
+        },
       ]);
     });
   });

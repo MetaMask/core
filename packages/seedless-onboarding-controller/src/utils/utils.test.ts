@@ -3,7 +3,7 @@ import {
   TOPRFError,
   TOPRFErrorCode,
 } from '@metamask/toprf-secure-backup';
-import { bytesToBase64 } from '@metamask/utils';
+import { base64ToBytes, bytesToBase64, stringToBytes } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
 import { createMockJWTToken } from '../../tests/mocks/utils.js';
@@ -14,17 +14,26 @@ import {
 import { SecretMetadata } from '../SecretMetadata.js';
 import type { DecodedNodeAuthToken } from '../types.js';
 import {
+  areAuthPublicKeysEqual,
   compareAndGetLatestToken,
+  createVaultData,
   decodeJWTToken,
   decodeNodeAuthToken,
+  decodeStoredAuthPublicKey,
+  getCachedPasswordOutdatedResult,
   getInvalidPrimarySecretDataTypeErrorData,
   getLatestAccessToken,
   getSecretTypeFromDataType,
   isAuthTokenError,
+  isJwtTokenNearExpiry,
   isMaxKeyChainLengthError,
+  isNodeAuthTokenNearExpiry,
   isTokenNearExpiry,
   parseVaultData,
 } from './utils.js';
+
+const AUTH_PUBLIC_KEY = 'A09CwPHdl/qo2AjBOHen5d4QORaLedxOrSdgReq8IhzQ';
+const OTHER_AUTH_PUBLIC_KEY = 'Ao2sa8imX7SD4KE4fJLoJ/iBufmaBxSFygG1qUhW2qAb';
 
 describe('utils', () => {
   describe('decodeNodeAuthToken', () => {
@@ -320,6 +329,109 @@ describe('utils', () => {
     it('falls back to exact expiry for malformed lifetimes', () => {
       expect(isTokenNearExpiry(100, 100, 99)).toBe(false);
       expect(isTokenNearExpiry(100, 100, 100)).toBe(true);
+    });
+  });
+
+  describe('token expiry helpers', () => {
+    it('uses the exact expiry for node auth tokens', () => {
+      const nodeAuthToken = bytesToBase64(
+        utf8ToBytes(JSON.stringify({ exp: 100 })),
+      );
+
+      expect(isNodeAuthTokenNearExpiry(nodeAuthToken, 99)).toBe(false);
+      expect(isNodeAuthTokenNearExpiry(nodeAuthToken, 100)).toBe(true);
+    });
+
+    it('uses the proactive refresh threshold for JWTs', () => {
+      const jwt = createMockJWTToken({ exp: 100, iat: 0 });
+
+      expect(isJwtTokenNearExpiry(jwt, 89)).toBe(false);
+      expect(isJwtTokenNearExpiry(jwt, 90)).toBe(true);
+    });
+  });
+
+  describe('password outdated helpers', () => {
+    describe('getCachedPasswordOutdatedResult', () => {
+      it('returns a cached result within its TTL', () => {
+        expect(
+          getCachedPasswordOutdatedResult(
+            { isExpiredPwd: true, timestamp: 901 },
+            100,
+            1000,
+          ),
+        ).toBe(true);
+      });
+
+      it('returns undefined when the cache has reached its TTL', () => {
+        expect(
+          getCachedPasswordOutdatedResult(
+            { isExpiredPwd: false, timestamp: 900 },
+            100,
+            1000,
+          ),
+        ).toBeUndefined();
+      });
+
+      it('returns undefined when the cache is missing', () => {
+        expect(
+          getCachedPasswordOutdatedResult(undefined, 100, 1000),
+        ).toBeUndefined();
+      });
+    });
+
+    describe('areAuthPublicKeysEqual', () => {
+      it('compares equivalent elliptic curve points', () => {
+        const authPublicKey = base64ToBytes(AUTH_PUBLIC_KEY);
+
+        expect(areAuthPublicKeysEqual(authPublicKey, authPublicKey)).toBe(true);
+        expect(
+          areAuthPublicKeysEqual(
+            authPublicKey,
+            base64ToBytes(OTHER_AUTH_PUBLIC_KEY),
+          ),
+        ).toBe(false);
+      });
+    });
+
+    describe('decodeStoredAuthPublicKey', () => {
+      it('decodes a stored Base64 public key', () => {
+        expect(decodeStoredAuthPublicKey(AUTH_PUBLIC_KEY)).toStrictEqual(
+          base64ToBytes(AUTH_PUBLIC_KEY),
+        );
+      });
+
+      it('throws when the public key is missing', () => {
+        expect(() => decodeStoredAuthPublicKey(undefined)).toThrow(
+          SeedlessOnboardingControllerErrorMessage.SRPNotBackedUpError,
+        );
+      });
+    });
+  });
+
+  describe('createVaultData', () => {
+    it('maps TOPRF keys and tokens to vault data', () => {
+      const authKeyPair = {
+        sk: 1n,
+        pk: stringToBytes('public-key'),
+      };
+      const encKey = stringToBytes('encryption-key');
+      const pwEncKey = stringToBytes('password-encryption-key');
+
+      expect(
+        createVaultData({
+          authKeyPair,
+          encKey,
+          pwEncKey,
+          accessToken: 'access-token',
+          revokeToken: 'revoke-token',
+        }),
+      ).toStrictEqual({
+        toprfAuthKeyPair: authKeyPair,
+        toprfEncryptionKey: encKey,
+        toprfPwEncryptionKey: pwEncKey,
+        accessToken: 'access-token',
+        revokeToken: 'revoke-token',
+      });
     });
   });
 

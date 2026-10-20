@@ -1,4 +1,7 @@
-import type { KeyPair } from '@metamask/toprf-secure-backup';
+import type {
+  KeyPair,
+  SEC1EncodedPublicKey,
+} from '@metamask/toprf-secure-backup';
 import {
   EncAccountDataType,
   TOPRFError,
@@ -11,6 +14,7 @@ import {
   bytesToString,
   hexToBigInt,
 } from '@metamask/utils';
+import { secp256k1 } from '@noble/curves/secp256k1';
 
 import {
   SeedlessOnboardingControllerErrorMessage,
@@ -22,6 +26,7 @@ import type {
   DecodedNodeAuthToken,
   DeserializedVaultData,
   InvalidPrimarySecretDataTypeErrorData,
+  SeedlessOnboardingControllerState,
   VaultData,
 } from '../types.js';
 import { assertIsValidVaultData } from './assertions.js';
@@ -100,6 +105,39 @@ export function deserializeVaultData(value: VaultData): DeserializedVaultData {
 }
 
 /**
+ * Build the deserialized vault data persisted by the controller.
+ *
+ * @param options - The vault fields returned by the TOPRF flows.
+ * @param options.authKeyPair - The TOPRF authentication key pair.
+ * @param options.encKey - The TOPRF encryption key.
+ * @param options.pwEncKey - The TOPRF password encryption key.
+ * @param options.accessToken - The profile-sync access token.
+ * @param options.revokeToken - The token used to revoke the refresh token.
+ * @returns The deserialized vault data.
+ */
+export function createVaultData({
+  authKeyPair,
+  encKey,
+  pwEncKey,
+  accessToken,
+  revokeToken,
+}: {
+  authKeyPair: KeyPair;
+  encKey: Uint8Array<ArrayBuffer>;
+  pwEncKey: Uint8Array<ArrayBuffer>;
+  accessToken: string;
+  revokeToken: string;
+}): DeserializedVaultData {
+  return {
+    toprfAuthKeyPair: authKeyPair,
+    toprfEncryptionKey: encKey,
+    toprfPwEncryptionKey: pwEncKey,
+    accessToken,
+    revokeToken,
+  };
+}
+
+/**
  * Parse and validate decrypted vault data.
  *
  * @param data - The decrypted vault data.
@@ -153,6 +191,41 @@ export function deserializeAuthKeyPair(value: string): KeyPair {
     sk: hexToBigInt(parsedKeyPair.sk),
     pk: base64ToBytes(parsedKeyPair.pk),
   };
+}
+
+/**
+ * Decode an authentication public key stored in controller state.
+ *
+ * @param authPubKey - The base64-encoded public key.
+ * @returns The decoded SEC1 public key.
+ * @throws If the public key has not been backed up.
+ */
+export function decodeStoredAuthPublicKey(
+  authPubKey: string | undefined,
+): SEC1EncodedPublicKey {
+  if (!authPubKey) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.SRPNotBackedUpError,
+    );
+  }
+
+  return base64ToBytes(authPubKey);
+}
+
+/**
+ * Compare two SEC1-encoded secp256k1 public keys.
+ *
+ * @param current - The current public key.
+ * @param global - The public key stored by the authentication service.
+ * @returns Whether both keys represent the same curve point.
+ */
+export function areAuthPublicKeysEqual(
+  current: SEC1EncodedPublicKey,
+  global: SEC1EncodedPublicKey,
+): boolean {
+  return secp256k1.ProjectivePoint.fromHex(current).equals(
+    secp256k1.ProjectivePoint.fromHex(global),
+  );
 }
 
 /**
@@ -239,6 +312,56 @@ export function isTokenNearExpiry(
   }
   const remaining = exp - now;
   return remaining <= 0.1 * lifetime;
+}
+
+/**
+ * Determine whether a node authentication token is near expiry.
+ *
+ * @param token - The encoded node authentication token.
+ * @param currentTimeInSeconds - The time used for the expiry check.
+ * @returns Whether the token is near expiry.
+ */
+export function isNodeAuthTokenNearExpiry(
+  token: string,
+  currentTimeInSeconds?: number,
+): boolean {
+  const { exp } = decodeNodeAuthToken(token);
+  return isTokenNearExpiry(exp, undefined, currentTimeInSeconds);
+}
+
+/**
+ * Determine whether a JWT is near expiry.
+ *
+ * @param token - The encoded JWT.
+ * @param currentTimeInSeconds - The time used for the expiry check.
+ * @returns Whether the token is near expiry.
+ */
+export function isJwtTokenNearExpiry(
+  token: string,
+  currentTimeInSeconds?: number,
+): boolean {
+  const { exp, iat } = decodeJWTToken(token);
+  return isTokenNearExpiry(exp, iat, currentTimeInSeconds);
+}
+
+/**
+ * Get a cached password-outdated result when it is still valid.
+ *
+ * @param cache - The cached result and the time it was calculated.
+ * @param ttlMs - The cache lifetime in milliseconds.
+ * @param nowMs - The current time in milliseconds.
+ * @returns The cached result, or `undefined` when the cache is absent or stale.
+ */
+export function getCachedPasswordOutdatedResult(
+  cache: SeedlessOnboardingControllerState['passwordOutdatedCache'],
+  ttlMs: number,
+  nowMs: number,
+): boolean | undefined {
+  if (cache && nowMs - cache.timestamp < ttlMs) {
+    return cache.isExpiredPwd;
+  }
+
+  return undefined;
 }
 
 /**

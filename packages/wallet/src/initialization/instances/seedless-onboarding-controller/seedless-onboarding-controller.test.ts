@@ -50,7 +50,10 @@ describe('seedlessOnboardingController', () => {
       messenger,
       actions: [
         'AnalyticsController:trackEvent',
+        'KeyringController:changePassword',
+        'KeyringController:exportEncryptionKey',
         'KeyringController:exportSeedPhrase',
+        'KeyringController:setLocked',
       ],
     });
   });
