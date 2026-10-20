@@ -9,3 +9,4 @@ export {
   isObject,
   isPlainObject,
 } from './object.js';
+export type { PublicInterface } from './types.js';

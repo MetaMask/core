@@ -52,10 +52,12 @@ export type {
   Mutable,
   NonEmptyArray,
   PartialOrAbsent,
+  PublicInterface,
   RuntimeObject,
   RuntimeObject as PlainObject,
 } from '@metamask/type-utils';
 export {
+  isNonEmptyArray,
   getKnownPropertyNames,
   hasProperty,
   isNullOrUndefined,
