@@ -5,7 +5,7 @@ import { defineConfig } from 'vitest/config';
 const monorepoRoot = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * This configuration is extended by the `vitest.config.js` configuration in
+ * This configuration is extended by the `vitest.config.ts` configuration in
  * each package.
  *
  * For a detailed explanation of each option, visit:

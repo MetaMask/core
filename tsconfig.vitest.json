@@ -1,0 +1,17 @@
+{
+  /**
+   * This configuration is used to type check the Vitest configuration files.
+   * Each package configuration imports the shared root configuration, which a
+   * composite package project cannot include, so they are all checked together
+   * here instead.
+   */
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "lib": ["ES2022"],
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["./vitest.config.packages.ts", "./packages/*/vitest.config.ts"]
+}
