@@ -1,3 +1,4 @@
+import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import { KeyringAccountEntropyTypeOption } from '@metamask/keyring-api';
 import type {
   CreateAccountOptions,
@@ -575,14 +576,17 @@ describe('MoneyAccountController', () => {
               type: 'mnemonic',
               id: MOCK_ENTROPY_SOURCE_ID,
               groupIndex: 0,
-              derivationPath: "m/44'/4392018'/0'/0/0",
+              derivationPath: "m/44'/4392018'/0'/0",
             },
             exportable: false,
           },
           methods: [...MONEY_ACCOUNT_METHODS],
         });
-        // The account identity is reused from the keyring's account.
-        expect(account.id).toBe(`mock-v2-account-${MOCK_ADDRESS}`);
+        // The account object is constructed by the controller, with the
+        // deterministic ID generation logic of EVM accounts.
+        expect(account.id).toBe(
+          getUUIDFromAddressOfNormalAccount(MOCK_ADDRESS),
+        );
       });
 
       it('defaults to the primary entropy source when none is provided', async () => {
@@ -706,7 +710,7 @@ describe('MoneyAccountController', () => {
           type: 'mnemonic',
           id: MOCK_ENTROPY_SOURCE_ID,
           groupIndex: 0,
-          derivationPath: "m/44'/4392018'/0'/0/0",
+          derivationPath: "m/44'/4392018'/0'/0",
         });
       });
 
@@ -803,91 +807,6 @@ describe('MoneyAccountController', () => {
             entropySource: MOCK_ENTROPY_SOURCE_ID,
           }),
         ).rejects.toThrow('Money Keyring account creation failed');
-      });
-
-      it('throws when the keyring account reports unexpected options', async () => {
-        const { controller, keyringEntries } = setup({
-          keyrings: [
-            MOCK_HD_KEYRING,
-            {
-              type: KeyringTypes.money,
-              accounts: [MOCK_ADDRESS],
-              metadata: { id: 'money-keyring-1', name: 'Money Keyring' },
-              entropySource: MOCK_ENTROPY_SOURCE_ID,
-            },
-          ],
-        });
-        const keyringV2 = keyringEntries[1]
-          .keyringV2 as unknown as MockMoneyKeyringV2;
-        const [account] = await keyringV2.getAccounts();
-        jest
-          .spyOn(keyringV2, 'createAccounts')
-          .mockResolvedValue([{ ...account, options: {} }]);
-
-        await expect(
-          controller.createMoneyAccount({
-            type: 'mnemonic',
-            entropySource: MOCK_ENTROPY_SOURCE_ID,
-          }),
-        ).rejects.toThrow('Money Keyring account has unexpected options');
-      });
-
-      it('throws when the keyring account reports MPC entropy options', async () => {
-        const { controller, keyringEntries } = setup({
-          keyrings: [
-            MOCK_HD_KEYRING,
-            {
-              type: KeyringTypes.money,
-              accounts: [MOCK_ADDRESS],
-              metadata: { id: 'money-keyring-1', name: 'Money Keyring' },
-              entropySource: MOCK_ENTROPY_SOURCE_ID,
-            },
-          ],
-        });
-        const keyringV2 = keyringEntries[1]
-          .keyringV2 as unknown as MockMoneyKeyringV2;
-        const [account] = await keyringV2.getAccounts();
-        jest
-          .spyOn(keyringV2, 'createAccounts')
-          .mockResolvedValue([
-            { ...account, options: { entropy: { type: 'mpc' } } },
-          ]);
-
-        await expect(
-          controller.createMoneyAccount({
-            type: 'mnemonic',
-            entropySource: MOCK_ENTROPY_SOURCE_ID,
-          }),
-        ).rejects.toThrow('Money Keyring account has unexpected options');
-      });
-
-      it('throws when the keyring account is exportable', async () => {
-        const { controller, keyringEntries } = setup({
-          keyrings: [
-            MOCK_HD_KEYRING,
-            {
-              type: KeyringTypes.money,
-              accounts: [MOCK_ADDRESS],
-              metadata: { id: 'money-keyring-1', name: 'Money Keyring' },
-              entropySource: MOCK_ENTROPY_SOURCE_ID,
-            },
-          ],
-        });
-        const keyringV2 = keyringEntries[1]
-          .keyringV2 as unknown as MockMoneyKeyringV2;
-        const [account] = await keyringV2.getAccounts();
-        jest
-          .spyOn(keyringV2, 'createAccounts')
-          .mockResolvedValue([
-            { ...account, options: { ...account.options, exportable: true } },
-          ]);
-
-        await expect(
-          controller.createMoneyAccount({
-            type: 'mnemonic',
-            entropySource: MOCK_ENTROPY_SOURCE_ID,
-          }),
-        ).rejects.toThrow('Money Keyring account has unexpected options');
       });
 
       it('throws when no V2 wrapper is registered for the keyring type', async () => {
