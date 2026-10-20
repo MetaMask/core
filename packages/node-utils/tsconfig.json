@@ -7,6 +7,9 @@
   "references": [
     {
       "path": "../error-utils"
+    },
+    {
+      "path": "../type-utils"
     }
   ],
   "include": ["../../types", "./src"]

@@ -7,6 +7,9 @@
   "references": [
     {
       "path": "../error-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../type-utils/tsconfig.lint.json"
     }
   ]
 }
