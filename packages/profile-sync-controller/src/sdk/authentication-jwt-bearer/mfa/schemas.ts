@@ -133,9 +133,10 @@ const TotpSecretStruct = sensitive(pattern(string(), /^[A-Z2-7]+=*$/u));
 /**
  * QR code for an authenticator app, as `totp_qr` sends it: a PNG data URL that
  * clients can render as-is. It encodes the secret, so it is just as sensitive.
+ * Case-insensitive, like the scheme and media type of any data URL.
  */
 const TotpQrCodeStruct = sensitive(
-  pattern(string(), /^data:image\/png;base64,[A-Za-z0-9+/]+=*$/u),
+  pattern(string(), /^data:image\/png;base64,[A-Za-z0-9+/]+=*$/iu),
 );
 
 export const MfaEnrollResponseStruct = type({

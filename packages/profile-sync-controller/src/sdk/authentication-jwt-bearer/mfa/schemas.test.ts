@@ -209,6 +209,15 @@ describe('MFA schemas', () => {
       ).not.toThrow();
     });
 
+    it('accepts a QR code data URL in any case', () => {
+      expect(() =>
+        assertValidMfaResponse(
+          { ...totpEnrollment, totp_qr: 'DATA:IMAGE/PNG;BASE64,iVBORw0KGgo=' },
+          MfaEnrollResponseStruct,
+        ),
+      ).not.toThrow();
+    });
+
     it.each([
       ['a secret that is not base32', { totp_secret: 'not-base32!' }],
       ['a QR code that is not a PNG data URL', { totp_qr: 'iVBORw0KGgo=' }],

@@ -127,39 +127,43 @@ export type TokenReason = {
   operation: string;
 };
 
-export type EnrollmentChallenge =
-  | {
-      type: 'passkey';
-      flowId: string;
-      expiresAt: number;
-      publicKey: PublicKeyCredentialCreationOptionsJSON;
-    }
-  | {
-      type: 'email_otp';
-      flowId: string;
-      expiresAt: number;
-    }
-  | {
-      type: 'totp';
-      flowId: string;
-      expiresAt: number;
-      /**
-       * Base32 secret for the user's authenticator app, for manual entry or an
-       * `otpauth://` link. Never log or persist it.
-       */
-      secret: string;
-      /**
-       * PNG data URL of the QR code encoding the secret; render it as-is. Never
-       * log or persist it.
-       */
-      qrCode: string;
-      /**
-       * `otpauth://` link that opens an authenticator app on this device with
-       * the account to add, since a phone cannot scan its own screen. Contains
-       * the secret: never log or persist it.
-       */
-      setupUri: string;
-    };
+/** Fields every enrollment or verification challenge carries. */
+type MfaChallengeBase = {
+  /** Identifier to send back when completing the flow. */
+  flowId: string;
+  /** Epoch milliseconds after which the flow can no longer be completed. */
+  expiresAt: number;
+};
+
+export type EnrollmentChallenge = MfaChallengeBase &
+  (
+    | {
+        type: 'passkey';
+        publicKey: PublicKeyCredentialCreationOptionsJSON;
+      }
+    | {
+        type: 'email_otp';
+      }
+    | {
+        type: 'totp';
+        /**
+         * Base32 secret for the user's authenticator app, for manual entry or
+         * an `otpauth://` link. Never log or persist it.
+         */
+        secret: string;
+        /**
+         * PNG data URL of the QR code encoding the secret; render it as-is.
+         * Never log or persist it.
+         */
+        qrCode: string;
+        /**
+         * `otpauth://` link that opens an authenticator app on this device
+         * with the account to add, since a phone cannot scan its own screen.
+         * Contains the secret: never log or persist it.
+         */
+        setupUri: string;
+      }
+  );
 
 export type EnrollmentProof =
   | {
@@ -171,18 +175,16 @@ export type EnrollmentProof =
       code: string;
     };
 
-export type VerificationChallenge =
-  | {
-      type: 'passkey';
-      flowId: string;
-      expiresAt: number;
-      publicKey: PublicKeyCredentialRequestOptionsJSON;
-    }
-  | {
-      type: 'email_otp' | 'totp';
-      flowId: string;
-      expiresAt: number;
-    };
+export type VerificationChallenge = MfaChallengeBase &
+  (
+    | {
+        type: 'passkey';
+        publicKey: PublicKeyCredentialRequestOptionsJSON;
+      }
+    | {
+        type: 'email_otp' | 'totp';
+      }
+  );
 
 export type VerificationProof =
   | {
