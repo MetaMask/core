@@ -1,9 +1,8 @@
-/**
- * Example function that returns a greeting for the given name.
- *
- * @param name - The name to greet.
- * @returns The greeting.
- */
-export default function greeter(name: string): string {
-  return `Hello, ${name}!`;
-}
+export {
+  ensureError,
+  getErrorMessage,
+  isErrorWithCode,
+  isErrorWithMessage,
+  isErrorWithStack,
+  wrapError,
+} from './errors.js';

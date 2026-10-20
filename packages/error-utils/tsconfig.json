@@ -1,5 +1,12 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "references": [],
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "references": [
+    {
+      "path": "../type-utils"
+    }
+  ],
   "include": ["../../types", "./src"]
 }
