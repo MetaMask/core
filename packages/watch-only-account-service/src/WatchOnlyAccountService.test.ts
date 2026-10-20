@@ -6,6 +6,8 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock, MockedFunction } from 'vitest';
 
 import { WatchOnlyAccountDisabledError } from './errors.js';
 import type { WatchOnlyAccountServiceMessenger } from './WatchOnlyAccountService.js';
@@ -23,8 +25,8 @@ type RootMessenger = Messenger<
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   KeyringController: {
-    withController: jest.Mock;
-    withKeyringV2: jest.Mock;
+    withController: Mock;
+    withKeyringV2: Mock;
   };
 };
 
@@ -73,16 +75,16 @@ function buildKeyringEntry(type: string): {
  *
  * @param mocks - The mocks object from {@link setup}.
  * @param initialEntries - Entries exposed via `controller.keyrings`.
- * @returns The mocked `addNewKeyring` jest fn for assertions.
+ * @returns The mocked `addNewKeyring` mock fn for assertions.
  */
 function mockWithController(
   mocks: Mocks,
   initialEntries: { keyring: { type: string } }[] = [],
 ): {
-  addNewKeyring: jest.MockedFunction<RestrictedController['addNewKeyring']>;
+  addNewKeyring: MockedFunction<RestrictedController['addNewKeyring']>;
 } {
   const entries = [...initialEntries];
-  const addNewKeyring = jest.fn(async (type: string) => {
+  const addNewKeyring = vi.fn(async (type: string) => {
     const entry = buildKeyringEntry(type);
     entries.push(entry);
     return entry;
@@ -94,7 +96,7 @@ function mockWithController(
           return Object.freeze([...entries]);
         },
         addNewKeyring,
-        removeKeyring: jest.fn(),
+        removeKeyring: vi.fn(),
       } as RestrictedController),
   );
   return { addNewKeyring };
@@ -108,7 +110,7 @@ function mockWithController(
  * @param createAccounts - The mock `createAccounts` implementation for the
  * v2 keyring.
  */
-function mockWithKeyringV2(mocks: Mocks, createAccounts: jest.Mock): void {
+function mockWithKeyringV2(mocks: Mocks, createAccounts: Mock): void {
   mocks.KeyringController.withKeyringV2.mockImplementation(
     async (
       _selector: unknown,
@@ -129,7 +131,7 @@ function mockWithKeyringV2(mocks: Mocks, createAccounts: jest.Mock): void {
  * @param args.keyringEntries - Initial keyring entries.
  * @param args.createdAccounts - The keyring accounts returned by the v2
  * keyring's `createAccounts`.
- * @returns The service, root messenger, mocks, and key jest fns.
+ * @returns The service, root messenger, mocks, and key mock fns.
  */
 function setup({
   enabled = undefined,
@@ -139,8 +141,8 @@ function setup({
   service: WatchOnlyAccountService;
   rootMessenger: RootMessenger;
   mocks: Mocks;
-  addNewKeyring: jest.MockedFunction<RestrictedController['addNewKeyring']>;
-  createAccounts: jest.Mock;
+  addNewKeyring: MockedFunction<RestrictedController['addNewKeyring']>;
+  createAccounts: Mock;
 } {
   const rootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -156,8 +158,8 @@ function setup({
 
   const mocks: Mocks = {
     KeyringController: {
-      withController: jest.fn(),
-      withKeyringV2: jest.fn(),
+      withController: vi.fn(),
+      withKeyringV2: vi.fn(),
     },
   };
 
@@ -171,7 +173,7 @@ function setup({
   );
 
   const { addNewKeyring } = mockWithController(mocks, keyringEntries);
-  const createAccounts = jest.fn().mockResolvedValue(createdAccounts);
+  const createAccounts = vi.fn().mockResolvedValue(createdAccounts);
   mockWithKeyringV2(mocks, createAccounts);
 
   const service = new WatchOnlyAccountService({
