@@ -4,14 +4,22 @@ import type {
   Version,
 } from '@cubist-labs/cubesigner-sdk';
 import { integer, is, literal, min, string, type } from '@metamask/superstruct';
-import { bytesToString, hexToBytes } from '@metamask/utils';
+import {
+  bytesToHex,
+  bytesToString,
+  hexToBytes,
+  isStrictHexString,
+} from '@metamask/utils';
 
-import { hashMutationReceipt, verifySignature, wrapKeyId } from '../crypto.js';
+import {
+  hashMutationReceipt,
+  receiptKeyId,
+  verifySignature,
+} from '../crypto.js';
 import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
 import { isMutationReceipt } from '../escrow-utils.js';
 import type {
   AuthControllerToken,
-  EcPublicJwk,
   GetRecoverySecretResponse,
   IdentifierAuthorization,
   Mutation,
@@ -48,13 +56,13 @@ export type CubistEscrowProviderOptions = {
    */
   version?: Version;
   /**
-   * P-256 public JWK JSON for the escrow wrap key.
+   * Raw 32-byte X25519 public key of the escrow wrap key.
    */
-  wrapPublicKey: string;
+  wrapPublicKey: Uint8Array;
   /**
-   * P-256 public JWK JSON for the escrow receipt key.
+   * Raw 32-byte Ed25519 public key of the escrow receipt key.
    */
-  receiptPublicKey: string;
+  receiptPublicKey: Uint8Array;
 };
 
 export class CubistEscrowProvider implements RecoveryEscrowProvider {
@@ -62,9 +70,9 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
 
   readonly authAudience = AUTH_AUDIENCE;
 
-  readonly wrapPublicKey: string;
+  readonly wrapPublicKey: Uint8Array;
 
-  readonly #receiptPublicKey: string;
+  readonly #receiptPublicKey: Uint8Array;
 
   readonly #client: CubeSignerClient;
 
@@ -111,7 +119,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   async getSecret(
     authorization: IdentifierAuthorization,
     requestId: string,
-    pkE: EcPublicJwk,
+    pkE: Uint8Array,
   ): Promise<GetRecoverySecretResponse> {
     return await this.#invoke(
       'getSecret',
@@ -169,7 +177,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
       receipt.escrowId !== expectedEscrowId ||
       expectedEscrowId !== this.id ||
       receipt.version !== mutation.newVersion ||
-      receipt.receiptKeyId !== (await wrapKeyId(this.#receiptPublicKey))
+      receipt.receiptKeyId !== (await receiptKeyId(this.#receiptPublicKey))
     ) {
       return false;
     }
@@ -197,7 +205,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
       invocation = await this.#client.apiClient.policyInvoke(
         this.#functionId,
         this.#version,
-        { request: { cmd, ...body } },
+        { request: toWire({ cmd, ...body }) },
       );
     } catch (error) {
       throw new MfaRecoveryError(
@@ -268,15 +276,35 @@ function parseChallenge(value: unknown): PoPChallenge {
   };
 }
 
+/**
+ * Encodes a request for the escrow wire: every byte field becomes a 0x-prefixed
+ * hex string. Typed arrays have no `toJSON`, so the replacer sees them directly.
+ *
+ * @param value - Request body.
+ * @returns JSON-compatible request body.
+ */
+function toWire(value: Record<string, unknown>): Record<string, unknown> {
+  return JSON.parse(
+    JSON.stringify(value, (_key, node: unknown) =>
+      node instanceof Uint8Array ? bytesToHex(node) : node,
+    ),
+  ) as Record<string, unknown>;
+}
+
 function parseGetSecretResponse(value: unknown): GetRecoverySecretResponse {
-  if (!is(value, GetSecretResponseStruct)) {
+  if (
+    !is(value, GetSecretResponseStruct) ||
+    !isStrictHexString(value.recoverySecret.ciphertext)
+  ) {
     throw new MfaRecoveryError(
       'Invalid recovery secret response',
       'escrow_response_invalid',
     );
   }
   return {
-    recoverySecret: { ciphertext: value.recoverySecret.ciphertext },
+    recoverySecret: {
+      ciphertext: hexToBytes(value.recoverySecret.ciphertext),
+    },
     version: value.version,
     lastMutationId: value.lastMutationId,
     wrapKeyId: value.wrapKeyId,
