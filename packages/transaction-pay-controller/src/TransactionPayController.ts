@@ -119,7 +119,9 @@ export class TransactionPayController extends BaseController<
     this.#polymarket = polymarket;
     this.#maxBalanceRefresher = new MaxBalanceRefresher({
       getBalance: this.#getBalance,
+      getStrategies: this.#getStrategiesWithFallback.bind(this),
       messenger: this.messenger,
+      updateTransactionData: this.#updateTransactionData.bind(this),
     });
 
     this.messenger.registerMethodActionHandlers(
@@ -323,6 +325,8 @@ export class TransactionPayController extends BaseController<
   }
 
   #removeTransactionData(transactionId: string): void {
+    this.#maxBalanceRefresher.stop(transactionId);
+
     this.update((state) => {
       delete state.transactionData[transactionId];
     });
@@ -418,7 +422,7 @@ export class TransactionPayController extends BaseController<
         shouldUpdateQuotes = true;
       }
 
-      if (current.isMaxAmount) {
+      if (current.isMaxAmount && this.#getBalance) {
         this.#maxBalanceRefresher.start(transactionId);
       } else {
         this.#maxBalanceRefresher.stop(transactionId);
