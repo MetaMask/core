@@ -8,21 +8,7 @@ import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import {
-  array,
-  assign,
-  boolean,
-  enums,
-  is,
-  literal,
-  nullable,
-  number,
-  optional,
-  record,
-  string,
-  type as structType,
-  union,
-} from '@metamask/superstruct';
+import { is } from '@metamask/superstruct';
 
 import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
 import type {
@@ -33,7 +19,6 @@ import type {
   CopyTradeIntentResponse,
   CreateCopyTradeIntentOptions,
   CreateSwapCommentOptions,
-  FeedItem,
   FeedResponse,
   FetchBlockedListOptions,
   FetchFeedOptions,
@@ -59,333 +44,25 @@ import type {
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types.js';
-import { TRADER_RANKING_TAGS, TradeStruct } from './social-types.js';
 import type { SocialServiceMethodActions } from './SocialService-method-action-types.js';
-
-// ---------------------------------------------------------------------------
-// Superstruct validation schemas
-// ---------------------------------------------------------------------------
-
-const SocialHandlesStruct = structType({
-  twitter: optional(nullable(string())),
-  farcaster: optional(nullable(string())),
-  ens: optional(nullable(string())),
-  lens: optional(nullable(string())),
-});
-
-const ProfileSummaryStruct = structType({
-  profileId: string(),
-  address: string(),
-  name: string(),
-  imageUrl: optional(nullable(string())),
-});
-
-const FeedActorStruct = assign(
-  ProfileSummaryStruct,
-  structType({
-    winRate30d: optional(nullable(number())),
-    pnl30d: optional(nullable(number())),
-    tradeCount30d: optional(nullable(number())),
-    followerCount: optional(nullable(number())),
-  }),
-);
-
-const PositionStruct = structType({
-  positionId: string(),
-  tokenSymbol: string(),
-  tokenName: string(),
-  tokenAddress: string(),
-  chain: string(),
-  positionAmount: number(),
-  isOpen: optional(boolean()),
-  // Incomplete Clicker metrics serialize these as `null` (`undefined + n`
-  // becomes `NaN`, then JSON `null`). Rejecting the field used to fail the
-  // entire feed page, so they are nullable here.
-  boughtUsd: nullable(number()),
-  soldUsd: nullable(number()),
-  realizedPnl: nullable(number()),
-  costBasis: nullable(number()),
-  trades: array(TradeStruct),
-  lastTradeAt: number(),
-  tokenImageUrl: optional(nullable(string())),
-  currentValueUSD: optional(nullable(number())),
-  pnlValueUsd: optional(nullable(number())),
-  pnlPercent: optional(nullable(number())),
-  copyCount: optional(number()),
-  perpPositionType: optional(nullable(enums(['long', 'short']))),
-  perpLeverage: optional(nullable(number())),
-  positionAmountWithLeverage: optional(nullable(number())),
-});
-
-const PaginationStruct = structType({
-  hasMore: boolean(),
-  nextPage: optional(number()),
-});
-
-const LeaderboardEntryStruct = structType({
-  rank: number(),
-  addresses: array(string()),
-  profileId: string(),
-  name: string(),
-  imageUrl: optional(nullable(string())),
-  pnl30d: number(),
-  winRate30d: optional(nullable(number())),
-  roiPercent30d: optional(nullable(number())),
-  tradeCount30d: optional(nullable(number())),
-  pnl7d: optional(nullable(number())),
-  winRate7d: optional(nullable(number())),
-  roiPercent7d: optional(nullable(number())),
-  tradeCount7d: optional(nullable(number())),
-  pnlPerChain: record(string(), number()),
-  followerCount: number(),
-  socialHandles: SocialHandlesStruct,
-});
-
-const LeaderboardResponseStruct = structType({
-  traders: array(LeaderboardEntryStruct),
-});
-
-const TraderProfileStruct = structType({
-  profileId: string(),
-  address: string(),
-  allAddresses: array(string()),
-  name: string(),
-  imageUrl: optional(nullable(string())),
-  createdAt: optional(nullable(string())),
-});
-
-const TraderStatsStruct = structType({
-  pnl30d: optional(nullable(number())),
-  winRate30d: optional(nullable(number())),
-  roiPercent30d: optional(nullable(number())),
-  tradeCount30d: optional(nullable(number())),
-  volumeUsd30d: optional(nullable(number())),
-  pnl7d: optional(nullable(number())),
-  winRate7d: optional(nullable(number())),
-  roiPercent7d: optional(nullable(number())),
-  tradeCount7d: optional(nullable(number())),
-  medianHoldMinutes: optional(nullable(number())),
-});
-
-const PerChainBreakdownStruct = structType({
-  perChainPnl: record(string(), number()),
-  perChainRoi: record(string(), nullable(number())),
-  perChainVolume: record(string(), number()),
-  perChainPnl7d: optional(record(string(), number())),
-  perChainRoi7d: optional(record(string(), nullable(number()))),
-  perChainVolume7d: optional(record(string(), number())),
-});
-
-const CopytradedAllTimeStruct = structType({
-  count: number(),
-  volumeUSD: number(),
-  distinctActors: number(),
-});
-
-const TraderProfileResponseStruct = structType({
-  profile: TraderProfileStruct,
-  stats: TraderStatsStruct,
-  perChainBreakdown: PerChainBreakdownStruct,
-  socialHandles: SocialHandlesStruct,
-  followerCount: number(),
-  followingCount: number(),
-  copytradedAllTime: CopytradedAllTimeStruct,
-  rankingTag: optional(nullable(enums(TRADER_RANKING_TAGS))),
-});
-
-const PositionsResponseStruct = structType({
-  positions: array(PositionStruct),
-  pagination: PaginationStruct,
-  computedAt: optional(nullable(string())),
-});
-
-// A feed item is a position plus the trader who made the trade (`actor`) and
-// the item's creation timestamp. Reuses PositionStruct so the trade/position
-// fields stay in lockstep with the positions endpoints.
-const CommentReactionProfileStruct = structType({
-  id: string(),
-  name: string(),
-});
-
-const CommentReactionStruct = structType({
-  emotion: string(),
-  count: number(),
-  profiles: array(CommentReactionProfileStruct),
-});
-
-const CommentEngagementStruct = structType({
-  reactions: array(CommentReactionStruct),
-  userReaction: nullable(string()),
-  replyCount: optional(number()),
-});
-
-const AuthorCommentStruct = structType({
-  uid: string(),
-  text: string(),
-  timestamp: number(),
-  engagement: CommentEngagementStruct,
-});
-
-const SwapCommentAuthorStruct = structType({
-  id: string(),
-  name: string(),
-  images: optional(
-    structType({
-      raw: nullable(string()),
-      xs: nullable(string()),
-      sm: nullable(string()),
-    }),
-  ),
-  addresses: optional(array(string())),
-  externalId: optional(string()),
-});
-
-const SwapCommentResponseStruct = structType({
-  uid: string(),
-  transactionHash: string(),
-  chain: string(),
-  tokenAddress: string(),
-  commentText: string(),
-  author: SwapCommentAuthorStruct,
-  timestamp: number(),
-  isAppUserComment: boolean(),
-  metrics: CommentEngagementStruct,
-});
-
-const CopyTradeAccountStruct = structType({
-  profileId: string(),
-  caip10: string(),
-});
-
-const CopyTradeIntentResponseStruct = structType({
-  id: string(),
-  origin: structType({
-    kind: literal('comment'),
-    id: string(),
-  }),
-  copierAccount: CopyTradeAccountStruct,
-  sourceAccount: nullable(CopyTradeAccountStruct),
-  execution: union([
-    structType({ product: literal('swaps'), quoteId: string() }),
-    structType({ product: literal('perps'), oid: string() }),
-  ]),
-  payoutEligibility: structType({
-    status: enums(['payable', 'non_payable']),
-    reason: string(),
-  }),
-  createdAt: string(),
-});
-
-const FeedItemStruct = assign(
+import {
+  BlockedContentResponseStruct,
+  BlockedProfilesResponseStruct,
+  CommentEngagementStruct,
+  CopyTradeIntentResponseStruct,
+  FollowResponseStruct,
+  FollowersResponseStruct,
+  FollowingResponseStruct,
+  LeaderboardResponseStruct,
   PositionStruct,
-  structType({
-    actor: FeedActorStruct,
-    timestamp: number(),
-    authorComment: optional(nullable(AuthorCommentStruct)),
-    commentCount: optional(number()),
-    replyCount: optional(number()),
-    copyCount: optional(number()),
-    firstTradeAt: optional(nullable(number())),
-    holdTimeMs: optional(nullable(number())),
-    entryPriceUsd: optional(nullable(number())),
-    eventId: optional(string()),
-    revision: optional(number()),
-    occurredAt: optional(string()),
-  }),
-);
+  PositionsResponseStruct,
+  SwapCommentResponseStruct,
+  TraderProfileResponseStruct,
+  UnfollowResponseStruct,
+  parseFeedResponse,
+} from './structs.js';
 
-const FeedPaginationStruct = structType({
-  olderCursor: nullable(string()),
-  newerCursor: nullable(string()),
-});
-
-const FeedResponseStruct = structType({
-  items: array(FeedItemStruct),
-  pagination: FeedPaginationStruct,
-});
-
-/**
- * One malformed feed item must not blank the page. When the envelope is
- * well-shaped, keep items that match {@link FeedItemStruct} and drop the rest.
- * Still throw when `items` or `pagination` themselves are unusable.
- *
- * @param feedData - Parsed JSON body from a feed endpoint.
- * @param invalidMessage - Error message to throw when the envelope is unusable.
- * @returns The validated feed response, possibly with invalid items dropped.
- */
-const parseFeedResponse = (
-  feedData: unknown,
-  invalidMessage: string,
-): FeedResponse => {
-  if (is(feedData, FeedResponseStruct)) {
-    return feedData;
-  }
-
-  if (
-    typeof feedData !== 'object' ||
-    feedData === null ||
-    !('items' in feedData) ||
-    !('pagination' in feedData)
-  ) {
-    throw new Error(invalidMessage);
-  }
-
-  const { items, pagination } = feedData;
-
-  if (!Array.isArray(items) || !is(pagination, FeedPaginationStruct)) {
-    throw new Error(invalidMessage);
-  }
-
-  return {
-    items: items.filter((item): item is FeedItem => is(item, FeedItemStruct)),
-    pagination,
-  };
-};
-
-const FollowersResponseStruct = structType({
-  followers: array(ProfileSummaryStruct),
-  count: number(),
-});
-
-const FollowingResponseStruct = structType({
-  following: array(ProfileSummaryStruct),
-  count: number(),
-});
-
-const FollowResponseStruct = structType({
-  followed: array(ProfileSummaryStruct),
-});
-
-const UnfollowResponseStruct = structType({
-  unfollowed: array(ProfileSummaryStruct),
-});
-
-const BlockedProfileStruct = structType({
-  blockedAt: number(),
-  reason: nullable(string()),
-  profile: ProfileSummaryStruct,
-});
-
-const BlockedProfilesResponseStruct = structType({
-  items: array(BlockedProfileStruct),
-  cursor: nullable(string()),
-});
-
-const BlockedContentStruct = structType({
-  blockedAt: number(),
-  reason: nullable(string()),
-  type: enums(['comment', 'reply']),
-  id: string(),
-  text: string(),
-  createdAt: number(),
-  author: nullable(ProfileSummaryStruct),
-});
-
-const BlockedContentResponseStruct = structType({
-  items: array(BlockedContentStruct),
-  cursor: nullable(string()),
-});
-
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // Messenger types
 // ---------------------------------------------------------------------------
