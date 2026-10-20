@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import greeter from './index.js';
+import * as allExports from './index.js';
 
-describe('Test', () => {
-  it('greets', () => {
-    const name = 'Huey';
-    const result = greeter(name);
-    expect(result).toBe('Hello, Huey!');
+describe('index', () => {
+  it('includes the expected exports', () => {
+    expect(Object.keys(allExports).sort()).toMatchInlineSnapshot(`
+      [
+        "getKnownPropertyNames",
+        "hasProperty",
+        "isNonEmptyArray",
+        "isNullOrUndefined",
+        "isObject",
+        "isPlainObject",
+      ]
+    `);
   });
 });

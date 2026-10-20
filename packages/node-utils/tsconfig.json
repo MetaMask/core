@@ -1,5 +1,13 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "references": [],
+  "compilerOptions": {
+    "erasableSyntaxOnly": true,
+    "types": ["node"]
+  },
+  "references": [
+    {
+      "path": "../error-utils"
+    }
+  ],
   "include": ["../../types", "./src"]
 }
