@@ -6,12 +6,15 @@ describe('index', () => {
   it('includes the expected exports', () => {
     expect(Object.keys(allExports).sort()).toMatchInlineSnapshot(`
       [
-        "getKnownPropertyNames",
-        "hasProperty",
-        "isNonEmptyArray",
-        "isNullOrUndefined",
-        "isObject",
-        "isPlainObject",
+        "createSandbox",
+        "directoryExists",
+        "ensureDirectoryStructureExists",
+        "fileExists",
+        "forceRemove",
+        "readFile",
+        "readJsonFile",
+        "writeFile",
+        "writeJsonFile",
       ]
     `);
   });
