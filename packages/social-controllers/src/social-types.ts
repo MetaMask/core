@@ -694,7 +694,7 @@ export type FetchFeedOptions = {
   newerThan?: string;
 };
 
-export type FeedScope = 'following' | 'leaderboard' | 'all';
+export type FeedScope = 'following' | 'leaderboard' | 'all' | 'trending';
 
 export type FetchPositionByIdOptions = {
   /** Unique position ID (UUID). */

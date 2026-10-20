@@ -766,7 +766,8 @@ export class SocialService extends BaseDataService<
    * `pagination.newerCursor` as `newerThan` to fetch newer items.
    *
    * @param options - Options bag.
-   * @param options.scope - `following` (default) or `leaderboard`.
+   * @param options.scope - `following` (default), `leaderboard`, `all`, or
+   * `trending`.
    * @param options.chains - Filter by one or more chains.
    * @param options.limit - Number of results per page.
    * @param options.olderThan - Cursor for older items (scroll down).
