@@ -3744,6 +3744,142 @@ describe('MFA credential verification', () => {
     }
   });
 
+  describe('enrollment completion bearer', () => {
+    const emailProof = { type: 'email_otp' as const, code: '123456' };
+
+    /**
+     * Mocks the next fetch with a JSON response, letting later calls reach
+     * nock.
+     *
+     * @param body - Response body.
+     * @param status - Response status.
+     * @returns The fetch spy.
+     */
+    function mockNextFetch(
+      body: unknown,
+      status = 200,
+    ): jest.SpiedFunction<typeof fetch> {
+      return jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          new globalThis.Response(JSON.stringify(body), { status }),
+        );
+    }
+
+    /**
+     * Reads the bearer token of a fetch call.
+     *
+     * @param fetchSpy - The fetch spy.
+     * @param call - Call index.
+     * @returns The token from the `Authorization` header.
+     */
+    function getBearer(
+      fetchSpy: jest.SpiedFunction<typeof fetch>,
+      call = 0,
+    ): string | null | undefined {
+      return new globalThis.Headers(fetchSpy.mock.calls[call]?.[1]?.headers)
+        .get('Authorization')
+        ?.replace('Bearer ', '');
+    }
+
+    /**
+     * Begins an email enrollment while a verification session is live.
+     *
+     * @returns The controller and the session's token.
+     */
+    async function beginWithSession(): Promise<{
+      controller: AuthenticationController;
+      verificationToken: string | undefined;
+    }> {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const verificationToken = controller.getVerificationToken()?.accessToken;
+      const fetchSpy = mockNextFetch(MOCK_MFA_ENROLL_EMAIL_RESPONSE);
+      try {
+        await controller.beginCredentialEnrollment({
+          type: 'email_otp',
+          email: 'user@example.com',
+          reason: { operation: 'settings.addEmail' },
+        });
+      } finally {
+        fetchSpy.mockRestore();
+      }
+      return { controller, verificationToken };
+    }
+
+    /**
+     * Completes the email enrollment started by `beginWithSession`.
+     *
+     * @param controller - Controller under test.
+     * @returns The completion promise.
+     */
+    async function complete(
+      controller: AuthenticationController,
+    ): Promise<unknown> {
+      return controller.completeCredentialEnrollment({
+        flowId: MOCK_MFA_ENROLL_EMAIL_RESPONSE.flow_id,
+        proof: emailProof,
+        reason: { operation: 'settings.addEmail' },
+      });
+    }
+
+    beforeEach(() => {
+      mockEndpointAccessToken({
+        status: 200,
+        body: MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
+      });
+      mockEndpointMfaCredentials();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('completes with the token that began it, even past the default session age', async () => {
+      const { controller, verificationToken } = await beginWithSession();
+      expect(verificationToken).toBeDefined();
+      const now = Date.now();
+      jest
+        .spyOn(Date, 'now')
+        .mockReturnValue(now + ENROLLMENT_MAX_SESSION_AGE_MS + 60_000);
+
+      const fetchSpy = mockNextFetch(MOCK_MFA_ENROLL_COMPLETE_RESPONSE);
+      await complete(controller);
+
+      expect(getBearer(fetchSpy)).toBe(verificationToken);
+    });
+
+    it('keeps the token for a code retried on the same flow', async () => {
+      const { controller, verificationToken } = await beginWithSession();
+
+      const failedSpy = mockNextFetch(
+        { code: 'invalid_code', message: 'Invalid code' },
+        400,
+      );
+      await expect(complete(controller)).rejects.toBeDefined();
+      expect(getBearer(failedSpy)).toBe(verificationToken);
+      failedSpy.mockRestore();
+
+      const retrySpy = mockNextFetch(MOCK_MFA_ENROLL_COMPLETE_RESPONSE);
+      await complete(controller);
+      expect(getBearer(retrySpy)).toBe(verificationToken);
+    });
+
+    it('sends the base token once the verification session is cleared', async () => {
+      const { controller } = await beginWithSession();
+      controller.clearVerificationSession();
+
+      const fetchSpy = mockNextFetch(MOCK_MFA_ENROLL_COMPLETE_RESPONSE);
+      await complete(controller);
+
+      expect(getBearer(fetchSpy)).toBe(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
+          .accessToken,
+      );
+    });
+  });
+
   it('surfaces aal2_required from enrollment', async () => {
     mockEndpointMfaEnroll({
       status: 403,

@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
+### Fixed
+
+- Fix `AuthenticationController.completeCredentialEnrollment` failing with `aal2_required` when adding a second factor, by sending the verification token that began the enrollment, which the server now requires to complete it too ([#10900](https://github.com/MetaMask/core/pull/10900))
+  - `JwtBearerAuth.completeMfaEnrollment` accepts an optional `accessToken`, like `beginMfaEnrollment`
+
 ## [34.0.3]
 
 ### Changed
