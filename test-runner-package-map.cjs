@@ -76,7 +76,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/profile-controller',
   '@metamask/profile-metrics-controller',
   '@metamask/profile-sync-controller',
-  '@metamask/ramps-controller',
   '@metamask/rate-limit-controller',
   '@metamask/react-data-query',
   '@metamask/remote-feature-flag-controller',

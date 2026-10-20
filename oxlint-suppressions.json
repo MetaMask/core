@@ -4578,19 +4578,17 @@
       "count": 2
     }
   },
-  "packages/ramps-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/ramps-controller/src/NeoBankService.test.ts": {
     "no-unused-vars": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 14
     }
   },
   "packages/ramps-controller/src/RampsController.order-syncing.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/ramps-controller/src/RampsController.test.ts": {
@@ -4602,12 +4600,12 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 6
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 7
     }
   },
   "packages/ramps-controller/src/TransakService.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 8
-    },
     "typescript/no-unsafe-call": {
       "count": 1
     },
@@ -4616,6 +4614,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 40
     }
   },
   "packages/ramps-controller/src/order-syncing/controller-integration.test.ts": {
@@ -4623,10 +4624,28 @@
       "count": 5
     },
     "typescript/no-unsafe-member-access": {
-      "count": 6
+      "count": 4
     },
     "typescript/no-unsafe-return": {
       "count": 13
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 10
+    }
+  },
+  "packages/ramps-controller/src/order-syncing/sync-utils.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 2
+    }
+  },
+  "packages/ramps-controller/src/wallet-registration-machine.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    }
+  },
+  "packages/ramps-controller/src/wallet-registration-service.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/rate-limit-controller/jest.config.cjs": {
