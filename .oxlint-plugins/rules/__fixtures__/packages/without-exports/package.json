@@ -1,0 +1,4 @@
+{
+  "name": "@metamask/without-exports",
+  "main": "./dist/index.js"
+}

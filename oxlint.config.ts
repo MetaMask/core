@@ -31,6 +31,14 @@ export default createConfig({
     'packages/wallet-framework-docs/site/build/**',
   ],
 
+  // Load custom plugins for this repo from `.oxlint-plugins`
+  jsPlugins: ['./.oxlint-plugins/metamask-core.ts'],
+
+  rules: {
+    'metamask-core/no-wildcard-exports': 'error',
+    'metamask-core/no-barrel-files': 'error',
+  },
+
   options: {
     // TODO: Enable this once all unused disable directives are removed.
     // For the initial migration of ESLint to Oxlint, there are many unused
@@ -61,6 +69,7 @@ export default createConfig({
     {
       files: [
         '.github/**',
+        '.oxlint-plugins/**',
         'yarn.config.cjs',
         'packages/bitcoin-regtest-up/**',
         'packages/local-node-utils/**',
@@ -73,6 +82,7 @@ export default createConfig({
         'oxlint.config.ts',
         'jest.config.packages.cjs',
         'jest.config.scripts.cjs',
+        'vitest.config.js',
         'vitest.config.packages.js',
         // These import their globals explicitly.
         'tests/helpers.ts',
@@ -83,8 +93,9 @@ export default createConfig({
       ],
       extends: [nodejs],
       rules: {
-        'node/no-sync': 'off',
+        'no-nodejs-modules': 'off',
         'node/no-process-env': 'off',
+        'node/no-sync': 'off',
       },
     },
 
@@ -121,6 +132,7 @@ export default createConfig({
 
     {
       files: [
+        '.oxlint-plugins/**/*.test.ts',
         'tests/vitest/**',
         'vitest.config.packages.js',
         'packages/*/vitest.config.js',

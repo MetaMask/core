@@ -4,12 +4,18 @@ const config: KnipConfig = {
   workspaces: {
     '.': {
       entry: [
+        '*.config.{js,cjs,mjs,ts}',
+        '.oxlint-plugins/**/*.ts',
+        '.prettierrc.cjs',
         'scripts/**/*.{ts,js,sh}',
         'tests/**/*.ts',
-        '*.config.{js,cjs,mjs,ts}',
-        '.prettierrc.cjs',
       ],
-      project: ['scripts/**/*.ts', 'tests/**/*.ts', '*.{js,cjs,mjs,ts}'],
+      project: [
+        '*.{js,cjs,mjs,ts}',
+        '.oxlint-plugins/**/*.ts',
+        'scripts/**/*.ts',
+        'tests/**/*.ts',
+      ],
       ignore: ['scripts/create-package/package-template/**'],
       // The `preset: 'ts-jest'` shorthand expands to `ts-jest/jest-preset`,
       // which knip can't resolve to an actual file even though `ts-jest` is
