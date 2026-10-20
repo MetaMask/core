@@ -1,7 +1,6 @@
+import { getErrorMessage } from '@metamask/error-utils';
 import type { Struct } from '@metamask/superstruct';
 import { assert as assertSuperstruct } from '@metamask/superstruct';
-
-import { getErrorMessage } from './errors.js';
 
 export type AssertionErrorConstructor =
   | (new (args: { message: string }) => Error)

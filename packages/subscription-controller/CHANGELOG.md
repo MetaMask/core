@@ -7,10 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.2]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+
+## [14.0.1]
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+### Fixed
+
+- Stop reusing a cash-subscription delegation whose period `startDate` is outside the Subscription API window (14 days before the checkout start date, 5 minutes after it; trial checkouts also reject a live start). A stale stored permission caused `POST /subscriptions/crypto` to fail with `E214`. ([#10870](https://github.com/MetaMask/core/pull/10870))
 
 ## [14.0.0]
 
@@ -651,7 +663,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.2...HEAD
+[14.0.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.1...@metamask/subscription-controller@14.0.2
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.0...@metamask/subscription-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@13.0.0...@metamask/subscription-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@12.0.1...@metamask/subscription-controller@13.0.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@12.0.0...@metamask/subscription-controller@12.0.1

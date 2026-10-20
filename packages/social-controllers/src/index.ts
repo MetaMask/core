@@ -57,7 +57,7 @@ export type {
 
 export { TRADER_RANKING_TAGS, TradeStruct } from './social-types.js';
 export {
-  SOCIAL_FEED_CHANNEL,
+  SOCIAL_FEED_CHANNELS,
   SOCIAL_FEED_CHANNEL_TYPE,
   SocialRealtimeService,
 } from './SocialRealtimeService.js';
@@ -65,8 +65,10 @@ export type {
   SocialFeedEvent,
   SocialFeedEventListener,
   SocialFeedReconnectListener,
+  SocialFeedRealtimeScope,
   SocialRealtimeServiceOptions,
 } from './SocialRealtimeService.js';
+export type { SocialRealtimeFeedItem } from './structs.js';
 export type {
   AuthorComment,
   BlockedContent,

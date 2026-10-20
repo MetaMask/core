@@ -5,9 +5,16 @@ import type {
   WebSocketSubscription,
 } from '@metamask/core-backend';
 
-import type { FeedItem } from './social-types.js';
+import { parseSocialRealtimeFeedItem } from './structs.js';
+import type { SocialRealtimeFeedItem } from './structs.js';
 
-export const SOCIAL_FEED_CHANNEL = 'social.v1.feed.trending' as const;
+export const SOCIAL_FEED_CHANNELS = {
+  all: 'social.v1.feed.all',
+  trending: 'social.v1.feed.trending',
+} as const;
+
+export type SocialFeedRealtimeScope = keyof typeof SOCIAL_FEED_CHANNELS;
+
 export const SOCIAL_FEED_CHANNEL_TYPE = 'social.v1' as const;
 
 export type SocialFeedEvent = {
@@ -17,25 +24,47 @@ export type SocialFeedEvent = {
   feedItemId: string;
   revision: number;
   occurredAt: string;
-  data: FeedItem;
+  data: SocialRealtimeFeedItem;
 };
 
-export type SocialFeedEventListener = (event: SocialFeedEvent) => void;
+export type SocialFeedEventListener = (
+  event: SocialFeedEvent,
+  scope: SocialFeedRealtimeScope,
+) => void;
 export type SocialFeedReconnectListener = () => void;
 
 export type SocialRealtimeServiceOptions = {
   messenger: BackendWebSocketServiceMessenger;
+  scopes: readonly SocialFeedRealtimeScope[];
   isEnabled?: () => boolean;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+const normalizeScopes = (
+  scopes: readonly SocialFeedRealtimeScope[],
+): SocialFeedRealtimeScope[] => {
+  const normalized = [...new Set(scopes)];
+  if (normalized.length === 0) {
+    throw new Error('At least one Social feed scope is required');
+  }
+  return normalized;
+};
+
+const scopeForChannel = (
+  channel: string,
+): SocialFeedRealtimeScope | undefined =>
+  (Object.entries(SOCIAL_FEED_CHANNELS).find(
+    ([, value]) => value === channel,
+  )?.[0] as SocialFeedRealtimeScope | undefined) ?? undefined;
+
 const parseSocialFeedEvent = (data: unknown): SocialFeedEvent | undefined => {
   if (!isRecord(data)) {
     return undefined;
   }
 
+  const feedItem = parseSocialRealtimeFeedItem(data.data);
   if (
     data.version !== 1 ||
     data.kind !== 'feed-item' ||
@@ -43,12 +72,12 @@ const parseSocialFeedEvent = (data: unknown): SocialFeedEvent | undefined => {
     typeof data.feedItemId !== 'string' ||
     typeof data.revision !== 'number' ||
     typeof data.occurredAt !== 'string' ||
-    !isRecord(data.data)
+    feedItem === undefined
   ) {
     return undefined;
   }
 
-  return data as unknown as SocialFeedEvent;
+  return { ...data, data: feedItem } as unknown as SocialFeedEvent;
 };
 
 const parseSocialFeedEvents = (data: unknown): SocialFeedEvent[] => {
@@ -62,8 +91,8 @@ const parseSocialFeedEvents = (data: unknown): SocialFeedEvent[] => {
 /**
  * Social realtime subscription service built on the shared backend WebSocket.
  *
- * The POC subscribes to the global feed channel. Additional Social channels
- * can be added here without creating another WebSocket connection.
+ * Clients explicitly select one or more global feed scopes. Additional Social
+ * channels can be added here without creating another WebSocket connection.
  */
 export class SocialRealtimeService {
   readonly name = 'SocialRealtimeService' as const;
@@ -76,39 +105,54 @@ export class SocialRealtimeService {
 
   readonly #isEnabled: () => boolean;
 
+  #scopes: SocialFeedRealtimeScope[];
+
+  #scopeUpdatePromise: Promise<void> | undefined;
+
   #active = false;
 
   #subscription: WebSocketSubscription | undefined;
 
+  #subscriptionToken: symbol | undefined;
+
   #subscriptionPromise: Promise<void> | undefined;
+
+  readonly #pendingUnsubscriptions = new Set<WebSocketSubscription>();
+
+  #connectionVersion = 0;
 
   #wasDisconnected = false;
 
   constructor({
     messenger,
+    scopes,
     isEnabled = (): boolean => true,
   }: SocialRealtimeServiceOptions) {
     this.#messenger = messenger;
+    this.#scopes = normalizeScopes(scopes);
     this.#isEnabled = isEnabled;
 
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
       ({ state }: { state: WebSocketState }): void => {
         if (state === WebSocketState.DISCONNECTED) {
+          this.#connectionVersion += 1;
           this.#subscription = undefined;
+          this.#subscriptionToken = undefined;
           this.#wasDisconnected = true;
         }
 
         if (state === WebSocketState.CONNECTED && this.#active) {
           const isReconnect = this.#wasDisconnected;
           this.#wasDisconnected = false;
-          // Subscription setup handles its own errors and must not block reconnect handling.
           // eslint-disable-next-line no-void
-          void this.#subscribeToFeed();
-
-          if (isReconnect) {
-            this.#reconnectListeners.forEach((listener) => listener());
-          }
+          void this.#subscribeToFeed()
+            .then(() => {
+              if (isReconnect) {
+                this.#reconnectListeners.forEach((listener) => listener());
+              }
+            })
+            .catch(() => undefined);
         }
       },
     );
@@ -124,6 +168,51 @@ export class SocialRealtimeService {
     return () => this.#reconnectListeners.delete(listener);
   }
 
+  async setScopes(scopes: readonly SocialFeedRealtimeScope[]): Promise<void> {
+    const normalizedScopes = normalizeScopes(scopes);
+
+    const scopeUpdate = this.#scopeUpdatePromise
+      ? this.#scopeUpdatePromise
+          .catch(() => undefined)
+          .then(() => this.#applyScopes(normalizedScopes))
+      : this.#applyScopes(normalizedScopes);
+    this.#scopeUpdatePromise = scopeUpdate;
+
+    try {
+      await scopeUpdate;
+    } finally {
+      if (this.#scopeUpdatePromise === scopeUpdate) {
+        this.#scopeUpdatePromise = Promise.resolve();
+      }
+    }
+  }
+
+  async #applyScopes(
+    normalizedScopes: SocialFeedRealtimeScope[],
+  ): Promise<void> {
+    if (!this.#active) {
+      this.#scopes = normalizedScopes;
+      return;
+    }
+
+    const previousScopes = this.#scopes;
+    const connectionVersion = this.#connectionVersion;
+    this.#scopes = normalizedScopes;
+
+    try {
+      await this.#resubscribeToFeed();
+    } catch (error) {
+      if (
+        this.#active &&
+        this.#connectionVersion === connectionVersion &&
+        this.#subscription
+      ) {
+        this.#scopes = previousScopes;
+      }
+      throw error;
+    }
+  }
+
   async setActive(active: boolean): Promise<void> {
     this.#active = active && this.#isEnabled();
 
@@ -132,6 +221,7 @@ export class SocialRealtimeService {
       return;
     }
 
+    await this.#retryPendingUnsubscriptions();
     await this.#subscribeToFeed();
   }
 
@@ -150,30 +240,32 @@ export class SocialRealtimeService {
 
     const subscriptionPromise = Promise.resolve().then(
       async (): Promise<void> => {
-        try {
-          await this.#messenger.call('BackendWebSocketService:connect');
+        await this.#messenger.call('BackendWebSocketService:connect');
 
-          // Each service needs its own callback and subscription lifecycle.
-          const subscription = await this.#messenger.call(
-            'BackendWebSocketService:subscribe',
-            {
-              channels: [SOCIAL_FEED_CHANNEL],
-              channelType: SOCIAL_FEED_CHANNEL_TYPE,
-              callback: (notification: ServerNotificationMessage) => {
-                this.#handleNotification(notification);
-              },
+        const subscriptionToken = Symbol('social-feed-subscription');
+
+        // Each service needs its own callback and subscription lifecycle.
+        const subscription = await this.#messenger.call(
+          'BackendWebSocketService:subscribe',
+          {
+            channels: this.#scopes.map((scope) => SOCIAL_FEED_CHANNELS[scope]),
+            channelType: SOCIAL_FEED_CHANNEL_TYPE,
+            callback: (notification: ServerNotificationMessage) => {
+              if (this.#subscriptionToken !== subscriptionToken) {
+                return;
+              }
+              this.#handleNotification(notification);
             },
-          );
+          },
+        );
 
-          if (!this.#active) {
-            await subscription.unsubscribe();
-            return;
-          }
-
-          this.#subscription = subscription;
-        } catch {
-          this.#subscription = undefined;
+        if (!this.#active) {
+          await subscription.unsubscribe();
+          return;
         }
+
+        this.#subscription = subscription;
+        this.#subscriptionToken = subscriptionToken;
       },
     );
     this.#subscriptionPromise = subscriptionPromise;
@@ -185,22 +277,101 @@ export class SocialRealtimeService {
     }
   }
 
+  async #resubscribeToFeed(): Promise<void> {
+    while (this.#subscriptionPromise) {
+      await this.#subscriptionPromise;
+    }
+
+    await this.#retryPendingUnsubscriptions();
+
+    const existingSubscription = this.#subscription;
+    const existingSubscriptionToken = this.#subscriptionToken;
+    const connectionVersion = this.#connectionVersion;
+    this.#subscription = undefined;
+
+    try {
+      await this.#subscribeToFeed();
+    } catch (error) {
+      if (this.#active && this.#connectionVersion === connectionVersion) {
+        this.#subscription = existingSubscription;
+        this.#subscriptionToken = existingSubscriptionToken;
+      } else {
+        this.#subscription = undefined;
+        this.#subscriptionToken = undefined;
+
+        if (existingSubscription) {
+          try {
+            await existingSubscription.unsubscribe();
+          } catch {
+            this.#pendingUnsubscriptions.add(existingSubscription);
+          }
+        }
+      }
+      throw error;
+    }
+
+    const replacementSubscription = this.#subscription as
+      | WebSocketSubscription
+      | undefined;
+    if (existingSubscription && existingSubscription !== this.#subscription) {
+      try {
+        await existingSubscription.unsubscribe();
+      } catch (error) {
+        if (this.#active && this.#connectionVersion === connectionVersion) {
+          this.#subscription = existingSubscription;
+          this.#subscriptionToken = existingSubscriptionToken;
+        } else {
+          this.#subscription = undefined;
+          this.#subscriptionToken = undefined;
+          this.#pendingUnsubscriptions.add(existingSubscription);
+        }
+
+        if (replacementSubscription) {
+          try {
+            await replacementSubscription.unsubscribe();
+          } catch {
+            this.#pendingUnsubscriptions.add(replacementSubscription);
+          }
+        }
+
+        throw error;
+      }
+    }
+  }
+
   async #unsubscribeFromFeed(): Promise<void> {
     const subscription = this.#subscription;
     this.#subscription = undefined;
+    this.#subscriptionToken = undefined;
 
-    if (subscription) {
-      await subscription.unsubscribe();
+    try {
+      if (subscription) {
+        await subscription.unsubscribe();
+      }
+    } finally {
+      await this.#retryPendingUnsubscriptions();
+    }
+  }
+
+  async #retryPendingUnsubscriptions(): Promise<void> {
+    for (const subscription of this.#pendingUnsubscriptions) {
+      try {
+        await subscription.unsubscribe();
+        this.#pendingUnsubscriptions.delete(subscription);
+      } catch {
+        // Keep the subscription queued for a later cleanup attempt.
+      }
     }
   }
 
   #handleNotification(notification: ServerNotificationMessage): void {
-    if (notification.channel !== SOCIAL_FEED_CHANNEL) {
+    const scope = scopeForChannel(notification.channel);
+    if (!scope || !this.#scopes.includes(scope)) {
       return;
     }
 
     parseSocialFeedEvents(notification.data).forEach((event) => {
-      this.#listeners.forEach((listener) => listener(event));
+      this.#listeners.forEach((listener) => listener(event, scope));
     });
   }
 }
