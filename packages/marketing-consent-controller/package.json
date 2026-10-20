@@ -1,6 +1,6 @@
 {
   "name": "@metamask/marketing-consent-controller",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Keeps marketing consent in sync with Authenticated User Storage",
   "keywords": [
     "Ethereum",
