@@ -6,6 +6,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import { bytesToHex } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   StubAuthProvider,
@@ -160,9 +161,9 @@ describe('MfaRecoveryController', () => {
   describe('register', () => {
     it('replicates the recovery secret to every escrow', async () => {
       await withController(async ({ controller, escrowA, escrowB }) => {
-        const verifyReceipt = jest.spyOn(escrowA, 'verifyReceipt');
-        const applyA = jest.spyOn(escrowA, 'applyMutation');
-        const applyB = jest.spyOn(escrowB, 'applyMutation');
+        const verifyReceipt = vi.spyOn(escrowA, 'verifyReceipt');
+        const applyA = vi.spyOn(escrowA, 'applyMutation');
+        const applyB = vi.spyOn(escrowB, 'applyMutation');
         await controller.register(SECRET, IDENTIFIERS);
         expect(controller.state.pendingOperation).toBeNull();
         expect(await controller.getPhase()).toBe('idle');
@@ -185,7 +186,7 @@ describe('MfaRecoveryController', () => {
 
     it('publishes state changes through the stateChanged event', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         rootMessenger.subscribe('MfaRecoveryController:stateChanged', listener);
 
         await controller.register(SECRET, IDENTIFIERS);
@@ -244,8 +245,8 @@ describe('MfaRecoveryController', () => {
         publicKey: '{}',
         privateKey: '{}',
       });
-      const applyA = jest.spyOn(escrowA, 'applyMutation');
-      const applyB = jest.spyOn(escrowB, 'applyMutation');
+      const applyA = vi.spyOn(escrowA, 'applyMutation');
+      const applyB = vi.spyOn(escrowB, 'applyMutation');
       const controller = new MfaRecoveryController({
         ...getOptions(escrowA, escrowB),
         messenger: getMessenger(getRootMessenger()),
@@ -323,7 +324,7 @@ describe('MfaRecoveryController', () => {
     it('does not request another token when reading with a session', async () => {
       await withController(async ({ controller, options }) => {
         await controller.register(SECRET, IDENTIFIERS);
-        const getToken = jest.spyOn(
+        const getToken = vi.spyOn(
           options.identifierAuthProvider,
           'getKeyBoundIdentifierToken',
         );
@@ -403,9 +404,9 @@ describe('MfaRecoveryController', () => {
     it('continues reading when an escrow availability check fails', async () => {
       await withController(async ({ controller, escrowA }) => {
         await controller.register(SECRET, IDENTIFIERS);
-        jest
-          .spyOn(escrowA, 'isAvailable')
-          .mockRejectedValue(new Error('health check failed'));
+        vi.spyOn(escrowA, 'isAvailable').mockRejectedValue(
+          new Error('health check failed'),
+        );
 
         const recovered = await recover(controller, PASSKEY);
 
@@ -416,9 +417,9 @@ describe('MfaRecoveryController', () => {
     it('continues reading when key-bound authorization fails for one escrow', async () => {
       await withController(async ({ controller, escrowA }) => {
         await controller.register(SECRET, IDENTIFIERS);
-        jest
-          .spyOn(escrowA, 'generateChallenge')
-          .mockRejectedValue(new Error('challenge failed'));
+        vi.spyOn(escrowA, 'generateChallenge').mockRejectedValue(
+          new Error('challenge failed'),
+        );
 
         const recovered = await recover(controller, PASSKEY);
 
@@ -429,7 +430,7 @@ describe('MfaRecoveryController', () => {
     it('continues reading when an escrow returns an unexpected wrap key id', async () => {
       await withController(async ({ controller, escrowA }) => {
         await controller.register(SECRET, IDENTIFIERS);
-        jest.spyOn(escrowA, 'getSecret').mockResolvedValue({
+        vi.spyOn(escrowA, 'getSecret').mockResolvedValue({
           recoverySecret: { ciphertext: 'aa' },
           version: 1,
           lastMutationId: '0x',
@@ -498,7 +499,7 @@ describe('MfaRecoveryController', () => {
   describe('updateRecoverySecret', () => {
     it('replaces the secret at every escrow', async () => {
       await withController(async ({ controller, escrowA }) => {
-        const generateChallenge = jest.spyOn(escrowA, 'generateChallenge');
+        const generateChallenge = vi.spyOn(escrowA, 'generateChallenge');
         await controller.register(SECRET, IDENTIFIERS);
         await controller.updateRecoverySecret(
           PASSKEY,
@@ -515,10 +516,7 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ controller, escrowB, options }) => {
         await controller.register(SECRET, IDENTIFIERS);
         escrowB.available = false;
-        const auth = jest.spyOn(
-          options.authProvider,
-          'authorizeRecoveryRequest',
-        );
+        const auth = vi.spyOn(options.authProvider, 'authorizeRecoveryRequest');
         auth.mockClear();
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
@@ -531,7 +529,7 @@ describe('MfaRecoveryController', () => {
     it('does not authorize a resumed authorizing mutation when an escrow is unavailable', async () => {
       await withController(async ({ controller, escrowB, options }) => {
         await controller.register(SECRET, IDENTIFIERS);
-        const auth = jest
+        const auth = vi
           .spyOn(options.authProvider, 'authorizeRecoveryRequest')
           .mockRejectedValueOnce(new Error('auth down'));
         await expect(
@@ -553,11 +551,11 @@ describe('MfaRecoveryController', () => {
     it('does not write when one escrow cannot be authorized', async () => {
       await withController(async ({ controller, escrowA, escrowB }) => {
         await controller.register(SECRET, IDENTIFIERS);
-        jest
-          .spyOn(escrowA, 'generateChallenge')
-          .mockRejectedValue(new Error('challenge failed'));
-        const applyA = jest.spyOn(escrowA, 'applyMutation');
-        const applyB = jest.spyOn(escrowB, 'applyMutation');
+        vi.spyOn(escrowA, 'generateChallenge').mockRejectedValue(
+          new Error('challenge failed'),
+        );
+        const applyA = vi.spyOn(escrowA, 'applyMutation');
+        const applyB = vi.spyOn(escrowB, 'applyMutation');
 
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
@@ -598,7 +596,7 @@ describe('MfaRecoveryController', () => {
         const applyStarted = new Promise<void>((resolve) => {
           resolveApplyStarted = resolve;
         });
-        jest.spyOn(escrowA, 'applyMutation').mockImplementation(async () => {
+        vi.spyOn(escrowA, 'applyMutation').mockImplementation(async () => {
           resolveApplyStarted();
           await applyGate;
           throw new Error('apply failed');
@@ -826,8 +824,8 @@ describe('MfaRecoveryController', () => {
           ),
         );
         const encrypted = await passthroughEncryptor.encrypt(pending);
-        const availabilityA = jest.spyOn(escrowA, 'isAvailable');
-        const availabilityB = jest.spyOn(escrowB, 'isAvailable');
+        const availabilityA = vi.spyOn(escrowA, 'isAvailable');
+        const availabilityB = vi.spyOn(escrowB, 'isAvailable');
         availabilityA.mockClear();
         availabilityB.mockClear();
         escrowA.available = false;
@@ -1259,7 +1257,7 @@ describe('MfaRecoveryController', () => {
 
     it('rejects a receipt whose escrow id does not match its target', async () => {
       await withController(async ({ controller, escrowA }) => {
-        jest.spyOn(escrowA, 'applyMutation').mockResolvedValue({
+        vi.spyOn(escrowA, 'applyMutation').mockResolvedValue({
           mutationId: '0xmutation',
           requestHash: '0xrequest',
           escrowId: 'escrow-z',
@@ -1267,7 +1265,7 @@ describe('MfaRecoveryController', () => {
           receiptKeyId: '0xreceipt',
           signature: '0xsignature',
         });
-        jest.spyOn(escrowA, 'verifyReceipt').mockResolvedValue(true);
+        vi.spyOn(escrowA, 'verifyReceipt').mockResolvedValue(true);
 
         await expect(controller.register(SECRET, IDENTIFIERS)).rejects.toThrow(
           'Invalid mutation receipt',
@@ -1277,9 +1275,9 @@ describe('MfaRecoveryController', () => {
 
     it('treats receipt verification errors as invalid receipts', async () => {
       await withController(async ({ controller, escrowA }) => {
-        jest
-          .spyOn(escrowA, 'verifyReceipt')
-          .mockRejectedValue(new Error('verification failed'));
+        vi.spyOn(escrowA, 'verifyReceipt').mockRejectedValue(
+          new Error('verification failed'),
+        );
 
         await expect(controller.register(SECRET, IDENTIFIERS)).rejects.toThrow(
           'Invalid mutation receipt',
@@ -1315,12 +1313,9 @@ describe('MfaRecoveryController', () => {
 
     it('rejects a null decrypted pending operation before external calls', async () => {
       await withController(async ({ escrowA, escrowB, options }) => {
-        const auth = jest.spyOn(
-          options.authProvider,
-          'authorizeRecoveryRequest',
-        );
-        const availabilityA = jest.spyOn(escrowA, 'isAvailable');
-        const availabilityB = jest.spyOn(escrowB, 'isAvailable');
+        const auth = vi.spyOn(options.authProvider, 'authorizeRecoveryRequest');
+        const availabilityA = vi.spyOn(escrowA, 'isAvailable');
+        const availabilityB = vi.spyOn(escrowB, 'isAvailable');
         const controller = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger()),
@@ -1555,14 +1550,14 @@ describe('MfaRecoveryController', () => {
             JSON.stringify(await getValidWritingPending(options.escrows)),
           ) as Record<string, unknown>;
           await mutate(pending);
-          const auth = jest.spyOn(
+          const auth = vi.spyOn(
             options.authProvider,
             'authorizeRecoveryRequest',
           );
-          const availabilityA = jest.spyOn(escrowA, 'isAvailable');
-          const availabilityB = jest.spyOn(escrowB, 'isAvailable');
-          const applyA = jest.spyOn(escrowA, 'applyMutation');
-          const applyB = jest.spyOn(escrowB, 'applyMutation');
+          const availabilityA = vi.spyOn(escrowA, 'isAvailable');
+          const availabilityB = vi.spyOn(escrowB, 'isAvailable');
+          const applyA = vi.spyOn(escrowA, 'applyMutation');
+          const applyB = vi.spyOn(escrowB, 'applyMutation');
           const controller = new MfaRecoveryController({
             ...options,
             messenger: getMessenger(getRootMessenger()),

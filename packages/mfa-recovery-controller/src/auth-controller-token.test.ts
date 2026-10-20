@@ -1,4 +1,5 @@
 import { bytesToBase64, stringToBytes } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { decodeAuthControllerToken } from './auth-controller-token.js';
 

@@ -1,5 +1,7 @@
 import type { CubeSignerClient } from '@cubist-labs/cubesigner-sdk';
 import { bytesToHex } from '@metamask/utils';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   generateSigningKey,
@@ -387,7 +389,7 @@ function createProvider(
   } = {},
 ): {
   provider: CubistEscrowProvider;
-  invoke: jest.Mock;
+  invoke: Mock;
 } {
   const stdoutBytes =
     options.stdoutBytes ??
@@ -398,11 +400,11 @@ function createProvider(
     );
   const invoke =
     options.invoke === undefined
-      ? jest.fn(async () => ({
+      ? vi.fn(async () => ({
           response: options.policy ?? { response: 'Allow' },
           stdout: bytesToHex(stdoutBytes),
         }))
-      : jest.fn(options.invoke);
+      : vi.fn(options.invoke);
   const client = {
     apiClient: { policyInvoke: invoke },
   } as unknown as CubeSignerClient;

@@ -1,4 +1,5 @@
 import { bytesToHex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   canonicalize,

@@ -3680,16 +3680,6 @@
       "count": 1
     }
   },
-  "packages/mfa-recovery-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/mfa-recovery-controller/jest.config.ts5.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/money-account-api-data-service/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
