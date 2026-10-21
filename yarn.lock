@@ -6878,7 +6878,6 @@ __metadata:
     oxfmt: "npm:^0.72.0"
     oxlint: "npm:^1.85.0"
     oxlint-tsgolint: "npm:^7.0.2002"
-    pony-cause: "npm:^2.1.11"
     prettier: "npm:^3.9.9"
     rimraf: "npm:^6.1.3"
     semver: "npm:^7.8.5"
