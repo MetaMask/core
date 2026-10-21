@@ -1,4 +1,6 @@
 import { StatusTypes } from '@metamask/bridge-controller';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
 import { BridgeClientId, BridgeStatusControllerMessenger } from '../types.js';
 import {
@@ -50,7 +52,7 @@ function createFetchResponse({
     ok,
     status,
     statusText,
-    json: jest.fn().mockResolvedValue(body),
+    json: vi.fn().mockResolvedValue(body),
   } as unknown as Response;
 }
 
@@ -62,9 +64,9 @@ function createFetchResponse({
  */
 function createMessenger(token: string | undefined = 'test-jwt'): {
   messenger: BridgeStatusControllerMessenger;
-  call: jest.Mock;
+  call: Mock;
 } {
-  const call = jest.fn().mockResolvedValue(token);
+  const call = vi.fn().mockResolvedValue(token);
   const messenger = { call } as unknown as BridgeStatusControllerMessenger;
   return { messenger, call };
 }
@@ -77,11 +79,11 @@ function createMessenger(token: string | undefined = 'test-jwt'): {
  */
 function createService(overrides: Partial<QuoteStatusApiServiceOptions> = {}): {
   service: QuoteStatusApiService;
-  onError: jest.Mock;
-  messengerCall: jest.Mock;
+  onError: Mock;
+  messengerCall: Mock;
 } {
   const { messenger, call } = createMessenger();
-  const onError = jest.fn();
+  const onError = vi.fn();
 
   const options: QuoteStatusApiServiceOptions = {
     messenger,
@@ -100,14 +102,14 @@ function createService(overrides: Partial<QuoteStatusApiServiceOptions> = {}): {
 }
 
 describe('QuoteStatusApiService', () => {
-  let fetchSpy: jest.SpyInstance;
+  let fetchSpy: MockInstance;
 
   beforeEach(() => {
-    fetchSpy = jest.spyOn(globalThis, 'fetch');
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('updateQuoteStatus', () => {
@@ -173,9 +175,9 @@ describe('QuoteStatusApiService', () => {
     it('omits the authorization header when no JWT is available', async () => {
       fetchSpy.mockResolvedValue(createFetchResponse({ ok: true }));
       const messenger = {
-        call: jest.fn().mockRejectedValue(new Error('no token')),
+        call: vi.fn().mockRejectedValue(new Error('no token')),
       } as unknown as BridgeStatusControllerMessenger;
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
       const { service } = createService({ messenger });
 
       await service.updateQuoteStatus(REQUEST_DATA);
@@ -488,9 +490,9 @@ describe('QuoteStatusApiService', () => {
         createFetchResponse({ ok: true, body: GET_RESPONSE_BODY }),
       );
       const messenger = {
-        call: jest.fn().mockRejectedValue(new Error('no token')),
+        call: vi.fn().mockRejectedValue(new Error('no token')),
       } as unknown as BridgeStatusControllerMessenger;
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
       const { service } = createService({ messenger });
 
       await service.getQuoteStatus(GET_REQUEST_DATA);
@@ -641,11 +643,12 @@ describe('QuoteStatusApiService', () => {
       fetchSpy.mockResolvedValue(
         createFetchResponse({ ok: true, body: GET_RESPONSE_BODY }),
       );
-      jest
-        .spyOn(validators, 'validateQuoteStatusGetResponse')
-        .mockImplementationOnce(() => {
-          throw nonStructError;
-        });
+      vi.spyOn(
+        validators,
+        'validateQuoteStatusGetResponse',
+      ).mockImplementationOnce(() => {
+        throw nonStructError;
+      });
       const { service, onError } = createService();
 
       await expect(service.getQuoteStatus(GET_REQUEST_DATA)).rejects.toThrow(
@@ -681,9 +684,9 @@ describe('QuoteStatusApiService', () => {
         { quoteId: GET_REQUEST_DATA.quoteId },
         false, // non-retryable (e.g. 4xx or validation failure)
       );
-      jest
-        .spyOn(service, 'getQuoteStatus')
-        .mockRejectedValue(quoteStatusGetError);
+      vi.spyOn(service, 'getQuoteStatus').mockRejectedValue(
+        quoteStatusGetError,
+      );
 
       const outcome = await service.getQuoteStatusWithRetry(
         GET_REQUEST_DATA,
@@ -703,7 +706,7 @@ describe('QuoteStatusApiService', () => {
         { quoteId: GET_REQUEST_DATA.quoteId },
         false,
       );
-      const getQuoteStatusSpy = jest
+      const getQuoteStatusSpy = vi
         .spyOn(service, 'getQuoteStatus')
         .mockRejectedValue(quoteStatusGetError);
 
@@ -720,7 +723,7 @@ describe('QuoteStatusApiService', () => {
         { quoteId: GET_REQUEST_DATA.quoteId },
         true, // retryable (5xx)
       );
-      const getQuoteStatusSpy = jest
+      const getQuoteStatusSpy = vi
         .spyOn(service, 'getQuoteStatus')
         .mockRejectedValue(retryableError);
 
@@ -744,7 +747,7 @@ describe('QuoteStatusApiService', () => {
         { quoteId: GET_REQUEST_DATA.quoteId },
         true,
       );
-      const getQuoteStatusSpy = jest
+      const getQuoteStatusSpy = vi
         .spyOn(service, 'getQuoteStatus')
         .mockRejectedValueOnce(retryableError)
         .mockResolvedValueOnce(GET_RESPONSE_BODY);
@@ -761,7 +764,7 @@ describe('QuoteStatusApiService', () => {
 
     it('returns RetryableExhausted after all attempts fail with a non-QuoteStatusGetError', async () => {
       const { service } = createService();
-      const getQuoteStatusSpy = jest
+      const getQuoteStatusSpy = vi
         .spyOn(service, 'getQuoteStatus')
         .mockRejectedValue(new Error('network error'));
 
@@ -780,7 +783,7 @@ describe('QuoteStatusApiService', () => {
 
     it('returns Accepted when failures are followed by a success', async () => {
       const { service } = createService();
-      const getQuoteStatusSpy = jest
+      const getQuoteStatusSpy = vi
         .spyOn(service, 'getQuoteStatus')
         .mockRejectedValueOnce(new Error('network error'))
         .mockResolvedValueOnce(GET_RESPONSE_BODY);
@@ -837,7 +840,7 @@ describe('QuoteStatusApiService', () => {
     it('forwards the abort signal to getQuoteStatus', async () => {
       const { service } = createService();
       const controller = new AbortController();
-      const getQuoteStatusSpy = jest
+      const getQuoteStatusSpy = vi
         .spyOn(service, 'getQuoteStatus')
         .mockResolvedValue(GET_RESPONSE_BODY);
 

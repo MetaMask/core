@@ -15,8 +15,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/assets-controllers',
   '@metamask/base-data-service',
   '@metamask/bitcoin-regtest-up',
-  '@metamask/bridge-controller',
-  '@metamask/bridge-status-controller',
   '@metamask/build-utils',
   '@metamask/chain-agnostic-permission',
   '@metamask/client-controller',

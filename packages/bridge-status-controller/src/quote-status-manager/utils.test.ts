@@ -1,22 +1,24 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { sleep } from './utils.js';
 
 describe('sleep', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('resolves after the given delay', async () => {
-    const onResolved = jest.fn();
+    const onResolved = vi.fn();
     const promise = sleep(1000).then(onResolved);
 
-    await jest.advanceTimersByTimeAsync(999);
+    await vi.advanceTimersByTimeAsync(999);
     expect(onResolved).not.toHaveBeenCalled();
 
-    await jest.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(1);
     await promise;
     expect(onResolved).toHaveBeenCalledTimes(1);
   });
@@ -24,19 +26,19 @@ describe('sleep', () => {
   it('resolves with undefined', async () => {
     const promise = sleep(0);
 
-    await jest.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(await promise).toBeUndefined();
   });
 
   it('schedules the timeout with the provided delay', async () => {
-    const setTimeoutSpy = jest.spyOn(globalThis, 'setTimeout');
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
 
     const promise = sleep(1234);
 
     expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1234);
 
-    await jest.advanceTimersByTimeAsync(1234);
+    await vi.advanceTimersByTimeAsync(1234);
     await promise;
   });
 });

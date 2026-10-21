@@ -8,6 +8,7 @@ import {
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
+import { describe, expect, it } from 'vitest';
 
 import type {
   BridgeStatusControllerState,
