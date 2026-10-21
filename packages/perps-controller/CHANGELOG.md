@@ -9,16 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [21.0.0]
 
-### Uncategorized
-
-- Release 1349.0.0 ([#10982](https://github.com/MetaMask/core/pull/10982))
-- Release 1347.0.0 ([#10925](https://github.com/MetaMask/core/pull/10925))
-- Release/1345.0.0 ([#10905](https://github.com/MetaMask/core/pull/10905))
-- Release/1343.0.0 ([#10891](https://github.com/MetaMask/core/pull/10891))
-- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
-- Release/1338.0.0 ([#10851](https://github.com/MetaMask/core/pull/10851))
-- chore: bump accounts (`keyring*-api`) deps ([#10844](https://github.com/MetaMask/core/pull/10844))
-
 ### Added
 
 - Add optional `change5m`, `changePercent5m`, `change1h`, and `changePercent1h` on `PerpsMarketData`, mapped from the v4 Terminal global snapshot. A null wire pair is `--` and `--%`, which means that window is unavailable. Disk hydration replaces a stored rolling change with those same placeholders, as it already does for the 24h change. ([#10855](https://github.com/MetaMask/core/pull/10855))
