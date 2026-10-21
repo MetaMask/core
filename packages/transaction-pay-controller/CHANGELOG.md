@@ -35,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `infuraProjectId` option to `TransactionPayControllerOptions`, and the `getInfuraProjectId` method and `TransactionPayController:getInfuraProjectId` messenger action ([#10273](https://github.com/MetaMask/core/pull/10273))
   - Clients must pass their Infura project ID to quote and submit Solana payment tokens. Core replaces the `{infuraProjectId}` placeholder in the `ConfigRegistryController` Solana RPC URL with it, and throws if the URL has the placeholder and no project ID is configured.
   - Add the `TransactionPayControllerGetInfuraProjectIdAction` type.
+- Add Solana Pay support diagnostics and lifecycle analytics event ([#10274](https://github.com/MetaMask/core/pull/10274))
+  - Add the `getSolanaPaySupportDiagnostics(transactionId)` method and `TransactionPayController:getSolanaPaySupportDiagnostics` messenger action. It returns a privacy-safe projection of the persisted `metamaskPay.solanaExecution` checkpoint: categorical phase, source, Relay, notification and follow-up statuses, the derived outcome, the source asset class (`native` or `token`), identifier-presence flags and a stable `errorCode`. It never includes accounts, assets, amounts, request or transaction IDs, provider payloads or failure text.
+  - Add the `TransactionPayController:solanaPayLifecycle` event. It is published with the same diagnostics plus `isRecovery` whenever a categorical value of a transaction's Solana execution checkpoint changes, including the failed or expired source and interrupted follow-up states. `isRecovery` is `true` for transitions observed by `recoverSolanaPayStatus`.
+  - Add the `SolanaPayErrorCode`, `SolanaPaySupportDiagnostics`, `SolanaPayLifecyclePayload`, `TransactionPayControllerSolanaPayLifecycleEvent` and `TransactionPayControllerGetSolanaPaySupportDiagnosticsAction` types.
+  - Relay statuses that Core does not recognize are now recorded as `unknown` instead of `pending`.
 - Add `@metamask/config-registry-controller`, `@metamask/snaps-controllers`, `@metamask/snaps-sdk`, `@metamask/snaps-utils`, `@metamask/rpc-errors`, `@solana/addresses`, `@solana/instructions`, `@solana/rpc-types`, `@solana/transaction-messages`, `@solana/transactions` and `uuid` dependencies ([#10273](https://github.com/MetaMask/core/pull/10273))
 
 ### Changed
