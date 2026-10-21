@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Core compiles the unsigned Solana transaction from the Relay instructions. It reads the blockhash and lookup tables from the `ConfigRegistryController` Solana RPC URL.
   - The source network fee comes from the account Snap `computeFee` request. Affordability includes the fee and the rent reserve, and a shortfall is reported as an `insufficient-source-balance` quote error. Native SOL max amounts withhold the fee and rent.
   - Submission persists a `metamaskPay.solanaExecution` checkpoint and then makes exactly one Snap `signAndSendTransaction` request. It then notifies Relay, waits for completion and runs the non-atomic second leg, and returns an externally handled publish result.
+  - The publish hook throws `Missing non-EVM quote` when a non-EVM payment token has no executable quote, so it never falls back to EVM publication.
   - Add `NonEvmTransactionPayQuote`, `NonEvmQuoteRequest`, `PayStrategyExecuteResult`, `SolanaPayOutcome` and `SolanaPayStatus` types.
   - Add `nonEvmQuotes` to `PayStrategyExecuteRequest`.
 - Add `reconcileSolanaPay` and `recoverSolanaPayStatus` methods and messenger actions ([#10273](https://github.com/MetaMask/core/pull/10273))

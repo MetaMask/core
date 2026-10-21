@@ -97,6 +97,11 @@ export class TransactionPayPublishHook {
         throw new Error('Fiat: Missing quote');
       }
 
+      // A non-EVM payment token must never fall back to EVM publication.
+      if (isNonEvm) {
+        throw new Error('Missing non-EVM quote');
+      }
+
       log('Skipping as no executable quotes found', { transactionId });
 
       return EMPTY_RESULT;

@@ -223,6 +223,28 @@ describe('TransactionPayPublishHook', () => {
     expect(updateTransactionMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['no quotes', []],
+    ['only a no-op quote', [{ strategy: TransactionPayStrategy.None }]],
+  ])('throws if a non-EVM payment token has %s', async (_title, quotes) => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          isLoading: false,
+          paymentToken: NON_EVM_PAYMENT_TOKEN_MOCK,
+          quotes,
+          tokens: [],
+        },
+      },
+    });
+
+    await expect(runHook()).rejects.toThrow(
+      'MetaMask Pay: Missing non-EVM quote',
+    );
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(updateTransactionMock).not.toHaveBeenCalled();
+  });
+
   it('sets submittedTime on the transaction before executing strategy', async () => {
     await runHook();
 
