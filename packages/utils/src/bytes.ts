@@ -216,15 +216,17 @@ export function hexToBytes(value: string): Uint8Array<ArrayBuffer> {
 
   assertIsHexString(value);
 
-  if (Uint8Array.fromHex !== undefined) {
-    return Uint8Array.fromHex(remove0x(value));
-  }
-
   // Remove the `0x` prefix if it exists, and pad the string to have an even
   // number of characters.
-  const strippedValue = remove0x(value).toLowerCase();
-  const normalizedValue =
+  const strippedValue = remove0x(value);
+  const paddedValue =
     strippedValue.length % 2 === 0 ? strippedValue : `0${strippedValue}`;
+
+  if (Uint8Array.fromHex !== undefined) {
+    return Uint8Array.fromHex(paddedValue);
+  }
+
+  const normalizedValue = paddedValue.toLowerCase();
   const bytes = new Uint8Array(normalizedValue.length / 2);
 
   for (let i = 0; i < bytes.length; i++) {
