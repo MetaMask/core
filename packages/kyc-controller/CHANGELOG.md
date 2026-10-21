@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `email` from `KycControllerState`
+- **BREAKING:** Remove `email` from `KycControllerState` ([#10987](https://github.com/MetaMask/core/pull/10987))
   - `startSession` no longer reads a verified email from the partner identity token or stores it
   - Partner-identity token mint failures, including HTTP 422, propagate from `startSession`
   - `recordVendorDisclaimers` no longer requires a stored email

@@ -441,22 +441,15 @@ export class KycController extends BaseController<
 
       // Will throw if minting tokens fails due to missing prereq (such as associated email).
       // This check/fetch should happen before we update controller state below.
-      let partnerIdentityToken;
-
-      try {
-        partnerIdentityToken = await this.#getPartnerIdentityForVendor(
-          params.vendor,
-        );
-      } catch (error) {
-        throw new Error('KycController failed to mint partner identity token for vendor');
-      }
+      const partnerIdentityToken = await this.#getPartnerIdentityForVendor(
+        params.vendor,
+      );
 
       this.update((state) => {
         state.vendor = params.vendor;
         state.geoCountry = geoCountry;
         state.providerFlowStatus = 'not_started';
       });
-
 
       await this.messenger.call('KycService:createVendorCustomer', {
         vendor: params.vendor,
