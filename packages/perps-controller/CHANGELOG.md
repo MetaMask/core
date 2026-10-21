@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 1347.0.0 ([#10925](https://github.com/MetaMask/core/pull/10925))
+- Release/1345.0.0 ([#10905](https://github.com/MetaMask/core/pull/10905))
+- Release/1343.0.0 ([#10891](https://github.com/MetaMask/core/pull/10891))
+- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
+- Release/1338.0.0 ([#10851](https://github.com/MetaMask/core/pull/10851))
+- chore: bump accounts (`keyring*-api`) deps ([#10844](https://github.com/MetaMask/core/pull/10844))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
