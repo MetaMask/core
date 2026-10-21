@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Normalize full hydrated Social feed events into `FeedItem` data while retaining support for compact legacy realtime payloads.
+
 ## [3.10.0]
 
 ### Added
