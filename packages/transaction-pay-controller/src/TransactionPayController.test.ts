@@ -1,7 +1,10 @@
 /* eslint-disable no-new */
 
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  MetamaskPaySolanaExecution,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { updateFiatPayment } from './actions/update-fiat-payment.js';
@@ -9,6 +12,7 @@ import { updatePaymentToken } from './actions/update-payment-token.js';
 import { PaymentOverride, TransactionPayStrategy } from './constants.js';
 import { TransactionPayController } from './index.js';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils.js';
+import { getRelayStatus } from './strategy/relay/relay-api.js';
 import { getMessengerMock } from './tests/messenger-mock.js';
 import type {
   TransactionPayControllerMessenger,
@@ -18,13 +22,18 @@ import type {
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from './types.js';
-import { getStrategyOrder } from './utils/feature-flags.js';
+import {
+  getRelayPollingInterval,
+  getRelayPollingTimeout,
+  getStrategyOrder,
+} from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
   getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
+  updateTransaction,
 } from './utils/transaction.js';
 
 jest.mock('./actions/update-fiat-payment');
@@ -34,6 +43,7 @@ jest.mock('./utils/source-amounts');
 jest.mock('./utils/quotes');
 jest.mock('./utils/transaction');
 jest.mock('./utils/feature-flags');
+jest.mock('./strategy/relay/relay-api');
 
 const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
@@ -75,6 +85,7 @@ describe('TransactionPayController', () => {
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
   let messenger: TransactionPayControllerMessenger;
   let getKeyringControllerStateMock: jest.Mock;
+  let mocks: ReturnType<typeof getMessengerMock>;
 
   /**
    * Create a TransactionPayController.
@@ -95,7 +106,7 @@ describe('TransactionPayController', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    const mocks = getMessengerMock({ skipRegister: true });
+    mocks = getMessengerMock({ skipRegister: true });
     messenger = mocks.messenger;
     getKeyringControllerStateMock = mocks.getKeyringControllerStateMock;
 
@@ -653,6 +664,228 @@ describe('TransactionPayController', () => {
       const result = messenger.call('TransactionPayController:getFiatOptions');
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('Solana Pay recovery', () => {
+    const getRelayStatusMock = jest.mocked(getRelayStatus);
+    const updateTransactionMock = jest.mocked(updateTransaction);
+    const getRelayPollingIntervalMock = jest.mocked(getRelayPollingInterval);
+    const getRelayPollingTimeoutMock = jest.mocked(getRelayPollingTimeout);
+
+    let transaction: TransactionMeta;
+    let failTransactionMock: jest.Mock;
+    let confirmTransactionMock: jest.Mock;
+
+    function getExecution(
+      overrides: Partial<MetamaskPaySolanaExecution> = {},
+    ): MetamaskPaySolanaExecution {
+      return {
+        atomicProductActionIncluded: false,
+        atomicProductActionRequired: false,
+        followUpStatus: 'not-required',
+        notificationStatus: 'success',
+        phase: 'submitted',
+        relayStatus: 'pending',
+        requestId: 'relay-request-123',
+        requiresNonAtomicFollowUp: false,
+        sourceAmountRaw: '1000000',
+        sourceChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        sourceStatus: 'pending',
+        sourceTransactionId: 'signature',
+        sourceWalletAccountId: 'solana-account-uuid',
+        ...overrides,
+      };
+    }
+
+    function getRelayStatusResponse(
+      status: 'success' | 'failure' | 'pending',
+    ): Awaited<ReturnType<typeof getRelayStatus>> {
+      return {
+        destinationChainId: 42161,
+        inTxHashes: ['signature'],
+        originChainId: 792703809,
+        status,
+        txHashes: ['0xtarget'],
+        updatedAt: 0,
+      };
+    }
+
+    beforeEach(() => {
+      transaction = {
+        id: TRANSACTION_ID_MOCK,
+        isExternalPublish: true,
+        metamaskPay: { solanaExecution: getExecution() },
+        status: 'submitted',
+      } as TransactionMeta;
+
+      getTransactionMock.mockImplementation(() => transaction);
+      updateTransactionMock.mockImplementation((_options, fn) => {
+        const draft = structuredClone(transaction);
+        fn(draft);
+        transaction = draft;
+      });
+
+      failTransactionMock = jest.fn();
+      confirmTransactionMock = jest.fn();
+      mocks.messenger.registerActionHandler(
+        'TransactionController:failTransaction',
+        failTransactionMock,
+      );
+      mocks.messenger.registerActionHandler(
+        'TransactionController:confirmTransaction',
+        confirmTransactionMock,
+      );
+      mocks.messenger.registerActionHandler(
+        'TransactionController:getState',
+        () => ({ transactions: [transaction] }) as never,
+      );
+      mocks.messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        mocks.snapHandleRequestMock,
+      );
+
+      getRelayPollingIntervalMock.mockReturnValue(0);
+    });
+
+    it('confirms the externally published transaction once Relay succeeds without signing', async () => {
+      getRelayStatusMock.mockResolvedValue(getRelayStatusResponse('success'));
+      createController();
+
+      const status = await messenger.call(
+        'TransactionPayController:reconcileSolanaPay',
+        TRANSACTION_ID_MOCK,
+      );
+
+      expect(status).toMatchObject({
+        outcome: 'succeeded',
+        relayStatus: 'success',
+        sourceStatus: 'confirmed',
+        targetTransactionId: '0xtarget',
+      });
+      expect(transaction.isIntentComplete).toBe(true);
+      expect(confirmTransactionMock).toHaveBeenCalledWith(TRANSACTION_ID_MOCK);
+      expect(mocks.snapHandleRequestMock).not.toHaveBeenCalled();
+    });
+
+    it('fails the externally published transaction when Relay fails', async () => {
+      getRelayStatusMock.mockResolvedValue(getRelayStatusResponse('failure'));
+      createController();
+
+      await messenger.call(
+        'TransactionPayController:reconcileSolanaPay',
+        TRANSACTION_ID_MOCK,
+      );
+
+      expect(failTransactionMock).toHaveBeenCalledWith(
+        TRANSACTION_ID_MOCK,
+        new Error('Relay settlement failed'),
+      );
+      expect(confirmTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps observing a pending outcome without finalizing', async () => {
+      getRelayStatusMock.mockResolvedValue(getRelayStatusResponse('pending'));
+      createController();
+
+      const status = await messenger.call(
+        'TransactionPayController:reconcileSolanaPay',
+        TRANSACTION_ID_MOCK,
+      );
+
+      expect(status.outcome).toBe('submitted');
+      expect(confirmTransactionMock).not.toHaveBeenCalled();
+      expect(failTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('records an unreadable Relay status as unknown', async () => {
+      getRelayStatusMock.mockRejectedValue(new Error('network'));
+      createController();
+
+      const status = await messenger.call(
+        'TransactionPayController:reconcileSolanaPay',
+        TRANSACTION_ID_MOCK,
+      );
+
+      expect(status).toMatchObject({
+        outcome: 'unknown',
+        relayStatus: 'unknown',
+      });
+    });
+
+    it('only persists the observation when the transaction is not an external publish', async () => {
+      transaction = { ...transaction, isExternalPublish: false };
+      getRelayStatusMock.mockResolvedValue(getRelayStatusResponse('success'));
+      createController();
+
+      await messenger.call(
+        'TransactionPayController:reconcileSolanaPay',
+        TRANSACTION_ID_MOCK,
+      );
+
+      expect(transaction.metamaskPay?.solanaExecution?.relayStatus).toBe(
+        'success',
+      );
+      expect(confirmTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('throws if the transaction has no Solana execution', async () => {
+      transaction = { ...transaction, metamaskPay: {} };
+      createController();
+
+      await expect(
+        messenger.call(
+          'TransactionPayController:reconcileSolanaPay',
+          TRANSACTION_ID_MOCK,
+        ),
+      ).rejects.toThrow('TransactionPayController: Solana execution missing');
+    });
+
+    it('recovers non-terminal executions by polling Relay until terminal without signing', async () => {
+      getRelayStatusMock
+        .mockResolvedValueOnce(getRelayStatusResponse('pending'))
+        .mockResolvedValueOnce(getRelayStatusResponse('success'));
+      createController();
+
+      const results = await messenger.call(
+        'TransactionPayController:recoverSolanaPayStatus',
+      );
+
+      expect(getRelayStatusMock).toHaveBeenCalledTimes(2);
+      expect(results[TRANSACTION_ID_MOCK].outcome).toBe('succeeded');
+      expect(mocks.snapHandleRequestMock).not.toHaveBeenCalled();
+    });
+
+    it('returns the latest non-terminal status when recovery times out', async () => {
+      getRelayPollingTimeoutMock.mockReturnValue(1);
+      getRelayStatusMock.mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return getRelayStatusResponse('pending');
+      });
+      createController();
+
+      const results = await messenger.call(
+        'TransactionPayController:recoverSolanaPayStatus',
+      );
+
+      expect(results[TRANSACTION_ID_MOCK].outcome).toBe('submitted');
+    });
+
+    it('skips terminal and missing executions during recovery', async () => {
+      transaction = {
+        ...transaction,
+        metamaskPay: {
+          solanaExecution: getExecution({ phase: 'user-rejected' }),
+        },
+      };
+      createController();
+
+      const results = await messenger.call(
+        'TransactionPayController:recoverSolanaPayStatus',
+      );
+
+      expect(results).toStrictEqual({});
+      expect(getRelayStatusMock).not.toHaveBeenCalled();
     });
   });
 

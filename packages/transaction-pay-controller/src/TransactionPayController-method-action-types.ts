@@ -138,6 +138,34 @@ export type TransactionPayControllerPolymarketSubmitDepositWalletBatchAction = {
 };
 
 /**
+ * Observes a Solana Pay execution through Relay status and finalizes the
+ * externally published target transaction once the outcome is terminal.
+ *
+ * This method never signs, broadcasts, or notifies Relay.
+ *
+ * @param transactionId - Target transaction ID.
+ * @returns The latest observed status.
+ */
+export type TransactionPayControllerReconcileSolanaPayAction = {
+  type: `TransactionPayController:reconcileSolanaPay`;
+  handler: TransactionPayController['reconcileSolanaPay'];
+};
+
+/**
+ * Observes every persisted Solana Pay execution that is not terminal,
+ * polling Relay until each one is terminal or the Relay polling timeout
+ * elapses.
+ *
+ * This method never signs, broadcasts, or notifies Relay.
+ *
+ * @returns Latest statuses keyed by target transaction ID.
+ */
+export type TransactionPayControllerRecoverSolanaPayStatusAction = {
+  type: `TransactionPayController:recoverSolanaPayStatus`;
+  handler: TransactionPayController['recoverSolanaPayStatus'];
+};
+
+/**
  * Union of all TransactionPayController action types.
  */
 export type TransactionPayControllerMethodActions =
@@ -150,4 +178,6 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerGetPaymentOverrideDataAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerPolymarketGetDepositWalletAddressAction
-  | TransactionPayControllerPolymarketSubmitDepositWalletBatchAction;
+  | TransactionPayControllerPolymarketSubmitDepositWalletBatchAction
+  | TransactionPayControllerReconcileSolanaPayAction
+  | TransactionPayControllerRecoverSolanaPayStatusAction;

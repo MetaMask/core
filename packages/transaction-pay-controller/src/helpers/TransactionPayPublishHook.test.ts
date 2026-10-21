@@ -5,10 +5,7 @@ import type {
 
 import { TransactionPayStrategy } from '../index.js';
 import { getMessengerMock } from '../tests/messenger-mock.js';
-import type {
-  TransactionPayControllerState,
-  TransactionPayQuote,
-} from '../types.js';
+import type { TransactionPayQuote } from '../types.js';
 import { getStrategyByName } from '../utils/strategy.js';
 import { TransactionPayPublishHook } from './TransactionPayPublishHook.js';
 
@@ -24,6 +21,19 @@ const TRANSACTION_META_MOCK = {
 const QUOTE_MOCK = {
   strategy: TransactionPayStrategy.Across,
 } as TransactionPayQuote<unknown>;
+
+const NON_EVM_PAYMENT_TOKEN_MOCK = {
+  accountId:
+    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+  assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+  walletAccountId: 'wallet-account-uuid',
+};
+
+const NON_EVM_QUOTE_MOCK = {
+  request: { sourceChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' },
+  strategy: TransactionPayStrategy.Relay,
+};
 
 describe('TransactionPayPublishHook', () => {
   const isSmartTransactionMock = jest.fn();
@@ -86,6 +96,47 @@ describe('TransactionPayPublishHook', () => {
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [TRANSACTION_META_MOCK],
     });
+  });
+
+  it('passes non-EVM payment token quotes as nonEvmQuotes and returns the externally handled result', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          paymentToken: NON_EVM_PAYMENT_TOKEN_MOCK,
+          quotes: [NON_EVM_QUOTE_MOCK],
+        },
+      },
+    });
+
+    executeMock.mockResolvedValue({
+      externallyHandled: true,
+      outcome: 'submitted',
+    });
+
+    const result = await runHook();
+
+    expect(getStrategyByNameMock).toHaveBeenCalledWith(
+      TransactionPayStrategy.Relay,
+    );
+    expect(executeMock).toHaveBeenCalledTimes(1);
+    expect(executeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nonEvmQuotes: [NON_EVM_QUOTE_MOCK],
+        quotes: [],
+      }),
+    );
+    expect(result).toStrictEqual({
+      externallyHandled: true,
+      outcome: 'submitted',
+    });
+  });
+
+  it('does not pass nonEvmQuotes for an EVM payment token', async () => {
+    await runHook();
+
+    expect(executeMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ nonEvmQuotes: expect.anything() }),
+    );
   });
 
   it('executes strategy with quotes', async () => {

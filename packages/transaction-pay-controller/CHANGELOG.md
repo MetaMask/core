@@ -14,12 +14,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `updatePaymentToken` accepts `{ transactionId, assetId, walletAccountId }` to select a non-EVM asset held by an `InternalAccount`, reading its metadata, balance, and price from `AssetsController` state.
   - Add `NonEvmQuoteRequest` and `nonEvmRequests` to `PayStrategyGetQuotesRequest`, filled instead of `requests` when the payment token is non-EVM.
   - Project the selected non-EVM payment token onto the persisted transaction as `metamaskPay.source`.
+- Quote and submit Solana payment tokens through `RelayStrategy` ([#10273](https://github.com/MetaMask/core/pull/10273))
+  - `RelayStrategy` quotes `nonEvmRequests` with Relay `/quote/v2` (configurable with the `relaySolanaQuoteUrl` feature flag). New quotes require the `payStrategies.relay.solana.enabled` feature flag. EVM sources still use `/quote`.
+  - Core compiles the unsigned Solana transaction from the Relay instructions. It reads the blockhash and lookup tables from the `ConfigRegistryController` Solana RPC URL.
+  - The source network fee comes from the account Snap `computeFee` request. Affordability includes the fee and the rent reserve, and a shortfall is reported as an `insufficient-source-balance` quote error. Native SOL max amounts withhold the fee and rent.
+  - Submission persists a `metamaskPay.solanaExecution` checkpoint and then makes exactly one Snap `signAndSendTransaction` request. It then notifies Relay, waits for completion and runs the non-atomic second leg, and returns an externally handled publish result.
+  - Add `NonEvmTransactionPayQuote`, `NonEvmQuoteRequest`, `PayStrategyExecuteResult`, `SolanaPayOutcome` and `SolanaPayStatus` types.
+  - Add `nonEvmQuotes` to `PayStrategyExecuteRequest`.
+- Add `reconcileSolanaPay` and `recoverSolanaPayStatus` methods and messenger actions ([#10273](https://github.com/MetaMask/core/pull/10273))
+  - They observe Relay status for persisted Solana executions and finalize the target transaction, and never sign again.
+- Add `@metamask/config-registry-controller`, `@metamask/snaps-controllers`, `@metamask/snaps-sdk`, `@metamask/snaps-utils`, `@metamask/rpc-errors`, `@solana/addresses`, `@solana/codecs-strings`, `@solana/instructions`, `@solana/rpc-types`, `@solana/transaction-messages`, `@solana/transactions` and `uuid` dependencies ([#10273](https://github.com/MetaMask/core/pull/10273))
 
 ### Changed
 
 - **BREAKING:** `TransactionPaymentToken` is now a union of `EvmPaymentToken` and `NonEvmPaymentToken` ([#10272](https://github.com/MetaMask/core/pull/10272))
   - Use `isNonEvmPaymentToken` to narrow before reading the EVM-only `address` field or treating `chainId` as Hex.
 - **BREAKING:** `UpdatePaymentTokenRequest` is now a union of the existing `{ transactionId, tokenAddress, chainId }` shape and `{ transactionId, assetId, walletAccountId }` ([#10272](https://github.com/MetaMask/core/pull/10272))
+- **BREAKING:** The messenger now requires the `SnapController:handleRequest`, `ConfigRegistryController:getNetworkConfigByCaip2ChainId`, `TransactionController:confirmTransaction` and `TransactionController:failTransaction` actions ([#10273](https://github.com/MetaMask/core/pull/10273))
+- **BREAKING:** `TransactionPayQuote` has a second type parameter for its request, and `TransactionData.quotes` can contain `NonEvmTransactionPayQuote` entries ([#10273](https://github.com/MetaMask/core/pull/10273))
+  - Narrow with `isNonEvmPaymentToken(transactionData.paymentToken)` before reading the Hex `quote.request.sourceChainId` or `sourceTokenAddress`.
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 
 ## [30.1.0]

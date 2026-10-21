@@ -5,6 +5,7 @@ import { BigNumber } from 'bignumber.js';
 
 import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
+  NonEvmTransactionPayQuote,
   QuoteErrorInfo,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
@@ -40,9 +41,18 @@ export type QuoteExecutionRequest = {
 export class QuoteError extends Error {
   readonly info: QuoteErrorInfo;
 
-  readonly quotes?: TransactionPayQuote<unknown>[];
+  readonly quotes?: (
+    | TransactionPayQuote<unknown>
+    | NonEvmTransactionPayQuote<unknown>
+  )[];
 
-  constructor(info: QuoteErrorInfo, quotes?: TransactionPayQuote<unknown>[]) {
+  constructor(
+    info: QuoteErrorInfo,
+    quotes?: (
+      | TransactionPayQuote<unknown>
+      | NonEvmTransactionPayQuote<unknown>
+    )[],
+  ) {
     super(info.message);
     this.name = 'QuoteError';
     this.info = info;

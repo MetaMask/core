@@ -11,7 +11,7 @@ import type {
 
 export type NamedStrategy = {
   name: TransactionPayStrategy;
-  strategy: PayStrategy<unknown>;
+  strategy: PayStrategy<unknown, unknown>;
 };
 
 /**
@@ -22,7 +22,7 @@ export type NamedStrategy = {
  */
 export function getStrategyByName(
   strategyName: TransactionPayStrategy,
-): PayStrategy<unknown> {
+): PayStrategy<unknown, unknown> {
   switch (strategyName) {
     case TransactionPayStrategy.Across:
       return new AcrossStrategy() as never;
@@ -80,7 +80,7 @@ export function getStrategiesByName(
  * @returns Whether the strategy supports the request.
  */
 export async function checkStrategySupport(
-  strategy: PayStrategy<unknown>,
+  strategy: PayStrategy<unknown, unknown>,
   request: PayStrategyGetQuotesRequest,
 ): Promise<boolean> {
   return strategy.supports ? await strategy.supports(request) : true;
@@ -96,7 +96,7 @@ export async function checkStrategySupport(
  * @returns Whether the strategy supports the quotes.
  */
 export async function checkStrategyQuoteSupport(
-  strategy: PayStrategy<unknown>,
+  strategy: PayStrategy<unknown, unknown>,
   request: PayStrategyCheckQuoteSupportRequest<unknown>,
 ): Promise<boolean> {
   if (strategy.checkQuoteSupport) {

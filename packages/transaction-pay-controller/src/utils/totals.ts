@@ -4,6 +4,8 @@ import { BigNumber } from 'bignumber.js';
 import { TransactionPayStrategy } from '../constants.js';
 import type {
   FiatValue,
+  NonEvmQuoteRequest,
+  QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
   TransactionPayRequiredToken,
@@ -31,7 +33,7 @@ export function calculateTotals({
   transaction,
 }: {
   fiatPaymentAmount?: string;
-  quotes: TransactionPayQuote<unknown>[];
+  quotes: TransactionPayQuote<unknown, QuoteRequest | NonEvmQuoteRequest>[];
   messenger: TransactionPayControllerMessenger;
   tokens: TransactionPayRequiredToken[];
   transaction: TransactionMeta;
@@ -158,7 +160,7 @@ export function calculateTotals({
 }
 
 function getQuoteFeeTotal(
-  quote: TransactionPayQuote<unknown>,
+  quote: Pick<TransactionPayQuote<unknown>, 'fees'>,
   currency: keyof FiatValue,
 ): string {
   return new BigNumber(quote.fees.provider[currency])

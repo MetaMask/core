@@ -1934,6 +1934,46 @@ describe('Quotes Utils', () => {
       });
     });
 
+    it('keeps non-EVM quotes without EVM quote support checks or batch transactions', async () => {
+      await run({ transactionData: NON_EVM_TRANSACTION_DATA });
+
+      expect(checkStrategyQuoteSupportMock).not.toHaveBeenCalled();
+      expect(getBatchTransactionsMock).not.toHaveBeenCalled();
+
+      const transactionDataMock: Partial<TransactionData> = {};
+
+      updateTransactionDataMock.mock.calls.forEach(
+        (call: [string, (data: Partial<TransactionData>) => void]) =>
+          call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock.quotes).toStrictEqual([QUOTE_MOCK]);
+    });
+
+    it('never rewrites the source once a durable execution checkpoint exists', async () => {
+      await run({ transactionData: NON_EVM_TRANSACTION_DATA });
+
+      const executedSource = {
+        sourceAccountId: SOLANA_ACCOUNT_ID_MOCK,
+        sourceAssetId: `${NON_EVM_PAYMENT_TOKEN_MOCK.chainId}/slip44:501`,
+      } as const;
+      const solanaExecution = {
+        phase: 'attempting',
+      } as NonNullable<TransactionMeta['metamaskPay']>['solanaExecution'];
+      const transactionMetaMock = {
+        metamaskPay: { solanaExecution, source: executedSource },
+      } as TransactionMeta;
+
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay?.source).toStrictEqual(
+        executedSource,
+      );
+      expect(transactionMetaMock.metamaskPay?.solanaExecution).toBe(
+        solanaExecution,
+      );
+    });
+
     it('does not build a no-op quote when no conversion is required', async () => {
       await run({
         transactionData: { ...NON_EVM_TRANSACTION_DATA, sourceAmounts: [] },

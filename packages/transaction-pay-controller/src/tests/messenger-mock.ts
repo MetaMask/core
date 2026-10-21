@@ -1,6 +1,7 @@
 import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import { getDefaultAssetsControllerState } from '@metamask/assets-controller';
 import type { AssetsControllerGetStateAction } from '@metamask/assets-controller';
+import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
@@ -13,11 +14,14 @@ import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metam
 import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceSimulateTransactionsAction } from '@metamask/sentinel-api-service';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
   TransactionControllerEstimateGasAction,
+  TransactionControllerConfirmTransactionAction,
   TransactionControllerEstimateGasBatchAction,
+  TransactionControllerFailTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
 } from '@metamask/transaction-controller';
@@ -30,6 +34,7 @@ import type {
   TransactionPayControllerGetPaymentOverrideDataAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
+  TransactionPayControllerReconcileSolanaPayAction,
   TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
 } from '../TransactionPayController-method-action-types.js';
 import type { TransactionPayControllerGetStateAction } from '../types.js';
@@ -121,6 +126,18 @@ export function getMessengerMock({
     TransactionPayControllerPolymarketGetDepositWalletAddressAction['handler']
   > = jest.fn();
 
+  const reconcileSolanaPayMock: jest.MockedFn<
+    TransactionPayControllerReconcileSolanaPayAction['handler']
+  > = jest.fn();
+
+  const snapHandleRequestMock: jest.MockedFn<
+    SnapControllerHandleRequestAction['handler']
+  > = jest.fn();
+
+  const getNetworkConfigByCaip2ChainIdMock: jest.MockedFn<
+    ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction['handler']
+  > = jest.fn();
+
   const polymarketSubmitDepositWalletBatchMock: jest.MockedFn<
     TransactionPayControllerPolymarketSubmitDepositWalletBatchAction['handler']
   > = jest.fn();
@@ -129,8 +146,16 @@ export function getMessengerMock({
     TransactionControllerGetGasFeeTokensAction['handler']
   > = jest.fn();
 
+  const confirmTransactionMock: jest.MockedFn<
+    TransactionControllerConfirmTransactionAction['handler']
+  > = jest.fn();
+
   const estimateGasMock: jest.MockedFn<
     TransactionControllerEstimateGasAction['handler']
+  > = jest.fn();
+
+  const failTransactionMock: jest.MockedFn<
+    TransactionControllerFailTransactionAction['handler']
   > = jest.fn();
 
   const estimateGasBatchMock: jest.MockedFn<
@@ -240,6 +265,21 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'TransactionPayController:reconcileSolanaPay',
+      reconcileSolanaPayMock,
+    );
+
+    messenger.registerActionHandler(
+      'SnapController:handleRequest',
+      snapHandleRequestMock,
+    );
+
+    messenger.registerActionHandler(
+      'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+      getNetworkConfigByCaip2ChainIdMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionPayController:polymarketSubmitDepositWalletBatch',
       polymarketSubmitDepositWalletBatchMock,
     );
@@ -250,8 +290,18 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'TransactionController:confirmTransaction',
+      confirmTransactionMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionController:estimateGas',
       estimateGasMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionController:failTransaction',
+      failTransactionMock,
     );
 
     messenger.registerActionHandler(
@@ -282,7 +332,9 @@ export function getMessengerMock({
     getAccountsControllerStateMock,
     getAssetsControllerStateMock,
     addTransactionBatchMock,
+    confirmTransactionMock,
     estimateGasMock,
+    failTransactionMock,
     estimateGasBatchMock,
     findNetworkClientIdByChainIdMock,
     getControllerStateMock,
@@ -302,6 +354,9 @@ export function getMessengerMock({
     polymarketSubmitDepositWalletBatchMock,
     publish,
     simulateTransactionsMock,
+    reconcileSolanaPayMock,
+    snapHandleRequestMock,
+    getNetworkConfigByCaip2ChainIdMock,
     updateTransactionMock,
   };
 }

@@ -49,6 +49,28 @@ Quotes are retrieved from the [Relay API](https://docs.relay.link/what-is-relay)
 
 The resulting transaction deposits the necessary funds (on the source network), then a Relayer on the target chain immediately transfers the necessary funds and optionally executes any requested call data.
 
+#### Non-EVM sources (Solana)
+
+When the payment token is non-EVM, `RelayStrategy` receives `nonEvmRequests` instead of `requests` and uses a separate branch modelled on the `BridgeStatusController` non-EVM submit handler. EVM sources keep using the Relay `/quote` endpoint unchanged.
+
+- **Quote.** New quotes are only admitted when `payStrategies.relay.solana.enabled` is `true`. Core builds the request and fetches it from Relay `/quote/v2` (`relaySolanaQuoteUrl`). If Relay rejects the transaction as `SOLANA_TX_TOO_LARGE`, Core retries once with `maxRouteLength: 4`. Relay returns instructions and address lookup tables rather than a serialized transaction, so Core compiles the unsigned v0 transaction itself:
+  - the fee payer is the user;
+  - the blockhash and lookup tables come from Solana JSON-RPC at the `ConfigRegistryController` RPC URL, and unresolved lookup tables are skipped;
+  - compilation uses `@solana/kit` sub-packages.
+- **Fees and affordability.** The account Snap's `computeFee` gives the source network fee, which is converted to fiat with the SOL price. The Snap `getMinimumBalanceForRentExemption` gives the rent reserve.
+  - For native SOL, the balance must cover the amount, the fee and the rent reserve. A native SOL max amount is re-quoted with the fee and rent withheld.
+  - For an SPL source, the token balance must cover the amount, and native SOL must cover the fee and rent.
+  - A shortfall is reported through `quoteError`, and the quote is kept.
+  - The result is an ordinary `TransactionPayQuote`, so `calculateTotals` and the client rows work unchanged.
+- **Submit.** The publish hook passes non-EVM quotes to `execute` as `nonEvmQuotes`. Core then:
+  1. recompiles the transaction with a fresh blockhash;
+  2. persists the `metamaskPay.solanaExecution` `attempting` checkpoint;
+  3. makes exactly one `SnapController:handleRequest` call (`onClientRequest` / `signAndSendTransaction`) to the Snap in the account metadata;
+  4. persists the signature and notifies Relay (`/transactions/index`);
+  5. waits for Relay completion, then runs the existing non-atomic second leg for Money Account flows;
+  6. returns `{ externallyHandled: true, outcome }`, so `TransactionController` never publishes it through EVM RPC.
+- **Recovery.** If a checkpoint exists, Core never signs again. `reconcileSolanaPay` and `recoverSolanaPayStatus` only observe Relay status by request ID, where `inTxHashes` carries the source signature. Core then confirms or fails the externally published target transaction. Once a checkpoint exists, quote updates no longer rewrite `metamaskPay.source`.
+
 ## Lifecycle
 
 The high level interaction with the `TransactionPayController` is as follows:
@@ -72,4 +94,4 @@ The high level interaction with the `TransactionPayController` is as follows:
 
 Transient state is grouped according to the associated transaction ID in the `transactionData` property. It includes required tokens, the selected payment token, retrieved quotes, and calculated totals, and is not persisted across restarts.
 
-When a non-EVM payment token is selected, its CAIP-10 account and CAIP-19 asset are projected onto the persisted target transaction in `metamaskPay.source`, without placing non-EVM identifiers in legacy EVM-only fields. Selecting an EVM payment token clears this projection. Execution correlation and recovery checkpoints are not part of ordinary Pay selection state.
+When a non-EVM payment token is selected, its CAIP-10 account and CAIP-19 asset are projected onto the persisted target transaction in `metamaskPay.source`, without placing non-EVM identifiers in legacy EVM-only fields. Selecting an EVM payment token clears this projection. Once a non-EVM execution starts, the target transaction becomes the only durable owner of `metamaskPay.solanaExecution`. This checkpoint holds the wallet account ID, source amount, Relay request ID, source signature, observation states and any Money Account follow-up. Once it exists, the source projection is frozen.

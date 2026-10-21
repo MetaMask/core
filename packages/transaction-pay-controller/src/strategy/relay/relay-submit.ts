@@ -8,13 +8,14 @@ import type {
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyExecuteRequest,
+  QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
@@ -75,6 +76,21 @@ type RelaySubmitParams = {
 
 export type RelaySubmitCalls = { calls: TransactionParams[] };
 
+/** Fields of an EVM or non-EVM Relay quote read by the non-atomic second leg. */
+type PostNonAtomicQuote = {
+  original: Pick<RelayQuote, 'details'>;
+  request: Pick<
+    QuoteRequest,
+    | 'from'
+    | 'isPostQuote'
+    | 'recipient'
+    | 'targetChainId'
+    | 'targetTokenAddress'
+  > & {
+    sourceChainId: QuoteRequest['sourceChainId'] | CaipChainId;
+  };
+};
+
 /**
  * Submits Relay quotes.
  *
@@ -82,7 +98,7 @@ export type RelaySubmitCalls = { calls: TransactionParams[] };
  * @returns An object containing the transaction hash if available.
  */
 export async function submitRelayQuotes(
-  request: PayStrategyExecuteRequest<RelayQuote>,
+  request: PayStrategyExecuteRequest<RelayQuote, unknown>,
 ): Promise<{ transactionHash?: Hex }> {
   try {
     return await submitRelayQuotesInternal(request);
@@ -109,7 +125,7 @@ export async function getRelaySubmitCalls({
 }
 
 async function submitRelayQuotesInternal(
-  request: PayStrategyExecuteRequest<RelayQuote>,
+  request: PayStrategyExecuteRequest<RelayQuote, unknown>,
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing quotes', request);
 
@@ -263,7 +279,7 @@ async function executeSingleQuote(
  * @param options.transaction - Original transaction meta.
  * @returns Hash of the final submitted child transaction, if available.
  */
-async function submitPostNonAtomic({
+export async function submitPostNonAtomic({
   completion,
   messenger,
   quote,
@@ -272,7 +288,7 @@ async function submitPostNonAtomic({
 }: {
   completion: RelayCompletionOutcome;
   messenger: TransactionPayControllerMessenger;
-  quote: TransactionPayQuote<RelayQuote>;
+  quote: PostNonAtomicQuote;
   submittedSourceHash?: Hex;
   transaction: TransactionMeta;
 }): Promise<{ transactionHash?: Hex }> {
@@ -320,7 +336,7 @@ async function buildPostQuoteDepositCalls({
   transaction,
 }: {
   messenger: TransactionPayControllerMessenger;
-  quote: TransactionPayQuote<RelayQuote>;
+  quote: PostNonAtomicQuote;
   sourceAmountRaw: string;
   transaction: TransactionMeta;
 }): Promise<BatchTransactionParams[]> {
@@ -367,7 +383,7 @@ function getSettlementHash({
   submittedSourceHash,
 }: {
   completion: RelayCompletionOutcome;
-  quote: TransactionPayQuote<RelayQuote>;
+  quote: PostNonAtomicQuote;
   submittedSourceHash?: Hex;
 }): Hex | undefined {
   if (completion.targetHash && completion.targetHash !== FALLBACK_HASH) {
@@ -402,8 +418,21 @@ function setRelaySourceHash(
   );
 }
 
-async function waitForRelayCompletion(
-  quote: RelayQuote,
+/**
+ * Polls Relay status for a submitted request until it settles.
+ *
+ * @param quote - Relay quote details and steps carrying the request ID.
+ * @param messenger - Controller messenger.
+ * @param options - Polling options.
+ * @param options.onSourceHash - Callback invoked once with the indexed source hash.
+ * @param options.tolerateFailure - Whether failure statuses and timeouts are
+ * returned instead of thrown.
+ * @returns The completion outcome.
+ */
+export async function waitForRelayCompletion(
+  quote: Pick<RelayQuote, 'details'> & {
+    steps: Pick<RelayTransactionStep, 'id' | 'requestId'>[];
+  },
   messenger: TransactionPayControllerMessenger,
   options: {
     onSourceHash?: (hash: Hex) => void;

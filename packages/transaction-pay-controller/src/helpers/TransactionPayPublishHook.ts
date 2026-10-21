@@ -7,12 +7,14 @@ import { createModuleLogger } from '@metamask/utils';
 import { TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type {
+  NonEvmTransactionPayQuote,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types.js';
 import { accountSupports7702 } from '../utils/7702.js';
 import { prefixError } from '../utils/error-prefix.js';
 import { getStrategyByName } from '../utils/strategy.js';
+import { isNonEvmPaymentToken } from '../utils/token.js';
 import { updateTransaction } from '../utils/transaction.js';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
@@ -65,17 +67,32 @@ export class TransactionPayPublishHook {
     );
 
     const transactionData = controllerState.transactionData?.[transactionId];
-
     // No-op quotes mark direct routes and cannot be executed by any strategy.
-    const quotes = (
-      (transactionData?.quotes as TransactionPayQuote<unknown>[]) ?? []
+    const allQuotes = (
+      (transactionData?.quotes as (
+        | TransactionPayQuote<unknown>
+        | NonEvmTransactionPayQuote<unknown>
+      )[]) ?? []
     ).filter((quote) => quote.strategy !== TransactionPayStrategy.None);
+
+    // Quotes for a non-EVM payment token are executed by the strategy outside
+    // the EVM publish path.
+    const isNonEvm = Boolean(
+      transactionData?.paymentToken &&
+      isNonEvmPaymentToken(transactionData.paymentToken),
+    );
+    const nonEvmQuotes = isNonEvm
+      ? (allQuotes as NonEvmTransactionPayQuote<unknown>[])
+      : [];
+    const quotes = isNonEvm
+      ? []
+      : (allQuotes as TransactionPayQuote<unknown>[]);
 
     const isFiatSelected = Boolean(
       transactionData?.fiatPayment?.selectedPaymentMethodId,
     );
 
-    if (!quotes.length) {
+    if (!quotes.length && !nonEvmQuotes.length) {
       if (isFiatSelected) {
         throw new Error('Fiat: Missing quote');
       }
@@ -96,12 +113,13 @@ export class TransactionPayPublishHook {
       },
     );
 
-    const strategy = getStrategyByName(quotes[0].strategy);
+    const strategy = getStrategyByName(allQuotes[0].strategy);
     const from = transactionMeta.txParams.from as Hex;
 
     return await strategy.execute({
       accountSupports7702: accountSupports7702(this.#messenger, from),
       isSmartTransaction: this.#isSmartTransaction,
+      ...(nonEvmQuotes.length > 0 && { nonEvmQuotes }),
       quotes,
       messenger: this.#messenger,
       transaction: transactionMeta,

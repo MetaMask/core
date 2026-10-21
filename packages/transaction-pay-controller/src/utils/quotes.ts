@@ -10,6 +10,7 @@ import type {
   EvmPaymentToken,
   NonEvmPaymentToken,
   NonEvmQuoteRequest,
+  NonEvmTransactionPayQuote,
   QuoteRequest,
   QuoteErrorInfo,
   TransactionData,
@@ -297,8 +298,10 @@ function syncTransaction({
 
       // The source projection is rewritten on every sync, so selecting an EVM
       // payment token clears a previous non-EVM source. Once a durable
-      // non-EVM execution checkpoint exists, the source must no longer be
-      // rewritten.
+      // non-EVM execution checkpoint exists, the source is kept as executed.
+      const executedSource = tx.metamaskPay?.solanaExecution
+        ? tx.metamaskPay.source
+        : undefined;
       const nonEvmPaymentToken =
         paymentToken && isNonEvmPaymentToken(paymentToken)
           ? paymentToken
@@ -317,6 +320,10 @@ function syncTransaction({
             sourceAccountId: nonEvmPaymentToken.accountId,
             sourceAssetId: nonEvmPaymentToken.assetId,
           },
+        }),
+        ...(executedSource && { source: executedSource }),
+        ...(tx.metamaskPay?.solanaExecution && {
+          solanaExecution: tx.metamaskPay.solanaExecution,
         }),
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         strategy,
@@ -841,7 +848,7 @@ async function getQuotes(
 ): Promise<{
   batchTransactions: BatchTransaction[];
   error?: QuoteErrorInfo;
-  quotes: TransactionPayQuote<Json>[];
+  quotes: (TransactionPayQuote<Json> | NonEvmTransactionPayQuote<Json>)[];
 }> {
   const { id: transactionId } = transaction;
   const strategies = getStrategiesByName(
@@ -900,18 +907,28 @@ async function getQuotes(
         continue;
       }
 
-      const quotes = (await strategy.getQuotes(
-        request,
-      )) as TransactionPayQuote<Json>[];
+      const quotes = (await strategy.getQuotes(request)) as (
+        | TransactionPayQuote<Json>
+        | NonEvmTransactionPayQuote<Json>
+      )[];
 
       if (!quotes.length) {
         log('Strategy returned no quotes', { strategy: name, transactionId });
         continue;
       }
 
+      // Non-EVM quotes are signed outside the EVM batch, so the EVM-only
+      // post-quote support check and batch transactions do not apply.
+      if (nonEvmRequests.length) {
+        log('Updated non-EVM quotes', { transactionId, quotes });
+        return { batchTransactions: [], quotes };
+      }
+
+      const evmQuotes = quotes as TransactionPayQuote<Json>[];
+
       const isQuoteSupported = await checkStrategyQuoteSupport(strategy, {
         messenger,
-        quotes,
+        quotes: evmQuotes,
         signal,
         transaction,
       });
@@ -929,7 +946,7 @@ async function getQuotes(
       const batchTransactions = strategy.getBatchTransactions
         ? await strategy.getBatchTransactions({
             messenger,
-            quotes,
+            quotes: evmQuotes,
             signal,
           })
         : [];
@@ -961,7 +978,10 @@ async function getQuotes(
         return {
           batchTransactions: [],
           error: caughtError.info,
-          quotes: caughtError.quotes as TransactionPayQuote<Json>[],
+          quotes: caughtError.quotes as (
+            | TransactionPayQuote<Json>
+            | NonEvmTransactionPayQuote<Json>
+          )[],
         };
       }
 

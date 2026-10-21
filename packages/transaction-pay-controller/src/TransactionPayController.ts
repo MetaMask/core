@@ -1,6 +1,10 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type {
+  MetamaskPaySolanaExecution,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Draft } from 'immer';
 import { noop } from 'lodash-es';
 
@@ -12,12 +16,21 @@ import {
   TransactionPayStrategy,
 } from './constants.js';
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
+import { getRelayStatus } from './strategy/relay/relay-api.js';
+import {
+  applyRelayStatusObservation,
+  getSolanaPayFailure,
+  getSolanaPayStatus,
+  isTerminalSolanaPayOutcome,
+  persistSolanaExecution,
+} from './strategy/relay/solana-pay.js';
 import type {
   GetAmountDataCallback,
   GetBalanceCallback,
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
+  SolanaPayStatus,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -28,13 +41,19 @@ import type {
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types.js';
-import { getStrategyOrder } from './utils/feature-flags.js';
+import {
+  getRelayPollingInterval,
+  getRelayPollingTimeout,
+  getStrategyOrder,
+} from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import { isNonEvmPaymentToken, isSamePaymentToken } from './utils/token.js';
 import {
+  getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
+  updateTransaction,
 } from './utils/transaction.js';
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -45,6 +64,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getStrategy',
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
+  'reconcileSolanaPay',
+  'recoverSolanaPayStatus',
   'setTransactionConfig',
   'updateFiatPayment',
   'updatePaymentToken',
@@ -307,6 +328,153 @@ export class TransactionPayController extends BaseController<
     ...args: Parameters<PolymarketCallbacks['submitDepositWalletBatch']>
   ): ReturnType<PolymarketCallbacks['submitDepositWalletBatch']> {
     return this.#requirePolymarket().submitDepositWalletBatch(...args);
+  }
+
+  /**
+   * Observes a Solana Pay execution through Relay status and finalizes the
+   * externally published target transaction once the outcome is terminal.
+   *
+   * This method never signs, broadcasts, or notifies Relay.
+   *
+   * @param transactionId - Target transaction ID.
+   * @returns The latest observed status.
+   */
+  async reconcileSolanaPay(transactionId: string): Promise<SolanaPayStatus> {
+    const { requestId } = this.#requireSolanaExecution(transactionId);
+
+    const relayStatus = await getRelayStatus(requestId).then(
+      (status) => status,
+      () => undefined,
+    );
+
+    const execution = applyRelayStatusObservation(
+      this.#requireSolanaExecution(transactionId),
+      relayStatus,
+    );
+
+    persistSolanaExecution(
+      this.messenger,
+      transactionId,
+      execution,
+      'Observe Relay Solana status',
+    );
+
+    const status = getSolanaPayStatus(execution);
+    this.#finalizeSolanaPayTransaction(transactionId, status);
+    return status;
+  }
+
+  /**
+   * Observes every persisted Solana Pay execution that is not terminal,
+   * polling Relay until each one is terminal or the Relay polling timeout
+   * elapses.
+   *
+   * This method never signs, broadcasts, or notifies Relay.
+   *
+   * @returns Latest statuses keyed by target transaction ID.
+   */
+  async recoverSolanaPayStatus(): Promise<Record<string, SolanaPayStatus>> {
+    const { transactions } = this.messenger.call(
+      'TransactionController:getState',
+    );
+
+    const pending = transactions.filter((transaction) => {
+      const execution = transaction.metamaskPay?.solanaExecution;
+
+      return (
+        execution && !isTerminalSolanaPayOutcome(getSolanaPayStatus(execution))
+      );
+    });
+
+    const results: Record<string, SolanaPayStatus> = {};
+
+    for (const transaction of pending) {
+      results[transaction.id] = await this.#recoverSolanaPayExecution(
+        transaction.id,
+      );
+    }
+
+    return results;
+  }
+
+  async #recoverSolanaPayExecution(
+    transactionId: string,
+  ): Promise<SolanaPayStatus> {
+    const startTime = Date.now();
+
+    while (true) {
+      const status = await this.reconcileSolanaPay(transactionId);
+
+      if (isTerminalSolanaPayOutcome(status)) {
+        return status;
+      }
+
+      const timeout = getRelayPollingTimeout(this.messenger);
+
+      if (timeout && Date.now() - startTime >= timeout) {
+        return status;
+      }
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, getRelayPollingInterval(this.messenger)),
+      );
+    }
+  }
+
+  #finalizeSolanaPayTransaction(
+    transactionId: string,
+    status: SolanaPayStatus,
+  ): void {
+    const transaction = getTransaction(transactionId, this.messenger);
+
+    if (
+      transaction?.status !== TransactionStatus.submitted ||
+      !transaction.isExternalPublish
+    ) {
+      return;
+    }
+
+    const failure = getSolanaPayFailure(status);
+
+    if (failure) {
+      this.messenger.call(
+        'TransactionController:failTransaction',
+        transactionId,
+        new Error(failure),
+      );
+      return;
+    }
+
+    if (status.outcome !== 'succeeded') {
+      return;
+    }
+
+    updateTransaction(
+      {
+        transactionId,
+        messenger: this.messenger,
+        note: 'Intent complete after Relay Solana completion',
+      },
+      (draft) => {
+        draft.isIntentComplete = true;
+      },
+    );
+
+    this.messenger.call(
+      'TransactionController:confirmTransaction',
+      transactionId,
+    );
+  }
+
+  #requireSolanaExecution(transactionId: string): MetamaskPaySolanaExecution {
+    const execution = getTransaction(transactionId, this.messenger)?.metamaskPay
+      ?.solanaExecution;
+
+    if (!execution) {
+      throw new Error('TransactionPayController: Solana execution missing');
+    }
+
+    return execution;
   }
 
   #requirePolymarket(): PolymarketCallbacks {
