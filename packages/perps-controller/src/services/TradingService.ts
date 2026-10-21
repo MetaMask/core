@@ -593,16 +593,17 @@ export class TradingService {
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
-   * @param options.feeResolution - The resolved fee and attribution source.
+   * @param options.resolveFee - Resolves the fee after this operation acquires
+   * the fee context, so an expiring candidate cannot go stale in the queue.
    * @param options.operation - The operation value.
    * @returns The result of the operation.
    */
   async #withFeeDiscount<TResult>(options: {
     provider: PerpsProvider;
-    feeResolution?: PerpsFeeResolution;
+    resolveFee: () => Promise<PerpsFeeResolution | undefined>;
     operation: () => Promise<TResult>;
   }): Promise<TResult> {
-    const { provider, feeResolution, operation } = options;
+    const { provider, resolveFee, operation } = options;
     const previous = this.#feeContextTail;
     let release: () => void = () => undefined;
     this.#feeContextTail = new Promise<void>((resolve) => {
@@ -611,6 +612,7 @@ export class TradingService {
     await previous;
 
     try {
+      const feeResolution = await resolveFee();
       if (provider.setUserFeeResolution) {
         provider.setUserFeeResolution(feeResolution);
       } else if (provider.setUserFeeDiscount) {
@@ -732,20 +734,6 @@ export class TradingService {
         },
       });
 
-      // Calculate fee discount at execution time (fresh, secure)
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-        this.#resolveOrderNotionalUsd(params),
-        provider,
-        context,
-        params.providerId,
-      );
-
-      this.#deps.debugLogger.log('TradingService: Fee resolution calculated', {
-        feeDiscountBips: feeResolution?.discountBips,
-        feeSource: feeResolution?.source,
-        hasDiscount: feeResolution?.discountBips !== undefined,
-      });
-
       this.#deps.debugLogger.log(
         'TradingService: Submitting order to provider',
         {
@@ -805,7 +793,23 @@ export class TradingService {
       }, PERPS_CONSTANTS.PlaceOrderTimeoutMs);
       const result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: async () => {
+          const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+            this.#resolveOrderNotionalUsd(params),
+            provider,
+            context,
+            params.providerId,
+          );
+          this.#deps.debugLogger.log(
+            'TradingService: Fee resolution calculated',
+            {
+              feeDiscountBips: feeResolution?.discountBips,
+              feeSource: feeResolution?.source,
+              hasDiscount: feeResolution?.discountBips !== undefined,
+            },
+          );
+          return feeResolution;
+        },
         operation: () => provider.placeOrder(params),
       });
       if (orderSubmissionThresholdTimeoutId !== undefined) {
@@ -1677,18 +1681,16 @@ export class TradingService {
         },
       });
 
-      // Calculate fee discount only if required dependencies are available
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-        this.#resolveOrderNotionalUsd(params.newOrder),
-        provider,
-        context,
-        params.newOrder.providerId,
-      );
-
       // Execute order edit with fee discount management
       const result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            this.#resolveOrderNotionalUsd(params.newOrder),
+            provider,
+            context,
+            params.newOrder.providerId,
+          ),
         operation: () => provider.editOrder(params),
       });
 
@@ -2242,7 +2244,7 @@ export class TradingService {
       // only a symbol, so `params` alone prices it as undefined and the resolver
       // would quote a full waiver on an order the preview blended. The position
       // loaded above is the authoritative notional for exactly that case.
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+      const closeNotionalUsd =
         this.#resolveOrderNotionalUsd({
           ...params,
           // A partial close names a size but often no price; the position's own
@@ -2251,18 +2253,20 @@ export class TradingService {
           currentPrice:
             params.currentPrice ?? this.#resolvePositionUnitPrice(position),
         }) ??
-          this.#resolveOrderNotionalUsd({
-            usdAmount: position?.positionValue,
-          }),
-        provider,
-        context,
-        params.providerId,
-      );
+        this.#resolveOrderNotionalUsd({
+          usdAmount: position?.positionValue,
+        });
 
       // Execute position close with fee discount management
       result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            closeNotionalUsd,
+            provider,
+            context,
+            params.providerId,
+          ),
         operation: () => provider.closePosition(params),
       });
 
@@ -2418,15 +2422,19 @@ export class TradingService {
       if (provider.closePositions) {
         // The batch submits under one builder context, so its notional is the
         // sum of the positions it will close, not any single one of them.
-        const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-          await this.#resolveBatchCloseNotionalUsd({ params, provider }),
+        const batchCloseNotionalUsd = await this.#resolveBatchCloseNotionalUsd({
+          params,
           provider,
-          context,
-        );
+        });
 
         operationResult = await this.#withFeeDiscount({
           provider,
-          feeResolution,
+          resolveFee: () =>
+            this.#calculateFeeDiscountWithMeasurement(
+              batchCloseNotionalUsd,
+              provider,
+              context,
+            ),
           operation: async () => {
             if (!provider.closePositions) {
               throw new Error('closePositions method not available');
@@ -2697,17 +2705,16 @@ export class TradingService {
         pricedTriggerNotionalsUsd.length === triggerNotionalsUsd.length
           ? Math.max(...pricedTriggerNotionalsUsd)
           : undefined;
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-        tpslNotionalUsd,
-        provider,
-        context,
-        params.providerId,
-      );
-
       // Execute with fee discount management
       result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            tpslNotionalUsd,
+            provider,
+            context,
+            params.providerId,
+          ),
         operation: () => provider.updatePositionTPSL(params),
       });
 
@@ -3044,16 +3051,16 @@ export class TradingService {
       const flipNotionalUsd = this.#resolveOrderNotionalUsd({
         usdAmount: position.positionValue,
       });
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-        flipNotionalUsd === undefined ? undefined : flipNotionalUsd * 2,
-        provider,
-        context,
-        position.providerId,
-      );
       // Place flip order (HyperLiquid handles margin transfer automatically)
       const result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            flipNotionalUsd === undefined ? undefined : flipNotionalUsd * 2,
+            provider,
+            context,
+            position.providerId,
+          ),
         operation: () => provider.placeOrder(orderParams),
       });
 

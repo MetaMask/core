@@ -545,6 +545,85 @@ describe('TradingService', () => {
       ]);
     });
 
+    it('resolves a queued order fee only after an earlier order releases the fee context', async () => {
+      jest.useFakeTimers();
+      const now = new Date('2026-10-21T12:00:00.000Z');
+      jest.setSystemTime(now);
+      const grantExpiresAt = now.getTime() + 1_000;
+      const defaultResolution = defaultFeeResolution;
+      const grantResolution: PerpsFeeResolution = {
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'grant',
+        subscription: { eligible: false, reason: 'not-entitled' },
+      };
+      const rewardsResolution: PerpsFeeResolution = {
+        feeBips: 5,
+        discountBips: 5000,
+        source: 'rewards',
+        subscription: { eligible: false, reason: 'not-entitled' },
+      };
+      mockRewardsIntegrationService.resolveFee
+        .mockResolvedValueOnce(defaultResolution)
+        .mockImplementation(async () =>
+          Date.now() < grantExpiresAt ? grantResolution : rewardsResolution,
+        );
+
+      let activeResolution: PerpsFeeResolution | undefined;
+      mockProvider.setUserFeeResolution = jest.fn((resolution) => {
+        activeResolution = resolution;
+      });
+      const releaseFirst = createDeferred<void>();
+      const firstStarted = createDeferred<void>();
+      const observed: Array<PerpsFeeResolution | undefined> = [];
+      mockProvider.placeOrder.mockImplementation(async (params) => {
+        observed.push(activeResolution);
+        if (params.symbol === 'BTC') {
+          firstStarted.resolve();
+          await releaseFirst.promise;
+        }
+        return { success: true };
+      });
+
+      try {
+        const first = tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+        await firstStarted.promise;
+
+        const second = tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'ETH',
+            isBuy: true,
+            size: '1',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        jest.setSystemTime(grantExpiresAt);
+        releaseFirst.resolve();
+        await Promise.all([first, second]);
+
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledTimes(
+          2,
+        );
+        expect(observed).toStrictEqual([defaultResolution, rewardsResolution]);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     it('places order successfully without fee discount', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',

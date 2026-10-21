@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Resolve submission fees only after acquiring the serialized provider fee context, preventing a grant from expiring while its order waits behind another submission and then being applied stale. ([#10664](https://github.com/MetaMask/core/pull/10664))
 - Route `flipPosition` through `position.providerId` so the fee grant and the flip `placeOrder` use the same venue. Aggregated providers otherwise resolve the grant for the position's venue and submit the order to the default provider.
 
 ## [20.1.0]
