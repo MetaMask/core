@@ -1,4 +1,5 @@
 import type { Eip1193Provider } from 'ethers';
+import { describe, expect, it, vi } from 'vitest';
 
 import { Env, Platform } from '../shared/env.js';
 import { arrangeAuthAPIs, handleMockSocialLogin } from './__fixtures__/auth.js';
@@ -221,9 +222,9 @@ describe('Authentication - SRP Flow - getAccessToken(), getUserProfile() & getUs
     arrangeAuthAPIs();
 
     // Spy on the service methods to count how many times they're called
-    const getNonceSpy = jest.spyOn(AuthServices, 'getNonce');
-    const authenticateSpy = jest.spyOn(AuthServices, 'authenticate');
-    const authorizeOIDCSpy = jest.spyOn(AuthServices, 'authorizeOIDC');
+    const getNonceSpy = vi.spyOn(AuthServices, 'getNonce');
+    const authenticateSpy = vi.spyOn(AuthServices, 'authenticate');
+    const authorizeOIDCSpy = vi.spyOn(AuthServices, 'authorizeOIDC');
 
     // Make three concurrent login attempts
     const loginPromise1 = auth.getAccessToken();
@@ -603,7 +604,7 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
 
 describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', () => {
   const arrangeProvider = () => {
-    const mockRequest = jest.fn().mockImplementation((arg) => {
+    const mockRequest = vi.fn().mockImplementation((arg) => {
       if (arg.params.request.method === 'getPublicKey') {
         return MOCK_SRP;
       }
@@ -615,7 +616,7 @@ describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', 
       throw new Error('MOCK - unsupported mock implementation');
     });
 
-    const mockGetProvider = jest
+    const mockGetProvider = vi
       .spyOn(Eip6963MetamaskProvider, 'getMetaMaskProviderEIP6963')
       .mockResolvedValue({
         request: mockRequest,
