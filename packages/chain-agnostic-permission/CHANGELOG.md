@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getEthAccountsForScope` to get the Ethereum accounts permitted for a single scope of a CAIP-25 caveat value ([#10907](https://github.com/MetaMask/core/pull/10907))
+- Add `getEthAccountsForScope` to get the Ethereum accounts permitted for a single scope of a CAIP-25 caveat value ([#10915](https://github.com/MetaMask/core/pull/10915))
 
 ### Changed
 
