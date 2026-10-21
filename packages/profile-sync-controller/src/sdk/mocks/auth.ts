@@ -81,6 +81,13 @@ export const MOCK_MFA_ENROLL_EMAIL_RESPONSE = {
   expires_at: '2099-09-07T14:30:00Z',
 };
 
+export const MOCK_MFA_ENROLL_TOTP_RESPONSE = {
+  flow_id: 'enroll-totp-flow-id',
+  expires_at: '2099-09-07T14:30:00Z',
+  totp_secret: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',
+  totp_qr: 'data:image/png;base64,iVBORw0KGgo=',
+};
+
 export const MOCK_MFA_VERIFY_PASSKEY_RESPONSE = {
   flow_id: 'verify-passkey-flow-id',
   expires_at: '2099-09-07T14:30:00Z',

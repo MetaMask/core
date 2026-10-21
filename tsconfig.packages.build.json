@@ -9,7 +9,7 @@
     "inlineSources": true,
     "sourceMap": true,
     "skipLibCheck": true,
-    "types": ["node", "jest"]
+    "types": ["node"]
   },
   "exclude": [
     "./jest.config.packages.ts",

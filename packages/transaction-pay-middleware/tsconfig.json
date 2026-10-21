@@ -3,6 +3,28 @@
   "compilerOptions": {
     "types": ["jest"]
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../perps-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

@@ -13,6 +13,7 @@ import {
   arrangeAuthAPIs,
   handleMockSocialLogin,
 } from '../../sdk/__fixtures__/auth.js';
+import { buildTotpSetupUri } from '../../sdk/authentication-jwt-bearer/mfa/services.js';
 import type { LoginResponse } from '../../sdk/index.js';
 import {
   EmailRequiredError,
@@ -25,6 +26,7 @@ import {
   MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
   MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
   MOCK_MFA_ENROLL_EMAIL_RESPONSE,
+  MOCK_MFA_ENROLL_TOTP_RESPONSE,
   MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
   MOCK_SOCIAL_LOGIN_RESPONSE,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
@@ -2767,6 +2769,42 @@ describe('MFA credential enrollment', () => {
         reason: { operation: 'settings.addPasskey' },
       }),
     ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+  });
+
+  it('enrolls an authenticator app without touching the SRP session', async () => {
+    mockEndpointMfaEnroll({
+      status: 200,
+      body: MOCK_MFA_ENROLL_TOTP_RESPONSE,
+    });
+    mockEndpointMfaEnrollComplete();
+    mockEndpointMfaCredentials();
+    const { controller } = createController();
+    const sessionBefore =
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]];
+
+    expect(
+      await controller.beginCredentialEnrollment({
+        type: 'totp',
+        reason: { operation: 'settings.addAuthenticatorApp' },
+      }),
+    ).toStrictEqual({
+      type: 'totp',
+      flowId: 'enroll-totp-flow-id',
+      expiresAt: Date.parse('2099-09-07T14:30:00Z'),
+      secret: MOCK_MFA_ENROLL_TOTP_RESPONSE.totp_secret,
+      qrCode: MOCK_MFA_ENROLL_TOTP_RESPONSE.totp_qr,
+      setupUri: buildTotpSetupUri(MOCK_MFA_ENROLL_TOTP_RESPONSE.totp_secret),
+    });
+    await controller.completeCredentialEnrollment({
+      flowId: 'enroll-totp-flow-id',
+      proof: { type: 'totp', code: '123456' },
+      reason: { operation: 'settings.addAuthenticatorApp' },
+    });
+
+    // Only email enrollment adds a token claim that needs a new SRP session.
+    expect(
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]],
+    ).toStrictEqual(sessionBefore);
   });
 
   it('completes passkey enrollment, refreshes the cache and traces the caller operation', async () => {

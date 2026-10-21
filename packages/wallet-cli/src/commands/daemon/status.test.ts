@@ -1,6 +1,6 @@
+import { runCommand } from '../../../tests/run-command.js';
 import { pingDaemon, sendCommand } from '../../daemon/daemon-client.js';
 import { isProcessAlive, readPidFile } from '../../daemon/utils.js';
-import { runCommand } from '../../test/run-command.js';
 import DaemonStatus from './status.js';
 
 jest.mock('../../daemon/daemon-client');
