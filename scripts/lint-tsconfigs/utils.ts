@@ -1,11 +1,10 @@
+import { fileExists, readFile, readJsonFile } from '@metamask/node-utils';
 import * as commentJson from 'comment-json';
 import { execa } from 'execa';
 import fs from 'fs';
 import type { FormatConfig } from 'oxfmt';
 import { format as oxfmtFormat } from 'oxfmt';
 import path from 'path';
-
-import { fileExists, readFile, readJsonFile } from '../lib/utils.ts';
 
 const REPO_ROOT = path.join(import.meta.dirname, '..', '..');
 
