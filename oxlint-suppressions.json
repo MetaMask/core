@@ -6484,10 +6484,10 @@
       "count": 5
     },
     "typescript/no-unsafe-call": {
-      "count": 13
+      "count": 16
     },
     "typescript/no-unsafe-member-access": {
-      "count": 14
+      "count": 17
     },
     "typescript/no-unsafe-return": {
       "count": 1
@@ -6701,13 +6701,13 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit-non-evm.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 24
+      "count": 29
     },
     "typescript/no-unsafe-call": {
-      "count": 10
+      "count": 14
     },
     "typescript/no-unsafe-member-access": {
-      "count": 10
+      "count": 14
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit.test.ts": {

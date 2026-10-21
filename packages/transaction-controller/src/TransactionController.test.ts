@@ -1300,7 +1300,7 @@ describe('TransactionController', () => {
                   isExternalSign: true,
                   metamaskPay: { solanaExecution },
                   status: TransactionStatus.approved,
-                } as TransactionMeta,
+                },
               ],
             },
           },
@@ -1313,7 +1313,7 @@ describe('TransactionController', () => {
           const { controller } = setupWithCheckpoint({
             ...solanaExecutionMock,
             phase,
-          } as MetamaskPaySolanaExecution);
+          });
 
           await flushPromises();
 
@@ -1342,7 +1342,7 @@ describe('TransactionController', () => {
         const { controller } = setupWithCheckpoint({
           ...solanaExecutionMock,
           phase: 'ready',
-        } as MetamaskPaySolanaExecution);
+        });
 
         await flushPromises();
 

@@ -21,7 +21,7 @@ const TRANSACTION_META_MOCK = {
 const QUOTE_MOCK = {
   request: { sourceChainId: '0x1' },
   strategy: TransactionPayStrategy.Across,
-} as TransactionPayQuote<unknown>;
+} as unknown as TransactionPayQuote<unknown>;
 
 const NON_EVM_PAYMENT_TOKEN_MOCK = {
   accountId:
