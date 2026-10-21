@@ -57,6 +57,13 @@ type SnapFee = {
   asset: { amount: string };
 };
 
+/** Error thrown when a compiled Solana transaction exceeds the size limit. */
+export class SolanaTransactionTooLargeError extends Error {
+  constructor() {
+    super('Solana transaction exceeds the size limit');
+  }
+}
+
 /** Unsigned Solana transaction compiled by Core from a Relay payload. */
 export type CompiledSolanaTransaction = {
   /** Base64 wire encoding of the unsigned v0 transaction. */
@@ -133,7 +140,7 @@ export async function compileRelaySolanaTransaction({
   );
 
   if (!isTransactionWithinSizeLimit(compiled)) {
-    throw new Error('Solana transaction exceeds the size limit');
+    throw new SolanaTransactionTooLargeError();
   }
 
   return {

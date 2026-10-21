@@ -22,6 +22,7 @@ import {
 } from './relay-api.js';
 import { getRelaySolanaQuotes } from './relay-solana-quotes.js';
 import {
+  SolanaTransactionTooLargeError,
   compileRelaySolanaTransaction,
   computeSolanaFeeRaw,
   getAccountSnapId,
@@ -43,7 +44,13 @@ jest.mock('../../utils/gas', () => ({
     usd: '1',
   }),
 }));
-jest.mock('./solana-transaction');
+jest.mock('./solana-transaction', () => ({
+  ...jest.requireActual('./solana-transaction'),
+  compileRelaySolanaTransaction: jest.fn(),
+  computeSolanaFeeRaw: jest.fn(),
+  getAccountSnapId: jest.fn(),
+  getSolanaRentReserveRaw: jest.fn(),
+}));
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
   isRelaySolanaEnabled: jest.fn(),
@@ -512,6 +519,49 @@ describe('getRelaySolanaQuotes', () => {
       amount: '99104120',
       maxRouteLength: 4,
     });
+  });
+
+  it('retries once with maxRouteLength 4 when the compiled transaction exceeds the size limit', async () => {
+    compileMock.mockRejectedValueOnce(new SolanaTransactionTooLargeError());
+
+    const quotes = await getRelaySolanaQuotes(getFullRequest([getRequest()]));
+
+    expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledTimes(2);
+    expect(fetchRelaySolanaQuoteMock.mock.calls[1][1]).toMatchObject({
+      maxRouteLength: 4,
+    });
+    expect(compileMock).toHaveBeenCalledTimes(2);
+    expect(quotes[0].original.request.maxRouteLength).toBe(4);
+  });
+
+  it('surfaces a second local size limit failure', async () => {
+    compileMock.mockRejectedValue(new SolanaTransactionTooLargeError());
+
+    await expect(
+      getRelaySolanaQuotes(getFullRequest([getRequest()])),
+    ).rejects.toThrow('Solana transaction exceeds the size limit');
+    expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry a local size limit failure after a SOLANA_TX_TOO_LARGE retry', async () => {
+    fetchRelaySolanaQuoteMock.mockRejectedValueOnce(
+      new RelayApiError('400 - transaction too large', 'SOLANA_TX_TOO_LARGE'),
+    );
+    compileMock.mockRejectedValue(new SolanaTransactionTooLargeError());
+
+    await expect(
+      getRelaySolanaQuotes(getFullRequest([getRequest()])),
+    ).rejects.toThrow('Solana transaction exceeds the size limit');
+    expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry other compile errors', async () => {
+    compileMock.mockRejectedValue(new Error('Solana RPC failed'));
+
+    await expect(
+      getRelaySolanaQuotes(getFullRequest([getRequest()])),
+    ).rejects.toThrow('Solana RPC failed');
+    expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledTimes(1);
   });
 
   it('surfaces a second SOLANA_TX_TOO_LARGE rejection', async () => {

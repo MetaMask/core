@@ -5,6 +5,7 @@ import { getTransactionDecoder } from '@solana/transactions';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import {
+  SolanaTransactionTooLargeError,
   compileRelaySolanaTransaction,
   computeSolanaFeeRaw,
   getAccountSnapId,
@@ -321,7 +322,7 @@ describe('solana-transaction', () => {
             ],
           },
         }),
-      ).rejects.toThrow('Solana transaction exceeds the size limit');
+      ).rejects.toThrow(SolanaTransactionTooLargeError);
     });
   });
 

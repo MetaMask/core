@@ -35,11 +35,13 @@ import {
   isSolanaNativeRequest,
 } from './solana-pay.js';
 import {
+  SolanaTransactionTooLargeError,
   compileRelaySolanaTransaction,
   computeSolanaFeeRaw,
   getAccountSnapId,
   getSolanaRentReserveRaw,
 } from './solana-transaction.js';
+import type { CompiledSolanaTransaction } from './solana-transaction.js';
 import type {
   RelaySolanaPayQuote,
   RelaySolanaQuote,
@@ -124,8 +126,12 @@ async function getSingleSolanaQuote(
     messenger,
   );
 
-  let quote = await fetchSolanaQuote(messenger, quoteRequest, signal);
-  let compiled = await compileQuote(messenger, request, quote);
+  let { compiled, quote } = await fetchCompiledSolanaQuote(
+    messenger,
+    request,
+    quoteRequest,
+    signal,
+  );
   let feeRaw = await computeFee(
     messenger,
     request,
@@ -144,8 +150,9 @@ async function getSingleSolanaQuote(
     const maxQuoteFeeRaw = feeRaw;
 
     const requoteMax = async (withheldFeeRaw: string): Promise<void> => {
-      quote = await fetchSolanaQuote(
+      ({ compiled, quote } = await fetchCompiledSolanaQuote(
         messenger,
+        request,
         {
           ...quote.request,
           amount: getMaxNativeAmountRaw(
@@ -155,8 +162,7 @@ async function getSingleSolanaQuote(
           ),
         },
         signal,
-      );
-      compiled = await compileQuote(messenger, request, quote);
+      ));
       feeRaw = await computeFee(
         messenger,
         request,
@@ -281,11 +287,57 @@ async function fetchSolanaQuote(
   }
 }
 
+/**
+ * Fetches a Solana quote and compiles its transaction, retrying the quote once
+ * with a shorter route when the compiled transaction exceeds the size limit.
+ *
+ * @param messenger - Controller messenger.
+ * @param request - Non-EVM quote request.
+ * @param quoteRequest - Relay Solana request.
+ * @param signal - Abort signal.
+ * @returns The Relay quote and its compiled transaction.
+ */
+async function fetchCompiledSolanaQuote(
+  messenger: TransactionPayControllerMessenger,
+  request: NonEvmQuoteRequest,
+  quoteRequest: RelaySolanaQuoteRequest,
+  signal?: AbortSignal,
+): Promise<{
+  compiled: CompiledSolanaTransaction;
+  quote: RelaySolanaQuote;
+}> {
+  const quote = await fetchSolanaQuote(messenger, quoteRequest, signal);
+
+  try {
+    return { compiled: await compileQuote(messenger, request, quote), quote };
+  } catch (error) {
+    if (
+      !(error instanceof SolanaTransactionTooLargeError) ||
+      quote.request.maxRouteLength !== undefined
+    ) {
+      throw error;
+    }
+
+    log('Retrying Solana quote with a shorter route after local size check');
+
+    const shorterQuote = await fetchRelaySolanaQuote(
+      messenger,
+      { ...quote.request, maxRouteLength: SOLANA_MAX_ROUTE_LENGTH },
+      signal,
+    );
+
+    return {
+      compiled: await compileQuote(messenger, request, shorterQuote),
+      quote: shorterQuote,
+    };
+  }
+}
+
 async function compileQuote(
   messenger: TransactionPayControllerMessenger,
   request: NonEvmQuoteRequest,
   quote: RelaySolanaQuote,
-): ReturnType<typeof compileRelaySolanaTransaction> {
+): Promise<CompiledSolanaTransaction> {
   return await compileRelaySolanaTransaction({
     messenger,
     payer: getSolanaSourceAddress(request),
