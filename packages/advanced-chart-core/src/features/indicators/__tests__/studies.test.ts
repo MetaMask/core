@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import type { IndicatorColors, TVActiveChart } from '../../../core/types.js';
 import {
   createIndicatorStudy,
@@ -87,7 +89,7 @@ describe('isSubPanePreset', () => {
 
 describe('createIndicatorStudy', () => {
   it('forwards the preset to chart.createStudy', async () => {
-    const createStudy = jest.fn().mockResolvedValue('study-1');
+    const createStudy = vi.fn().mockResolvedValue('study-1');
     const chart = { createStudy } as unknown as TVActiveChart;
     const preset = resolveStudyPreset('MACD', colors);
     const id = await createIndicatorStudy(chart, preset);

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { HIP3_ASSET_MARKET_TYPES } from '../../../src/constants/hyperLiquidConfig.js';
 import { MarketCategory, MARKET_CATEGORIES } from '../../../src/types/index.js';
 import type { MarketType, MarketTypeFilter } from '../../../src/types/index.js';

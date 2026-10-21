@@ -1,3 +1,7 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
+import * as bridgeModule from '../../../core/bridge.js';
 import {
   _resetStateForTests,
   doesLegendOwnLayoutSettle,
@@ -27,19 +31,17 @@ import {
   updateLegendOverlayLayout,
 } from '../legend.js';
 
-jest.mock('../../../core/bridge', () => ({
-  postToRN: jest.fn(),
+vi.mock('../../../core/bridge', () => ({
+  postToRN: vi.fn(),
 }));
 
-jest.mock('../../../widget/tvDomHelpers', () => ({
-  eachChartDocument: jest.fn((fn: (doc: Document) => void) => {
+vi.mock('../../../widget/tvDomHelpers', () => ({
+  eachChartDocument: vi.fn((fn: (doc: Document) => void) => {
     fn(globalThis.document);
   }),
 }));
 
-const { postToRN } = jest.requireMock<{
-  postToRN: jest.Mock;
-}>('../../../core/bridge');
+const { postToRN } = bridgeModule as unknown as Record<string, Mock>;
 
 const OVERLAY_ID = 'study-legend-overlay';
 
@@ -76,18 +78,18 @@ const makeChart = (
   exportDataResult?: TVExportData | Error,
   paneHeights: number[] = [300],
   studyPaneMap: Record<string, number> = {},
-): { chart: TVActiveChart; exportData: jest.Mock } => {
+): { chart: TVActiveChart; exportData: Mock } => {
   const exportData =
     exportDataResult instanceof Error
-      ? jest.fn().mockRejectedValue(exportDataResult)
-      : jest.fn().mockResolvedValue(exportDataResult ?? makeExportData([], []));
-  const getStudyById = jest.fn().mockImplementation((id: string) => {
+      ? vi.fn().mockRejectedValue(exportDataResult)
+      : vi.fn().mockResolvedValue(exportDataResult ?? makeExportData([], []));
+  const getStudyById = vi.fn().mockImplementation((id: string) => {
     const paneIdx = studyPaneMap[id];
     if (paneIdx !== undefined) {
       return {
         paneIndex: (): number => paneIdx,
-        onDataLoaded: (): { subscribe: jest.Mock } => ({
-          subscribe: jest.fn(),
+        onDataLoaded: (): { subscribe: Mock } => ({
+          subscribe: vi.fn(),
         }),
       };
     }
@@ -96,7 +98,7 @@ const makeChart = (
   const chart = {
     exportData,
     getStudyById,
-    getAllPanesHeight: jest.fn().mockReturnValue(paneHeights),
+    getAllPanesHeight: vi.fn().mockReturnValue(paneHeights),
   } as unknown as TVActiveChart;
   return { chart, exportData };
 };
@@ -218,14 +220,14 @@ const enableOverlayWithStudies = (
 
 describe('legend', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((callback: FrameRequestCallback) => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback: FrameRequestCallback) => {
         const frameTime = 0;
         callback(frameTime);
         return 0;
-      });
+      },
+    );
     _resetStateForTests();
     _resetLegendForTests();
     document.body.innerHTML = '';
@@ -233,8 +235,8 @@ describe('legend', () => {
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
-    jest.useRealTimers();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   describe('setupLegendOverlay', () => {
@@ -298,7 +300,7 @@ describe('legend', () => {
   describe('attachLegendResizeListener', () => {
     const mockActiveChart = (): TVActiveChart =>
       ({
-        getAllPanesHeight: jest.fn().mockReturnValue([300]),
+        getAllPanesHeight: vi.fn().mockReturnValue([300]),
       }) as unknown as TVActiveChart;
 
     it('subscribes to panes_height_changed and triggers layout update', () => {
@@ -310,7 +312,7 @@ describe('legend', () => {
       });
       let handler: (() => void) | undefined;
       const widget = {
-        subscribe: jest.fn((_event: string, callback: () => void) => {
+        subscribe: vi.fn((_event: string, callback: () => void) => {
           handler = callback;
         }),
         activeChart: mockActiveChart,
@@ -328,7 +330,7 @@ describe('legend', () => {
 
     it('does not throw when subscribe throws', () => {
       const widget = {
-        subscribe: jest.fn(() => {
+        subscribe: vi.fn(() => {
           throw new Error('not ready');
         }),
         activeChart: mockActiveChart,
@@ -339,7 +341,7 @@ describe('legend', () => {
     it('does not update layout when overlay element is missing', () => {
       let handler: (() => void) | undefined;
       const widget = {
-        subscribe: jest.fn((_event: string, callback: () => void) => {
+        subscribe: vi.fn((_event: string, callback: () => void) => {
           handler = callback;
         }),
         activeChart: mockActiveChart,
@@ -643,7 +645,7 @@ describe('legend', () => {
           [[1000, 12.5]],
         ),
       );
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
       expect(exportData).toHaveBeenCalledTimes(2);
     });
 
@@ -654,7 +656,7 @@ describe('legend', () => {
       registerStudy('active', 'MACD', 'sid-macd' as StudyId);
       refreshStudyLegendFromExport();
       await Promise.resolve();
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
       expect(exportData).toHaveBeenCalledTimes(2);
     });
 
@@ -671,7 +673,7 @@ describe('legend', () => {
       registerStudy('active', 'RSI', 'sid-rsi' as StudyId);
       refreshStudyLegendFromExport();
       await Promise.resolve();
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
       expect(exportData).toHaveBeenCalledTimes(2);
     });
 
@@ -684,7 +686,7 @@ describe('legend', () => {
         refreshStudyLegendFromExport();
         await Promise.resolve();
         await Promise.resolve();
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
       }
 
       expect(postToRN).toHaveBeenCalledWith('LEGEND_RENDERED', {});
@@ -695,7 +697,7 @@ describe('legend', () => {
       enableOverlayWithStudies(chart);
       registerStudy('active', 'MACD', 'sid-macd' as StudyId);
       refreshStudyLegendFromExport();
-      jest.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(3000);
       expect(postToRN).toHaveBeenCalledWith('LEGEND_RENDERED', {});
     });
 
@@ -941,8 +943,8 @@ describe('legend', () => {
         }),
       };
       const chart = {
-        getStudyById: jest.fn().mockReturnValue(study),
-        exportData: jest.fn().mockResolvedValue(makeExportData([], [])),
+        getStudyById: vi.fn().mockReturnValue(study),
+        exportData: vi.fn().mockResolvedValue(makeExportData([], [])),
       } as unknown as TVActiveChart;
       enableOverlayWithStudies(chart);
       registerStudy('active', 'RSI', 'sid-rsi' as StudyId);
@@ -954,7 +956,7 @@ describe('legend', () => {
 
     it('falls back to direct refresh when getStudyById throws', () => {
       const { chart, exportData } = makeChart();
-      (chart.getStudyById as jest.Mock).mockImplementation(() => {
+      (chart.getStudyById as Mock).mockImplementation(() => {
         throw new Error('not found');
       });
       enableOverlayWithStudies(chart);
@@ -965,7 +967,7 @@ describe('legend', () => {
 
     it('falls back to direct refresh when study has no onDataLoaded', () => {
       const { chart, exportData } = makeChart();
-      (chart.getStudyById as jest.Mock).mockReturnValue({});
+      (chart.getStudyById as Mock).mockReturnValue({});
       enableOverlayWithStudies(chart);
       registerStudy('active', 'RSI', 'sid-rsi' as StudyId);
       subscribeStudyDataLoaded(chart, 'sid-rsi' as StudyId);
@@ -974,7 +976,7 @@ describe('legend', () => {
 
     it('falls back to direct refresh when study is null', () => {
       const { chart, exportData } = makeChart();
-      (chart.getStudyById as jest.Mock).mockReturnValue(null);
+      (chart.getStudyById as Mock).mockReturnValue(null);
       enableOverlayWithStudies(chart);
       registerStudy('active', 'RSI', 'sid-rsi' as StudyId);
       subscribeStudyDataLoaded(chart, 'sid-rsi' as StudyId);
@@ -1066,7 +1068,7 @@ describe('legend', () => {
       setLegendOwnsLayoutSettle(true);
 
       refreshStudyLegendFromExport();
-      jest.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(3000);
 
       expect(postToRN).toHaveBeenCalledWith('CHART_LAYOUT_SETTLED', {});
       expect(doesLegendOwnLayoutSettle()).toBe(false);
@@ -1088,7 +1090,7 @@ describe('legend', () => {
       registerStudy('active', 'RSI', 'sid-rsi' as StudyId);
       refreshStudyLegendFromExport();
       await Promise.resolve();
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
       expect(exportData).toHaveBeenCalledTimes(2);
     });
   });
@@ -1105,9 +1107,9 @@ describe('legend', () => {
 
       const priceScale = { width: (): number => 50 };
       const chart = {
-        exportData: jest.fn().mockResolvedValue({ schema: [], data: [] }),
-        getStudyById: jest.fn().mockReturnValue(null),
-        getAllPanesHeight: jest.fn().mockReturnValue([400]),
+        exportData: vi.fn().mockResolvedValue({ schema: [], data: [] }),
+        getStudyById: vi.fn().mockReturnValue(null),
+        getAllPanesHeight: vi.fn().mockReturnValue([400]),
         getPanes: () => [
           {
             getRightPriceScales: (): (typeof priceScale)[] => [priceScale],
