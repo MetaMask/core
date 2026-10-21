@@ -464,11 +464,6 @@
       "count": 5
     }
   },
-  "packages/ai-controllers/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/analytics-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -1394,11 +1389,6 @@
       "count": 1
     }
   },
-  "packages/authenticated-user-storage/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/authenticated-user-storage/src/authenticated-user-storage.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 5
@@ -1978,9 +1968,9 @@
       "count": 9
     }
   },
-  "packages/claims-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+  "packages/claims-controller/src/ClaimsService.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/claims-controller/src/ClaimsService.ts": {
@@ -3831,17 +3821,17 @@
       "count": 1
     }
   },
-  "packages/passkey-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/passkey-controller/src/PasskeyController.test.ts": {
     "no-throw-literal": {
       "count": 2
     },
-    "typescript/no-unsafe-return": {
-      "count": 2
+    "vitest/no-conditional-in-test": {
+      "count": 4
+    }
+  },
+  "packages/passkey-controller/src/ceremony-manager.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/passkey-controller/src/constants.ts": {
@@ -3852,11 +3842,22 @@
   "packages/passkey-controller/src/webauthn/parse-authenticator-data.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 3
+    }
+  },
+  "packages/passkey-controller/src/webauthn/verify-authentication-response.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/passkey-controller/src/webauthn/verify-registration-response.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/permission-controller/jest.config.cjs": {
@@ -4668,11 +4669,6 @@
       "count": 1
     }
   },
-  "packages/seedless-onboarding-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/seedless-onboarding-controller/src/SecretMetadata.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -4684,6 +4680,9 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 17
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 5
     }
   },
   "packages/seedless-onboarding-controller/src/SeedlessOnboardingController.ts": {
@@ -4751,9 +4750,14 @@
       "count": 2
     }
   },
-  "packages/shield-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+  "packages/shield-controller/src/polling-with-policy.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 4
+    }
+  },
+  "packages/shield-controller/src/shield-api-service.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/signature-controller/jest.config.cjs": {
@@ -4989,14 +4993,9 @@
       "count": 1
     }
   },
-  "packages/social-controllers/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/social-controllers/src/SocialService.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 8
+  "packages/social-controllers/src/SocialRealtimeService.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 54
     }
   },
   "packages/solana-test-validator-up/jest.config.cjs": {
