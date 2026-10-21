@@ -389,12 +389,33 @@ export type RemoveCommentReactionOptions = {
 /**
  * Identifies a swap that may not be indexed yet. Prefer {@link CreateSwapCommentOptions.positionUid}
  * when the client already has a feed or positions `positionId`.
+ *
+ * A spot swap sends `transactionHash`. A Hyperliquid order that has not
+ * settled sends `orderId` (the exchange `oid`) instead: the fill hash does not
+ * exist yet, and social-api rejects a body that names both. For Hyperliquid,
+ * `tokenAddress` is the coin (for example `BTC`), not a contract address.
  */
 export type TradeInFlight = {
-  transactionHash: string;
   chain: string;
+  /**
+   * Contract address of the token traded, or the Hyperliquid coin (for example
+   * `BTC`) when `orderId` identifies the order.
+   */
   tokenAddress: string;
-};
+} & (
+  | {
+      transactionHash: string;
+      orderId?: never;
+    }
+  | {
+      /**
+       * Hyperliquid order id (`oid`) of an order just submitted. Digits only.
+       * The comment attaches once the fill is indexed.
+       */
+      orderId: string;
+      transactionHash?: never;
+    }
+);
 
 /**
  * Options for `POST /v1/swap-comments`. Provide exactly one of `positionUid`
@@ -435,6 +456,10 @@ export type SwapCommentAuthor = {
 
 /**
  * Response from `POST /v1/swap-comments`.
+ *
+ * `transactionHash` is empty when the comment was saved against a Hyperliquid
+ * `orderId` whose fill is not indexed yet. Social-api stamps the hash once the
+ * order settles.
  */
 export type SwapCommentResponse = {
   uid: string;
