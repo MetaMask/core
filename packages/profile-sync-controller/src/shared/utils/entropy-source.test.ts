@@ -1,5 +1,6 @@
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { KeyringObject } from '@metamask/keyring-controller';
+import { describe, expect, it } from 'vitest';
 
 import { getPrimaryHdKeyringEntropySourceId } from './entropy-source.js';
 

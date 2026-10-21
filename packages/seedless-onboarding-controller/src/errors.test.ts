@@ -1,5 +1,6 @@
 import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
 import { EncAccountDataType } from '@metamask/toprf-secure-backup';
+import { describe, expect, it } from 'vitest';
 
 import { SeedlessOnboardingControllerErrorMessage } from './constants.js';
 import { SecretType } from './constants.js';

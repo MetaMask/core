@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { Env } from '../../../shared/env.js';
 import {
   CredentialAlreadyEnrolledError,
@@ -33,7 +35,7 @@ import {
   toEnrolledCredential,
 } from './services.js';
 
-const mockFetch = jest.fn();
+const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 const registration = {

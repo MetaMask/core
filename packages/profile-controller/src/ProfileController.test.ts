@@ -4,6 +4,8 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type {
   Profile,
@@ -124,7 +126,7 @@ function getMessenger(
 function mockServiceAction(
   rootMessenger: RootMessenger,
   action: string,
-  implementation: jest.Mock,
+  implementation: Mock,
 ): void {
   rootMessenger.registerActionHandler(action as never, implementation as never);
 }
@@ -203,7 +205,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:createProfile',
-        jest.fn().mockResolvedValue(mockProfileResponse),
+        vi.fn().mockResolvedValue(mockProfileResponse),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -235,7 +237,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAccount',
-        jest.fn().mockResolvedValue(mockConnectXResponse),
+        vi.fn().mockResolvedValue(mockConnectXResponse),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -248,9 +250,7 @@ describe('ProfileController', () => {
   describe('createProfile', () => {
     it('calls ProfileService:createProfile and updates state', async () => {
       const rootMessenger = getRootMessenger();
-      const createProfileMock = jest
-        .fn()
-        .mockResolvedValue(mockProfileResponse);
+      const createProfileMock = vi.fn().mockResolvedValue(mockProfileResponse);
       mockServiceAction(
         rootMessenger,
         'ProfileService:createProfile',
@@ -280,7 +280,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:createProfile',
-        jest.fn().mockResolvedValue({ ...mockProfileResponse, bio: null }),
+        vi.fn().mockResolvedValue({ ...mockProfileResponse, bio: null }),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -304,7 +304,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:createProfile',
-        jest
+        vi
           .fn()
           .mockResolvedValue({ ...mockProfileResponse, connected_to_x: true }),
       );
@@ -330,7 +330,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:createProfile',
-        jest.fn().mockResolvedValue({
+        vi.fn().mockResolvedValue({
           ...mockProfileResponse,
           x_profile: mockConnectXResponse,
         }),
@@ -358,7 +358,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:createProfile',
-        jest.fn().mockResolvedValue(mockProfileResponse),
+        vi.fn().mockResolvedValue(mockProfileResponse),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -382,7 +382,7 @@ describe('ProfileController', () => {
   describe('replaceProfile', () => {
     it('calls ProfileService:replaceProfile with profileId from state and updates state', async () => {
       const rootMessenger = getRootMessenger();
-      const replaceProfileMock = jest
+      const replaceProfileMock = vi
         .fn()
         .mockResolvedValue({ ...mockProfileResponse, username: 'alice2' });
       mockServiceAction(
@@ -435,7 +435,7 @@ describe('ProfileController', () => {
   describe('updateProfile', () => {
     it('calls ProfileService:updateProfile with profileId from state and updates state', async () => {
       const rootMessenger = getRootMessenger();
-      const updateProfileMock = jest
+      const updateProfileMock = vi
         .fn()
         .mockResolvedValue({ ...mockProfileResponse, username: 'alice2' });
       mockServiceAction(
@@ -473,11 +473,11 @@ describe('ProfileController', () => {
   describe('deleteProfile', () => {
     it('calls ProfileService:deleteProfile using profileId from state and resets state including xProfile', async () => {
       const rootMessenger = getRootMessenger();
-      const deleteProfileMock = jest.fn().mockResolvedValue(undefined);
+      const deleteProfileMock = vi.fn().mockResolvedValue(undefined);
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAccount',
-        jest.fn().mockResolvedValue(mockConnectXResponse),
+        vi.fn().mockResolvedValue(mockConnectXResponse),
       );
       mockServiceAction(
         rootMessenger,
@@ -513,7 +513,7 @@ describe('ProfileController', () => {
   describe('checkUsernameAvailability', () => {
     it('delegates to ProfileService:checkUsernameAvailability', async () => {
       const rootMessenger = getRootMessenger();
-      const checkMock = jest.fn().mockResolvedValue(mockAvailabilityResponse);
+      const checkMock = vi.fn().mockResolvedValue(mockAvailabilityResponse);
       mockServiceAction(
         rootMessenger,
         'ProfileService:checkUsernameAvailability',
@@ -532,7 +532,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:checkUsernameAvailability',
-        jest.fn().mockResolvedValue(mockAvailabilityResponse),
+        vi.fn().mockResolvedValue(mockAvailabilityResponse),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -546,7 +546,7 @@ describe('ProfileController', () => {
   describe('connectX', () => {
     it('calls ProfileService:connectX with code and state, returns the X profile, and persists it in state', async () => {
       const rootMessenger = getRootMessenger();
-      const connectXMock = jest.fn().mockResolvedValue(mockConnectXResponse);
+      const connectXMock = vi.fn().mockResolvedValue(mockConnectXResponse);
       mockServiceAction(rootMessenger, 'ProfileService:connectX', connectXMock);
 
       const { controller, messenger } = createController({
@@ -558,7 +558,7 @@ describe('ProfileController', () => {
           },
         },
       });
-      const stateChangedListener = jest.fn();
+      const stateChangedListener = vi.fn();
       messenger.subscribe(
         'ProfileController:stateChanged',
         stateChangedListener,
@@ -583,7 +583,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:connectX',
-        jest.fn().mockRejectedValue(new Error('401 Unauthorized')),
+        vi.fn().mockRejectedValue(new Error('401 Unauthorized')),
       );
 
       const { controller } = createController({
@@ -608,7 +608,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:connectX',
-        jest.fn().mockResolvedValue(mockConnectXResponse),
+        vi.fn().mockResolvedValue(mockConnectXResponse),
       );
 
       const { controller } = createController({
@@ -634,7 +634,7 @@ describe('ProfileController', () => {
   describe('getXAuthorizationUrl', () => {
     it('calls ProfileService:getXAuthUrl with no arguments, returns the authorization URL and state, and does not update controller state', async () => {
       const rootMessenger = getRootMessenger();
-      const getXAuthUrlMock = jest.fn().mockResolvedValue(mockXAuthUrlResponse);
+      const getXAuthUrlMock = vi.fn().mockResolvedValue(mockXAuthUrlResponse);
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAuthUrl',
@@ -664,7 +664,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAuthUrl',
-        jest.fn().mockResolvedValue(mockXAuthUrlResponse),
+        vi.fn().mockResolvedValue(mockXAuthUrlResponse),
       );
 
       const { controller } = createController({
@@ -688,7 +688,7 @@ describe('ProfileController', () => {
   describe('fetchAndUpdateProfile', () => {
     it('calls ProfileService:getProfile with the profile ID, updates state, and returns the mapped profile', async () => {
       const rootMessenger = getRootMessenger();
-      const getProfileMock = jest.fn().mockResolvedValue(mockProfileResponse);
+      const getProfileMock = vi.fn().mockResolvedValue(mockProfileResponse);
       mockServiceAction(
         rootMessenger,
         'ProfileService:getProfile',
@@ -696,7 +696,7 @@ describe('ProfileController', () => {
       );
 
       const { controller, messenger } = createController({ rootMessenger });
-      const stateChangedListener = jest.fn();
+      const stateChangedListener = vi.fn();
       messenger.subscribe(
         'ProfileController:stateChanged',
         stateChangedListener,
@@ -716,7 +716,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:getProfile',
-        jest.fn().mockResolvedValue({
+        vi.fn().mockResolvedValue({
           ...mockProfileResponse,
           bio: null,
         }),
@@ -734,12 +734,12 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:getProfile',
-        jest.fn().mockResolvedValue(mockProfileResponse),
+        vi.fn().mockResolvedValue(mockProfileResponse),
       );
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAccount',
-        jest.fn().mockResolvedValue(mockConnectXResponse),
+        vi.fn().mockResolvedValue(mockConnectXResponse),
       );
 
       const { controller } = createController({
@@ -765,7 +765,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:getProfile',
-        jest.fn().mockRejectedValue(new Error('404 Not Found')),
+        vi.fn().mockRejectedValue(new Error('404 Not Found')),
       );
 
       const { controller } = createController({
@@ -783,7 +783,7 @@ describe('ProfileController', () => {
   describe('fetchAndUpdateXAccount', () => {
     it('calls ProfileService:getXAccount and updates xProfile in state', async () => {
       const rootMessenger = getRootMessenger();
-      const getXAccountMock = jest.fn().mockResolvedValue(mockConnectXResponse);
+      const getXAccountMock = vi.fn().mockResolvedValue(mockConnectXResponse);
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAccount',
@@ -802,7 +802,7 @@ describe('ProfileController', () => {
   describe('disconnectX', () => {
     it('calls ProfileService:disconnectX with the profile ID, clears xProfile, and sets connectedToX to false', async () => {
       const rootMessenger = getRootMessenger();
-      const disconnectXMock = jest.fn().mockResolvedValue(undefined);
+      const disconnectXMock = vi.fn().mockResolvedValue(undefined);
       mockServiceAction(
         rootMessenger,
         'ProfileService:disconnectX',
@@ -811,7 +811,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAccount',
-        jest.fn().mockResolvedValue(mockConnectXResponse),
+        vi.fn().mockResolvedValue(mockConnectXResponse),
       );
 
       const { controller, messenger } = createController({
@@ -827,7 +827,7 @@ describe('ProfileController', () => {
       await controller.fetchAndUpdateXAccount();
       expect(controller.state.xProfile).toStrictEqual(mockMappedXProfile);
 
-      const stateChangedListener = jest.fn();
+      const stateChangedListener = vi.fn();
       messenger.subscribe(
         'ProfileController:stateChanged',
         stateChangedListener,
@@ -847,12 +847,12 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:disconnectX',
-        jest.fn().mockResolvedValue(undefined),
+        vi.fn().mockResolvedValue(undefined),
       );
       mockServiceAction(
         rootMessenger,
         'ProfileService:getXAccount',
-        jest.fn().mockResolvedValue(mockConnectXResponse),
+        vi.fn().mockResolvedValue(mockConnectXResponse),
       );
 
       const { controller } = createController({
@@ -876,7 +876,7 @@ describe('ProfileController', () => {
 
     it('is callable via messenger action', async () => {
       const rootMessenger = getRootMessenger();
-      const disconnectXMock = jest.fn().mockResolvedValue(undefined);
+      const disconnectXMock = vi.fn().mockResolvedValue(undefined);
       mockServiceAction(
         rootMessenger,
         'ProfileService:disconnectX',

@@ -9,6 +9,8 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { MoneyAccount, MoneyAccountControllerMessenger } from './index.js';
 import {
@@ -134,15 +136,15 @@ function setup({
   mocks: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     KeyringController: {
-      withKeyring: jest.Mock;
-      addNewKeyring: jest.Mock;
+      withKeyring: Mock;
+      addNewKeyring: Mock;
     };
   };
 } {
   const mocks = {
     KeyringController: {
-      withKeyring: jest.fn(),
-      addNewKeyring: jest.fn(),
+      withKeyring: vi.fn(),
+      addNewKeyring: vi.fn(),
     },
   };
 
