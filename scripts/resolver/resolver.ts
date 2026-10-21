@@ -7,6 +7,8 @@ import type { ResolveFnOutput } from 'node:module';
  * files instead of the compiled JavaScript files.
  */
 const PACKAGE_SOURCE_OVERRIDES: Record<string, string> = {
+  '@metamask/error-utils': '../../packages/error-utils/src/index.ts',
+  '@metamask/type-utils': '../../packages/type-utils/src/index.ts',
   '@metamask/utils': '../../packages/utils/src/index.ts',
   '@metamask/utils/node': '../../packages/utils/src/node.ts',
 };
