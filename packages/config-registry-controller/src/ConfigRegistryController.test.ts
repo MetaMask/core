@@ -1430,6 +1430,257 @@ describe('ConfigRegistryController', () => {
     });
   });
 
+  describe('localConfigOverrides', () => {
+    it('merges partial overrides into the fallback config before first fetch', async () => {
+      const fallbackNetworks: Record<string, RegistryNetworkConfig> = {
+        'eip155:2': createMockNetworkConfig({
+          chainId: 'eip155:2',
+          name: 'Fallback Network',
+        }),
+      };
+
+      await withController(
+        {
+          options: {
+            fallbackConfig: fallbackNetworks,
+            localConfigOverrides: {
+              'eip155:2': { name: 'Local Network' },
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state.configs.networks['eip155:2']).toStrictEqual({
+            ...fallbackNetworks['eip155:2'],
+            name: 'Local Network',
+          });
+        },
+      );
+    });
+
+    it('merges overrides into persisted state networks', async () => {
+      const persistedNetworks: Record<string, RegistryNetworkConfig> = {
+        'eip155:1': createMockNetworkConfig({ name: 'Persisted Name' }),
+      };
+
+      await withController(
+        {
+          options: {
+            state: { configs: { networks: persistedNetworks } },
+            localConfigOverrides: {
+              'eip155:1': { name: 'Local Name' },
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state.configs.networks['eip155:1']).toStrictEqual({
+            ...persistedNetworks['eip155:1'],
+            name: 'Local Name',
+          });
+        },
+      );
+    });
+
+    it('merges overrides over API configs after fetch, keeping remote fields', async () => {
+      const remoteChain = createMockNetworkConfig({
+        chainId: 'eip155:1',
+        name: 'Remote Name',
+      });
+      const localOnlyChain = createMockNetworkConfig({
+        chainId: 'eip155:59144',
+        name: 'Linea',
+      });
+
+      await withController(
+        {
+          options: {
+            localConfigOverrides: {
+              'eip155:1': { name: 'Local Name' },
+              'eip155:59144': localOnlyChain,
+            },
+          },
+        },
+        async ({ controller, rootMessenger, mockApiServiceHandler }) => {
+          mockApiServiceHandler.mockResolvedValue({
+            data: {
+              data: {
+                version: '1.0.0',
+                timestamp: Date.now(),
+                chains: [remoteChain],
+              },
+            },
+            modified: true,
+          });
+
+          rootMessenger.call('ConfigRegistryController:startPolling', null);
+          await jest.advanceTimersByTimeAsync(0);
+
+          expect(controller.state.configs.networks['eip155:1']).toStrictEqual({
+            ...remoteChain,
+            name: 'Local Name',
+          });
+          expect(
+            controller.state.configs.networks['eip155:59144'],
+          ).toStrictEqual(localOnlyChain);
+        },
+      );
+    });
+
+    it('replaces sub-objects whole rather than deep merging', async () => {
+      const remoteChain = createMockNetworkConfig({ chainId: 'eip155:1' });
+      const localRpcProviders: RegistryNetworkConfig['rpcProviders'] = {
+        default: {
+          url: 'https://mainnet.example.io',
+          type: 'custom',
+          networkClientId: 'local-mainnet',
+        },
+        fallbacks: ['https://fallback.example.io'],
+      };
+
+      await withController(
+        {
+          options: {
+            localConfigOverrides: {
+              'eip155:1': { rpcProviders: localRpcProviders },
+            },
+          },
+        },
+        async ({ controller, rootMessenger, mockApiServiceHandler }) => {
+          mockApiServiceHandler.mockResolvedValue({
+            data: {
+              data: {
+                version: '1.0.0',
+                timestamp: Date.now(),
+                chains: [remoteChain],
+              },
+            },
+            modified: true,
+          });
+
+          rootMessenger.call('ConfigRegistryController:startPolling', null);
+          await jest.advanceTimersByTimeAsync(0);
+
+          expect(
+            controller.state.configs.networks['eip155:1']?.rpcProviders,
+          ).toStrictEqual(localRpcProviders);
+        },
+      );
+    });
+
+    it('skips an invalid override and captures the error', async () => {
+      await withController(
+        {
+          options: {
+            localConfigOverrides: {
+              // Missing every required field, and no remote/fallback chain
+              // exists to fill them in.
+              'eip155:9999': { name: 'Partial Only' },
+              'eip155:59144': createMockNetworkConfig({
+                chainId: 'eip155:59144',
+                name: 'Linea',
+              }),
+            },
+          },
+        },
+        ({ controller, rootMessenger }) => {
+          expect(
+            controller.state.configs.networks['eip155:9999'],
+          ).toBeUndefined();
+          expect(
+            controller.state.configs.networks['eip155:59144'],
+          ).toBeDefined();
+          expect(rootMessenger.captureException).toHaveBeenCalledWith(
+            expect.objectContaining({
+              message: expect.stringContaining('eip155:9999'),
+            }),
+          );
+        },
+      );
+    });
+
+    it('keeps the remote config when an override would make it invalid', async () => {
+      const remoteChain = createMockNetworkConfig({
+        chainId: 'eip155:1',
+        name: 'Remote Name',
+      });
+      const localOnlyChain = createMockNetworkConfig({
+        chainId: 'eip155:59144',
+        name: 'Linea',
+      });
+
+      await withController(
+        {
+          options: {
+            localConfigOverrides: {
+              'eip155:1': { name: undefined },
+              'eip155:59144': localOnlyChain,
+            },
+          },
+        },
+        async ({ controller, rootMessenger, mockApiServiceHandler }) => {
+          mockApiServiceHandler.mockResolvedValue({
+            data: {
+              data: {
+                version: '1.0.0',
+                timestamp: Date.now(),
+                chains: [remoteChain],
+              },
+            },
+            modified: true,
+          });
+
+          rootMessenger.call('ConfigRegistryController:startPolling', null);
+          await jest.advanceTimersByTimeAsync(0);
+
+          expect(controller.state.configs.networks['eip155:1']).toStrictEqual(
+            remoteChain,
+          );
+          expect(
+            controller.state.configs.networks['eip155:59144'],
+          ).toStrictEqual(localOnlyChain);
+          expect(rootMessenger.captureException).toHaveBeenCalledWith(
+            expect.objectContaining({
+              message: expect.stringContaining('eip155:1'),
+            }),
+          );
+        },
+      );
+    });
+
+    it('keeps overrides applied when a fetch is unmodified', async () => {
+      const remoteChain = createMockNetworkConfig({
+        chainId: 'eip155:1',
+        name: 'Remote Name',
+      });
+      const mergedNetworks: Record<string, RegistryNetworkConfig> = {
+        'eip155:1': { ...remoteChain, name: 'Local Name' },
+      };
+
+      await withController(
+        {
+          options: {
+            state: { configs: { networks: mergedNetworks } },
+            localConfigOverrides: {
+              'eip155:1': { name: 'Local Name' },
+            },
+          },
+        },
+        async ({ controller, rootMessenger, mockApiServiceHandler }) => {
+          mockApiServiceHandler.mockResolvedValue({
+            modified: false,
+            etag: '"test-etag"',
+          });
+
+          rootMessenger.call('ConfigRegistryController:startPolling', null);
+          await jest.advanceTimersByTimeAsync(0);
+
+          expect(controller.state.configs.networks['eip155:1']?.name).toBe(
+            'Local Name',
+          );
+        },
+      );
+    });
+  });
+
   describe('KeyringController event listeners', () => {
     describe('when KeyringController:unlock event is published', () => {
       it('starts polling if the feature flag is enabled', async () => {
