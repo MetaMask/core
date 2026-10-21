@@ -442,7 +442,11 @@ describe('KycController', () => {
               vendor: 'iron',
               aal2Token: AAL2_TOKEN,
             }),
-          ).rejects.toThrow(error.message);
+          ).rejects.toMatchObject({
+            message:
+              'KycController.startSession: failed to mint a partner identity token',
+            cause: error,
+          });
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
           expect(controller.state.vendor).toBeNull();
@@ -487,16 +491,19 @@ describe('KycController', () => {
     it('does not mint a partner identity token when consent recording fails', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getSessionStatusForVendor.mockResolvedValue(null);
-        handlers.putIdentitySharingConsent.mockRejectedValue(
-          new Error('consent failed'),
-        );
+        const consentError = new Error('consent failed');
+        handlers.putIdentitySharingConsent.mockRejectedValue(consentError);
 
         await expect(
           controller.startSession({
             vendor: 'iron',
             aal2Token: AAL2_TOKEN,
           }),
-        ).rejects.toThrow('consent failed');
+        ).rejects.toMatchObject({
+          message:
+            'KycController.startSession: failed to mint a partner identity token',
+          cause: consentError,
+        });
         expect(handlers.getPartnerIdentityToken).not.toHaveBeenCalled();
         expect(controller.state.vendor).toBeNull();
         expect(controller.state.geoCountry).toBeNull();

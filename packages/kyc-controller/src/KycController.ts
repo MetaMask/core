@@ -386,8 +386,10 @@ export class KycController extends BaseController<
    * when one exists; otherwise creates a UKYC session.
    *
    * Creating a vendor customer and UKYC session requires a partner identity
-   * token, which both requests send as `partnerIdentityToken`. Token mint
-   * failures, including HTTP 422, propagate.
+   * token, which both requests send as `partnerIdentityToken`. A failure
+   * while recording consent or minting that token is rethrown as
+   * `KycController.startSession: failed to mint a partner identity token`,
+   * with the original error as `cause`.
    *
    * @param params - The session parameters.
    * @param params.vendor - Identity vendor for the session.
@@ -439,11 +441,18 @@ export class KycController extends BaseController<
         );
       }
 
-      // Will throw if minting tokens fails due to missing prereq (such as associated email).
-      // This check/fetch should happen before we update controller state below.
-      const partnerIdentityToken = await this.#getPartnerIdentityForVendor(
-        params.vendor,
-      );
+      // Mint before writing state so a failure leaves vendor and country unset.
+      let partnerIdentityToken: string;
+      try {
+        partnerIdentityToken = await this.#getPartnerIdentityForVendor(
+          params.vendor,
+        );
+      } catch (error) {
+        throw new Error(
+          'KycController.startSession: failed to mint a partner identity token',
+          { cause: error },
+        );
+      }
 
       this.update((state) => {
         state.vendor = params.vendor;

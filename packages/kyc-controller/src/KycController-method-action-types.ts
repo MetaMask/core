@@ -10,8 +10,10 @@ import type { KycController } from './KycController.js';
  * when one exists; otherwise creates a UKYC session.
  *
  * Creating a vendor customer and UKYC session requires a partner identity
- * token, which both requests send as `partnerIdentityToken`. Token mint
- * failures, including HTTP 422, propagate.
+ * token, which both requests send as `partnerIdentityToken`. A failure
+ * while recording consent or minting that token is rethrown as
+ * `KycController.startSession: failed to mint a partner identity token`,
+ * with the original error as `cause`.
  *
  * @param params - The session parameters.
  * @param params.vendor - Identity vendor for the session.
