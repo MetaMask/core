@@ -55,7 +55,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/platform-api-docs',
   '@metamask/preferences-controller',
   '@metamask/profile-metrics-controller',
-  '@metamask/ramps-controller',
   '@metamask/rate-limit-controller',
   '@metamask/react-data-query',
   '@metamask/remote-feature-flag-controller',

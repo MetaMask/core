@@ -3,6 +3,7 @@ import { ConstantBackoff } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   extractPixDepositInstructions,
@@ -979,9 +980,9 @@ describe('NeoBankService', () => {
 
     it('registers onRetry, onBreak, and onDegraded listeners', () => {
       const service = createService();
-      const onRetry = jest.fn();
-      const onBreak = jest.fn();
-      const onDegraded = jest.fn();
+      const onRetry = vi.fn();
+      const onBreak = vi.fn();
+      const onDegraded = vi.fn();
 
       const retrySub = service.onRetry(onRetry);
       const breakSub = service.onBreak(onBreak);
