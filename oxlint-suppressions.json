@@ -448,11 +448,6 @@
       "count": 5
     }
   },
-  "packages/ai-controllers/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/analytics-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -2156,11 +2151,6 @@
       "count": 1
     }
   },
-  "packages/delegation-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/delegation-controller/src/DelegationController.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 3
@@ -2528,11 +2518,6 @@
       "count": 19
     }
   },
-  "packages/gator-permissions-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/gator-permissions-controller/src/GatorPermissionsController.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 10
@@ -2543,7 +2528,7 @@
     "typescript/no-unsafe-member-access": {
       "count": 3
     },
-    "typescript/no-unsafe-return": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -2555,14 +2540,22 @@
       "count": 2
     }
   },
+  "packages/gator-permissions-controller/src/decodePermission/utils.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    }
+  },
   "packages/gator-permissions-controller/src/permissionOnChainStatus.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 13
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 8
     }
   },
   "packages/gator-permissions-controller/src/utils.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/geolocation-controller/jest.config.cjs": {
@@ -4992,14 +4985,9 @@
       "count": 1
     }
   },
-  "packages/social-controllers/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/social-controllers/src/SocialService.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 8
+  "packages/social-controllers/src/SocialRealtimeService.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 54
     }
   },
   "packages/solana-test-validator-up/jest.config.cjs": {
