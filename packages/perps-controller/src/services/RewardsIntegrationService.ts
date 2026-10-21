@@ -37,6 +37,10 @@ import { isMissingActionHandlerError } from './missingActionHandler.js';
 const DEFAULT_FEE_BIPS =
   BUILDER_FEE_CONFIG.MaxFeeDecimal * BASIS_POINTS_DIVISOR;
 
+/** Number of venue fee increments in one basis point. */
+const BUILDER_FEE_TENTHS_PER_BIP =
+  BUILDER_FEE_CONFIG.MaxFeeTenthsBps / DEFAULT_FEE_BIPS;
+
 /** `SubscriptionController` reports allowances in micro-USD. */
 const MICRO_USD_PER_USD = 1_000_000;
 
@@ -202,6 +206,8 @@ export class RewardsIntegrationService {
       quantizeBuilderFeeTenthsBps(
         Math.round((1 - bips / DEFAULT_FEE_BIPS) * BASIS_POINTS_DIVISOR),
       );
+    const fromTenthsBps = (tenthsBps: number): number =>
+      tenthsBps / BUILDER_FEE_TENTHS_PER_BIP;
 
     if (rewardsDiscount !== undefined) {
       const rewardsFeeBips =
@@ -217,8 +223,18 @@ export class RewardsIntegrationService {
     // A grant only wins when it lowers the fee the venue will actually charge.
     // Rewards therefore keeps a quantized tie, and default keeps a grant that
     // does not reduce the on-wire rate.
-    if (grant && toTenthsBps(grant.feeBips) < toTenthsBps(feeBips)) {
-      feeBips = grant.feeBips;
+    // Grants are absolute fees and may carry more precision than the legacy
+    // integer discount. Quantize that absolute candidate first: converting a
+    // 0.0999-bip grant to a discount first would round it to 9900 bips and
+    // submit 0.1 bip instead of the venue-floored zero.
+    const grantFeeTenthsBps = grant
+      ? Math.floor(grant.feeBips * BUILDER_FEE_TENTHS_PER_BIP)
+      : undefined;
+    if (
+      grantFeeTenthsBps !== undefined &&
+      grantFeeTenthsBps < toTenthsBps(feeBips)
+    ) {
+      feeBips = fromTenthsBps(grantFeeTenthsBps);
       source = 'grant';
     }
 

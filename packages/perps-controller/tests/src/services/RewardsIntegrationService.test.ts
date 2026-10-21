@@ -593,6 +593,42 @@ describe('RewardsIntegrationService', () => {
       );
     });
 
+    it('selects a below-tenth grant over a 0.1-bip rewards fee', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(9900);
+      wireGrant(jest.fn().mockResolvedValue(createGrant({ feeBips: 0.0999 })));
+
+      const resolution = await service.resolveFee(
+        undefined,
+        HYPERLIQUID_MAINNET_SCOPE,
+      );
+
+      expect(resolution).toMatchObject({
+        source: 'grant',
+        feeBips: 0,
+        discountBips: 10000,
+      });
+      expect(quantizeBuilderFeeTenthsBps(resolution.discountBips ?? 0)).toBe(0);
+    });
+
+    it('keeps a below-tenth grant when subscription ties at zero on the wire', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireGrant(jest.fn().mockResolvedValue(createGrant({ feeBips: 0.0999 })));
+      wireSubscription(jest.fn().mockResolvedValue(createBenefits()));
+      await service.refreshSubscriptionBenefits();
+
+      await expect(
+        service.resolveFee(1000, HYPERLIQUID_MAINNET_SCOPE),
+      ).resolves.toMatchObject({
+        source: 'grant',
+        feeBips: 0,
+        discountBips: 10000,
+      });
+    });
+
     it('uses the default when neither independent rewards source is available', async () => {
       (
         mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
