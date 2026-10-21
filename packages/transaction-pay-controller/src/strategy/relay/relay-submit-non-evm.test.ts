@@ -568,7 +568,10 @@ describe('submitRelayNonEvmQuote', () => {
       expect(submitPostNonAtomicMock).toHaveBeenCalledWith({
         completion: { status: 'success', targetHash: '0xtarget' },
         messenger,
-        quote,
+        quote: {
+          ...quote,
+          request: { ...quote.request, recipient: FROM },
+        },
         transaction: expect.objectContaining({ id: TRANSACTION_ID }),
       });
       expect(transaction.metamaskPay?.solanaExecution).toMatchObject({
@@ -577,6 +580,35 @@ describe('submitRelayNonEvmQuote', () => {
         requiresNonAtomicFollowUp: true,
       });
       expect(transaction.isIntentComplete).toBe(true);
+    });
+
+    it('runs the second leg from the target transaction account when the account is overridden', async () => {
+      const overrideAccount =
+        '0x9999999999999999999999999999999999999999' as Hex;
+
+      reconcileSolanaPayMock.mockResolvedValue(
+        getStatus({ followUpStatus: 'not-started', outcome: 'submitted' }),
+      );
+      submitPostNonAtomicMock.mockResolvedValue({
+        transactionHash: '0xsecond',
+      });
+
+      await submitRelayNonEvmQuote({
+        messenger,
+        quote: getQuote({ ...moneyAccountOverrides, from: overrideAccount }),
+        transaction,
+      });
+
+      expect(submitPostNonAtomicMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          quote: expect.objectContaining({
+            request: expect.objectContaining({
+              from: overrideAccount,
+              recipient: FROM,
+            }),
+          }),
+        }),
+      );
     });
 
     it('records a failed second leg and does not complete the intent', async () => {

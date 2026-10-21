@@ -3,6 +3,7 @@ import type {
   MetamaskPaySolanaExecution,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import { createModuleLogger, isObject } from '@metamask/utils';
 
 import { projectLogger } from '../../logger.js';
@@ -263,10 +264,18 @@ async function submitFollowUp({
   );
 
   try {
+    // Relay delivers the funds to the target account, not to an overridden
+    // `request.from`, so the second leg must spend from the same account.
     const { transactionHash } = await submitPostNonAtomic({
       completion,
       messenger,
-      quote,
+      quote: {
+        ...quote,
+        request: {
+          ...quote.request,
+          recipient: transaction.txParams.from as Hex,
+        },
+      },
       transaction,
     });
 
