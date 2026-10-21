@@ -4,8 +4,10 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { flushPromises } from '../../../../tests/helpers.js';
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import {
   BackendWebSocketService,
   getCloseReason,
@@ -82,9 +84,9 @@ class MockWebSocket extends EventTarget {
   public onerror: ((event: Event) => void) | null = null;
 
   // Mock methods for testing
-  public close: jest.Mock<void, [number?, string?]> = jest.fn();
+  public close: Mock<(...args: [number?, string?]) => void> = vi.fn();
 
-  public send: jest.Mock<void, [string]> = jest.fn();
+  public send: Mock<(...args: [string]) => void> = vi.fn();
 
   // Test utilities
   #lastSentMessage: string | null = null;
@@ -106,14 +108,14 @@ class MockWebSocket extends EventTarget {
     super();
     MockWebSocket.#instanceCount += 1;
     this.url = url;
-    // TypeScript has issues with jest.spyOn on WebSocket methods, so using direct assignment
+    // TypeScript has issues with vi.spyOn on WebSocket methods, so using direct assignment
     const simulateCloseFn = this.simulateClose.bind(this);
-    // eslint-disable-next-line jest/prefer-spy-on
-    this.close = jest.fn().mockImplementation((code = 1000, reason = '') => {
+    // eslint-disable-next-line vitest/prefer-spy-on
+    this.close = vi.fn().mockImplementation((code = 1000, reason = '') => {
       simulateCloseFn(code, reason);
     });
-    // eslint-disable-next-line jest/prefer-spy-on
-    this.send = jest.fn().mockImplementation((data: string) => {
+    // eslint-disable-next-line vitest/prefer-spy-on
+    this.send = vi.fn().mockImplementation((data: string) => {
       this.#lastSentMessage = data;
     });
     this.autoConnect = autoConnect;
@@ -215,7 +217,7 @@ function getRootMessenger(): RootMessenger {
 const getMessenger = (): {
   rootMessenger: RootMessenger;
   messenger: BackendWebSocketServiceMessenger;
-  mocks: { getBearerToken: jest.Mock };
+  mocks: { getBearerToken: Mock };
 } => {
   // Create a unique root messenger for each test
   const rootMessenger = getRootMessenger();
@@ -239,7 +241,7 @@ const getMessenger = (): {
   });
 
   // Create mock action handlers
-  const mockGetBearerToken = jest.fn().mockResolvedValue('valid-default-token');
+  const mockGetBearerToken = vi.fn().mockResolvedValue('valid-default-token');
 
   // Register all action handlers
   rootMessenger.registerActionHandler(
@@ -307,7 +309,7 @@ type TestSetup = {
   messenger: BackendWebSocketServiceMessenger;
   rootMessenger: RootMessenger;
   mocks: {
-    getBearerToken: jest.Mock;
+    getBearerToken: Mock;
   };
   completeAsyncOperations: (advanceMs?: number) => Promise<void>;
   getMockWebSocket: () => MockWebSocket;
@@ -322,7 +324,7 @@ type WithServiceCallback<ReturnValue> = (payload: {
   messenger: BackendWebSocketServiceMessenger;
   rootMessenger: RootMessenger;
   mocks: {
-    getBearerToken: jest.Mock;
+    getBearerToken: Mock;
   };
   completeAsyncOperations: (advanceMs?: number) => Promise<void>;
   getMockWebSocket: () => MockWebSocket;
@@ -342,7 +344,7 @@ const setupBackendWebSocketService = ({
   mockWebSocketOptions,
 }: TestSetupOptions = {}): TestSetup => {
   // Setup fake timers to control all async operations
-  jest.useFakeTimers();
+  vi.useFakeTimers();
 
   // Create real messenger with registered actions
   const messengerSetup = getMessenger();
@@ -377,7 +379,7 @@ const setupBackendWebSocketService = ({
   const completeAsyncOperations = async (advanceMs = 10): Promise<void> => {
     await flushPromises();
     if (advanceMs > 0) {
-      jest.advanceTimersByTime(advanceMs);
+      vi.advanceTimersByTime(advanceMs);
     }
     await flushPromises();
   };
@@ -395,8 +397,8 @@ const setupBackendWebSocketService = ({
     getMockWebSocket,
     cleanup: (): void => {
       service?.destroy();
-      jest.useRealTimers();
-      jest.restoreAllMocks();
+      vi.useRealTimers();
+      vi.restoreAllMocks();
     },
   };
 };
@@ -456,7 +458,7 @@ const createSubscription = async (
   mockWs: MockWebSocket,
   options: {
     channels: string[];
-    callback: jest.Mock;
+    callback: Mock;
     requestId: string;
     subscriptionId?: string;
     channelType?: string;
@@ -543,7 +545,7 @@ describe('BackendWebSocketService', () => {
   describe('connection lifecycle - connect / disconnect', () => {
     it('should establish WebSocket connection and set state to CONNECTED, publishing state change event', async () => {
       await withService(async ({ service, messenger }) => {
-        const connectionStateChangedListener = jest.fn();
+        const connectionStateChangedListener = vi.fn();
         messenger.subscribe(
           'BackendWebSocketService:connectionStateChanged',
           connectionStateChangedListener,
@@ -674,7 +676,7 @@ describe('BackendWebSocketService', () => {
             service.subscribe({
               channels: ['test'],
               channelType: 'test.v1',
-              callback: jest.fn(),
+              callback: vi.fn(),
             }),
           ).rejects.toThrow(
             'Cannot create subscription(s) test: WebSocket is disconnected',
@@ -689,14 +691,14 @@ describe('BackendWebSocketService', () => {
         async ({ service, getMockWebSocket }) => {
           await service.connect();
           const mockWs = getMockWebSocket();
-          const closeSpy = jest.spyOn(mockWs, 'close');
+          const closeSpy = vi.spyOn(mockWs, 'close');
 
           const requestPromise = service.sendRequest({
             event: 'timeout-test',
             data: { requestId: 'timeout-req-1', method: 'test', params: {} },
           });
 
-          jest.advanceTimersByTime(201);
+          vi.advanceTimersByTime(201);
 
           await expect(requestPromise).rejects.toThrow(
             'Request timeout after 200ms',
@@ -713,7 +715,7 @@ describe('BackendWebSocketService', () => {
       await withService(
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           // Mock Math.random to make Cockatiel's jitter deterministic
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
 
           await service.connect();
           expect(service.getConnectionInfo().state).toBe(
@@ -865,7 +867,7 @@ describe('BackendWebSocketService', () => {
       await withService(
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           // Mock Math.random to make Cockatiel's jitter deterministic
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
 
           // Connect successfully first
           await service.connect();
@@ -901,7 +903,7 @@ describe('BackendWebSocketService', () => {
         },
         async ({ service, completeAsyncOperations }) => {
           // Mock Math.random to make Cockatiel's jitter deterministic
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
 
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           service.connect();
@@ -921,7 +923,7 @@ describe('BackendWebSocketService', () => {
       await withService(
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           // Mock Math.random to make Cockatiel's jitter deterministic
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
 
           // Connect successfully
           await service.connect();
@@ -951,7 +953,7 @@ describe('BackendWebSocketService', () => {
         { mockWebSocketOptions: { autoConnect: false } },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           // Mock Math.random to make Cockatiel's jitter deterministic
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
 
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           service.connect();
@@ -1042,7 +1044,7 @@ describe('BackendWebSocketService', () => {
     });
 
     // Temporarily disabled due to intermittent failures
-    // eslint-disable-next-line jest/no-disabled-tests
+    // eslint-disable-next-line vitest/no-disabled-tests
     it.skip('should clear connection timeout when timeout occurs then close fires', async () => {
       await withService(
         {
@@ -1051,7 +1053,7 @@ describe('BackendWebSocketService', () => {
         },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           // Mock Math.random to make Cockatiel's jitter deterministic
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
 
           // Start connection (this sets connectionTimeout)
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -1089,7 +1091,7 @@ describe('BackendWebSocketService', () => {
       await withService(
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           // Mock Math.random to make Cockatiel's jitter deterministic
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
 
           await service.connect();
           expect(service.getConnectionInfo().state).toBe(
@@ -1127,7 +1129,7 @@ describe('BackendWebSocketService', () => {
       await withService(
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           // Mock Math.random to make Cockatiel's jitter deterministic
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
 
           await service.connect();
           expect(service.getConnectionInfo().state).toBe(
@@ -1161,7 +1163,7 @@ describe('BackendWebSocketService', () => {
         { mockWebSocketOptions: { autoConnect: false } },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           // Mock Math.random to make Cockatiel's jitter deterministic
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
 
           // Trigger a connection failure to schedule a reconnect
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -1189,7 +1191,7 @@ describe('BackendWebSocketService', () => {
     });
 
     // Temporarily disabled due to intermittent failures
-    // eslint-disable-next-line jest/no-disabled-tests
+    // eslint-disable-next-line vitest/no-disabled-tests
     it.skip('should clear reconnect timer when feature is disabled', async () => {
       let isEnabled = true;
       await withService(
@@ -1201,7 +1203,7 @@ describe('BackendWebSocketService', () => {
         },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           // Mock Math.random to make Cockatiel's jitter deterministic
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
 
           // Trigger a connection failure to schedule a reconnect
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -1235,9 +1237,9 @@ describe('BackendWebSocketService', () => {
     });
 
     // Temporarily disabled due to intermittent failures
-    // eslint-disable-next-line jest/no-disabled-tests
+    // eslint-disable-next-line vitest/no-disabled-tests
     it.skip('should include connectionDuration_ms in trace when connection was established', async () => {
-      const mockTraceFn = jest.fn((_request, fn) => fn?.());
+      const mockTraceFn = vi.fn((_request, fn) => fn?.());
       await withService(
         {
           options: { traceFn: mockTraceFn },
@@ -1276,9 +1278,9 @@ describe('BackendWebSocketService', () => {
     });
 
     // Temporarily disabled due to intermittent failures
-    // eslint-disable-next-line jest/no-disabled-tests
+    // eslint-disable-next-line vitest/no-disabled-tests
     it.skip('should omit connectionDuration_ms in trace when connection never established', async () => {
-      const mockTraceFn = jest.fn((_request, fn) => fn?.());
+      const mockTraceFn = vi.fn((_request, fn) => fn?.());
       await withService(
         {
           options: { traceFn: mockTraceFn },
@@ -1330,7 +1332,7 @@ describe('BackendWebSocketService', () => {
     it('should subscribe to WebSocket channels and return subscription with unsubscribe function', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
-        const mockCallback = jest.fn();
+        const mockCallback = vi.fn();
         const mockWs = getMockWebSocket();
 
         const subscription = await createSubscription(service, mockWs, {
@@ -1353,7 +1355,7 @@ describe('BackendWebSocketService', () => {
         const mockWs = getMockWebSocket();
 
         // Test subscription failure scenario
-        const callback = jest.fn();
+        const callback = vi.fn();
 
         // Create subscription request - Use predictable request ID
         const testRequestId = 'test-error-branch-scenarios';
@@ -1387,7 +1389,7 @@ describe('BackendWebSocketService', () => {
         await service.connect();
         const mockWs = getMockWebSocket();
 
-        const mockCallback = jest.fn();
+        const mockCallback = vi.fn();
         const subscription = await createSubscription(service, mockWs, {
           channels: ['test-channel'],
           callback: mockCallback,
@@ -1396,7 +1398,7 @@ describe('BackendWebSocketService', () => {
         });
 
         // Mock sendRequest to throw error during unsubscribe
-        jest.spyOn(service, 'sendRequest').mockImplementation(() => {
+        vi.spyOn(service, 'sendRequest').mockImplementation(() => {
           return Promise.reject(new Error('Unsubscribe failed'));
         });
 
@@ -1414,7 +1416,7 @@ describe('BackendWebSocketService', () => {
         const subscriptionPromise = service.subscribe({
           channels: ['invalid-test'],
           channelType: 'invalid-test.v1',
-          callback: jest.fn(),
+          callback: vi.fn(),
           requestId: 'test-missing-subscription-id',
         });
 
@@ -1444,7 +1446,7 @@ describe('BackendWebSocketService', () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
-        const mockCallback = jest.fn();
+        const mockCallback = vi.fn();
 
         const subscribePromise = service.subscribe({
           channels: ['test-channel'],
@@ -1489,7 +1491,7 @@ describe('BackendWebSocketService', () => {
     it('should retrieve subscription by channel name from internal subscription storage', async () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
-        const mockCallback = jest.fn();
+        const mockCallback = vi.fn();
         const mockWs = getMockWebSocket();
 
         await createSubscription(service, mockWs, {
@@ -1512,7 +1514,7 @@ describe('BackendWebSocketService', () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
-        const callback = jest.fn();
+        const callback = vi.fn();
 
         await createSubscription(service, mockWs, {
           channels: ['account-activity.v1.address1', 'other-prefix.v1.test'],
@@ -1541,13 +1543,13 @@ describe('BackendWebSocketService', () => {
         await service.connect();
         const mockWs = getMockWebSocket();
 
-        const channelCallback = jest.fn();
+        const channelCallback = vi.fn();
         service.addChannelCallback({
           channelName: 'test-channel',
           callback: channelCallback,
         });
 
-        const subscriptionCallback = jest.fn();
+        const subscriptionCallback = vi.fn();
         await createSubscription(service, mockWs, {
           channels: ['test-channel'],
           callback: subscriptionCallback,
@@ -1599,8 +1601,8 @@ describe('BackendWebSocketService', () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
 
-        const subscriptionCallback = jest.fn();
-        const channelCallback = jest.fn();
+        const subscriptionCallback = vi.fn();
+        const channelCallback = vi.fn();
         const mockWs = getMockWebSocket();
 
         // Set up subscription callback
@@ -1705,8 +1707,8 @@ describe('BackendWebSocketService', () => {
       await withService(
         { mockWebSocketOptions: { autoConnect: false } },
         async ({ service }) => {
-          const originalCallback = jest.fn();
-          const duplicateCallback = jest.fn();
+          const originalCallback = vi.fn();
+          const duplicateCallback = vi.fn();
 
           // Add channel callback first time
           service.addChannelCallback({
@@ -1727,7 +1729,7 @@ describe('BackendWebSocketService', () => {
           // Add different channel callback
           service.addChannelCallback({
             channelName: 'different-channel',
-            callback: jest.fn(),
+            callback: vi.fn(),
           });
 
           expect(service.getChannelCallbacks()).toHaveLength(2);
@@ -1792,7 +1794,7 @@ describe('BackendWebSocketService', () => {
         await service.connect();
         const mockWs = getMockWebSocket();
 
-        const channelCallback = jest.fn();
+        const channelCallback = vi.fn();
         service.addChannelCallback({
           channelName: 'test-channel',
           callback: channelCallback,
@@ -1819,7 +1821,7 @@ describe('BackendWebSocketService', () => {
         await service.connect();
         const mockWs = getMockWebSocket();
 
-        const channelCallback = jest.fn();
+        const channelCallback = vi.fn();
         service.addChannelCallback({
           channelName: 'test-channel',
           callback: channelCallback,
@@ -1845,7 +1847,7 @@ describe('BackendWebSocketService', () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
+        const channelCallback = vi.fn();
 
         service.addChannelCallback({
           channelName: 'test-channel',
@@ -1876,7 +1878,7 @@ describe('BackendWebSocketService', () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
+        const channelCallback = vi.fn();
 
         service.addChannelCallback({
           channelName: 'test-channel',
@@ -1896,7 +1898,7 @@ describe('BackendWebSocketService', () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
+        const channelCallback = vi.fn();
 
         service.addChannelCallback({
           channelName: 'test-channel',
@@ -1916,7 +1918,7 @@ describe('BackendWebSocketService', () => {
       await withService(async ({ service, getMockWebSocket }) => {
         await service.connect();
         const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
+        const channelCallback = vi.fn();
 
         service.addChannelCallback({
           channelName: 'market-data.v1.test',
@@ -1963,7 +1965,7 @@ describe('BackendWebSocketService', () => {
 
         await subscriptionPromise;
 
-        const channelCallback = jest.fn();
+        const channelCallback = vi.fn();
         service.addChannelCallback({
           channelName: channel,
           callback: channelCallback,
@@ -1985,7 +1987,7 @@ describe('BackendWebSocketService', () => {
       await withService(async ({ service }) => {
         await service.connect();
 
-        jest.spyOn(service, 'sendMessage').mockImplementation(() => {
+        vi.spyOn(service, 'sendMessage').mockImplementation(() => {
           throw new Error('Send failed');
         });
 
@@ -1999,7 +2001,7 @@ describe('BackendWebSocketService', () => {
       await withService(async ({ service }) => {
         await service.connect();
 
-        jest.spyOn(service, 'sendMessage').mockImplementation(() => {
+        vi.spyOn(service, 'sendMessage').mockImplementation(() => {
           // eslint-disable-next-line @typescript-eslint/only-throw-error
           throw 'String error';
         });
@@ -2042,7 +2044,7 @@ describe('BackendWebSocketService', () => {
 
     it('should trigger connection when KeyringController:unlock event is published', async () => {
       await withService(async ({ service, rootMessenger }) => {
-        const connectSpy = jest.spyOn(service, 'connect');
+        const connectSpy = vi.spyOn(service, 'connect');
 
         rootMessenger.publish('KeyringController:unlock');
 
@@ -2053,7 +2055,7 @@ describe('BackendWebSocketService', () => {
     it('should trigger disconnection when KeyringController:lock event is published', async () => {
       await withService(async ({ service, rootMessenger }) => {
         await service.connect();
-        const disconnectSpy = jest.spyOn(service, 'disconnect');
+        const disconnectSpy = vi.spyOn(service, 'disconnect');
 
         rootMessenger.publish('KeyringController:lock');
 
@@ -2121,7 +2123,7 @@ describe('BackendWebSocketService', () => {
   // =====================================================
   describe('enabledCallback functionality', () => {
     it('should respect enabledCallback returning false during connection by rejecting with disabled error', async () => {
-      const mockEnabledCallback = jest.fn().mockReturnValue(false);
+      const mockEnabledCallback = vi.fn().mockReturnValue(false);
       await withService(
         {
           options: {
@@ -2148,7 +2150,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('should stop reconnection when isEnabled returns false during scheduled reconnect', async () => {
-      const mockEnabledCallback = jest.fn().mockReturnValue(true);
+      const mockEnabledCallback = vi.fn().mockReturnValue(true);
       await withService(
         {
           options: {
@@ -2158,7 +2160,7 @@ describe('BackendWebSocketService', () => {
         },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           // Mock Math.random to make Cockatiel's jitter deterministic
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
 
           await service.connect();
           const mockWs = getMockWebSocket();
@@ -2194,7 +2196,7 @@ describe('BackendWebSocketService', () => {
   // =====================================================
   describe('isBasicFunctionality', () => {
     it('does not connect when basic functionality is off', async () => {
-      const isBasicFunctionality = jest.fn().mockReturnValue(false);
+      const isBasicFunctionality = vi.fn().mockReturnValue(false);
       await withService(
         {
           options: { isBasicFunctionality },
@@ -2233,7 +2235,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('stops a scheduled reconnect when basic functionality turns off', async () => {
-      const isBasicFunctionality = jest.fn().mockReturnValue(true);
+      const isBasicFunctionality = vi.fn().mockReturnValue(true);
       await withService(
         {
           options: {
@@ -2242,7 +2244,7 @@ describe('BackendWebSocketService', () => {
           },
         },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
 
           await service.connect();
           const mockWs = getMockWebSocket();
@@ -2342,7 +2344,7 @@ describe('BackendWebSocketService', () => {
           },
         },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
-          jest.spyOn(Math, 'random').mockReturnValue(0);
+          vi.spyOn(Math, 'random').mockReturnValue(0);
           await service.connect();
           getMockWebSocket().simulateClose(1006, 'Connection lost');
           await completeAsyncOperations(0);
@@ -2426,7 +2428,7 @@ describe('BackendWebSocketService', () => {
     });
 
     it('unsubscribes from basic functionality changes on destroy', async () => {
-      const unsubscribe = jest.fn();
+      const unsubscribe = vi.fn();
       await withService(
         {
           options: {
@@ -2452,7 +2454,7 @@ describe('BackendWebSocketService', () => {
         const mockWs = getMockWebSocket();
 
         // Create a subscription
-        const mockCallback = jest.fn();
+        const mockCallback = vi.fn();
         await createSubscription(service, mockWs, {
           channels: ['test-cleanup'],
           callback: mockCallback,

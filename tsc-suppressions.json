@@ -103,11 +103,8 @@
     "TS2322": {
       "count": 12
     },
-    "TS2339": {
-      "count": 3
-    },
     "TS2345": {
-      "count": 2
+      "count": 1
     },
     "TS2352": {
       "count": 2
@@ -274,11 +271,6 @@
     },
     "TS2353": {
       "count": 1
-    }
-  },
-  "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.test.ts": {
-    "TS7031": {
-      "count": 2
     }
   },
   "packages/assets-controllers/src/selectors/token-selectors.test.ts": {

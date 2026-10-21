@@ -526,24 +526,14 @@
       "count": 6
     }
   },
-  "packages/assets-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/jest.config.integration.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/jest.config.unit.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/assets-controller/src/AssetsController.spam-cleanup.test.ts": {
     "typescript/no-unsafe-call": {
       "count": 1
+    }
+  },
+  "packages/assets-controller/src/AssetsController.stale-balance-scenarios.integration.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/assets-controller/src/AssetsController.test.ts": {
@@ -553,11 +543,11 @@
     "no-useless-return": {
       "count": 3
     },
-    "typescript/no-unsafe-call": {
-      "count": 4
-    },
     "typescript/no-unsafe-member-access": {
-      "count": 19
+      "count": 9
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 13
     }
   },
   "packages/assets-controller/src/AssetsController.ts": {
@@ -566,9 +556,6 @@
     }
   },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
-    "no-undef": {
-      "count": 4
-    },
     "typescript/no-unsafe-argument": {
       "count": 2
     },
@@ -610,15 +597,18 @@
       "count": 2
     },
     "typescript/no-unsafe-member-access": {
-      "count": 14
+      "count": 11
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 11
     }
   },
   "packages/assets-controller/src/data-sources/PriceDataSource.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 3
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/assets-controller/src/data-sources/RpcDataSource.test.ts": {
@@ -627,11 +617,17 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 15
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/assets-controller/src/data-sources/SnapDataSource.test.ts": {
     "no-useless-return": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/assets-controller/src/data-sources/SnapDataSource.ts": {
@@ -651,6 +647,9 @@
   "packages/assets-controller/src/data-sources/StakedBalanceDataSource.test.ts": {
     "id-length": {
       "count": 3
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/assets-controller/src/data-sources/StakedBalanceDataSource.ts": {
@@ -662,8 +661,8 @@
     "no-unsafe-optional-chaining": {
       "count": 4
     },
-    "typescript/no-unsafe-member-access": {
-      "count": 3
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/assets-controller/src/data-sources/evm-rpc-services/clients/MulticallClient.ts": {
@@ -674,6 +673,11 @@
       "count": 1
     },
     "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/services/BalanceFetcher.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -691,12 +695,37 @@
       "count": 2
     }
   },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/services/TokenDetector.tokenList.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 7
+    }
+  },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/utils/batch.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    }
+  },
   "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 1
     },
     "typescript/no-unsafe-return": {
       "count": 1
+    }
+  },
+  "packages/assets-controller/src/migrations/healAssetsInfoMetadata.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/pipeline/buildFastFetchSources.bsc-spam-token-filtering.integration.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/pipeline/buildWsUpdateSources.price-updates.integration.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/assets-controller/src/pipeline/executeAssetsPipeline.ts": {
@@ -707,6 +736,9 @@
   "packages/assets-controller/src/selectors/balance.test.ts": {
     "no-useless-return": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/assets-controller/src/selectors/balance.ts": {
@@ -714,11 +746,6 @@
       "count": 4
     },
     "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/utils/native-assets.test.ts": {
-    "typescript/no-unsafe-return": {
       "count": 1
     }
   },
@@ -732,28 +759,6 @@
       "count": 1
     }
   },
-  "packages/assets-controllers/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/assets-controllers/jest.environment.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "n/prefer-global/text-decoder": {
-      "count": 1
-    },
-    "n/prefer-global/text-encoder": {
-      "count": 1
-    },
-    "no-shadow": {
-      "count": 2
-    },
-    "node/global-require": {
-      "count": 1
-    }
-  },
   "packages/assets-controllers/src/AccountTrackerController.test.ts": {
     "no-unused-vars": {
       "count": 1
@@ -763,9 +768,6 @@
     },
     "typescript/explicit-function-return-type": {
       "count": 3
-    },
-    "typescript/no-unsafe-return": {
-      "count": 2
     }
   },
   "packages/assets-controllers/src/AccountTrackerController.ts": {
@@ -815,6 +817,11 @@
       "count": 8
     }
   },
+  "packages/assets-controllers/src/CurrencyRateController.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 7
+    }
+  },
   "packages/assets-controllers/src/CurrencyRateController.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -833,11 +840,6 @@
       "count": 2
     }
   },
-  "packages/assets-controllers/src/DeFiPositionsController/DeFiPositionsControllerV2.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
   "packages/assets-controllers/src/DeFiPositionsController/fetch-positions.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 1
@@ -854,6 +856,9 @@
   "packages/assets-controllers/src/MultichainAssetsController/MultichainAssetsController.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.test.ts": {
@@ -883,8 +888,8 @@
     "typescript/explicit-function-return-type": {
       "count": 4
     },
-    "typescript/no-unsafe-return": {
-      "count": 3
+    "vitest/no-conditional-in-test": {
+      "count": 8
     }
   },
   "packages/assets-controllers/src/NftController.ts": {
@@ -938,9 +943,6 @@
     }
   },
   "packages/assets-controllers/src/Standards/ERC20Standard.test.ts": {
-    "jest/no-commented-out-tests": {
-      "count": 1
-    },
     "typescript/explicit-function-return-type": {
       "count": 3
     },
@@ -948,6 +950,9 @@
       "count": 4
     },
     "typescript/no-unsafe-call": {
+      "count": 1
+    },
+    "vitest/no-commented-out-tests": {
       "count": 1
     }
   },
@@ -1033,15 +1038,6 @@
   "packages/assets-controllers/src/TokenBalancesController.test.ts": {
     "no-useless-return": {
       "count": 3
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 3
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/assets-controllers/src/TokenBalancesController.ts": {
@@ -1052,16 +1048,21 @@
       "count": 1
     }
   },
-  "packages/assets-controllers/src/TokenDetectionController.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 4
-    }
-  },
   "packages/assets-controllers/src/TokenDetectionController.ts": {
     "id-length": {
       "count": 1
     },
     "typescript/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/TokenListController.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 9
+    }
+  },
+  "packages/assets-controllers/src/TokenListService.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -1088,8 +1089,8 @@
     "n/no-callback-literal": {
       "count": 1
     },
-    "typescript/no-unsafe-return": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/assets-controllers/src/TokenSearchDiscoveryDataController/TokenSearchDiscoveryDataController.ts": {
@@ -1107,8 +1108,8 @@
     "typescript/no-unsafe-member-access": {
       "count": 10
     },
-    "typescript/no-unsafe-return": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/assets-controllers/src/TokensController.ts": {
@@ -1154,6 +1155,9 @@
     },
     "typescript/explicit-function-return-type": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/assets-controllers/src/assetsUtil.ts": {
@@ -1211,10 +1215,10 @@
       "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 83
+      "count": 13
     },
     "typescript/no-unsafe-member-access": {
-      "count": 99
+      "count": 14
     },
     "typescript/no-unsafe-return": {
       "count": 2
@@ -1230,9 +1234,6 @@
   },
   "packages/assets-controllers/src/multi-chain-accounts-service/multi-chain-accounts.test.ts": {
     "typescript/explicit-function-return-type": {
-      "count": 3
-    },
-    "typescript/no-unsafe-argument": {
       "count": 3
     }
   },
@@ -1280,15 +1281,6 @@
       "count": 17
     },
     "no-useless-return": {
-      "count": 1
-    },
-    "typescript/no-unsafe-call": {
-      "count": 13
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 21
-    },
-    "typescript/no-unsafe-return": {
       "count": 1
     }
   },
@@ -2087,37 +2079,32 @@
       "count": 5
     }
   },
-  "packages/core-backend/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/core-backend/src/api/ApiPlatformClient.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 4
+      "count": 1
     }
   },
   "packages/core-backend/src/api/accounts/client.test.ts": {
     "typescript/no-unsafe-call": {
       "count": 2
     },
-    "typescript/no-unsafe-member-access": {
-      "count": 11
+    "vitest/no-conditional-in-test": {
+      "count": 8
     }
   },
   "packages/core-backend/src/api/base-client.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 3
+      "count": 1
     }
   },
   "packages/core-backend/src/api/prices/client.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 8
+    "vitest/no-conditional-in-test": {
+      "count": 6
     }
   },
-  "packages/core-backend/src/api/token/client.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 2
+  "packages/core-backend/src/api/tokens/client.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/core-backend/src/ws/AccountActivityService.test.ts": {
@@ -2125,7 +2112,7 @@
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/core-backend/src/ws/AccountActivityService.ts": {
@@ -2169,6 +2156,9 @@
       "count": 2
     },
     "typescript/no-unsafe-member-access": {
+      "count": 3
+    },
+    "vitest/no-conditional-in-test": {
       "count": 4
     }
   },
@@ -3701,17 +3691,15 @@
       "count": 2
     }
   },
-  "packages/network-enablement-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/network-enablement-controller/src/NetworkEnablementController.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 2
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 16
     }
   },
   "packages/network-enablement-controller/src/selectors.ts": {

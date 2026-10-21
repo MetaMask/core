@@ -1,5 +1,6 @@
 import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   RESPONSE_DETECTED_ASSETS_SURFACE,
@@ -102,7 +103,7 @@ async function runPipeline(
   const accountsApiDataSource = new AccountsApiDataSource({
     messenger: assetsControllerMessenger,
     queryApiClient,
-    onActiveChainsUpdated: jest.fn(),
+    onActiveChainsUpdated: vi.fn(),
     getAssetsState: (): AssetsControllerState => state,
     getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
       getAssetVisibility({
@@ -118,7 +119,7 @@ async function runPipeline(
     messenger: assetsControllerMessenger,
     queryApiClient,
     getAssetsState: (): AssetsControllerState => state,
-    onActiveChainsUpdated: jest.fn(),
+    onActiveChainsUpdated: vi.fn(),
     getNativeAssetForChain: (): Caip19AssetId => BNB_ASSET_ID,
     getAssetType: (assetId): 'native' | 'erc20' =>
       parseCaipAssetType(assetId).assetNamespace === 'erc20'
@@ -277,7 +278,7 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE)', () =
   it('generates snapshot (source of truth)', async () => {
     const { response } = await runPipeline(buildEmptyAssetsState());
 
-    // eslint-disable-next-line jest/no-restricted-matchers
+    // eslint-disable-next-line vitest/no-restricted-matchers
     expect(withZeroedTimestamps(response)).toMatchSnapshot();
   });
 });

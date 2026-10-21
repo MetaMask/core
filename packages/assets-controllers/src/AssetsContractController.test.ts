@@ -26,6 +26,7 @@ import {
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import assert from 'assert';
+import { describe, expect, it, vi } from 'vitest';
 
 import { SECONDS } from '../../../tests/constants.js';
 import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers.js';
@@ -240,7 +241,7 @@ function mockNetworkWithDefaultChainId({
   });
 }
 
-// eslint-disable-next-line jest/no-export
+// eslint-disable-next-line vitest/no-export
 export { setupAssetContractControllers, mockNetworkWithDefaultChainId };
 
 describe('AssetsContractController', () => {
@@ -747,11 +748,9 @@ describe('AssetsContractController', () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
     assetsContract.setProvider(provider);
-    const errorLogSpy = jest
-      .spyOn(console, 'warn')
-      .mockImplementationOnce(() => {
-        /**/
-      });
+    const errorLogSpy = vi.spyOn(console, 'warn').mockImplementationOnce(() => {
+      /**/
+    });
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -1409,7 +1408,7 @@ describe('AssetsContractController', () => {
   });
 
   it('should return default of zero hex as staked ethereum balance if user has no shares', async () => {
-    const errorSpy = jest.spyOn(console, 'error');
+    const errorSpy = vi.spyOn(console, 'error');
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
     assetsContract.setProvider(provider);
@@ -1458,11 +1457,9 @@ describe('AssetsContractController', () => {
 
   it('should return default of zero hex as staked ethereum balance if there is any error thrown', async () => {
     let error;
-    const errorSpy = jest
-      .spyOn(console, 'error')
-      .mockImplementationOnce((e) => {
-        error = e;
-      });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementationOnce((e) => {
+      error = e;
+    });
     const { assetsContract, messenger, provider } =
       await setupAssetContractControllers();
     assetsContract.setProvider(provider);

@@ -2,8 +2,7 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
-    "types": ["jest"]
+    "rootDir": "./src"
   },
   "references": [
     {
