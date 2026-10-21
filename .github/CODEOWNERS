@@ -1034,6 +1034,15 @@
 /packages/wallet-framework-docs/jest.config.*      @MetaMask/core-platform
 /packages/wallet-framework-docs/vitest.config.*    @MetaMask/core-platform
 
+### watch-only-account-service
+/packages/watch-only-account-service                    @MetaMask/accounts-engineers
+/packages/watch-only-account-service/CHANGELOG.md       @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/watch-only-account-service/package.json       @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/watch-only-account-service/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/watch-only-account-service/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/watch-only-account-service/jest.config.*      @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/watch-only-account-service/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform
+
 # Overrides
 # ---------
 
