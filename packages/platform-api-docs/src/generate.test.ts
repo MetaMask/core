@@ -192,29 +192,199 @@ export type NestedMessenger = Messenger<'Nested', NestedGetAction, never>;
     });
   });
 
-  it('scans node_modules/@metamask/*/dist/ for .d.cts files', async () => {
-    expect.assertions(1);
+  it.each(['.d.cts', '.d.ts'])(
+    'scans node_modules/@metamask/*/dist/ for %s files',
+    async (extension) => {
+      expect.assertions(7);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        const distDir = path.join(
+          directoryPath,
+          'node_modules',
+          '@metamask',
+          'test-pkg',
+          'dist',
+          'nested',
+        );
+        await fs.promises.mkdir(distDir, { recursive: true });
+        await fs.promises.writeFile(
+          path.join(distDir, `index${extension}`),
+          `
+/** Gets the published state. */
+export type TestGetAction = {
+  type: 'Test:get';
+  handler: () => boolean;
+};
+
+/** Reports published state changes. */
+export type TestChangedEvent = {
+  type: 'Test:changed';
+  payload: [boolean];
+};
+
+export type TestMessenger = Messenger<'Test', TestGetAction, TestChangedEvent>;
+`,
+        );
+
+        const outputDir = path.join(directoryPath, '.docs');
+        const result = await generate({
+          projectPath: directoryPath,
+          outputDir,
+          strategy: 'scan',
+          scanDirs: ['src'],
+        });
+
+        expect(result.actions).toBe(1);
+        expect(result.events).toBe(1);
+        expect(result.namespaces).toBe(1);
+
+        const actionsMd = await fs.promises.readFile(
+          path.join(outputDir, 'docs', 'Test', 'actions.md'),
+          'utf8',
+        );
+        const eventsMd = await fs.promises.readFile(
+          path.join(outputDir, 'docs', 'Test', 'events.md'),
+          'utf8',
+        );
+        expect(actionsMd).toContain('### `Test:get`');
+        expect(actionsMd).toContain('Gets the published state.');
+        expect(eventsMd).toContain('### `Test:changed`');
+        expect(eventsMd).toContain('Reports published state changes.');
+      });
+    },
+  );
+
+  it.each(['.d.cts', '.d.ts'])(
+    'keeps published %s files when a scan directory contains node_modules',
+    async (extension) => {
+      expect.assertions(2);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        const srcDir = path.join(directoryPath, 'src');
+        await fs.promises.mkdir(srcDir, { recursive: true });
+        await fs.promises.writeFile(
+          path.join(srcDir, 'Local.ts'),
+          `
+export type LocalGetAction = {
+  type: 'Local:get';
+  handler: () => void;
+};
+
+export type LocalMessenger = Messenger<'Local', LocalGetAction, never>;
+`,
+        );
+
+        const distDir = path.join(
+          directoryPath,
+          'node_modules',
+          '@metamask',
+          'published-pkg',
+          'dist',
+        );
+        await fs.promises.mkdir(distDir, { recursive: true });
+        await fs.promises.writeFile(
+          path.join(distDir, `index${extension}`),
+          `
+export type PublishedGetAction = {
+  type: 'Published:get';
+  handler: () => void;
+};
+
+export type PublishedMessenger = Messenger<'Published', PublishedGetAction, never>;
+`,
+        );
+
+        const result = await generate({
+          projectPath: directoryPath,
+          outputDir: path.join(directoryPath, '.docs'),
+          strategy: 'scan',
+          scanDirs: ['.'],
+        });
+
+        expect(result.namespaces).toBe(2);
+        expect(result.actions).toBe(2);
+      });
+    },
+  );
+
+  it.each(['.d.cts', '.d.ts'])(
+    'follows symlinked @metamask packages when scanning %s files',
+    async (extension) => {
+      expect.assertions(1);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        // In a yarn-workspaces layout, `node_modules/@metamask/<pkg>` is a
+        // symlink to the package's actual directory. `listTargetSubdirectories`
+        // must follow these symlinks when scanning node_modules.
+        const realPkgDir = path.join(directoryPath, 'real-pkg');
+        const distDir = path.join(realPkgDir, 'dist');
+        await fs.promises.mkdir(distDir, { recursive: true });
+        await fs.promises.writeFile(
+          path.join(distDir, `index${extension}`),
+          `
+export type LinkedGetAction = {
+  type: 'Linked:get';
+  handler: () => boolean;
+};
+
+export type LinkedMessenger = Messenger<'Linked', LinkedGetAction, never>;
+`,
+        );
+
+        const scopedDir = path.join(directoryPath, 'node_modules', '@metamask');
+        await fs.promises.mkdir(scopedDir, { recursive: true });
+        await fs.promises.symlink(
+          realPkgDir,
+          path.join(scopedDir, 'linked-pkg'),
+          'dir',
+        );
+
+        const result = await generate({
+          projectPath: directoryPath,
+          outputDir: path.join(directoryPath, '.docs'),
+          strategy: 'scan',
+          scanDirs: ['src'],
+        });
+
+        expect(result.actions).toBe(1);
+      });
+    },
+  );
+
+  it('deduplicates dual-format declarations in stable path order', async () => {
+    expect.assertions(9);
 
     await withinSandbox(async ({ directoryPath }) => {
       const distDir = path.join(
         directoryPath,
         'node_modules',
         '@metamask',
-        'test-pkg',
+        'dual-pkg',
         'dist',
       );
       await fs.promises.mkdir(distDir, { recursive: true });
-      await fs.promises.writeFile(
-        path.join(distDir, 'index.d.cts'),
-        `
-export type TestGetAction = {
-  type: 'Test:get';
+      // Both formats have equally documented capabilities. Path order, rather
+      // than extension order, must determine which description is kept.
+      for (const filename of ['z.d.cts', 'a.d.ts']) {
+        await fs.promises.writeFile(
+          path.join(distDir, filename),
+          `
+/** Gets state from ${filename}. */
+export type DualGetAction = {
+  type: 'Dual:get';
   handler: () => boolean;
 };
 
-export type TestMessenger = Messenger<'Test', TestGetAction, never>;
+/** Reports changes from ${filename}. */
+export type DualChangedEvent = {
+  type: 'Dual:changed';
+  payload: [boolean];
+};
+
+export type DualMessenger = Messenger<'Dual', DualGetAction, DualChangedEvent>;
 `,
-      );
+        );
+      }
 
       const outputDir = path.join(directoryPath, '.docs');
       const result = await generate({
@@ -224,98 +394,24 @@ export type TestMessenger = Messenger<'Test', TestGetAction, never>;
         scanDirs: ['src'],
       });
 
+      expect(result.namespaces).toBe(1);
       expect(result.actions).toBe(1);
-    });
-  });
+      expect(result.events).toBe(1);
 
-  it('keeps published declaration files when a scan directory contains node_modules', async () => {
-    expect.assertions(2);
-
-    await withinSandbox(async ({ directoryPath }) => {
-      const srcDir = path.join(directoryPath, 'src');
-      await fs.promises.mkdir(srcDir, { recursive: true });
-      await fs.promises.writeFile(
-        path.join(srcDir, 'Local.ts'),
-        `
-export type LocalGetAction = {
-  type: 'Local:get';
-  handler: () => void;
-};
-
-export type LocalMessenger = Messenger<'Local', LocalGetAction, never>;
-`,
+      const actionsMd = await fs.promises.readFile(
+        path.join(outputDir, 'docs', 'Dual', 'actions.md'),
+        'utf8',
       );
-
-      const distDir = path.join(
-        directoryPath,
-        'node_modules',
-        '@metamask',
-        'published-pkg',
-        'dist',
+      const eventsMd = await fs.promises.readFile(
+        path.join(outputDir, 'docs', 'Dual', 'events.md'),
+        'utf8',
       );
-      await fs.promises.mkdir(distDir, { recursive: true });
-      await fs.promises.writeFile(
-        path.join(distDir, 'index.d.cts'),
-        `
-export type PublishedGetAction = {
-  type: 'Published:get';
-  handler: () => void;
-};
-
-export type PublishedMessenger = Messenger<'Published', PublishedGetAction, never>;
-`,
-      );
-
-      const result = await generate({
-        projectPath: directoryPath,
-        outputDir: path.join(directoryPath, '.docs'),
-        strategy: 'scan',
-        scanDirs: ['.'],
-      });
-
-      expect(result.namespaces).toBe(2);
-      expect(result.actions).toBe(2);
-    });
-  });
-
-  it('follows symlinked @metamask packages when scanning node_modules/@metamask/*/dist', async () => {
-    expect.assertions(1);
-
-    await withinSandbox(async ({ directoryPath }) => {
-      // In a yarn-workspaces layout, `node_modules/@metamask/<pkg>` is a
-      // symlink to the package's actual directory. `listTargetSubdirectories`
-      // must follow these symlinks when scanning node_modules.
-      const realPkgDir = path.join(directoryPath, 'real-pkg');
-      const distDir = path.join(realPkgDir, 'dist');
-      await fs.promises.mkdir(distDir, { recursive: true });
-      await fs.promises.writeFile(
-        path.join(distDir, 'index.d.cts'),
-        `
-export type LinkedGetAction = {
-  type: 'Linked:get';
-  handler: () => boolean;
-};
-
-export type LinkedMessenger = Messenger<'Linked', LinkedGetAction, never>;
-`,
-      );
-
-      const scopedDir = path.join(directoryPath, 'node_modules', '@metamask');
-      await fs.promises.mkdir(scopedDir, { recursive: true });
-      await fs.promises.symlink(
-        realPkgDir,
-        path.join(scopedDir, 'linked-pkg'),
-        'dir',
-      );
-
-      const result = await generate({
-        projectPath: directoryPath,
-        outputDir: path.join(directoryPath, '.docs'),
-        strategy: 'scan',
-        scanDirs: ['src'],
-      });
-
-      expect(result.actions).toBe(1);
+      expect(actionsMd.split('### `Dual:get`')).toHaveLength(2);
+      expect(eventsMd.split('### `Dual:changed`')).toHaveLength(2);
+      expect(actionsMd).toContain('Gets state from a.d.ts.');
+      expect(eventsMd).toContain('Reports changes from a.d.ts.');
+      expect(actionsMd).not.toContain('z.d.cts');
+      expect(eventsMd).not.toContain('z.d.cts');
     });
   });
 
@@ -389,16 +485,18 @@ export type FooMessenger = Messenger<'Foo', FooAction, never>;
     });
   });
 
-  it('deduplicates items preferring source over build output', async () => {
-    expect.assertions(2);
+  it.each(['.d.cts', '.d.ts'])(
+    'deduplicates items preferring source over %s build output',
+    async (extension) => {
+      expect.assertions(2);
 
-    await withinSandbox(async ({ directoryPath }) => {
-      // Reproduces how build output wins in a real monorepo. `a-controller` is
-      // scanned before `b-controller`, and its import of `@metamask/b-controller`
-      // resolves through node_modules to the published `.d.cts`, so the first
-      // declaration seen for `B:get` is the built one. The source declaration is
-      // reached later, when `b-controller/src` is scanned, and should win.
-      const declaration = `
+      await withinSandbox(async ({ directoryPath }) => {
+        // Reproduces how build output wins in a real monorepo. `a-controller` is
+        // scanned before `b-controller`, and its import of `@metamask/b-controller`
+        // resolves through node_modules to the published declaration file, so the first
+        // declaration seen for `B:get` is the built one. The source declaration is
+        // reached later, when `b-controller/src` is scanned, and should win.
+        const declaration = `
 /** Gets b. */
 export type BGetAction = {
   type: 'B:get';
@@ -406,59 +504,73 @@ export type BGetAction = {
 };
 `;
 
-      const bSrc = path.join(directoryPath, 'packages', 'b-controller', 'src');
-      await fs.promises.mkdir(bSrc, { recursive: true });
-      await fs.promises.writeFile(
-        path.join(bSrc, 'BController.ts'),
-        `${declaration}
+        const bSrc = path.join(
+          directoryPath,
+          'packages',
+          'b-controller',
+          'src',
+        );
+        await fs.promises.mkdir(bSrc, { recursive: true });
+        await fs.promises.writeFile(
+          path.join(bSrc, 'BController.ts'),
+          `${declaration}
 export type BMessenger = Messenger<'B', BGetAction, never>;
 `,
-      );
+        );
 
-      const bDist = path.join(
-        directoryPath,
-        'node_modules',
-        '@metamask',
-        'b-controller',
-        'dist',
-      );
-      await fs.promises.mkdir(bDist, { recursive: true });
-      await fs.promises.writeFile(path.join(bDist, 'index.d.cts'), declaration);
-      await fs.promises.writeFile(
-        path.join(bDist, '..', 'package.json'),
-        JSON.stringify({
-          name: '@metamask/b-controller',
-          types: './dist/index.d.cts',
-        }),
-      );
+        const bDist = path.join(
+          directoryPath,
+          'node_modules',
+          '@metamask',
+          'b-controller',
+          'dist',
+        );
+        await fs.promises.mkdir(bDist, { recursive: true });
+        await fs.promises.writeFile(
+          path.join(bDist, `index${extension}`),
+          declaration,
+        );
+        await fs.promises.writeFile(
+          path.join(bDist, '..', 'package.json'),
+          JSON.stringify({
+            name: '@metamask/b-controller',
+            types: `./dist/index${extension}`,
+          }),
+        );
 
-      const aSrc = path.join(directoryPath, 'packages', 'a-controller', 'src');
-      await fs.promises.mkdir(aSrc, { recursive: true });
-      await fs.promises.writeFile(
-        path.join(aSrc, 'AController.ts'),
-        `
+        const aSrc = path.join(
+          directoryPath,
+          'packages',
+          'a-controller',
+          'src',
+        );
+        await fs.promises.mkdir(aSrc, { recursive: true });
+        await fs.promises.writeFile(
+          path.join(aSrc, 'AController.ts'),
+          `
 import type { BGetAction } from '@metamask/b-controller';
 
 export type AMessenger = Messenger<'A', BGetAction, never>;
 `,
-      );
+        );
 
-      const outputDir = path.join(directoryPath, '.docs');
-      await generate({
-        projectPath: directoryPath,
-        outputDir,
-        strategy: 'scan',
-        scanDirs: ['src'],
+        const outputDir = path.join(directoryPath, '.docs');
+        await generate({
+          projectPath: directoryPath,
+          outputDir,
+          strategy: 'scan',
+          scanDirs: ['src'],
+        });
+
+        const actionsMd = await fs.promises.readFile(
+          path.join(outputDir, 'docs', 'B', 'actions.md'),
+          'utf8',
+        );
+        expect(actionsMd).toContain('packages/b-controller/src/BController.ts');
+        expect(actionsMd).not.toContain('/dist/');
       });
-
-      const actionsMd = await fs.promises.readFile(
-        path.join(outputDir, 'docs', 'B', 'actions.md'),
-        'utf8',
-      );
-      expect(actionsMd).toContain('packages/b-controller/src/BController.ts');
-      expect(actionsMd).not.toContain('/dist/');
-    });
-  });
+    },
+  );
 
   it('returns zero counts for project with no messenger types', async () => {
     expect.assertions(3);

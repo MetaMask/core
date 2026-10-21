@@ -249,7 +249,7 @@ function logScanPlan(sources: ScanSources): void {
     summary.push('packages/*/src (.ts)');
   }
   if (sources.nodeModulesDir) {
-    summary.push('node_modules/@metamask/*/dist (.d.cts)');
+    summary.push('node_modules/@metamask/*/dist (.d.cts, .d.ts)');
   }
   console.log(
     `Scanning ${summary.join(', ')} for Messenger action/event types...`,
@@ -390,7 +390,12 @@ async function scanSources(
 
   if (sources.nodeModulesDir) {
     const root = await toGlobPath(sources.nodeModulesDir);
-    sourceFiles.push(...addSourceFiles(project, [`${root}/*/dist/**/*.d.cts`]));
+    sourceFiles.push(
+      ...addSourceFiles(project, [
+        `${root}/*/dist/**/*.d.cts`,
+        `${root}/*/dist/**/*.d.ts`,
+      ]),
+    );
   }
 
   // Matched paths are fully resolved, so the root they are made relative to
