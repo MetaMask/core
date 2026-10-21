@@ -479,19 +479,20 @@ describe('MarketingConsentController', () => {
   });
 
   describe('sign-in', () => {
-    it('uploads the first local decision after sign-in', async () => {
+    it('uploads the first local decision made after sign-in', async () => {
       const { mocks, setAnalyticsState, setSignedIn } = setup();
 
       expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
 
       setSignedIn(true);
       await flushPromises();
-      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(1);
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
 
       setAnalyticsState(OPTED_OUT);
       await flushPromises();
 
-      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(1);
       expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
         { marketingConsentEnabled: false },
         'extension',
@@ -535,23 +536,80 @@ describe('MarketingConsentController', () => {
       expect(controller.state.pendingMarketingConsent).toBeNull();
     });
 
-    it('does not reconcile an undecided local value', async () => {
-      const { mocks } = setup({
+    it('leaves an undecided client undecided when AUS has no record', async () => {
+      const { controller, mocks } = setup({
         analyticsState: { optedInToMarketing: true },
         isSignedIn: true,
         remoteConsent: null,
       });
       await flushPromises();
 
-      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(1);
+      expect(mocks.optInToMarketing).not.toHaveBeenCalled();
+      expect(mocks.optOutOfMarketing).not.toHaveBeenCalled();
       expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+      expect(controller.state.pendingMarketingConsent).toBeNull();
+    });
+
+    it.each([
+      { marketingConsentEnabled: true, applied: 'optInToMarketing' as const },
+      { marketingConsentEnabled: false, applied: 'optOutOfMarketing' as const },
+    ])(
+      'adopts AUS consent $marketingConsentEnabled on an undecided client without writing it back',
+      async ({ marketingConsentEnabled, applied }) => {
+        const { controller, mocks } = setup({
+          analyticsState: UNDECIDED,
+          isSignedIn: true,
+          remoteConsent: { marketingConsentEnabled },
+        });
+        await flushPromises();
+
+        expect(mocks[applied]).toHaveBeenCalledTimes(1);
+        expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+        expect(controller.state.pendingMarketingConsent).toBeNull();
+      },
+    );
+
+    it('turns off marketing channels when an undecided client adopts an AUS opt-out', async () => {
+      const { mocks } = setup({
+        analyticsState: UNDECIDED,
+        isSignedIn: true,
+        remoteConsent: { marketingConsentEnabled: false },
+        getPreferences: async () => NOTIFICATION_PREFERENCES,
+      });
+      await flushPromises();
+
+      expect(mocks.putNotificationPreferences).toHaveBeenCalledWith(
+        {
+          ...NOTIFICATION_PREFERENCES,
+          marketing: {
+            pushNotificationsEnabled: false,
+            inAppNotificationsEnabled: false,
+          },
+        },
+        'extension',
+      );
+      expect(mocks.putMarketingConsent).not.toHaveBeenCalled();
+    });
+
+    it('does not read AUS for an undecided client while locked', async () => {
+      const { mocks } = setup({
+        analyticsState: UNDECIDED,
+        isSignedIn: true,
+        isUnlocked: false,
+        remoteConsent: { marketingConsentEnabled: true },
+      });
+      await flushPromises();
+
+      expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+      expect(mocks.optInToMarketing).not.toHaveBeenCalled();
     });
 
     it.each([
       { localConsent: true, remoteApplied: 'optOutOfMarketing' as const },
       { localConsent: false, remoteApplied: 'optInToMarketing' as const },
     ])(
-      'uploads the first local decision $localConsent instead of applying the AUS value',
+      'uploads a first local decision $localConsent made during the AUS read instead of applying the AUS value',
       async ({ localConsent, remoteApplied }) => {
         const { controller, mocks, setAnalyticsState } = setup({
           analyticsState: UNDECIDED,
@@ -565,7 +623,7 @@ describe('MarketingConsentController', () => {
         });
         await flushPromises();
 
-        expect(mocks.getMarketingConsent).not.toHaveBeenCalled();
+        expect(mocks.getMarketingConsent).toHaveBeenCalledTimes(1);
         expect(mocks[remoteApplied]).not.toHaveBeenCalled();
         expect(mocks.putMarketingConsent).toHaveBeenCalledWith(
           { marketingConsentEnabled: localConsent },

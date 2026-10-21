@@ -128,6 +128,9 @@ describe('KycController', () => {
             residenceCountry: 'USA',
             vendor: 'iron',
             aal2Token: AAL2_TOKEN,
+            partnerIdentityToken: unsignedJwt({
+              ext: { email: 'a@b.co', email_verified: true },
+            }),
           }),
         );
         expect(
@@ -508,6 +511,7 @@ describe('KycController', () => {
             'KycController missing partner identity token for vendor',
           );
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
         },
       );
     });
@@ -540,6 +544,14 @@ describe('KycController', () => {
             ext: { email: 'moonpay@example.com', email_verified: true },
           }),
         });
+        expect(handlers.createUkycSession).toHaveBeenCalledWith(
+          expect.objectContaining({
+            vendor: 'moonpay',
+            partnerIdentityToken: unsignedJwt({
+              ext: { email: 'moonpay@example.com', email_verified: true },
+            }),
+          }),
+        );
       });
     });
 

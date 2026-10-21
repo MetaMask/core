@@ -116,6 +116,9 @@
       "path": "./packages/eip1193-permission-middleware/tsconfig.build.json"
     },
     {
+      "path": "./packages/error-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/eth-block-tracker/tsconfig.build.json"
     },
     {
@@ -216,6 +219,9 @@
     },
     {
       "path": "./packages/network-enablement-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/node-utils/tsconfig.build.json"
     },
     {
       "path": "./packages/notification-services-controller/tsconfig.build.json"

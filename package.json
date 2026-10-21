@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1345.0.0",
+  "version": "1347.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -77,6 +77,7 @@
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/create-release-branch": "^4.2.2",
     "@metamask/network-controller": "^37.1.0",
+    "@metamask/node-utils": "^0.0.0",
     "@metamask/oxlint-config": "^0.1.1",
     "@metamask/oxlint-config-commonjs": "^0.1.1",
     "@metamask/oxlint-config-jest": "^0.1.1",
@@ -84,7 +85,6 @@
     "@metamask/oxlint-config-typescript": "^0.1.1",
     "@metamask/oxlint-config-vitest": "^0.1.1",
     "@metamask/skills": "^0.3.1",
-    "@metamask/utils": "^12.0.0",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.26",
     "@types/node": "^22.13.14",

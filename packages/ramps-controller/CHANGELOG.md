@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Add missing `@metamask/utils` dependency ([#10926](https://github.com/MetaMask/core/pull/10926))
+
+## [27.0.2]
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
-- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^34.1.0` ([#10905](https://github.com/MetaMask/core/pull/10905))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
 
 ## [27.0.1]
 
@@ -730,7 +736,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.2...HEAD
+[27.0.2]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.1...@metamask/ramps-controller@27.0.2
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.0...@metamask/ramps-controller@27.0.1
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.3.0...@metamask/ramps-controller@27.0.0
 [26.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.2.0...@metamask/ramps-controller@26.3.0

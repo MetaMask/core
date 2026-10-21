@@ -18,5 +18,16 @@
     "./src/**/__fixtures__/**/*",
     "./src/**/__mocks__/**/*",
     "./src/**/__snapshots__/**/*"
+  ],
+  "references": [
+    {
+      "path": "../type-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../error-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../node-utils/tsconfig.build.json"
+    }
   ]
 }

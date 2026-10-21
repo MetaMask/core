@@ -204,7 +204,9 @@ export type MarketingConsentControllerMessenger = Messenger<
  * {@link MarketingConsentController.setMarketingConsent}, which resolves once
  * AUS has saved the change.
  * - On sign-in, unlock or {@link MarketingConsentController.refresh}, consent
- * is read from AUS and applied locally.
+ * is read from AUS and applied locally. A client with no local decision (e.g. a
+ * social-login restore on a new device) adopts the decision saved in AUS, or
+ * stays undecided when there is none.
  * - A local change not yet saved (e.g. made during onboarding, before sign-in
  * finishes) wins at the next sync and is written to AUS. If AUS has no record, the local value is
  * written to it.
@@ -486,7 +488,10 @@ export class MarketingConsentController extends BaseController<
         prior.decided &&
         now.decided &&
         this.#applyingRemoteValue !== now.optedIn;
-      const decisionJustMade = !prior.decided && now.decided;
+      const decisionJustMade =
+        !prior.decided &&
+        now.decided &&
+        this.#applyingRemoteValue !== now.optedIn;
 
       if (!localConsentChanged && !decisionJustMade) {
         return;
@@ -507,16 +512,23 @@ export class MarketingConsentController extends BaseController<
   }
 
   /**
-   * Whether consent can be synced: AUS needs a bearer token, which is only
-   * obtainable while unlocked and signed in, and only a decided consent is
-   * synced.
+   * Whether AUS can be read: it needs a bearer token, which is only obtainable
+   * while unlocked and signed in.
+   *
+   * @returns True when unlocked and signed in.
+   */
+  #canReachAus(): boolean {
+    return this.#isUnlocked && this.#isSignedIn;
+  }
+
+  /**
+   * Whether consent can be written to AUS: AUS must be reachable, and only a
+   * decided consent is written.
    *
    * @returns True when unlocked, signed in and consent is decided.
    */
   #isReady(): boolean {
-    return (
-      this.#isUnlocked && this.#isSignedIn && this.#getLocalConsent().decided
-    );
+    return this.#canReachAus() && this.#getLocalConsent().decided;
   }
 
   /**
@@ -638,7 +650,7 @@ export class MarketingConsentController extends BaseController<
       'AuthenticatedUserStorageService:getMarketingConsent',
     );
 
-    if (session !== this.#session || !this.#isReady()) {
+    if (session !== this.#session || !this.#canReachAus()) {
       return;
     }
 
@@ -648,15 +660,20 @@ export class MarketingConsentController extends BaseController<
     }
 
     // Read after the checks, so it reflects any change made during the read.
-    const localValue = this.#getLocalConsent().optedIn;
+    const { optedIn: localValue, decided } = this.#getLocalConsent();
 
     if (remote === null) {
-      await this.#writeConsent(localValue, session);
-      session.lastSynced = localValue;
+      // Without a local decision there is nothing to write; the user is asked,
+      // and that decision is written as a local change.
+      if (decided) {
+        await this.#writeConsent(localValue, session);
+        session.lastSynced = localValue;
+      }
       return;
     }
 
-    if (remote.marketingConsentEnabled !== localValue) {
+    // An undecided client adopts the decision saved in AUS.
+    if (!decided || remote.marketingConsentEnabled !== localValue) {
       this.#applyingRemoteValue = remote.marketingConsentEnabled;
       try {
         if (remote.marketingConsentEnabled) {
@@ -734,7 +751,7 @@ export class MarketingConsentController extends BaseController<
       return this.#inFlight;
     }
 
-    if (!this.#isReady()) {
+    if (!this.#canReachAus()) {
       return Promise.resolve();
     }
 
@@ -751,7 +768,7 @@ export class MarketingConsentController extends BaseController<
       const changedAfterFlush =
         succeeded && this.state.pendingMarketingConsent !== null;
       if (
-        this.#isReady() &&
+        this.#canReachAus() &&
         (sessionChanged ||
           this.#session.refreshRequested === true ||
           changedAfterFlush)

@@ -8,8 +8,7 @@
     "noEmit": true,
     "types": ["jest"],
     "paths": {
-      "@metamask/utils/node": ["./packages/utils/src/node.ts"],
-      "@metamask/utils": ["./packages/utils/src/index.ts"]
+      "@metamask/node-utils": ["./packages/node-utils/src/index.ts"]
     }
   },
   "references": [
@@ -122,6 +121,9 @@
       "path": "./packages/eip1193-permission-middleware"
     },
     {
+      "path": "./packages/error-utils"
+    },
+    {
       "path": "./packages/eth-block-tracker"
     },
     {
@@ -222,6 +224,9 @@
     },
     {
       "path": "./packages/network-enablement-controller"
+    },
+    {
+      "path": "./packages/node-utils"
     },
     {
       "path": "./packages/notification-services-controller"
@@ -350,6 +355,8 @@
     "./types",
     "./scripts",
     "./codeowners.ts",
-    "./knip.config.mts"
+    "./knip.config.mts",
+    "./vitest.config.packages.ts",
+    "./packages/*/vitest.config.ts"
   ]
 }

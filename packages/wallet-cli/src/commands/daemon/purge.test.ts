@@ -1,9 +1,9 @@
 import { rm } from 'node:fs/promises';
 
+import { runCommand } from '../../../tests/run-command.js';
 import { pingDaemon } from '../../daemon/daemon-client.js';
 import { confirmPurge } from '../../daemon/prompts.js';
 import { stopDaemon } from '../../daemon/stop-daemon.js';
-import { runCommand } from '../../test/run-command.js';
 import DaemonPurge from './purge.js';
 
 jest.mock('node:fs/promises');
