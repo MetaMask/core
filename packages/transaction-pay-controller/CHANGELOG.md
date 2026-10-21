@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^19.0.0` to `^19.1.0` ([#10876](https://github.com/MetaMask/core/pull/10876))
 - Bump `@metamask/ramps-controller` from `^27.0.1` to `^27.0.2` ([#10925](https://github.com/MetaMask/core/pull/10925))
 
+### Fixed
+
+- Prefer the checksummed `AssetsController` asset ID over a lowercase duplicate when resolving token metadata, balances, and prices ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - A stale lowercase `assetsInfo` entry without price data previously shadowed the checksummed entry for lowercase token addresses, dropping the token from required tokens so no quote was requested.
+  - Lowercase-only matches are no longer cached, so the checksummed entry is picked up once indexed.
+
 ## [30.1.0]
 
 ### Added
