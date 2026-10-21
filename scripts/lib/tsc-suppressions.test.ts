@@ -4,7 +4,7 @@ import {
   readFile,
   readJsonFile,
   writeJsonFile,
-} from '@metamask/utils/node';
+} from '@metamask/node-utils';
 import path from 'path';
 
 import {

@@ -5,8 +5,8 @@ import type {
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import { TransactionPayStrategy } from '../../index.js';
-import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   Amount,
   FiatValue,

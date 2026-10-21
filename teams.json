@@ -32,7 +32,8 @@
   "metamask/money-account-utils": "team-earn",
   "metamask/money-account-api-data-service": "team-earn",
   "metamask/money-account-mfa-whitelist": "team-earn",
-  "metamask/notification-services-controller": "team-assets",
+  "metamask/notification-services-controller": "team-engagement",
+  "metamask/marketing-consent-controller": "team-engagement",
   "metamask/compliance-controller": "team-perps",
   "metamask/perps-controller": "team-perps",
   "metamask/phishing-controller": "team-product-safety",
@@ -67,6 +68,7 @@
   "metamask/wallet": "team-core-platform",
   "metamask/wallet-cli": "team-core-platform",
   "metamask/passkey-controller": "team-onboarding",
+  "metamask/mfa-recovery-controller": "team-onboarding",
   "metamask/seedless-onboarding-controller": "team-onboarding",
   "metamask/shield-controller": "team-shield",
   "metamask/subscription-controller": "team-shield",
@@ -102,5 +104,8 @@
   "metamask/smart-transactions-controller": "team-transactions",
   "metamask/kyc-controller": "team-universal-kyc",
   "metamask/cryptography": "team-core-platform",
-  "metamask/package-template": "team-core-platform"
+  "metamask/package-template": "team-core-platform",
+  "metamask/type-utils": "team-core-platform",
+  "metamask/error-utils": "team-core-platform",
+  "metamask/node-utils": "team-core-platform"
 }
