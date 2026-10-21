@@ -27,7 +27,7 @@ import type { Hex } from '@metamask/utils';
 import { projectLogger as log } from './logger.js';
 import type { MoneyAccountControllerMethodActions } from './MoneyAccountController-method-action-types.js';
 import type { MoneyAccount, MoneyAccountEntropyOptions } from './types.js';
-import { isMoneyKeyring } from './utils.js';
+import { isMoneyKeyring, isMpcMoneyKeyring } from './utils.js';
 
 export const controllerName = 'MoneyAccountController';
 
@@ -37,10 +37,14 @@ export const controllerName = 'MoneyAccountController';
  * - `{ type: 'mnemonic' }`: create the SFA account backed by the `MoneyKeyring`
  * for the given entropy source, defaulting to the primary HD keyring's entropy
  * source when omitted.
- * - `{ type: 'mpc' }`: create the MFA account backed by the MPC Money keyring.
- * The keyring cannot be created by this controller — it requires
- * client-specific parameters — so it must already be registered with the
- * keyring controller.
+ * - `{ type: 'mpc' }`: create the MFA account backed by the MPC Money keyring,
+ * which is registered if it does not exist yet (it requires no parameters —
+ * the constructor parameters are captured by the keyring builder that the
+ * client registers). When the keyring has no account yet, the MPC setup is
+ * triggered to create it, inferring the mode from the backend: import when
+ * the profile already has a key share or backup, create otherwise. This may
+ * require interactive authentication via the client-captured callbacks and
+ * can be long-running.
  */
 export type CreateMoneyAccountParams =
   | {
@@ -257,9 +261,14 @@ export class MoneyAccountController extends BaseController<
    * source, it is returned as-is (idempotent).
    *
    * The parameters determine the backing keyring:
-   * - `{ type: 'mpc' }`: the MPC Money keyring (MFA account), which is fully
-   * managed by the client — the keyring and its account must already exist,
-   * otherwise this throws.
+   * - `{ type: 'mpc' }`: the MPC Money keyring (MFA account), which is
+   * registered if it does not exist yet (its constructor parameters are
+   * captured by the keyring builder that the client registers). When the
+   * keyring has no account yet, the MPC setup is triggered to create it,
+   * inferring the mode from the backend — import when the profile already
+   * has a key share or backup, create otherwise — which may require
+   * interactive authentication via the client-captured callbacks and can be
+   * long-running.
    * - `{ type: 'mnemonic', entropySource? }`: the `MoneyKeyring` for that
    * entropy source (SFA account), defaulting to the primary HD keyring's
    * entropy source, which is created if it does not exist yet.
@@ -417,35 +426,36 @@ export class MoneyAccountController extends BaseController<
 
   /**
    * Creates the money account backed by the MPC Money keyring, reusing the
-   * account already managed by the keyring.
+   * account already managed by the keyring, or triggering the MPC setup to
+   * create it when the keyring has no account yet.
    *
-   * The MPC Money keyring is fully managed by the client — it requires
-   * client-specific parameters to be created, and its account is created
-   * during its own initialization — so neither the keyring nor its account can
-   * be created by this controller. The keyring must already be registered and
-   * initialized, otherwise this throws.
+   * The keyring itself is registered by `#ensureMpcMoneyKeyring` if it does
+   * not exist (it requires no parameters — the constructor parameters are
+   * captured by the keyring builder that the client registers). Its setup —
+   * which creates the account — infers the mode from the backend when no
+   * account exists yet: import when the profile already has a key share or
+   * backup, create otherwise. The setup may require interactive
+   * authentication via the client-captured callbacks and can be
+   * long-running.
    *
    * @returns The money account.
    */
   async #createMpcMoneyKeyringAccount(): Promise<MoneyAccount> {
-    const keyringId = this.#ensureMpcMoneyKeyring();
+    const keyringId = await this.#ensureMpcMoneyKeyring();
 
-    const [existingAccount] = await this.#withKeyringV2(
-      keyringId,
-      async (keyring) => keyring.getAccounts(),
+    const [account] = await this.#withKeyringV2(keyringId, async (keyring) =>
+      keyring.createAccounts({ type: AccountCreationType.Custom }),
     );
 
-    if (!existingAccount) {
-      throw new Error(
-        'MPC Money keyring has no account; it must be initialized by the client before creating an MPC money account',
-      );
+    if (!account) {
+      throw new Error('MPC Money keyring account creation failed');
     }
 
-    if (!this.#isMpcMoneyAccount(existingAccount)) {
+    if (!this.#isMpcMoneyAccount(account)) {
       throw new Error('MPC Money keyring account has unexpected options');
     }
 
-    return this.#persistMoneyAccount(existingAccount);
+    return this.#persistMoneyAccount(account);
   }
 
   /**
@@ -604,31 +614,44 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Ensures the MPC Money keyring exists and returns its keyring ID.
+   * Ensures the MPC Money keyring exists, registering one atomically if it
+   * does not, and returns its keyring ID.
    *
-   * The MPC Money keyring cannot be created by this controller — it requires
-   * client-specific parameters — so it must already be registered with the
-   * keyring controller, otherwise this throws.
+   * Registering the keyring requires no parameters: the constructor
+   * parameters are captured by the keyring builder that the client registers
+   * with the keyring controller. Registering never runs the MPC setup; the
+   * setup — which creates the keyring's account — is only triggered
+   * explicitly through account creation.
    *
-   * @returns The keyring ID of the MPC Money keyring.
+   * The check-or-create is performed within a single
+   * `KeyringController:withController` transaction, which is mutually
+   * exclusive and rolls back on error.
+   *
+   * @returns The keyring ID of the existing or newly created keyring.
    */
-  #ensureMpcMoneyKeyring(): string {
-    const { keyrings } = this.messenger.call('KeyringController:getState');
-    const mpcMoneyKeyrings = keyrings.filter(
-      (keyring) => keyring.type === KeyringTypes.mpcMoney,
-    );
+  async #ensureMpcMoneyKeyring(): Promise<string> {
+    return (await this.messenger.call(
+      'KeyringController:withController',
+      async (restrictedController) => {
+        const mpcMoneyKeyrings = restrictedController.keyrings.filter((entry) =>
+          isMpcMoneyKeyring(entry.keyring),
+        );
 
-    if (mpcMoneyKeyrings.length === 0) {
-      throw new Error(
-        'MPC Money keyring not found; it must be registered by the client before creating an MPC money account',
-      );
-    }
+        if (mpcMoneyKeyrings.length > 1) {
+          throw new Error('Multiple MPC Money keyrings found');
+        }
 
-    if (mpcMoneyKeyrings.length > 1) {
-      throw new Error('Multiple MPC Money keyrings found');
-    }
+        if (mpcMoneyKeyrings.length === 1) {
+          return mpcMoneyKeyrings[0].metadata.id;
+        }
 
-    return mpcMoneyKeyrings[0].metadata.id;
+        log('MPC Money keyring not found, creating one...');
+        const entry = await restrictedController.addNewKeyring(
+          KeyringTypes.mpcMoney,
+        );
+        return entry.metadata.id;
+      },
+    )) as string;
   }
 
   /**

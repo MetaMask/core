@@ -207,14 +207,19 @@ class MockMpcKeyring {
 
   readonly #accounts: string[];
 
-  initCalls = 0;
+  setupCalls = 0;
 
   constructor({ accounts = [MOCK_MPC_ADDRESS] }: { accounts?: string[] } = {}) {
     this.#accounts = [...accounts];
   }
 
-  async init(): Promise<void> {
-    this.initCalls += 1;
+  async setup(): Promise<void> {
+    this.setupCalls += 1;
+    // Simulates the MPC setup (key generation or import) creating the
+    // account.
+    if (this.#accounts.length === 0) {
+      this.#accounts.push(MOCK_MPC_ADDRESS);
+    }
   }
 
   async getAccounts(): Promise<string[]> {
@@ -222,7 +227,7 @@ class MockMpcKeyring {
   }
 }
 
-/** Mirrors the V2 `MpcKeyring` wrapper from `@metamask/keyring-eth-mpc/v2`. */
+/** Mirrors the V2 `MpcMoneyKeyring` wrapper from `@metamask/eth-money-mpc-keyring/v2`. */
 class MockMpcKeyringV2 {
   readonly #inner: MockMpcKeyring;
 
@@ -234,6 +239,31 @@ class MockMpcKeyringV2 {
     return (await this.#inner.getAccounts()).map((address) =>
       toV2Account(address, { type: 'mpc' }),
     );
+  }
+
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<KeyringAccount[]> {
+    if (options.type !== 'custom') {
+      throw new Error(
+        `MpcMoneyKeyring: unsupported account creation type: ${options.type}`,
+      );
+    }
+
+    const accounts = await this.getAccounts();
+    if (accounts.length > 0) {
+      return accounts;
+    }
+
+    // The mode is inferred from the backend by the inner keyring.
+    await this.#inner.setup();
+
+    const [createdAccount] = await this.getAccounts();
+    if (!createdAccount) {
+      throw new Error('MpcMoneyKeyring: account creation failed');
+    }
+
+    return [createdAccount];
   }
 }
 
@@ -898,7 +928,7 @@ describe('MoneyAccountController', () => {
           account,
         );
         expect(controller.state.defaultMoneyAccountId).toBe(account.id);
-        // The MPC Money keyring is never created by this controller.
+        // The existing keyring is reused, not re-registered.
         expect(mocks.KeyringController.addNewKeyring).not.toHaveBeenCalled();
       });
 
@@ -932,7 +962,7 @@ describe('MoneyAccountController', () => {
         ).toStrictEqual(account);
       });
 
-      it('does not initialize the MPC Money keyring', async () => {
+      it('does not run the MPC setup when the account already exists', async () => {
         const { controller, keyringEntries } = setup({
           keyrings: [
             MOCK_HD_KEYRING,
@@ -951,10 +981,10 @@ describe('MoneyAccountController', () => {
 
         const mpcKeyring = keyringEntries[1]
           .keyring as unknown as MockMpcKeyring;
-        expect(mpcKeyring.initCalls).toBe(0);
+        expect(mpcKeyring.setupCalls).toBe(0);
       });
 
-      it('throws when the MPC Money keyring has no accounts (not initialized)', async () => {
+      it('triggers the MPC setup when the keyring has no account', async () => {
         const { controller, keyringEntries } = setup({
           keyrings: [
             MOCK_HD_KEYRING,
@@ -969,12 +999,60 @@ describe('MoneyAccountController', () => {
           ],
         });
 
-        await expect(
-          controller.createMoneyAccount({ type: 'mpc' }),
-        ).rejects.toThrow('MPC Money keyring has no account');
+        const account = await controller.createMoneyAccount({ type: 'mpc' });
+
+        expect(account.address).toBe(MOCK_MPC_ADDRESS);
         const mpcKeyring = keyringEntries[1]
           .keyring as unknown as MockMpcKeyring;
-        expect(mpcKeyring.initCalls).toBe(0);
+        expect(mpcKeyring.setupCalls).toBe(1);
+      });
+
+      it('propagates errors from the MPC setup', async () => {
+        const { controller, keyringEntries } = setup({
+          keyrings: [
+            MOCK_HD_KEYRING,
+            {
+              type: KeyringTypes.mpcMoney,
+              accounts: [],
+              metadata: {
+                id: 'mpc-money-keyring-1',
+                name: 'MPC Money Keyring',
+              },
+            },
+          ],
+        });
+        const mpcKeyring = keyringEntries[1]
+          .keyring as unknown as MockMpcKeyring;
+        jest
+          .spyOn(mpcKeyring, 'setup')
+          .mockRejectedValue(new Error('MPC setup failure'));
+
+        await expect(
+          controller.createMoneyAccount({ type: 'mpc' }),
+        ).rejects.toThrow('MPC setup failure');
+      });
+
+      it('throws when account creation returns no account', async () => {
+        const { controller, keyringEntries } = setup({
+          keyrings: [
+            MOCK_HD_KEYRING,
+            {
+              type: KeyringTypes.mpcMoney,
+              accounts: [],
+              metadata: {
+                id: 'mpc-money-keyring-1',
+                name: 'MPC Money Keyring',
+              },
+            },
+          ],
+        });
+        const keyringV2 = keyringEntries[1]
+          .keyringV2 as unknown as MockMpcKeyringV2;
+        jest.spyOn(keyringV2, 'createAccounts').mockResolvedValue([]);
+
+        await expect(
+          controller.createMoneyAccount({ type: 'mpc' }),
+        ).rejects.toThrow('MPC Money keyring account creation failed');
       });
 
       it('throws when the MPC keyring account reports unexpected options', async () => {
@@ -993,9 +1071,11 @@ describe('MoneyAccountController', () => {
         });
         const keyringV2 = keyringEntries[1]
           .keyringV2 as unknown as MockMpcKeyringV2;
-        const [account] = await keyringV2.getAccounts();
+        const [account] = await keyringV2.createAccounts({
+          type: 'custom',
+        });
         jest
-          .spyOn(keyringV2, 'getAccounts')
+          .spyOn(keyringV2, 'createAccounts')
           .mockResolvedValue([{ ...account, options: {} }]);
 
         await expect(
@@ -1017,13 +1097,15 @@ describe('MoneyAccountController', () => {
         expect(mocks.KeyringController.withKeyringV2).not.toHaveBeenCalled();
       });
 
-      it('throws when no MPC Money keyring is registered', async () => {
+      it('registers the MPC Money keyring when missing and triggers its setup', async () => {
         const { controller, mocks } = setup();
 
-        await expect(
-          controller.createMoneyAccount({ type: 'mpc' }),
-        ).rejects.toThrow('MPC Money keyring not found');
-        expect(mocks.KeyringController.addNewKeyring).not.toHaveBeenCalled();
+        const account = await controller.createMoneyAccount({ type: 'mpc' });
+
+        expect(account.address).toBe(MOCK_MPC_ADDRESS);
+        expect(mocks.KeyringController.addNewKeyring).toHaveBeenCalledWith(
+          KeyringTypes.mpcMoney,
+        );
       });
 
       it('throws when multiple MPC Money keyrings exist', async () => {
