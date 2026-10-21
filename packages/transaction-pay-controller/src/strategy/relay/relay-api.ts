@@ -11,6 +11,17 @@ import type {
   RelayStatusResponse,
 } from './types.js';
 
+/** Error thrown for a non-OK Relay API response. */
+export class RelayApiError extends Error {
+  /** Machine-readable Relay error code from the response body, if any. */
+  readonly errorCode?: string;
+
+  constructor(message: string, errorCode?: string) {
+    super(message);
+    this.errorCode = errorCode;
+  }
+}
+
 /**
  * Fetch a quote from the Relay API.
  *
@@ -126,10 +137,11 @@ export async function getRelayStatus(
 }
 
 /**
- * Fetch a Relay endpoint, throwing an error containing the response body's
- * `message` or `error` field (or status code) on non-OK responses, so the
- * Relay server's actual reason is preserved without leaking the request URL
- * via the default `successfulFetch` message.
+ * Fetch a Relay endpoint, throwing a `RelayApiError` containing the response
+ * body's `message` or `error` field (or status code) on non-OK responses, so
+ * the Relay server's actual reason is preserved without leaking the request
+ * URL via the default `successfulFetch` message. The body's `errorCode` is
+ * kept on the error.
  *
  * @param url - The Relay endpoint to fetch.
  * @param init - Fetch init options.
@@ -140,17 +152,21 @@ async function relayFetch(url: string, init?: RequestInit): Promise<Response> {
 
   if (!response.ok) {
     let detail: string | undefined;
+    let errorCode: string | undefined;
     try {
       const body = (await response.json()) as {
         message?: string;
         error?: string;
+        errorCode?: string;
       };
       detail = body.message ?? body.error;
+      errorCode = body.errorCode;
     } catch {
       // Body wasn't JSON; fall through to status-only error.
     }
-    throw new Error(
+    throw new RelayApiError(
       detail ? `${response.status} - ${detail}` : String(response.status),
+      errorCode,
     );
   }
 

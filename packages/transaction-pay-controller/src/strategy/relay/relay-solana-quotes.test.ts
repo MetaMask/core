@@ -15,7 +15,11 @@ import type {
 import { isRelaySolanaEnabled } from '../../utils/feature-flags.js';
 import { calculateTotals } from '../../utils/totals.js';
 import { QuoteError } from '../../utils/validation.js';
-import { fetchRelayQuote, fetchRelaySolanaQuote } from './relay-api.js';
+import {
+  RelayApiError,
+  fetchRelayQuote,
+  fetchRelaySolanaQuote,
+} from './relay-api.js';
 import { getRelaySolanaQuotes } from './relay-solana-quotes.js';
 import {
   compileRelaySolanaTransaction,
@@ -25,7 +29,11 @@ import {
 } from './solana-transaction.js';
 import type { RelaySolanaQuote, RelaySolanaQuoteRequest } from './types.js';
 
-jest.mock('./relay-api');
+jest.mock('./relay-api', () => ({
+  ...jest.requireActual('./relay-api'),
+  fetchRelayQuote: jest.fn(),
+  fetchRelaySolanaQuote: jest.fn(),
+}));
 jest.mock('../../utils/gas', () => ({
   ...jest.requireActual('../../utils/gas'),
   calculateTransactionGasCost: jest.fn().mockReturnValue({
@@ -388,9 +396,7 @@ describe('getRelaySolanaQuotes', () => {
   });
 
   it('does not re-quote a native SOL max amount again when the re-quoted fee is lower', async () => {
-    computeFeeMock
-      .mockResolvedValueOnce(FEE_RAW)
-      .mockResolvedValueOnce('4000');
+    computeFeeMock.mockResolvedValueOnce(FEE_RAW).mockResolvedValueOnce('4000');
 
     const quotes = await getRelaySolanaQuotes(
       getFullRequest([
@@ -433,7 +439,7 @@ describe('getRelaySolanaQuotes', () => {
 
   it('retries once with maxRouteLength 4 when Relay rejects the transaction as too large', async () => {
     fetchRelaySolanaQuoteMock.mockRejectedValueOnce(
-      new Error('400 - SOLANA_TX_TOO_LARGE'),
+      new RelayApiError('400 - transaction too large', 'SOLANA_TX_TOO_LARGE'),
     );
 
     await getRelaySolanaQuotes(getFullRequest([getRequest()]));
@@ -446,13 +452,24 @@ describe('getRelaySolanaQuotes', () => {
 
   it('surfaces a second SOLANA_TX_TOO_LARGE rejection', async () => {
     fetchRelaySolanaQuoteMock.mockRejectedValue(
-      new Error('400 - SOLANA_TX_TOO_LARGE'),
+      new RelayApiError('400 - transaction too large', 'SOLANA_TX_TOO_LARGE'),
     );
 
     await expect(
       getRelaySolanaQuotes(getFullRequest([getRequest()])),
-    ).rejects.toThrow('SOLANA_TX_TOO_LARGE');
+    ).rejects.toThrow('400 - transaction too large');
     expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry a Relay error that only mentions SOLANA_TX_TOO_LARGE in its message', async () => {
+    fetchRelaySolanaQuoteMock.mockRejectedValue(
+      new RelayApiError('400 - SOLANA_TX_TOO_LARGE', 'NO_SWAP_ROUTES_FOUND'),
+    );
+
+    await expect(
+      getRelaySolanaQuotes(getFullRequest([getRequest()])),
+    ).rejects.toThrow('400 - SOLANA_TX_TOO_LARGE');
+    expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not retry other Relay errors', async () => {

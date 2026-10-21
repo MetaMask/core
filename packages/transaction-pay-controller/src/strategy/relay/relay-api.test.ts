@@ -2,6 +2,7 @@ import type { FeatureFlags } from '../../utils/feature-flags.js';
 import { getFeatureFlags } from '../../utils/feature-flags.js';
 import { RELAY_STATUS_URL, RELAY_TRANSACTIONS_INDEX_URL } from './constants.js';
 import {
+  RelayApiError,
   fetchRelayQuote,
   fetchRelaySolanaQuote,
   getRelayStatus,
@@ -170,6 +171,35 @@ describe('relay-api', () => {
         signal: undefined,
       });
       expect(quote.request).toStrictEqual(SOLANA_QUOTE_REQUEST_MOCK);
+    });
+
+    it('throws a RelayApiError carrying the Relay errorCode on non-OK', async () => {
+      mockErrorResponse(400, {
+        message: 'no routes found',
+        errorCode: 'NO_SWAP_ROUTES_FOUND',
+        requestId: '0x1234',
+      });
+
+      const error = await fetchRelaySolanaQuote(
+        MESSENGER_MOCK,
+        SOLANA_QUOTE_REQUEST_MOCK,
+      ).catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(RelayApiError);
+      expect(error).toHaveProperty('message', '400 - no routes found');
+      expect(error).toHaveProperty('errorCode', 'NO_SWAP_ROUTES_FOUND');
+    });
+
+    it('throws a RelayApiError without errorCode when the body has none', async () => {
+      mockErrorResponse(500, { message: 'Internal' });
+
+      const error = await fetchRelaySolanaQuote(
+        MESSENGER_MOCK,
+        SOLANA_QUOTE_REQUEST_MOCK,
+      ).catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(RelayApiError);
+      expect(error).toHaveProperty('errorCode', undefined);
     });
   });
 

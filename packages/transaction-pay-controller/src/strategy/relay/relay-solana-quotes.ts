@@ -15,7 +15,7 @@ import { getFiatValueFromUsd } from '../../utils/amounts.js';
 import { isRelaySolanaEnabled } from '../../utils/feature-flags.js';
 import { getAssetBalance, getAssetFiatRate } from '../../utils/token.js';
 import { QuoteError } from '../../utils/validation.js';
-import { fetchRelaySolanaQuote } from './relay-api.js';
+import { RelayApiError, fetchRelaySolanaQuote } from './relay-api.js';
 import {
   calculateDustUsd,
   calculateProviderFee,
@@ -144,7 +144,11 @@ async function getSingleSolanaQuote(
         messenger,
         {
           ...quoteRequest,
-          amount: getMaxNativeAmountRaw(request, withheldFeeRaw, rentReserveRaw),
+          amount: getMaxNativeAmountRaw(
+            request,
+            withheldFeeRaw,
+            rentReserveRaw,
+          ),
         },
         signal,
       );
@@ -256,7 +260,10 @@ async function fetchSolanaQuote(
   try {
     return await fetchRelaySolanaQuote(messenger, quoteRequest, signal);
   } catch (error) {
-    if (!String(error).includes(SOLANA_TX_TOO_LARGE)) {
+    if (
+      !(error instanceof RelayApiError) ||
+      error.errorCode !== SOLANA_TX_TOO_LARGE
+    ) {
       throw error;
     }
 
