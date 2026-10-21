@@ -593,6 +593,27 @@ describe('RewardsIntegrationService', () => {
       );
     });
 
+    it('does not drop a grant tenth because of floating-point error', async () => {
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(9700);
+      const computedThreeTenths = 0.1 + 0.7 - 0.5;
+      wireGrant(
+        jest
+          .fn()
+          .mockResolvedValue(createGrant({ feeBips: computedThreeTenths })),
+      );
+
+      const resolution = await service.resolveFee(
+        undefined,
+        HYPERLIQUID_MAINNET_SCOPE,
+      );
+
+      expect(computedThreeTenths * 10).toBeLessThan(3);
+      expect(resolution.source).toBe('rewards');
+      expect(quantizeBuilderFeeTenthsBps(resolution.discountBips ?? 0)).toBe(3);
+    });
+
     it('selects a below-tenth grant over a 0.1-bip rewards fee', async () => {
       (
         mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock

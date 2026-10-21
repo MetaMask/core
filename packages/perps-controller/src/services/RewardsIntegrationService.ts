@@ -41,6 +41,24 @@ const DEFAULT_FEE_BIPS =
 const BUILDER_FEE_TENTHS_PER_BIP =
   BUILDER_FEE_CONFIG.MaxFeeTenthsBps / DEFAULT_FEE_BIPS;
 
+/**
+ * Floor an absolute fee to the venue's integer tenths without dropping an
+ * exact boundary because of multiplication error.
+ *
+ * The two-ULP tolerance is far smaller than a venue increment, but covers
+ * values such as `0.29999999999999993` produced by ordinary decimal
+ * arithmetic when the intended value is 0.3.
+ *
+ * @param feeBips - Absolute builder fee in basis points.
+ * @returns The chargeable fee in integer tenths of a basis point.
+ */
+function quantizeAbsoluteFeeTenthsBps(feeBips: number): number {
+  const scaledFee = feeBips * BUILDER_FEE_TENTHS_PER_BIP;
+  const tolerance = Number.EPSILON * Math.max(1, Math.abs(scaledFee)) * 2;
+
+  return Math.floor(scaledFee + tolerance);
+}
+
 /** `SubscriptionController` reports allowances in micro-USD. */
 const MICRO_USD_PER_USD = 1_000_000;
 
@@ -228,7 +246,7 @@ export class RewardsIntegrationService {
     // 0.0999-bip grant to a discount first would round it to 9900 bips and
     // submit 0.1 bip instead of the venue-floored zero.
     const grantFeeTenthsBps = grant
-      ? Math.floor(grant.feeBips * BUILDER_FEE_TENTHS_PER_BIP)
+      ? quantizeAbsoluteFeeTenthsBps(grant.feeBips)
       : undefined;
     if (
       grantFeeTenthsBps !== undefined &&
