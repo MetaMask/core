@@ -360,49 +360,34 @@ export class KycController extends BaseController<
 
   /**
    * Records identity-sharing consent for the vendor's audience, then mints a
-   * partner identity token and reads the verified email claim from JWT `ext`.
+   * partner identity token.
    *
    * @param vendor - Identity vendor whose partner audience to request.
-   * @returns The minted token and its verified email, or `null` when the
-   * profile has no verified email (HTTP 422 / `EmailRequiredError`).
+   * @returns The minted token.
+   * @throws If consent recording or token minting fails, including HTTP 422
+   * (`EmailRequiredError`).
    */
-  async #getPartnerIdentityForVendor(vendor: KycVendor): Promise<{
-    partnerIdentityToken: string;
-    email: string;
-  } | null> {
+  async #getPartnerIdentityForVendor(vendor: KycVendor): Promise<string> {
     // TODO: Fix this typing. Safe for now as only Iron is used
     const audience = vendor as IdentitySharingAudience;
     await this.messenger.call(
       'AuthenticatedUserStorageService:putIdentitySharingConsent',
       { audience, granted: true },
     );
-    let partnerIdentityToken: string;
-    try {
-      partnerIdentityToken = await this.messenger.call(
-        'AuthenticationController:getPartnerIdentityToken',
-        ['email'],
-        audience,
-      );
-    } catch (error) {
-      if (isEmailRequiredError(error)) {
-        return null;
-      }
-      throw error;
-    }
-    return {
-      partnerIdentityToken,
-      email: getEmailFromPartnerIdentityToken(partnerIdentityToken),
-    };
+    return await this.messenger.call(
+      'AuthenticationController:getPartnerIdentityToken',
+      ['email'],
+      audience,
+    );
   }
 
   /**
    * Starts a KYC session for the given vendor. Reuses a latest vendor session
    * when one exists; otherwise creates a UKYC session.
    *
-   * The verified email stored on controller state comes from the partner
-   * identity token. When that request returns HTTP 422, a stored email is
-   * kept for an existing session. Creating a vendor customer and UKYC session
-   * requires the token, which both requests send as `partnerIdentityToken`.
+   * Creating a vendor customer and UKYC session requires a partner identity
+   * token, which both requests send as `partnerIdentityToken`. Token mint
+   * failures, including HTTP 422, propagate.
    *
    * @param params - The session parameters.
    * @param params.vendor - Identity vendor for the session.
@@ -454,24 +439,42 @@ export class KycController extends BaseController<
         );
       }
 
-      if (!partnerIdentity) {
-        throw new Error(
-          'KycController missing partner identity token for vendor',
+      // Will throw if minting tokens fails due to missing prereq (such as associated email).
+      // This check/fetch should happen before we update controller state below.
+      let partnerIdentityToken;
+
+      try {
+        partnerIdentityToken = await this.#getPartnerIdentityForVendor(
+          params.vendor,
         );
+      } catch (error) {
+        throw new Error('KycController failed to mint partner identity token for vendor');
       }
+
+      this.update((state) => {
+        state.vendor = params.vendor;
+        state.geoCountry = geoCountry;
+        state.providerFlowStatus = 'not_started';
+      });
+
 
       await this.messenger.call('KycService:createVendorCustomer', {
         vendor: params.vendor,
-        partnerIdentityToken: partnerIdentity.partnerIdentityToken,
+        partnerIdentityToken,
       });
 
       return this.#createUkycSession({
         vendor: params.vendor,
         geoCountry,
         aal2Token: params.aal2Token,
-        partnerIdentityToken: partnerIdentity.partnerIdentityToken,
+        partnerIdentityToken,
       });
     }
+
+    this.update((state) => {
+      state.vendor = params.vendor;
+      state.geoCountry = geoCountry;
+    });
     const sessionStatus = await this.messenger.call(
       'KycService:getSessionStatus',
       { sessionId: this.state.sessionStatus.id },

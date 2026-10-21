@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cache successful `KycService.fetchIdosEnclaveJwks` and `KycService.fetchIdosRelayJwks` responses in the service query cache for 24 hours ([#10894](https://github.com/MetaMask/core/pull/10894))
   - `KycService:invalidateQueries` drops the cached keys
 
+### Removed
+
+- **BREAKING:** Remove `email` from `KycControllerState`
+  - `startSession` no longer reads a verified email from the partner identity token or stores it
+  - Partner-identity token mint failures, including HTTP 422, propagate from `startSession`
+  - `recordVendorDisclaimers` no longer requires a stored email
+
 ## [0.11.0]
 
 ### Changed

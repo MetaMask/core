@@ -8,7 +8,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
-import { toBase64Url } from './encoding.js';
 import {
   getDefaultKycControllerState,
   KycController,
@@ -68,14 +67,14 @@ const MOCK_SUMSUB_DISCLAIMERS_ACCEPTED: KycConsentRecord[] =
   }));
 
 const AAL2_TOKEN = 'aal2-token';
+const PARTNER_IDENTITY_TOKEN = 'partner-identity-token';
 
 describe('KycController', () => {
   describe('constructor', () => {
     it('accepts initial state merged over defaults', async () => {
       await withController(
-        { options: { state: { email: 'a@b.co', vendor: 'iron' } } },
+        { options: { state: { vendor: 'iron' } } },
         ({ controller }) => {
-          expect(controller.state.email).toBe('a@b.co');
           expect(controller.state.vendor).toBe('iron');
           expect(controller.state.sessionStatus).toBeNull();
         },
@@ -109,24 +108,25 @@ describe('KycController', () => {
           'iron',
         );
         expect(
+          handlers.getSessionStatusForVendor.mock.invocationCallOrder[0],
+        ).toBeLessThan(
+          handlers.getPartnerIdentityToken.mock.invocationCallOrder[0],
+        );
+        expect(
           handlers.putIdentitySharingConsent.mock.invocationCallOrder[0],
         ).toBeLessThan(
           handlers.getPartnerIdentityToken.mock.invocationCallOrder[0],
         );
         expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
           vendor: 'iron',
-          partnerIdentityToken: unsignedJwt({
-            ext: { email: 'a@b.co', email_verified: true },
-          }),
+          partnerIdentityToken: PARTNER_IDENTITY_TOKEN,
         });
         expect(handlers.createUkycSession).toHaveBeenCalledWith(
           expect.objectContaining({
             residenceCountry: 'USA',
             vendor: 'iron',
             aal2Token: AAL2_TOKEN,
-            partnerIdentityToken: unsignedJwt({
-              ext: { email: 'a@b.co', email_verified: true },
-            }),
+            partnerIdentityToken: PARTNER_IDENTITY_TOKEN,
           }),
         );
         expect(
@@ -135,7 +135,6 @@ describe('KycController', () => {
         expect(handlers.setAuthorizations).toHaveBeenCalled();
         expect(result).toStrictEqual(sessionStatus('approved'));
         expect(controller.state.sessionStatus).toStrictEqual(result);
-        expect(controller.state.email).toBe('a@b.co');
         expect(controller.state.vendor).toBe('iron');
         expect(controller.state.geoCountry).toBe('USA');
       });
@@ -150,6 +149,8 @@ describe('KycController', () => {
 
         const result = await controller.startSession({ vendor: 'iron' });
 
+        expect(handlers.getPartnerIdentityToken).not.toHaveBeenCalled();
+        expect(handlers.putIdentitySharingConsent).not.toHaveBeenCalled();
         expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
         expect(handlers.getSessionStatus).not.toHaveBeenCalled();
@@ -165,7 +166,6 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
               vendor: 'iron',
               geoCountry: 'USA',
               sessionStatus: sessionStatus('pending'),
@@ -180,6 +180,8 @@ describe('KycController', () => {
             await controller.startSession({ vendor: 'iron' }),
           ).toStrictEqual(sessionStatus('pending'));
           expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+          expect(handlers.getPartnerIdentityToken).not.toHaveBeenCalled();
+          expect(handlers.putIdentitySharingConsent).not.toHaveBeenCalled();
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
@@ -200,7 +202,6 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
               vendor: 'iron',
               geoCountry: 'USA',
               sessionStatus: sessionStatus('pending', {
@@ -240,7 +241,6 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
               vendor: 'iron',
               geoCountry: 'USA',
               sessionStatus: sessionStatus('pending'),
@@ -273,7 +273,6 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
               vendor: 'iron',
               geoCountry: 'USA',
               sessionStatus: sessionStatus('pending'),
@@ -304,7 +303,6 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
               vendor: 'iron',
               geoCountry: 'USA',
               sessionStatus: sessionStatus('approved'),
@@ -355,7 +353,6 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
               vendor: 'iron',
               geoCountry: 'USA',
               sessionStatus: sessionStatus('pending'),
@@ -382,7 +379,6 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
               vendor: 'iron',
               geoCountry: 'USA',
               sessionStatus: sessionStatus('pending'),
@@ -397,25 +393,6 @@ describe('KycController', () => {
             controller.startSession({ vendor: 'iron' }),
           ).rejects.toThrow('No session was found');
           expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
-        },
-      );
-    });
-
-    it('throws when email does not match the initialized session', async () => {
-      await withController(
-        { options: { state: { email: 'a@b.co' } } },
-        async ({ controller, handlers }) => {
-          handlers.getPartnerIdentityToken.mockResolvedValue(
-            unsignedJwt({
-              ext: { email: 'other@b.co', email_verified: true },
-            }),
-          );
-
-          await expect(
-            controller.startSession({ vendor: 'iron' }),
-          ).rejects.toThrow(
-            'KycController already initialized with a different email',
-          );
         },
       );
     });
@@ -449,76 +426,36 @@ describe('KycController', () => {
       );
     });
 
-    it('throws when no verified email can be resolved', async () => {
-      await withController(async ({ controller, handlers }) => {
-        handlers.getPartnerIdentityToken.mockRejectedValue(
-          Object.assign(new Error('email_required'), { status: 422 }),
-        );
-
-        await expect(
-          controller.startSession({ vendor: 'iron' }),
-        ).rejects.toThrow('KycController missing verified email for vendor');
-      });
-    });
-
-    it('resumes a stored session when the partner identity token is missing', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              email: 'stored@b.co',
-              vendor: 'iron',
-              geoCountry: 'USA',
-              sessionStatus: sessionStatus('pending'),
-            },
-          },
-        },
-        async ({ controller, handlers }) => {
-          handlers.getPartnerIdentityToken.mockRejectedValue(
-            Object.assign(new Error('email_required'), { status: 422 }),
-          );
+    it.each([
+      ['HTTP 422', Object.assign(new Error('email_required'), { status: 422 })],
+      ['a mint failure', new Error('token mint failed')],
+    ])(
+      'throws a partner identity token %s before writing state',
+      async (_label, error) => {
+        await withController(async ({ controller, handlers }) => {
           handlers.getGeoCountry.mockResolvedValue('USA');
-          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
-
-          expect(
-            await controller.startSession({ vendor: 'iron' }),
-          ).toStrictEqual(sessionStatus('pending'));
-          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
-          expect(controller.state.email).toBe('stored@b.co');
-        },
-      );
-    });
-
-    it('does not create a customer from stored email when the partner identity token is missing', async () => {
-      await withController(
-        { options: { state: { email: 'stored@b.co' } } },
-        async ({ controller, handlers }) => {
-          handlers.getPartnerIdentityToken.mockRejectedValue(
-            Object.assign(new Error('email_required'), { status: 422 }),
-          );
           handlers.getSessionStatusForVendor.mockResolvedValue(null);
+          handlers.getPartnerIdentityToken.mockRejectedValue(error);
 
           await expect(
             controller.startSession({
               vendor: 'iron',
               aal2Token: AAL2_TOKEN,
             }),
-          ).rejects.toThrow(
-            'KycController missing partner identity token for vendor',
-          );
+          ).rejects.toThrow(error.message);
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
-        },
-      );
-    });
+          expect(controller.state.vendor).toBeNull();
+          expect(controller.state.geoCountry).toBeNull();
+          expect(controller.state.sessionStatus).toBeNull();
+        });
+      },
+    );
 
     it('requests a moonpay-audience partner identity token', async () => {
+      const moonpayToken = 'moonpay-partner-identity-token';
       await withController(async ({ controller, handlers }) => {
-        handlers.getPartnerIdentityToken.mockResolvedValue(
-          unsignedJwt({
-            ext: { email: 'moonpay@example.com', email_verified: true },
-          }),
-        );
+        handlers.getPartnerIdentityToken.mockResolvedValue(moonpayToken);
         handlers.getSessionStatusForVendor.mockResolvedValue(null);
 
         await controller.startSession({
@@ -536,16 +473,12 @@ describe('KycController', () => {
         );
         expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
           vendor: 'moonpay',
-          partnerIdentityToken: unsignedJwt({
-            ext: { email: 'moonpay@example.com', email_verified: true },
-          }),
+          partnerIdentityToken: moonpayToken,
         });
         expect(handlers.createUkycSession).toHaveBeenCalledWith(
           expect.objectContaining({
             vendor: 'moonpay',
-            partnerIdentityToken: unsignedJwt({
-              ext: { email: 'moonpay@example.com', email_verified: true },
-            }),
+            partnerIdentityToken: moonpayToken,
           }),
         );
       });
@@ -553,26 +486,20 @@ describe('KycController', () => {
 
     it('does not mint a partner identity token when consent recording fails', async () => {
       await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
         handlers.putIdentitySharingConsent.mockRejectedValue(
           new Error('consent failed'),
         );
 
         await expect(
-          controller.startSession({ vendor: 'iron' }),
+          controller.startSession({
+            vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
+          }),
         ).rejects.toThrow('consent failed');
         expect(handlers.getPartnerIdentityToken).not.toHaveBeenCalled();
-      });
-    });
-
-    it('rethrows non-422 partner identity token errors', async () => {
-      await withController(async ({ controller, handlers }) => {
-        handlers.getPartnerIdentityToken.mockRejectedValue(
-          new Error('token mint failed'),
-        );
-
-        await expect(
-          controller.startSession({ vendor: 'iron' }),
-        ).rejects.toThrow('token mint failed');
+        expect(controller.state.vendor).toBeNull();
+        expect(controller.state.geoCountry).toBeNull();
       });
     });
 
@@ -584,9 +511,13 @@ describe('KycController', () => {
         await expect(
           controller.startSession({ vendor: 'iron' }),
         ).rejects.toThrow(/aal2Token is required to create a KYC session/u);
+        expect(handlers.getPartnerIdentityToken).not.toHaveBeenCalled();
+        expect(handlers.putIdentitySharingConsent).not.toHaveBeenCalled();
         expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
         expect(controller.state.sessionStatus).toBeNull();
+        expect(controller.state.vendor).toBeNull();
+        expect(controller.state.geoCountry).toBeNull();
       });
     });
 
@@ -615,7 +546,6 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
               vendor: 'iron',
               geoCountry: 'USA',
               sessionStatus: sessionStatus('pending'),
@@ -1248,27 +1178,12 @@ describe('KycController', () => {
 
   describe('recordVendorDisclaimers', () => {
     it('throws when vendor is missing', async () => {
-      await withController(
-        { options: { state: { email: 'a@b.co' } } },
-        async ({ controller, handlers }) => {
-          await expect(
-            controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
-          ).rejects.toThrow('No vendor was found');
-          expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
-        },
-      );
-    });
-
-    it('throws when email is missing', async () => {
-      await withController(
-        { options: { state: { vendor: 'iron' } } },
-        async ({ controller, handlers }) => {
-          await expect(
-            controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
-          ).rejects.toThrow('No email was found');
-          expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
-        },
-      );
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
+        ).rejects.toThrow('No vendor was found');
+        expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
+      });
     });
 
     it('submits accepted ids and persists them', async () => {
@@ -1276,7 +1191,7 @@ describe('KycController', () => {
         { id: 'sign-1', customer_id: 'cust-1', content_id: 'd1' },
       ];
       await withController(
-        { options: { state: { vendor: 'iron', email: 'a@b.co' } } },
+        { options: { state: { vendor: 'iron' } } },
         async ({ controller, handlers }) => {
           handlers.submitVendorDisclaimers.mockResolvedValue(signings);
 
@@ -1627,18 +1542,6 @@ const ENCRYPTION_SCHEMA = {
 };
 
 /**
- * Builds an unsigned JWT whose payload is the given JSON object.
- *
- * @param payload - Claims to encode in the JWT payload.
- * @returns A three-segment JWT string.
- */
-function unsignedJwt(payload: unknown): string {
-  const encode = (value: unknown): string =>
-    toBase64Url(new TextEncoder().encode(JSON.stringify(value)));
-  return `${encode({ alg: 'none', typ: 'JWT' })}.${encode(payload)}.sig`;
-}
-
-/**
  * Builds a UKYC session-creation payload with encryption schemas.
  *
  * @param overrides - Fields to overlay on the default session response.
@@ -1771,11 +1674,7 @@ function withController<ReturnValue>(
 
   const handlers: ServiceHandlers = {
     getGeoCountry: vi.fn().mockResolvedValue('USA'),
-    getPartnerIdentityToken: vi
-      .fn()
-      .mockResolvedValue(
-        unsignedJwt({ ext: { email: 'a@b.co', email_verified: true } }),
-      ),
+    getPartnerIdentityToken: vi.fn().mockResolvedValue(PARTNER_IDENTITY_TOKEN),
     putIdentitySharingConsent: vi.fn().mockResolvedValue(undefined),
     fetchVendorDisclaimers: vi.fn().mockResolvedValue([]),
     createMoonpaySession: vi.fn().mockResolvedValue({ sessionToken: 'sess' }),
