@@ -328,12 +328,53 @@ describe('getRelaySolanaQuotes', () => {
         'Network fee: 0.000005 SOL',
         'Rent reserve: 0.00089088 SOL',
         'Missing native: 0.00079588 SOL',
-        'Missing source: 0',
       ],
       message: 'Insufficient Solana balance for quote',
       reason: 'insufficient-source-balance',
     });
     expect((error as QuoteError).quotes).toHaveLength(1);
+  });
+
+  it('formats a missing SPL source amount with the source asset decimals and symbol', async () => {
+    getAssetsControllerStateMock.mockReturnValue({
+      assetsBalance: {
+        [WALLET_ACCOUNT_ID]: { [SOLANA_NATIVE]: { amount: '0.1' } },
+      },
+      assetsInfo: {
+        [SOLANA_NATIVE]: { decimals: 9, symbol: 'SOL' },
+        [SOLANA_USDC]: { decimals: 6, symbol: 'USDC' },
+      },
+      assetsPrice: {
+        [SOLANA_NATIVE]: {
+          assetPriceType: 'fungible',
+          lastUpdated: 0,
+          price: 300,
+          usdPrice: 150,
+        },
+      },
+    });
+
+    const error = await getRelaySolanaQuotes(
+      getFullRequest([getRequest({ sourceBalanceRaw: '4000000' })]),
+    ).catch((caught: unknown) => caught);
+
+    expect((error as QuoteError).info.detail).toStrictEqual([
+      'Network fee: 0.000005 SOL',
+      'Rent reserve: 0.00089088 SOL',
+      'Missing source: 6 USDC',
+    ]);
+  });
+
+  it('falls back to the raw missing source amount when the source asset is unknown', async () => {
+    const error = await getRelaySolanaQuotes(
+      getFullRequest([getRequest({ sourceBalanceRaw: '4000000' })]),
+    ).catch((caught: unknown) => caught);
+
+    expect((error as QuoteError).info.detail).toStrictEqual([
+      'Network fee: 0.000005 SOL',
+      'Rent reserve: 0.00089088 SOL',
+      'Missing source: 6000000',
+    ]);
   });
 
   it('surfaces a native SOL shortfall when the amount leaves no room for fee and rent', async () => {

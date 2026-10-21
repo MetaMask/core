@@ -13,7 +13,11 @@ import type {
 } from '../../types.js';
 import { getFiatValueFromUsd } from '../../utils/amounts.js';
 import { isRelaySolanaEnabled } from '../../utils/feature-flags.js';
-import { getAssetBalance, getAssetFiatRate } from '../../utils/token.js';
+import {
+  getAssetBalance,
+  getAssetFiatRate,
+  getAssetInfo,
+} from '../../utils/token.js';
 import { QuoteError } from '../../utils/validation.js';
 import { RelayApiError, fetchRelaySolanaQuote } from './relay-api.js';
 import {
@@ -90,7 +94,7 @@ export async function getRelaySolanaQuotes(
       {
         message: 'Insufficient Solana balance for quote',
         reason: 'insufficient-source-balance',
-        detail: formatSolanaShortfall(unaffordable),
+        detail: formatSolanaShortfall(messenger, unaffordable),
       },
       quotes,
     );
@@ -389,16 +393,29 @@ function getNativeAmount(raw: string, fiatRates: FiatRates): Amount {
 }
 
 function formatSolanaShortfall(
+  messenger: TransactionPayControllerMessenger,
   quote: NonEvmTransactionPayQuote<RelaySolanaPayQuote>,
 ): string[] {
   const { affordability, feeRaw, rentReserveRaw } = quote.original.metamask;
+  const { nativeShortfallRaw, sourceShortfallRaw } = affordability;
+  const sourceAssetInfo = getAssetInfo(messenger, quote.request.sourceAssetId);
+
   const toSol = (raw: string): string =>
     `${new BigNumber(raw).shiftedBy(-SOLANA_DECIMALS).toFixed()} SOL`;
+
+  const toSource = (raw: string): string =>
+    sourceAssetInfo
+      ? `${new BigNumber(raw).shiftedBy(-sourceAssetInfo.decimals).toFixed()} ${sourceAssetInfo.symbol}`
+      : raw;
 
   return [
     `Network fee: ${toSol(feeRaw)}`,
     `Rent reserve: ${toSol(rentReserveRaw)}`,
-    `Missing native: ${toSol(affordability.nativeShortfallRaw)}`,
-    `Missing source: ${affordability.sourceShortfallRaw}`,
+    ...(new BigNumber(nativeShortfallRaw).gt(0)
+      ? [`Missing native: ${toSol(nativeShortfallRaw)}`]
+      : []),
+    ...(new BigNumber(sourceShortfallRaw).gt(0)
+      ? [`Missing source: ${toSource(sourceShortfallRaw)}`]
+      : []),
   ];
 }
