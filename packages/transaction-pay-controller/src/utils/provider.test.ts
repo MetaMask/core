@@ -4,7 +4,7 @@ import { RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getMessengerMock } from '../tests/messenger-mock.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { getNetworkClientId, rpcRequest } from './provider.js';
 
 const CHAIN_ID_MOCK = '0x1' as Hex;

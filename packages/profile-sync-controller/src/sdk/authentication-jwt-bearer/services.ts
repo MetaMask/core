@@ -8,6 +8,7 @@ import {
   PairConflictError,
   PairError,
   SignInError,
+  SocialIdentifierNotPairedError,
   ValidationError,
   RateLimitedError,
 } from '../errors.js';
@@ -21,6 +22,7 @@ import type {
   PairSocialIdentifierParams,
   ProfileAlias,
   ProfileIdentifier,
+  SocialLoginParams,
   UserProfile,
   UserProfileLineage,
 } from './types.js';
@@ -158,6 +160,9 @@ export const SRP_LOGIN_URL = (env: Env): string =>
 
 export const SIWE_LOGIN_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/siwe/login`;
+
+export const SOCIAL_LOGIN_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/social/login`;
 
 export const PAIR_PROFILES_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/profile/pair`;
@@ -470,6 +475,43 @@ type Authentication = {
   profile: UserProfile;
   profileAliases: ProfileAlias[];
 };
+
+/* eslint-disable @typescript-eslint/naming-convention */
+type AuthenticationResponse = {
+  token: string;
+  expires_in: number;
+  profile: {
+    identifier_id: string;
+    metametrics_id: string;
+    profile_id: string;
+    paired_identifier_ids?: ProfileIdentifier[];
+  };
+  profile_aliases?: RawProfileAlias[];
+};
+/* eslint-enable @typescript-eslint/naming-convention */
+
+/**
+ * Maps the API's `Authentication` response, shared by the login endpoints.
+ *
+ * @param loginResponse - The parsed response body.
+ * @returns The authentication token, profile and aliases.
+ */
+function parseAuthentication(
+  loginResponse: AuthenticationResponse,
+): Authentication {
+  return {
+    token: loginResponse.token,
+    expiresIn: loginResponse.expires_in,
+    profile: {
+      identifierId: loginResponse.profile.identifier_id,
+      metaMetricsId: loginResponse.profile.metametrics_id,
+      profileId: loginResponse.profile.profile_id,
+      canonicalProfileId: loginResponse.profile.profile_id,
+      pairedIdentifierIds: loginResponse.profile.paired_identifier_ids,
+    },
+    profileAliases: parseProfileAliases(loginResponse.profile_aliases ?? []),
+  };
+}
 /**
  * Service to Authenticate/Login a user via SIWE or SRP derived key.
  *
@@ -525,26 +567,59 @@ export async function authenticate(
       );
     }
 
-    const loginResponse = await response.json();
-
-    return {
-      token: loginResponse.token,
-      expiresIn: loginResponse.expires_in,
-      profile: {
-        identifierId: loginResponse.profile.identifier_id,
-        metaMetricsId: loginResponse.profile.metametrics_id,
-        profileId: loginResponse.profile.profile_id,
-        canonicalProfileId: loginResponse.profile.profile_id,
-        pairedIdentifierIds: loginResponse.profile.paired_identifier_ids,
-      },
-      profileAliases: parseProfileAliases(loginResponse.profile_aliases ?? []),
-    };
+    return parseAuthentication(
+      (await response.json()) as AuthenticationResponse,
+    );
   } catch (error) {
     return await throwServiceError(
       error,
       `Failed to login with ${authType}`,
       SignInError,
     );
+  }
+}
+
+/**
+ * Service to log in with a Google/Apple/Telegram social token
+ * (`POST /api/v2/social/login`). The identifier must already be paired to a
+ * profile; 404 throws {@link SocialIdentifierNotPairedError}.
+ *
+ * @param params - Social identifier type and social JWT
+ * @param env - server environment
+ * @returns Authentication Token for the canonical profile
+ */
+export async function socialLogin(
+  params: SocialLoginParams,
+  env: Env,
+): Promise<Authentication> {
+  const errorPrefix = 'Failed to login with social';
+
+  try {
+    const response = await fetch(SOCIAL_LOGIN_URL(env), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${params.socialJwt}`,
+      },
+      body: JSON.stringify({ identifier_type: params.identifierType }),
+    });
+
+    if (!response.ok) {
+      if (response.status === HTTP_STATUS_CODES.NOT_FOUND) {
+        await throwServiceError(
+          response,
+          errorPrefix,
+          SocialIdentifierNotPairedError,
+        );
+      }
+      await throwServiceError(response, errorPrefix, SignInError);
+    }
+
+    return parseAuthentication(
+      (await response.json()) as AuthenticationResponse,
+    );
+  } catch (error) {
+    return await throwServiceError(error, errorPrefix, SignInError);
   }
 }
 

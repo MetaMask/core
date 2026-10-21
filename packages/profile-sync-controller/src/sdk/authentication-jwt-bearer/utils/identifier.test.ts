@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { createSHA256Hash } from '../../../shared/encryption/index.js';
 import { Env } from '../../../shared/env.js';
 import { computeIdentifierId, IDENTIFIER_SALT } from './identifier.js';

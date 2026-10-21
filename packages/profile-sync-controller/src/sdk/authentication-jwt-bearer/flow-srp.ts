@@ -35,6 +35,7 @@ import {
   getUserProfileLineage,
   pairProfiles,
   pairSocialIdentifier,
+  socialLogin,
 } from './services.js';
 import type { PairProfilesResponse } from './services.js';
 import type {
@@ -50,6 +51,7 @@ import type {
   OidcTokenClaims,
   PairSocialIdentifierParams,
   ProfileIdentifier,
+  SocialLoginParams,
   SrpLoginTag,
   UserProfile,
   UserProfileLineage,
@@ -273,6 +275,22 @@ export class SRPJwtBearerAuth implements IBaseAuth {
         publicKey: result.publicKey,
       };
     }
+    if (type === 'totp') {
+      if (!result.totp) {
+        throw new MfaError(
+          'invalid_response',
+          'TOTP enrollment response is missing the secret or QR code',
+        );
+      }
+      return {
+        type,
+        flowId: result.flowId,
+        expiresAt: result.expiresAt,
+        secret: result.totp.secret,
+        qrCode: result.totp.qrCode,
+        setupUri: result.totp.setupUri,
+      };
+    }
     return {
       type,
       flowId: result.flowId,
@@ -284,17 +302,20 @@ export class SRPJwtBearerAuth implements IBaseAuth {
    * Completes enrollment of an MFA credential.
    *
    * @param flowId - Identifier returned by the begin call.
-   * @param proof - Platform attestation or email code.
+   * @param proof - Platform attestation, or email or authenticator app code.
    * @param entropySourceId - Entropy source whose profile owns the credential.
+   * @param accessToken - Bearer token to use instead of the entropy source's,
+   * such as the verification token that began the enrollment.
    * @returns Assertion proving the enrolled credential.
    */
   async completeMfaEnrollment(
     flowId: string,
     proof: EnrollmentProof,
     entropySourceId?: string,
+    accessToken?: string,
   ): Promise<MfaVerificationAssertion> {
-    const accessToken = await this.getAccessToken(entropySourceId);
-    return await mfaEnrollComplete(this.#config.env, accessToken, {
+    const bearer = accessToken ?? (await this.getAccessToken(entropySourceId));
+    return await mfaEnrollComplete(this.#config.env, bearer, {
       credential_type: proof.type,
       flow_id: flowId,
       ...(proof.type === 'passkey'
@@ -344,7 +365,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
    * Completes verification with an enrolled credential.
    *
    * @param flowId - Identifier returned by the begin call.
-   * @param proof - Platform assertion or email code.
+   * @param proof - Platform assertion, or email or authenticator app code.
    * @param entropySourceId - Entropy source whose profile owns the credential.
    * @returns Assertion issued after verification.
    */
@@ -400,6 +421,26 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       authAccessToken,
       this.#config.env,
     );
+  }
+
+  /**
+   * Exchanges a social access token for an access token and the canonical
+   * profile its identifier is paired to. Nothing is stored: SRP
+   * sessions stay the source of truth for `getAccessToken`.
+   *
+   * @param params - Social identifier type and social JWT.
+   * @returns The access token and canonical profile.
+   */
+  async exchangeSocialAccessToken(
+    params: SocialLoginParams,
+  ): Promise<LoginResponse> {
+    const authResponse = await socialLogin(params, this.#config.env);
+    const token = await authorizeOIDC(
+      authResponse.token,
+      this.#config.env,
+      this.#config.platform,
+    );
+    return { profile: authResponse.profile, token };
   }
 
   async pairSrpProfiles(

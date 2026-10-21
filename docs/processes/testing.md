@@ -4,7 +4,7 @@
 
 Please follow the [MetaMask unit testing guidelines](https://github.com/MetaMask/contributor-docs/blob/main/docs/testing/unit-testing.md) when writing tests.
 
-If you need to customize the behavior of the test runner for a package, see `jest.config.cjs` or `vitest.config.js` within that package.
+If you need to customize the behavior of the test runner for a package, see `jest.config.cjs` or `vitest.config.ts` within that package.
 
 - Run `yarn workspace <workspaceName> run test` to run all tests for a package.
 - Run `yarn workspace <workspaceName> run jest --no-coverage <file>` (Jest) or `yarn workspace <workspaceName> run vitest run <file>` (Vitest) to run a single test file.

@@ -4,6 +4,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import type { Mock } from 'vitest';
 
 import { CONTROLLER_NAME, SERVICE_NAME } from '../../src/constants.js';
 import type {
@@ -41,12 +42,12 @@ export function createMockClaimsControllerMessenger({
   mockClaimsServiceGetClaims,
   mockClaimsServiceFetchClaimsConfigurations,
 }: {
-  mockClaimServiceRequestHeaders: jest.Mock;
-  mockClaimServiceGetClaimsApiUrl: jest.Mock;
-  mockClaimServiceGenerateMessageForClaimSignature: jest.Mock;
-  mockKeyringControllerSignPersonalMessage: jest.Mock;
-  mockClaimsServiceGetClaims: jest.Mock;
-  mockClaimsServiceFetchClaimsConfigurations: jest.Mock;
+  mockClaimServiceRequestHeaders: Mock;
+  mockClaimServiceGetClaimsApiUrl: Mock;
+  mockClaimServiceGenerateMessageForClaimSignature: Mock;
+  mockKeyringControllerSignPersonalMessage: Mock;
+  mockClaimsServiceGetClaims: Mock;
+  mockClaimsServiceFetchClaimsConfigurations: Mock;
 }): {
   rootMessenger: RootControllerMessenger;
   messenger: ClaimsControllerMessenger;
@@ -130,9 +131,9 @@ export type RootServiceMessenger = Messenger<
  * @returns A mock messenger for the claims service.
  */
 export function createMockClaimsServiceMessenger(
-  mockAuthenticationControllerGetBearerToken: jest.Mock,
-  mockAuthenticationControllerGetSessionProfile: jest.Mock,
-  mockCaptureException: jest.Mock,
+  mockAuthenticationControllerGetBearerToken: Mock,
+  mockAuthenticationControllerGetSessionProfile: Mock,
+  mockCaptureException: Mock,
 ): {
   rootMessenger: RootServiceMessenger;
   messenger: ClaimsServiceMessenger;

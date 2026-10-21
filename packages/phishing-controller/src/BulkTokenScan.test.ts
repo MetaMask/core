@@ -21,10 +21,8 @@ import type {
 import { TokenScanResultType } from './types.js';
 import type { BulkTokenScanRequest, TokenScanApiResponse } from './types.js';
 
-vi.mock('@metamask/controller-utils', async () => ({
-  ...(await vi.importActual<typeof import('@metamask/controller-utils')>(
-    '@metamask/controller-utils',
-  )),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
   safelyExecuteWithTimeout: vi.fn(),
 }));
 

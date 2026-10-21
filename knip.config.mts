@@ -105,7 +105,7 @@ const config: KnipConfig = {
       ignoreBinaries: ['sysctl'],
     },
     'packages/keyring-controller': {
-      ignoreDependencies: ['@metamask/controller-utils'],
+      ignoreDependencies: ['@metamask/controller-utils', 'uuid'],
     },
     'packages/local-node-utils': {
       // `sysctl` is an external system binary, not an npm package.

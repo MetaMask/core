@@ -25,7 +25,7 @@ export class EntropyRule
 
   readonly groupType = AccountGroupType.MultichainAccount;
 
-  getEntropySourceIndex(entropySource: string) {
+  getEntropySourceIndex(entropySource: string): number {
     return this.#getHdKeyrings().findIndex(
       (keyring) => keyring.metadata.id === entropySource,
     );

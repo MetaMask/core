@@ -1,6 +1,7 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import nock from 'nock';
+import { describe, expect, it, vi } from 'vitest';
 
 import { Env, getEnvUrls } from '../../sdk/index.js';
 import { createSHA256Hash } from '../../shared/encryption/index.js';
@@ -26,12 +27,12 @@ import {
   defaultState,
 } from './UserStorageController.js';
 
-jest.mock('../../shared/utils/message-signing.js', () => ({
+vi.mock('../../shared/utils/message-signing.js', () => ({
   MESSAGE_SIGNING_SNAP_ID: 'npm:@metamask/message-signing-snap',
-  getMessageSigningPublicKey: jest.fn(async () => 'MOCK_PUBLIC_KEY'),
-  signMessageWithMessageSigningKey: jest.fn(async () => 'mockStorageKey'),
-  deriveMessageSigningPrivateKey: jest.fn(),
-  deriveSip6PrivateKey: jest.fn(),
+  getMessageSigningPublicKey: vi.fn(async () => 'MOCK_PUBLIC_KEY'),
+  signMessageWithMessageSigningKey: vi.fn(async () => 'mockStorageKey'),
+  deriveMessageSigningPrivateKey: vi.fn(),
+  deriveSip6PrivateKey: vi.fn(),
 }));
 
 describe('UserStorageController', () => {

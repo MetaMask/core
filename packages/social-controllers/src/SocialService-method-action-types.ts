@@ -132,7 +132,8 @@ export type SocialServiceFetchPositionByIdAction = {
  * `pagination.newerCursor` as `newerThan` to fetch newer items.
  *
  * @param options - Options bag.
- * @param options.scope - `following` (default) or `leaderboard`.
+ * @param options.scope - `following` (default), `leaderboard`, `all`, or
+ * `trending`.
  * @param options.chains - Filter by one or more chains.
  * @param options.limit - Number of results per page.
  * @param options.olderThan - Cursor for older items (scroll down).
@@ -247,7 +248,9 @@ export type SocialServiceRemoveCommentReactionAction = {
  * `https://static.klipy.com/...gif` file URL; social-api rejects other links.
  * @param options.source - Free-form origin label stored on the comment.
  * @param options.positionUid - Position UUID (`positionId` / feed item id).
- * @param options.tradeInFlight - Hash, chain, and token of a swap in flight.
+ * @param options.tradeInFlight - Hash, chain, and token of a swap in flight,
+ * or a Hyperliquid `orderId`, chain, and coin when the fill hash does not
+ * exist yet. Provide exactly one of `transactionHash` or `orderId`.
  * @returns The created swap comment.
  */
 export type SocialServiceCreateSwapCommentAction = {
