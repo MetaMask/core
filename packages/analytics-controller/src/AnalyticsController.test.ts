@@ -10,6 +10,8 @@ import type {
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { isValidUUIDv4 } from './analyticsControllerStateValidator.js';
 import {
@@ -123,10 +125,10 @@ function buildGeolocationData(
 }
 
 type MockAnalyticsPlatformAdapter = AnalyticsPlatformAdapter & {
-  track: jest.Mock;
-  identify: jest.Mock;
-  view: jest.Mock;
-  onSetupCompleted: jest.Mock;
+  track: Mock;
+  identify: Mock;
+  view: Mock;
+  onSetupCompleted: Mock;
 };
 
 /**
@@ -166,10 +168,10 @@ async function setupController(
   const adapter =
     platformAdapter ??
     ({
-      track: jest.fn(),
-      identify: jest.fn(),
-      view: jest.fn(),
-      onSetupCompleted: jest.fn(),
+      track: vi.fn(),
+      identify: vi.fn(),
+      view: vi.fn(),
+      onSetupCompleted: vi.fn(),
     } satisfies AnalyticsPlatformAdapter);
 
   const rootMessenger = new Messenger<
@@ -260,10 +262,10 @@ function createTestEvent(
  */
 function createMockAdapter(): MockAnalyticsPlatformAdapter {
   return {
-    track: jest.fn(),
-    identify: jest.fn(),
-    view: jest.fn(),
-    onSetupCompleted: jest.fn(),
+    track: vi.fn(),
+    identify: vi.fn(),
+    view: vi.fn(),
+    onSetupCompleted: vi.fn(),
   };
 }
 
@@ -299,7 +301,7 @@ function withPurposeConsent(
  * @returns Delivery options from the call.
  */
 function getDeliveryOptions(
-  mock: jest.Mock,
+  mock: Mock,
   callIndex = 0,
 ): AnalyticsDeliveryOptions {
   return mock.mock.calls[callIndex][3] as AnalyticsDeliveryOptions;
@@ -890,7 +892,7 @@ describe('AnalyticsController', () => {
         isAnonymousEventsFeatureEnabled: false,
       });
 
-      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
+      const onSetupCompletedSpy = vi.spyOn(mockAdapter, 'onSetupCompleted');
       expect(onSetupCompletedSpy).not.toHaveBeenCalled();
 
       await controller.init();
@@ -931,7 +933,7 @@ describe('AnalyticsController', () => {
         isAnonymousEventsFeatureEnabled: false,
       });
 
-      const onSetupCompletedSpy = jest.spyOn(mockAdapter, 'onSetupCompleted');
+      const onSetupCompletedSpy = vi.spyOn(mockAdapter, 'onSetupCompleted');
 
       await controller.init();
       expect(onSetupCompletedSpy).toHaveBeenCalledTimes(1);
@@ -1046,7 +1048,7 @@ describe('AnalyticsController', () => {
         'Failed to add privacy plugin to Segment client',
         cause,
       );
-      jest.spyOn(mockAdapter, 'onSetupCompleted').mockImplementation(() => {
+      vi.spyOn(mockAdapter, 'onSetupCompleted').mockImplementation(() => {
         throw error;
       });
 
@@ -1330,9 +1332,7 @@ describe('AnalyticsController', () => {
         typeof rootMessenger
       >({ namespace: 'AnalyticsController', parent: rootMessenger });
 
-      const getStateMock = jest.fn(() =>
-        buildConfigRegistryState(eventsConfig),
-      );
+      const getStateMock = vi.fn(() => buildConfigRegistryState(eventsConfig));
       rootMessenger.registerActionHandler(
         'ConfigRegistryController:getState',
         getStateMock,
@@ -2106,7 +2106,7 @@ describe('AnalyticsController', () => {
     });
 
     it('does not resolve geolocation when geolocation enrichment is disabled', async () => {
-      const geolocationHandler = jest.fn(() =>
+      const geolocationHandler = vi.fn(() =>
         Promise.resolve(buildGeolocationData(fullGeolocation)),
       );
       const mockAdapter = createMockAdapter();
@@ -2245,7 +2245,7 @@ describe('AnalyticsController', () => {
     });
 
     it('defers geolocation to opt-in, then enriches replayed pre-consent events and later events', async () => {
-      const geolocationHandler = jest.fn(() =>
+      const geolocationHandler = vi.fn(() =>
         Promise.resolve(buildGeolocationData(fullGeolocation)),
       );
       const mockAdapter = createMockAdapter();
@@ -2343,7 +2343,7 @@ describe('AnalyticsController', () => {
     });
 
     it('does not resolve geolocation at init when the user is not opted in', async () => {
-      const geolocationHandler = jest.fn(() =>
+      const geolocationHandler = vi.fn(() =>
         Promise.resolve(buildGeolocationData(fullGeolocation)),
       );
       const mockAdapter = createMockAdapter();
@@ -2365,7 +2365,7 @@ describe('AnalyticsController', () => {
 
     it('does not replay pre-consent events if consent is reset while geolocation resolves', async () => {
       let resolveGeolocation: (data: GeolocationData) => void = () => undefined;
-      const geolocationHandler = jest.fn(
+      const geolocationHandler = vi.fn(
         () =>
           new Promise<GeolocationData>((resolve) => {
             resolveGeolocation = resolve;
@@ -2408,7 +2408,7 @@ describe('AnalyticsController', () => {
 
     it('still replays pre-consent events if another purpose is opted out while geolocation resolves', async () => {
       let resolveGeolocation: (data: GeolocationData) => void = () => undefined;
-      const geolocationHandler = jest.fn(
+      const geolocationHandler = vi.fn(
         () =>
           new Promise<GeolocationData>((resolve) => {
             resolveGeolocation = resolve;
@@ -2553,7 +2553,7 @@ describe('AnalyticsController', () => {
 
     it('keeps queued payloads when the platform adapter throws', async () => {
       const mockAdapter = createMockAdapter();
-      jest.spyOn(mockAdapter, 'track').mockImplementation(() => {
+      vi.spyOn(mockAdapter, 'track').mockImplementation(() => {
         throw new Error('Segment failed');
       });
       const { controller } = await setupController({
@@ -2582,9 +2582,8 @@ describe('AnalyticsController', () => {
     it('passes mutable clones of queued payload data to the platform adapter', async () => {
       const mockAdapter = createMockAdapter();
       let adapterMutationCompleted = false;
-      jest
-        .spyOn(mockAdapter, 'track')
-        .mockImplementation((_eventName, properties, context) => {
+      vi.spyOn(mockAdapter, 'track').mockImplementation(
+        (_eventName, properties, context) => {
           (
             properties as { nested: { adapterNormalized?: boolean } }
           ).nested.adapterNormalized = true;
@@ -2592,7 +2591,8 @@ describe('AnalyticsController', () => {
             context as { page: { adapterNormalized?: boolean } }
           ).page.adapterNormalized = true;
           adapterMutationCompleted = true;
-        });
+        },
+      );
       const { controller } = await setupController({
         state: {
           optedIn: true,
@@ -3686,7 +3686,7 @@ describe('AnalyticsController', () => {
      * @returns The handler and coordination promises.
      */
     function createBlockingGeolocationHandler(): {
-      geolocationHandler: jest.Mock<Promise<GeolocationData>, []>;
+      geolocationHandler: Mock<() => Promise<GeolocationData>>;
       geolocationRequested: Promise<void>;
       resolveGeolocation: (value: GeolocationData) => void;
     } {
@@ -3696,7 +3696,7 @@ describe('AnalyticsController', () => {
         notifyGeolocationRequested = resolve;
       });
 
-      const geolocationHandler = jest.fn((): Promise<GeolocationData> => {
+      const geolocationHandler = vi.fn((): Promise<GeolocationData> => {
         notifyGeolocationRequested();
         return new Promise<GeolocationData>((resolve) => {
           resolveGeolocation = resolve;
@@ -3779,7 +3779,7 @@ describe('AnalyticsController', () => {
 
       it('defaults the property bags and timestamps', async () => {
         const now = 1700000000000;
-        jest.spyOn(Date, 'now').mockReturnValue(now);
+        vi.spyOn(Date, 'now').mockReturnValue(now);
         const { controller } = await setupFragmentController();
 
         const fragment = controller.createEventFragment({ id: 'bag-1' });
@@ -4070,7 +4070,7 @@ describe('AnalyticsController', () => {
       });
 
       it('advances lastUpdated but preserves createdAt', async () => {
-        const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1000);
+        const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1000);
         const { controller } = await setupFragmentController();
         controller.createEventFragment({ id: 'signature-1' });
         nowSpy.mockReturnValue(2000);
@@ -4488,7 +4488,7 @@ describe('AnalyticsController', () => {
 
       it('drops persisted fragments whose lastUpdated is older than EVENT_FRAGMENT_MAX_AGE', async () => {
         const now = 1_800_000_000_000;
-        jest.spyOn(Date, 'now').mockReturnValue(now);
+        vi.spyOn(Date, 'now').mockReturnValue(now);
         const fresh = buildFragment({
           id: 'signature-fresh',
           persist: true,
@@ -4520,7 +4520,7 @@ describe('AnalyticsController', () => {
 
       it('drops a fragment whose lastUpdated exceeds max age even when createdAt is recent', async () => {
         const now = 1_800_000_000_000;
-        jest.spyOn(Date, 'now').mockReturnValue(now);
+        vi.spyOn(Date, 'now').mockReturnValue(now);
         const recentlyCreatedButStale = buildFragment({
           id: 'signature-1',
           persist: true,
@@ -4545,7 +4545,7 @@ describe('AnalyticsController', () => {
         const mockAdapter = createMockAdapter();
         const analyticsId = '11111111-2222-4333-8444-555555555555';
         const now = 1_800_000_000_000;
-        jest.spyOn(Date, 'now').mockReturnValue(now);
+        vi.spyOn(Date, 'now').mockReturnValue(now);
 
         const { controller } = await setupController({
           state: {
