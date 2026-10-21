@@ -21,10 +21,6 @@ export default mergeConfig(
           'src/**/*-method-action-types.ts',
         ],
 
-        // Vitest maps `v8` coverage back to the source AST, which counts
-        // never called callbacks (such as `.catch(() => undefined)`) and short
-        // circuit branches that Jest counted as covered, so a few thresholds
-        // sit just below the old Jest ones.
         thresholds: {
           'src/bridge-status-controller.ts': {
             branches: 95.96,
