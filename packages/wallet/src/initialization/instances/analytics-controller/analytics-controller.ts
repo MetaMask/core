@@ -1,5 +1,8 @@
 import { AnalyticsController } from '@metamask/analytics-controller';
-import type { AnalyticsControllerMessenger } from '@metamask/analytics-controller';
+import type {
+  AnalyticsControllerMessenger,
+  AnalyticsControllerState,
+} from '@metamask/analytics-controller';
 import { Messenger } from '@metamask/messenger';
 
 import type { InitializationConfiguration } from '../../types.js';
@@ -19,7 +22,7 @@ export const analyticsController: InitializationConfiguration<
       state: {
         analyticsId: options.analyticsId,
         ...state,
-      },
+      } as AnalyticsControllerState,
       isAnonymousEventsFeatureEnabled: options.isAnonymousEventsFeatureEnabled,
       isEventQueuePersistenceEnabled: options.isEventQueuePersistenceEnabled,
       isPreConsentQueueEnabled: options.isPreConsentQueueEnabled,
