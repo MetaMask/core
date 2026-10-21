@@ -4709,13 +4709,14 @@ export class PerpsController extends BaseController<
    */
   async getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]> {
     const isMarketAllowed = this.#buildMarketAllowedFilter();
+    const context = this.#createGetMarketsContext();
     if (params?.standalone) {
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
       const operation = this.#marketDataService.getMarkets({
         provider,
         params,
-        context: this.#createServiceContext('getMarkets'),
+        context,
         isMarketAllowed,
       });
       return provider === this.#standaloneProvider
@@ -4727,8 +4728,22 @@ export class PerpsController extends BaseController<
     return this.#marketDataService.getMarkets({
       provider,
       params,
-      context: this.#createServiceContext('getMarkets'),
+      context,
       isMarketAllowed,
+    });
+  }
+
+  /**
+   * Build the getMarkets context. The service reads
+   * `terminalApi.globalSnapshotUrl` itself and uses this identity only when
+   * that URL is set.
+   *
+   * @returns Service context for `MarketDataService.getMarkets`.
+   */
+  #createGetMarketsContext(): ServiceContext {
+    const globalSnapshot = this.#buildGlobalSnapshotContext();
+    return this.#createServiceContext('getMarkets', {
+      ...(globalSnapshot && { globalSnapshot }),
     });
   }
 

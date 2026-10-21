@@ -1078,10 +1078,10 @@ export type MarketInfo = {
  */
 export type PerpsMarketData = {
   /**
-   * Stable backend market identifier supplied by the v3 Terminal snapshot
+   * Stable backend market identifier supplied by the Terminal global snapshot
    * (e.g. 'btc-hyperliquid-mainnet'). Used as the key for perp-alerts API
-   * calls. Only present when data originates from the v3 global-snapshot
-   * endpoint; omit checks against this field must guard with `?? undefined`.
+   * calls. Only present when data originates from that endpoint; omit checks
+   * against this field must guard with `?? undefined`.
    */
   id?: string;
   /**
@@ -1114,6 +1114,28 @@ export type PerpsMarketData = {
    * 24h price change percentage as formatted string (e.g., '+2.5%', '-1.8%')
    */
   change24hPercent: string;
+  /**
+   * 5-minute mark-price change from the v4 Terminal snapshot, formatted like
+   * `change24h`. `--` means the window is unavailable. Clients should hide
+   * that period and suppress its alerts.
+   */
+  change5m?: string;
+  /**
+   * 5-minute percent change from the v4 Terminal snapshot. `--%` means the
+   * window is unavailable.
+   */
+  changePercent5m?: string;
+  /**
+   * 1-hour mark-price change from the v4 Terminal snapshot, formatted like
+   * `change24h`. `--` means the window is unavailable. Clients should hide
+   * that period and suppress its alerts.
+   */
+  change1h?: string;
+  /**
+   * 1-hour percent change from the v4 Terminal snapshot. `--%` means the
+   * window is unavailable.
+   */
+  changePercent1h?: string;
   /**
    * Trading volume as formatted string (e.g., '$1.2B', '$850M')
    */
@@ -3332,6 +3354,11 @@ export type PerpsGlobalSnapshotRequest = {
 /** Validated snapshot data and its source-bounded expiry. */
 export type PerpsGlobalSnapshotResult = {
   markets: PerpsMarketData[];
+  /**
+   * Trading-rule rows for `markets`, in the same order. `getMarkets` reads
+   * this instead of mapping the snapshot a second time.
+   */
+  marketInfos: MarketInfo[];
   expiresAt: number;
 };
 
@@ -3390,7 +3417,10 @@ export type PerpsPlatformDependencies = {
     /** Full endpoint URL for the legacy perpetuals market-data endpoint. */
     marketDataUrl?: string;
 
-    /** Full endpoint URL for the schema-v3 atomic global Perps snapshot. */
+    /**
+     * Full endpoint URL for the schema-v4 atomic global Perps snapshot
+     * (`GET /v4/perpetuals`).
+     */
     globalSnapshotUrl?: string;
   };
 
