@@ -8799,7 +8799,7 @@ __metadata:
     "@jest/globals": "npm:^30.5.2"
     "@mdx-js/react": "npm:^3.1.1"
     "@metamask/auto-changelog": "npm:^6.2.1"
-    "@metamask/utils": "npm:^12.0.0"
+    "@metamask/node-utils": "npm:^0.0.0"
     "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^22.13.14"
     "@types/npm-which": "npm:^3"
