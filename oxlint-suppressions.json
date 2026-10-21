@@ -1949,8 +1949,8 @@
       "count": 2
     }
   },
-  "packages/chomp-api-service/jest.config.cjs": {
-    "import/unambiguous": {
+  "packages/chomp-api-service/src/chomp-api-service.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -2176,20 +2176,12 @@
       "count": 1
     }
   },
-  "packages/earn-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/earn-controller/src/EarnController.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 7
     },
-    "typescript/no-unsafe-call": {
-      "count": 10
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 12
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/earn-controller/src/EarnController.ts": {
@@ -3112,19 +3104,9 @@
       "count": 1
     }
   },
-  "packages/money-account-api-data-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/money-account-api-data-service/src/money-account-api-data-service.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 4
-    }
-  },
-  "packages/money-account-balance-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
     }
   },
   "packages/money-account-balance-service/src/money-account-balance-service.test.ts": {
@@ -3136,6 +3118,9 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/money-account-balance-service/src/money-account-balance-service.ts": {
@@ -3176,19 +3161,19 @@
       "count": 1
     }
   },
-  "packages/money-account-mfa-whitelist/jest.config.cjs": {
-    "import/unambiguous": {
+  "packages/money-account-mfa-whitelist/src/get-mfa-requirement.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
-  "packages/money-account-upgrade-controller/jest.config.cjs": {
-    "import/unambiguous": {
+  "packages/money-account-upgrade-controller/src/MoneyAccountUpgradeController.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
-  "packages/money-account-utils/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+  "packages/money-account-upgrade-controller/src/steps/eip-7702-authorization.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/money-account-utils/src/transactions.test.ts": {
