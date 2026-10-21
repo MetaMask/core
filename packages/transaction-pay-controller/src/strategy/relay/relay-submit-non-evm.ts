@@ -6,6 +6,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger, isObject } from '@metamask/utils';
 
+import { DEFAULT_QUOTE_REFRESH_INTERVAL } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
   NonEvmTransactionPayQuote,
@@ -32,6 +33,12 @@ import {
 import type { RelayCompletionOutcome, RelaySolanaPayQuote } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'relay-submit-non-evm');
+
+/**
+ * Time a quote stays executable after the refresh interval elapses, covering
+ * the in-flight refresh and the hand-off from approval to the publish hook.
+ */
+const QUOTE_EXPIRY_GRACE_PERIOD = 10 * 1000; // 10 Seconds
 
 /** Snap errors guaranteed to have happened before broadcast. */
 const NOT_SUBMITTED_ERROR_CODES: number[] = [
@@ -86,6 +93,17 @@ export async function submitRelayNonEvmQuote({
 
   if (!quote.original.metamask.affordability.isAffordable) {
     throw new Error('Solana source is not affordable');
+  }
+
+  const { quotesLastUpdated } = messenger.call(
+    'TransactionPayController:getState',
+  ).transactionData[transactionId];
+
+  if (
+    Date.now() - (quotesLastUpdated ?? 0) >
+    DEFAULT_QUOTE_REFRESH_INTERVAL + QUOTE_EXPIRY_GRACE_PERIOD
+  ) {
+    throw new Error('Solana quote expired');
   }
 
   const { request } = quote;

@@ -3,6 +3,9 @@ import type { Hex } from '@metamask/utils';
 
 export const CONTROLLER_NAME = 'TransactionPayController';
 
+/** Default interval after which quotes are refreshed. */
+export const DEFAULT_QUOTE_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
+
 /**
  * Parent transaction types that represent a Hyperliquid perps deposit and
  * share the same Arbitrum-USDC → Hypercore handling in pay strategies.

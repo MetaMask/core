@@ -162,6 +162,7 @@ describe('submitRelayNonEvmQuote', () => {
 
   const {
     addTransactionBatchMock,
+    getControllerStateMock,
     getTransactionControllerStateMock,
     messenger,
     reconcileSolanaPayMock,
@@ -210,6 +211,16 @@ describe('submitRelayNonEvmQuote', () => {
 
     updateTransactionMock.mockImplementation((updated: TransactionMeta) => {
       transaction = updated;
+    });
+
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_ID]: {
+          isLoading: false,
+          quotesLastUpdated: Date.now(),
+          tokens: [],
+        },
+      },
     });
 
     getSnapIdMock.mockReturnValue(SNAP_ID);
@@ -509,6 +520,49 @@ describe('submitRelayNonEvmQuote', () => {
 
     expect(signAndSendMock).not.toHaveBeenCalled();
     expect(transaction.metamaskPay).toBeUndefined();
+  });
+
+  it.each([
+    ['older than the refresh interval plus grace period', 40_001],
+    ['missing a last update time', undefined],
+  ])(
+    'rejects a quote %s before any checkpoint or Snap call',
+    async (_title, age) => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID]: {
+            isLoading: false,
+            quotesLastUpdated: age === undefined ? undefined : Date.now() - age,
+            tokens: [],
+          },
+        },
+      });
+
+      await expect(
+        submitRelayNonEvmQuote({ messenger, quote: getQuote(), transaction }),
+      ).rejects.toThrow('Solana quote expired');
+
+      expect(updateTransactionMock).not.toHaveBeenCalled();
+      expect(compileMock).not.toHaveBeenCalled();
+      expect(snapHandleRequestMock).not.toHaveBeenCalled();
+      expect(signAndSendMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it('accepts a quote within the refresh interval plus grace period', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_ID]: {
+          isLoading: false,
+          quotesLastUpdated: Date.now() - 39_000,
+          tokens: [],
+        },
+      },
+    });
+
+    await submitRelayNonEvmQuote({ messenger, quote: getQuote(), transaction });
+
+    expect(signAndSendMock).toHaveBeenCalledTimes(1);
   });
 
   it('throws the Relay failure after observing a failed settlement', async () => {

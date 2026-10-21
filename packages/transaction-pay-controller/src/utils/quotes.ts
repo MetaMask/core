@@ -4,7 +4,11 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
+import {
+  DEFAULT_QUOTE_REFRESH_INTERVAL,
+  PaymentOverride,
+  TransactionPayStrategy,
+} from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type {
   EvmPaymentToken,
@@ -41,8 +45,6 @@ import {
 import { calculateTotals } from './totals.js';
 import { getTransaction, updateTransaction } from './transaction.js';
 import { isQuoteError } from './validation.js';
-
-const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 
 const log = createModuleLogger(projectLogger, 'quotes');
 
@@ -373,7 +375,7 @@ export async function refreshQuotes(
       (await strategy.getRefreshInterval?.({
         chainId: quotes[0].request.sourceChainId,
         messenger,
-      })) ?? DEFAULT_REFRESH_INTERVAL;
+      })) ?? DEFAULT_QUOTE_REFRESH_INTERVAL;
 
     const isExpired = Date.now() - (quotesLastUpdated ?? 0) > refreshInterval;
 
