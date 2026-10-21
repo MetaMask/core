@@ -3,7 +3,7 @@ import type { AssetsControllerState } from '@metamask/assets-controller';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { createModuleLogger } from '@metamask/utils';
 import type { CaipAssetType, Hex } from '@metamask/utils';
-import { hexToBigInt, toCaipAssetType } from '@metamask/utils';
+import { hexToBigInt, isCaipChainId, toCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
@@ -12,7 +12,12 @@ import {
   SLIP44_COIN_TYPE_BY_CHAIN,
 } from '../constants.js';
 import { projectLogger } from '../logger.js';
-import type { FiatRates, TransactionPayControllerMessenger } from '../types.js';
+import type {
+  FiatRates,
+  NonEvmPaymentToken,
+  TransactionPayControllerMessenger,
+  TransactionPaymentToken,
+} from '../types.js';
 import { getStablecoins, isChainExcludedFromInfura } from './feature-flags.js';
 import { rpcRequest } from './provider.js';
 
@@ -45,6 +50,38 @@ export function isSameToken(
     token1.address.toLowerCase() === token2.address.toLowerCase() &&
     token1.chainId === token2.chainId
   );
+}
+
+/**
+ * Check if a payment token is on a non-EVM chain.
+ *
+ * Non-EVM payment tokens are identified by a CAIP-2 chain ID, whereas EVM
+ * payment tokens use a Hex chain ID.
+ *
+ * @param paymentToken - Payment token to check.
+ * @returns True if the payment token is a non-EVM payment token.
+ */
+export function isNonEvmPaymentToken(
+  paymentToken: TransactionPaymentToken,
+): paymentToken is NonEvmPaymentToken {
+  return isCaipChainId(paymentToken.chainId);
+}
+
+/**
+ * Check if two payment tokens identify the same token.
+ *
+ * EVM payment tokens match by chain ID and case-insensitive address. Non-EVM
+ * payment tokens match by account and CAIP-19 asset type.
+ *
+ * @param token1 - First payment token.
+ * @param token2 - Second payment token.
+ * @returns True if both payment tokens are the same, or both are undefined.
+ */
+export function isSamePaymentToken(
+  token1: TransactionPaymentToken | undefined,
+  token2: TransactionPaymentToken | undefined,
+): boolean {
+  return getPaymentTokenKey(token1) === getPaymentTokenKey(token2);
 }
 
 /**
@@ -83,21 +120,72 @@ export function getTokenBalance(
     return '0';
   }
 
-  const amount = assetsBalance[accountId]?.[assetId]?.amount;
+  return getRawBalance(assetsBalance, assetsInfo, accountId, assetId);
+}
 
-  if (amount === undefined) {
-    return '0';
+/**
+ * Get the balance of a CAIP-19 asset held by an `InternalAccount`.
+ *
+ * @param messenger - Controller messenger.
+ * @param walletAccountId - ID of the `InternalAccount` holding the asset.
+ * @param assetId - CAIP-19 asset type as keyed in `AssetsController` state.
+ * @returns Raw asset balance as a decimal string.
+ */
+export function getAssetBalance(
+  messenger: TransactionPayControllerMessenger,
+  walletAccountId: string,
+  assetId: CaipAssetType,
+): string {
+  const { assetsBalance, assetsInfo } = messenger.call(
+    'AssetsController:getState',
+  );
+
+  return getRawBalance(assetsBalance, assetsInfo, walletAccountId, assetId);
+}
+
+/**
+ * Get the decimals and symbol for a CAIP-19 asset.
+ *
+ * @param messenger - Controller messenger.
+ * @param assetId - CAIP-19 asset type as keyed in `AssetsController` state.
+ * @returns The asset decimals and symbol, or undefined if the asset is not found.
+ */
+export function getAssetInfo(
+  messenger: TransactionPayControllerMessenger,
+  assetId: CaipAssetType,
+): { decimals: number; symbol: string } | undefined {
+  const { assetsInfo } = messenger.call('AssetsController:getState');
+  const asset = assetsInfo[assetId];
+
+  if (!asset) {
+    return undefined;
   }
 
-  // AssetsController stores human-readable decimal amounts, whereas callers of
-  // this function expect raw base units. Shift by the token decimals to convert.
-  // The asset ID resolved above is a key of `assetsInfo`, so its metadata is
-  // read from the snapshot already in hand rather than re-fetched.
-  const { decimals } = assetsInfo[assetId];
+  return { decimals: Number(asset.decimals), symbol: asset.symbol };
+}
 
-  return new BigNumber(amount)
-    .shiftedBy(Number(decimals))
-    .toFixed(0, BigNumber.ROUND_DOWN);
+/**
+ * Get the fiat rates for a CAIP-19 asset.
+ *
+ * @param messenger - Controller messenger.
+ * @param assetId - CAIP-19 asset type as keyed in `AssetsController` state.
+ * @returns An object containing the USD and fiat rates, or undefined if rates are not available.
+ */
+export function getAssetFiatRate(
+  messenger: TransactionPayControllerMessenger,
+  assetId: CaipAssetType,
+): FiatRates | undefined {
+  const { assetsPrice } = messenger.call('AssetsController:getState');
+  const price = assetsPrice[assetId];
+
+  if (price?.assetPriceType !== 'fungible') {
+    return undefined;
+  }
+
+  return {
+    fiatRate: String(price.price),
+    usdRate: String(price.usdPrice),
+  };
 }
 
 /**
@@ -407,6 +495,57 @@ export function normalizeTokenAddress(
   }
 
   return tokenAddress;
+}
+
+/**
+ * Build a comparable identity for a payment token.
+ *
+ * @param paymentToken - Payment token, if any.
+ * @returns Identity string, or undefined if no payment token is provided.
+ */
+function getPaymentTokenKey(
+  paymentToken: TransactionPaymentToken | undefined,
+): string | undefined {
+  if (!paymentToken) {
+    return undefined;
+  }
+
+  if (isNonEvmPaymentToken(paymentToken)) {
+    return `${paymentToken.walletAccountId}:${paymentToken.assetId}`;
+  }
+
+  return `${paymentToken.chainId}:${paymentToken.address.toLowerCase()}`;
+}
+
+/**
+ * Read a raw balance from `AssetsController` state.
+ *
+ * `AssetsController` stores human-readable decimal amounts, whereas callers
+ * expect raw base units, so the amount is shifted by the asset decimals.
+ *
+ * @param assetsBalance - Asset balances keyed by account ID and CAIP-19 ID.
+ * @param assetsInfo - Asset metadata keyed by CAIP-19 ID.
+ * @param accountId - ID of the `InternalAccount` holding the asset.
+ * @param assetId - CAIP-19 asset type as keyed in state.
+ * @returns Raw balance as a decimal string, or `'0'` if no balance is stored.
+ */
+function getRawBalance(
+  assetsBalance: AssetsControllerState['assetsBalance'],
+  assetsInfo: AssetsControllerState['assetsInfo'],
+  accountId: string,
+  assetId: CaipAssetType,
+): string {
+  const amount = assetsBalance[accountId]?.[assetId]?.amount;
+
+  if (amount === undefined) {
+    return '0';
+  }
+
+  const { decimals } = assetsInfo[assetId];
+
+  return new BigNumber(amount)
+    .shiftedBy(Number(decimals))
+    .toFixed(0, BigNumber.ROUND_DOWN);
 }
 
 /**

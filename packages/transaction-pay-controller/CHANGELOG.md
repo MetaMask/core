@@ -9,10 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add validated chain-agnostic Pay source metadata to persisted transaction records while keeping ordinary Pay selection state transient ([#10272](https://github.com/MetaMask/core/pull/10272))
+- Support non-EVM payment tokens, such as Solana SOL and SPL tokens ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - Add `EvmPaymentToken` and `NonEvmPaymentToken` types and the `isNonEvmPaymentToken` type guard.
+  - `updatePaymentToken` accepts `{ transactionId, assetId, walletAccountId }` to select a non-EVM asset held by an `InternalAccount`, reading its metadata, balance, and price from `AssetsController` state.
+  - Add `NonEvmQuoteRequest` and `nonEvmRequests` to `PayStrategyGetQuotesRequest`, filled instead of `requests` when the payment token is non-EVM.
+  - Project the selected non-EVM payment token onto the persisted transaction as `metamaskPay.source`.
 
 ### Changed
 
+- **BREAKING:** `TransactionPaymentToken` is now a union of `EvmPaymentToken` and `NonEvmPaymentToken` ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - Use `isNonEvmPaymentToken` to narrow before reading the EVM-only `address` field or treating `chainId` as Hex.
+- **BREAKING:** `UpdatePaymentTokenRequest` is now a union of the existing `{ transactionId, tokenAddress, chainId }` shape and `{ transactionId, assetId, walletAccountId }` ([#10272](https://github.com/MetaMask/core/pull/10272))
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 
 ## [30.1.0]

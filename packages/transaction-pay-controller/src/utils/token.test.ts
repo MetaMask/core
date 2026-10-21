@@ -12,14 +12,20 @@ import {
   POLYGON_USDCE_ADDRESS,
 } from '../constants.js';
 import { getMessengerMock } from '../tests/messenger-mock.js';
+import type { EvmPaymentToken, NonEvmPaymentToken } from '../types.js';
 import {
   buildCaipAssetType,
   computeRawFromFiatAmount,
   computeTokenAmounts,
+  getAssetBalance,
+  getAssetFiatRate,
+  getAssetInfo,
   getTokenBalance,
   getTokenInfo,
   getTokenFiatRate,
   getNativeToken,
+  isNonEvmPaymentToken,
+  isSamePaymentToken,
   isSameToken,
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -39,6 +45,34 @@ const SYMBOL_MOCK = 'TEST';
 const ACCOUNT_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
 const ERC20_ADDRESS_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Hex;
 const PROVIDER_MOCK = { request: jest.fn() };
+const SOLANA_ASSET_ID_MOCK: CaipAssetType =
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501';
+const SOLANA_WALLET_ACCOUNT_ID_MOCK = 'solana-account-uuid';
+
+const EVM_PAYMENT_TOKEN_MOCK: EvmPaymentToken = {
+  address: TOKEN_ADDRESS_MOCK,
+  balanceFiat: '0',
+  balanceHuman: '0',
+  balanceRaw: '0',
+  balanceUsd: '0',
+  chainId: CHAIN_ID_MOCK,
+  decimals: DECIMALS_MOCK,
+  symbol: SYMBOL_MOCK,
+};
+
+const NON_EVM_PAYMENT_TOKEN_MOCK: NonEvmPaymentToken = {
+  accountId:
+    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+  assetId: SOLANA_ASSET_ID_MOCK,
+  balanceFiat: '0',
+  balanceHuman: '0',
+  balanceRaw: '0',
+  balanceUsd: '0',
+  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+  decimals: 9,
+  symbol: 'SOL',
+  walletAccountId: SOLANA_WALLET_ACCOUNT_ID_MOCK,
+};
 
 /**
  * Build a CAIP-19 asset ID for fixtures, mirroring how `AssetsController` keys
@@ -1428,6 +1462,165 @@ describe('Token Utils', () => {
       const token2 = { address: TOKEN_ADDRESS_2_MOCK, chainId: '0x89' as Hex };
 
       expect(isSameToken(token1, token2)).toBe(false);
+    });
+  });
+
+  describe('isNonEvmPaymentToken', () => {
+    it('returns true for a CAIP-2 chain ID', () => {
+      expect(isNonEvmPaymentToken(NON_EVM_PAYMENT_TOKEN_MOCK)).toBe(true);
+    });
+
+    it('returns false for a Hex chain ID', () => {
+      expect(isNonEvmPaymentToken(EVM_PAYMENT_TOKEN_MOCK)).toBe(false);
+    });
+  });
+
+  describe('isSamePaymentToken', () => {
+    it('returns true for EVM tokens with different address case', () => {
+      expect(
+        isSamePaymentToken(EVM_PAYMENT_TOKEN_MOCK, {
+          ...EVM_PAYMENT_TOKEN_MOCK,
+          address: TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false for EVM tokens on different chains', () => {
+      expect(
+        isSamePaymentToken(EVM_PAYMENT_TOKEN_MOCK, {
+          ...EVM_PAYMENT_TOKEN_MOCK,
+          chainId: '0x89',
+        }),
+      ).toBe(false);
+    });
+
+    it('returns true for the same non-EVM account and asset', () => {
+      expect(
+        isSamePaymentToken(NON_EVM_PAYMENT_TOKEN_MOCK, {
+          ...NON_EVM_PAYMENT_TOKEN_MOCK,
+          balanceRaw: '1',
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false for non-EVM tokens held by different accounts', () => {
+      expect(
+        isSamePaymentToken(NON_EVM_PAYMENT_TOKEN_MOCK, {
+          ...NON_EVM_PAYMENT_TOKEN_MOCK,
+          walletAccountId: 'other-account-uuid',
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false for an EVM and a non-EVM token', () => {
+      expect(
+        isSamePaymentToken(EVM_PAYMENT_TOKEN_MOCK, NON_EVM_PAYMENT_TOKEN_MOCK),
+      ).toBe(false);
+    });
+
+    it('returns true if both tokens are undefined', () => {
+      expect(isSamePaymentToken(undefined, undefined)).toBe(true);
+    });
+
+    it('returns false if only one token is defined', () => {
+      expect(isSamePaymentToken(undefined, NON_EVM_PAYMENT_TOKEN_MOCK)).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('getAssetBalance', () => {
+    it('returns the raw balance for the account and asset', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [SOLANA_WALLET_ACCOUNT_ID_MOCK]: {
+            [SOLANA_ASSET_ID_MOCK]: { amount: '1.5' },
+          },
+        },
+        assetsInfo: {
+          [SOLANA_ASSET_ID_MOCK]: {
+            decimals: 9,
+            name: 'Solana',
+            symbol: 'SOL',
+            type: 'native',
+          },
+        },
+      });
+
+      expect(
+        getAssetBalance(
+          messenger,
+          SOLANA_WALLET_ACCOUNT_ID_MOCK,
+          SOLANA_ASSET_ID_MOCK,
+        ),
+      ).toBe('1500000000');
+    });
+
+    it('returns zero if the account has no balance for the asset', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {},
+        assetsInfo: {},
+      });
+
+      expect(
+        getAssetBalance(
+          messenger,
+          SOLANA_WALLET_ACCOUNT_ID_MOCK,
+          SOLANA_ASSET_ID_MOCK,
+        ),
+      ).toBe('0');
+    });
+  });
+
+  describe('getAssetInfo', () => {
+    it('returns decimals and symbol for the asset', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [SOLANA_ASSET_ID_MOCK]: {
+            decimals: 9,
+            name: 'Solana',
+            symbol: 'SOL',
+            type: 'native',
+          },
+        },
+      });
+
+      expect(getAssetInfo(messenger, SOLANA_ASSET_ID_MOCK)).toStrictEqual({
+        decimals: 9,
+        symbol: 'SOL',
+      });
+    });
+
+    it('returns undefined if the asset is not found', () => {
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
+
+      expect(getAssetInfo(messenger, SOLANA_ASSET_ID_MOCK)).toBeUndefined();
+    });
+  });
+
+  describe('getAssetFiatRate', () => {
+    it('returns fiat and USD rates for the asset', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsPrice: {
+          [SOLANA_ASSET_ID_MOCK]: {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 85,
+            usdPrice: 100,
+          },
+        },
+      });
+
+      expect(getAssetFiatRate(messenger, SOLANA_ASSET_ID_MOCK)).toStrictEqual({
+        fiatRate: '85',
+        usdRate: '100',
+      });
+    });
+
+    it('returns undefined if the asset has no fungible price', () => {
+      getAssetsControllerStateMock.mockReturnValue({ assetsPrice: {} });
+
+      expect(getAssetFiatRate(messenger, SOLANA_ASSET_ID_MOCK)).toBeUndefined();
     });
   });
 
