@@ -2,14 +2,14 @@
  * Prices API Client Tests - price.api.cx.metamask.io
  */
 
-import type { ApiPlatformClient } from '../ApiPlatformClient.js';
-import { API_URLS } from '../shared-types.js';
-import type { FetchOptions } from '../shared-types.js';
 import {
   createMockResponse,
   mockFetch,
   setupTestEnvironment,
-} from '../test-utils.js';
+} from '../../../tests/test-utils.js';
+import type { ApiPlatformClient } from '../ApiPlatformClient.js';
+import { API_URLS } from '../shared-types.js';
+import type { FetchOptions } from '../shared-types.js';
 import type {
   PriceV1SupportedNetworksResponse,
   PriceV2SupportedNetworksResponse,

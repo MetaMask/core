@@ -13,7 +13,7 @@ import {
   number,
   optional,
 } from '@metamask/superstruct';
-import type { Infer, Struct } from '@metamask/superstruct';
+import type { Infer, ObjectType, Struct } from '@metamask/superstruct';
 
 import type { AccountTreeController } from '../AccountTreeController.js';
 import type {
@@ -26,12 +26,27 @@ import type { AccountTreeWalletPersistedMetadata } from '../wallet.js';
 import type { BackupAndSyncEmitAnalyticsEventParams } from './analytics/index.js';
 
 /**
+ * Object schema backing an `UpdatableFieldSchema`.
+ *
+ * @param Value - The type of the `value` field.
+ */
+type UpdatableFieldObjectSchema<Value> = {
+  value: Struct<Value, unknown>;
+  lastUpdatedAt: Struct<number, null>;
+};
+
+/**
  * Schema for an updatable field with value and timestamp.
  *
  * @param valueSchema - The schema for the value field.
  * @returns A superstruct schema for an updatable field.
  */
-const UpdatableFieldSchema = <T>(valueSchema: Struct<T>) =>
+const UpdatableFieldSchema = <T>(
+  valueSchema: Struct<T>,
+): Struct<
+  ObjectType<UpdatableFieldObjectSchema<T>>,
+  UpdatableFieldObjectSchema<T>
+> =>
   object({
     value: valueSchema,
     lastUpdatedAt: number(),

@@ -143,6 +143,12 @@ export type TraderProfile = {
   allAddresses: string[];
   name: string;
   imageUrl?: string | null;
+  /**
+   * When the social-api profile row was created, as an ISO-8601 timestamp.
+   * Omitted on older social-api builds. This is the row insert time, which can
+   * predate the trader claiming a username and avatar.
+   */
+  createdAt?: string | null;
 };
 
 export type TraderStats = {
@@ -688,7 +694,7 @@ export type FetchFeedOptions = {
   newerThan?: string;
 };
 
-export type FeedScope = 'following' | 'leaderboard' | 'all';
+export type FeedScope = 'following' | 'leaderboard' | 'all' | 'trending';
 
 export type FetchPositionByIdOptions = {
   /** Unique position ID (UUID). */

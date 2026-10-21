@@ -14,6 +14,7 @@ import {
   PAIR_IDENTIFIERS,
   PAIR_PROFILES_URL,
   PAIR_SOCIAL_IDENTIFIER_URL,
+  SOCIAL_LOGIN_URL,
   PROFILE_LINEAGE_URL,
   CUSTOMER_SERVICE_TOKEN_URL,
   PARTNER_IDENTITY_TOKEN_URL,
@@ -28,6 +29,7 @@ export const MOCK_PAIR_PROFILES_URL = PAIR_PROFILES_URL(Env.PRD);
 export const MOCK_PAIR_SOCIAL_IDENTIFIER_URL = PAIR_SOCIAL_IDENTIFIER_URL(
   Env.PRD,
 );
+export const MOCK_SOCIAL_LOGIN_URL = SOCIAL_LOGIN_URL(Env.PRD);
 export const MOCK_PROFILE_LINEAGE_URL = PROFILE_LINEAGE_URL(Env.PRD);
 export const MOCK_CUSTOMER_SERVICE_TOKEN_URL = CUSTOMER_SERVICE_TOKEN_URL(
   Env.PRD,
@@ -77,6 +79,13 @@ export const MOCK_MFA_ENROLL_PASSKEY_RESPONSE = {
 export const MOCK_MFA_ENROLL_EMAIL_RESPONSE = {
   flow_id: 'enroll-email-flow-id',
   expires_at: '2099-09-07T14:30:00Z',
+};
+
+export const MOCK_MFA_ENROLL_TOTP_RESPONSE = {
+  flow_id: 'enroll-totp-flow-id',
+  expires_at: '2099-09-07T14:30:00Z',
+  totp_secret: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',
+  totp_qr: 'data:image/png;base64,iVBORw0KGgo=',
 };
 
 export const MOCK_MFA_VERIFY_PASSKEY_RESPONSE = {
@@ -215,6 +224,19 @@ export const MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE = {
     profile_id: MOCK_SRP_LOGIN_RESPONSE.profile.profile_id,
   },
   token: MOCK_JWT,
+};
+
+export const MOCK_SOCIAL_LOGIN_RESPONSE = {
+  token: MOCK_JWT,
+  expires_in: 3600,
+  profile: {
+    profile_id: MOCK_SRP_LOGIN_RESPONSE.profile.profile_id,
+    metametrics_id: MOCK_SRP_LOGIN_RESPONSE.profile.metametrics_id,
+    identifier_id:
+      '0c3e2f1d9b8a7c6e5d4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d',
+    identifier_type: 'GOOGLE',
+  },
+  profile_aliases: [],
 };
 
 export const MOCK_USER_PROFILE_LINEAGE_RESPONSE = {
