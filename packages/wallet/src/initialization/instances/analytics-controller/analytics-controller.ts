@@ -1,7 +1,4 @@
-import {
-  AnalyticsController,
-  getDefaultAnalyticsControllerState,
-} from '@metamask/analytics-controller';
+import { AnalyticsController } from '@metamask/analytics-controller';
 import type { AnalyticsControllerMessenger } from '@metamask/analytics-controller';
 import { Messenger } from '@metamask/messenger';
 
@@ -20,7 +17,6 @@ export const analyticsController: InitializationConfiguration<
       messenger,
       platformAdapter: options.platformAdapter,
       state: {
-        ...getDefaultAnalyticsControllerState(),
         analyticsId: options.analyticsId,
         ...state,
       },
