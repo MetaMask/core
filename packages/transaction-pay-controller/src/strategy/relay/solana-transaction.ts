@@ -107,7 +107,9 @@ export async function compileRelaySolanaTransaction({
         address: address(key.pubkey),
         role: getAccountRole(key),
       })),
-      data: hexToBytes(instruction.data),
+      data: instruction.data
+        ? hexToBytes(instruction.data)
+        : new Uint8Array(),
       programAddress: address(instruction.programId),
     }),
   );

@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Project the selected non-EVM payment token onto the persisted transaction as `metamaskPay.source`.
 - Quote and submit Solana payment tokens through `RelayStrategy` ([#10273](https://github.com/MetaMask/core/pull/10273))
   - `RelayStrategy` quotes `nonEvmRequests` with Relay `/quote/v2` (configurable with the `relaySolanaQuoteUrl` feature flag). New quotes require the `payStrategies.relay.solana.enabled` feature flag. EVM sources still use `/quote`.
-  - Core compiles the unsigned Solana transaction from the Relay instructions. It reads the blockhash and lookup tables from the `ConfigRegistryController` Solana RPC URL.
+  - Core compiles the unsigned Solana transaction from the Relay instructions. It reads the blockhash and lookup tables from the `ConfigRegistryController` Solana RPC URL. Instructions with empty data are supported.
   - The source network fee comes from the account Snap `computeFee` request. Affordability includes the fee and the rent reserve, and a shortfall is reported as an `insufficient-source-balance` quote error. Native SOL max amounts withhold the fee and rent.
   - Submission persists a `metamaskPay.solanaExecution` checkpoint and then makes exactly one Snap `signAndSendTransaction` request. It then notifies Relay, waits for completion, persists the Relay completion (status, target hash and confirmed source) on the checkpoint, reconciles it and returns an externally handled publish result.
   - Submission rejects a quote whose `quotesLastUpdated` is older than the quote refresh interval plus a 10 second grace period, before persisting the checkpoint or calling the Snap.

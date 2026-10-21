@@ -153,6 +153,25 @@ describe('solana-transaction', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
+    it('compiles an instruction with empty data', async () => {
+      const result = await compileRelaySolanaTransaction({
+        messenger,
+        payer: PAYER,
+        scope: SCOPE,
+        transaction: {
+          instructions: [{ ...RELAY_TRANSACTION.instructions[0], data: '' }],
+        },
+      });
+
+      const message = getCompiledTransactionMessageDecoder().decode(
+        getTransactionDecoder().decode(
+          getBase64Encoder().encode(result.transaction),
+        ).messageBytes,
+      );
+
+      expect(message.instructions[0].data).toBeUndefined();
+    });
+
     it.each([
       [true, false],
       [false, false],
