@@ -59,7 +59,7 @@ const RawHydratedPositionStruct = structType({
       id: string(),
       metadata: record(string(), unknownStruct()),
     }),
-    followerCount: optional(number()),
+    followerCount: optional(nullable(number())),
   }),
   metadata: structType({
     tokenChain: string(),
@@ -68,27 +68,27 @@ const RawHydratedPositionStruct = structType({
     tokenAddress: string(),
     positionAmount: number(),
     positionStats: structType({
-      boughtUSD: number(),
-      soldUSD: number(),
-      realizedGainsUSD: number(),
-      holdingsCostBasisUSD: number(),
-      receivedCostBasisUSD: number(),
-      holdingReceivedCostBasisUSD: number(),
+      boughtUSD: nullable(number()),
+      soldUSD: nullable(number()),
+      realizedGainsUSD: nullable(number()),
+      holdingsCostBasisUSD: nullable(number()),
+      receivedCostBasisUSD: nullable(number()),
+      holdingReceivedCostBasisUSD: nullable(number()),
       isOpen: boolean(),
     }),
     trades: array(RawTradeStruct),
     perpPositionType: optional(nullable(enums(['long', 'short']))),
     perpLeverage: optional(nullable(number())),
-    positionAmountWithLeverage: optional(number()),
+    positionAmountWithLeverage: optional(nullable(number())),
   }),
   metrics: structType({
     reactions: array(unknownStruct()),
     userReaction: nullable(string()),
     commentCount: number(),
     replyCount: number(),
-    copyCount: optional(number()),
+    copyCount: optional(nullable(number())),
   }),
-  imageUrl: optional(string()),
+  imageUrl: optional(nullable(string())),
   firstTradeAt: optional(nullable(number())),
   holdTimeMs: optional(nullable(number())),
   entryPriceUsd: optional(nullable(number())),
@@ -127,6 +127,11 @@ const readNumber = (value: unknown): number | undefined =>
 
 const readNullableNumber = (value: unknown): number | null =>
   readNumber(value) ?? null;
+
+const addNullableNumbers = (
+  left: number | null,
+  right: number | null,
+): number | null => (left === null || right === null ? null : left + right);
 
 const toCommentReaction = (value: unknown): CommentReaction | null => {
   if (!isRecord(value)) {
@@ -229,7 +234,7 @@ const toActor = (actor: {
   name: string;
   images: { raw: string | null; sm: string | null };
   profile: { id: string; metadata: Record<string, unknown> };
-  followerCount?: number;
+  followerCount?: number | null;
 }): FeedActorSummary => ({
   profileId: actor.profile.id,
   address: actor.address,
@@ -290,10 +295,13 @@ export const normalizeRealtimeFeedItem = (
     chain: value.metadata.tokenChain,
     positionAmount: value.metadata.positionAmount,
     isOpen: stats.isOpen,
-    boughtUsd: stats.boughtUSD + receivedCostBasis,
+    boughtUsd: addNullableNumbers(stats.boughtUSD, receivedCostBasis),
     soldUsd: stats.soldUSD,
     realizedPnl: stats.realizedGainsUSD,
-    costBasis: stats.holdingsCostBasisUSD + holdingReceivedCostBasis,
+    costBasis: addNullableNumbers(
+      stats.holdingsCostBasisUSD,
+      holdingReceivedCostBasis,
+    ),
     trades: value.metadata.trades.map(toTrade),
     lastTradeAt: value.cardLatestTradeAt,
     tokenImageUrl: value.imageUrl,

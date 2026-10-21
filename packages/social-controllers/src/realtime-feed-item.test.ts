@@ -293,6 +293,49 @@ describe('parseRealtimeFeedItem', () => {
     });
   });
 
+  it('normalizes nullable hydrated position fields', () => {
+    const value = {
+      ...fullHydratedPosition,
+      actor: {
+        ...fullHydratedPosition.actor,
+        followerCount: null,
+      },
+      metadata: {
+        ...fullHydratedPosition.metadata,
+        positionAmountWithLeverage: null,
+        positionStats: {
+          ...fullHydratedPosition.metadata.positionStats,
+          boughtUSD: null,
+          soldUSD: null,
+          realizedGainsUSD: null,
+          holdingsCostBasisUSD: null,
+          receivedCostBasisUSD: null,
+          holdingReceivedCostBasisUSD: null,
+        },
+      },
+      metrics: {
+        ...fullHydratedPosition.metrics,
+        copyCount: null,
+      },
+      imageUrl: null,
+    };
+
+    expect(normalizeRealtimeFeedItem(value)).toMatchObject({
+      boughtUsd: null,
+      soldUsd: null,
+      realizedPnl: null,
+      costBasis: null,
+      tokenImageUrl: null,
+      positionAmountWithLeverage: null,
+      actor: { followerCount: null },
+      copyCount: 0,
+    });
+    expect(parseRealtimeFeedItem(value)).toMatchObject({
+      positionId: 'position-1',
+      boughtUsd: null,
+    });
+  });
+
   it('returns no author comment for an empty trade history', () => {
     const value = {
       ...fullHydratedPosition,
