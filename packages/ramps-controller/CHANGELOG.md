@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Add missing `@metamask/utils` dependency ([#10926](https://github.com/MetaMask/core/pull/10926))
+
 ## [27.0.2]
 
 ### Changed

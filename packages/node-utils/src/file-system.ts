@@ -3,9 +3,9 @@
 
 import { isErrorWithCode, wrapError } from '@metamask/error-utils';
 import type { Json } from '@metamask/type-utils';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { v4 as uuidV4 } from 'uuid';
 
 /**
@@ -28,7 +28,7 @@ export type FileSandbox = {
  */
 export async function readFile(filePath: string): Promise<string> {
   try {
-    return await fs.promises.readFile(filePath, 'utf8');
+    return await fs.readFile(filePath, 'utf8');
   } catch (error) {
     throw wrapError(error, `Could not read file '${filePath}'`);
   }
@@ -47,8 +47,8 @@ export async function writeFile(
   content: string,
 ): Promise<void> {
   try {
-    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.promises.writeFile(filePath, content);
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, content);
   } catch (error) {
     throw wrapError(error, `Could not write file '${filePath}'`);
   }
@@ -82,7 +82,11 @@ export async function readJsonFile<Value extends Json>(
   } = {},
 ): Promise<Value> {
   try {
-    const content = await fs.promises.readFile(filePath, 'utf8');
+    const content = await fs.readFile(filePath, 'utf8');
+
+    // Intentionally returning `any`. We expect validation to be done by the
+    // caller.
+    // oxlint-disable-next-line typescript/no-unsafe-return
     return parser.parse(content);
   } catch (error) {
     throw wrapError(error, `Could not read JSON file '${filePath}'`);
@@ -124,11 +128,12 @@ export async function writeJsonFile(
   } = {},
 ): Promise<void> {
   try {
-    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
     const json = prettify
       ? stringifier.stringify(jsonValue, null, '  ')
       : stringifier.stringify(jsonValue);
-    await fs.promises.writeFile(filePath, json);
+
+    await fs.writeFile(filePath, json);
   } catch (error) {
     throw wrapError(error, `Could not write JSON file '${filePath}'`);
   }
@@ -143,7 +148,7 @@ export async function writeJsonFile(
  */
 export async function fileExists(filePath: string): Promise<boolean> {
   try {
-    const stats = await fs.promises.stat(filePath);
+    const stats = await fs.stat(filePath);
     return stats.isFile();
   } catch (error) {
     if (isErrorWithCode(error) && error.code === 'ENOENT') {
@@ -163,7 +168,7 @@ export async function fileExists(filePath: string): Promise<boolean> {
  */
 export async function directoryExists(directoryPath: string): Promise<boolean> {
   try {
-    const stats = await fs.promises.stat(directoryPath);
+    const stats = await fs.stat(directoryPath);
     return stats.isDirectory();
   } catch (error) {
     if (isErrorWithCode(error) && error.code === 'ENOENT') {
@@ -188,7 +193,7 @@ export async function ensureDirectoryStructureExists(
   directoryPath: string,
 ): Promise<void> {
   try {
-    await fs.promises.mkdir(directoryPath, { recursive: true });
+    await fs.mkdir(directoryPath, { recursive: true });
   } catch (error) {
     throw wrapError(
       error,
@@ -206,7 +211,7 @@ export async function ensureDirectoryStructureExists(
  */
 export async function forceRemove(entryPath: string): Promise<void> {
   try {
-    await fs.promises.rm(entryPath, {
+    await fs.rm(entryPath, {
       recursive: true,
       force: true,
     });
@@ -230,7 +235,7 @@ export async function forceRemove(entryPath: string): Promise<void> {
  *
  * it('does something with the filesystem', async () => {
  *   await withinSandbox(async ({ directoryPath }) => {
- *     await fs.promises.writeFile(
+ *     await fs.writeFile(
  *       path.join(directoryPath, 'some-file'),
  *       'some content',
  *       'utf8'
