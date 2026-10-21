@@ -5461,10 +5461,10 @@
       "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 30
+      "count": 32
     },
     "typescript/no-unsafe-member-access": {
-      "count": 28
+      "count": 30
     },
     "typescript/no-unsafe-return": {
       "count": 1
@@ -5721,10 +5721,10 @@
   },
   "packages/transaction-pay-controller/src/utils/quote-gas.test.ts": {
     "typescript/no-unsafe-call": {
-      "count": 8
+      "count": 11
     },
     "typescript/no-unsafe-member-access": {
-      "count": 8
+      "count": 11
     },
     "typescript/no-unsafe-return": {
       "count": 2
