@@ -366,7 +366,7 @@ export function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
   assert(typeof value === 'string', 'Value must be a string.');
 
   if (Uint8Array.fromBase64 !== undefined) {
-    return Uint8Array.fromBase64(value);
+    return Uint8Array.fromBase64(value, { lastChunkHandling: 'strict' });
   }
 
   return base64.decode(value) as Uint8Array<ArrayBuffer>;

@@ -9,7 +9,13 @@ declare global {
   }
 
   interface Uint8ArrayConstructor {
-    fromBase64(value: string): Uint8Array<ArrayBuffer>;
+    fromBase64(
+      value: string,
+      options?: {
+        alphabet?: 'base64' | 'base64url';
+        lastChunkHandling?: 'loose' | 'strict' | 'stop-before-partial';
+      },
+    ): Uint8Array<ArrayBuffer>;
     fromHex(value: string): Uint8Array<ArrayBuffer>;
   }
 }
