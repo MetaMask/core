@@ -94,6 +94,10 @@ export function bytesToHex(bytes: Uint8Array): Hex {
     return '0x';
   }
 
+  if (Uint8Array.prototype.toHex !== undefined) {
+    return add0x(bytes.toHex());
+  }
+
   const lookupTable = getPrecomputedHexValues();
   const hexadecimal = new Array(bytes.length);
 
@@ -188,6 +192,10 @@ export function bytesToString(bytes: Uint8Array): string {
 export function bytesToBase64(bytes: Uint8Array): string {
   assertIsBytes(bytes);
 
+  if (Uint8Array.prototype.toBase64 !== undefined) {
+    return bytes.toBase64();
+  }
+
   return base64.encode(bytes);
 }
 
@@ -207,6 +215,10 @@ export function hexToBytes(value: string): Uint8Array<ArrayBuffer> {
   }
 
   assertIsHexString(value);
+
+  if (Uint8Array.fromHex !== undefined) {
+    return Uint8Array.fromHex(remove0x(value));
+  }
 
   // Remove the `0x` prefix if it exists, and pad the string to have an even
   // number of characters.
@@ -350,6 +362,10 @@ export function stringToBytes(value: string): Uint8Array<ArrayBuffer> {
  */
 export function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
   assert(typeof value === 'string', 'Value must be a string.');
+
+  if (Uint8Array.fromBase64 !== undefined) {
+    return Uint8Array.fromBase64(value);
+  }
 
   return base64.decode(value) as Uint8Array<ArrayBuffer>;
 }
