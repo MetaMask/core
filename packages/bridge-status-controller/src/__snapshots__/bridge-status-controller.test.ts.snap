@@ -764,6 +764,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
         "stxEnabled": false,
       },
       "name": "Bridge Transaction Completed",
+      "tags": {
+        "feature": "swap",
+      },
     },
     [Function],
   ],
@@ -775,6 +778,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
         "stxEnabled": false,
       },
       "name": "Bridge Transaction Approval Completed",
+      "tags": {
+        "feature": "swap",
+      },
     },
     [Function],
   ],
@@ -1086,6 +1092,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
         "stxEnabled": false,
       },
       "name": "Bridge Transaction Completed",
+      "tags": {
+        "feature": "swap",
+      },
     },
     [Function],
   ],
@@ -1097,6 +1106,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
         "stxEnabled": false,
       },
       "name": "Bridge Transaction Approval Completed",
+      "tags": {
+        "feature": "swap",
+      },
     },
     [Function],
   ],
@@ -1721,6 +1733,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
         "stxEnabled": false,
       },
       "name": "Bridge Transaction Completed",
+      "tags": {
+        "feature": "swap",
+      },
     },
     [Function],
   ],
@@ -1732,6 +1747,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
         "stxEnabled": false,
       },
       "name": "Bridge Transaction Approval Completed",
+      "tags": {
+        "feature": "swap",
+      },
     },
     [Function],
   ],
@@ -2043,6 +2061,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
         "stxEnabled": false,
       },
       "name": "Bridge Transaction Completed",
+      "tags": {
+        "feature": "swap",
+      },
     },
     [Function],
   ],
@@ -2054,6 +2075,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
         "stxEnabled": false,
       },
       "name": "Bridge Transaction Approval Completed",
+      "tags": {
+        "feature": "swap",
+      },
     },
     [Function],
   ],
@@ -3566,6 +3590,9 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
         "stxEnabled": false,
       },
       "name": "Bridge Transaction Completed",
+      "tags": {
+        "feature": "swap",
+      },
     },
     [Function],
   ],
@@ -3577,6 +3604,9 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
         "stxEnabled": false,
       },
       "name": "Bridge Transaction Approval Completed",
+      "tags": {
+        "feature": "swap",
+      },
     },
     [Function],
   ],
@@ -4753,7 +4783,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 1`] = `
+exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 2`] = `
 {
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
@@ -4772,7 +4802,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 2`] = `
+exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 3`] = `
 {
   "account": "0xaccount1",
   "actionId": "1234567891.456",
@@ -4898,7 +4928,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 3`] = `
+exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 4`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",

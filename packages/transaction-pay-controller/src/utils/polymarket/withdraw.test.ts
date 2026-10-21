@@ -3,11 +3,11 @@ import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import {
   POLYGON_PUSD_ADDRESS,
   POLYGON_USDCE_ADDRESS,
 } from '../../constants.js';
-import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { QuoteRequest } from '../../types.js';
 import { getLiveTokenBalance } from '../token.js';
 import {

@@ -16,7 +16,6 @@ import type {
 } from '@metamask/network-controller';
 import { add0x, bytesToHex } from '@metamask/utils';
 
-import { TraceName } from '../analytics/traces.js';
 import {
   asKeyringAccount,
   getMultichainAccountServiceMessenger,
@@ -29,7 +28,8 @@ import {
   MockAccountBuilder,
   mockAsInternalAccount,
   RootMessenger,
-} from '../tests/index.js';
+} from '../../tests/index.js';
+import { TraceName } from '../analytics/traces.js';
 import {
   EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   EVM_ACCOUNT_PROVIDER_NAME,

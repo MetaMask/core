@@ -10,8 +10,8 @@ import type {
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import { TransactionPayStrategy } from '../../constants.js';
-import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { TransactionPayQuote } from '../../types.js';
 import { submitAcrossQuotes } from './across-submit.js';
 import * as acrossTransactions from './transactions.js';

@@ -16,9 +16,15 @@ const SESSION_CLIENT_PUBLIC_KEY = 'session-client-public-key';
 const RESIDENCE_COUNTRY = 'USA';
 const AAL2_TOKEN = 'aal2-token';
 
+const services: KycService[] = [];
+
 describe('KycService', () => {
   afterEach(() => {
     cleanAll();
+    for (const service of services) {
+      service.destroy();
+    }
+    services.length = 0;
   });
 
   describe('constructor', () => {
@@ -212,6 +218,76 @@ describe('KycService', () => {
         /Malformed response received from idOS enclave JWKS API/u,
       );
     });
+
+    it('reuses a successful response for 24 hours', async () => {
+      const response = {
+        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
+      };
+      const now = jest.spyOn(Date, 'now');
+      try {
+        now.mockReturnValue(1_000);
+        nock(MOCK_IDOS_ENCLAVE_URL)
+          .get('/.well-known/jwks.json')
+          .reply(200, response);
+        const { service } = getService();
+
+        expect(await service.fetchIdosEnclaveJwks()).toStrictEqual(response);
+
+        now.mockReturnValue(1_000 + 24 * 60 * 60 * 1000 - 1);
+        expect(await service.fetchIdosEnclaveJwks()).toStrictEqual(response);
+
+        now.mockReturnValue(1_000 + 24 * 60 * 60 * 1000);
+        const refreshed = {
+          keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub-2', kid: 'k2' }],
+        };
+        nock(MOCK_IDOS_ENCLAVE_URL)
+          .get('/.well-known/jwks.json')
+          .reply(200, refreshed);
+        expect(await service.fetchIdosEnclaveJwks()).toStrictEqual(refreshed);
+      } finally {
+        now.mockRestore();
+      }
+    });
+
+    it('does not cache a failed or malformed response', async () => {
+      nock(MOCK_IDOS_ENCLAVE_URL).get('/.well-known/jwks.json').reply(500);
+      nock(MOCK_IDOS_ENCLAVE_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, { keys: [{ kty: 'OKP' }] });
+      const response = {
+        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
+      };
+      nock(MOCK_IDOS_ENCLAVE_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, response);
+      const { service } = getService();
+
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /failed with status '500'/u,
+      );
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /Malformed response received from idOS enclave JWKS API/u,
+      );
+      expect(await service.fetchIdosEnclaveJwks()).toStrictEqual(response);
+    });
+
+    it('shares one in-flight request across concurrent callers', async () => {
+      const response = {
+        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
+      };
+      nock(MOCK_IDOS_ENCLAVE_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, response);
+      const { service } = getService();
+
+      const [first, second] = await Promise.all([
+        service.fetchIdosEnclaveJwks(),
+        service.fetchIdosEnclaveJwks(),
+      ]);
+
+      expect(first).toStrictEqual(response);
+      expect(second).toStrictEqual(response);
+    });
   });
 
   describe('fetchIdosRelayJwks', () => {
@@ -244,6 +320,25 @@ describe('KycService', () => {
       await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
         /Malformed response received from idOS relay JWKS API/u,
       );
+    });
+
+    it('reuses a successful response for 24 hours', async () => {
+      const response = {
+        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'relay-pub', kid: 'r1' }],
+      };
+      const now = jest.spyOn(Date, 'now');
+      try {
+        now.mockReturnValue(5_000);
+        nock(MOCK_IDOS_RELAY_URL)
+          .get('/.well-known/jwks.json')
+          .reply(200, response);
+        const { service } = getService();
+
+        expect(await service.fetchIdosRelayJwks()).toStrictEqual(response);
+        expect(await service.fetchIdosRelayJwks()).toStrictEqual(response);
+      } finally {
+        now.mockRestore();
+      }
     });
   });
 
@@ -281,6 +376,44 @@ describe('KycService', () => {
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { foo: 'bar' },
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('sends the partner identity token when provided', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) =>
+            body.partnerIdentityToken === 'partner-identity-token',
+        )
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          aal2Token: AAL2_TOKEN,
+          partnerIdentityToken: 'partner-identity-token',
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('omits the partner identity token when not provided', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) => !('partnerIdentityToken' in body),
+        )
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           aal2Token: AAL2_TOKEN,
         }),
       ).toStrictEqual(response);
@@ -1278,6 +1411,7 @@ function getService({
     ...(idosRelayBaseUrl === null ? {} : { idosRelayBaseUrl }),
     ...(defaultPolicy ? {} : { policyOptions: { maxRetries: 0 } }),
   });
+  services.push(service);
 
   return { service, rootMessenger, messenger };
 }
