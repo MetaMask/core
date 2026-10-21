@@ -4742,14 +4742,12 @@
       "count": 2
     }
   },
-  "packages/sentinel-api-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/sentinel-api-service/src/sentinel-api-service.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 12
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/sentinel-api-service/src/sentinel-api-service.ts": {
@@ -4873,11 +4871,6 @@
       "count": 1
     }
   },
-  "packages/smart-transactions-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/smart-transactions-controller/src/SmartTransactionsController.test.ts": {
     "jsdoc/require-param": {
       "count": 1
@@ -4967,12 +4960,6 @@
   "packages/smart-transactions-controller/tests/helpers.ts": {
     "typescript/explicit-function-return-type": {
       "count": 2
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
     }
   },
   "packages/snap-account-service/src/SnapAccountService.test.ts": {
