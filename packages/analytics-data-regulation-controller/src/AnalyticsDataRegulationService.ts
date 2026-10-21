@@ -1,10 +1,14 @@
+import { BaseDataService } from '@metamask/base-data-service';
 import type {
   CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import type { IDisposable } from 'cockatiel';
+import { refine, string, type } from '@metamask/superstruct';
+import type { Infer } from '@metamask/superstruct';
 
 import type { AnalyticsDataRegulationServiceMethodActions } from './AnalyticsDataRegulationService-method-action-types.js';
 import {
@@ -44,10 +48,17 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
+ * Invalidates cached queries for {@link AnalyticsDataRegulationService}.
+ */
+export type AnalyticsDataRegulationServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/**
  * Actions that {@link AnalyticsDataRegulationService} exposes to other consumers.
  */
 export type AnalyticsDataRegulationServiceActions =
-  AnalyticsDataRegulationServiceMethodActions;
+  | AnalyticsDataRegulationServiceMethodActions
+  | AnalyticsDataRegulationServiceInvalidateQueriesAction;
 
 /**
  * Actions from other messengers that {@link AnalyticsDataRegulationServiceMessenger} calls.
@@ -55,9 +66,24 @@ export type AnalyticsDataRegulationServiceActions =
 type AllowedActions = never;
 
 /**
+ * Published when {@link AnalyticsDataRegulationService}'s cache is updated.
+ */
+export type AnalyticsDataRegulationServiceCacheUpdatedEvent =
+  DataServiceCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Published when a key within {@link AnalyticsDataRegulationService}'s cache is
+ * updated.
+ */
+export type AnalyticsDataRegulationServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
  * Events that {@link AnalyticsDataRegulationService} exposes to other consumers.
  */
-export type AnalyticsDataRegulationServiceEvents = never;
+export type AnalyticsDataRegulationServiceEvents =
+  | AnalyticsDataRegulationServiceCacheUpdatedEvent
+  | AnalyticsDataRegulationServiceGranularCacheUpdatedEvent;
 
 /**
  * Events from other messengers that {@link AnalyticsDataRegulationService} subscribes to.
@@ -77,15 +103,29 @@ export type AnalyticsDataRegulationServiceMessenger = Messenger<
 // === SERVICE DEFINITION ===
 
 /**
+ * A string that is non-empty once trimmed.
+ */
+const NonEmptyStringStruct = refine(
+  string(),
+  'NonEmptyString',
+  (value) => value.trim() !== '',
+);
+
+/**
  * Response structure from Segment API for creating a regulation.
  */
-type CreateRegulationResponse = {
-  data: {
-    data: {
-      regulateId: string;
-    };
-  };
-};
+const CreateRegulationResponseStruct = type({
+  data: type({
+    data: type({
+      regulateId: NonEmptyStringStruct,
+    }),
+  }),
+});
+
+/**
+ * Validated response from Segment API for creating a regulation.
+ */
+type CreateRegulationResponse = Infer<typeof CreateRegulationResponseStruct>;
 
 /**
  * Response structure from Segment API for getting regulation status.
@@ -152,10 +192,12 @@ function isDataDeleteStatus(status: unknown): status is DataDeleteStatus {
  * @example
  *
  * ```ts
+ * import type { MessengerActions, MessengerEvents } from '@metamask/messenger';
  * import { Messenger } from '@metamask/messenger';
  * import type {
  *   AnalyticsDataRegulationServiceActions,
  *   AnalyticsDataRegulationServiceEvents,
+ *   AnalyticsDataRegulationServiceMessenger,
  * } from '@metamask/analytics-data-regulation-controller';
  *
  * const rootMessenger = new Messenger<
@@ -165,8 +207,8 @@ function isDataDeleteStatus(status: unknown): status is DataDeleteStatus {
  * >({ namespace: 'Root' });
  * const serviceMessenger = new Messenger<
  *   'AnalyticsDataRegulationService',
- *   AnalyticsDataRegulationServiceActions,
- *   AnalyticsDataRegulationServiceEvents,
+ *   MessengerActions<AnalyticsDataRegulationServiceMessenger>,
+ *   MessengerEvents<AnalyticsDataRegulationServiceMessenger>,
  *   typeof rootMessenger,
  * >({
  *   namespace: 'AnalyticsDataRegulationService',
@@ -188,17 +230,10 @@ function isDataDeleteStatus(status: unknown): status is DataDeleteStatus {
  * );
  * ```
  */
-export class AnalyticsDataRegulationService {
-  /**
-   * The name of the service.
-   */
-  readonly name: typeof serviceName;
-
-  /**
-   * The messenger suited for this service.
-   */
-  readonly #messenger: AnalyticsDataRegulationServiceMessenger;
-
+export class AnalyticsDataRegulationService extends BaseDataService<
+  typeof serviceName,
+  AnalyticsDataRegulationServiceMessenger
+> {
   /**
    * A function that can be used to make an HTTP request.
    */
@@ -216,71 +251,24 @@ export class AnalyticsDataRegulationService {
   readonly #segmentRegulationsEndpoint: string;
 
   /**
-   * The policy that wraps the request.
-   *
-   * @see {@link createServicePolicy}
-   */
-  readonly #policy: ServicePolicy;
-
-  /**
    * Constructs a new AnalyticsDataRegulationService object.
    *
    * @param options - The constructor options.
    */
   constructor(options: AnalyticsDataRegulationServiceOptions) {
-    this.name = serviceName;
-    this.#messenger = options.messenger;
+    super({
+      name: serviceName,
+      messenger: options.messenger,
+      policyOptions: options.policyOptions,
+    });
     this.#fetch = options.fetch;
     this.#segmentSourceId = options.segmentSourceId;
     this.#segmentRegulationsEndpoint = options.segmentRegulationsEndpoint;
-    this.#policy = createServicePolicy(options.policyOptions ?? {});
 
-    this.#messenger.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
-  }
-
-  /**
-   * Registers a handler that will be called after a request returns a non-500
-   * response, causing a retry. Primarily useful in tests where timers are being
-   * mocked.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler.
-   * @see {@link createServicePolicy}
-   */
-  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]): IDisposable {
-    return this.#policy.onRetry(listener);
-  }
-
-  /**
-   * Registers a handler that will be called after a set number of retry rounds
-   * prove that requests to the API endpoint consistently return a 5xx response.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler.
-   * @see {@link createServicePolicy}
-   */
-  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]): IDisposable {
-    return this.#policy.onBreak(listener);
-  }
-
-  /**
-   * Registers a handler that will be called under one of two circumstances:
-   *
-   * 1. After a set number of retries prove that requests to the API
-   * consistently result in failures.
-   * 2. After a successful request is made to the API, but the response takes
-   * longer than a set duration to return.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler.
-   */
-  onDegraded(
-    listener: Parameters<ServicePolicy['onDegraded']>[0],
-  ): IDisposable {
-    return this.#policy.onDegraded(listener);
   }
 
   /**
@@ -299,42 +287,35 @@ export class AnalyticsDataRegulationService {
     }
 
     const url = `${this.#segmentRegulationsEndpoint}/regulations/sources/${this.#segmentSourceId}`;
-    const body = JSON.stringify({
-      regulationType: SEGMENT_REGULATION_TYPE_DELETE_ONLY,
-      subjectType: SEGMENT_SUBJECT_TYPE_USER_ID,
-      subjectIds: [analyticsId],
+
+    const jsonResponse = await this.executeMutation({
+      mutationKey: [`${this.name}:createDataDeletionTask`, analyticsId],
+      responseStruct: CreateRegulationResponseStruct,
+      mutationFn: async () => {
+        const response = await this.#fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': SEGMENT_CONTENT_TYPE,
+          },
+          body: JSON.stringify({
+            regulationType: SEGMENT_REGULATION_TYPE_DELETE_ONLY,
+            subjectType: SEGMENT_SUBJECT_TYPE_USER_ID,
+            subjectIds: [analyticsId],
+          }),
+        });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Creating data deletion task failed with status '${response.status}'`,
+          );
+        }
+
+        // The body is validated against `CreateRegulationResponseStruct`
+        // before it is returned to the caller.
+        return (await response.json()) as CreateRegulationResponse;
+      },
     });
-
-    const response = await this.#policy.execute(async () => {
-      const localResponse = await this.#fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': SEGMENT_CONTENT_TYPE,
-        },
-        body,
-      });
-
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Creating data deletion task failed with status '${localResponse.status}'`,
-        );
-      }
-
-      return localResponse;
-    });
-
-    const jsonResponse = (await response.json()) as CreateRegulationResponse;
-
-    if (
-      !jsonResponse?.data?.data?.regulateId ||
-      typeof jsonResponse.data.data.regulateId !== 'string' ||
-      jsonResponse.data.data.regulateId.trim() === ''
-    ) {
-      throw new Error(
-        'Malformed response from Segment API: missing or invalid regulateId',
-      );
-    }
 
     return {
       status: DATA_DELETE_RESPONSE_STATUSES.Success,
@@ -359,34 +340,35 @@ export class AnalyticsDataRegulationService {
 
     const url = `${this.#segmentRegulationsEndpoint}/regulations/${regulationId}`;
 
-    const response = await this.#policy.execute(async () => {
-      const localResponse = await this.#fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': SEGMENT_CONTENT_TYPE,
-        },
-      });
+    return this.fetchQuery({
+      queryKey: [`${this.name}:checkDataDeleteStatus`, regulationId],
+      staleTime: 0,
+      queryFn: async () => {
+        const response = await this.#fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': SEGMENT_CONTENT_TYPE,
+          },
+        });
 
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Checking data deletion status failed with status '${localResponse.status}'`,
-        );
-      }
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Checking data deletion status failed with status '${response.status}'`,
+          );
+        }
 
-      return localResponse;
+        const jsonResponse =
+          (await response.json()) as GetRegulationStatusResponse;
+        const rawStatus = jsonResponse?.data?.data?.regulation?.overallStatus;
+
+        return {
+          status: DATA_DELETE_RESPONSE_STATUSES.Success,
+          dataDeleteStatus: isDataDeleteStatus(rawStatus)
+            ? rawStatus
+            : DATA_DELETE_STATUSES.Unknown,
+        };
+      },
     });
-
-    const jsonResponse = (await response.json()) as GetRegulationStatusResponse;
-
-    const rawStatus = jsonResponse?.data?.data?.regulation?.overallStatus;
-    const dataDeleteStatus = isDataDeleteStatus(rawStatus)
-      ? rawStatus
-      : DATA_DELETE_STATUSES.Unknown;
-
-    return {
-      status: DATA_DELETE_RESPONSE_STATUSES.Success,
-      dataDeleteStatus,
-    };
   }
 }
