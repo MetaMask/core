@@ -9,8 +9,10 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import {
   mockBridgeQuotesErc20Erc20V1,
   getMockBridgeQuotesErc20Erc20V2,
@@ -56,9 +58,13 @@ import { QuoteStreamCompleteReason } from './validators/quote-stream-complete.js
 import { TokenFeatureType } from './validators/token-feature.js';
 import type { TxData } from './validators/trade.js';
 
-jest.mock('uuid', () => ({
+vi.mock('uuid', () => ({
   v4: (): string => 'test-uuid-1234',
 }));
+
+const { Contract: ActualContract } = await vi.importActual<
+  typeof import('@ethersproject/contracts')
+>('@ethersproject/contracts');
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -79,10 +85,10 @@ const BRIDGE_CONTROLLER_ALLOWED_EXTERNAL_ACTIONS = [
   'AssetsController:getExchangeRatesForBridge',
 ] as const;
 
-const messengerCallMock = jest.fn();
-const getLayer1GasFeeMock = jest.fn();
-const mockFetchFn = jest.fn();
-const trackMetaMetricsFn = jest.fn();
+const messengerCallMock = vi.fn();
+const getLayer1GasFeeMock = vi.fn();
+const mockFetchFn = vi.fn();
+const trackMetaMetricsFn = vi.fn();
 
 const FIRST_FETCH_DELAY = 4000;
 const SECOND_FETCH_DELAY = 9000;
@@ -111,8 +117,8 @@ const metricsContext = {
   token_security_type_destination: null,
 };
 
-const createTraceCallback = (traceRequests: TraceRequest[]): jest.Mock =>
-  jest
+const createTraceCallback = (traceRequests: TraceRequest[]): Mock =>
+  vi
     .fn()
     .mockImplementation(
       async (request: TraceRequest, callback?: () => unknown) => {
@@ -131,19 +137,19 @@ const assetExchangeRates = {
 type WithControllerCallback<ReturnValue> = (payload: {
   controller: BridgeController;
   rootMessenger: RootMessenger;
-  stopAllPollingSpy: jest.SpyInstance;
-  startPollingSpy: jest.SpyInstance;
-  hasSufficientBalanceSpy: jest.SpyInstance;
-  fetchBridgeQuotesSpy: jest.SpyInstance;
-  fetchAssetPricesSpy: jest.SpyInstance;
-  consoleLogSpy: jest.SpyInstance;
+  stopAllPollingSpy: MockInstance;
+  startPollingSpy: MockInstance;
+  hasSufficientBalanceSpy: MockInstance;
+  fetchBridgeQuotesSpy: MockInstance;
+  fetchAssetPricesSpy: MockInstance;
+  consoleLogSpy: MockInstance;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof BridgeController>[0]>;
 };
 
-let mockTraceFn: jest.Mock;
+let mockTraceFn: Mock;
 async function withController<ReturnValue>(
   ...args:
     | [WithControllerCallback<ReturnValue>]
@@ -172,7 +178,7 @@ async function withController<ReturnValue>(
     );
   }
 
-  jest.useFakeTimers();
+  vi.useFakeTimers();
 
   getLayer1GasFeeMock.mockResolvedValue('0x1');
 
@@ -184,7 +190,7 @@ async function withController<ReturnValue>(
         default:
           return {
             address: '0x123',
-            provider: jest.fn(),
+            provider: vi.fn(),
             currencyRates: {},
             marketData: {},
             conversionRates: {},
@@ -193,7 +199,7 @@ async function withController<ReturnValue>(
     },
   );
 
-  jest.spyOn(featureFlagUtils, 'getBridgeFeatureFlags').mockReturnValue({
+  vi.spyOn(featureFlagUtils, 'getBridgeFeatureFlags').mockReturnValue({
     minimumVersion: '0.0.0',
     maxRefreshCount: 5,
     refreshRate: 30000,
@@ -226,13 +232,13 @@ async function withController<ReturnValue>(
     ...options,
   });
 
-  const stopAllPollingSpy = jest.spyOn(controller, 'stopAllPolling');
-  const startPollingSpy = jest.spyOn(controller, 'startPolling');
-  const hasSufficientBalanceSpy = jest
+  const stopAllPollingSpy = vi.spyOn(controller, 'stopAllPolling');
+  const startPollingSpy = vi.spyOn(controller, 'startPolling');
+  const hasSufficientBalanceSpy = vi
     .spyOn(balanceUtils, 'hasSufficientBalance')
     .mockResolvedValue(true);
-  const fetchBridgeQuotesSpy = jest.spyOn(fetchUtils, 'fetchBridgeQuoteStream');
-  const fetchAssetPricesSpy = jest
+  const fetchBridgeQuotesSpy = vi.spyOn(fetchUtils, 'fetchBridgeQuoteStream');
+  const fetchAssetPricesSpy = vi
     .spyOn(fetchUtils, 'fetchAssetPrices')
     .mockResolvedValue({
       'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': {
@@ -240,7 +246,7 @@ async function withController<ReturnValue>(
       },
     });
 
-  const consoleLogSpy = jest.spyOn(console, 'log');
+  const consoleLogSpy = vi.spyOn(console, 'log');
 
   return await testFunction({
     controller,
@@ -256,10 +262,10 @@ async function withController<ReturnValue>(
 
 describe('BridgeController SSE', function () {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.resetAllMocks();
-    mockTraceFn = jest.fn(async (_request, fn) => await fn?.());
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.resetAllMocks();
+    mockTraceFn = vi.fn(async (_request, fn) => await fn?.());
   });
 
   describe('quote tracing', () => {
@@ -287,12 +293,12 @@ describe('BridgeController SSE', function () {
             request,
             metricsContext,
           );
-          jest.advanceTimersByTime(1000);
+          vi.advanceTimersByTime(1000);
           await advanceToNthTimerThenFlush();
           if (abort) {
             controller.stopPollingForQuotes(AbortReason.NewQuoteRequest);
           }
-          jest.advanceTimersByTime(11000);
+          vi.advanceTimersByTime(11000);
           await flushPromises();
         },
       );
@@ -405,7 +411,7 @@ describe('BridgeController SSE', function () {
     });
 
     it('swallows throws from a synchronous traceFn', async () => {
-      const traceFn = jest.fn(() => {
+      const traceFn = vi.fn(() => {
         throw new Error('trace failed');
       });
 
@@ -424,9 +430,9 @@ describe('BridgeController SSE', function () {
             quoteRequest,
             metricsContext,
           );
-          jest.advanceTimersByTime(1000);
+          vi.advanceTimersByTime(1000);
           await advanceToNthTimerThenFlush();
-          jest.advanceTimersByTime(11000);
+          vi.advanceTimersByTime(11000);
           await flushPromises();
 
           expect(traceFn).toHaveBeenCalled();
@@ -482,7 +488,7 @@ describe('BridgeController SSE', function () {
         expect(bridgeController.state).toStrictEqual(expectedState);
 
         // Loading state
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await advanceToNthTimerThenFlush();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
           mockFetchFn,
@@ -509,12 +515,12 @@ describe('BridgeController SSE', function () {
         );
         const { quotesLastFetched: t1, ...stateWithoutTimestamp } =
           bridgeController.state;
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(stateWithoutTimestamp).toMatchSnapshot();
         expect(t1).toBeCloseTo(Date.now() - 1000);
 
         // After first fetch
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
         await flushPromises();
         expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
         expect(bridgeController.state).toStrictEqual({
@@ -542,7 +548,7 @@ describe('BridgeController SSE', function () {
         expect(consoleLogSpy).toHaveBeenCalledTimes(0);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
         expect(mockTraceFn.mock.calls).toMatchObject([
           [
@@ -656,15 +662,13 @@ describe('BridgeController SSE', function () {
             ETH_USDT_ADDRESS,
             abiERC20,
           );
-          const contractMockSpy = jest
+          const contractMockSpy = vi
             .spyOn(ethersContractUtils, 'Contract')
-            .mockImplementation(() => {
+            .mockImplementation(function () {
               return {
-                ...jest.requireActual('@ethersproject/contracts').Contract,
+                ...ActualContract,
                 interface: contractMock.interface,
-                allowance: jest
-                  .fn()
-                  .mockResolvedValue(BigNumber.from(allowance)),
+                allowance: vi.fn().mockResolvedValue(BigNumber.from(allowance)),
               };
             });
 
@@ -704,7 +708,7 @@ describe('BridgeController SSE', function () {
           expect(bridgeController.state).toStrictEqual(expectedState);
 
           // Loading state
-          jest.advanceTimersByTime(1000);
+          vi.advanceTimersByTime(1000);
           await advanceToNthTimerThenFlush();
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
             mockFetchFn,
@@ -741,7 +745,7 @@ describe('BridgeController SSE', function () {
           expect(t1).toBeCloseTo(Date.now() - 1000);
 
           // After first fetch
-          jest.advanceTimersByTime(5000);
+          vi.advanceTimersByTime(5000);
           await flushPromises();
           expect(bridgeController.state).toStrictEqual({
             ...expectedState,
@@ -845,13 +849,13 @@ describe('BridgeController SSE', function () {
           ETH_USDT_ADDRESS,
           abiERC20,
         );
-        const contractMockSpy = jest
+        const contractMockSpy = vi
           .spyOn(ethersContractUtils, 'Contract')
-          .mockImplementation(() => {
+          .mockImplementation(function () {
             return {
-              ...jest.requireActual('@ethersproject/contracts').Contract,
+              ...ActualContract,
               interface: contractMock.interface,
-              allowance: jest.fn().mockResolvedValue(BigNumber.from('1')),
+              allowance: vi.fn().mockResolvedValue(BigNumber.from('1')),
             };
           });
 
@@ -890,7 +894,7 @@ describe('BridgeController SSE', function () {
         expect(bridgeController.state).toStrictEqual(expectedState);
 
         // Loading state
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
@@ -926,7 +930,7 @@ describe('BridgeController SSE', function () {
         expect(t1).toBeCloseTo(Date.now() - 1000);
 
         // After first fetch
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
         await flushPromises();
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
@@ -1003,7 +1007,7 @@ describe('BridgeController SSE', function () {
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
         // 1st fetch
-        jest.advanceTimersByTime(FIRST_FETCH_DELAY);
+        vi.advanceTimersByTime(FIRST_FETCH_DELAY);
         await flushPromises();
         expect(bridgeController.state.quotes).toStrictEqual(
           getMockBridgeQuotesNativeErc20V2().map((quote) => ({
@@ -1018,7 +1022,7 @@ describe('BridgeController SSE', function () {
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
 
         // Wait for next polling interval
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
 
         const expectedState = {
@@ -1042,8 +1046,8 @@ describe('BridgeController SSE', function () {
         };
 
         // 2nd fetch request's first server event
-        jest.advanceTimersToNextTimer();
-        jest.advanceTimersByTime(SECOND_FETCH_DELAY - 1000);
+        vi.advanceTimersToNextTimer();
+        vi.advanceTimersByTime(SECOND_FETCH_DELAY - 1000);
         await flushPromises();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
         expect(bridgeController.state).toStrictEqual({
@@ -1072,7 +1076,7 @@ describe('BridgeController SSE', function () {
         expect(consoleLogSpy).toHaveBeenCalledTimes(0);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls.at(-1)).toMatchSnapshot();
       },
     );
@@ -1108,11 +1112,11 @@ describe('BridgeController SSE', function () {
           metricsContext,
         );
 
-        consoleLogSpy.mockImplementationOnce(jest.fn());
+        consoleLogSpy.mockImplementationOnce(vi.fn());
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
         // 1st fetch
-        jest.advanceTimersByTime(FIRST_FETCH_DELAY);
+        vi.advanceTimersByTime(FIRST_FETCH_DELAY);
         await flushPromises();
         expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
@@ -1171,7 +1175,7 @@ describe('BridgeController SSE', function () {
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(8);
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls.slice(6, 8)).toMatchSnapshot();
       },
     );
@@ -1217,25 +1221,25 @@ describe('BridgeController SSE', function () {
           metricsContext,
         );
 
-        consoleLogSpy.mockImplementationOnce(jest.fn());
+        consoleLogSpy.mockImplementationOnce(vi.fn());
         hasSufficientBalanceSpy.mockRejectedValue(new Error('Balance error'));
 
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
 
         // 1st fetch
-        jest.advanceTimersByTime(FIRST_FETCH_DELAY);
+        vi.advanceTimersByTime(FIRST_FETCH_DELAY);
         await flushPromises();
         expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
 
         // Wait for next polling interval
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
 
         // 2nd fetch
-        jest.advanceTimersToNextTimer();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         expect(bridgeController.state.quotesRefreshCount).toBe(2);
         const t2 = bridgeController.state.quotesLastFetched;
@@ -1355,7 +1359,7 @@ describe('BridgeController SSE', function () {
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(2);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(6);
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(9);
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls.slice(8, 9)).toMatchSnapshot();
       },
     );
@@ -1415,17 +1419,17 @@ describe('BridgeController SSE', function () {
           metricsContext,
         );
 
-        consoleLogSpy.mockImplementationOnce(jest.fn());
-        const consoleWarnSpy = jest
+        consoleLogSpy.mockImplementationOnce(vi.fn());
+        const consoleWarnSpy = vi
           .spyOn(console, 'warn')
-          .mockImplementationOnce(jest.fn())
-          .mockImplementationOnce(jest.fn());
+          .mockImplementationOnce(vi.fn())
+          .mockImplementationOnce(vi.fn());
 
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
 
         // 1st fetch
-        jest.advanceTimersByTime(FIRST_FETCH_DELAY);
+        vi.advanceTimersByTime(FIRST_FETCH_DELAY);
         await flushPromises();
         expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
@@ -1466,7 +1470,7 @@ describe('BridgeController SSE', function () {
         await advanceToNthTimerThenFlush();
 
         // 1st quote is received
-        jest.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
+        vi.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
         await flushPromises();
 
         const t4 = bridgeController.state.quotesLastFetched;
@@ -1494,14 +1498,14 @@ describe('BridgeController SSE', function () {
         );
 
         // Wait for next polling interval
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
 
         // 2nd fetch after request is updated
         // Iterate through a list of received valid and invalid quotes
         // Invalid quotes received
         // Invalid quote
-        jest.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
+        vi.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
         await flushPromises();
         const expectedState = {
           ...DEFAULT_BRIDGE_CONTROLLER_STATE,
@@ -1556,7 +1560,7 @@ describe('BridgeController SSE', function () {
           ]
         `);
         // Invalid quote
-        jest.advanceTimersByTime(FOURTH_FETCH_DELAY * 3 - 1000);
+        vi.advanceTimersByTime(FOURTH_FETCH_DELAY * 3 - 1000);
         await flushPromises();
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
@@ -1590,7 +1594,7 @@ describe('BridgeController SSE', function () {
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(2);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(6);
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(13);
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls.slice(10, 13)).toMatchSnapshot();
       },
     );
@@ -1646,7 +1650,7 @@ describe('BridgeController SSE', function () {
         expect(bridgeController.state).toStrictEqual(expectedState);
 
         // Loading state
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
@@ -1679,12 +1683,12 @@ describe('BridgeController SSE', function () {
         expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
         const { quotesLastFetched: t1, ...stateWithoutTimestamp } =
           bridgeController.state;
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(stateWithoutTimestamp).toMatchSnapshot();
         expect(t1).toBeCloseTo(Date.now() - 1000);
 
         // After first fetch
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
         await flushPromises();
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
@@ -1711,7 +1715,7 @@ describe('BridgeController SSE', function () {
               `);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(0);
-        // eslint-disable-next-line jest/no-restricted-matchers
+        // eslint-disable-next-line vitest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
       },
     );
@@ -1737,11 +1741,11 @@ describe('BridgeController SSE', function () {
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([]);
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
 
       // After stream completes
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
@@ -1767,9 +1771,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
@@ -1803,9 +1807,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
@@ -1836,9 +1840,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([
@@ -1871,9 +1875,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([
@@ -1906,9 +1910,9 @@ describe('BridgeController SSE', function () {
 
       expect(bridgeController.state.quoteStreamComplete).toBeNull();
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
@@ -1933,9 +1937,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
@@ -1963,9 +1967,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
@@ -1996,9 +2000,9 @@ describe('BridgeController SSE', function () {
         metricsContext,
       );
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
@@ -2006,12 +2010,12 @@ describe('BridgeController SSE', function () {
       );
 
       // Trigger a second fetch — quoteStreamComplete should be cleared before the stream completes
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await advanceToNthTimerThenFlush();
 
       expect(bridgeController.state.quoteStreamComplete).toBeNull();
 
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       expect(bridgeController.state.quoteStreamComplete).toStrictEqual(

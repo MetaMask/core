@@ -20,6 +20,9 @@ import {
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   getHistoryItem,
@@ -37,10 +40,10 @@ import type {
 import { getBatchSellHistoryItemsForTxHash } from './utils/history.js';
 import { shouldDisable7702 } from './utils/transaction.js';
 
-const mockGenerateBatchId = jest.fn();
-jest.mock('@metamask/transaction-controller', () => ({
-  ...jest.requireActual('@metamask/transaction-controller'),
-  generateBatchId: (): string => mockGenerateBatchId(),
+const mockGenerateBatchId = vi.fn();
+vi.mock(import('@metamask/transaction-controller'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  generateBatchId: (): Hex => mockGenerateBatchId(),
 }));
 
 type AllBridgeStatusControllerActions =
@@ -59,8 +62,8 @@ type RootMessenger = Messenger<
   AllBridgeStatusControllerEvents | AllBridgeControllerEvents
 >;
 
-const addTransactionBatchFn = jest.fn();
-let mockTraceFn: jest.Mock;
+const addTransactionBatchFn = vi.fn();
+let mockTraceFn: Mock;
 
 function getRootMessenger(): RootMessenger {
   return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
@@ -102,12 +105,12 @@ type WithControllerCallback<ReturnValue> = (payload: {
   controller: BridgeStatusController;
   rootMessenger: RootMessenger;
   messenger: BridgeStatusControllerMessenger;
-  startPollingForBridgeTxStatusSpy: jest.Mock;
+  startPollingForBridgeTxStatusSpy: Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof BridgeStatusController>[0]>;
-  mockMessengerCall?: jest.Mock;
+  mockMessengerCall?: Mock;
 };
 
 async function withController<ReturnValue>(
@@ -120,22 +123,22 @@ async function withController<ReturnValue>(
   const rootMessenger = getRootMessenger();
   const messenger = getControllerMessenger(rootMessenger);
   if (mockMessengerCall) {
-    jest.spyOn(messenger, 'call').mockImplementation(mockMessengerCall);
+    vi.spyOn(messenger, 'call').mockImplementation(mockMessengerCall);
   }
   const controller = new BridgeStatusController({
     messenger,
     clientId: BridgeClientId.EXTENSION,
-    fetchFn: jest.fn(),
+    fetchFn: vi.fn(),
     addTransactionBatchFn,
     traceFn: mockTraceFn,
     clientProduct: 'metamask',
     ...options,
   });
-  const startPollingForBridgeTxStatusSpy = jest.fn();
+  const startPollingForBridgeTxStatusSpy = vi.fn();
   if (mockMessengerCall) {
-    jest
-      .spyOn(controller, 'startPolling')
-      .mockImplementation(startPollingForBridgeTxStatusSpy);
+    vi.spyOn(controller, 'startPolling').mockImplementation(
+      startPollingForBridgeTxStatusSpy,
+    );
   }
   return await testFunction({
     controller,
@@ -195,16 +198,16 @@ const mockTransferTx: BatchSellTradesResponse['transactions'][number] = {
 
 describe('BridgeStatusController', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockTraceFn = jest.fn(async (_request, fn) => await fn?.());
+    vi.clearAllMocks();
+    mockTraceFn = vi.fn(async (_request, fn) => await fn?.());
   });
 
   describe('submitBatchSell', () => {
-    let mockMessengerCall: jest.Mock;
+    let mockMessengerCall: Mock;
     beforeEach(() => {
-      jest.clearAllMocks();
-      mockMessengerCall = jest.fn();
-      jest.spyOn(Date, 'now').mockReturnValue(1779922719705);
+      vi.clearAllMocks();
+      mockMessengerCall = vi.fn();
+      vi.spyOn(Date, 'now').mockReturnValue(1779922719705);
     });
 
     describe.each([true, false])('when gasTransferRequired=%s,', (transfer) => {
@@ -214,8 +217,8 @@ describe('BridgeStatusController', () => {
         describe.each([true, false])('gasIncluded=%s,', (gasIncluded) => {
           describe.each([true, false])('stxEnabled=%s,', (stxEnabled) => {
             beforeEach(() => {
-              jest.clearAllMocks();
-              mockMessengerCall = jest.fn();
+              vi.clearAllMocks();
+              mockMessengerCall = vi.fn();
               mockGenerateBatchId.mockReturnValueOnce(batchId);
             });
 
@@ -263,10 +266,10 @@ describe('BridgeStatusController', () => {
                   batchSellTrades: mockBatchSellTrades,
                 });
                 // stopPollingForQuotes
-                mockMessengerCall.mockImplementationOnce(jest.fn());
+                mockMessengerCall.mockImplementationOnce(vi.fn());
                 // track event
                 mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-                mockMessengerCall.mockImplementationOnce(jest.fn());
+                mockMessengerCall.mockImplementationOnce(vi.fn());
                 // isAtomicBatchSupported
                 mockMessengerCall.mockReturnValueOnce(
                   isDelegatedAccount
@@ -698,7 +701,7 @@ describe('BridgeStatusController', () => {
       const isDelegatedAccount = true;
       const stxEnabled = false;
 
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1718217600000);
+      vi.spyOn(Date, 'now').mockReturnValueOnce(1718217600000);
       mockGenerateBatchId.mockReturnValueOnce('batchId1');
       // Append the transfer tx if it is provided
       const mockBatchSellTrades = {
@@ -719,10 +722,10 @@ describe('BridgeStatusController', () => {
         batchSellTrades: mockBatchSellTrades,
       });
       // stopPollingForQuotes
-      mockMessengerCall.mockImplementationOnce(jest.fn());
+      mockMessengerCall.mockImplementationOnce(vi.fn());
       // track event
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockImplementationOnce(jest.fn());
+      mockMessengerCall.mockImplementationOnce(vi.fn());
       // isAtomicBatchSupported
       mockMessengerCall.mockReturnValueOnce(
         isDelegatedAccount
@@ -753,7 +756,7 @@ describe('BridgeStatusController', () => {
           rootMessenger,
           startPollingForBridgeTxStatusSpy,
         }) => {
-          const result = await expect(
+          await expect(
             rootMessenger.call('BridgeStatusController:submitBatchSell', {
               accountAddress: (mockQuotes[0].trade as TxData).from,
               quoteResponses: mockQuotes,
@@ -763,9 +766,6 @@ describe('BridgeStatusController', () => {
             'Failed to add BatchSell trade to history: txMeta not found',
           );
           controller.stopAllPolling();
-
-          // First txMeta should be returned
-          expect(result).toBeUndefined();
 
           // Verify the messenger calls
           expect(mockMessengerCall.mock.calls).toMatchInlineSnapshot(`
@@ -898,7 +898,7 @@ describe('BridgeStatusController', () => {
             controller.state.txHistory.batchId1;
           expect(batchSellData).toBeDefined();
           expect(quote).toBeDefined();
-          // eslint-disable-next-line jest/no-restricted-matchers
+          // eslint-disable-next-line vitest/no-restricted-matchers
           expect(historyItem).toMatchSnapshot();
           expect(Object.keys(controller.state.txHistory)).toHaveLength(1);
         },
@@ -911,7 +911,7 @@ describe('BridgeStatusController', () => {
       const isDelegatedAccount = true;
       const stxEnabled = false;
 
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1718217600000);
+      vi.spyOn(Date, 'now').mockReturnValueOnce(1718217600000);
       mockGenerateBatchId.mockReturnValueOnce('batchId1');
       // Append the transfer tx if it is provided
       const mockBatchSellTrades = {
@@ -932,10 +932,10 @@ describe('BridgeStatusController', () => {
         batchSellTrades: mockBatchSellTrades,
       });
       // stopPollingForQuotes
-      mockMessengerCall.mockImplementationOnce(jest.fn());
+      mockMessengerCall.mockImplementationOnce(vi.fn());
       // track event
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockImplementationOnce(jest.fn());
+      mockMessengerCall.mockImplementationOnce(vi.fn());
       // isAtomicBatchSupported
       mockMessengerCall.mockReturnValueOnce(
         isDelegatedAccount
@@ -966,7 +966,7 @@ describe('BridgeStatusController', () => {
           rootMessenger,
           startPollingForBridgeTxStatusSpy,
         }) => {
-          const result = await expect(
+          await expect(
             rootMessenger.call('BridgeStatusController:submitBatchSell', {
               accountAddress: (mockQuotes[0].trade as TxData).from,
               quoteResponses: mockQuotes,
@@ -974,9 +974,6 @@ describe('BridgeStatusController', () => {
             }),
           ).rejects.toThrow('Failed to add batch');
           controller.stopAllPolling();
-
-          // First txMeta should be returned
-          expect(result).toBeUndefined();
 
           // Verify the messenger calls
           expect(mockMessengerCall.mock.calls).toMatchInlineSnapshot(`
@@ -1109,7 +1106,7 @@ describe('BridgeStatusController', () => {
             controller.state.txHistory.batchId1;
           expect(batchSellData).toBeDefined();
           expect(quote).toBeDefined();
-          // eslint-disable-next-line jest/no-restricted-matchers
+          // eslint-disable-next-line vitest/no-restricted-matchers
           expect(historyItem).toMatchSnapshot();
           expect(Object.keys(controller.state.txHistory)).toHaveLength(1);
         },
@@ -1122,7 +1119,7 @@ describe('BridgeStatusController', () => {
       const isDelegatedAccount = true;
       const stxEnabled = false;
 
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1718217600000);
+      vi.spyOn(Date, 'now').mockReturnValueOnce(1718217600000);
       mockGenerateBatchId.mockReturnValueOnce('batchId1');
       // Append the transfer tx if it is provided
       const mockBatchSellTrades = {
@@ -1140,10 +1137,10 @@ describe('BridgeStatusController', () => {
 
       // Mock messenger calls
       // stopPollingForQuotes
-      mockMessengerCall.mockImplementationOnce(jest.fn());
+      mockMessengerCall.mockImplementationOnce(vi.fn());
       // track event
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockImplementationOnce(jest.fn());
+      mockMessengerCall.mockImplementationOnce(vi.fn());
       // isAtomicBatchSupported
       mockMessengerCall.mockReturnValueOnce(
         isDelegatedAccount
@@ -1342,7 +1339,7 @@ describe('BridgeStatusController', () => {
             controller.state.txHistory['1'];
           expect(batchSellData).toBeDefined();
           expect(quote).toBeDefined();
-          // eslint-disable-next-line jest/no-restricted-matchers
+          // eslint-disable-next-line vitest/no-restricted-matchers
           expect(historyItem).toMatchSnapshot();
           expect(Object.keys(controller.state.txHistory)).toHaveLength(2);
         },
@@ -1355,7 +1352,7 @@ describe('BridgeStatusController', () => {
       const gasIncluded = false;
       const stxEnabled = true;
 
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1718217600000);
+      vi.spyOn(Date, 'now').mockReturnValueOnce(1718217600000);
       mockGenerateBatchId.mockReturnValueOnce('batchId1');
       const mockBatchSellTrades = {
         ...mockBatchSellTradesErc20Erc20,
