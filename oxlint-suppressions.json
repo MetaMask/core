@@ -6676,10 +6676,10 @@
       "count": 3
     },
     "typescript/no-unsafe-call": {
-      "count": 4
+      "count": 5
     },
     "typescript/no-unsafe-member-access": {
-      "count": 4
+      "count": 5
     },
     "typescript/no-unsafe-return": {
       "count": 2
@@ -6757,13 +6757,13 @@
       "count": 2
     },
     "typescript/no-unsafe-assignment": {
-      "count": 23
+      "count": 26
     },
     "typescript/no-unsafe-call": {
-      "count": 7
+      "count": 11
     },
     "typescript/no-unsafe-member-access": {
-      "count": 7
+      "count": 11
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {

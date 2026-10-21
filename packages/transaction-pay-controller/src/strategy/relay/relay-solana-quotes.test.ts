@@ -31,7 +31,7 @@ import {
 import type { RelaySolanaQuote, RelaySolanaQuoteRequest } from './types.js';
 
 jest.mock('./relay-api', () => ({
-  ...jest.requireActual('./relay-api'),
+  ...jest.requireActual<typeof import('./relay-api.js')>('./relay-api'),
   fetchRelayQuote: jest.fn(),
   fetchRelaySolanaQuote: jest.fn(),
 }));
@@ -45,7 +45,9 @@ jest.mock('../../utils/gas', () => ({
   }),
 }));
 jest.mock('./solana-transaction', () => ({
-  ...jest.requireActual('./solana-transaction'),
+  ...jest.requireActual<typeof import('./solana-transaction.js')>(
+    './solana-transaction',
+  ),
   compileRelaySolanaTransaction: jest.fn(),
   computeSolanaFeeRaw: jest.fn(),
   getAccountSnapId: jest.fn(),
