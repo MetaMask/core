@@ -214,6 +214,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAccountAssetsByIDs',
   'getAccountAssetsByScope',
   'getAssetsPrice',
+  'syncAssetsPrices',
   'getExchangeRatesForBridge',
   'getStateForTransactionPay',
   'addCustomAsset',
@@ -1483,19 +1484,21 @@ export class AssetsController extends BaseController<
    */
   async #runStartupRefresh(accounts: InternalAccount[]): Promise<void> {
     const releaseLock = await this.#accountRefreshMutex.acquire();
-    // Seed before the fetch so PriceDataSource includes controller-managed
-    // native and default tracked assets in the same price pass.
-    this.#ensureNativeBalancesDefaultZero();
-    this.#ensureDefaultTrackedAssetsSeeded();
     try {
       await this.getAssets(accounts, {
         chainIds: [...this.#enabledChains],
         forceUpdate: true,
       });
+      // Seed before subscribe so the price poll / update fetch sees natives
+      // and default tracked assets that were never returned by balance APIs.
+      this.#ensureNativeBalancesDefaultZero();
+      this.#ensureDefaultTrackedAssetsSeeded();
       // Balances were just force-fetched — skip AccountsApi's subscribe-time poll.
       this.#subscribeAssets({ skipInitialFetch: true });
     } catch (error) {
       log('Failed to fetch assets on startup', error);
+      this.#ensureNativeBalancesDefaultZero();
+      this.#ensureDefaultTrackedAssetsSeeded();
       this.#subscribeAssets({ skipInitialFetch: true });
     } finally {
       releaseLock();
@@ -4494,6 +4497,7 @@ export class AssetsController extends BaseController<
       'AssetsController:getAccountAssetsByScope',
     );
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
+    this.messenger.unregisterActionHandler('AssetsController:syncAssetsPrices');
     this.messenger.unregisterActionHandler(
       'AssetsController:getExchangeRatesForBridge',
     );

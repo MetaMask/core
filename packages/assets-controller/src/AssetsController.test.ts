@@ -4111,6 +4111,35 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('syncAssetsPrices', () => {
+    it('is exposed as the AssetsController:syncAssetsPrices messenger action', async () => {
+      const fetchedPrice = {
+        assetPriceType: 'fungible' as const,
+        price: 1.25,
+        usdPrice: 1.25,
+        lastUpdated: 123,
+      };
+      const fetchSpy = jest
+        .spyOn(PriceDataSource.prototype, 'fetchAssetPrices')
+        .mockResolvedValue({
+          [MOCK_ASSET_ID]: fetchedPrice,
+        });
+
+      await withController(async ({ controller, messenger }) => {
+        await messenger.call('AssetsController:syncAssetsPrices', [
+          MOCK_ASSET_ID,
+        ]);
+
+        expect(fetchSpy).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+        expect(controller.state.assetsPrice[MOCK_ASSET_ID]).toStrictEqual(
+          fetchedPrice,
+        );
+      });
+
+      fetchSpy.mockRestore();
+    });
+  });
+
   describe('setSelectedCurrency', () => {
     it('updates selectedCurrency in state', async () => {
       await withController(({ controller }) => {

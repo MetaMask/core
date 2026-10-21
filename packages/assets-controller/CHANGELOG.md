@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `syncAssetsPrices(assetIds)`, which force-fetches spot prices for an explicit CAIP-19 asset list through `PriceDataSource` and merges them into state. Prices are shared, so the method takes no account or chain scope
+- Add `syncAssetsPrices(assetIds)`, exposed as the `AssetsController:syncAssetsPrices` messenger action. It force-fetches spot prices for an explicit CAIP-19 asset list through `PriceDataSource` and merges them into state. Prices are shared, so the method takes no account or chain scope
 
 ### Changed
 

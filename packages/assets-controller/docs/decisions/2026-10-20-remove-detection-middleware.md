@@ -124,17 +124,17 @@ are.
 
 ## If you call this package
 
-| You used to                                           | Do this now                                               |
-| ----------------------------------------------------- | --------------------------------------------------------- |
-| Pass `assetsForPriceUpdate` into `getAssets`          | Call `syncAssetsPrices` with those token ids              |
-| Import `DetectionMiddleware`                          | Delete it. Names and prices are chosen on their own       |
-| Pass `detectionMiddleware` when building a fetch lane | Stop passing it. The lane types no longer have that field |
+| You used to                                           | Do this now                                                   |
+| ----------------------------------------------------- | ------------------------------------------------------------- |
+| Pass `assetsForPriceUpdate` into `getAssets`          | Call `AssetsController:syncAssetsPrices` with those token ids |
+| Import `DetectionMiddleware`                          | Delete it. Names and prices are chosen on their own           |
+| Pass `detectionMiddleware` when building a fetch lane | Stop passing it. The lane types no longer have that field     |
 
 ## Where to read the code
 
 | Question                            | Start here                                                            |
 | ----------------------------------- | --------------------------------------------------------------------- |
-| Refresh prices for a list of tokens | `AssetsController.syncAssetsPrices`                                   |
+| Refresh prices for a list of tokens | `AssetsController:syncAssetsPrices`                                   |
 | User changed currency               | `AssetsController.setSelectedCurrency`                                |
 | Which tokens get a price            | `PriceDataSource`                                                     |
 | Which tokens get a name and icon    | `TokenDataSource`                                                     |

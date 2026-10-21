@@ -47,6 +47,7 @@ export type {
   AssetsControllerGetAccountAssetsByIDsAction,
   AssetsControllerGetAccountAssetsByScopeAction,
   AssetsControllerGetAssetsPriceAction,
+  AssetsControllerSyncAssetsPricesAction,
   AssetsControllerAddCustomAssetAction,
   AssetsControllerRemoveCustomAssetAction,
   AssetsControllerGetCustomAssetsAction,
