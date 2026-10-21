@@ -2359,7 +2359,7 @@ describe('SocialService', () => {
       const service = createService();
       const tradeInFlight = {
         orderId: '112233445566',
-        chain: 'hyperliquid',
+        chain: 'hyperliquid' as const,
         tokenAddress: 'BTC',
       };
 
