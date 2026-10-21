@@ -395,17 +395,12 @@ export type RemoveCommentReactionOptions = {
  * exist yet, and social-api rejects a body that names both. For Hyperliquid,
  * `tokenAddress` is the coin (for example `BTC`), not a contract address.
  */
-export type TradeInFlight = {
-  chain: string;
-  /**
-   * Contract address of the token traded, or the Hyperliquid coin (for example
-   * `BTC`) when `orderId` identifies the order.
-   */
-  tokenAddress: string;
-} & (
+export type TradeInFlight =
   | {
       transactionHash: string;
-      orderId?: never;
+      chain: string;
+      /** Contract address of the token traded. */
+      tokenAddress: string;
     }
   | {
       /**
@@ -413,9 +408,10 @@ export type TradeInFlight = {
        * The comment attaches once the fill is indexed.
        */
       orderId: string;
-      transactionHash?: never;
-    }
-);
+      chain: string;
+      /** Hyperliquid coin, for example `BTC`. */
+      tokenAddress: string;
+    };
 
 /**
  * Options for `POST /v1/swap-comments`. Provide exactly one of `positionUid`
