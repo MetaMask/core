@@ -4,30 +4,27 @@ import {
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import type { TransactionPayQuote } from '../../types.js';
-import { QuoteError } from '../../utils/validation.js';
+import { QuoteError, validateQuoteExecution } from '../../utils/validation.js';
 import { getRelayExecuteRequest } from './relay-submit-execute.js';
 import { getRelaySubmitCalls } from './relay-submit.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type { RelayQuote } from './types.js';
 
-jest.mock('./relay-submit');
-jest.mock('./relay-submit-execute');
-jest.mock('../../utils/validation', () => ({
-  ...jest.requireActual('../../utils/validation'),
-  validateQuoteExecution: jest.fn(),
+vi.mock(import('./relay-submit.js'));
+vi.mock(import('./relay-submit-execute.js'));
+vi.mock(import('../../utils/validation.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  validateQuoteExecution: vi.fn(),
 }));
-jest.mock('@metamask/transaction-controller', () => ({
-  ...jest.requireActual('@metamask/transaction-controller'),
-  generateEIP7702BatchTransaction: jest.fn(),
+vi.mock(import('@metamask/transaction-controller'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  generateEIP7702BatchTransaction: vi.fn(),
 }));
-
-const { validateQuoteExecution } = jest.requireMock<
-  typeof import('../../utils/validation')
->('../../utils/validation');
 
 const FROM_MOCK = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const REFUND_TO_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -128,10 +125,10 @@ const TRANSACTION_MOCK = {
   txParams: { from: FROM_MOCK },
 } as TransactionMeta;
 
-const getRelaySubmitCallsMock = jest.mocked(getRelaySubmitCalls);
-const getRelayExecuteRequestMock = jest.mocked(getRelayExecuteRequest);
-const validateQuoteExecutionMock = jest.mocked(validateQuoteExecution);
-const generateEIP7702BatchTransactionMock = jest.mocked(
+const getRelaySubmitCallsMock = vi.mocked(getRelaySubmitCalls);
+const getRelayExecuteRequestMock = vi.mocked(getRelayExecuteRequest);
+const validateQuoteExecutionMock = vi.mocked(validateQuoteExecution);
+const generateEIP7702BatchTransactionMock = vi.mocked(
   generateEIP7702BatchTransaction,
 );
 
@@ -143,7 +140,7 @@ describe('validateRelayQuotes', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),

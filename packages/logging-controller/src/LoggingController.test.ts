@@ -6,16 +6,17 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { Duration, inMilliseconds } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { LoggingControllerMessenger } from './LoggingController.js';
 import { LoggingController } from './LoggingController.js';
 import { SigningMethod, SigningStage } from './logTypes/EthSignLog.js';
 import { LogType } from './logTypes/index.js';
 
-jest.mock('uuid', () => {
+vi.mock(import('uuid'), async (importOriginal) => {
   return {
     __esModule: true,
-    ...jest.requireActual('uuid'),
+    ...(await importOriginal()),
   };
 });
 

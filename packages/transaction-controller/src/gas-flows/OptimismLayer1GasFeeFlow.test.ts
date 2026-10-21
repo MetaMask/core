@@ -1,6 +1,8 @@
 import * as ControllerUtils from '@metamask/controller-utils';
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import type { MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CHAIN_IDS } from '../constants.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
@@ -8,9 +10,9 @@ import type { TransactionMeta } from '../types.js';
 import { TransactionStatus } from '../types.js';
 import { OptimismLayer1GasFeeFlow } from './OptimismLayer1GasFeeFlow.js';
 
-jest.mock('@metamask/controller-utils', () => {
-  const actual = jest.requireActual('@metamask/controller-utils');
-  return { ...actual, handleFetch: jest.fn() };
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, handleFetch: vi.fn() };
 });
 
 type SupportedNetworksResponseMock = {
@@ -40,17 +42,17 @@ function createTransaction(chainId: string): TransactionMeta {
 
 describe('OptimismLayer1GasFeeFlow', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
   const messenger = {} as TransactionControllerMessenger;
 
   describe('matchesTransaction', () => {
-    let handleFetchMock: jest.MockedFunction<
+    let handleFetchMock: MockedFunction<
       (url: string, init?: unknown) => Promise<SupportedNetworksResponseMock>
     >;
 
     beforeEach(() => {
-      handleFetchMock = ControllerUtils.handleFetch as jest.MockedFunction<
+      handleFetchMock = ControllerUtils.handleFetch as MockedFunction<
         (url: string, init?: unknown) => Promise<SupportedNetworksResponseMock>
       >;
       handleFetchMock.mockReset();

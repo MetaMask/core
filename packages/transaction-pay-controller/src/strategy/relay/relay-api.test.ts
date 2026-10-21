@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
+
 import type { FeatureFlags } from '../../utils/feature-flags.js';
 import { getFeatureFlags } from '../../utils/feature-flags.js';
 import { RELAY_STATUS_URL } from './constants.js';
@@ -8,19 +11,19 @@ import {
 } from './relay-api.js';
 import type { RelayQuoteRequest } from './types.js';
 
-jest.mock('../../utils/feature-flags');
+vi.mock(import('../../utils/feature-flags.js'));
 
-const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
+const getFeatureFlagsMock = vi.mocked(getFeatureFlags);
 
-let fetchMock: jest.SpyInstance;
+let fetchMock: MockInstance;
 
-const mockOkResponse = (body: unknown): jest.SpyInstance =>
+const mockOkResponse = (body: unknown): MockInstance =>
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => body,
   });
 
-const mockErrorResponse = (status: number, body: unknown): jest.SpyInstance =>
+const mockErrorResponse = (status: number, body: unknown): MockInstance =>
   fetchMock.mockResolvedValueOnce({
     ok: false,
     status,
@@ -34,7 +37,7 @@ const MESSENGER_MOCK = {} as Parameters<typeof fetchRelayQuote>[0];
 
 describe('relay-api', () => {
   beforeEach(() => {
-    fetchMock = jest.spyOn(global, 'fetch');
+    fetchMock = vi.spyOn(global, 'fetch');
 
     getFeatureFlagsMock.mockReturnValue({
       relayQuoteUrl: QUOTE_URL_MOCK,

@@ -22,6 +22,8 @@ import type {
   TransactionControllerGetStateAction,
 } from '@metamask/transaction-controller';
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
+import { vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import type { TransactionPayControllerMessenger } from '../src/index.js';
 import type {
@@ -52,98 +54,100 @@ export function getMessengerMock({
   skipRegister,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 }: { skipRegister?: boolean } = {}): any {
-  const getControllerStateMock: jest.MockedFn<
+  const getControllerStateMock: MockedFunction<
     TransactionPayControllerGetStateAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getStrategyMock: jest.MockedFn<
+  const getStrategyMock: MockedFunction<
     TransactionPayControllerGetStrategyAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getTransactionControllerStateMock: jest.MockedFn<
+  const getTransactionControllerStateMock: MockedFunction<
     TransactionControllerGetStateAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const addTransactionMock: jest.MockedFn<
+  const addTransactionMock: MockedFunction<
     TransactionControllerAddTransactionAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const addTransactionBatchMock: jest.MockedFn<
+  const addTransactionBatchMock: MockedFunction<
     TransactionControllerAddTransactionBatchAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const findNetworkClientIdByChainIdMock: jest.MockedFn<
+  const findNetworkClientIdByChainIdMock: MockedFunction<
     NetworkControllerFindNetworkClientIdByChainIdAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getRemoteFeatureFlagControllerStateMock: jest.MockedFn<
+  const getRemoteFeatureFlagControllerStateMock: MockedFunction<
     RemoteFeatureFlagControllerGetStateAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getGasFeeControllerStateMock = jest.fn();
+  const getGasFeeControllerStateMock = vi.fn();
 
-  const updateTransactionMock: jest.MockedFn<
+  const updateTransactionMock: MockedFunction<
     TransactionControllerUpdateTransactionAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getAccountsControllerStateMock: jest.MockedFn<
+  const getAccountsControllerStateMock: MockedFunction<
     AccountsControllerGetStateAction['handler']
-  > = jest.fn().mockReturnValue({
+  > = vi.fn().mockReturnValue({
     accountIdByAddress: {},
     internalAccounts: { accounts: {}, selectedAccount: '' },
   });
 
-  const getAssetsControllerStateMock: jest.MockedFn<
+  const getAssetsControllerStateMock: MockedFunction<
     AssetsControllerGetStateAction['handler']
-  > = jest.fn().mockReturnValue(getDefaultAssetsControllerState());
+  > = vi.fn().mockReturnValue(getDefaultAssetsControllerState());
 
-  const getNetworkClientByIdMock: jest.MockedFn<
+  const getNetworkClientByIdMock: MockedFunction<
     NetworkControllerGetNetworkClientByIdAction['handler']
-  > = jest.fn();
+  > = vi.fn() as MockedFunction<
+    NetworkControllerGetNetworkClientByIdAction['handler']
+  >;
 
-  const getNetworkConfigurationByChainIdMock: jest.MockedFn<
+  const getNetworkConfigurationByChainIdMock: MockedFunction<
     NetworkControllerGetNetworkConfigurationByChainIdAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getDelegationTransactionMock: jest.MockedFn<
+  const getDelegationTransactionMock: MockedFunction<
     TransactionPayControllerGetDelegationTransactionAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getFiatOptionsMock: jest.MockedFn<
+  const getFiatOptionsMock: MockedFunction<
     TransactionPayControllerGetFiatOptionsAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getPaymentOverrideDataMock: jest.MockedFn<
+  const getPaymentOverrideDataMock: MockedFunction<
     TransactionPayControllerGetPaymentOverrideDataAction['handler']
-  > = jest.fn().mockResolvedValue({ calls: [] });
+  > = vi.fn().mockResolvedValue({ calls: [] });
 
-  const polymarketGetDepositWalletAddressMock: jest.MockedFn<
+  const polymarketGetDepositWalletAddressMock: MockedFunction<
     TransactionPayControllerPolymarketGetDepositWalletAddressAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const polymarketSubmitDepositWalletBatchMock: jest.MockedFn<
+  const polymarketSubmitDepositWalletBatchMock: MockedFunction<
     TransactionPayControllerPolymarketSubmitDepositWalletBatchAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getGasFeeTokensMock: jest.MockedFn<
+  const getGasFeeTokensMock: MockedFunction<
     TransactionControllerGetGasFeeTokensAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const estimateGasMock: jest.MockedFn<
+  const estimateGasMock: MockedFunction<
     TransactionControllerEstimateGasAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const estimateGasBatchMock: jest.MockedFn<
+  const estimateGasBatchMock: MockedFunction<
     TransactionControllerEstimateGasBatchAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const simulateTransactionsMock: jest.MockedFn<
+  const simulateTransactionsMock: MockedFunction<
     SentinelApiServiceSimulateTransactionsAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getKeyringControllerStateMock: jest.MockedFn<
+  const getKeyringControllerStateMock: MockedFunction<
     KeyringControllerGetStateAction['handler']
-  > = jest.fn().mockReturnValue({
+  > = vi.fn().mockReturnValue({
     isUnlocked: true,
     keyrings: [
       {

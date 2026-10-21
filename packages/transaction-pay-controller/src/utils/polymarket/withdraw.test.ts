@@ -2,6 +2,7 @@ import { Interface } from '@ethersproject/abi';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import {
@@ -25,7 +26,7 @@ import {
 } from './withdraw.js';
 import type { DepositWalletWithdrawRequest } from './withdraw.js';
 
-jest.mock('../token');
+vi.mock(import('../token.js'));
 
 const DEPOSIT_ADDRESS_MOCK =
   '0x1234567890123456789012345678901234567890' as Hex;
@@ -48,7 +49,7 @@ describe('Polymarket withdraw', () => {
     polymarketGetDepositWalletAddressMock,
     polymarketSubmitDepositWalletBatchMock,
   } = getMessengerMock();
-  const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
+  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalance);
 
   function buildRequest(
     overrides: Partial<DepositWalletWithdrawRequest> = {},
@@ -63,7 +64,7 @@ describe('Polymarket withdraw', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     polymarketGetDepositWalletAddressMock.mockResolvedValue(
       DEPOSIT_WALLET_MOCK,
     );
@@ -192,11 +193,11 @@ describe('Polymarket withdraw', () => {
       };
 
       beforeEach(() => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
       });
 
       afterEach(() => {
-        jest.useRealTimers();
+        vi.useRealTimers();
       });
 
       it('retries until the balance exceeds the pre-submit balance, waits for the relayer to settle, then sweeps the full new balance', async () => {
@@ -207,7 +208,7 @@ describe('Polymarket withdraw', () => {
 
         const sweepPromise = sweepPolymarketDepositWallet(refundOptions);
 
-        await jest.advanceTimersByTimeAsync(5000);
+        await vi.advanceTimersByTimeAsync(5000);
         await sweepPromise;
 
         expect(getLiveTokenBalanceMock).toHaveBeenCalledTimes(3);
@@ -221,7 +222,7 @@ describe('Polymarket withdraw', () => {
 
         const sweepPromise = sweepPolymarketDepositWallet(refundOptions);
 
-        await jest.advanceTimersByTimeAsync(4000);
+        await vi.advanceTimersByTimeAsync(4000);
         await sweepPromise;
 
         expect(getLiveTokenBalanceMock).toHaveBeenCalledTimes(5);
