@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Prefer the checksummed `AssetsController` asset ID over a lowercase duplicate when resolving token metadata, balances, and prices ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Prefer the checksummed `AssetsController` asset ID over a lowercase duplicate when resolving token metadata, balances, and prices ([#10967](https://github.com/MetaMask/core/pull/10967))
   - A stale lowercase `assetsInfo` entry without price data previously shadowed the checksummed entry for lowercase token addresses, dropping the token from required tokens so no quote was requested.
   - Lowercase-only matches are no longer cached, so the checksummed entry is picked up once indexed.
 
