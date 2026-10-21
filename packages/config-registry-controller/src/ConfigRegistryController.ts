@@ -12,6 +12,7 @@ import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { RemoteFeatureFlagControllerStateChangeEvent } from '@metamask/remote-feature-flag-controller';
+import { validate } from '@metamask/superstruct';
 import { CaipChainId, Duration, inMilliseconds, Json } from '@metamask/utils';
 
 import type {
@@ -22,6 +23,7 @@ import type {
   RegistryEventsConfig,
   RegistryNetworkConfig,
 } from './config-registry-api-service/types.js';
+import { RegistryNetworkConfigSchema } from './config-registry-api-service/types.js';
 import type { ConfigRegistryControllerMethodActions } from './ConfigRegistryController-method-action-types.js';
 
 const controllerName = 'ConfigRegistryController';
@@ -110,6 +112,50 @@ const stateMetadata = {
  */
 const DEFAULT_FALLBACK_CONFIG: Record<string, RegistryNetworkConfig> = {};
 
+/**
+ * Local network configs provided via the constructor, merged over remote
+ * (or fallback) configs. The merge is field-level: local values win on
+ * collision, and other fields come from the remote/fallback config. An
+ * override that would produce an invalid config (e.g. a partial override for
+ * a chain ID missing from those layers) is reported and skipped.
+ */
+export type LocalNetworkConfigOverrides = Record<
+  CaipChainId,
+  Partial<RegistryNetworkConfig>
+>;
+
+/**
+ * Merges local overrides into a set of network configs. Local values win
+ * per field; sub-objects are replaced whole, not deep-merged. Overrides that
+ * would produce an invalid config are reported and skipped.
+ *
+ * @param networks - The remote, fallback, or persisted network configs.
+ * @param localConfigOverrides - Local overrides from the constructor.
+ * @param onInvalidOverride - Called once per invalid override.
+ * @returns The merged network configs.
+ */
+function mergeWithLocalOverrides(
+  networks: Record<string, RegistryNetworkConfig>,
+  localConfigOverrides: LocalNetworkConfigOverrides,
+  onInvalidOverride: (error: Error) => void,
+): Record<string, RegistryNetworkConfig> {
+  const merged = { ...networks };
+  for (const [chainId, localConfig] of Object.entries(localConfigOverrides)) {
+    const candidate = { ...merged[chainId], ...localConfig };
+    const [validationError] = validate(candidate, RegistryNetworkConfigSchema);
+    if (validationError) {
+      onInvalidOverride(
+        new Error(
+          `Invalid local config override for ${chainId}: ${validationError.message}`,
+        ),
+      );
+      continue;
+    }
+    merged[chainId] = candidate;
+  }
+  return merged;
+}
+
 const MESSENGER_EXPOSED_METHODS = [
   'startPolling',
   'stopPolling',
@@ -180,6 +226,7 @@ export type ConfigRegistryControllerOptions = {
   state?: Partial<ConfigRegistryControllerState>;
   pollingInterval?: number;
   fallbackConfig?: Record<string, RegistryNetworkConfig>;
+  localConfigOverrides?: LocalNetworkConfigOverrides;
 };
 
 export class ConfigRegistryController extends StaticIntervalPollingController<null>()<
@@ -187,6 +234,8 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   ConfigRegistryControllerState,
   ConfigRegistryControllerMessenger
 > {
+  readonly #localConfigOverrides: LocalNetworkConfigOverrides;
+
   /**
    * @param options - The controller options.
    * @param options.messenger - The controller messenger. Must have
@@ -197,12 +246,16 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
    * @param options.state - Initial state.
    * @param options.pollingInterval - Polling interval in milliseconds.
    * @param options.fallbackConfig - Fallback configuration.
+   * @param options.localConfigOverrides - Local network configs merged over
+   *   remote and fallback configs, field-level, winning on collision.
+   *   Overrides that would produce an invalid config are skipped.
    */
   constructor({
     messenger,
     state = {},
     pollingInterval = DEFAULT_POLLING_INTERVAL,
     fallbackConfig = DEFAULT_FALLBACK_CONFIG,
+    localConfigOverrides = {},
   }: ConfigRegistryControllerOptions) {
     super({
       name: controllerName,
@@ -210,7 +263,11 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       messenger,
       state: {
         configs: {
-          networks: state.configs?.networks ?? { ...fallbackConfig },
+          networks: mergeWithLocalOverrides(
+            state.configs?.networks ?? { ...fallbackConfig },
+            localConfigOverrides,
+            (error) => messenger.captureException?.(error),
+          ),
           eventsConfig: state.configs?.eventsConfig ?? null,
         },
         version: state.version ?? null,
@@ -221,6 +278,8 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     });
 
     this.setIntervalLength(pollingInterval);
+
+    this.#localConfigOverrides = localConfigOverrides;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -265,15 +324,19 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       }
 
       const apiChains = result.data.data.chains;
-      const newConfigs: Record<string, RegistryNetworkConfig> = {};
+      const apiConfigs: Record<string, RegistryNetworkConfig> = {};
       // duplicate chainIds from API response are not expected
       apiChains.forEach((chainConfig) => {
         const { chainId } = chainConfig;
-        newConfigs[chainId] = chainConfig;
+        apiConfigs[chainId] = chainConfig;
       });
 
       this.update((state) => {
-        state.configs.networks = newConfigs;
+        state.configs.networks = mergeWithLocalOverrides(
+          apiConfigs,
+          this.#localConfigOverrides,
+          (error) => this.messenger.captureException?.(error),
+        );
         state.version = result.data.data.version;
         state.lastFetched = Date.now();
         state.etag = result.etag ?? null;
