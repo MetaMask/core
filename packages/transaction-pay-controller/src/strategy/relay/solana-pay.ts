@@ -290,11 +290,14 @@ export function deriveSolanaPayOutcome(
     return 'follow-up-failed';
   }
 
+  // The follow-up runs inside a single reconcile call, so an observed
+  // `attempting` follow-up was interrupted and its outcome cannot be resolved.
   if (
     execution.phase === 'unknown' ||
     execution.sourceStatus === 'unknown' ||
     execution.relayStatus === 'unknown' ||
-    execution.followUpStatus === 'unknown'
+    execution.followUpStatus === 'unknown' ||
+    execution.followUpStatus === 'attempting'
   ) {
     return 'unknown';
   }

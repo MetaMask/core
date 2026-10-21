@@ -555,6 +555,14 @@ describe('Solana Relay Pay', () => {
       [{ followUpStatus: 'unknown' }, 'unknown'],
       [
         {
+          followUpStatus: 'attempting',
+          relayStatus: 'success',
+          sourceStatus: 'confirmed',
+        },
+        'unknown',
+      ],
+      [
+        {
           followUpStatus: 'confirmed',
           relayStatus: 'success',
           sourceStatus: 'confirmed',
