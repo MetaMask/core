@@ -17,6 +17,7 @@ import { RELAY_SOLANA_CHAIN_ID } from './constants.js';
 import { notifyRelayTransaction } from './relay-api.js';
 import { waitForRelayCompletion } from './relay-submit.js';
 import {
+  applyRelayCompletion,
   applySolanaSourceFailure,
   getRelaySolanaTransaction,
   getSolanaPayFailure,
@@ -223,6 +224,16 @@ async function completeExecution({
   });
 
   log('Relay Solana request completed', completion);
+
+  persistSolanaExecution(
+    messenger,
+    transactionId,
+    applyRelayCompletion(
+      requireSolanaExecution(messenger, transactionId),
+      completion,
+    ),
+    'Record Relay Solana completion',
+  );
 
   const status = await messenger.call(
     'TransactionPayController:reconcileSolanaPay',

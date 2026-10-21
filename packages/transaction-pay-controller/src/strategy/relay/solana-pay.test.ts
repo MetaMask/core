@@ -16,6 +16,7 @@ import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { NonEvmQuoteRequest } from '../../types.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
+  applyRelayCompletion,
   applyRelayStatusObservation,
   applySolanaSourceFailure,
   buildRelaySolanaQuoteRequest,
@@ -686,6 +687,57 @@ describe('Solana Relay Pay', () => {
         ).relayStatus,
       ).toBe('success');
     });
+  });
+
+  describe('applyRelayCompletion', () => {
+    const submittedExecution = getExecution({
+      notificationStatus: 'success',
+      phase: 'submitted',
+      relayStatus: 'not-observed',
+      sourceStatus: 'pending',
+      sourceTransactionId: 'signature',
+    });
+
+    it('records Relay success, the confirmed source and the target hash', () => {
+      const execution = applyRelayCompletion(submittedExecution, {
+        status: 'success',
+        targetHash: '0xtarget',
+      });
+
+      expect(execution).toMatchObject({
+        relayStatus: 'success',
+        sourceStatus: 'confirmed',
+        targetTransactionId: '0xtarget',
+      });
+      expect(deriveSolanaPayOutcome(execution)).toBe('succeeded');
+    });
+
+    it('does not record the fallback hash as the target hash', () => {
+      expect(
+        applyRelayCompletion(submittedExecution, {
+          status: 'success',
+          targetHash: '0x0',
+        }).targetTransactionId,
+      ).toBeUndefined();
+    });
+
+    it.each([
+      ['failure', 'failure'],
+      ['refunded', 'refund'],
+    ] as const)('records a Relay %s', (status, relayStatus) => {
+      expect(
+        applyRelayCompletion(submittedExecution, { status }),
+      ).toStrictEqual({ ...submittedExecution, relayStatus });
+    });
+
+    it.each(['timeout', 'source-failed'] as const)(
+      'keeps the checkpoint on %s',
+      (status) => {
+        expect(applyRelayCompletion(submittedExecution, { status })).toBe(
+          submittedExecution,
+        );
+      },
+    );
   });
 
   describe('readSolanaSourceFailure', () => {

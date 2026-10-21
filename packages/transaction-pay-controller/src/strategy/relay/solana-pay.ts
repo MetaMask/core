@@ -22,11 +22,13 @@ import type {
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import { getTransaction, updateTransaction } from '../../utils/transaction.js';
 import {
+  FALLBACK_HASH,
   RELAY_SOLANA_CHAIN_ID,
   RELAY_SOLANA_NATIVE_CURRENCY,
 } from './constants.js';
 import { getSolanaSourceFailure } from './solana-transaction.js';
 import type {
+  RelayCompletionOutcome,
   RelaySolanaQuote,
   RelaySolanaQuoteRequest,
   RelaySolanaTransaction,
@@ -395,6 +397,42 @@ export function applyRelayStatusObservation(
     phase: 'submitted',
     sourceStatus: getUnobservedSourceStatus(execution, isSourceObserved),
     sourceTransactionId,
+  };
+}
+
+/**
+ * Applies the outcome of the publish hook's Relay polling to a durable Solana
+ * checkpoint, so a failed follow-up Relay read cannot leave it unobserved.
+ *
+ * @param execution - Current durable checkpoint.
+ * @param completion - Outcome of `waitForRelayCompletion`.
+ * @returns The updated checkpoint.
+ */
+export function applyRelayCompletion(
+  execution: MetamaskPaySolanaExecution,
+  completion: RelayCompletionOutcome,
+): MetamaskPaySolanaExecution {
+  if (
+    completion.status === 'timeout' ||
+    completion.status === 'source-failed'
+  ) {
+    return execution;
+  }
+
+  const relayStatus = mapRelayStatus(completion.status);
+
+  if (relayStatus !== 'success') {
+    return { ...execution, relayStatus };
+  }
+
+  return {
+    ...execution,
+    relayStatus,
+    sourceStatus: 'confirmed',
+    targetTransactionId:
+      completion.targetHash && completion.targetHash !== FALLBACK_HASH
+        ? completion.targetHash
+        : execution.targetTransactionId,
   };
 }
 

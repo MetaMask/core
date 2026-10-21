@@ -306,11 +306,27 @@ describe('submitRelayNonEvmQuote', () => {
       lastValidBlockHeight: 2,
       notificationStatus: 'success',
       phase: 'submitted',
-      relayStatus: 'not-observed',
-      sourceStatus: 'pending',
+      relayStatus: 'success',
+      sourceStatus: 'confirmed',
       sourceTransactionId: 'signature',
+      targetTransactionId: '0xtarget',
     });
     expect(transaction.isIntentComplete).toBe(true);
+  });
+
+  it('persists the Relay completion before reconciling', async () => {
+    reconcileSolanaPayMock.mockImplementation(async () => {
+      expect(transaction.metamaskPay?.solanaExecution).toMatchObject({
+        relayStatus: 'success',
+        sourceStatus: 'confirmed',
+        targetTransactionId: '0xtarget',
+      });
+      return getStatus();
+    });
+
+    await submitRelayNonEvmQuote({ messenger, quote: getQuote(), transaction });
+
+    expect(reconcileSolanaPayMock).toHaveBeenCalledTimes(1);
   });
 
   it('records an included atomic product action for a Perps or Predict deposit', async () => {
@@ -630,8 +646,8 @@ describe('submitRelayNonEvmQuote', () => {
 
     await submitRelayNonEvmQuote({ messenger, quote: getQuote(), transaction });
 
-    expect(transaction.metamaskPay?.solanaExecution?.sourceStatus).toBe(
-      'pending',
+    expect(transaction.metamaskPay?.solanaExecution).not.toHaveProperty(
+      'sourceFailureReason',
     );
     expect(transaction.isIntentComplete).toBe(true);
   });
