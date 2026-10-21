@@ -6,6 +6,8 @@ import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import deepmerge from 'deepmerge';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   getMultichainAccountServiceMessenger,
@@ -62,7 +64,7 @@ class MockStellarKeyring {
     this.accounts = accounts;
   }
 
-  createAccounts: SnapKeyring['createAccounts'] = jest
+  createAccounts: SnapKeyring['createAccounts'] = vi
     .fn()
     .mockImplementation((options) => {
       const groupIndices =
@@ -91,9 +93,9 @@ class MockStellarKeyring {
       });
     });
 
-  discoverAccounts = jest.fn().mockResolvedValue([]);
+  discoverAccounts = vi.fn().mockResolvedValue([]);
 
-  deleteAccount = jest.fn().mockResolvedValue(undefined);
+  deleteAccount = vi.fn().mockResolvedValue(undefined);
 }
 
 class MockXlmAccountProvider extends XlmAccountProvider {
@@ -117,12 +119,12 @@ function setup({
   messenger: RootMessenger;
   keyring: MockStellarKeyring;
   mocks: {
-    handleRequest: jest.Mock;
+    handleRequest: Mock;
     keyring: {
-      createAccounts: jest.Mock;
-      discoverAccounts: jest.Mock;
+      createAccounts: Mock;
+      discoverAccounts: Mock;
     };
-    trace: jest.Mock;
+    trace: Mock;
   };
 } {
   const keyring = new MockStellarKeyring(accounts);
@@ -147,7 +149,7 @@ function setup({
     () => accounts,
   );
 
-  const mockGetAccount = jest.fn().mockImplementation((id) => {
+  const mockGetAccount = vi.fn().mockImplementation((id) => {
     return keyring.accounts.find((account) => account.id === id);
   });
   messenger.registerActionHandler(
@@ -155,7 +157,7 @@ function setup({
     mockGetAccount,
   );
 
-  const mockHandleRequest = jest.fn().mockImplementation((request) => {
+  const mockHandleRequest = vi.fn().mockImplementation((request) => {
     if (request.request?.method === 'keyring_discoverAccounts') {
       return keyring.discoverAccounts();
     }
@@ -165,7 +167,7 @@ function setup({
     );
   });
 
-  const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
+  const mockTrace = vi.fn().mockImplementation(async (_request, fn) => {
     return await fn();
   });
 
@@ -200,7 +202,7 @@ function setup({
     mocks: {
       handleRequest: mockHandleRequest,
       keyring: {
-        createAccounts: keyring.createAccounts as jest.Mock,
+        createAccounts: keyring.createAccounts as Mock,
         discoverAccounts: keyring.discoverAccounts,
       },
       trace: mockTrace,

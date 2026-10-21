@@ -14,6 +14,8 @@ import {
 import type { Keyring } from '@metamask/keyring-api/v2';
 import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringObject } from '@metamask/keyring-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { RootMessenger, MockAccountProvider } from '../tests/index.js';
 import {
@@ -64,56 +66,56 @@ import type { MultichainAccountServiceMessenger } from './types.js';
 import type { SentryError } from './utils.js';
 
 // Mock perf helpers so tests can control isPerfEnabled() without setting DEBUG env var.
-jest.mock('./analytics/perf', () => ({
-  isPerfEnabled: jest.fn().mockReturnValue(false),
-  withLocalPerfTrace: jest.fn((trace) => trace),
+vi.mock('./analytics/perf', () => ({
+  isPerfEnabled: vi.fn().mockReturnValue(false),
+  withLocalPerfTrace: vi.fn((trace) => trace),
 }));
 
 // Mock providers.
-jest.mock('./providers/EvmAccountProvider', () => {
-  return {
-    ...jest.requireActual('./providers/EvmAccountProvider'),
-    EvmAccountProvider: jest.fn(),
-  };
-});
-jest.mock('./providers/SolAccountProvider', () => {
-  return {
-    ...jest.requireActual('./providers/SolAccountProvider'),
-    SolAccountProvider: jest.fn(),
-  };
-});
-jest.mock('./providers/BtcAccountProvider', () => {
-  return {
-    ...jest.requireActual('./providers/BtcAccountProvider'),
-    BtcAccountProvider: jest.fn(),
-  };
-});
-jest.mock('./providers/TrxAccountProvider', () => {
-  return {
-    ...jest.requireActual('./providers/TrxAccountProvider'),
-    TrxAccountProvider: jest.fn(),
-  };
-});
+vi.mock('./providers/EvmAccountProvider', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('./providers/EvmAccountProvider.js')
+  >()),
+  EvmAccountProvider: vi.fn(),
+}));
+vi.mock('./providers/SolAccountProvider', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('./providers/SolAccountProvider.js')
+  >()),
+  SolAccountProvider: vi.fn(),
+}));
+vi.mock('./providers/BtcAccountProvider', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('./providers/BtcAccountProvider.js')
+  >()),
+  BtcAccountProvider: vi.fn(),
+}));
+vi.mock('./providers/TrxAccountProvider', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('./providers/TrxAccountProvider.js')
+  >()),
+  TrxAccountProvider: vi.fn(),
+}));
 
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   KeyringController: {
     keyrings: KeyringObject[];
-    getState: jest.Mock;
-    getKeyringsByType: jest.Mock;
-    addNewKeyring: jest.Mock;
-    createNewVaultAndKeychain: jest.Mock;
-    createNewVaultAndRestore: jest.Mock;
-    withKeyring: jest.Mock;
-    removeAccount: jest.Mock;
+    getState: Mock;
+    getKeyringsByType: Mock;
+    addNewKeyring: Mock;
+    createNewVaultAndKeychain: Mock;
+    createNewVaultAndRestore: Mock;
+    withKeyring: Mock;
+    removeAccount: Mock;
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention
   AccountsController: {
-    listMultichainAccounts: jest.Mock;
+    listMultichainAccounts: Mock;
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorReportingService: {
-    captureException: jest.Mock;
+    captureException: Mock;
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention
   EvmAccountProvider: MockAccountProvider;
@@ -132,7 +134,7 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
   idx: number,
   _type: KeyringAccount['type'],
 ): void {
-  jest.mocked(providerClass).mockImplementation((...args) => {
+  vi.mocked(providerClass).mockImplementation(function (...args) {
     mocks.constructor(...args);
     return mocks as unknown as Provider;
   });
@@ -203,19 +205,19 @@ async function setup({
   const mocks: Mocks = {
     KeyringController: {
       keyrings,
-      getState: jest.fn(),
-      getKeyringsByType: jest.fn(),
-      addNewKeyring: jest.fn(),
-      createNewVaultAndKeychain: jest.fn(),
-      createNewVaultAndRestore: jest.fn(),
-      withKeyring: jest.fn(),
-      removeAccount: jest.fn(),
+      getState: vi.fn(),
+      getKeyringsByType: vi.fn(),
+      addNewKeyring: vi.fn(),
+      createNewVaultAndKeychain: vi.fn(),
+      createNewVaultAndRestore: vi.fn(),
+      withKeyring: vi.fn(),
+      removeAccount: vi.fn(),
     },
     AccountsController: {
-      listMultichainAccounts: jest.fn(),
+      listMultichainAccounts: vi.fn(),
     },
     ErrorReportingService: {
-      captureException: jest.fn(),
+      captureException: vi.fn(),
     },
     EvmAccountProvider: makeMockAccountProvider(),
     SolAccountProvider: makeMockAccountProvider(),
@@ -371,7 +373,7 @@ describe('MultichainAccountService', () => {
     });
 
     it('passes traceFallback to providers when no config.trace is provided and perf is disabled', async () => {
-      jest.mocked(isPerfEnabled).mockReturnValue(false);
+      vi.mocked(isPerfEnabled).mockReturnValue(false);
 
       const { mocks, messenger } = await setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
@@ -391,8 +393,8 @@ describe('MultichainAccountService', () => {
     });
 
     it('passes config.trace to providers when provided and perf is disabled', async () => {
-      jest.mocked(isPerfEnabled).mockReturnValue(false);
-      const customTrace = jest.fn();
+      vi.mocked(isPerfEnabled).mockReturnValue(false);
+      const customTrace = vi.fn();
 
       const { mocks, messenger } = await setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
@@ -413,9 +415,9 @@ describe('MultichainAccountService', () => {
     });
 
     it('wraps trace with local perf trace and passes it to providers when perf is enabled', async () => {
-      jest.mocked(isPerfEnabled).mockReturnValue(true);
-      const wrappedTrace = jest.fn();
-      jest.mocked(withLocalPerfTrace).mockReturnValue(wrappedTrace);
+      vi.mocked(isPerfEnabled).mockReturnValue(true);
+      const wrappedTrace = vi.fn();
+      vi.mocked(withLocalPerfTrace).mockReturnValue(wrappedTrace);
 
       const { mocks, messenger } = await setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
@@ -436,10 +438,10 @@ describe('MultichainAccountService', () => {
     });
 
     it('wraps config.trace with local perf trace when perf is enabled', async () => {
-      jest.mocked(isPerfEnabled).mockReturnValue(true);
-      const customTrace = jest.fn();
-      const wrappedTrace = jest.fn();
-      jest.mocked(withLocalPerfTrace).mockReturnValue(wrappedTrace);
+      vi.mocked(isPerfEnabled).mockReturnValue(true);
+      const customTrace = vi.fn();
+      const wrappedTrace = vi.fn();
+      vi.mocked(withLocalPerfTrace).mockReturnValue(wrappedTrace);
 
       const { mocks } = await setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
@@ -674,7 +676,7 @@ describe('MultichainAccountService', () => {
       const { service, messenger, mocks } = await setup({
         accounts: [mockEvmAccount],
       });
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      const publishSpy = vi.spyOn(messenger, 'publish');
 
       // Groups cannot be empty, we need mock the next account creation too.
       const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -740,7 +742,7 @@ describe('MultichainAccountService', () => {
       const { service, messenger, mocks } = await setup({
         accounts: [mockEvmAccount],
       });
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      const publishSpy = vi.spyOn(messenger, 'publish');
 
       // Groups cannot be empty, we need mock the next account creation too.
       const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -895,7 +897,7 @@ describe('MultichainAccountService', () => {
         mockSolAccount1,
       ]);
 
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      const publishSpy = vi.spyOn(messenger, 'publish');
 
       await service.createMultichainAccountGroups({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -1065,7 +1067,7 @@ describe('MultichainAccountService', () => {
       const { service, messenger, mocks } = await setup({
         accounts: [mockEvmAccount, mockSolAccount],
       });
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       mocks.SolAccountProvider.deleteAccount.mockRejectedValueOnce(
         new Error('snap is unavailable'),
       );
@@ -1123,7 +1125,7 @@ describe('MultichainAccountService', () => {
       const { service, messenger, mocks } = await setup({
         accounts: [...mockEvmAccounts, ...mockSolAccounts],
       });
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       const error = new Error('cannot delete group 0');
       mocks.EvmAccountProvider.deleteAccounts.mockResolvedValueOnce({
         ok: false,
@@ -1173,7 +1175,7 @@ describe('MultichainAccountService', () => {
       const { service, messenger, mocks } = await setup({
         accounts: [mockEvmAccount, mockSolAccount],
       });
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       mocks.SolAccountProvider.getAccounts.mockImplementation(() => {
         throw new Error('snap keyring unavailable');
       });
@@ -1203,7 +1205,7 @@ describe('MultichainAccountService', () => {
       const { service, messenger, mocks } = await setup({
         accounts: [mockEvmAccount, mockSolAccount],
       });
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       mocks.SolAccountProvider.deleteAccounts.mockRejectedValueOnce(
         new Error('provider exploded'),
       );
@@ -1235,7 +1237,7 @@ describe('MultichainAccountService', () => {
       const { service, messenger, mocks } = await setup({
         accounts: [mockEvmAccount],
       });
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       // Real keyring code only rejects with `Error`s, but downstream
       // messenger handlers can in principle reject with any value.
       mocks.EvmAccountProvider.deleteAccount.mockRejectedValueOnce(
@@ -1263,7 +1265,7 @@ describe('MultichainAccountService', () => {
       const { service, messenger, mocks } = await setup({
         accounts: [mockEvmAccount, mockSolAccount],
       });
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       mocks.EvmAccountProvider.deleteAccounts.mockRejectedValueOnce(
         new Error('provider exploded'),
       );
@@ -1323,7 +1325,7 @@ describe('MultichainAccountService', () => {
       const { service, messenger } = await setup({
         accounts: [mockEvmAccount, mockSolAccount],
       });
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
 
       await service.removeMultichainAccountWallet(
         MOCK_HD_KEYRING_1.metadata.id,
@@ -1610,7 +1612,7 @@ describe('MultichainAccountService', () => {
 
     it('does not throw if any providers is throwing', async () => {
       const rootMessenger = getRootMessenger();
-      const captureExceptionSpy = jest.spyOn(rootMessenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(rootMessenger, 'captureException');
 
       const { service, mocks } = await setup({
         rootMessenger,
@@ -1634,9 +1636,13 @@ describe('MultichainAccountService', () => {
 
     it('does not capture exception when provider throws a TimeoutError', async () => {
       const rootMessenger = getRootMessenger();
-      const captureExceptionSpy = jest.spyOn(rootMessenger, 'captureException');
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const captureExceptionSpy = vi.spyOn(rootMessenger, 'captureException');
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       const { service, mocks } = await setup({
         rootMessenger,
@@ -1689,12 +1695,12 @@ describe('MultichainAccountService', () => {
       );
 
       // Spy on the provider methods
-      jest.spyOn(solProvider, 'resyncAccounts');
-      jest.spyOn(solProvider, 'getAccounts');
-      jest.spyOn(solProvider, 'getAccount');
-      jest.spyOn(solProvider, 'createAccounts');
-      jest.spyOn(solProvider, 'discoverAccounts');
-      jest.spyOn(solProvider, 'isAccountCompatible');
+      vi.spyOn(solProvider, 'resyncAccounts');
+      vi.spyOn(solProvider, 'getAccounts');
+      vi.spyOn(solProvider, 'getAccount');
+      vi.spyOn(solProvider, 'createAccounts');
+      vi.spyOn(solProvider, 'discoverAccounts');
+      vi.spyOn(solProvider, 'isAccountCompatible');
 
       wrapper = new AccountProviderWrapper(
         getMultichainAccountServiceMessenger(rootMessenger),
@@ -1707,7 +1713,7 @@ describe('MultichainAccountService', () => {
     });
 
     it('forwards resyncAccounts() if provider is enabled', async () => {
-      const spy = jest.spyOn(solProvider, 'resyncAccounts');
+      const spy = vi.spyOn(solProvider, 'resyncAccounts');
 
       // Enable first - should work normally
       spy.mockResolvedValue(undefined);
@@ -1722,9 +1728,7 @@ describe('MultichainAccountService', () => {
 
     it('returns empty array when getAccounts() is disabled', () => {
       // Enable first - should work normally
-      (solProvider.getAccounts as jest.Mock).mockReturnValue([
-        MOCK_HD_ACCOUNT_1,
-      ]);
+      (solProvider.getAccounts as Mock).mockReturnValue([MOCK_HD_ACCOUNT_1]);
       expect(wrapper.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
 
       // Disable - should return empty array
@@ -1734,7 +1738,7 @@ describe('MultichainAccountService', () => {
 
     it('throws error when getAccount() is disabled', () => {
       // Enable first - should work normally
-      (solProvider.getAccount as jest.Mock).mockReturnValue(MOCK_HD_ACCOUNT_1);
+      (solProvider.getAccount as Mock).mockReturnValue(MOCK_HD_ACCOUNT_1);
       expect(wrapper.getAccount('test-id')).toStrictEqual(MOCK_HD_ACCOUNT_1);
 
       // Disable - should throw error
@@ -1752,7 +1756,7 @@ describe('MultichainAccountService', () => {
       };
 
       // Enable first - should work normally
-      (solProvider.createAccounts as jest.Mock).mockResolvedValue([
+      (solProvider.createAccounts as Mock).mockResolvedValue([
         MOCK_HD_ACCOUNT_1,
       ]);
       expect(await wrapper.createAccounts(options)).toStrictEqual([
@@ -1773,7 +1777,7 @@ describe('MultichainAccountService', () => {
       };
 
       // Enable first - should work normally
-      (solProvider.discoverAccounts as jest.Mock).mockResolvedValue([
+      (solProvider.discoverAccounts as Mock).mockResolvedValue([
         MOCK_HD_ACCOUNT_1,
       ]);
       expect(await wrapper.discoverAccounts(options)).toStrictEqual([
@@ -1789,14 +1793,14 @@ describe('MultichainAccountService', () => {
 
     it('delegates isAccountCompatible() to wrapped provider', () => {
       // Mock the provider's compatibility check
-      (solProvider.isAccountCompatible as jest.Mock).mockReturnValue(true);
+      (solProvider.isAccountCompatible as Mock).mockReturnValue(true);
       expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(true);
       expect(solProvider.isAccountCompatible).toHaveBeenCalledWith(
         MOCK_HD_ACCOUNT_1,
       );
 
       // Test with false return
-      (solProvider.isAccountCompatible as jest.Mock).mockReturnValue(false);
+      (solProvider.isAccountCompatible as Mock).mockReturnValue(false);
       expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(false);
     });
 
@@ -1810,7 +1814,7 @@ describe('MultichainAccountService', () => {
     });
 
     it('forwards deleteAccount() to the wrapped provider regardless of enabled state', async () => {
-      const deleteAccountSpy = jest
+      const deleteAccountSpy = vi
         .spyOn(solProvider, 'deleteAccount')
         .mockResolvedValue(undefined);
 
@@ -1826,7 +1830,7 @@ describe('MultichainAccountService', () => {
     });
 
     it('forwards deleteAccounts() to the wrapped provider regardless of enabled state', async () => {
-      const deleteAccountsSpy = jest
+      const deleteAccountsSpy = vi
         .spyOn(solProvider, 'deleteAccounts')
         .mockResolvedValue({ ok: true });
       const ids = [MOCK_HD_ACCOUNT_1.id];

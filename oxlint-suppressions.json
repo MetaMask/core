@@ -19,11 +19,6 @@
       "count": 1
     }
   },
-  "packages/account-tree-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/AccountTreeController.test.ts": {
     "id-length": {
       "count": 2
@@ -42,6 +37,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 4
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/account-tree-controller/src/AccountTreeController.ts": {
@@ -78,13 +76,18 @@
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/syncing/group.test.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 15
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/syncing/metadata.ts": {
     "id-length": {
       "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/syncing/wallet.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/types.ts": {
@@ -114,6 +117,11 @@
   },
   "packages/account-tree-controller/src/backup-and-sync/user-storage/network-utils.ts": {
     "id-length": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/user-storage/validation.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -150,6 +158,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 5
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/account-tree-controller/src/state/import.test.ts": {
@@ -174,6 +185,11 @@
     },
     "typescript/no-unsafe-return": {
       "count": 7
+    }
+  },
+  "packages/account-tree-controller/src/state/utils.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/account-tree-controller/src/state/utils.ts": {
@@ -3155,11 +3171,6 @@
       "count": 8
     }
   },
-  "packages/money-account-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/money-account-controller/src/MoneyAccountController.test.ts": {
     "n/no-callback-literal": {
       "count": 6
@@ -3169,6 +3180,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 6
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/money-account-controller/src/MoneyAccountController.ts": {
@@ -3216,11 +3230,6 @@
       "count": 2
     }
   },
-  "packages/multichain-account-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/multichain-account-service/src/MultichainAccountGroup.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 1
@@ -3228,7 +3237,7 @@
   },
   "packages/multichain-account-service/src/MultichainAccountService.test.ts": {
     "typescript/no-unsafe-return": {
-      "count": 5
+      "count": 1
     }
   },
   "packages/multichain-account-service/src/MultichainAccountService.ts": {
@@ -3240,8 +3249,14 @@
     "id-length": {
       "count": 2
     },
+    "typescript/no-misused-promises": {
+      "count": 1
+    },
     "typescript/no-unsafe-member-access": {
       "count": 4
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/multichain-account-service/src/MultichainAccountWallet.ts": {
@@ -3261,9 +3276,15 @@
     },
     "typescript/no-unsafe-return": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/multichain-account-service/src/providers/EvmAccountProvider.test.ts": {
+    "typescript/no-misused-promises": {
+      "count": 2
+    },
     "typescript/no-unsafe-call": {
       "count": 4
     },
@@ -3271,6 +3292,9 @@
       "count": 4
     },
     "typescript/no-unsafe-return": {
+      "count": 4
+    },
+    "vitest/no-conditional-in-test": {
       "count": 4
     }
   },
@@ -3288,7 +3312,10 @@
       "count": 2
     },
     "typescript/no-unsafe-return": {
-      "count": 9
+      "count": 8
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/multichain-account-service/src/providers/SolAccountProvider.test.ts": {
@@ -3302,6 +3329,9 @@
       "count": 3
     },
     "typescript/no-unsafe-return": {
+      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -3317,6 +3347,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/multichain-account-service/src/providers/XlmAccountProvider.test.ts": {
@@ -3464,16 +3497,7 @@
       "count": 2
     }
   },
-  "packages/multichain-network-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/multichain-transactions-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
+  "packages/multichain-network-controller/src/MultichainNetworkController/MultichainNetworkController.test.ts": {},
   "packages/multichain-transactions-controller/src/MultichainTransactionsController.ts": {
     "typescript/explicit-function-return-type": {
       "count": 4
@@ -4152,11 +4176,6 @@
       "count": 1
     }
   },
-  "packages/profile-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/profile-metrics-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -4178,37 +4197,21 @@
       "count": 1
     }
   },
-  "packages/profile-sync-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/profile-sync-controller/jest.environment.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "node/global-require": {
-      "count": 1
-    }
-  },
   "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.test.ts": {
     "id-length": {
       "count": 4
     },
-    "jest/no-conditional-expect": {
-      "count": 3
-    },
     "no-new": {
-      "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 15
-    },
-    "typescript/no-unsafe-member-access": {
       "count": 1
     },
     "typescript/no-unsafe-return": {
       "count": 5
+    },
+    "vitest/no-conditional-expect": {
+      "count": 3
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 15
     }
   },
   "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.ts": {
@@ -4232,9 +4235,6 @@
   "packages/profile-sync-controller/src/controllers/user-storage/UserStorageController.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 24
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 13
     }
   },
   "packages/profile-sync-controller/src/controllers/user-storage/UserStorageController.ts": {
@@ -4248,9 +4248,6 @@
   "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockMessenger.ts": {
     "id-length": {
       "count": 1
-    },
-    "no-undef": {
-      "count": 8
     },
     "typescript/explicit-function-return-type": {
       "count": 3
@@ -4276,9 +4273,6 @@
     }
   },
   "packages/profile-sync-controller/src/controllers/user-storage/contact-syncing/__fixtures__/test-utils.ts": {
-    "no-undef": {
-      "count": 6
-    },
     "no-useless-return": {
       "count": 1
     },
@@ -4353,9 +4347,6 @@
     }
   },
   "packages/profile-sync-controller/src/sdk/__fixtures__/test-utils.ts": {
-    "no-undef": {
-      "count": 2
-    },
     "typescript/explicit-function-return-type": {
       "count": 4
     }
@@ -4376,6 +4367,11 @@
     },
     "typescript/explicit-function-return-type": {
       "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/mfa/schemas.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/mfa/services.test.ts": {
@@ -4399,7 +4395,7 @@
       "count": 4
     },
     "typescript/no-unsafe-member-access": {
-      "count": 22
+      "count": 19
     },
     "typescript/no-unsafe-return": {
       "count": 11
@@ -4457,6 +4453,9 @@
     },
     "typescript/no-unsafe-argument": {
       "count": 5
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/profile-sync-controller/src/sdk/user-storage.ts": {
@@ -4515,9 +4514,6 @@
     }
   },
   "packages/profile-sync-controller/src/shared/encryption/encryption.test.ts": {
-    "jest/valid-expect-in-promise": {
-      "count": 1
-    },
     "typescript/explicit-function-return-type": {
       "count": 1
     }
@@ -4965,11 +4961,6 @@
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "packages/snap-account-service/jest.config.cjs": {
-    "import/unambiguous": {
       "count": 1
     }
   },
