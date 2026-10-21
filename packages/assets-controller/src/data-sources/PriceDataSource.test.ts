@@ -1,6 +1,7 @@
 import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import { getDefaultAssetsControllerState } from '../AssetsController.js';
 import type {
   ChainId,
   DataRequest,
@@ -120,6 +121,25 @@ type MockPriceData = {
   marketCap: number;
   totalVolume: number;
 };
+
+/**
+ * Build controller state from the default fixture.
+ *
+ * Seeded default-token metadata is cleared unless the case supplies its own
+ * `assetsInfo`, so price requests stay limited to the balances under test.
+ *
+ * @param overrides - State fields this case sets.
+ * @returns A complete assets controller state.
+ */
+function createTestAssetsState(
+  overrides: Partial<AssetsControllerState> = {},
+): AssetsControllerState {
+  return {
+    ...getDefaultAssetsControllerState(),
+    assetsInfo: {},
+    ...overrides,
+  };
+}
 
 function createMockPriceData(price: number = 100): MockPriceData {
   return {
@@ -277,21 +297,18 @@ describe('PriceDataSource', () => {
 
     await controller.assetsMiddleware(context, jest.fn());
 
-    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        MOCK_NATIVE_ASSET,
-        normalizeAssetId(MOCK_TOKEN_ASSET),
-      ]),
-      expect.anything(),
-    );
-    expect(apiClient.prices.fetchV3SpotPrices.mock.calls[0][0]).toHaveLength(2);
+    const assetsCalled = apiClient.prices.fetchV3SpotPrices.mock.calls[0][0];
+    expect(assetsCalled).toStrictEqual([
+      MOCK_NATIVE_ASSET,
+      normalizeAssetId(MOCK_TOKEN_ASSET),
+    ]);
 
     controller.destroy();
   });
 
   it('middleware excludes hidden assets from response and state balances', async () => {
     const getAssetsState = (): AssetsControllerState =>
-      ({
+      createTestAssetsState({
         assetsBalance: {
           'mock-account-id': {
             [MOCK_NATIVE_ASSET]: { amount: '1.5' },
@@ -301,7 +318,7 @@ describe('PriceDataSource', () => {
         assetPreferences: {
           [MOCK_TOKEN_ASSET]: { hidden: true },
         },
-      }) as unknown as AssetsControllerState;
+      });
     const { controller, apiClient } = setupController({
       getAssetsState,
       priceResponse: {
@@ -328,59 +345,100 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
-  it('middleware prices custom assets and metadata from state, excluding hidden assets', async () => {
-    const metadataOnlyAsset =
-      'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
-    const customAsset =
-      'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId;
-    const hiddenMetadataAsset =
-      'eip155:1/erc20:0x3333333333333333333333333333333333333333' as Caip19AssetId;
-    const getAssetsState = (): AssetsControllerState =>
-      ({
-        assetsBalance: {
-          'mock-account-id': {
-            [MOCK_NATIVE_ASSET]: { amount: '1' },
-          },
+  it.each([
+    {
+      source: 'balance',
+      hidden: false,
+      outcome: 'prices',
+      assetId: MOCK_NATIVE_ASSET,
+    },
+    {
+      source: 'balance',
+      hidden: true,
+      outcome: 'skips',
+      assetId: MOCK_NATIVE_ASSET,
+    },
+    {
+      source: 'metadata',
+      hidden: false,
+      outcome: 'prices',
+      assetId:
+        'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId,
+    },
+    {
+      source: 'metadata',
+      hidden: true,
+      outcome: 'skips',
+      assetId:
+        'eip155:1/erc20:0x3333333333333333333333333333333333333333' as Caip19AssetId,
+    },
+    {
+      source: 'custom',
+      hidden: false,
+      outcome: 'prices',
+      assetId:
+        'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId,
+    },
+    {
+      source: 'custom',
+      hidden: true,
+      outcome: 'skips',
+      assetId:
+        'eip155:1/erc20:0x4444444444444444444444444444444444444444' as Caip19AssetId,
+    },
+  ])(
+    'middleware $outcome a $source asset when hidden is $hidden',
+    async ({ source, hidden, outcome, assetId }) => {
+      const { controller, apiClient } = setupController({
+        getAssetsState: () =>
+          createTestAssetsState({
+            ...(source === 'balance'
+              ? {
+                  assetsBalance: {
+                    'mock-account-id': { [assetId]: { amount: '1' } },
+                  },
+                }
+              : {}),
+            ...(source === 'metadata'
+              ? {
+                  assetsInfo: {
+                    [assetId]: {
+                      type: 'erc20',
+                      symbol: 'TOK',
+                      name: 'Token',
+                      decimals: 18,
+                    },
+                  },
+                }
+              : {}),
+            ...(source === 'custom'
+              ? { customAssets: { 'mock-account-id': [assetId] } }
+              : {}),
+            ...(hidden
+              ? { assetPreferences: { [assetId]: { hidden: true } } }
+              : {}),
+          }),
+        priceResponse: {
+          [normalizeAssetId(assetId)]: createMockPriceData(1),
         },
-        assetsInfo: {
-          [metadataOnlyAsset]: { symbol: 'META' },
-          [hiddenMetadataAsset]: { symbol: 'HIDE' },
-        },
-        customAssets: {
-          'mock-account-id': [customAsset],
-        },
-        assetPreferences: {
-          [hiddenMetadataAsset]: { hidden: true },
-        },
-      }) as unknown as AssetsControllerState;
-    const { controller, apiClient } = setupController({
-      getAssetsState,
-      priceResponse: {
-        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
-        [metadataOnlyAsset]: createMockPriceData(1),
-        [customAsset]: createMockPriceData(2),
-      },
-    });
+      });
 
-    await controller.assetsMiddleware(
-      createMiddlewareContext({ response: {} }),
-      jest.fn(),
-    );
+      await controller.assetsMiddleware(
+        createMiddlewareContext({ response: {} }),
+        jest.fn(),
+      );
 
-    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        MOCK_NATIVE_ASSET,
-        normalizeAssetId(metadataOnlyAsset),
-        normalizeAssetId(customAsset),
-      ]),
-      expect.anything(),
-    );
-    expect(apiClient.prices.fetchV3SpotPrices.mock.calls[0][0]).not.toContain(
-      normalizeAssetId(hiddenMetadataAsset),
-    );
+      if (outcome === 'prices') {
+        expect(
+          apiClient.prices.fetchV3SpotPrices.mock.calls[0][0],
+        ).toStrictEqual([normalizeAssetId(assetId)]);
+      } else {
+        expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
+      }
 
-    controller.destroy();
-  });
+      controller.destroy();
+    },
+  );
 
   it('fetch skips malformed asset IDs in balance state and still fetches prices for valid assets', async () => {
     const { controller, apiClient } = setupController({
@@ -1077,7 +1135,7 @@ describe('PriceDataSource', () => {
   it('middleware does not fetch a token that already has a price', async () => {
     const { controller, apiClient } = setupController({
       getAssetsState: () =>
-        ({
+        createTestAssetsState({
           assetsBalance: {
             'mock-account-id': {
               [MOCK_TOKEN_ASSET]: { amount: '1' },
@@ -1085,9 +1143,14 @@ describe('PriceDataSource', () => {
             },
           },
           assetsPrice: {
-            [normalizeAssetId(MOCK_TOKEN_ASSET)]: { price: 1 },
+            [normalizeAssetId(MOCK_TOKEN_ASSET)]: {
+              assetPriceType: 'fungible',
+              price: 1,
+              usdPrice: 1,
+              lastUpdated: 1,
+            },
           },
-        }) as unknown as AssetsControllerState,
+        }),
       priceResponse: {
         [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
       },
@@ -1119,16 +1182,21 @@ describe('PriceDataSource', () => {
   it('fetch still requests a token that already has a price', async () => {
     const { controller, apiClient } = setupController({
       getAssetsState: () =>
-        ({
+        createTestAssetsState({
           assetsBalance: {
             'mock-account-id': {
               [MOCK_TOKEN_ASSET]: { amount: '1' },
             },
           },
           assetsPrice: {
-            [MOCK_TOKEN_ASSET]: { price: 1 },
+            [MOCK_TOKEN_ASSET]: {
+              assetPriceType: 'fungible',
+              price: 1,
+              usdPrice: 1,
+              lastUpdated: 1,
+            },
           },
-        }) as unknown as AssetsControllerState,
+        }),
       priceResponse: {
         [MOCK_TOKEN_ASSET]: createMockPriceData(1.0),
       },
@@ -1490,13 +1558,13 @@ describe('PriceDataSource', () => {
         apiClient as unknown as PriceDataSourceOptions['queryApiClient'],
       getSelectedCurrency: (): SupportedCurrency => 'usd',
       getAssetsState: (): AssetsControllerState =>
-        ({
+        createTestAssetsState({
           assetsBalance: {
             'mock-account-id': {
               [MOCK_NATIVE_ASSET]: { amount: '1.5' },
             },
           },
-        }) as unknown as AssetsControllerState,
+        }),
     });
 
     await controller2.fetch(createDataRequest());
