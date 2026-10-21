@@ -13,8 +13,6 @@ export default mergeConfig(
       taskTitleValueFormatTruncate: Infinity,
 
       coverage: {
-        // This package's source uses `c8 ignore` comments, which only the
-        // `v8` provider understands.
         provider: 'v8',
 
         exclude: [
