@@ -328,6 +328,12 @@ export type TransactionPayControllerOptions = {
   fiatOptions?: TransactionPayFiatOptions;
 
   /**
+   * Infura project ID substituted for the `{infuraProjectId}` placeholder in
+   * RPC URLs from `ConfigRegistryController`, such as the Solana RPC URL.
+   */
+  infuraProjectId?: string;
+
+  /**
    * Optional callback invoked during quote execution when `paymentOverride` is defined.
    * Returns additional transactions to be submitted alongside the quote batch.
    */

@@ -93,6 +93,17 @@ export type TransactionPayControllerGetFiatOptionsAction = {
   handler: TransactionPayController['getFiatOptions'];
 };
 
+/**
+ * Returns the Infura project ID used to resolve `{infuraProjectId}`
+ * placeholders in RPC URLs.
+ *
+ * @returns The Infura project ID, if configured.
+ */
+export type TransactionPayControllerGetInfuraProjectIdAction = {
+  type: `TransactionPayController:getInfuraProjectId`;
+  handler: TransactionPayController['getInfuraProjectId'];
+};
+
 export type TransactionPayControllerGetPaymentOverrideDataAction = {
   type: `TransactionPayController:getPaymentOverrideData`;
   handler: TransactionPayController['getPaymentOverrideData'];
@@ -181,6 +192,7 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetAmountDataAction
   | TransactionPayControllerGetFiatOptionsAction
+  | TransactionPayControllerGetInfuraProjectIdAction
   | TransactionPayControllerGetPaymentOverrideDataAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerPolymarketGetDepositWalletAddressAction

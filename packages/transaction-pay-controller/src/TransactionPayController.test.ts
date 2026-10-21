@@ -667,6 +667,28 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('getInfuraProjectId', () => {
+    it('returns the configured Infura project ID', () => {
+      createController({ infuraProjectId: 'test-project-id' });
+
+      const result = messenger.call(
+        'TransactionPayController:getInfuraProjectId',
+      );
+
+      expect(result).toBe('test-project-id');
+    });
+
+    it('returns undefined when no Infura project ID is configured', () => {
+      createController();
+
+      const result = messenger.call(
+        'TransactionPayController:getInfuraProjectId',
+      );
+
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe('Solana Pay recovery', () => {
     const getRelayStatusMock = jest.mocked(getRelayStatus);
     const updateTransactionMock = jest.mocked(updateTransaction);

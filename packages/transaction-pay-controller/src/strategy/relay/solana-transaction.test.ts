@@ -40,6 +40,7 @@ const RELAY_TRANSACTION: RelaySolanaTransaction = {
 describe('solana-transaction', () => {
   const {
     getAccountsControllerStateMock,
+    getInfuraProjectIdMock,
     getNetworkConfigByCaip2ChainIdMock,
     messenger,
     snapHandleRequestMock,
@@ -210,6 +211,54 @@ describe('solana-transaction', () => {
           transaction: RELAY_TRANSACTION,
         }),
       ).rejects.toThrow(`Solana RPC URL not found for ${SCOPE}`);
+    });
+
+    it('substitutes the Infura project ID into an Infura RPC URL', async () => {
+      getNetworkConfigByCaip2ChainIdMock.mockReturnValue({
+        rpcProviders: {
+          default: {
+            type: 'infura',
+            url: 'https://solana-mainnet.infura.io/v3/{infuraProjectId}',
+          },
+        },
+      });
+      getInfuraProjectIdMock.mockReturnValue('test-project-id');
+
+      await compileRelaySolanaTransaction({
+        messenger,
+        payer: PAYER,
+        scope: SCOPE,
+        transaction: { instructions: RELAY_TRANSACTION.instructions },
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://solana-mainnet.infura.io/v3/test-project-id',
+        expect.anything(),
+      );
+    });
+
+    it('throws if an Infura RPC URL needs a project ID and none is configured', async () => {
+      getNetworkConfigByCaip2ChainIdMock.mockReturnValue({
+        rpcProviders: {
+          default: {
+            type: 'infura',
+            url: 'https://solana-mainnet.infura.io/v3/{infuraProjectId}',
+          },
+        },
+      });
+      getInfuraProjectIdMock.mockReturnValue(undefined);
+
+      await expect(
+        compileRelaySolanaTransaction({
+          messenger,
+          payer: PAYER,
+          scope: SCOPE,
+          transaction: RELAY_TRANSACTION,
+        }),
+      ).rejects.toThrow(
+        `Solana RPC URL for ${SCOPE} requires the infuraProjectId option`,
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('throws on a JSON-RPC error', async () => {

@@ -31,6 +31,7 @@ import type { TransactionPayControllerMessenger } from '../index.js';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetFiatOptionsAction,
+  TransactionPayControllerGetInfuraProjectIdAction,
   TransactionPayControllerGetPaymentOverrideDataAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
@@ -116,6 +117,10 @@ export function getMessengerMock({
 
   const getFiatOptionsMock: jest.MockedFn<
     TransactionPayControllerGetFiatOptionsAction['handler']
+  > = jest.fn();
+
+  const getInfuraProjectIdMock: jest.MockedFn<
+    TransactionPayControllerGetInfuraProjectIdAction['handler']
   > = jest.fn();
 
   const getPaymentOverrideDataMock: jest.MockedFn<
@@ -255,6 +260,11 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'TransactionPayController:getInfuraProjectId',
+      getInfuraProjectIdMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionPayController:getPaymentOverrideData',
       getPaymentOverrideDataMock,
     );
@@ -340,6 +350,7 @@ export function getMessengerMock({
     getControllerStateMock,
     getDelegationTransactionMock,
     getFiatOptionsMock,
+    getInfuraProjectIdMock,
     getPaymentOverrideDataMock,
     getGasFeeControllerStateMock,
     getGasFeeTokensMock,

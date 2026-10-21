@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `followUpFailureReason` to `SolanaPayStatus`.
   - A follow-up observed in `attempting` (interrupted by a restart) is reported with the `unknown` outcome instead of `submitted`.
   - `recoverSolanaPayStatus` observes each non-terminal execution once and independently, and returns without polling. Clients call it again, for example on foreground or startup.
+- Add `infuraProjectId` option to `TransactionPayControllerOptions`, and the `getInfuraProjectId` method and `TransactionPayController:getInfuraProjectId` messenger action ([#10273](https://github.com/MetaMask/core/pull/10273))
+  - Clients must pass their Infura project ID to quote and submit Solana payment tokens. Core replaces the `{infuraProjectId}` placeholder in the `ConfigRegistryController` Solana RPC URL with it, and throws if the URL has the placeholder and no project ID is configured.
+  - Add the `TransactionPayControllerGetInfuraProjectIdAction` type.
 - Add `@metamask/config-registry-controller`, `@metamask/snaps-controllers`, `@metamask/snaps-sdk`, `@metamask/snaps-utils`, `@metamask/rpc-errors`, `@solana/addresses`, `@solana/codecs-strings`, `@solana/instructions`, `@solana/rpc-types`, `@solana/transaction-messages`, `@solana/transactions` and `uuid` dependencies ([#10273](https://github.com/MetaMask/core/pull/10273))
 
 ### Changed

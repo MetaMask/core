@@ -42,6 +42,7 @@ export type {
   TransactionPayControllerGetAmountDataAction,
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetFiatOptionsAction,
+  TransactionPayControllerGetInfuraProjectIdAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
   TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,

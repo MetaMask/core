@@ -30,6 +30,8 @@ import type {
 
 const SOLANA_DECIMALS = 9;
 
+const INFURA_PROJECT_ID_PLACEHOLDER = '{infuraProjectId}';
+
 type SolanaRpcResponse<Result> = {
   result?: Result;
   error?: { message: string };
@@ -356,7 +358,21 @@ function getSolanaRpcUrl(
     throw new Error(`Solana RPC URL not found for ${scope}`);
   }
 
-  return url;
+  if (!url.includes(INFURA_PROJECT_ID_PLACEHOLDER)) {
+    return url;
+  }
+
+  const infuraProjectId = messenger.call(
+    'TransactionPayController:getInfuraProjectId',
+  );
+
+  if (!infuraProjectId) {
+    throw new Error(
+      `Solana RPC URL for ${scope} requires the infuraProjectId option`,
+    );
+  }
+
+  return url.replaceAll(INFURA_PROJECT_ID_PLACEHOLDER, infuraProjectId);
 }
 
 async function getAddressLookupTables(

@@ -55,7 +55,7 @@ When the payment token is non-EVM, `RelayStrategy` receives `nonEvmRequests` ins
 
 - **Quote.** New quotes are only admitted when `payStrategies.relay.solana.enabled` is `true`. Core builds the request and fetches it from Relay `/quote/v2` (`relaySolanaQuoteUrl`). If Relay rejects the transaction as `SOLANA_TX_TOO_LARGE`, Core retries once with `maxRouteLength: 4`. Relay returns instructions and address lookup tables rather than a serialized transaction, so Core compiles the unsigned v0 transaction itself:
   - the fee payer is the user;
-  - the blockhash and lookup tables come from Solana JSON-RPC at the `ConfigRegistryController` RPC URL, and unresolved lookup tables are skipped;
+  - the blockhash and lookup tables come from Solana JSON-RPC at the `ConfigRegistryController` RPC URL (with `{infuraProjectId}` replaced by the `infuraProjectId` constructor option), and unresolved lookup tables are skipped;
   - compilation uses `@solana/kit` sub-packages.
 - **Fees and affordability.** The account Snap's `computeFee` gives the source network fee, which is converted to fiat with the SOL price. The Snap `getMinimumBalanceForRentExemption` gives the rent reserve.
   - For native SOL, the balance must cover the amount, the fee and the rent reserve. A native SOL max amount is re-quoted with the fee and rent withheld.
