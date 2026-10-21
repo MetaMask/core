@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Allow `createSwapComment` to identify an in-flight Hyperliquid order with `tradeInFlight.orderId` (the exchange `oid`) instead of `transactionHash`. `tokenAddress` is the coin, and the response `transactionHash` is empty until the fill is indexed
+- Allow `createSwapComment` to identify an in-flight Hyperliquid order with `tradeInFlight.orderId` (the exchange `oid`) instead of `transactionHash`. `tokenAddress` is the coin, and the response `transactionHash` is empty until the fill is indexed ([#10966](https://github.com/MetaMask/core/pull/10966))
 
 ## [3.9.0]
 
