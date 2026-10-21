@@ -1,11 +1,8 @@
 import { getErrorMessage } from '@metamask/error-utils';
 import type { Struct } from '@metamask/superstruct';
 import { assert as assertSuperstruct } from '@metamask/superstruct';
-import {
-  AssertionError,
-  AssertionErrorConstructor,
-  getAssertionError,
-} from '@metamask/type-utils';
+import type { AssertionErrorConstructor } from '@metamask/type-utils';
+import { AssertionError, getAssertionError } from '@metamask/type-utils';
 
 /**
  * Attempts to obtain the message from a possible error object. If it is
