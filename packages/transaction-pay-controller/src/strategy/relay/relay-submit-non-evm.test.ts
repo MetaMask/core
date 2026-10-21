@@ -329,6 +329,18 @@ describe('submitRelayNonEvmQuote', () => {
     expect(reconcileSolanaPayMock).toHaveBeenCalledTimes(1);
   });
 
+  it('throws if the checkpoint disappeared while waiting for Relay', async () => {
+    waitMock.mockImplementation(async () => {
+      transaction = { ...transaction, metamaskPay: {} };
+      return { status: 'success', targetHash: '0xtarget' };
+    });
+
+    await expect(
+      submitRelayNonEvmQuote({ messenger, quote: getQuote(), transaction }),
+    ).rejects.toThrow('Solana execution missing');
+    expect(reconcileSolanaPayMock).not.toHaveBeenCalled();
+  });
+
   it('records an included atomic product action for a Perps or Predict deposit', async () => {
     const quote = getQuote();
     quote.original.request.txs = [{ data: '0x1234', to: FROM, value: '0x0' }];
