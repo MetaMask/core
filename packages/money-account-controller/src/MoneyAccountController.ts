@@ -34,24 +34,11 @@ export const controllerName = 'MoneyAccountController';
 
 /**
  * Parameters for creating a money account.
- *
- * - `{ type: 'mnemonic' }`: create the SFA account backed by the `MoneyKeyring`
- * for the given entropy source, defaulting to the primary HD keyring's entropy
- * source when omitted.
- * - `{ type: 'mpc' }`: create the MFA account backed by the MPC Money keyring,
- * which is registered if it does not exist yet (it requires no parameters —
- * the constructor parameters are captured by the keyring builder that the
- * client registers). When the keyring has no account yet, the MPC setup is
- * triggered to create it, inferring the mode from the backend: import when
- * the profile already has a key share or backup, create otherwise. This may
- * require interactive authentication via the client-captured callbacks and
- * can be long-running.
  */
 export type CreateMoneyAccountParams =
   | {
       /**
-       * The kind of money account to create
-       * (`KeyringAccountEntropyTypeOption.Mnemonic`).
+       * The kind of money account to create.
        */
       type: `${KeyringAccountEntropyTypeOption.Mnemonic}`;
 
@@ -63,20 +50,13 @@ export type CreateMoneyAccountParams =
     }
   | {
       /**
-       * The kind of money account to create
-       * (`KeyringAccountEntropyTypeOption.Mpc`).
+       * The kind of money account to create.
        */
       type: `${KeyringAccountEntropyTypeOption.Mpc}`;
     };
 
 /**
  * Selector for getting a money account.
- *
- * - `{ id }`: look up the account by its id.
- * - `{ type: 'mpc' }`: look up the MPC-backed account (MFA).
- * - `{ type: 'mnemonic', entropySource? }`: look up the `MoneyKeyring` account
- * (SFA) for that entropy source, defaulting to the primary HD keyring's
- * entropy source when omitted.
  */
 export type GetMoneyAccountSelector =
   | {
@@ -87,8 +67,7 @@ export type GetMoneyAccountSelector =
     }
   | {
       /**
-       * The kind of money account to look up
-       * (`KeyringAccountEntropyTypeOption.Mnemonic`).
+       * The kind of money account to look up.
        */
       type: `${KeyringAccountEntropyTypeOption.Mnemonic}`;
 
@@ -100,8 +79,7 @@ export type GetMoneyAccountSelector =
     }
   | {
       /**
-       * The kind of money account to look up
-       * (`KeyringAccountEntropyTypeOption.Mpc`).
+       * The kind of money account to look up.
        */
       type: `${KeyringAccountEntropyTypeOption.Mpc}`;
     };
@@ -144,8 +122,7 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
- * The signing methods supported by SFA (mnemonic-backed) money accounts. MPC
- * money accounts reuse the methods reported by the MPC Money keyring.
+ * The signing methods supported by SFA (mnemonic-backed) money accounts.
  */
 const MONEY_ACCOUNT_METHODS = [
   EthMethod.PersonalSign,
@@ -238,9 +215,7 @@ export class MoneyAccountController extends BaseController<
         entropySource: primaryEntropySource,
       });
 
-      // Safety net: if no default money account is set — e.g. a wallet that
-      // predates `defaultMoneyAccountId` and whose migration has not run —
-      // the primary entropy source's money account (SFA) becomes the default.
+      // Safety net for wallets predating `defaultMoneyAccountId`.
       if (this.state.defaultMoneyAccountId === null) {
         this.setDefaultMoneyAccount(id);
       }
@@ -261,22 +236,8 @@ export class MoneyAccountController extends BaseController<
    * Creates a money account. If an account already exists for the given
    * source, it is returned as-is (idempotent).
    *
-   * The parameters determine the backing keyring:
-   * - `{ type: 'mpc' }`: the MPC Money keyring (MFA account), which is
-   * registered if it does not exist yet (its constructor parameters are
-   * captured by the keyring builder that the client registers). When the
-   * keyring has no account yet, the MPC setup is triggered to create it,
-   * inferring the mode from the backend — import when the profile already
-   * has a key share or backup, create otherwise — which may require
-   * interactive authentication via the client-captured callbacks and can be
-   * long-running.
-   * - `{ type: 'mnemonic', entropySource? }`: the `MoneyKeyring` for that
-   * entropy source (SFA account), defaulting to the primary HD keyring's
-   * entropy source, which is created if it does not exist yet.
-   *
-   * NOTE: Both paths use the V2 keyring wrappers, so V2 builders must be
-   * registered with the `KeyringController` for the `Money Keyring` and
-   * `MPC Money Keyring` keyring types.
+   * NOTE: Creating an MPC-backed account may trigger the MPC setup, which can
+   * be long-running and require interactive authentication.
    *
    * @param params - The parameters for creating the money account.
    * @returns The money account.
@@ -339,9 +300,6 @@ export class MoneyAccountController extends BaseController<
    * default one when no selector is provided.
    *
    * @param selector - Selector for getting the money account.
-   * @param selector.id - The account id to look up.
-   * @param selector.type - The kind of account to look up: `'mpc'` for the MPC-backed account (MFA), or `'mnemonic'` with an optional `entropySource` for the `MoneyKeyring` account (SFA).
-   * @param selector.entropySource - The entropy source ID of the SRP-backed account to look up. Defaults to the primary HD keyring's entropy source.
    * @returns The money account, or `undefined` if none matches.
    */
   getMoneyAccount(
@@ -372,8 +330,7 @@ export class MoneyAccountController extends BaseController<
    * Resets the controller state to its default, removing all money accounts.
    *
    * Intended for use during a full app reset (e.g. when the user wipes all
-   * wallet data). Does not interact with the keyring — the caller is
-   * responsible for ensuring the associated keyring state is also cleared.
+   * wallet data). Does not interact with the keyring.
    */
   clearState(): void {
     this.update((state) => {
@@ -384,10 +341,6 @@ export class MoneyAccountController extends BaseController<
 
   /**
    * Creates or reuses a `MoneyKeyring` account for the given entropy source.
-   *
-   * The account object is constructed by this controller — rather than reused
-   * from the keyring's account — so that the persisted SFA account shape is
-   * guaranteed to be unchanged from previous versions.
    *
    * @param entropySource - The entropy source ID to create the money account for.
    * @returns The money account.
@@ -411,9 +364,8 @@ export class MoneyAccountController extends BaseController<
       throw new Error('Money Keyring account creation failed');
     }
 
-    // NOTE: The account object is constructed here rather than reused from the
-    // keyring's account, to guarantee that the persisted SFA account shape is
-    // unchanged from previous versions.
+    // The account object is constructed here (not reused from the keyring's
+    // account) to keep the persisted SFA account shape unchanged.
     return this.#createKeyringAccount({
       address: createdAccount.address as Hex,
       entropy: {
@@ -426,22 +378,9 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Creates the money account backed by the MPC Money keyring, reusing the
-   * account already managed by the keyring, or triggering the MPC setup to
-   * create it when the keyring has no account yet.
-   *
-   * The keyring itself is registered by `#ensureMpcMoneyKeyring` if it does
-   * not exist (it requires no parameters — the constructor parameters are
-   * captured by the keyring builder that the client registers). Its setup —
-   * which creates the account — infers the mode from the backend when no
-   * account exists yet: import when the profile already has a key share or
-   * backup, create otherwise. The setup may require interactive
-   * authentication via the client-captured callbacks and can be
-   * long-running.
-   *
-   * The operation is typed against the V2 `MpcMoneyKeyring` wrapper from
-   * `@metamask/eth-money-mpc-keyring/v2`, enforcing that wrapper's own
-   * account-creation options and return types.
+   * Creates the money account backed by the MPC Money keyring, registering the
+   * keyring if needed and triggering the MPC setup when it has no account
+   * yet.
    *
    * @returns The money account.
    */
@@ -470,12 +409,8 @@ export class MoneyAccountController extends BaseController<
    * Builds the SFA account for the given address and entropy options, stores
    * it in state, and returns it.
    *
-   * The account object is constructed by this controller — rather than reused
-   * from the keyring's account — so that the persisted account shape is
-   * guaranteed to be unchanged from previous versions.
-   *
    * @param params - The parameters for creating the account.
-   * @param params.address - The account address, as reported by the keyring.
+   * @param params.address - The account address.
    * @param params.entropy - The entropy options of the backing keyring.
    * @returns The money account.
    */
@@ -504,9 +439,8 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Returns `true` if the given keyring account is a valid MPC money account,
-   * as expected from an MPC Money keyring account: MPC entropy options, and
-   * non-exportable.
+   * Returns `true` if the given keyring account is a valid MPC money account
+   * (MPC entropy options, and non-exportable).
    *
    * @param account - The keyring account to check.
    * @returns Whether the account is a valid MPC money account.
@@ -522,13 +456,7 @@ export class MoneyAccountController extends BaseController<
    * Stores the given money account in state and returns it as-is. If no
    * default account is set, the new account becomes the default.
    *
-   * The account is the one reported by the backing keyring, reused as-is:
-   * identity (`id`, `type`, `address`, `scopes`), entropy options, methods,
-   * and non-exportability (`exportable: false`). The account ID is
-   * deterministic based on the account address, so it is stable across
-   * sessions and clients.
-   *
-   * @param account - The money account as reported by the backing keyring.
+   * @param account - The money account to store.
    * @returns The money account.
    */
   #persistMoneyAccount(account: MoneyAccount): MoneyAccount {
@@ -585,12 +513,8 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Ensures a `MoneyKeyring` exists for the given entropy source, creating one
-   * atomically if it does not, and returns its keyring ID.
-   *
-   * The check-or-create is performed within a single
-   * `KeyringController:withController` transaction, which is mutually
-   * exclusive and rolls back on error.
+   * Ensures a `MoneyKeyring` exists for the given entropy source, creating
+   * one atomically if needed, and returns its keyring ID.
    *
    * @param entropySource - The entropy source ID identifying the target keyring.
    * @returns The keyring ID of the existing or newly created keyring.
@@ -622,18 +546,9 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Ensures the MPC Money keyring exists, registering one atomically if it
-   * does not, and returns its keyring ID.
-   *
-   * Registering the keyring requires no parameters: the constructor
-   * parameters are captured by the keyring builder that the client registers
-   * with the keyring controller. Registering never runs the MPC setup; the
-   * setup — which creates the keyring's account — is only triggered
-   * explicitly through account creation.
-   *
-   * The check-or-create is performed within a single
-   * `KeyringController:withController` transaction, which is mutually
-   * exclusive and rolls back on error.
+   * Ensures the MPC Money keyring exists, registering one atomically if
+   * needed, and returns its keyring ID. Registering never runs the MPC
+   * setup; the setup is only triggered through account creation.
    *
    * @returns The keyring ID of the existing or newly created keyring.
    */
@@ -666,15 +581,8 @@ export class MoneyAccountController extends BaseController<
    * Calls `KeyringController:withKeyringV2` for the V2 keyring with the given
    * ID.
    *
-   * The type of the resolved keyring can be narrowed to the concrete V2
-   * wrapper class of the keyring being queried (e.g. the V2 `MpcMoneyKeyring`
-   * from `@metamask/eth-money-mpc-keyring/v2`), which enforces that wrapper's
-   * own account-creation options and return types at compile time.
-   *
-   * NOTE: A V2 builder must be registered with the `KeyringController` for
-   * the keyring's type, otherwise this throws.
-   *
-   * @template SelectedKeyring - The type of the resolved V2 keyring.
+   * @template SelectedKeyring - The type of the resolved V2 keyring, which
+   * can narrow the keyring to a concrete V2 wrapper class.
    * @param id - The keyring metadata ID.
    * @param operation - Callback invoked with the resolved V2 keyring.
    * @returns The value returned by `operation`.
