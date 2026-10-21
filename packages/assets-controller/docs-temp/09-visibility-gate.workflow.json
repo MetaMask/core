@@ -1,0 +1,267 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Read Path \u2014 Why A Stored Token Is Not Shown",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "gates",
+        "label": "The four read gates",
+        "focus": ["has_bal", "has_meta", "not_hidden", "chain_ok"],
+        "note": "Every gate is re-evaluated per asset on every read, and none of them writes anything back."
+      },
+      {
+        "id": "incomplete",
+        "label": "Waiting on data",
+        "focus": ["has_bal", "has_meta", "incomplete"],
+        "note": "A balance with no metadata has no symbol or decimals to render, so it waits for enrichment to catch up."
+      },
+      {
+        "id": "hidden",
+        "label": "The gate the user controls",
+        "focus": ["not_hidden", "withheld"],
+        "note": "hideAsset only sets a preference, so the balance keeps refreshing while the row is gone."
+      },
+      {
+        "id": "scope",
+        "label": "Scope, not spam",
+        "focus": ["chain_ok", "withheld", "visible"],
+        "note": "Disabled networks and chains with no native token drop rows the caller never asked for."
+      }
+    ],
+    "legend": {
+      "entries": {
+        "database": {
+          "label": "State"
+        },
+        "backend": {
+          "label": "Read gate"
+        },
+        "frontend": {
+          "label": "Returned to the caller"
+        },
+        "security": {
+          "label": "Not returned"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "shown",
+      "label": "Returned by a read"
+    },
+    {
+      "id": "held",
+      "label": "Kept in state, not returned",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "source",
+      "label": "What is stored",
+      "fromCol": 0,
+      "toCol": 0
+    },
+    {
+      "id": "gate",
+      "label": "Four gates, every read",
+      "fromCol": 1,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "out",
+      "label": "What the caller sees",
+      "fromCol": 5,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "stored",
+    "has_bal",
+    "has_meta",
+    "not_hidden",
+    "chain_ok",
+    "visible"
+  ],
+  "semanticChecks": {
+    "allowedRoots": ["stored"],
+    "allowedTerminals": ["visible", "incomplete", "withheld"]
+  },
+  "nodes": [
+    {
+      "id": "stored",
+      "lane": "shown",
+      "col": 0,
+      "type": "database",
+      "label": "Asset in state",
+      "sublabel": "survived every filter",
+      "width": 136
+    },
+    {
+      "id": "has_bal",
+      "lane": "shown",
+      "col": 1,
+      "type": "backend",
+      "label": "Has a balance",
+      "sublabel": "assetsBalance",
+      "width": 136
+    },
+    {
+      "id": "has_meta",
+      "lane": "shown",
+      "col": 2,
+      "type": "backend",
+      "label": "Has metadata",
+      "sublabel": "assetsInfo",
+      "width": 136
+    },
+    {
+      "id": "not_hidden",
+      "lane": "shown",
+      "col": 3,
+      "type": "backend",
+      "label": "Not hidden",
+      "sublabel": "assetPreferences",
+      "width": 136
+    },
+    {
+      "id": "chain_ok",
+      "lane": "shown",
+      "col": 4,
+      "type": "backend",
+      "label": "Chain in scope",
+      "sublabel": "enabled, has native",
+      "width": 136
+    },
+    {
+      "id": "visible",
+      "lane": "shown",
+      "col": 5,
+      "type": "frontend",
+      "label": "Rendered",
+      "sublabel": "balance and fiat",
+      "width": 136
+    },
+    {
+      "id": "incomplete",
+      "lane": "held",
+      "col": 2,
+      "type": "security",
+      "label": "Not renderable",
+      "sublabel": "waiting on data",
+      "width": 136
+    },
+    {
+      "id": "withheld",
+      "lane": "held",
+      "col": 5,
+      "type": "security",
+      "label": "Withheld",
+      "sublabel": "still tracked and fetched",
+      "width": 136
+    }
+  ],
+  "edges": [
+    {
+      "id": "s-1",
+      "from": "stored",
+      "to": "has_bal",
+      "label": "per asset",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "s-2",
+      "from": "has_bal",
+      "to": "has_meta",
+      "label": "yes",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "s-3",
+      "from": "has_meta",
+      "to": "not_hidden",
+      "label": "yes",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "s-4",
+      "from": "not_hidden",
+      "to": "chain_ok",
+      "label": "yes",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "s-5",
+      "from": "chain_ok",
+      "to": "visible",
+      "label": "yes",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "b-1",
+      "from": "has_bal",
+      "to": "incomplete",
+      "label": "no balance",
+      "role": "error"
+    },
+    {
+      "id": "b-2",
+      "from": "has_meta",
+      "to": "incomplete",
+      "label": "no metadata",
+      "role": "error"
+    },
+    {
+      "id": "b-3",
+      "from": "not_hidden",
+      "to": "withheld",
+      "label": "user hid it",
+      "role": "error"
+    },
+    {
+      "id": "b-4",
+      "from": "chain_ok",
+      "to": "withheld",
+      "label": "out of scope",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "A read filter is not a spam filter",
+      "items": [
+        "Nothing here deletes anything; the asset stays in state and keeps refreshing",
+        "Spam filtering decides what is written, these gates decide what is returned",
+        "So a row can disappear from the UI while its balance is still being polled"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "What each gate actually reads",
+      "items": [
+        "Balance and metadata must both exist, or there is no symbol or decimals to show",
+        "hideAsset writes assetPreferences.hidden; re-adding the asset as custom clears it",
+        "Chain scope covers disabled networks and chains that have no native token at all"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Callers can narrow it further",
+      "items": [
+        "getAccountAssets takes optional chain and asset-type filters on top of the gates",
+        "Those are per-call and never persisted, unlike the hidden preference",
+        "Aggregate balance selectors apply the same hidden and enabled-network rules"
+      ]
+    }
+  ]
+}
