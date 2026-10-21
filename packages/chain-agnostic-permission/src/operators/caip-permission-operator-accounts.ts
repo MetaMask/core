@@ -108,11 +108,13 @@ export function getEthAccountsForScope(
   >,
   scope: CaipChainId,
 ): Hex[] {
-  const scopeObject =
-    caip25CaveatValue.requiredScopes[scope] ??
-    caip25CaveatValue.optionalScopes[scope] ??
-    {};
-  const accounts = getEthAccountsFromScopes({ [scope]: scopeObject });
+  const { requiredScopes, optionalScopes } = caip25CaveatValue;
+
+  const accounts = [
+    ...getEthAccountsFromScopes({ [scope]: requiredScopes[scope] ?? {} }),
+    ...getEthAccountsFromScopes({ [scope]: optionalScopes[scope] ?? {} }),
+  ];
+
   return getUniqueArrayItems(accounts);
 }
 
