@@ -11,6 +11,7 @@ describe('@metamask/chain-agnostic-permission', () => {
         "getCaipAccountIdsFromCaip25CaveatValue",
         "isInternalAccountInPermittedAccountIds",
         "isCaipAccountIdInPermittedAccountIds",
+        "getEthAccountsForScope",
         "getPermittedEthChainIds",
         "addPermittedEthChainId",
         "setPermittedEthChainIds",

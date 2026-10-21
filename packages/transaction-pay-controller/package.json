@@ -62,7 +62,7 @@
     "@metamask/keyring-controller": "^28.2.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/network-controller": "^37.1.0",
+    "@metamask/network-controller": "^37.1.1",
     "@metamask/ramps-controller": "^27.0.2",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/sentinel-api-service": "^2.1.0",

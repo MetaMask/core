@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
 ### Changed
 
 - **BREAKING:** `createWalletMiddleware` now requires a `getNetworkClientById` hook ([#10912](https://github.com/MetaMask/core/pull/10912))
@@ -152,7 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
     for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@25.0.0...@metamask/eth-json-rpc-middleware@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.2...@metamask/eth-json-rpc-middleware@25.0.0
 [24.0.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.1...@metamask/eth-json-rpc-middleware@24.0.2
 [24.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.0...@metamask/eth-json-rpc-middleware@24.0.1
