@@ -6,10 +6,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["jest"],
-    "paths": {
-      "@metamask/node-utils": ["./packages/node-utils/src/index.ts"]
-    }
+    "types": ["jest"]
   },
   "references": [
     {

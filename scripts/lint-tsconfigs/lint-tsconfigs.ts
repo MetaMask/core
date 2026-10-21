@@ -1,7 +1,7 @@
+import { hasProperty } from '@metamask/type-utils';
 import fs from 'fs';
 import path from 'path';
 
-import { hasProperty } from '../lib/utils.ts';
 import { lintPackageTsconfigs } from './lint-package-tsconfigs.ts';
 import { lintRootTsconfigs } from './lint-root-tsconfigs.ts';
 import { readPackageManifest } from './utils.ts';
