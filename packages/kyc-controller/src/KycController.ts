@@ -25,10 +25,6 @@ import type {
   EncryptionSchema,
 } from './KycService.js';
 import {
-  getEmailFromPartnerIdentityToken,
-  isEmailRequiredError,
-} from './partnerIdentityToken.js';
-import {
   isSumSubFlowCompleted,
   isSumSubFlowFailed,
 } from './providers/sumsub.js';
@@ -100,9 +96,6 @@ const SESSION_STATUS_POLL_INTERVAL_MS = 10_000;
  * Describes the shape of the state object for {@link KycController}.
  */
 export type KycControllerState = {
-  /** Email associated with the session (sourced from the account). */
-  email: string | null;
-
   vendor: KycVendor | null;
 
   /** Resolved ISO 3166-1 alpha-3 country code. */
@@ -146,12 +139,6 @@ export type KycControllerState = {
 };
 
 const kycControllerMetadata = {
-  email: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: true,
-    usedInUi: false,
-  },
   vendor: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -227,7 +214,6 @@ export function getDefaultKycProviderDisclaimersAccepted(): KycProviderDisclaime
  */
 export function getDefaultKycControllerState(): KycControllerState {
   return {
-    email: null,
     vendor: null,
     geoCountry: null,
     sessionStatus: null,
@@ -429,18 +415,6 @@ export class KycController extends BaseController<
     vendor: KycVendor;
     aal2Token?: string;
   }): Promise<KycSessionStatus> {
-    const partnerIdentity = await this.#getPartnerIdentityForVendor(
-      params.vendor,
-    );
-    const email = partnerIdentity?.email ?? this.state.email;
-    if (!email) {
-      throw new Error('KycController missing verified email for vendor');
-    }
-    if (this.state.email !== null && this.state.email !== email) {
-      throw new Error(
-        'KycController already initialized with a different email',
-      );
-    }
     if (this.state.vendor !== null && this.state.vendor !== params.vendor) {
       throw new Error(
         'KycController already initialized with a different vendor',
@@ -457,15 +431,6 @@ export class KycController extends BaseController<
       );
     }
 
-    this.update((state) => {
-      state.email = email;
-      state.vendor = params.vendor;
-      state.geoCountry = geoCountry;
-      if (state.sessionStatus === null) {
-        state.providerFlowStatus = 'not_started';
-      }
-    });
-
     if (this.state.sessionStatus === null) {
       const sessionStatus = await this.messenger.call(
         'KycService:getSessionStatusForVendor',
@@ -473,6 +438,9 @@ export class KycController extends BaseController<
       );
       if (sessionStatus !== null) {
         this.update((state) => {
+          state.vendor = params.vendor;
+          state.geoCountry = geoCountry;
+          state.providerFlowStatus = 'not_started';
           state.sessionStatus = sessionStatus;
         });
         return this.#refreshAuthorizationsIfNeeded();
@@ -530,7 +498,6 @@ export class KycController extends BaseController<
   clearState(): void {
     this.#stopSessionStatusPolling();
     this.update((state) => {
-      state.email = null;
       state.vendor = null;
       state.geoCountry = null;
       state.sessionStatus = null;
@@ -1040,10 +1007,6 @@ export class KycController extends BaseController<
   }): Promise<KycVendorSigning[]> {
     if (!this.state.vendor) {
       throw new Error('No vendor was found');
-    }
-
-    if (!this.state.email) {
-      throw new Error('No email was found');
     }
 
     const { vendor } = this.state;
