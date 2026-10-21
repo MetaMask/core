@@ -147,7 +147,7 @@ async function getSingleSolanaQuote(
       quote = await fetchSolanaQuote(
         messenger,
         {
-          ...quoteRequest,
+          ...quote.request,
           amount: getMaxNativeAmountRaw(
             request,
             withheldFeeRaw,

@@ -491,6 +491,29 @@ describe('getRelaySolanaQuotes', () => {
     });
   });
 
+  it('keeps maxRouteLength 4 on the native SOL max re-quote after a SOLANA_TX_TOO_LARGE retry', async () => {
+    fetchRelaySolanaQuoteMock.mockRejectedValueOnce(
+      new RelayApiError('400 - transaction too large', 'SOLANA_TX_TOO_LARGE'),
+    );
+
+    await getRelaySolanaQuotes(
+      getFullRequest([
+        getRequest({
+          isMaxAmount: true,
+          sourceAssetId: SOLANA_NATIVE,
+          sourceBalanceRaw: '100000000',
+          sourceTokenAmount: '100000000',
+        }),
+      ]),
+    );
+
+    expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledTimes(3);
+    expect(fetchRelaySolanaQuoteMock.mock.calls[2][1]).toMatchObject({
+      amount: '99104120',
+      maxRouteLength: 4,
+    });
+  });
+
   it('surfaces a second SOLANA_TX_TOO_LARGE rejection', async () => {
     fetchRelaySolanaQuoteMock.mockRejectedValue(
       new RelayApiError('400 - transaction too large', 'SOLANA_TX_TOO_LARGE'),
