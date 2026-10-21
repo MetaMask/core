@@ -43,7 +43,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/logging-controller',
   '@metamask/message-manager',
   '@metamask/messenger-cli',
-  '@metamask/money-account-controller',
   '@metamask/multichain-api-middleware',
   '@metamask/name-controller',
   '@metamask/network-connection-banner-controller',
