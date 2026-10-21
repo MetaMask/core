@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Submission persists a `metamaskPay.solanaExecution` checkpoint and then makes exactly one Snap `signAndSendTransaction` request. It then notifies Relay, waits for completion and runs the non-atomic second leg from the target transaction account (`txParams.from`, where Relay delivers the funds), and returns an externally handled publish result.
   - Submission rejects a quote whose `quotesLastUpdated` is older than the quote refresh interval plus a 10 second grace period, before persisting the checkpoint or calling the Snap.
   - The publish hook throws `Missing non-EVM quote` when a non-EVM payment token has no executable quote, so it never falls back to EVM publication.
+  - The publish hook throws `Quote does not match payment token` when a quote's source chain (CAIP-2 or Hex) does not match the selected payment token, so stale quotes from a previous payment token never reach the wrong execution path.
   - Add `NonEvmTransactionPayQuote`, `NonEvmQuoteRequest`, `PayStrategyExecuteResult`, `SolanaPayOutcome` and `SolanaPayStatus` types.
   - Add `nonEvmQuotes` to `PayStrategyExecuteRequest`.
 - Add `reconcileSolanaPay` and `recoverSolanaPayStatus` methods and messenger actions ([#10273](https://github.com/MetaMask/core/pull/10273))

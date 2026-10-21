@@ -2,7 +2,7 @@ import type { PublishHook } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { PublishHookResult } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import { createModuleLogger, isCaipChainId } from '@metamask/utils';
 
 import { TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
@@ -81,6 +81,16 @@ export class TransactionPayPublishHook {
       transactionData?.paymentToken &&
       isNonEvmPaymentToken(transactionData.paymentToken),
     );
+    // Quotes are only replaced once new quotes load, so stale quotes for a
+    // previous payment token must never reach the wrong execution path.
+    if (
+      allQuotes.some(
+        (quote) => isCaipChainId(quote.request.sourceChainId) !== isNonEvm,
+      )
+    ) {
+      throw new Error('Quote does not match payment token');
+    }
+
     const nonEvmQuotes = isNonEvm
       ? (allQuotes as NonEvmTransactionPayQuote<unknown>[])
       : [];

@@ -19,6 +19,7 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 const QUOTE_MOCK = {
+  request: { sourceChainId: '0x1' },
   strategy: TransactionPayStrategy.Across,
 } as TransactionPayQuote<unknown>;
 
@@ -129,6 +130,40 @@ describe('TransactionPayPublishHook', () => {
       externallyHandled: true,
       outcome: 'submitted',
     });
+  });
+
+  it('throws if an EVM quote remains after selecting a non-EVM payment token', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          paymentToken: NON_EVM_PAYMENT_TOKEN_MOCK,
+          quotes: [QUOTE_MOCK],
+        },
+      },
+    });
+
+    await expect(runHook()).rejects.toThrow(
+      'MetaMask Pay: Quote does not match payment token',
+    );
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(updateTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it('throws if a non-EVM quote remains after selecting an EVM payment token', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          paymentToken: { address: '0x123', chainId: '0x1' },
+          quotes: [NON_EVM_QUOTE_MOCK],
+        },
+      },
+    });
+
+    await expect(runHook()).rejects.toThrow(
+      'MetaMask Pay: Quote does not match payment token',
+    );
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(updateTransactionMock).not.toHaveBeenCalled();
   });
 
   it('does not pass nonEvmQuotes for an EVM payment token', async () => {
