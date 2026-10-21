@@ -2778,11 +2778,6 @@
       "count": 3
     }
   },
-  "packages/kyc-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/kyc-controller/scripts/mint-ukyc-test-token.ts": {
     "n/prefer-global/process": {
       "count": 1
@@ -2794,14 +2789,14 @@
   "packages/kyc-controller/src/KycController.test.ts": {
     "no-unused-vars": {
       "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 2
     }
   },
   "packages/kyc-controller/src/KycService.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 10
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 14
     }
   },
   "packages/kyc-controller/src/ukyc/localUserSecret.test.ts": {
