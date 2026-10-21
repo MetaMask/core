@@ -3,6 +3,8 @@ import { JsonRpcError, providerErrors } from '@metamask/rpc-errors';
 import type { StructError } from '@metamask/superstruct';
 import { any, validate } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockedFunction } from 'vitest';
 
 import { EIP5792ErrorCode } from './constants.js';
 import type { EIP5792Messenger } from './types.js';
@@ -12,21 +14,21 @@ import {
   validateParams,
 } from './utils.js';
 
-jest.mock('@metamask/superstruct', () => ({
-  ...jest.requireActual('@metamask/superstruct'),
-  validate: jest.fn(),
+vi.mock(import('@metamask/superstruct'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  validate: vi.fn(),
 }));
 
 describe('getAccountKeyringType', () => {
   const mockMessenger = {
-    call: jest.fn(),
+    call: vi.fn(),
   } as unknown as EIP5792Messenger;
 
   const mockAccountAddress =
     '0x1234567890123456789012345678901234567890' as Hex;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('when account is found with valid keyring type', () => {
@@ -42,7 +44,7 @@ describe('getAccountKeyringType', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockReturnValue({
+      (mockMessenger.call as Mock).mockReturnValue({
         internalAccounts: {
           accounts: mockAccounts,
         },
@@ -68,7 +70,7 @@ describe('getAccountKeyringType', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockReturnValue({
+      (mockMessenger.call as Mock).mockReturnValue({
         internalAccounts: {
           accounts: mockAccounts,
         },
@@ -91,7 +93,7 @@ describe('getAccountKeyringType', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockReturnValue({
+      (mockMessenger.call as Mock).mockReturnValue({
         internalAccounts: {
           accounts: mockAccounts,
         },
@@ -132,7 +134,7 @@ describe('getAccountKeyringType', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockReturnValue({
+      (mockMessenger.call as Mock).mockReturnValue({
         internalAccounts: {
           accounts: mockAccounts,
         },
@@ -157,7 +159,7 @@ describe('getAccountKeyringType', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockReturnValue({
+      (mockMessenger.call as Mock).mockReturnValue({
         internalAccounts: {
           accounts: mockAccounts,
         },
@@ -173,7 +175,7 @@ describe('getAccountKeyringType', () => {
     });
 
     it('should throw JsonRpcError with RejectedUpgrade code when accounts object is empty', () => {
-      (mockMessenger.call as jest.Mock).mockReturnValue({
+      (mockMessenger.call as Mock).mockReturnValue({
         internalAccounts: {
           accounts: {},
         },
@@ -197,7 +199,7 @@ describe('getAccountKeyringType', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockReturnValue({
+      (mockMessenger.call as Mock).mockReturnValue({
         internalAccounts: {
           accounts: mockAccounts,
         },
@@ -220,7 +222,7 @@ describe('getAccountKeyringType', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockReturnValue({
+      (mockMessenger.call as Mock).mockReturnValue({
         internalAccounts: {
           accounts: mockAccounts,
         },
@@ -245,7 +247,7 @@ describe('getAccountKeyringType', () => {
         },
       };
 
-      (mockMessenger.call as jest.Mock).mockReturnValue({
+      (mockMessenger.call as Mock).mockReturnValue({
         internalAccounts: {
           accounts: mockAccounts,
         },
@@ -263,7 +265,7 @@ describe('getAccountKeyringType', () => {
 
   describe('error handling', () => {
     it('should throw JsonRpcError with correct error code', () => {
-      (mockMessenger.call as jest.Mock).mockReturnValue({
+      (mockMessenger.call as Mock).mockReturnValue({
         internalAccounts: {
           accounts: {},
         },
@@ -283,7 +285,7 @@ describe('getAccountKeyringType', () => {
     });
 
     it('should throw JsonRpcError with correct error message', () => {
-      (mockMessenger.call as jest.Mock).mockReturnValue({
+      (mockMessenger.call as Mock).mockReturnValue({
         internalAccounts: {
           accounts: {},
         },
@@ -307,12 +309,14 @@ describe('getAccountKeyringType', () => {
 describe('validateAndNormalizeKeyholder', () => {
   const ADDRESS_MOCK = '0xABCDabcdABCDabcdABCDabcdABCDabcdABCDabcd';
 
-  let getPermittedAccountsForOriginMock: jest.MockedFn<() => Promise<string[]>>;
+  let getPermittedAccountsForOriginMock: MockedFunction<
+    () => Promise<string[]>
+  >;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
-    getPermittedAccountsForOriginMock = jest
+    getPermittedAccountsForOriginMock = vi
       .fn()
       .mockResolvedValue([ADDRESS_MOCK]);
   });
@@ -361,7 +365,7 @@ describe('validateAndNormalizeKeyholder', () => {
 });
 
 describe('validateParams', () => {
-  const validateMock = jest.mocked(validate);
+  const validateMock = vi.mocked(validate);
   const STRUCT_ERROR_MOCK = {
     failures: () => [
       {
@@ -384,10 +388,10 @@ describe('validateParams', () => {
     validateMock.mockReturnValue([STRUCT_ERROR_MOCK, undefined]);
 
     expect(() => validateParams({}, any())).toThrowErrorMatchingInlineSnapshot(`
-        "Invalid params
+      [Error: Invalid params
 
-        test1 > test2 - test message
-        test3 - test message 2"
-      `);
+      test1 > test2 - test message
+      test3 - test message 2]
+    `);
   });
 });
