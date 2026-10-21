@@ -140,8 +140,13 @@ export type TransactionPayControllerPolymarketSubmitDepositWalletBatchAction = {
 /**
  * Observes a Solana Pay execution through Relay status and finalizes the
  * externally published target transaction once the outcome is terminal.
+ * While Relay has not observed the source transaction, its on-chain status
+ * is read once from the Solana RPC to detect a failed or expired source.
+ * Once Relay delivered the funds of a Money Account deposit, the non-atomic
+ * second leg runs once, guarded by the follow-up checkpoint.
  *
- * This method never signs, broadcasts, or notifies Relay.
+ * This method never signs or broadcasts the Solana source transaction, and
+ * never notifies Relay.
  *
  * @param transactionId - Target transaction ID.
  * @returns The latest observed status.
