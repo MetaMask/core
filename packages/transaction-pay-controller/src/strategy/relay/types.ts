@@ -314,7 +314,12 @@ export type RelaySolanaQuoteMetamask = {
   /** Network fee of the compiled transaction in lamports. */
   feeRaw: string;
 
-  /** Last block height at which the quoted blockhash is valid. */
+  /**
+   * Last block height at which the quote-time blockhash is valid.
+   *
+   * Diagnostic only: submission always recompiles with a fresh blockhash and
+   * persists that `lastValidBlockHeight` on the Solana execution checkpoint.
+   */
   lastValidBlockHeight: number;
 
   /** Rent-exempt reserve kept in the source account, in lamports. */
