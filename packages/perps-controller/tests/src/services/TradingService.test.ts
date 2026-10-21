@@ -169,9 +169,9 @@ describe('TradingService', () => {
       const aggregatedProvider = {
         ...mockProvider,
         protocolId: 'aggregated',
-        getWriteProviderId: jest.fn(() => 'hyperliquid' as const),
-        setUserFeeResolution: jest.fn(),
-      } as unknown as jest.Mocked<PerpsProvider>;
+        getWriteProviderId: vi.fn(() => 'hyperliquid' as const),
+        setUserFeeResolution: vi.fn(),
+      } as unknown as Mocked<PerpsProvider>;
       mockRewardsIntegrationService.resolveFee.mockResolvedValue(resolution);
       aggregatedProvider.placeOrder.mockImplementation(async () => {
         expect(
@@ -549,9 +549,9 @@ describe('TradingService', () => {
     });
 
     it('resolves a queued order fee only after an earlier order releases the fee context', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const now = new Date('2026-10-21T12:00:00.000Z');
-      jest.setSystemTime(now);
+      vi.setSystemTime(now);
       const grantExpiresAt = now.getTime() + 1_000;
       const defaultResolution = defaultFeeResolution;
       const grantResolution: PerpsFeeResolution = {
@@ -573,7 +573,7 @@ describe('TradingService', () => {
         );
 
       let activeResolution: PerpsFeeResolution | undefined;
-      mockProvider.setUserFeeResolution = jest.fn((resolution) => {
+      mockProvider.setUserFeeResolution = vi.fn((resolution) => {
         activeResolution = resolution;
       });
       const releaseFirst = createDeferred<void>();
@@ -614,7 +614,7 @@ describe('TradingService', () => {
           reportOrderToDataLake: mockReportOrderToDataLake,
         });
 
-        jest.setSystemTime(grantExpiresAt);
+        vi.setSystemTime(grantExpiresAt);
         releaseFirst.resolve();
         await Promise.all([first, second]);
 
@@ -623,7 +623,7 @@ describe('TradingService', () => {
         );
         expect(observed).toStrictEqual([defaultResolution, rewardsResolution]);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -4002,7 +4002,7 @@ describe('TradingService', () => {
       // Aggregated writes fall back to the default provider when placeOrder
       // omits providerId. The grant is already scoped to the position venue,
       // so a non-default flip must carry that same route.
-      mockProvider.getWriteProviderId = jest.fn(
+      mockProvider.getWriteProviderId = vi.fn(
         (providerId?: string) => providerId ?? 'hyperliquid',
       ) as never;
       mockProvider.placeOrder.mockResolvedValue({ success: true });

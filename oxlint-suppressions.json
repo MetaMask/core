@@ -3956,6 +3956,11 @@
       "count": 6
     }
   },
+  "packages/perps-controller/tests/public-api.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    }
+  },
   "packages/perps-controller/tests/src/PerpsController.recovery-context.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 7
@@ -4056,7 +4061,7 @@
       "count": 1
     },
     "vitest/no-conditional-in-test": {
-      "count": 4
+      "count": 6
     }
   },
   "packages/perps-controller/tests/src/utils/coalescePerpsRestRequest.test.ts": {
@@ -6206,11 +6211,6 @@
       "count": 1
     }
   },
-  "packages/watch-only-account-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/wallet-cli/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -6379,6 +6379,11 @@
   },
   "packages/wallet/src/initialization/instances/keyring-controller/keyring-controller.test.ts": {
     "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "packages/watch-only-account-service/jest.config.cjs": {
+    "import/unambiguous": {
       "count": 1
     }
   },

@@ -346,10 +346,10 @@ describe('RewardsIntegrationService', () => {
       return getPerpsBenefits;
     };
 
-    const wireGrant = (getPerpsTradingFeeGrant: jest.Mock) => {
+    const wireGrant = (getPerpsTradingFeeGrant: Mock) => {
       (
         mockDeps.rewards as unknown as {
-          getPerpsTradingFeeGrant?: jest.Mock;
+          getPerpsTradingFeeGrant?: Mock;
         }
       ).getPerpsTradingFeeGrant = getPerpsTradingFeeGrant;
       return getPerpsTradingFeeGrant;
@@ -422,11 +422,11 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('passes the requested scope and uses a matching grant', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(null);
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        null,
+      );
       const getGrant = wireGrant(
-        jest.fn().mockResolvedValue(createGrant({ feeBips: 3 })),
+        vi.fn().mockResolvedValue(createGrant({ feeBips: 3 })),
       );
 
       await expect(
@@ -440,15 +440,15 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('supports matching candidates for provider routes other than Hyperliquid', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(null);
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        null,
+      );
       const lighterMainnetScope = {
         providerId: 'lighter',
         isTestnet: false,
       } as const;
       const getGrant = wireGrant(
-        jest.fn().mockResolvedValue(
+        vi.fn().mockResolvedValue(
           createGrant({
             ...lighterMainnetScope,
             feeBips: 2,
@@ -466,11 +466,11 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('fails closed without calling the grant dependency when scope is omitted', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(null);
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        null,
+      );
       const getGrant = wireGrant(
-        jest.fn().mockResolvedValue(createGrant({ feeBips: 2 })),
+        vi.fn().mockResolvedValue(createGrant({ feeBips: 2 })),
       );
 
       await expect(service.resolveFee()).resolves.toMatchObject({
@@ -492,11 +492,11 @@ describe('RewardsIntegrationService', () => {
     ])(
       'rejects a candidate with a mismatched $label scope',
       async ({ candidateScope }) => {
-        (
-          mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-        ).mockResolvedValue(null);
+        (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+          null,
+        );
         const getGrant = wireGrant(
-          jest.fn().mockResolvedValue(
+          vi.fn().mockResolvedValue(
             createGrant({
               ...candidateScope,
               feeBips: 2,
@@ -515,11 +515,11 @@ describe('RewardsIntegrationService', () => {
     );
 
     it('keeps calculateUserFeeDiscount grant-free unless scope is explicit', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(null);
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        null,
+      );
       const getGrant = wireGrant(
-        jest.fn().mockResolvedValue(createGrant({ feeBips: 2 })),
+        vi.fn().mockResolvedValue(createGrant({ feeBips: 2 })),
       );
 
       await expect(service.calculateUserFeeDiscount()).resolves.toBeUndefined();
@@ -532,9 +532,9 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('preserves VIP-only behavior when the optional grant method is absent', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(6500);
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        6500,
+      );
       delete (
         mockDeps.rewards as {
           getPerpsTradingFeeGrant?: unknown;
@@ -561,11 +561,11 @@ describe('RewardsIntegrationService', () => {
     ])(
       'selects $source when VIP and grant are both available',
       async ({ vipDiscountBips, grantFeeBips, source, feeBips }) => {
-        (
-          mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-        ).mockResolvedValue(vipDiscountBips);
+        (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+          vipDiscountBips,
+        );
         wireGrant(
-          jest.fn().mockResolvedValue(createGrant({ feeBips: grantFeeBips })),
+          vi.fn().mockResolvedValue(createGrant({ feeBips: grantFeeBips })),
         );
 
         await expect(
@@ -578,10 +578,10 @@ describe('RewardsIntegrationService', () => {
     );
 
     it('leaves a quantized VIP/grant tie with rewards', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(6460);
-      wireGrant(jest.fn().mockResolvedValue(createGrant({ feeBips: 3.51 })));
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        6460,
+      );
+      wireGrant(vi.fn().mockResolvedValue(createGrant({ feeBips: 3.51 })));
 
       const resolution = await service.resolveFee(
         undefined,
@@ -595,12 +595,12 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('does not drop a grant tenth because of floating-point error', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(9700);
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        9700,
+      );
       const computedThreeTenths = 0.1 + 0.7 - 0.5;
       wireGrant(
-        jest
+        vi
           .fn()
           .mockResolvedValue(createGrant({ feeBips: computedThreeTenths })),
       );
@@ -616,10 +616,10 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('selects a below-tenth grant over a 0.1-bip rewards fee', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(9900);
-      wireGrant(jest.fn().mockResolvedValue(createGrant({ feeBips: 0.0999 })));
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        9900,
+      );
+      wireGrant(vi.fn().mockResolvedValue(createGrant({ feeBips: 0.0999 })));
 
       const resolution = await service.resolveFee(
         undefined,
@@ -635,11 +635,11 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('keeps a below-tenth grant when subscription ties at zero on the wire', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(null);
-      wireGrant(jest.fn().mockResolvedValue(createGrant({ feeBips: 0.0999 })));
-      wireSubscription(jest.fn().mockResolvedValue(createBenefits()));
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        null,
+      );
+      wireGrant(vi.fn().mockResolvedValue(createGrant({ feeBips: 0.0999 })));
+      wireSubscription(vi.fn().mockResolvedValue(createBenefits()));
       await service.refreshSubscriptionBenefits();
 
       await expect(
@@ -652,10 +652,10 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('uses the default when neither independent rewards source is available', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(null);
-      wireGrant(jest.fn().mockResolvedValue(null));
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        null,
+      );
+      wireGrant(vi.fn().mockResolvedValue(null));
 
       await expect(
         service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
@@ -667,10 +667,10 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('accepts a zero-fee grant', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(6500);
-      wireGrant(jest.fn().mockResolvedValue(createGrant({ feeBips: 0 })));
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        6500,
+      );
+      wireGrant(vi.fn().mockResolvedValue(createGrant({ feeBips: 0 })));
 
       await expect(
         service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
@@ -682,10 +682,10 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('ignores an above-default grant', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(null);
-      wireGrant(jest.fn().mockResolvedValue(createGrant({ feeBips: 11 })));
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        null,
+      );
+      wireGrant(vi.fn().mockResolvedValue(createGrant({ feeBips: 11 })));
 
       expect(
         (await service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE)).source,
@@ -693,13 +693,11 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('ignores expired grants', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(null);
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        null,
+      );
       wireGrant(
-        jest
-          .fn()
-          .mockResolvedValue(createGrant({ feeBips: 0, expiresAt: NOW })),
+        vi.fn().mockResolvedValue(createGrant({ feeBips: 0, expiresAt: NOW })),
       );
 
       expect(
@@ -714,10 +712,10 @@ describe('RewardsIntegrationService', () => {
       { feeBips: 0, expiresAt: Number.NaN },
       { feeBips: 0, expiresAt: Number.POSITIVE_INFINITY },
     ])('ignores a malformed grant %#', async (grant) => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(null);
-      wireGrant(jest.fn().mockResolvedValue(createGrant(grant)));
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        null,
+      );
+      wireGrant(vi.fn().mockResolvedValue(createGrant(grant)));
 
       expect(
         (await service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE)).source,
@@ -725,10 +723,10 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('keeps VIP when grant retrieval fails', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(6500);
-      wireGrant(jest.fn().mockRejectedValue(new Error('Grant unavailable')));
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        6500,
+      );
+      wireGrant(vi.fn().mockRejectedValue(new Error('Grant unavailable')));
 
       await expect(
         service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
@@ -739,10 +737,10 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('keeps grant when VIP retrieval fails', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockRejectedValue(new Error('VIP unavailable'));
-      wireGrant(jest.fn().mockResolvedValue(createGrant({ feeBips: 2 })));
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockRejectedValue(
+        new Error('VIP unavailable'),
+      );
+      wireGrant(vi.fn().mockResolvedValue(createGrant({ feeBips: 2 })));
 
       await expect(
         service.resolveFee(undefined, HYPERLIQUID_MAINNET_SCOPE),
@@ -753,11 +751,11 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('retrieves the grant on every resolution without caching', async () => {
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockResolvedValue(null);
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+        null,
+      );
       const getGrant = wireGrant(
-        jest
+        vi
           .fn()
           .mockResolvedValueOnce(createGrant({ feeBips: 2 }))
           .mockResolvedValueOnce(null)
@@ -780,16 +778,14 @@ describe('RewardsIntegrationService', () => {
 
     it('checks grant expiry after the concurrent VIP request settles', async () => {
       let releaseVip: (value: number | null) => void = () => undefined;
-      (
-        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-      ).mockImplementation(
+      (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockImplementation(
         async () =>
           await new Promise<number | null>((resolve) => {
             releaseVip = resolve;
           }),
       );
       const getGrant = wireGrant(
-        jest
+        vi
           .fn()
           .mockResolvedValue(
             createGrant({ feeBips: 0, expiresAt: NOW + 1_000 }),
@@ -802,7 +798,7 @@ describe('RewardsIntegrationService', () => {
       );
       await Promise.resolve();
       expect(getGrant).toHaveBeenCalledTimes(1);
-      jest.setSystemTime(NOW + 1_000);
+      vi.setSystemTime(NOW + 1_000);
       releaseVip(6500);
 
       await expect(resolution).resolves.toMatchObject({
@@ -819,7 +815,7 @@ describe('RewardsIntegrationService', () => {
         },
       });
       const getGrant = wireGrant(
-        jest.fn().mockResolvedValue(createGrant({ feeBips: 2 })),
+        vi.fn().mockResolvedValue(createGrant({ feeBips: 2 })),
       );
 
       await expect(
@@ -859,14 +855,14 @@ describe('RewardsIntegrationService', () => {
     ])(
       'resolves a $grantFeeBips-bip grant against a subscription covering $remainingNotionalUsd USD to $source',
       async ({ grantFeeBips, remainingNotionalUsd, source, feeBips }) => {
-        (
-          mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
-        ).mockResolvedValue(null);
+        (mockDeps.rewards.getPerpsDiscountForAccount as Mock).mockResolvedValue(
+          null,
+        );
         wireGrant(
-          jest.fn().mockResolvedValue(createGrant({ feeBips: grantFeeBips })),
+          vi.fn().mockResolvedValue(createGrant({ feeBips: grantFeeBips })),
         );
         wireSubscription(
-          jest.fn().mockResolvedValue(createBenefits({ remainingNotionalUsd })),
+          vi.fn().mockResolvedValue(createBenefits({ remainingNotionalUsd })),
         );
         await service.refreshSubscriptionBenefits();
 

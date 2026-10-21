@@ -1905,15 +1905,13 @@ describe('PerpsController', () => {
           reason: 'no-source' as const,
         },
       };
-      const resolveFee = jest
+      const resolveFee = vi
         .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
         .mockResolvedValue(resolution);
-      jest
-        .spyOn(
-          RewardsIntegrationService.prototype,
-          'refreshSubscriptionBenefits',
-        )
-        .mockResolvedValue(undefined);
+      vi.spyOn(
+        RewardsIntegrationService.prototype,
+        'refreshSubscriptionBenefits',
+      ).mockResolvedValue(undefined);
       const fees = { metamaskFeeRate: 0.00035, feeSource: 'rewards' as const };
       mockMarketDataServiceInstance.calculateFees.mockResolvedValue(fees);
       markControllerAsInitialized();
@@ -1932,11 +1930,11 @@ describe('PerpsController', () => {
           }),
         }),
       );
-      jest.resetAllMocks();
+      vi.resetAllMocks();
     });
 
     it('scopes an aggregated fee preview to its concrete write provider', async () => {
-      const resolveFee = jest
+      const resolveFee = vi
         .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
         .mockResolvedValue({
           feeBips: 2,
@@ -1944,12 +1942,10 @@ describe('PerpsController', () => {
           source: 'grant',
           subscription: { eligible: false, reason: 'no-source' },
         });
-      jest
-        .spyOn(
-          RewardsIntegrationService.prototype,
-          'refreshSubscriptionBenefits',
-        )
-        .mockResolvedValue(undefined);
+      vi.spyOn(
+        RewardsIntegrationService.prototype,
+        'refreshSubscriptionBenefits',
+      ).mockResolvedValue(undefined);
       const aggregatedProvider = new AggregatedPerpsProvider({
         providers: new Map([['hyperliquid', mockProvider]]),
         defaultProvider: 'hyperliquid',
@@ -1973,7 +1969,7 @@ describe('PerpsController', () => {
         isTestnet: false,
       });
 
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('resolves the preview fee against the order notional', async () => {
