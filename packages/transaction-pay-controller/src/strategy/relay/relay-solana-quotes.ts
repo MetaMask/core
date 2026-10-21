@@ -130,30 +130,42 @@ async function getSingleSolanaQuote(
   );
 
   // Native SOL max: Relay must never receive a fee-free Max, so re-quote with
-  // the fee and rent reserve withheld from the source amount.
+  // the fee and rent reserve withheld from the source amount. If the re-quoted
+  // transaction costs more, re-quote once more with the higher fee withheld.
   if (
     request.isMaxAmount &&
     isNative &&
     quoteRequest.tradeType === 'EXACT_INPUT'
   ) {
-    const adjustedAmount = new BigNumber(request.sourceBalanceRaw)
-      .minus(feeRaw)
-      .minus(rentReserveRaw);
+    const maxQuoteFeeRaw = feeRaw;
 
-    if (adjustedAmount.lte(0)) {
-      throw new QuoteError({
-        message: 'Insufficient Solana balance for quote',
-        reason: 'insufficient-source-balance',
+    const requoteMax = async (withheldFeeRaw: string): Promise<void> => {
+      quote = await fetchSolanaQuote(
+        messenger,
+        {
+          ...quoteRequest,
+          amount: getMaxNativeAmountRaw(request, withheldFeeRaw, rentReserveRaw),
+        },
+        signal,
+      );
+      compiled = await compileQuote(messenger, request, quote);
+      feeRaw = await computeFee(
+        messenger,
+        request,
+        snapId,
+        compiled.transaction,
+      );
+    };
+
+    await requoteMax(maxQuoteFeeRaw);
+
+    if (new BigNumber(feeRaw).gt(maxQuoteFeeRaw)) {
+      log('Re-quoting Solana max with the higher fee', {
+        feeRaw,
+        maxQuoteFeeRaw,
       });
+      await requoteMax(feeRaw);
     }
-
-    quote = await fetchSolanaQuote(
-      messenger,
-      { ...quoteRequest, amount: adjustedAmount.toFixed(0) },
-      signal,
-    );
-    compiled = await compileQuote(messenger, request, quote);
-    feeRaw = await computeFee(messenger, request, snapId, compiled.transaction);
   }
 
   const sourceAmountRaw = quote.details.currencyIn.amount;
@@ -198,6 +210,33 @@ async function getSingleSolanaQuote(
     request,
     messenger,
   );
+}
+
+/**
+ * Returns the native SOL max amount with the fee and rent reserve withheld.
+ *
+ * @param request - Non-EVM quote request.
+ * @param feeRaw - Network fee to withhold, in lamports.
+ * @param rentReserveRaw - Rent-exempt reserve to withhold, in lamports.
+ * @returns The source amount in lamports.
+ */
+function getMaxNativeAmountRaw(
+  request: NonEvmQuoteRequest,
+  feeRaw: string,
+  rentReserveRaw: string,
+): string {
+  const amount = new BigNumber(request.sourceBalanceRaw)
+    .minus(feeRaw)
+    .minus(rentReserveRaw);
+
+  if (amount.lte(0)) {
+    throw new QuoteError({
+      message: 'Insufficient Solana balance for quote',
+      reason: 'insufficient-source-balance',
+    });
+  }
+
+  return amount.toFixed(0);
 }
 
 /**

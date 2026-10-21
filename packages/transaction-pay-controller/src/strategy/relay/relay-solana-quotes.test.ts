@@ -362,6 +362,52 @@ describe('getRelaySolanaQuotes', () => {
     expect(quotes[0].original.metamask.affordability.isAffordable).toBe(true);
   });
 
+  it('re-quotes a native SOL max amount once more when the re-quoted fee is higher', async () => {
+    computeFeeMock
+      .mockResolvedValueOnce(FEE_RAW)
+      .mockResolvedValueOnce('6000')
+      .mockResolvedValueOnce('6000');
+
+    const quotes = await getRelaySolanaQuotes(
+      getFullRequest([
+        getRequest({
+          isMaxAmount: true,
+          sourceAssetId: SOLANA_NATIVE,
+          sourceBalanceRaw: '100000000',
+          sourceTokenAmount: '100000000',
+        }),
+      ]),
+    );
+
+    expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledTimes(3);
+    expect(fetchRelaySolanaQuoteMock.mock.calls[1][1].amount).toBe('99104120');
+    expect(fetchRelaySolanaQuoteMock.mock.calls[2][1].amount).toBe('99103120');
+    expect(quotes[0].sourceAmount.raw).toBe('99103120');
+    expect(quotes[0].original.metamask.feeRaw).toBe('6000');
+    expect(quotes[0].original.metamask.affordability.isAffordable).toBe(true);
+  });
+
+  it('does not re-quote a native SOL max amount again when the re-quoted fee is lower', async () => {
+    computeFeeMock
+      .mockResolvedValueOnce(FEE_RAW)
+      .mockResolvedValueOnce('4000');
+
+    const quotes = await getRelaySolanaQuotes(
+      getFullRequest([
+        getRequest({
+          isMaxAmount: true,
+          sourceAssetId: SOLANA_NATIVE,
+          sourceBalanceRaw: '100000000',
+          sourceTokenAmount: '100000000',
+        }),
+      ]),
+    );
+
+    expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledTimes(2);
+    expect(quotes[0].sourceAmount.raw).toBe('99104120');
+    expect(quotes[0].original.metamask.affordability.isAffordable).toBe(true);
+  });
+
   it('throws a quote error when a native SOL max balance cannot cover fee and rent', async () => {
     await expect(
       getRelaySolanaQuotes(
