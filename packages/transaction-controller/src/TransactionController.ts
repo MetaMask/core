@@ -679,6 +679,20 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
   };
 }
 
+/**
+ * Whether an external publication checkpoint shows the transaction may already
+ * have crossed the external signing boundary, so it must not be failed at
+ * startup.
+ *
+ * @param transactionMeta - Transaction to check.
+ * @returns True if the external publication has started.
+ */
+function hasExternalPublishStarted(transactionMeta: TransactionMeta): boolean {
+  const phase = transactionMeta.metamaskPay?.solanaExecution?.phase;
+
+  return phase !== undefined && phase !== 'ready';
+}
+
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -2934,6 +2948,11 @@ export class TransactionController extends BaseController<
     );
 
     for (const transactionMeta of incompleteTransactions) {
+      if (hasExternalPublishStarted(transactionMeta)) {
+        this.#resumeExternalPublish(transactionMeta);
+        continue;
+      }
+
       const requiredTransactionIds =
         transactionMeta.requiredTransactionIds ?? [];
 
@@ -2968,6 +2987,25 @@ export class TransactionController extends BaseController<
         );
       }
     }
+  }
+
+  /**
+   * Hands a transaction whose external publication may already have crossed
+   * the signing boundary over to external observation, instead of failing it.
+   *
+   * @param transactionMeta - Transaction left incomplete by a restart.
+   */
+  #resumeExternalPublish(transactionMeta: TransactionMeta): void {
+    const updatedTransactionMeta = this.#updateTransactionInternal(
+      { transactionId: transactionMeta.id },
+      (draftTransactionMeta) => {
+        draftTransactionMeta.isExternalPublish = true;
+        draftTransactionMeta.status = TransactionStatus.submitted;
+        draftTransactionMeta.submittedTime ??= new Date().getTime();
+      },
+    );
+
+    this.#onTransactionStatusChange(updatedTransactionMeta);
   }
 
   async #processApproval(

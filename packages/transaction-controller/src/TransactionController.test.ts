@@ -85,6 +85,7 @@ import type {
   GasFeeEstimates,
   SimulationData,
   GetSimulationConfig,
+  MetamaskPaySolanaExecution,
 } from './types.js';
 import {
   GasFeeEstimateLevel,
@@ -1268,6 +1269,90 @@ describe('TransactionController', () => {
       expect(incompleteTransaction?.error?.message).toBe(
         'Transaction incomplete at startup',
       );
+    });
+
+    describe('with an external Solana execution checkpoint', () => {
+      const solanaExecutionMock: MetamaskPaySolanaExecution = {
+        atomicProductActionIncluded: false,
+        atomicProductActionRequired: false,
+        followUpStatus: 'not-required',
+        notificationStatus: 'pending',
+        phase: 'submitted',
+        relayStatus: 'not-observed',
+        requestId: 'request-id',
+        requiresNonAtomicFollowUp: false,
+        sourceAmountRaw: '1000',
+        sourceChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        sourceStatus: 'pending',
+        sourceTransactionId: 'signature',
+        sourceWalletAccountId: 'account-id',
+      };
+
+      function setupWithCheckpoint(
+        solanaExecution: MetamaskPaySolanaExecution,
+      ): ReturnType<typeof setupController> {
+        return setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  ...TRANSACTION_META_MOCK,
+                  isExternalSign: true,
+                  metamaskPay: { solanaExecution },
+                  status: TransactionStatus.approved,
+                } as TransactionMeta,
+              ],
+            },
+          },
+        });
+      }
+
+      it.each(['attempting', 'submitted', 'unknown'] as const)(
+        'moves approved transaction with %s checkpoint to externally published submitted',
+        async (phase) => {
+          const { controller } = setupWithCheckpoint({
+            ...solanaExecutionMock,
+            phase,
+          } as MetamaskPaySolanaExecution);
+
+          await flushPromises();
+
+          const [transaction] = controller.state.transactions;
+
+          expect(transaction.status).toBe(TransactionStatus.submitted);
+          expect(transaction.isExternalPublish).toBe(true);
+          expect(transaction.submittedTime).toStrictEqual(expect.any(Number));
+          expect(transaction.error).toBeUndefined();
+        },
+      );
+
+      it('lets recovery confirm the transaction after a restart with a submitted checkpoint', async () => {
+        const { controller } = setupWithCheckpoint(solanaExecutionMock);
+
+        await flushPromises();
+
+        controller.confirmTransaction(TRANSACTION_META_MOCK.id);
+
+        expect(controller.state.transactions[0].status).toBe(
+          TransactionStatus.confirmed,
+        );
+      });
+
+      it('fails approved transaction with ready checkpoint', async () => {
+        const { controller } = setupWithCheckpoint({
+          ...solanaExecutionMock,
+          phase: 'ready',
+        } as MetamaskPaySolanaExecution);
+
+        await flushPromises();
+
+        const [transaction] = controller.state.transactions;
+
+        expect(transaction.status).toBe(TransactionStatus.failed);
+        expect(transaction.error?.message).toBe(
+          'Transaction incomplete at startup',
+        );
+      });
     });
 
     it('fails signed transactions even when isSimulationEnabled throws', async () => {

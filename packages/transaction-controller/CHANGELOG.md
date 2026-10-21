@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The `hooks.publish` constructor option may now return any `PublishHookResult`, including an empty result for the default EVM fallback or an externally handled outcome.
   - Add the `confirmTransaction` method and messenger action to confirm a submitted externally published transaction.
   - `PendingTransactionTracker` skips externally published transactions until their `isIntentComplete` flag is set.
+  - At startup, an `approved` or `signed` transaction whose external Solana execution checkpoint has left the `ready` phase is moved to `submitted` with `isExternalPublish` instead of being failed, so recovery can still confirm or fail it.
 
 ## [72.2.1]
 
