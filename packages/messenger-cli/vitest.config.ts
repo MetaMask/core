@@ -11,8 +11,6 @@ export default mergeConfig(
       name: basename(dirname(fileURLToPath(import.meta.url))),
 
       coverage: {
-        // `cli.ts` is tested by spawning it in a child process, which coverage
-        // cannot see.
         exclude: ['src/cli.ts'],
 
         thresholds: {
