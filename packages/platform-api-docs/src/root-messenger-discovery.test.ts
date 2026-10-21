@@ -1,7 +1,7 @@
-import { jest } from '@jest/globals';
 import { createSandbox } from '@metamask/node-utils';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   discoverFromRootMessengerCapabilitiesTypes,
@@ -12,7 +12,7 @@ const { withinSandbox } = createSandbox(
   'platform-api-docs/root-messenger-discovery',
 );
 
-jest.setTimeout(60_000);
+vi.setConfig({ testTimeout: 60_000 });
 
 /**
  * A self-contained stand-in for `@metamask/messenger`'s `Messenger` type plus

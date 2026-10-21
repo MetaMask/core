@@ -1366,9 +1366,6 @@
     },
     "TS2741": {
       "count": 1
-    },
-    "TS2769": {
-      "count": 1
     }
   },
   "packages/wallet/src/initialization/instances/claims-controller/claims-controller.test.ts": {

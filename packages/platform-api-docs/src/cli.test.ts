@@ -1,9 +1,9 @@
-import { jest } from '@jest/globals';
 import { createSandbox } from '@metamask/node-utils';
 import { execa } from 'execa';
 import type { Result } from 'execa';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 
 const ROOT_DIR = path.resolve(import.meta.dirname, '..', '..', '..');
 const RESOLVER_PATH = path.join(ROOT_DIR, 'scripts', 'resolver', 'register.ts');
@@ -41,7 +41,7 @@ async function runCLI(args: string[]): Promise<Result> {
 
 const { withinSandbox } = createSandbox('platform-api-docs/cli');
 
-jest.setTimeout(30_000);
+vi.setConfig({ testTimeout: 30_000 });
 
 describe('platform-api-docs CLI (functional)', () => {
   it('generates docs for a project with action types', async () => {

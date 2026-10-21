@@ -1,6 +1,7 @@
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { TransactionController } from '@metamask/transaction-controller';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { WalletOptions } from '../../../types.js';
 import { Wallet } from '../../../Wallet.js';
@@ -105,7 +106,7 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
     rootMessenger,
     'NetworkController',
     'NetworkController:getNetworkClientRegistry',
-    jest.fn().mockReturnValue({}),
+    vi.fn().mockReturnValue({}),
   );
 
   return rootMessenger;
