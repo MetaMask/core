@@ -408,7 +408,7 @@ export type TradeInFlight =
        * The comment attaches once the fill is indexed.
        */
       orderId: string;
-      chain: string;
+      chain: 'hyperliquid';
       /** Hyperliquid coin, for example `BTC`. */
       tokenAddress: string;
     };
