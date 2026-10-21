@@ -68,10 +68,7 @@ export type {
   SocialFeedRealtimeScope,
   SocialRealtimeServiceOptions,
 } from './SocialRealtimeService.js';
-export type {
-  RealtimeFeedEventData,
-  RealtimeFeedItem,
-} from './realtime-feed-item.js';
+export type { RealtimeFeedEventData } from './realtime-feed-item.js';
 export type {
   AuthorComment,
   BlockedContent,

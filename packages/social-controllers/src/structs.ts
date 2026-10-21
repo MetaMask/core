@@ -185,10 +185,7 @@ export {
   normalizeRealtimeFeedItem,
   parseRealtimeFeedItem,
 } from './realtime-feed-item.js';
-export type {
-  RealtimeFeedEventData,
-  RealtimeFeedItem,
-} from './realtime-feed-item.js';
+export type { RealtimeFeedEventData } from './realtime-feed-item.js';
 
 export const TraderProfileStruct = structType({
   profileId: string(),

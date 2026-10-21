@@ -184,10 +184,8 @@ describe('parseRealtimeFeedItem', () => {
     expect(parsed).toMatchObject({ positionId: 'position-1' });
   });
 
-  it('returns the compact payload for legacy events', () => {
-    expect(parseRealtimeFeedItem(compactFeedItem)).toStrictEqual(
-      compactFeedItem,
-    );
+  it('rejects compact event payloads', () => {
+    expect(parseRealtimeFeedItem(compactFeedItem)).toBeUndefined();
   });
 
   it('handles optional perp metadata and malformed comments', () => {

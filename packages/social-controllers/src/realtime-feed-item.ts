@@ -13,7 +13,6 @@ import {
   type as structType,
   unknown as unknownStruct,
 } from '@metamask/superstruct';
-import type { Infer } from '@metamask/superstruct';
 
 import type {
   AuthorComment,
@@ -94,30 +93,7 @@ const RawHydratedPositionStruct = structType({
   entryPriceUsd: optional(nullable(number())),
 });
 
-const CompactRealtimeFeedItemStruct = structType({
-  itemId: string(),
-  timestamp: number(),
-  cardLatestTradeAt: number(),
-  actor: structType({
-    type: literal('user'),
-    address: string(),
-    name: string(),
-    images: record(string(), unknownStruct()),
-    profile: structType({
-      id: string(),
-      metadata: record(string(), unknownStruct()),
-    }),
-  }),
-  metadata: structType({
-    tokenChain: string(),
-    tokenAddress: string(),
-    trades: array(record(string(), unknownStruct())),
-  }),
-});
-
-export type RealtimeFeedItem = Infer<typeof CompactRealtimeFeedItemStruct>;
-
-export type RealtimeFeedEventData = FeedItem | RealtimeFeedItem;
+export type RealtimeFeedEventData = FeedItem;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -273,8 +249,15 @@ const toTrade = (trade: {
   transactionHash: trade.transactionHash,
 });
 
-const parseCompactRealtimeFeedItem = (value: unknown): RealtimeFeedItem =>
-  value as RealtimeFeedItem;
+const isNormalizedRealtimeFeedItem = (value: unknown): value is FeedItem =>
+  isRecord(value) &&
+  typeof value.positionId === 'string' &&
+  typeof value.tokenSymbol === 'string' &&
+  typeof value.tokenName === 'string' &&
+  typeof value.tokenAddress === 'string' &&
+  typeof value.chain === 'string' &&
+  Array.isArray(value.trades) &&
+  isRecord(value.actor);
 
 export const normalizeRealtimeFeedItem = (
   value: unknown,
@@ -329,7 +312,5 @@ export const parseRealtimeFeedItem = (
     return normalized;
   }
 
-  return is(value, CompactRealtimeFeedItemStruct)
-    ? parseCompactRealtimeFeedItem(value)
-    : undefined;
+  return isNormalizedRealtimeFeedItem(value) ? value : undefined;
 };
