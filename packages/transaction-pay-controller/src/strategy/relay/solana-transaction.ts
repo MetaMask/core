@@ -32,6 +32,9 @@ const SOLANA_DECIMALS = 9;
 
 const INFURA_PROJECT_ID_PLACEHOLDER = '{infuraProjectId}';
 
+/** Failure reason of a source transaction whose blockhash expired unlanded. */
+export const SOLANA_SOURCE_EXPIRED_REASON = 'Solana source transaction expired';
+
 type SolanaRpcResponse<Result> = {
   result?: Result;
   error?: { message: string };
@@ -348,7 +351,7 @@ export async function getSolanaSourceFailure({
   ]);
 
   return blockHeight > lastValidBlockHeight
-    ? 'Solana source transaction expired'
+    ? SOLANA_SOURCE_EXPIRED_REASON
     : undefined;
 }
 

@@ -262,8 +262,15 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerMethodActions;
 
+/** Emitted for categorical Solana Pay execution checkpoint transitions. */
+export type TransactionPayControllerSolanaPayLifecycleEvent = {
+  type: `${typeof CONTROLLER_NAME}:solanaPayLifecycle`;
+  payload: [SolanaPayLifecyclePayload];
+};
+
 export type TransactionPayControllerEvents =
-  TransactionPayControllerStateChangeEvent;
+  | TransactionPayControllerStateChangeEvent
+  | TransactionPayControllerSolanaPayLifecycleEvent;
 
 export type TransactionPayControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -311,6 +318,48 @@ export type SolanaPayStatus = {
   relayFailureReason?: string;
   followUpFailureReason?: string;
   submissionOutcome?: ExternallyHandledPublishOutcome;
+};
+
+/** Stable, non-sensitive classification of a Solana Pay execution problem. */
+export type SolanaPayErrorCode =
+  | 'user_rejected'
+  | 'preflight_failed'
+  | 'submission_unknown'
+  | 'source_transaction_failed'
+  | 'source_transaction_expired'
+  | 'source_status_unknown'
+  | 'settlement_failed'
+  | 'settlement_refunded'
+  | 'settlement_status_unknown'
+  | 'follow_up_failed'
+  | 'follow_up_status_unknown'
+  | 'construction_failed'
+  | 'provider_notification_failed';
+
+/**
+ * Privacy-safe projection of a Solana Pay execution checkpoint for support
+ * and analytics. It carries no accounts, assets, amounts, request IDs,
+ * transaction IDs, provider payloads or free-form error text.
+ */
+export type SolanaPaySupportDiagnostics = {
+  errorCode?: SolanaPayErrorCode;
+  followUpStatus: MetamaskPaySolanaFollowUpStatus;
+  followUpTransactionIdPresent: boolean;
+  notificationStatus: MetamaskPaySolanaNotificationStatus;
+  outcome: SolanaPayOutcome;
+  phase: MetamaskPaySolanaExecution['phase'];
+  provider: 'relay';
+  relayStatus: MetamaskPaySolanaRelayStatus;
+  sourceAssetClass?: 'native' | 'token';
+  sourceStatus: MetamaskPaySolanaSourceStatus;
+  sourceTransactionIdPresent: boolean;
+  targetTransactionIdPresent: boolean;
+};
+
+/** Payload of the `TransactionPayController:solanaPayLifecycle` event. */
+export type SolanaPayLifecyclePayload = SolanaPaySupportDiagnostics & {
+  /** Whether the transition was observed by `recoverSolanaPayStatus`. */
+  isRecovery: boolean;
 };
 
 /** Options for the TransactionPayController. */

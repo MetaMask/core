@@ -18,6 +18,10 @@ import {
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import { getRelayStatus } from './strategy/relay/relay-api.js';
 import {
+  getSolanaPaySupportDiagnostics,
+  isSolanaPayLifecycleTransition,
+} from './strategy/relay/solana-pay-diagnostics.js';
+import {
   applyRelayStatusObservation,
   applySolanaSourceFailure,
   getSolanaPayFailure,
@@ -34,6 +38,7 @@ import type {
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
   SolanaPayStatus,
+  SolanaPaySupportDiagnostics,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -61,6 +66,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getFiatOptions',
   'getInfuraProjectId',
   'getPaymentOverrideData',
+  'getSolanaPaySupportDiagnostics',
   'getStrategy',
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
@@ -111,6 +117,8 @@ export class TransactionPayController extends BaseController<
 
   readonly #polymarket?: PolymarketCallbacks;
 
+  readonly #recoveringSolanaPayTransactionIds = new Set<string>();
+
   constructor({
     fiatOptions,
     getAmountData,
@@ -150,6 +158,12 @@ export class TransactionPayController extends BaseController<
       messenger,
       this.#updateTransactionData.bind(this),
       this.#removeTransactionData.bind(this),
+    );
+
+    messenger.subscribe(
+      'TransactionController:stateChange',
+      this.#publishSolanaPayLifecycle.bind(this),
+      (transactionControllerState) => transactionControllerState.transactions,
     );
 
     subscribeAssetChanges(
@@ -420,8 +434,16 @@ export class TransactionPayController extends BaseController<
       );
     });
 
+    pending.forEach(({ id }) =>
+      this.#recoveringSolanaPayTransactionIds.add(id),
+    );
+
     const observations = await Promise.allSettled(
       pending.map((transaction) => this.reconcileSolanaPay(transaction.id)),
+    );
+
+    pending.forEach(({ id }) =>
+      this.#recoveringSolanaPayTransactionIds.delete(id),
     );
 
     return observations.reduce<Record<string, SolanaPayStatus>>(
@@ -434,6 +456,70 @@ export class TransactionPayController extends BaseController<
       },
       {},
     );
+  }
+
+  /**
+   * Returns the privacy-safe support diagnostics of a Solana Pay execution.
+   *
+   * The diagnostics only carry categorical values and identifier-presence
+   * flags, never accounts, assets, amounts, identifiers or failure text.
+   *
+   * @param transactionId - Target transaction ID.
+   * @returns Categorical diagnostics of the persisted execution checkpoint.
+   */
+  getSolanaPaySupportDiagnostics(
+    transactionId: string,
+  ): SolanaPaySupportDiagnostics {
+    const execution = this.#requireSolanaExecution(transactionId);
+
+    return getSolanaPaySupportDiagnostics(
+      getSolanaPayStatus(execution),
+      execution,
+      getTransaction(transactionId, this.messenger)?.metamaskPay?.source,
+    );
+  }
+
+  #publishSolanaPayLifecycle(
+    transactions: TransactionMeta[],
+    previousTransactions: TransactionMeta[] | undefined,
+  ): void {
+    for (const transaction of transactions) {
+      const execution = transaction.metamaskPay?.solanaExecution;
+
+      if (!execution) {
+        continue;
+      }
+
+      const previousTransaction = previousTransactions?.find(
+        (previous) => previous.id === transaction.id,
+      );
+
+      const previousExecution =
+        previousTransaction?.metamaskPay?.solanaExecution;
+
+      const diagnostics = getSolanaPaySupportDiagnostics(
+        getSolanaPayStatus(execution),
+        execution,
+        transaction.metamaskPay?.source,
+      );
+
+      const previousDiagnostics =
+        previousExecution &&
+        getSolanaPaySupportDiagnostics(
+          getSolanaPayStatus(previousExecution),
+          previousExecution,
+          previousTransaction?.metamaskPay?.source,
+        );
+
+      if (!isSolanaPayLifecycleTransition(previousDiagnostics, diagnostics)) {
+        continue;
+      }
+
+      this.messenger.publish('TransactionPayController:solanaPayLifecycle', {
+        ...diagnostics,
+        isRecovery: this.#recoveringSolanaPayTransactionIds.has(transaction.id),
+      });
+    }
   }
 
   #finalizeSolanaPayTransaction(

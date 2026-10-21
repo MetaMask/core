@@ -1043,6 +1043,200 @@ describe('TransactionPayController', () => {
       expect(confirmTransactionMock).toHaveBeenCalledWith(otherTransactionId);
     });
 
+    describe('Solana Pay diagnostics', () => {
+      let lifecycleListener: jest.Mock;
+
+      function publishTransactions(transactions: TransactionMeta[]): void {
+        mocks.publish(
+          'TransactionController:stateChange',
+          { transactions } as never,
+          [],
+        );
+      }
+
+      beforeEach(() => {
+        lifecycleListener = jest.fn();
+        mocks.messenger.subscribe(
+          'TransactionPayController:solanaPayLifecycle',
+          lifecycleListener,
+        );
+      });
+
+      it('returns privacy-safe support diagnostics for the checkpoint', () => {
+        transaction = {
+          ...transaction,
+          metamaskPay: {
+            solanaExecution: getExecution({
+              notificationStatus: 'failure',
+              sourceFailureReason: 'raw reason',
+            }),
+            source: {
+              sourceAccountId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:private-account',
+              sourceAssetId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+            },
+          },
+        };
+        createController();
+
+        const diagnostics = messenger.call(
+          'TransactionPayController:getSolanaPaySupportDiagnostics',
+          TRANSACTION_ID_MOCK,
+        );
+
+        expect(diagnostics).toStrictEqual({
+          errorCode: 'provider_notification_failed',
+          followUpStatus: 'not-required',
+          followUpTransactionIdPresent: false,
+          notificationStatus: 'failure',
+          outcome: 'submitted',
+          phase: 'submitted',
+          provider: 'relay',
+          relayStatus: 'pending',
+          sourceAssetClass: 'native',
+          sourceStatus: 'pending',
+          sourceTransactionIdPresent: true,
+          targetTransactionIdPresent: false,
+        });
+      });
+
+      it('throws when support diagnostics are requested without a checkpoint', () => {
+        transaction = { ...transaction, metamaskPay: {} };
+        createController();
+
+        expect(() =>
+          messenger.call(
+            'TransactionPayController:getSolanaPaySupportDiagnostics',
+            TRANSACTION_ID_MOCK,
+          ),
+        ).toThrow('TransactionPayController: Solana execution missing');
+      });
+
+      it('emits a lifecycle event for a new checkpoint', () => {
+        createController();
+
+        publishTransactions([transaction]);
+
+        expect(lifecycleListener).toHaveBeenCalledTimes(1);
+        expect(lifecycleListener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            isRecovery: false,
+            outcome: 'submitted',
+            phase: 'submitted',
+            sourceStatus: 'pending',
+          }),
+        );
+      });
+
+      it('emits a lifecycle event only when a categorical value changes', () => {
+        createController();
+        publishTransactions([transaction]);
+
+        publishTransactions([
+          {
+            ...transaction,
+            metamaskPay: {
+              solanaExecution: getExecution({ lastValidBlockHeight: 5 }),
+            },
+          },
+        ]);
+
+        publishTransactions([
+          {
+            ...transaction,
+            metamaskPay: {
+              solanaExecution: getExecution({
+                sourceFailureReason: 'Solana source transaction expired',
+                sourceStatus: 'failed',
+              }),
+            },
+          },
+        ]);
+
+        expect(lifecycleListener).toHaveBeenCalledTimes(2);
+        expect(lifecycleListener).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            errorCode: 'source_transaction_expired',
+            outcome: 'source-failed',
+            sourceStatus: 'failed',
+          }),
+        );
+      });
+
+      it('does not emit a lifecycle event for transactions without a checkpoint', () => {
+        createController();
+
+        publishTransactions([{ ...transaction, metamaskPay: {} }]);
+
+        expect(lifecycleListener).not.toHaveBeenCalled();
+      });
+
+      it('marks lifecycle transitions observed by recovery', async () => {
+        const updateImplementation =
+          updateTransactionMock.getMockImplementation();
+        updateTransactionMock.mockImplementation((options, fn) => {
+          updateImplementation?.(options, fn);
+          mocks.publish(
+            'TransactionController:stateChange',
+            { transactions: [transaction] } as never,
+            [],
+          );
+        });
+        getRelayStatusMock.mockResolvedValue(getRelayStatusResponse('success'));
+        createController();
+        publishTransactions([transaction]);
+
+        await messenger.call('TransactionPayController:recoverSolanaPayStatus');
+
+        expect(lifecycleListener).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            isRecovery: true,
+            outcome: 'succeeded',
+            relayStatus: 'success',
+            sourceStatus: 'confirmed',
+            targetTransactionIdPresent: true,
+          }),
+        );
+      });
+
+      it('does not mark lifecycle transitions observed outside recovery', async () => {
+        const updateImplementation =
+          updateTransactionMock.getMockImplementation();
+        updateTransactionMock.mockImplementation((options, fn) => {
+          updateImplementation?.(options, fn);
+          mocks.publish(
+            'TransactionController:stateChange',
+            { transactions: [transaction] } as never,
+            [],
+          );
+        });
+        getRelayStatusMock.mockResolvedValue(getRelayStatusResponse('success'));
+        createController();
+        publishTransactions([transaction]);
+        await messenger.call('TransactionPayController:recoverSolanaPayStatus');
+        lifecycleListener.mockClear();
+        transaction = {
+          ...transaction,
+          metamaskPay: { solanaExecution: getExecution() },
+        };
+        getRelayStatusMock.mockResolvedValue(getRelayStatusResponse('failure'));
+
+        await messenger.call(
+          'TransactionPayController:reconcileSolanaPay',
+          TRANSACTION_ID_MOCK,
+        );
+
+        expect(lifecycleListener).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            errorCode: 'settlement_failed',
+            isRecovery: false,
+            outcome: 'relay-failed',
+          }),
+        );
+      });
+    });
+
     it('skips terminal and missing executions during recovery', async () => {
       transaction = {
         ...transaction,
