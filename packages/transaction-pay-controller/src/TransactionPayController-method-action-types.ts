@@ -152,13 +152,14 @@ export type TransactionPayControllerReconcileSolanaPayAction = {
 };
 
 /**
- * Observes every persisted Solana Pay execution that is not terminal,
- * polling Relay until each one is terminal or the Relay polling timeout
- * elapses.
+ * Observes every persisted Solana Pay execution that is not terminal once,
+ * independently of each other. Clients call it again on foreground or
+ * startup to keep observing.
  *
  * This method never signs, broadcasts, or notifies Relay.
  *
- * @returns Latest statuses keyed by target transaction ID.
+ * @returns Latest statuses keyed by target transaction ID, omitting
+ * executions whose observation failed.
  */
 export type TransactionPayControllerRecoverSolanaPayStatusAction = {
   type: `TransactionPayController:recoverSolanaPayStatus`;

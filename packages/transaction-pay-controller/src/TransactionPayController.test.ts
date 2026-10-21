@@ -22,11 +22,7 @@ import type {
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from './types.js';
-import {
-  getRelayPollingInterval,
-  getRelayPollingTimeout,
-  getStrategyOrder,
-} from './utils/feature-flags.js';
+import { getStrategyOrder } from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
@@ -670,8 +666,6 @@ describe('TransactionPayController', () => {
   describe('Solana Pay recovery', () => {
     const getRelayStatusMock = jest.mocked(getRelayStatus);
     const updateTransactionMock = jest.mocked(updateTransaction);
-    const getRelayPollingIntervalMock = jest.mocked(getRelayPollingInterval);
-    const getRelayPollingTimeoutMock = jest.mocked(getRelayPollingTimeout);
 
     let transaction: TransactionMeta;
     let failTransactionMock: jest.Mock;
@@ -744,8 +738,6 @@ describe('TransactionPayController', () => {
         'SnapController:handleRequest',
         mocks.snapHandleRequestMock,
       );
-
-      getRelayPollingIntervalMock.mockReturnValue(0);
     });
 
     it('confirms the externally published transaction once Relay succeeds without signing', async () => {
@@ -841,34 +833,72 @@ describe('TransactionPayController', () => {
       ).rejects.toThrow('TransactionPayController: Solana execution missing');
     });
 
-    it('recovers non-terminal executions by polling Relay until terminal without signing', async () => {
-      getRelayStatusMock
-        .mockResolvedValueOnce(getRelayStatusResponse('pending'))
-        .mockResolvedValueOnce(getRelayStatusResponse('success'));
+    it('observes each non-terminal execution once without signing', async () => {
+      getRelayStatusMock.mockResolvedValue(getRelayStatusResponse('pending'));
       createController();
 
       const results = await messenger.call(
         'TransactionPayController:recoverSolanaPayStatus',
       );
 
-      expect(getRelayStatusMock).toHaveBeenCalledTimes(2);
-      expect(results[TRANSACTION_ID_MOCK].outcome).toBe('succeeded');
+      expect(getRelayStatusMock).toHaveBeenCalledTimes(1);
+      expect(results[TRANSACTION_ID_MOCK].outcome).toBe('submitted');
       expect(mocks.snapHandleRequestMock).not.toHaveBeenCalled();
     });
 
-    it('returns the latest non-terminal status when recovery times out', async () => {
-      getRelayPollingTimeoutMock.mockReturnValue(1);
-      getRelayStatusMock.mockImplementation(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 5));
-        return getRelayStatusResponse('pending');
-      });
+    it('confirms a recovered execution once Relay succeeds', async () => {
+      getRelayStatusMock.mockResolvedValue(getRelayStatusResponse('success'));
       createController();
 
       const results = await messenger.call(
         'TransactionPayController:recoverSolanaPayStatus',
       );
 
-      expect(results[TRANSACTION_ID_MOCK].outcome).toBe('submitted');
+      expect(results[TRANSACTION_ID_MOCK].outcome).toBe('succeeded');
+      expect(confirmTransactionMock).toHaveBeenCalledWith(TRANSACTION_ID_MOCK);
+    });
+
+    it('observes executions independently when one observation fails', async () => {
+      const otherTransactionId = 'other-transaction-id';
+      let otherTransaction = {
+        ...transaction,
+        id: otherTransactionId,
+      } as TransactionMeta;
+
+      getTransactionMock.mockImplementation((id) =>
+        id === otherTransactionId ? otherTransaction : transaction,
+      );
+      updateTransactionMock.mockImplementation((options, fn) => {
+        const isOther = options.transactionId === otherTransactionId;
+        const draft = structuredClone(isOther ? otherTransaction : transaction);
+        fn(draft);
+
+        if (isOther) {
+          otherTransaction = draft;
+        } else {
+          transaction = draft;
+        }
+      });
+      mocks.messenger.unregisterActionHandler('TransactionController:getState');
+      mocks.messenger.registerActionHandler(
+        'TransactionController:getState',
+        () => ({ transactions: [transaction, otherTransaction] }) as never,
+      );
+      confirmTransactionMock.mockImplementation((id: string) => {
+        if (id === TRANSACTION_ID_MOCK) {
+          throw new Error('confirm failed');
+        }
+      });
+      getRelayStatusMock.mockResolvedValue(getRelayStatusResponse('success'));
+      createController();
+
+      const results = await messenger.call(
+        'TransactionPayController:recoverSolanaPayStatus',
+      );
+
+      expect(Object.keys(results)).toStrictEqual([otherTransactionId]);
+      expect(results[otherTransactionId].outcome).toBe('succeeded');
+      expect(confirmTransactionMock).toHaveBeenCalledWith(otherTransactionId);
     });
 
     it('skips terminal and missing executions during recovery', async () => {

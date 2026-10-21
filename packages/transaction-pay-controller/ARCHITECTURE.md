@@ -69,7 +69,7 @@ When the payment token is non-EVM, `RelayStrategy` receives `nonEvmRequests` ins
   4. persists the signature and notifies Relay (`/transactions/index`);
   5. waits for Relay completion, then runs the existing non-atomic second leg for Money Account flows;
   6. returns `{ externallyHandled: true, outcome }`, so `TransactionController` never publishes it through EVM RPC.
-- **Recovery.** If a checkpoint exists, Core never signs again. `reconcileSolanaPay` and `recoverSolanaPayStatus` only observe Relay status by request ID, where `inTxHashes` carries the source signature. Core then confirms or fails the externally published target transaction. Once a checkpoint exists, quote updates no longer rewrite `metamaskPay.source`.
+- **Recovery.** If a checkpoint exists, Core never signs again. `reconcileSolanaPay` and `recoverSolanaPayStatus` only observe Relay status by request ID, where `inTxHashes` carries the source signature. Core then confirms or fails the externally published target transaction. `recoverSolanaPayStatus` makes one independent observation per non-terminal checkpoint and returns; clients call it again on foreground or startup. Once a checkpoint exists, quote updates no longer rewrite `metamaskPay.source`.
 
 ## Lifecycle
 

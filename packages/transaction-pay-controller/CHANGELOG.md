@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `nonEvmQuotes` to `PayStrategyExecuteRequest`.
 - Add `reconcileSolanaPay` and `recoverSolanaPayStatus` methods and messenger actions ([#10273](https://github.com/MetaMask/core/pull/10273))
   - They observe Relay status for persisted Solana executions and finalize the target transaction, and never sign again.
+  - `recoverSolanaPayStatus` observes each non-terminal execution once and independently, and returns without polling. Clients call it again, for example on foreground or startup.
 - Add `@metamask/config-registry-controller`, `@metamask/snaps-controllers`, `@metamask/snaps-sdk`, `@metamask/snaps-utils`, `@metamask/rpc-errors`, `@solana/addresses`, `@solana/codecs-strings`, `@solana/instructions`, `@solana/rpc-types`, `@solana/transaction-messages`, `@solana/transactions` and `uuid` dependencies ([#10273](https://github.com/MetaMask/core/pull/10273))
 
 ### Changed

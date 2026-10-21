@@ -41,11 +41,7 @@ import type {
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types.js';
-import {
-  getRelayPollingInterval,
-  getRelayPollingTimeout,
-  getStrategyOrder,
-} from './utils/feature-flags.js';
+import { getStrategyOrder } from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import { isNonEvmPaymentToken, isSamePaymentToken } from './utils/token.js';
@@ -365,13 +361,14 @@ export class TransactionPayController extends BaseController<
   }
 
   /**
-   * Observes every persisted Solana Pay execution that is not terminal,
-   * polling Relay until each one is terminal or the Relay polling timeout
-   * elapses.
+   * Observes every persisted Solana Pay execution that is not terminal once,
+   * independently of each other. Clients call it again on foreground or
+   * startup to keep observing.
    *
    * This method never signs, broadcasts, or notifies Relay.
    *
-   * @returns Latest statuses keyed by target transaction ID.
+   * @returns Latest statuses keyed by target transaction ID, omitting
+   * executions whose observation failed.
    */
   async recoverSolanaPayStatus(): Promise<Record<string, SolanaPayStatus>> {
     const { transactions } = this.messenger.call(
@@ -386,39 +383,20 @@ export class TransactionPayController extends BaseController<
       );
     });
 
-    const results: Record<string, SolanaPayStatus> = {};
+    const observations = await Promise.allSettled(
+      pending.map((transaction) => this.reconcileSolanaPay(transaction.id)),
+    );
 
-    for (const transaction of pending) {
-      results[transaction.id] = await this.#recoverSolanaPayExecution(
-        transaction.id,
-      );
-    }
+    return observations.reduce<Record<string, SolanaPayStatus>>(
+      (results, observation, index) => {
+        if (observation.status === 'fulfilled') {
+          results[pending[index].id] = observation.value;
+        }
 
-    return results;
-  }
-
-  async #recoverSolanaPayExecution(
-    transactionId: string,
-  ): Promise<SolanaPayStatus> {
-    const startTime = Date.now();
-
-    while (true) {
-      const status = await this.reconcileSolanaPay(transactionId);
-
-      if (isTerminalSolanaPayOutcome(status)) {
-        return status;
-      }
-
-      const timeout = getRelayPollingTimeout(this.messenger);
-
-      if (timeout && Date.now() - startTime >= timeout) {
-        return status;
-      }
-
-      await new Promise((resolve) =>
-        setTimeout(resolve, getRelayPollingInterval(this.messenger)),
-      );
-    }
+        return results;
+      },
+      {},
+    );
   }
 
   #finalizeSolanaPayTransaction(
