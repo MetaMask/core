@@ -16,6 +16,7 @@ import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { NonEvmQuoteRequest } from '../../types.js';
 import {
   applyRelayStatusObservation,
+  applySolanaSourceObservation,
   buildRelaySolanaQuoteRequest,
   deriveSolanaPayOutcome,
   getRelaySolanaTransaction,
@@ -25,11 +26,14 @@ import {
   isTerminalSolanaPayOutcome,
   mapRelayStatus,
 } from './solana-pay.js';
+import { getSolanaSourceFailure } from './solana-transaction.js';
 import type {
   RelaySolanaQuote,
   RelaySolanaTransaction,
   RelayStatusResponse,
 } from './types.js';
+
+jest.mock('./solana-transaction');
 
 const SOLANA_CHAIN_ID =
   'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId;
@@ -631,6 +635,19 @@ describe('Solana Relay Pay', () => {
       ).toMatchObject({ relayStatus: 'pending', sourceStatus: 'pending' });
     });
 
+    it('keeps a source observed as failed on chain until Relay observes it', () => {
+      expect(
+        applyRelayStatusObservation(
+          getExecution({
+            phase: 'submitted',
+            sourceStatus: 'failed',
+            sourceTransactionId: 'signature',
+          }),
+          getStatus({ status: 'waiting' }),
+        ),
+      ).toMatchObject({ relayStatus: 'pending', sourceStatus: 'failed' });
+    });
+
     it('stays observe-only while Relay has not seen an attempting source', () => {
       expect(
         applyRelayStatusObservation(getExecution(), getStatus()),
@@ -662,6 +679,78 @@ describe('Solana Relay Pay', () => {
           undefined,
         ).relayStatus,
       ).toBe('success');
+    });
+  });
+
+  describe('applySolanaSourceObservation', () => {
+    const getSolanaSourceFailureMock = jest.mocked(getSolanaSourceFailure);
+    const { messenger } = getMessengerMock();
+
+    const pendingExecution = getExecution({
+      lastValidBlockHeight: 100,
+      phase: 'submitted',
+      sourceStatus: 'pending',
+      sourceTransactionId: 'signature',
+    });
+
+    beforeEach(() => {
+      getSolanaSourceFailureMock.mockReset();
+    });
+
+    it('records a failed source transaction', async () => {
+      getSolanaSourceFailureMock.mockResolvedValue(
+        'Solana source transaction expired',
+      );
+
+      const execution = await applySolanaSourceObservation(
+        messenger,
+        pendingExecution,
+      );
+
+      expect(getSolanaSourceFailureMock).toHaveBeenCalledWith({
+        lastValidBlockHeight: 100,
+        messenger,
+        scope: SOLANA_CHAIN_ID,
+        signature: 'signature',
+      });
+      expect(execution).toMatchObject({
+        sourceFailureReason: 'Solana source transaction expired',
+        sourceStatus: 'failed',
+      });
+      expect(deriveSolanaPayOutcome(execution)).toBe('source-failed');
+    });
+
+    it('keeps the source pending when it may still land', async () => {
+      getSolanaSourceFailureMock.mockResolvedValue(undefined);
+
+      expect(
+        await applySolanaSourceObservation(messenger, pendingExecution),
+      ).toBe(pendingExecution);
+    });
+
+    it('keeps the source pending when the RPC read fails', async () => {
+      getSolanaSourceFailureMock.mockRejectedValue(new Error('rpc'));
+
+      expect(
+        await applySolanaSourceObservation(messenger, pendingExecution),
+      ).toBe(pendingExecution);
+    });
+
+    it.each([
+      ['an attempting source', getExecution()],
+      [
+        'a source observed by Relay',
+        getExecution({
+          phase: 'submitted',
+          sourceStatus: 'confirmed',
+          sourceTransactionId: 'signature',
+        }),
+      ],
+    ])('does not read the RPC for %s', async (_title, execution) => {
+      expect(await applySolanaSourceObservation(messenger, execution)).toBe(
+        execution,
+      );
+      expect(getSolanaSourceFailureMock).not.toHaveBeenCalled();
     });
   });
 

@@ -2243,6 +2243,9 @@ type MetamaskPaySolanaExecutionBase = {
   followUpTransactionId?: string;
   sourceFailureReason?: string;
   relayFailureReason?: string;
+
+  /** Last block height at which the signed source transaction can land. */
+  lastValidBlockHeight?: number;
 };
 
 /** Minimal durable checkpoint for one external Solana source execution. */

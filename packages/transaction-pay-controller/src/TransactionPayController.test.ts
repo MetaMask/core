@@ -13,6 +13,7 @@ import { PaymentOverride, TransactionPayStrategy } from './constants.js';
 import { TransactionPayController } from './index.js';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils.js';
 import { getRelayStatus } from './strategy/relay/relay-api.js';
+import { getSolanaSourceFailure } from './strategy/relay/solana-transaction.js';
 import { getMessengerMock } from './tests/messenger-mock.js';
 import type {
   TransactionPayControllerMessenger,
@@ -40,6 +41,7 @@ jest.mock('./utils/quotes');
 jest.mock('./utils/transaction');
 jest.mock('./utils/feature-flags');
 jest.mock('./strategy/relay/relay-api');
+jest.mock('./strategy/relay/solana-transaction');
 
 const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
@@ -667,6 +669,8 @@ describe('TransactionPayController', () => {
     const getRelayStatusMock = jest.mocked(getRelayStatus);
     const updateTransactionMock = jest.mocked(updateTransaction);
 
+    const getSolanaSourceFailureMock = jest.mocked(getSolanaSourceFailure);
+
     let transaction: TransactionMeta;
     let failTransactionMock: jest.Mock;
     let confirmTransactionMock: jest.Mock;
@@ -738,6 +742,8 @@ describe('TransactionPayController', () => {
         'SnapController:handleRequest',
         mocks.snapHandleRequestMock,
       );
+
+      getSolanaSourceFailureMock.mockResolvedValue(undefined);
     });
 
     it('confirms the externally published transaction once Relay succeeds without signing', async () => {
@@ -788,6 +794,45 @@ describe('TransactionPayController', () => {
       expect(status.outcome).toBe('submitted');
       expect(confirmTransactionMock).not.toHaveBeenCalled();
       expect(failTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('fails the externally published transaction when the unobserved source expired on chain', async () => {
+      getSolanaSourceFailureMock.mockResolvedValue(
+        'Solana source transaction expired',
+      );
+      transaction = {
+        ...transaction,
+        metamaskPay: {
+          solanaExecution: getExecution({ lastValidBlockHeight: 100 }),
+        },
+      };
+      getRelayStatusMock.mockResolvedValue({
+        ...getRelayStatusResponse('pending'),
+        inTxHashes: [],
+      });
+      createController();
+
+      const status = await messenger.call(
+        'TransactionPayController:reconcileSolanaPay',
+        TRANSACTION_ID_MOCK,
+      );
+
+      expect(getSolanaSourceFailureMock).toHaveBeenCalledWith({
+        lastValidBlockHeight: 100,
+        messenger: expect.anything(),
+        scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        signature: 'signature',
+      });
+      expect(status).toMatchObject({
+        outcome: 'source-failed',
+        sourceFailureReason: 'Solana source transaction expired',
+        sourceStatus: 'failed',
+      });
+      expect(failTransactionMock).toHaveBeenCalledWith(
+        TRANSACTION_ID_MOCK,
+        new Error('Solana source transaction expired'),
+      );
+      expect(mocks.snapHandleRequestMock).not.toHaveBeenCalled();
     });
 
     it('records an unreadable Relay status as unknown', async () => {

@@ -19,6 +19,7 @@ import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import { getRelayStatus } from './strategy/relay/relay-api.js';
 import {
   applyRelayStatusObservation,
+  applySolanaSourceObservation,
   getSolanaPayFailure,
   getSolanaPayStatus,
   isTerminalSolanaPayOutcome,
@@ -329,6 +330,8 @@ export class TransactionPayController extends BaseController<
   /**
    * Observes a Solana Pay execution through Relay status and finalizes the
    * externally published target transaction once the outcome is terminal.
+   * While Relay has not observed the source transaction, its on-chain status
+   * is read once from the Solana RPC to detect a failed or expired source.
    *
    * This method never signs, broadcasts, or notifies Relay.
    *
@@ -343,9 +346,12 @@ export class TransactionPayController extends BaseController<
       () => undefined,
     );
 
-    const execution = applyRelayStatusObservation(
-      this.#requireSolanaExecution(transactionId),
-      relayStatus,
+    const execution = await applySolanaSourceObservation(
+      this.messenger,
+      applyRelayStatusObservation(
+        this.#requireSolanaExecution(transactionId),
+        relayStatus,
+      ),
     );
 
     persistSolanaExecution(

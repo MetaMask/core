@@ -24,6 +24,7 @@ import {
   RELAY_SOLANA_CHAIN_ID,
   RELAY_SOLANA_NATIVE_CURRENCY,
 } from './constants.js';
+import { getSolanaSourceFailure } from './solana-transaction.js';
 import type {
   RelaySolanaQuote,
   RelaySolanaQuoteRequest,
@@ -343,7 +344,8 @@ export function mapRelayStatus(
  *
  * Relay is the source-observation authority: an indexed `inTxHashes` entry
  * or a settled status means the source transaction landed. A failed
- * observation never downgrades a terminal Relay status.
+ * observation never downgrades a terminal Relay status, and a source already
+ * observed as failed on chain stays failed until Relay observes it.
  *
  * @param execution - Current durable checkpoint.
  * @param status - Relay status response, or undefined if the read failed.
@@ -390,9 +392,44 @@ export function applyRelayStatusObservation(
         ? 'not-attempted'
         : execution.notificationStatus,
     phase: 'submitted',
-    sourceStatus: isSourceObserved ? 'confirmed' : 'pending',
+    sourceStatus: getUnobservedSourceStatus(execution, isSourceObserved),
     sourceTransactionId,
   };
+}
+
+/**
+ * Reads the on-chain status of a submitted source transaction that Relay has
+ * not observed yet, and records it as failed if it errored or expired.
+ *
+ * A failed RPC read keeps the source pending.
+ *
+ * @param messenger - Controller messenger.
+ * @param execution - Current durable checkpoint.
+ * @returns The updated checkpoint.
+ */
+export async function applySolanaSourceObservation(
+  messenger: TransactionPayControllerMessenger,
+  execution: MetamaskPaySolanaExecution,
+): Promise<MetamaskPaySolanaExecution> {
+  if (execution.phase !== 'submitted' || execution.sourceStatus !== 'pending') {
+    return execution;
+  }
+
+  const sourceFailureReason = await getSolanaSourceFailure({
+    lastValidBlockHeight: execution.lastValidBlockHeight,
+    messenger,
+    scope: execution.sourceChainId,
+    signature: execution.sourceTransactionId,
+  }).then(
+    (reason) => reason,
+    () => undefined,
+  );
+
+  if (!sourceFailureReason) {
+    return execution;
+  }
+
+  return { ...execution, sourceFailureReason, sourceStatus: 'failed' };
 }
 
 /**
@@ -472,6 +509,17 @@ export function persistSolanaExecution(
     transaction.metamaskPay ??= {};
     transaction.metamaskPay.solanaExecution = { ...execution };
   });
+}
+
+function getUnobservedSourceStatus(
+  execution: MetamaskPaySolanaExecution,
+  isSourceObserved: boolean,
+): MetamaskPaySolanaExecution['sourceStatus'] {
+  if (isSourceObserved) {
+    return 'confirmed';
+  }
+
+  return execution.sourceStatus === 'failed' ? 'failed' : 'pending';
 }
 
 function getExecutionSourceTransactionId(

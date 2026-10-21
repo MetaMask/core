@@ -9,6 +9,7 @@ import {
   computeSolanaFeeRaw,
   getAccountSnapId,
   getSolanaRentReserveRaw,
+  getSolanaSourceFailure,
   signAndSendSolanaTransaction,
 } from './solana-transaction.js';
 import type { RelaySolanaTransaction } from './types.js';
@@ -253,6 +254,109 @@ describe('solana-transaction', () => {
           },
         }),
       ).rejects.toThrow('Solana transaction exceeds the size limit');
+    });
+  });
+
+  describe('getSolanaSourceFailure', () => {
+    const SIGNATURE = 'signature';
+
+    function mockSourceRpc(
+      status: { err: unknown } | null,
+      blockHeight = 100,
+    ): void {
+      mockRpc({
+        getBlockHeight: { result: blockHeight },
+        getSignatureStatuses: { result: { value: [status] } },
+      });
+    }
+
+    it('returns undefined for a landed source transaction', async () => {
+      mockSourceRpc({ err: null });
+
+      expect(
+        await getSolanaSourceFailure({
+          lastValidBlockHeight: 50,
+          messenger,
+          scope: SCOPE,
+          signature: SIGNATURE,
+        }),
+      ).toBeUndefined();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(RPC_URL, {
+        body: JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'getSignatureStatuses',
+          params: [[SIGNATURE], { searchTransactionHistory: true }],
+        }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+    });
+
+    it('returns the error of a failed source transaction', async () => {
+      mockSourceRpc({ err: { InstructionError: [0, 'Custom'] } });
+
+      expect(
+        await getSolanaSourceFailure({
+          lastValidBlockHeight: 200,
+          messenger,
+          scope: SCOPE,
+          signature: SIGNATURE,
+        }),
+      ).toBe(
+        'Solana source transaction failed: {"InstructionError":[0,"Custom"]}',
+      );
+    });
+
+    it('returns expired for an unknown transaction past its last valid block height', async () => {
+      mockSourceRpc(null, 101);
+
+      expect(
+        await getSolanaSourceFailure({
+          lastValidBlockHeight: 100,
+          messenger,
+          scope: SCOPE,
+          signature: SIGNATURE,
+        }),
+      ).toBe('Solana source transaction expired');
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        RPC_URL,
+        expect.objectContaining({
+          body: JSON.stringify({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'getBlockHeight',
+            params: [{ commitment: 'finalized' }],
+          }),
+        }),
+      );
+    });
+
+    it('returns undefined for an unknown transaction within its last valid block height', async () => {
+      mockSourceRpc(null, 100);
+
+      expect(
+        await getSolanaSourceFailure({
+          lastValidBlockHeight: 100,
+          messenger,
+          scope: SCOPE,
+          signature: SIGNATURE,
+        }),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined for an unknown transaction without a last valid block height', async () => {
+      mockSourceRpc(null);
+
+      expect(
+        await getSolanaSourceFailure({
+          messenger,
+          scope: SCOPE,
+          signature: SIGNATURE,
+        }),
+      ).toBeUndefined();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 

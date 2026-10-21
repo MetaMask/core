@@ -424,6 +424,9 @@ function setRelaySourceHash(
  * @param quote - Relay quote details and steps carrying the request ID.
  * @param messenger - Controller messenger.
  * @param options - Polling options.
+ * @param options.isSourceFailed - Callback invoked after each poll until Relay
+ * indexes the source transaction. Polling stops with a `source-failed` outcome
+ * once it resolves to true.
  * @param options.onSourceHash - Callback invoked once with the indexed source hash.
  * @param options.tolerateFailure - Whether failure statuses and timeouts are
  * returned instead of thrown.
@@ -435,11 +438,12 @@ export async function waitForRelayCompletion(
   },
   messenger: TransactionPayControllerMessenger,
   options: {
+    isSourceFailed?: () => Promise<boolean>;
     onSourceHash?: (hash: Hex) => void;
     tolerateFailure?: boolean;
   },
 ): Promise<RelayCompletionOutcome> {
-  const { onSourceHash, tolerateFailure } = options;
+  const { isSourceFailed, onSourceHash, tolerateFailure } = options;
 
   const isSameChain =
     quote.details.currencyIn.currency.chainId ===
@@ -499,6 +503,11 @@ export async function waitForRelayCompletion(
         }
         throw new Error(`Unrecognized status: ${status.status}`);
       }
+    }
+
+    if (isSourceFailed && !sourceHashEmitted && (await isSourceFailed())) {
+      log('Source transaction failed before Relay indexed it');
+      return { status: 'source-failed' };
     }
 
     if (hasTimeout && Date.now() - startTime >= pollingTimeout) {

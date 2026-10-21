@@ -18,6 +18,7 @@ import { RELAY_SOLANA_CHAIN_ID } from './constants.js';
 import { notifyRelayTransaction } from './relay-api.js';
 import { submitPostNonAtomic, waitForRelayCompletion } from './relay-submit.js';
 import {
+  applySolanaSourceObservation,
   getRelaySolanaTransaction,
   getSolanaPayFailure,
   getSolanaSourceAddress,
@@ -110,7 +111,7 @@ export async function submitRelayNonEvmQuote({
   const scope = request.sourceChainId;
   const snapId = getAccountSnapId(messenger, request.sourceWalletAccountId);
 
-  const { transaction: unsignedTransaction } =
+  const { lastValidBlockHeight, transaction: unsignedTransaction } =
     await compileRelaySolanaTransaction({
       messenger,
       payer: getSolanaSourceAddress(request),
@@ -125,6 +126,7 @@ export async function submitRelayNonEvmQuote({
     atomicProductActionRequired:
       isSolanaPayProductTransaction(transaction) && !requiresNonAtomicFollowUp,
     followUpStatus: requiresNonAtomicFollowUp ? 'not-started' : 'not-required',
+    lastValidBlockHeight,
     notificationStatus: 'not-ready',
     phase: 'attempting',
     relayStatus: 'not-observed',
@@ -212,6 +214,8 @@ async function completeExecution({
   const { id: transactionId } = transaction;
 
   const completion = await waitForRelayCompletion(quote.original, messenger, {
+    isSourceFailed: async () =>
+      await observeSolanaSourceFailure(messenger, transactionId),
     tolerateFailure: true,
   });
 
@@ -317,6 +321,37 @@ async function submitFollowUp({
 
     throw error;
   }
+}
+
+/**
+ * Reads the on-chain status of the submitted source transaction while Relay
+ * has not indexed it, and persists a failed or expired source.
+ *
+ * @param messenger - Controller messenger.
+ * @param transactionId - Target transaction ID.
+ * @returns True if the source transaction failed.
+ */
+async function observeSolanaSourceFailure(
+  messenger: TransactionPayControllerMessenger,
+  transactionId: string,
+): Promise<boolean> {
+  const execution = await applySolanaSourceObservation(
+    messenger,
+    requireSolanaExecution(messenger, transactionId),
+  );
+
+  if (execution.sourceStatus !== 'failed') {
+    return false;
+  }
+
+  persistSolanaExecution(
+    messenger,
+    transactionId,
+    execution,
+    'Record Solana source outcome: failed',
+  );
+
+  return true;
 }
 
 function requireSolanaExecution(

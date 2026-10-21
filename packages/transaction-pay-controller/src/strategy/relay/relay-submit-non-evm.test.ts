@@ -19,6 +19,7 @@ import { submitPostNonAtomic, waitForRelayCompletion } from './relay-submit.js';
 import {
   compileRelaySolanaTransaction,
   getAccountSnapId,
+  getSolanaSourceFailure,
   signAndSendSolanaTransaction,
 } from './solana-transaction.js';
 import type { RelaySolanaPayQuote } from './types.js';
@@ -159,6 +160,7 @@ describe('submitRelayNonEvmQuote', () => {
   const notifyMock = jest.mocked(notifyRelayTransaction);
   const waitMock = jest.mocked(waitForRelayCompletion);
   const submitPostNonAtomicMock = jest.mocked(submitPostNonAtomic);
+  const getSolanaSourceFailureMock = jest.mocked(getSolanaSourceFailure);
 
   const {
     addTransactionBatchMock,
@@ -299,9 +301,11 @@ describe('submitRelayNonEvmQuote', () => {
       txHash: 'signature',
     });
     expect(waitMock).toHaveBeenCalledWith(getQuote().original, messenger, {
+      isSourceFailed: expect.any(Function),
       tolerateFailure: true,
     });
     expect(transaction.metamaskPay?.solanaExecution).toMatchObject({
+      lastValidBlockHeight: 2,
       notificationStatus: 'success',
       phase: 'submitted',
       relayStatus: 'not-observed',
@@ -579,6 +583,57 @@ describe('submitRelayNonEvmQuote', () => {
       submitRelayNonEvmQuote({ messenger, quote: getQuote(), transaction }),
     ).rejects.toThrow('SOLVER_FAILED');
     expect(signAndSendMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops waiting and throws once the unindexed source transaction failed on chain', async () => {
+    getSolanaSourceFailureMock.mockResolvedValue(
+      'Solana source transaction expired',
+    );
+    waitMock.mockImplementation(async (_quote, _messenger, options) => {
+      expect(await options.isSourceFailed?.()).toBe(true);
+      return { status: 'source-failed' };
+    });
+    reconcileSolanaPayMock.mockImplementation(async () =>
+      getStatus({
+        outcome: 'source-failed',
+        relayStatus: 'pending',
+        sourceFailureReason:
+          transaction.metamaskPay?.solanaExecution?.sourceFailureReason,
+        sourceStatus: 'failed',
+      }),
+    );
+
+    await expect(
+      submitRelayNonEvmQuote({ messenger, quote: getQuote(), transaction }),
+    ).rejects.toThrow('Solana source transaction expired');
+
+    expect(getSolanaSourceFailureMock).toHaveBeenCalledWith({
+      lastValidBlockHeight: 2,
+      messenger,
+      scope: SOLANA_CHAIN_ID,
+      signature: 'signature',
+    });
+    expect(transaction.metamaskPay?.solanaExecution).toMatchObject({
+      sourceFailureReason: 'Solana source transaction expired',
+      sourceStatus: 'failed',
+    });
+    expect(transaction.isIntentComplete).toBeUndefined();
+    expect(signAndSendMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps waiting while the unindexed source transaction may still land', async () => {
+    getSolanaSourceFailureMock.mockResolvedValue(undefined);
+    waitMock.mockImplementation(async (_quote, _messenger, options) => {
+      expect(await options.isSourceFailed?.()).toBe(false);
+      return { status: 'success', targetHash: '0xtarget' };
+    });
+
+    await submitRelayNonEvmQuote({ messenger, quote: getQuote(), transaction });
+
+    expect(transaction.metamaskPay?.solanaExecution?.sourceStatus).toBe(
+      'pending',
+    );
+    expect(transaction.isIntentComplete).toBe(true);
   });
 
   it('returns submitted without completing the intent when Relay polling times out', async () => {

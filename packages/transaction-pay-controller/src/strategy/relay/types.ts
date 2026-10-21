@@ -293,7 +293,7 @@ export type RelayStatusResponse = {
 };
 
 export type RelayCompletionOutcome = {
-  status: RelayStatus | 'timeout';
+  status: RelayStatus | 'timeout' | 'source-failed';
   targetHash?: Hex;
 };
 

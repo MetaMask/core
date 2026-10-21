@@ -45,6 +45,10 @@ type SolanaLookupTableAccounts = {
   } | null)[];
 };
 
+type SolanaSignatureStatuses = {
+  value: ({ err: unknown } | null)[];
+};
+
 type SnapFee = {
   type: string;
   asset: { amount: string };
@@ -280,6 +284,62 @@ export async function signAndSendSolanaTransaction({
       params: { accountId, scope, transaction },
     },
   });
+}
+
+/**
+ * Reads the on-chain status of a submitted Solana transaction for a source
+ * that Relay has not observed yet.
+ *
+ * The transaction failed if its status carries an error, or if it is unknown
+ * to the cluster after the finalized block height passed the last block height
+ * at which its blockhash was valid.
+ *
+ * @param request - Status request.
+ * @param request.messenger - Controller messenger.
+ * @param request.scope - CAIP-2 chain of the transaction.
+ * @param request.signature - Signature of the submitted transaction.
+ * @param request.lastValidBlockHeight - Last block height at which the
+ * submitted blockhash is valid, if known.
+ * @returns The failure reason, or undefined if the transaction may still land.
+ */
+export async function getSolanaSourceFailure({
+  lastValidBlockHeight,
+  messenger,
+  scope,
+  signature,
+}: {
+  lastValidBlockHeight?: number;
+  messenger: TransactionPayControllerMessenger;
+  scope: CaipChainId;
+  signature: string;
+}): Promise<string | undefined> {
+  const rpcUrl = getSolanaRpcUrl(messenger, scope);
+
+  const {
+    value: [status],
+  } = await solanaRpcRequest<SolanaSignatureStatuses>(
+    rpcUrl,
+    'getSignatureStatuses',
+    [[signature], { searchTransactionHistory: true }],
+  );
+
+  if (status) {
+    return status.err
+      ? `Solana source transaction failed: ${JSON.stringify(status.err)}`
+      : undefined;
+  }
+
+  if (lastValidBlockHeight === undefined) {
+    return undefined;
+  }
+
+  const blockHeight = await solanaRpcRequest<number>(rpcUrl, 'getBlockHeight', [
+    { commitment: 'finalized' },
+  ]);
+
+  return blockHeight > lastValidBlockHeight
+    ? 'Solana source transaction expired'
+    : undefined;
 }
 
 function getSolanaRpcUrl(
