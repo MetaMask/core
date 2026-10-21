@@ -12,6 +12,7 @@ export const RELAY_URL_BASE = 'https://api.relay.link';
 export const RELAY_AUTHORIZE_URL = `${RELAY_URL_BASE}/authorize`;
 export const RELAY_EXECUTE_URL = `${RELAY_URL_BASE}/execute`;
 export const RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
+// TODO: Route /quote/v2 through the MetaMask Relay proxy with an API key before release (CONF-1944 D6).
 export const RELAY_SOLANA_QUOTE_URL = `${RELAY_URL_BASE}/quote/v2`;
 export const RELAY_STATUS_URL = `${RELAY_URL_BASE}/intents/status/v3`;
 export const RELAY_TRANSACTIONS_INDEX_URL = `${RELAY_URL_BASE}/transactions/index`;
