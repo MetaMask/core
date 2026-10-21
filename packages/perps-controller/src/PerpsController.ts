@@ -6686,8 +6686,15 @@ export class PerpsController extends BaseController<
     const orderNotionalUsd = params.amount
       ? Number.parseFloat(params.amount)
       : undefined;
-    const feeResolution =
-      await this.#rewardsIntegrationService.resolveFee(orderNotionalUsd);
+    const feeResolution = await this.#rewardsIntegrationService.resolveFee(
+      orderNotionalUsd,
+      {
+        providerId:
+          provider.getWriteProviderId?.(params.providerId) ??
+          provider.protocolId,
+        isTestnet: this.state.isTestnet,
+      },
+    );
     // Taken from the resolution rather than read separately: a second read can
     // observe a different snapshot if the cache is invalidated or the feature
     // flag flips between the two, which would surface metadata describing a

@@ -10,6 +10,7 @@ import type {
   Funding,
   MarketInfo,
   FeeCalculationResult,
+  PerpsFeeResolution,
   FeeCalculationParams,
   AssetRoute,
   PerpsPlatformDependencies,
@@ -19,6 +20,7 @@ import type {
 } from '../../../src/types/index.js';
 import type { CandleData } from '../../../src/types/perps-types.js';
 import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest.js';
+import { quantizeBuilderFeeTenthsBps } from '../../../src/utils/subscriptionFeeWaiver.js';
 /* eslint-disable */
 import {
   createMockHyperLiquidProvider,
@@ -865,6 +867,104 @@ describe('MarketDataService', () => {
 
       expect(result).toEqual(mockFees);
     });
+
+    it('returns only the winning source from the operation that reprices each preview', async () => {
+      const resolutions: PerpsFeeResolution[] = [
+        {
+          source: 'rewards',
+          feeBips: 3.5,
+          discountBips: 6500,
+          subscription: { eligible: false, reason: 'no-source' },
+        },
+        {
+          source: 'grant',
+          feeBips: 2,
+          discountBips: 8000,
+          subscription: { eligible: false, reason: 'no-source' },
+        },
+        {
+          source: 'subscription',
+          feeBips: 0,
+          discountBips: 10000,
+          subscription: { eligible: true, reason: 'eligible' },
+        },
+        {
+          source: 'default',
+          feeBips: 10,
+          discountBips: undefined,
+          subscription: { eligible: false, reason: 'no-source' },
+        },
+      ];
+      mockProvider.calculateFees.mockResolvedValue({
+        metamaskFeeRate: 0.001,
+        protocolFeeRate: 0.00045,
+      });
+      for (const resolution of resolutions) {
+        const result = await marketDataService.calculateFees({
+          provider: mockProvider,
+          params: {
+            orderType: 'market',
+            symbol: 'BTC',
+            amount: '1000',
+            isMaker: false,
+          },
+          context: { ...mockContext, feeResolution: resolution },
+        });
+        expect(result.feeSource).toBe(resolution.source);
+        expect(result).not.toHaveProperty('feeResolution');
+        const expectedMetamaskFeeRate =
+          quantizeBuilderFeeTenthsBps(resolution.discountBips ?? 0) / 100000;
+        expect(result.metamaskFeeRate).toBe(expectedMetamaskFeeRate);
+        expect(result.feeRate).toBeCloseTo(expectedMetamaskFeeRate + 0.00045);
+        expect(result.feeAmount).toBeCloseTo(
+          (expectedMetamaskFeeRate + 0.00045) * 1000,
+        );
+      }
+      expect(mockProvider.calculateFees).toHaveBeenCalledTimes(
+        resolutions.length,
+      );
+    });
+
+    it.each([
+      { rate: undefined, policy: undefined, applies: false },
+      { rate: undefined, policy: true, applies: false },
+      { rate: 0, policy: undefined, applies: false },
+      { rate: 0, policy: false, applies: false },
+      { rate: 0, policy: true, applies: true },
+      { rate: 0.001, policy: false, applies: false },
+    ])(
+      'only reprices and attributes applicable builder fee previews ($rate, $policy)',
+      async ({ rate, policy, applies }) => {
+        const resolution: PerpsFeeResolution = {
+          source: 'rewards',
+          feeBips: 3.5,
+          discountBips: 6500,
+          subscription: { eligible: false, reason: 'no-source' },
+        };
+        mockProvider.calculateFees.mockResolvedValue({
+          metamaskFeeRate: rate,
+          chargesMetamaskBuilderFee: policy,
+        });
+        const result = await marketDataService.calculateFees({
+          provider: mockProvider,
+          params: {
+            orderType: 'market',
+            symbol: 'BTC',
+            amount: '1000',
+            isMaker: false,
+          },
+          context: { ...mockContext, feeResolution: resolution },
+        });
+        if (applies) {
+          expect(result.feeSource).toBe('rewards');
+          expect(result.metamaskFeeRate).toBeCloseTo(0.00035);
+        } else {
+          expect(result).not.toHaveProperty('feeSource');
+          expect(result.metamaskFeeRate).toBe(rate);
+        }
+        expect(result).not.toHaveProperty('feeResolution');
+      },
+    );
 
     it('surfaces subscription eligibility and remainingNotionalUsd on the fee preview', async () => {
       const params: FeeCalculationParams = {
