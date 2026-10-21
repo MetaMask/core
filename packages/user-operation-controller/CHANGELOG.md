@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `immer` from `^9.0.21` to `^11.1.18` ([#10382](https://github.com/MetaMask/core/pull/10382))
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.2.1` ([#10462](https://github.com/MetaMask/core/pull/10462), [#10652](https://github.com/MetaMask/core/pull/10652), [#10772](https://github.com/MetaMask/core/pull/10772), [#10817](https://github.com/MetaMask/core/pull/10817))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
-- Bump `@metamask/network-controller` from `^37.0.0` to `^37.1.0` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.1.1` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982))
 - Bump `@metamask/rpc-errors` from `^7.0.2` to `^7.0.3` ([#10718](https://github.com/MetaMask/core/pull/10718))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
