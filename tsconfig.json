@@ -346,6 +346,9 @@
     },
     {
       "path": "./packages/wallet-framework-docs"
+    },
+    {
+      "path": "./packages/watch-only-account-service"
     }
   ],
   "files": [],
