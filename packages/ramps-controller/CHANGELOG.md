@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [27.1.0]
 
-### Uncategorized
-
-- test: run money-movement packages on Vitest ([#10959](https://github.com/MetaMask/core/pull/10959))
-
 ### Added
 
 - Add `NeoBankService.getDepositInstructions`, exposed on the messenger, which returns an autoramp's PIX or US bank deposit details discriminated by `type` ([#10878](https://github.com/MetaMask/core/pull/10878))
