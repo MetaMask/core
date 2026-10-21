@@ -234,12 +234,12 @@ module.exports = defineConfig({
         expectWorkspaceField(
           workspace,
           'scripts.lint:tsconfigs',
-          'node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts',
+          'node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts',
         );
         expectWorkspaceField(
           workspace,
           'scripts.lint:tsconfigs:fix',
-          'node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
+          'node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
         );
       }
 
