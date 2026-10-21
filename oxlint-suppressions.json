@@ -5808,13 +5808,13 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 56
+      "count": 60
     },
     "typescript/no-unsafe-call": {
-      "count": 55
+      "count": 59
     },
     "typescript/no-unsafe-member-access": {
-      "count": 55
+      "count": 59
     }
   },
   "packages/transaction-pay-controller/src/utils/token.ts": {
