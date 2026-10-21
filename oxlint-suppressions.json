@@ -6446,13 +6446,13 @@
   },
   "packages/transaction-pay-controller/src/TransactionPayController.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 10
+      "count": 13
     },
     "typescript/no-unsafe-call": {
-      "count": 4
+      "count": 6
     },
     "typescript/no-unsafe-member-access": {
-      "count": 9
+      "count": 13
     }
   },
   "packages/transaction-pay-controller/src/actions/update-fiat-payment.test.ts": {
@@ -6701,7 +6701,7 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit-non-evm.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 29
+      "count": 30
     },
     "typescript/no-unsafe-call": {
       "count": 14
@@ -6712,7 +6712,7 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 1
+      "count": 3
     },
     "typescript/no-unsafe-assignment": {
       "count": 39
@@ -6740,16 +6740,16 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/solana-pay.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 8
+      "count": 17
     },
     "typescript/no-unsafe-assignment": {
-      "count": 1
+      "count": 6
     },
     "typescript/no-unsafe-call": {
-      "count": 2
+      "count": 5
     },
     "typescript/no-unsafe-member-access": {
-      "count": 2
+      "count": 5
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/solana-transaction.test.ts": {
@@ -6757,7 +6757,7 @@
       "count": 2
     },
     "typescript/no-unsafe-assignment": {
-      "count": 18
+      "count": 23
     },
     "typescript/no-unsafe-call": {
       "count": 7

@@ -906,7 +906,7 @@ describe('Solana Relay Pay', () => {
       transaction = {
         ...transaction,
         txParams: { from: OVERRIDE_ACCOUNT },
-      } as TransactionMeta;
+      };
       submitSecondLegMock.mockResolvedValue({ transactionHash: '0xsecond' });
 
       await submitSolanaPayFollowUp(messenger, 'transaction-1');

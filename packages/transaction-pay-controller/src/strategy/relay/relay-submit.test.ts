@@ -1973,7 +1973,10 @@ describe('Relay Submit Utils', () => {
   describe('waitForRelayCompletion', () => {
     const pendingResponse = {
       ok: true,
-      json: async () => ({ inTxHashes: [], status: 'waiting' }),
+      json: async (): Promise<unknown> => ({
+        inTxHashes: [],
+        status: 'waiting',
+      }),
     };
 
     it('stops with source-failed once the unindexed source failed', async () => {

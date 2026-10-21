@@ -260,8 +260,19 @@ describe('solana-transaction', () => {
   describe('getSolanaSourceFailure', () => {
     const SIGNATURE = 'signature';
 
+    /**
+     * Builds an RPC signature status, whose wire field `err` is a restricted
+     * identifier.
+     *
+     * @param error - Transaction error, or null if it succeeded.
+     * @returns The signature status.
+     */
+    function getSignatureStatus(error: unknown): Record<string, unknown> {
+      return Object.fromEntries([['err', error]]);
+    }
+
     function mockSourceRpc(
-      status: { err: unknown } | null,
+      status: Record<string, unknown> | null,
       blockHeight = 100,
     ): void {
       mockRpc({
@@ -271,7 +282,7 @@ describe('solana-transaction', () => {
     }
 
     it('returns undefined for a landed source transaction', async () => {
-      mockSourceRpc({ err: null });
+      mockSourceRpc(getSignatureStatus(null));
 
       expect(
         await getSolanaSourceFailure({
@@ -295,7 +306,7 @@ describe('solana-transaction', () => {
     });
 
     it('returns the error of a failed source transaction', async () => {
-      mockSourceRpc({ err: { InstructionError: [0, 'Custom'] } });
+      mockSourceRpc(getSignatureStatus({ InstructionError: [0, 'Custom'] }));
 
       expect(
         await getSolanaSourceFailure({

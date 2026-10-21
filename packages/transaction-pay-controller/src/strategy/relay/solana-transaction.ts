@@ -46,7 +46,8 @@ type SolanaLookupTableAccounts = {
 };
 
 type SolanaSignatureStatuses = {
-  value: ({ err: unknown } | null)[];
+  /** Status per signature, carrying the transaction error as `err`. */
+  value: (Record<string, unknown> | null)[];
 };
 
 type SnapFee = {
