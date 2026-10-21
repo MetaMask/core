@@ -448,11 +448,6 @@
       "count": 5
     }
   },
-  "packages/ai-controllers/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/analytics-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -5007,14 +5002,9 @@
       "count": 1
     }
   },
-  "packages/social-controllers/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/social-controllers/src/SocialService.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 8
+  "packages/social-controllers/src/SocialRealtimeService.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 54
     }
   },
   "packages/solana-test-validator-up/jest.config.cjs": {
