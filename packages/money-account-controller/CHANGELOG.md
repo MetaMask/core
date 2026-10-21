@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for MPC-backed money accounts (MFA accounts) via `createMoneyAccount({ type: 'mpc' })`. The MPC Money keyring is registered by the controller if it does not exist yet (its constructor parameters are captured by the keyring builder that the client registers). When the keyring has no account yet, the MPC setup is triggered to create it — the setup mode is inferred from the backend (import when the profile already has a key share or backup, create otherwise) — which may require interactive authentication via the client-captured callbacks and can be long-running. If the account already exists it is reused, so the call is idempotent ([#10694](https://github.com/MetaMask/core/pull/10694))
 - Add `setDefaultMoneyAccount` and a persisted `defaultMoneyAccountId` state field, so consumers know which money account is preferred ([#10694](https://github.com/MetaMask/core/pull/10694))
+- Add a dependency on `@metamask/eth-money-mpc-keyring`; MPC money account creation is typed against its V2 `MpcMoneyKeyring` wrapper, enforcing that wrapper's own account-creation options and return types ([#10694](https://github.com/MetaMask/core/pull/10694))
 
 ### Changed
 

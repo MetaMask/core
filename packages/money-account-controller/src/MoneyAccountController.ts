@@ -6,6 +6,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { MONEY_DERIVATION_PATH } from '@metamask/eth-money-keyring';
+import type { MpcMoneyKeyring as MpcMoneyKeyringV2 } from '@metamask/eth-money-mpc-keyring/v2';
 import {
   AccountCreationType,
   EthAccountType,
@@ -438,12 +439,19 @@ export class MoneyAccountController extends BaseController<
    * authentication via the client-captured callbacks and can be
    * long-running.
    *
+   * The operation is typed against the V2 `MpcMoneyKeyring` wrapper from
+   * `@metamask/eth-money-mpc-keyring/v2`, enforcing that wrapper's own
+   * account-creation options and return types.
+   *
    * @returns The money account.
    */
   async #createMpcMoneyKeyringAccount(): Promise<MoneyAccount> {
     const keyringId = await this.#ensureMpcMoneyKeyring();
 
-    const [account] = await this.#withKeyringV2(keyringId, async (keyring) =>
+    const [account] = await this.#withKeyringV2<
+      MpcMoneyKeyringV2,
+      KeyringAccount[]
+    >(keyringId, async (keyring) =>
       keyring.createAccounts({ type: AccountCreationType.Custom }),
     );
 
@@ -658,21 +666,30 @@ export class MoneyAccountController extends BaseController<
    * Calls `KeyringController:withKeyringV2` for the V2 keyring with the given
    * ID.
    *
+   * The type of the resolved keyring can be narrowed to the concrete V2
+   * wrapper class of the keyring being queried (e.g. the V2 `MpcMoneyKeyring`
+   * from `@metamask/eth-money-mpc-keyring/v2`), which enforces that wrapper's
+   * own account-creation options and return types at compile time.
+   *
    * NOTE: A V2 builder must be registered with the `KeyringController` for
    * the keyring's type, otherwise this throws.
    *
+   * @template SelectedKeyring - The type of the resolved V2 keyring.
    * @param id - The keyring metadata ID.
    * @param operation - Callback invoked with the resolved V2 keyring.
    * @returns The value returned by `operation`.
    */
-  async #withKeyringV2<Result>(
+  async #withKeyringV2<
+    SelectedKeyring extends KeyringV2 = KeyringV2,
+    Result = void,
+  >(
     id: string,
-    operation: (keyring: KeyringV2) => Promise<Result>,
+    operation: (keyring: SelectedKeyring) => Promise<Result>,
   ): Promise<Result> {
     return (await this.messenger.call(
       'KeyringController:withKeyringV2',
       { id },
-      async ({ keyring }) => operation(keyring),
+      async ({ keyring }) => operation(keyring as SelectedKeyring),
     )) as Result;
   }
 
