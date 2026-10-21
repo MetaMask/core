@@ -5,7 +5,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type { MultichainAccountServiceMessenger } from '../types.js';
+import type { MultichainAccountServiceMessenger } from '../src/types.js';
 
 export type AllMultichainAccountServiceActions =
   MessengerActions<MultichainAccountServiceMessenger>;

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [35.0.0]
+
 ### Added
 
 - Add authenticator app (TOTP) support to MFA enrollment and verification ([#10914](https://github.com/MetaMask/core/pull/10914))
@@ -1092,7 +1094,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@35.0.0...HEAD
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.1.0...@metamask/profile-sync-controller@35.0.0
 [34.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.3...@metamask/profile-sync-controller@34.1.0
 [34.0.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.2...@metamask/profile-sync-controller@34.0.3
 [34.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.1...@metamask/profile-sync-controller@34.0.2

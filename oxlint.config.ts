@@ -106,9 +106,11 @@ export default createConfig({
         ...jestTestFiles,
       ],
       extends: [nodejs, jest],
+      plugins: ['typescript'],
       rules: {
         'node/no-sync': 'off',
         'node/no-process-env': 'off',
+        'typescript/no-unsafe-assignment': 'off',
       },
     },
 
@@ -128,9 +130,11 @@ export default createConfig({
       ],
       excludeFiles: jestTestFiles,
       extends: [nodejs, vitest],
+      plugins: ['typescript'],
       rules: {
         'node/no-sync': 'off',
         'node/no-process-env': 'off',
+        'typescript/no-unsafe-assignment': 'off',
       },
     },
 

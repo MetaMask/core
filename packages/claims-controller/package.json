@@ -1,6 +1,6 @@
 {
   "name": "@metamask/claims-controller",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Controller handling shield subscription claims logic",
   "keywords": [
     "Ethereum",
@@ -55,7 +55,7 @@
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/keyring-controller": "^28.2.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/profile-sync-controller": "^34.1.0",
+    "@metamask/profile-sync-controller": "^35.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.0",
     "@tanstack/query-core": "^5.103.2"

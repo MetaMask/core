@@ -26,7 +26,7 @@ export default defineConfig({
     watch: false,
 
     // The files to include in the test run.
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
 
     // The setup files shared by every package.
     setupFiles: [

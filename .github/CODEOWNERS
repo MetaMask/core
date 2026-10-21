@@ -501,6 +501,13 @@
 /packages/network-enablement-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/network-enablement-controller/typedoc.json    @MetaMask/core-platform @MetaMask/metamask-assets
 
+### node-utils
+/packages/node-utils                 @MetaMask/core-platform
+/packages/node-utils/CHANGELOG.md    @MetaMask/core-platform
+/packages/node-utils/package.json    @MetaMask/core-platform
+/packages/node-utils/tsconfig.*      @MetaMask/core-platform
+/packages/node-utils/typedoc.json    @MetaMask/core-platform
+
 ### notification-services-controller
 /packages/notification-services-controller                 @MetaMask/engagement
 /packages/notification-services-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/engagement

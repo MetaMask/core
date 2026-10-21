@@ -1,7 +1,7 @@
+import { runCommand } from '../../../tests/run-command.js';
 import { pingDaemon } from '../../daemon/daemon-client.js';
 import { stopDaemon } from '../../daemon/stop-daemon.js';
 import { readPidFile } from '../../daemon/utils.js';
-import { runCommand } from '../../test/run-command.js';
 import DaemonStop from './stop.js';
 
 jest.mock('../../daemon/daemon-client');
