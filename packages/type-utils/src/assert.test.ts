@@ -28,6 +28,20 @@ describe('assert', () => {
     class MyError extends Error {}
     expect(() => assert(false, new MyError('Thrown'))).toThrow(MyError);
   });
+
+  it('throws a constructable error', () => {
+    class MyError extends AssertionError {}
+    expect(() => assert(false, 'foo', MyError)).toThrow(MyError);
+  });
+
+  it('throws an error created by a factory function', () => {
+    const createError = ({ message }: { message: string }): Error =>
+      new RangeError(message);
+
+    expect(() => assert(false, 'foo', createError)).toThrow(
+      new RangeError('foo'),
+    );
+  });
 });
 
 describe('assertExhaustive', () => {
