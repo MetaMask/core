@@ -10,8 +10,6 @@ export default mergeConfig(
     test: {
       name: basename(dirname(fileURLToPath(import.meta.url))),
 
-      // Keep `$title` values in test names whole, like Jest does, so that
-      // snapshot keys stay unique.
       taskTitleValueFormatTruncate: Infinity,
 
       coverage: {
