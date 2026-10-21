@@ -3,7 +3,6 @@ import type {
   MetamaskPaySolanaExecution,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
 import { createModuleLogger, isObject } from '@metamask/utils';
 
 import { DEFAULT_QUOTE_REFRESH_INTERVAL } from '../../constants.js';
@@ -16,22 +15,23 @@ import type {
 import { getTransaction, updateTransaction } from '../../utils/transaction.js';
 import { RELAY_SOLANA_CHAIN_ID } from './constants.js';
 import { notifyRelayTransaction } from './relay-api.js';
-import { submitPostNonAtomic, waitForRelayCompletion } from './relay-submit.js';
+import { waitForRelayCompletion } from './relay-submit.js';
 import {
-  applySolanaSourceObservation,
+  applySolanaSourceFailure,
   getRelaySolanaTransaction,
   getSolanaPayFailure,
   getSolanaSourceAddress,
   isMoneyAccountRequest,
   isSolanaPayProductTransaction,
   persistSolanaExecution,
+  readSolanaSourceFailure,
 } from './solana-pay.js';
 import {
   compileRelaySolanaTransaction,
   getAccountSnapId,
   signAndSendSolanaTransaction,
 } from './solana-transaction.js';
-import type { RelayCompletionOutcome, RelaySolanaPayQuote } from './types.js';
+import type { RelaySolanaPayQuote } from './types.js';
 
 const log = createModuleLogger(projectLogger, 'relay-submit-non-evm');
 
@@ -132,6 +132,8 @@ export async function submitRelayNonEvmQuote({
     relayStatus: 'not-observed',
     requestId: quote.original.requestId,
     requiresNonAtomicFollowUp,
+    targetChainId: request.targetChainId,
+    targetTokenAddress: request.targetTokenAddress,
     sourceAmountRaw: quote.sourceAmount.raw,
     sourceChainId: scope,
     sourceStatus: 'not-observed',
@@ -193,8 +195,9 @@ export async function submitRelayNonEvmQuote({
 }
 
 /**
- * Waits for Relay settlement, runs the optional non-atomic second leg, and
- * marks the intent complete once every leg has landed.
+ * Waits for Relay settlement, then reconciles the checkpoint, which runs the
+ * optional non-atomic second leg, and marks the intent complete once every
+ * leg has landed.
  *
  * @param request - Completion request.
  * @param request.messenger - Controller messenger.
@@ -232,13 +235,10 @@ async function completeExecution({
     throw new Error(failure);
   }
 
-  if (completion.status !== 'success') {
-    // Polling timed out; restart-safe recovery keeps observing Relay.
+  if (status.outcome !== 'succeeded') {
+    // Polling timed out or a leg has not landed yet; restart-safe recovery
+    // keeps observing.
     return { externallyHandled: true, outcome: 'submitted' };
-  }
-
-  if (status.followUpStatus === 'not-started') {
-    await submitFollowUp({ completion, messenger, quote, transaction });
   }
 
   updateTransaction(
@@ -256,74 +256,6 @@ async function completeExecution({
 }
 
 /**
- * Runs the one-shot non-atomic Money Account second leg after Relay success.
- *
- * @param request - Follow-up request.
- * @param request.completion - Relay completion outcome.
- * @param request.messenger - Controller messenger.
- * @param request.quote - Submitted non-EVM Relay quote.
- * @param request.transaction - Target transaction.
- */
-async function submitFollowUp({
-  completion,
-  messenger,
-  quote,
-  transaction,
-}: {
-  completion: RelayCompletionOutcome;
-  messenger: TransactionPayControllerMessenger;
-  quote: NonEvmTransactionPayQuote<RelaySolanaPayQuote>;
-  transaction: TransactionMeta;
-}): Promise<void> {
-  const { id: transactionId } = transaction;
-  const execution = requireSolanaExecution(messenger, transactionId);
-
-  persistSolanaExecution(
-    messenger,
-    transactionId,
-    { ...execution, followUpStatus: 'attempting' },
-    'Start one Money Account destination follow-up',
-  );
-
-  try {
-    // Relay delivers the funds to the target account, not to an overridden
-    // `request.from`, so the second leg must spend from the same account.
-    const { transactionHash } = await submitPostNonAtomic({
-      completion,
-      messenger,
-      quote: {
-        ...quote,
-        request: {
-          ...quote.request,
-          recipient: transaction.txParams.from as Hex,
-        },
-      },
-      transaction,
-    });
-
-    persistSolanaExecution(
-      messenger,
-      transactionId,
-      {
-        ...execution,
-        followUpStatus: 'confirmed',
-        followUpTransactionId: transactionHash,
-      },
-      'Record Money Account destination follow-up: confirmed',
-    );
-  } catch (error) {
-    persistSolanaExecution(
-      messenger,
-      transactionId,
-      { ...execution, followUpStatus: 'failed' },
-      'Record Money Account destination follow-up: failed',
-    );
-
-    throw error;
-  }
-}
-
-/**
  * Reads the on-chain status of the submitted source transaction while Relay
  * has not indexed it, and persists a failed or expired source.
  *
@@ -335,19 +267,22 @@ async function observeSolanaSourceFailure(
   messenger: TransactionPayControllerMessenger,
   transactionId: string,
 ): Promise<boolean> {
-  const execution = await applySolanaSourceObservation(
+  const sourceFailureReason = await readSolanaSourceFailure(
     messenger,
     requireSolanaExecution(messenger, transactionId),
   );
 
-  if (execution.sourceStatus !== 'failed') {
+  if (!sourceFailureReason) {
     return false;
   }
 
   persistSolanaExecution(
     messenger,
     transactionId,
-    execution,
+    applySolanaSourceFailure(
+      requireSolanaExecution(messenger, transactionId),
+      sourceFailureReason,
+    ),
     'Record Solana source outcome: failed',
   );
 

@@ -15,7 +15,7 @@ import type {
 } from '../../types.js';
 import { notifyRelayTransaction } from './relay-api.js';
 import { submitRelayNonEvmQuote } from './relay-submit-non-evm.js';
-import { submitPostNonAtomic, waitForRelayCompletion } from './relay-submit.js';
+import { waitForRelayCompletion } from './relay-submit.js';
 import {
   compileRelaySolanaTransaction,
   getAccountSnapId,
@@ -27,7 +27,6 @@ import type { RelaySolanaPayQuote } from './types.js';
 jest.mock('./relay-api');
 jest.mock('./solana-transaction');
 jest.mock('./relay-submit', () => ({
-  submitPostNonAtomic: jest.fn(),
   waitForRelayCompletion: jest.fn(),
 }));
 
@@ -159,7 +158,6 @@ describe('submitRelayNonEvmQuote', () => {
   const signAndSendMock = jest.mocked(signAndSendSolanaTransaction);
   const notifyMock = jest.mocked(notifyRelayTransaction);
   const waitMock = jest.mocked(waitForRelayCompletion);
-  const submitPostNonAtomicMock = jest.mocked(submitPostNonAtomic);
   const getSolanaSourceFailureMock = jest.mocked(getSolanaSourceFailure);
 
   const {
@@ -402,6 +400,8 @@ describe('submitRelayNonEvmQuote', () => {
         sourceChainId: SOLANA_CHAIN_ID,
         sourceStatus: 'not-observed',
         sourceWalletAccountId: WALLET_ACCOUNT_ID,
+        targetChainId: '0xa4b1',
+        targetTokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
       },
     };
     reconcileSolanaPayMock.mockResolvedValue(
@@ -661,70 +661,31 @@ describe('submitRelayNonEvmQuote', () => {
       paymentOverride: PaymentOverride.MoneyAccount,
     };
 
-    it('runs the existing submitPostNonAtomic second leg once after Relay success', async () => {
-      reconcileSolanaPayMock.mockResolvedValue(
-        getStatus({ followUpStatus: 'not-started', outcome: 'submitted' }),
-      );
-      submitPostNonAtomicMock.mockResolvedValue({
-        transactionHash: '0xsecond',
-      });
-
-      const quote = getQuote(moneyAccountOverrides);
-
-      await submitRelayNonEvmQuote({ messenger, quote, transaction });
-
-      expect(submitPostNonAtomicMock).toHaveBeenCalledTimes(1);
-      expect(submitPostNonAtomicMock).toHaveBeenCalledWith({
-        completion: { status: 'success', targetHash: '0xtarget' },
-        messenger,
-        quote: {
-          ...quote,
-          request: { ...quote.request, recipient: FROM },
-        },
-        transaction: expect.objectContaining({ id: TRANSACTION_ID }),
-      });
-      expect(transaction.metamaskPay?.solanaExecution).toMatchObject({
-        followUpStatus: 'confirmed',
-        followUpTransactionId: '0xsecond',
-        requiresNonAtomicFollowUp: true,
-      });
-      expect(transaction.isIntentComplete).toBe(true);
-    });
-
-    it('runs the second leg from the target transaction account when the account is overridden', async () => {
-      const overrideAccount =
-        '0x9999999999999999999999999999999999999999' as Hex;
-
-      reconcileSolanaPayMock.mockResolvedValue(
-        getStatus({ followUpStatus: 'not-started', outcome: 'submitted' }),
-      );
-      submitPostNonAtomicMock.mockResolvedValue({
-        transactionHash: '0xsecond',
-      });
-
+    it('persists the follow-up target and leaves the second leg to reconcile', async () => {
       await submitRelayNonEvmQuote({
         messenger,
-        quote: getQuote({ ...moneyAccountOverrides, from: overrideAccount }),
+        quote: getQuote(moneyAccountOverrides),
         transaction,
       });
 
-      expect(submitPostNonAtomicMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          quote: expect.objectContaining({
-            request: expect.objectContaining({
-              from: overrideAccount,
-              recipient: FROM,
-            }),
-          }),
-        }),
-      );
+      expect(transaction.metamaskPay?.solanaExecution).toMatchObject({
+        followUpStatus: 'not-started',
+        requiresNonAtomicFollowUp: true,
+        targetChainId: '0xa4b1',
+        targetTokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      });
+      expect(reconcileSolanaPayMock).toHaveBeenCalledWith(TRANSACTION_ID);
+      expect(transaction.isIntentComplete).toBe(true);
     });
 
-    it('records a failed second leg and does not complete the intent', async () => {
+    it('throws the follow-up failure observed by reconcile and does not complete the intent', async () => {
       reconcileSolanaPayMock.mockResolvedValue(
-        getStatus({ followUpStatus: 'not-started', outcome: 'submitted' }),
+        getStatus({
+          followUpFailureReason: 'Second leg: failed',
+          followUpStatus: 'failed',
+          outcome: 'follow-up-failed',
+        }),
       );
-      submitPostNonAtomicMock.mockRejectedValue(new Error('Second leg failed'));
 
       await expect(
         submitRelayNonEvmQuote({
@@ -732,27 +693,27 @@ describe('submitRelayNonEvmQuote', () => {
           quote: getQuote(moneyAccountOverrides),
           transaction,
         }),
-      ).rejects.toThrow('Second leg failed');
+      ).rejects.toThrow('Second leg: failed');
 
-      expect(transaction.metamaskPay?.solanaExecution?.followUpStatus).toBe(
-        'failed',
-      );
       expect(transaction.isIntentComplete).toBeUndefined();
     });
 
-    it('throws if the checkpoint disappeared before the second leg', async () => {
-      reconcileSolanaPayMock.mockImplementation(async () => {
-        transaction = { ...transaction, metamaskPay: {} };
-        return getStatus({ followUpStatus: 'not-started' });
+    it('returns submitted without completing the intent while the follow-up is not final', async () => {
+      reconcileSolanaPayMock.mockResolvedValue(
+        getStatus({ followUpStatus: 'attempting', outcome: 'unknown' }),
+      );
+
+      const result = await submitRelayNonEvmQuote({
+        messenger,
+        quote: getQuote(moneyAccountOverrides),
+        transaction,
       });
 
-      await expect(
-        submitRelayNonEvmQuote({
-          messenger,
-          quote: getQuote(moneyAccountOverrides),
-          transaction,
-        }),
-      ).rejects.toThrow('Solana execution missing');
+      expect(result).toStrictEqual({
+        externallyHandled: true,
+        outcome: 'submitted',
+      });
+      expect(transaction.isIntentComplete).toBeUndefined();
     });
   });
 });

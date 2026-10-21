@@ -1286,6 +1286,8 @@ describe('TransactionController', () => {
         sourceStatus: 'pending',
         sourceTransactionId: 'signature',
         sourceWalletAccountId: 'account-id',
+        targetChainId: '0xa4b1',
+        targetTokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
       };
 
       function setupWithCheckpoint(

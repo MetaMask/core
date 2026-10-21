@@ -19,11 +19,13 @@ import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import { getRelayStatus } from './strategy/relay/relay-api.js';
 import {
   applyRelayStatusObservation,
-  applySolanaSourceObservation,
+  applySolanaSourceFailure,
   getSolanaPayFailure,
   getSolanaPayStatus,
   isTerminalSolanaPayOutcome,
   persistSolanaExecution,
+  readSolanaSourceFailure,
+  submitSolanaPayFollowUp,
 } from './strategy/relay/solana-pay.js';
 import type {
   GetAmountDataCallback,
@@ -332,8 +334,11 @@ export class TransactionPayController extends BaseController<
    * externally published target transaction once the outcome is terminal.
    * While Relay has not observed the source transaction, its on-chain status
    * is read once from the Solana RPC to detect a failed or expired source.
+   * Once Relay delivered the funds of a Money Account deposit, the non-atomic
+   * second leg runs once, guarded by the follow-up checkpoint.
    *
-   * This method never signs, broadcasts, or notifies Relay.
+   * This method never signs or broadcasts the Solana source transaction, and
+   * never notifies Relay.
    *
    * @param transactionId - Target transaction ID.
    * @returns The latest observed status.
@@ -346,7 +351,7 @@ export class TransactionPayController extends BaseController<
       () => undefined,
     );
 
-    const execution = await applySolanaSourceObservation(
+    const sourceFailureReason = await readSolanaSourceFailure(
       this.messenger,
       applyRelayStatusObservation(
         this.#requireSolanaExecution(transactionId),
@@ -357,11 +362,22 @@ export class TransactionPayController extends BaseController<
     persistSolanaExecution(
       this.messenger,
       transactionId,
-      execution,
+      applySolanaSourceFailure(
+        applyRelayStatusObservation(
+          this.#requireSolanaExecution(transactionId),
+          relayStatus,
+        ),
+        sourceFailureReason,
+      ),
       'Observe Relay Solana status',
     );
 
-    const status = getSolanaPayStatus(execution);
+    await submitSolanaPayFollowUp(this.messenger, transactionId);
+
+    const status = getSolanaPayStatus(
+      this.#requireSolanaExecution(transactionId),
+    );
+
     this.#finalizeSolanaPayTransaction(transactionId, status);
     return status;
   }

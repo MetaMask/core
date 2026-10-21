@@ -2232,6 +2232,12 @@ type MetamaskPaySolanaExecutionBase = {
   /** Relay request correlation available once an executable quote exists. */
   requestId: string;
 
+  /** Chain of the token Relay delivers to the target transaction account. */
+  targetChainId: Hex;
+
+  /** Token Relay delivers to the target transaction account. */
+  targetTokenAddress: Hex;
+
   sourceStatus: MetamaskPaySolanaSourceStatus;
   relayStatus: MetamaskPaySolanaRelayStatus;
   notificationStatus: MetamaskPaySolanaNotificationStatus;
@@ -2243,6 +2249,7 @@ type MetamaskPaySolanaExecutionBase = {
   followUpTransactionId?: string;
   sourceFailureReason?: string;
   relayFailureReason?: string;
+  followUpFailureReason?: string;
 
   /** Last block height at which the signed source transaction can land. */
   lastValidBlockHeight?: number;

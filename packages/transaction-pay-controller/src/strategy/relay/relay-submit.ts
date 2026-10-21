@@ -8,14 +8,13 @@ import type {
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
-import type { CaipChainId, Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyExecuteRequest,
-  QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
@@ -75,21 +74,6 @@ type RelaySubmitParams = {
 };
 
 export type RelaySubmitCalls = { calls: TransactionParams[] };
-
-/** Fields of an EVM or non-EVM Relay quote read by the non-atomic second leg. */
-type PostNonAtomicQuote = {
-  original: Pick<RelayQuote, 'details'>;
-  request: Pick<
-    QuoteRequest,
-    | 'from'
-    | 'isPostQuote'
-    | 'recipient'
-    | 'targetChainId'
-    | 'targetTokenAddress'
-  > & {
-    sourceChainId: QuoteRequest['sourceChainId'] | CaipChainId;
-  };
-};
 
 /**
  * Submits Relay quotes.
@@ -279,7 +263,7 @@ async function executeSingleQuote(
  * @param options.transaction - Original transaction meta.
  * @returns Hash of the final submitted child transaction, if available.
  */
-export async function submitPostNonAtomic({
+async function submitPostNonAtomic({
   completion,
   messenger,
   quote,
@@ -288,7 +272,7 @@ export async function submitPostNonAtomic({
 }: {
   completion: RelayCompletionOutcome;
   messenger: TransactionPayControllerMessenger;
-  quote: PostNonAtomicQuote;
+  quote: TransactionPayQuote<RelayQuote>;
   submittedSourceHash?: Hex;
   transaction: TransactionMeta;
 }): Promise<{ transactionHash?: Hex }> {
@@ -336,7 +320,7 @@ async function buildPostQuoteDepositCalls({
   transaction,
 }: {
   messenger: TransactionPayControllerMessenger;
-  quote: PostNonAtomicQuote;
+  quote: TransactionPayQuote<RelayQuote>;
   sourceAmountRaw: string;
   transaction: TransactionMeta;
 }): Promise<BatchTransactionParams[]> {
@@ -383,7 +367,7 @@ function getSettlementHash({
   submittedSourceHash,
 }: {
   completion: RelayCompletionOutcome;
-  quote: PostNonAtomicQuote;
+  quote: TransactionPayQuote<RelayQuote>;
   submittedSourceHash?: Hex;
 }): Hex | undefined {
   if (completion.targetHash && completion.targetHash !== FALLBACK_HASH) {

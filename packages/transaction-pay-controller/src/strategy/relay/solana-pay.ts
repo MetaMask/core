@@ -19,7 +19,8 @@ import type {
   SolanaPayStatus,
   TransactionPayControllerMessenger,
 } from '../../types.js';
-import { updateTransaction } from '../../utils/transaction.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
+import { getTransaction, updateTransaction } from '../../utils/transaction.js';
 import {
   RELAY_SOLANA_CHAIN_ID,
   RELAY_SOLANA_NATIVE_CURRENCY,
@@ -399,23 +400,23 @@ export function applyRelayStatusObservation(
 
 /**
  * Reads the on-chain status of a submitted source transaction that Relay has
- * not observed yet, and records it as failed if it errored or expired.
+ * not observed yet.
  *
  * A failed RPC read keeps the source pending.
  *
  * @param messenger - Controller messenger.
  * @param execution - Current durable checkpoint.
- * @returns The updated checkpoint.
+ * @returns The failure reason if the source errored or expired.
  */
-export async function applySolanaSourceObservation(
+export async function readSolanaSourceFailure(
   messenger: TransactionPayControllerMessenger,
   execution: MetamaskPaySolanaExecution,
-): Promise<MetamaskPaySolanaExecution> {
+): Promise<string | undefined> {
   if (execution.phase !== 'submitted' || execution.sourceStatus !== 'pending') {
-    return execution;
+    return undefined;
   }
 
-  const sourceFailureReason = await getSolanaSourceFailure({
+  return await getSolanaSourceFailure({
     lastValidBlockHeight: execution.lastValidBlockHeight,
     messenger,
     scope: execution.sourceChainId,
@@ -424,12 +425,91 @@ export async function applySolanaSourceObservation(
     (reason) => reason,
     () => undefined,
   );
+}
 
+/**
+ * Records a source failure read by {@link readSolanaSourceFailure}.
+ *
+ * @param execution - Current durable checkpoint.
+ * @param sourceFailureReason - Failure reason, if the source failed.
+ * @returns The updated checkpoint.
+ */
+export function applySolanaSourceFailure(
+  execution: MetamaskPaySolanaExecution,
+  sourceFailureReason: string | undefined,
+): MetamaskPaySolanaExecution {
   if (!sourceFailureReason) {
     return execution;
   }
 
   return { ...execution, sourceFailureReason, sourceStatus: 'failed' };
+}
+
+/**
+ * Runs the non-atomic Money Account second leg once, after Relay delivered
+ * the funds to the target transaction account.
+ *
+ * The `attempting` follow-up checkpoint is persisted before the second leg so
+ * it never runs twice. This never signs or broadcasts the Solana source.
+ *
+ * @param messenger - Controller messenger.
+ * @param transactionId - Target transaction ID.
+ */
+export async function submitSolanaPayFollowUp(
+  messenger: TransactionPayControllerMessenger,
+  transactionId: string,
+): Promise<void> {
+  const transaction = getTransaction(transactionId, messenger);
+  const execution = transaction?.metamaskPay?.solanaExecution;
+
+  if (
+    !transaction ||
+    execution?.followUpStatus !== 'not-started' ||
+    execution.relayStatus !== 'success' ||
+    execution.sourceStatus !== 'confirmed'
+  ) {
+    return;
+  }
+
+  const attempting: MetamaskPaySolanaExecution = {
+    ...execution,
+    followUpStatus: 'attempting',
+  };
+
+  persistSolanaExecution(
+    messenger,
+    transactionId,
+    attempting,
+    'Start one Money Account destination follow-up',
+  );
+
+  const followUp = await submitSecondLeg({
+    chainId: execution.targetChainId,
+    // Relay delivers the funds to the target transaction account, not to an
+    // overridden quote `from`, so the second leg spends from the same account.
+    from: transaction.txParams.from as Hex,
+    messenger,
+    settlementHash: execution.targetTransactionId as Hex | undefined,
+    tokenAddress: execution.targetTokenAddress,
+    transaction,
+  }).then(
+    ({ transactionHash }) => ({
+      followUpStatus: 'confirmed' as const,
+      followUpTransactionId: transactionHash,
+    }),
+    (error: unknown) => ({
+      followUpFailureReason:
+        error instanceof Error ? error.message : String(error),
+      followUpStatus: 'failed' as const,
+    }),
+  );
+
+  persistSolanaExecution(
+    messenger,
+    transactionId,
+    { ...attempting, ...followUp },
+    `Record Money Account destination follow-up: ${followUp.followUpStatus}`,
+  );
 }
 
 /**
@@ -442,6 +522,7 @@ export function getSolanaPayStatus(
   execution: MetamaskPaySolanaExecution,
 ): SolanaPayStatus {
   return {
+    followUpFailureReason: execution.followUpFailureReason,
     followUpStatus: execution.followUpStatus,
     followUpTransactionId: execution.followUpTransactionId,
     notificationStatus: execution.notificationStatus,
@@ -485,7 +566,9 @@ export function getSolanaPayFailure(
     case 'refunded':
       return status.relayFailureReason ?? 'Relay settlement refunded';
     case 'follow-up-failed':
-      return 'Solana pay non-atomic follow-up failed';
+      return (
+        status.followUpFailureReason ?? 'Solana pay non-atomic follow-up failed'
+      );
     default:
       return undefined;
   }

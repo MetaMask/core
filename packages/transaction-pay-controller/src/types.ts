@@ -309,6 +309,7 @@ export type SolanaPayStatus = {
   followUpTransactionId?: string;
   sourceFailureReason?: string;
   relayFailureReason?: string;
+  followUpFailureReason?: string;
   submissionOutcome?: ExternallyHandledPublishOutcome;
 };
 

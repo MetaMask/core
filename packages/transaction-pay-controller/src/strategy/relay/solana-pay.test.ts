@@ -14,9 +14,10 @@ import type {
 import { PaymentOverride } from '../../constants.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { NonEvmQuoteRequest } from '../../types.js';
+import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   applyRelayStatusObservation,
-  applySolanaSourceObservation,
+  applySolanaSourceFailure,
   buildRelaySolanaQuoteRequest,
   deriveSolanaPayOutcome,
   getRelaySolanaTransaction,
@@ -25,6 +26,8 @@ import {
   getSolanaPayStatus,
   isTerminalSolanaPayOutcome,
   mapRelayStatus,
+  readSolanaSourceFailure,
+  submitSolanaPayFollowUp,
 } from './solana-pay.js';
 import { getSolanaSourceFailure } from './solana-transaction.js';
 import type {
@@ -34,6 +37,7 @@ import type {
 } from './types.js';
 
 jest.mock('./solana-transaction');
+jest.mock('../../utils/second-leg');
 
 const SOLANA_CHAIN_ID =
   'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId;
@@ -81,6 +85,8 @@ function getExecution(
     sourceChainId: SOLANA_CHAIN_ID,
     sourceStatus: 'not-observed',
     sourceWalletAccountId: 'wallet-account-uuid',
+    targetChainId: '0xa4b1',
+    targetTokenAddress: TARGET_TOKEN,
     ...overrides,
   } as MetamaskPaySolanaExecution;
 }
@@ -682,7 +688,7 @@ describe('Solana Relay Pay', () => {
     });
   });
 
-  describe('applySolanaSourceObservation', () => {
+  describe('readSolanaSourceFailure', () => {
     const getSolanaSourceFailureMock = jest.mocked(getSolanaSourceFailure);
     const { messenger } = getMessengerMock();
 
@@ -697,43 +703,28 @@ describe('Solana Relay Pay', () => {
       getSolanaSourceFailureMock.mockReset();
     });
 
-    it('records a failed source transaction', async () => {
+    it('returns the failure of an unobserved source transaction', async () => {
       getSolanaSourceFailureMock.mockResolvedValue(
         'Solana source transaction expired',
       );
 
-      const execution = await applySolanaSourceObservation(
-        messenger,
-        pendingExecution,
+      expect(await readSolanaSourceFailure(messenger, pendingExecution)).toBe(
+        'Solana source transaction expired',
       );
-
       expect(getSolanaSourceFailureMock).toHaveBeenCalledWith({
         lastValidBlockHeight: 100,
         messenger,
         scope: SOLANA_CHAIN_ID,
         signature: 'signature',
       });
-      expect(execution).toMatchObject({
-        sourceFailureReason: 'Solana source transaction expired',
-        sourceStatus: 'failed',
-      });
-      expect(deriveSolanaPayOutcome(execution)).toBe('source-failed');
     });
 
-    it('keeps the source pending when it may still land', async () => {
-      getSolanaSourceFailureMock.mockResolvedValue(undefined);
-
-      expect(
-        await applySolanaSourceObservation(messenger, pendingExecution),
-      ).toBe(pendingExecution);
-    });
-
-    it('keeps the source pending when the RPC read fails', async () => {
+    it('returns undefined when the RPC read fails', async () => {
       getSolanaSourceFailureMock.mockRejectedValue(new Error('rpc'));
 
       expect(
-        await applySolanaSourceObservation(messenger, pendingExecution),
-      ).toBe(pendingExecution);
+        await readSolanaSourceFailure(messenger, pendingExecution),
+      ).toBeUndefined();
     });
 
     it.each([
@@ -747,10 +738,168 @@ describe('Solana Relay Pay', () => {
         }),
       ],
     ])('does not read the RPC for %s', async (_title, execution) => {
-      expect(await applySolanaSourceObservation(messenger, execution)).toBe(
-        execution,
-      );
+      expect(
+        await readSolanaSourceFailure(messenger, execution),
+      ).toBeUndefined();
       expect(getSolanaSourceFailureMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('applySolanaSourceFailure', () => {
+    it('records a failed source transaction', () => {
+      const execution = applySolanaSourceFailure(
+        getExecution({
+          phase: 'submitted',
+          sourceStatus: 'pending',
+          sourceTransactionId: 'signature',
+        }),
+        'Solana source transaction expired',
+      );
+
+      expect(execution).toMatchObject({
+        sourceFailureReason: 'Solana source transaction expired',
+        sourceStatus: 'failed',
+      });
+      expect(deriveSolanaPayOutcome(execution)).toBe('source-failed');
+    });
+
+    it('keeps the checkpoint when the source may still land', () => {
+      const execution = getExecution();
+
+      expect(applySolanaSourceFailure(execution, undefined)).toBe(execution);
+    });
+  });
+
+  describe('submitSolanaPayFollowUp', () => {
+    const submitSecondLegMock = jest.mocked(submitSecondLeg);
+    const {
+      getTransactionControllerStateMock,
+      messenger,
+      updateTransactionMock,
+    } = getMessengerMock();
+
+    const OVERRIDE_ACCOUNT =
+      '0x9999999999999999999999999999999999999999' as Hex;
+
+    let transaction: TransactionMeta;
+
+    function setExecution(
+      overrides: Partial<MetamaskPaySolanaExecution> = {},
+    ): void {
+      transaction = {
+        id: 'transaction-1',
+        metamaskPay: {
+          solanaExecution: getExecution({
+            followUpStatus: 'not-started',
+            phase: 'submitted',
+            relayStatus: 'success',
+            requiresNonAtomicFollowUp: true,
+            sourceStatus: 'confirmed',
+            sourceTransactionId: 'signature',
+            targetTransactionId: '0xtarget',
+            ...overrides,
+          }),
+        },
+        txParams: { from: RECIPIENT },
+      } as TransactionMeta;
+    }
+
+    beforeEach(() => {
+      jest.resetAllMocks();
+      setExecution();
+
+      getTransactionControllerStateMock.mockImplementation(() => ({
+        transactions: [transaction],
+      }));
+      updateTransactionMock.mockImplementation((updated: TransactionMeta) => {
+        transaction = updated;
+      });
+    });
+
+    it('runs the second leg once from the target transaction account after Relay delivered the funds', async () => {
+      submitSecondLegMock.mockImplementation(async () => {
+        expect(transaction.metamaskPay?.solanaExecution?.followUpStatus).toBe(
+          'attempting',
+        );
+        return { transactionHash: '0xsecond' };
+      });
+
+      await submitSolanaPayFollowUp(messenger, 'transaction-1');
+      await submitSolanaPayFollowUp(messenger, 'transaction-1');
+
+      expect(submitSecondLegMock).toHaveBeenCalledTimes(1);
+      expect(submitSecondLegMock).toHaveBeenCalledWith({
+        chainId: '0xa4b1',
+        from: RECIPIENT,
+        messenger,
+        settlementHash: '0xtarget',
+        tokenAddress: TARGET_TOKEN,
+        transaction: expect.objectContaining({ id: 'transaction-1' }),
+      });
+      expect(transaction.metamaskPay?.solanaExecution).toMatchObject({
+        followUpStatus: 'confirmed',
+        followUpTransactionId: '0xsecond',
+      });
+    });
+
+    it('spends from the target transaction account even when the quote account was overridden', async () => {
+      transaction = {
+        ...transaction,
+        txParams: { from: OVERRIDE_ACCOUNT },
+      } as TransactionMeta;
+      submitSecondLegMock.mockResolvedValue({ transactionHash: '0xsecond' });
+
+      await submitSolanaPayFollowUp(messenger, 'transaction-1');
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({ from: OVERRIDE_ACCOUNT }),
+      );
+    });
+
+    it.each([
+      ['an Error', new Error('Second leg: failed'), 'Second leg: failed'],
+      ['a non-error rejection', 'timeout', 'timeout'],
+    ])(
+      'records %s from the second leg as a failed follow-up',
+      async (_title, error, reason) => {
+        submitSecondLegMock.mockRejectedValue(error);
+
+        await submitSolanaPayFollowUp(messenger, 'transaction-1');
+
+        const execution = transaction.metamaskPay
+          ?.solanaExecution as MetamaskPaySolanaExecution;
+
+        expect(execution).toMatchObject({
+          followUpFailureReason: reason,
+          followUpStatus: 'failed',
+        });
+        expect(getSolanaPayFailure(getSolanaPayStatus(execution))).toBe(reason);
+      },
+    );
+
+    it.each([
+      ['the follow-up is not required', { followUpStatus: 'not-required' }],
+      ['the follow-up already started', { followUpStatus: 'attempting' }],
+      ['Relay has not succeeded', { relayStatus: 'pending' }],
+      ['the source is not confirmed', { sourceStatus: 'pending' }],
+    ] as const)(
+      'does nothing when %s',
+      async (_title, overrides: Partial<MetamaskPaySolanaExecution>) => {
+        setExecution(overrides);
+
+        await submitSolanaPayFollowUp(messenger, 'transaction-1');
+
+        expect(submitSecondLegMock).not.toHaveBeenCalled();
+        expect(updateTransactionMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it('does nothing when the transaction is missing', async () => {
+      getTransactionControllerStateMock.mockReturnValue({ transactions: [] });
+
+      await submitSolanaPayFollowUp(messenger, 'transaction-1');
+
+      expect(submitSecondLegMock).not.toHaveBeenCalled();
     });
   });
 

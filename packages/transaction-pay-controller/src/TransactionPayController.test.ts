@@ -25,6 +25,7 @@ import type {
 } from './types.js';
 import { getStrategyOrder } from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
+import { submitSecondLeg } from './utils/second-leg.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
   getTransaction,
@@ -42,6 +43,7 @@ jest.mock('./utils/transaction');
 jest.mock('./utils/feature-flags');
 jest.mock('./strategy/relay/relay-api');
 jest.mock('./strategy/relay/solana-transaction');
+jest.mock('./utils/second-leg');
 
 const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
@@ -692,6 +694,8 @@ describe('TransactionPayController', () => {
         sourceStatus: 'pending',
         sourceTransactionId: 'signature',
         sourceWalletAccountId: 'solana-account-uuid',
+        targetChainId: '0xa4b1',
+        targetTokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
         ...overrides,
       };
     }
@@ -833,6 +837,77 @@ describe('TransactionPayController', () => {
         new Error('Solana source transaction expired'),
       );
       expect(mocks.snapHandleRequestMock).not.toHaveBeenCalled();
+    });
+
+    it('runs the Money Account second leg once after Relay success, then confirms without signing', async () => {
+      const submitSecondLegMock = jest.mocked(submitSecondLeg);
+      submitSecondLegMock.mockResolvedValue({ transactionHash: '0xsecond' });
+      transaction = {
+        ...transaction,
+        metamaskPay: {
+          solanaExecution: getExecution({
+            followUpStatus: 'not-started',
+            requiresNonAtomicFollowUp: true,
+          }),
+        },
+        txParams: { from: '0x1234567890123456789012345678901234567890' },
+      };
+      getRelayStatusMock.mockResolvedValue(getRelayStatusResponse('success'));
+      createController();
+
+      const results = await messenger.call(
+        'TransactionPayController:recoverSolanaPayStatus',
+      );
+      await messenger.call(
+        'TransactionPayController:reconcileSolanaPay',
+        TRANSACTION_ID_MOCK,
+      );
+
+      expect(submitSecondLegMock).toHaveBeenCalledTimes(1);
+      expect(submitSecondLegMock).toHaveBeenCalledWith({
+        chainId: '0xa4b1',
+        from: '0x1234567890123456789012345678901234567890',
+        messenger: expect.anything(),
+        settlementHash: '0xtarget',
+        tokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+        transaction: expect.objectContaining({ id: TRANSACTION_ID_MOCK }),
+      });
+      expect(results[TRANSACTION_ID_MOCK]).toMatchObject({
+        followUpStatus: 'confirmed',
+        followUpTransactionId: '0xsecond',
+        outcome: 'succeeded',
+      });
+      expect(confirmTransactionMock).toHaveBeenCalledWith(TRANSACTION_ID_MOCK);
+      expect(mocks.snapHandleRequestMock).not.toHaveBeenCalled();
+    });
+
+    it('fails the externally published transaction when the recovered Money Account second leg fails', async () => {
+      jest
+        .mocked(submitSecondLeg)
+        .mockRejectedValue(new Error('Second leg: failed'));
+      transaction = {
+        ...transaction,
+        metamaskPay: {
+          solanaExecution: getExecution({
+            followUpStatus: 'not-started',
+            requiresNonAtomicFollowUp: true,
+          }),
+        },
+        txParams: { from: '0x1234567890123456789012345678901234567890' },
+      };
+      getRelayStatusMock.mockResolvedValue(getRelayStatusResponse('success'));
+      createController();
+
+      const status = await messenger.call(
+        'TransactionPayController:reconcileSolanaPay',
+        TRANSACTION_ID_MOCK,
+      );
+
+      expect(status.outcome).toBe('follow-up-failed');
+      expect(failTransactionMock).toHaveBeenCalledWith(
+        TRANSACTION_ID_MOCK,
+        new Error('Second leg: failed'),
+      );
     });
 
     it('records an unreadable Relay status as unknown', async () => {
