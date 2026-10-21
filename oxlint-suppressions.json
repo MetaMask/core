@@ -5256,7 +5256,7 @@
   },
   "packages/transaction-pay-controller/src/actions/update-payment-token.test.ts": {
     "typescript/no-unsafe-call": {
-      "count": 3
+      "count": 5
     }
   },
   "packages/transaction-pay-controller/src/helpers/QuoteRefresher.test.ts": {
@@ -5558,13 +5558,13 @@
       "count": 5
     },
     "typescript/no-unsafe-call": {
-      "count": 27
+      "count": 29
     },
     "typescript/no-unsafe-member-access": {
       "count": 8
     },
     "typescript/no-unsafe-return": {
-      "count": 18
+      "count": 20
     },
     "vitest/no-conditional-in-test": {
       "count": 24
@@ -5603,7 +5603,7 @@
   },
   "packages/transaction-pay-controller/src/utils/source-amounts.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 34
+      "count": 38
     },
     "typescript/no-unsafe-call": {
       "count": 4
@@ -5625,13 +5625,13 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 60
+      "count": 66
     },
     "typescript/no-unsafe-call": {
-      "count": 59
+      "count": 65
     },
     "typescript/no-unsafe-member-access": {
-      "count": 59
+      "count": 65
     }
   },
   "packages/transaction-pay-controller/src/utils/token.ts": {

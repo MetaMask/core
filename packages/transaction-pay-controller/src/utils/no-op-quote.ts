@@ -3,8 +3,8 @@ import type { Hex, Json } from '@metamask/utils';
 import { TransactionPayStrategy } from '../constants.js';
 import type {
   Amount,
+  EvmPaymentToken,
   FiatValue,
-  TransactionPaymentToken,
   TransactionPayQuote,
 } from '../types.js';
 
@@ -27,12 +27,12 @@ function zeroAmount(): Amount {
  * ignored by fee totals and quote refreshes.
  *
  * @param from - Resolved wallet address for the transaction.
- * @param paymentToken - Selected payment token.
+ * @param paymentToken - Selected EVM payment token.
  * @returns The no-op quote.
  */
 export function buildNoOpQuote(
   from: Hex,
-  paymentToken: TransactionPaymentToken,
+  paymentToken: EvmPaymentToken,
 ): TransactionPayQuote<Json> {
   return {
     dust: zeroFiat(),

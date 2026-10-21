@@ -20,6 +20,8 @@ See [required-tokens.ts](/packages/transaction-pay-controller/src/utils/required
 
 The payment token is the source ERC-20 or native token which will provide the funds for the transaction on the target chain.
 
+A payment token is either an EVM token, identified by a Hex chain ID and token address, or a non-EVM token, such as Solana SOL or an SPL token, identified by a CAIP-2 chain ID, CAIP-19 asset type, CAIP-10 account ID, and `InternalAccount` ID. Use `isNonEvmPaymentToken` to tell them apart. Non-EVM token metadata, balances, and prices are read from `AssetsController` state. Quote requests for a non-EVM payment token are passed to strategies in `nonEvmRequests` rather than `requests`, so strategies that only support EVM sources return no quotes.
+
 This can be selected by the user via the transaction confirmation in the client, or automatically selected based on the highest balance and chain.
 
 ## Pay Strategies
@@ -70,4 +72,4 @@ The high level interaction with the `TransactionPayController` is as follows:
 
 Transient state is grouped according to the associated transaction ID in the `transactionData` property. It includes required tokens, the selected payment token, retrieved quotes, and calculated totals, and is not persisted across restarts.
 
-Chain-agnostic source account and asset metadata is stored only on the persisted target transaction in `metamaskPay.source`. The CAIP-10 account and CAIP-19 asset identify their source chain without placing non-EVM identifiers in legacy EVM-only fields. Execution correlation and recovery checkpoints are not part of ordinary Pay selection state.
+When a non-EVM payment token is selected, its CAIP-10 account and CAIP-19 asset are projected onto the persisted target transaction in `metamaskPay.source`, without placing non-EVM identifiers in legacy EVM-only fields. Selecting an EVM payment token clears this projection. Execution correlation and recovery checkpoints are not part of ordinary Pay selection state.

@@ -6,21 +6,6 @@
 import type { TransactionPayController } from './TransactionPayController.js';
 
 /**
- * Persists chain-agnostic Pay source metadata on the target transaction.
- *
- * The CAIP-10 account and CAIP-19 asset must identify the same chain.
- * Legacy EVM-only Pay metadata is preserved unchanged.
- *
- * @param request - Pay source metadata and target transaction ID.
- * @param request.source - Chain-agnostic payment source metadata.
- * @param request.transactionId - ID of the target transaction.
- */
-export type TransactionPayControllerSetPaySourceAction = {
-  type: `TransactionPayController:setPaySource`;
-  handler: TransactionPayController['setPaySource'];
-};
-
-/**
  * Sets the transaction configuration.
  *
  * The callback receives the current configuration properties and can mutate
@@ -156,7 +141,6 @@ export type TransactionPayControllerPolymarketSubmitDepositWalletBatchAction = {
  * Union of all TransactionPayController action types.
  */
 export type TransactionPayControllerMethodActions =
-  | TransactionPayControllerSetPaySourceAction
   | TransactionPayControllerSetTransactionConfigAction
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction

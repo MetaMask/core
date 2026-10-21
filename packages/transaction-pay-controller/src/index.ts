@@ -1,4 +1,5 @@
 export type {
+  EvmPaymentToken,
   GetAmountDataCallback,
   GetAmountDataRequest,
   GetAmountDataResponse,
@@ -7,10 +8,10 @@ export type {
   GetBalanceResponse,
   GetPaymentOverrideDataRequest,
   GetPaymentOverrideDataResponse,
+  NonEvmPaymentToken,
   PolymarketCallbacks,
   QuoteErrorInfo,
   QuoteErrorReason,
-  SetPaySourceRequest,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -27,7 +28,6 @@ export type {
   TransactionPaymentToken,
   TransactionPayQuote,
   TransactionPayRequiredToken,
-  TransactionPaySource,
   TransactionPaySourceAmount,
   TransactionPayTotals,
   UpdateFiatPaymentRequest,
@@ -40,7 +40,6 @@ export type {
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
   TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
-  TransactionPayControllerSetPaySourceAction,
   TransactionPayControllerSetTransactionConfigAction,
   TransactionPayControllerUpdatePaymentTokenAction,
   TransactionPayControllerUpdateFiatPaymentAction,
@@ -48,3 +47,4 @@ export type {
 export { PaymentOverride, TransactionPayStrategy } from './constants.js';
 export { TransactionPayController } from './TransactionPayController.js';
 export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook.js';
+export { isNonEvmPaymentToken } from './utils/token.js';
