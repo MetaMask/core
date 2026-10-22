@@ -1792,6 +1792,26 @@ describe('HyperLiquidProvider', () => {
           }),
         ).rejects.toThrow('Auto-transfer failed: Transfer failed');
       });
+
+      it('preserves a multi-signature rejection from the transfer', async () => {
+        jest.spyOn(testableProvider, 'getBalanceForDex').mockResolvedValue(100);
+        jest
+          .spyOn(testableProvider, 'findSourceDexWithBalance')
+          .mockResolvedValue({ sourceDex: '', available: 1000 });
+        jest.spyOn(testableProvider, 'transferBetweenDexs').mockResolvedValue({
+          success: false,
+          error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+        });
+
+        await expect(
+          testableProvider.autoTransferForHip3Order({
+            targetDex: 'xyz',
+            requiredMargin: 500,
+          }),
+        ).rejects.toMatchObject({
+          message: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+        });
+      });
     });
 
     describe('calculateHip3RequiredMargin', () => {

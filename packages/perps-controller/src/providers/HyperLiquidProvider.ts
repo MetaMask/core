@@ -5969,9 +5969,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       : await this.transferBetweenDexs(transferParams);
 
     if (!result.success) {
-      // The signer could not sign the transfer: retryable, not a defect.
-      if (result.error === PERPS_ERROR_CODES.KEYRING_LOCKED) {
-        throw new Error(PERPS_ERROR_CODES.KEYRING_LOCKED);
+      // Preserve stable account/signer outcomes that callers handle directly.
+      if (
+        result.error === PERPS_ERROR_CODES.KEYRING_LOCKED ||
+        result.error === PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED
+      ) {
+        throw new Error(result.error);
       }
       throw new Error(
         `Auto-transfer failed: ${result.error ?? 'Unknown error'}`,
