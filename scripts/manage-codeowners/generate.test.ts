@@ -31,18 +31,22 @@ describe('generateCodeownersFileContent', () => {
 # --------
 
 ### a-controller
-/packages/a-controller                 @MetaMask/a-team @MetaMask/b-team
-/packages/a-controller/CHANGELOG.md    @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
-/packages/a-controller/package.json    @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
-/packages/a-controller/tsconfig.*      @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
-/packages/a-controller/typedoc.json    @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
+/packages/a-controller                    @MetaMask/a-team @MetaMask/b-team
+/packages/a-controller/CHANGELOG.md       @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
+/packages/a-controller/package.json       @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
+/packages/a-controller/tsconfig.*         @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
+/packages/a-controller/typedoc.json       @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
+/packages/a-controller/jest.config.*      @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
+/packages/a-controller/vitest.config.*    @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
 
 ### b-controller
-/packages/b-controller                 @MetaMask/b-team
-/packages/b-controller/CHANGELOG.md    @MetaMask/b-team @MetaMask/core-platform
-/packages/b-controller/package.json    @MetaMask/b-team @MetaMask/core-platform
-/packages/b-controller/tsconfig.*      @MetaMask/b-team @MetaMask/core-platform
-/packages/b-controller/typedoc.json    @MetaMask/b-team @MetaMask/core-platform
+/packages/b-controller                    @MetaMask/b-team
+/packages/b-controller/CHANGELOG.md       @MetaMask/b-team @MetaMask/core-platform
+/packages/b-controller/package.json       @MetaMask/b-team @MetaMask/core-platform
+/packages/b-controller/tsconfig.*         @MetaMask/b-team @MetaMask/core-platform
+/packages/b-controller/typedoc.json       @MetaMask/b-team @MetaMask/core-platform
+/packages/b-controller/jest.config.*      @MetaMask/b-team @MetaMask/core-platform
+/packages/b-controller/vitest.config.*    @MetaMask/b-team @MetaMask/core-platform
 
 ### wallet
 /packages/wallet                                               @MetaMask/core-platform
@@ -51,6 +55,8 @@ describe('generateCodeownersFileContent', () => {
 /packages/wallet/package.json                                  @MetaMask/core-platform
 /packages/wallet/tsconfig.*                                    @MetaMask/core-platform
 /packages/wallet/typedoc.json                                  @MetaMask/core-platform
+/packages/wallet/jest.config.*                                 @MetaMask/core-platform
+/packages/wallet/vitest.config.*                               @MetaMask/core-platform
 
 # Overrides
 # ---------

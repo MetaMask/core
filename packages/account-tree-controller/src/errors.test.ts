@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { reportRemoveAccountWalletError, toErrorMessage } from './errors.js';
 
 describe('toErrorMessage', () => {
@@ -14,8 +16,8 @@ describe('toErrorMessage', () => {
 
 describe('reportRemoveAccountWalletError', () => {
   it('calls console.error with the message and structured context', () => {
-    const messenger = { captureException: jest.fn() };
-    const consoleErrorSpy = jest
+    const messenger = { captureException: vi.fn() };
+    const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
     const error = new Error('something went wrong');
@@ -42,8 +44,8 @@ describe('reportRemoveAccountWalletError', () => {
   });
 
   it('omits the id field from context when the failure has no id', () => {
-    const messenger = { captureException: jest.fn() };
-    const consoleErrorSpy = jest
+    const messenger = { captureException: vi.fn() };
+    const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
     const error = new Error('oops');
@@ -63,8 +65,8 @@ describe('reportRemoveAccountWalletError', () => {
   });
 
   it('calls captureException with a Sentry error carrying the context', () => {
-    const messenger = { captureException: jest.fn() };
-    const consoleErrorSpy = jest
+    const messenger = { captureException: vi.fn() };
+    const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
     const error = new Error('removal incomplete');
@@ -85,7 +87,7 @@ describe('reportRemoveAccountWalletError', () => {
 
   it('does not throw when captureException is absent from the messenger', () => {
     const messenger = {};
-    const consoleErrorSpy = jest
+    const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
 

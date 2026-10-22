@@ -4,9 +4,9 @@
 
 import { QueryClient } from '@tanstack/query-core';
 
+import { createMockResponse, mockFetch } from '../../tests/test-utils.js';
 import { AccountsApiClient } from './accounts/index.js';
 import { authQueryKeys } from './base-client.js';
-import { createMockResponse, mockFetch } from './test-utils.js';
 
 /**
  * Reads the Authorization header from a recorded fetch call.

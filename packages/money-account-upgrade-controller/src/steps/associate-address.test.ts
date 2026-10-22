@@ -6,6 +6,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
+import { describe, it, expect, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
 import { associateAddressStep } from './associate-address.js';
@@ -88,11 +90,11 @@ type AllActions = MessengerActions<MoneyAccountUpgradeControllerMessenger>;
 type AllEvents = MessengerEvents<MoneyAccountUpgradeControllerMessenger>;
 
 type Mocks = {
-  signPersonalMessage: jest.Mock;
-  createAddressChallenge: jest.Mock;
-  associateAddressV2: jest.Mock;
-  getAssociatedAddresses: jest.Mock;
-  getDerivedIdentityByAddress: jest.Mock;
+  signPersonalMessage: Mock;
+  createAddressChallenge: Mock;
+  associateAddressV2: Mock;
+  getAssociatedAddresses: Mock;
+  getDerivedIdentityByAddress: Mock;
 };
 
 function setup(): {
@@ -100,15 +102,15 @@ function setup(): {
   mocks: Mocks;
 } {
   const mocks: Mocks = {
-    signPersonalMessage: jest.fn().mockResolvedValue(MOCK_SIGNATURE),
-    createAddressChallenge: jest.fn().mockResolvedValue(MOCK_CHALLENGE),
-    associateAddressV2: jest.fn().mockResolvedValue({
+    signPersonalMessage: vi.fn().mockResolvedValue(MOCK_SIGNATURE),
+    createAddressChallenge: vi.fn().mockResolvedValue(MOCK_CHALLENGE),
+    associateAddressV2: vi.fn().mockResolvedValue({
       profileId: 'profile-1',
       address: MOCK_ADDRESS_LOWERCASE,
       status: 'created',
     }),
-    getAssociatedAddresses: jest.fn().mockResolvedValue([]),
-    getDerivedIdentityByAddress: jest.fn().mockResolvedValue(null),
+    getAssociatedAddresses: vi.fn().mockResolvedValue([]),
+    getDerivedIdentityByAddress: vi.fn().mockResolvedValue(null),
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({

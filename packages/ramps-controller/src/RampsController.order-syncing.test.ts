@@ -4,6 +4,8 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { RampsControllerMessenger } from './RampsController.js';
 import {
@@ -55,15 +57,15 @@ function setupControllerWithOrderSyncingMocks(args?: {
   ) => void;
 }): {
   controller: RampsController;
-  performBatchSetStorage: jest.Mock;
-  performGetStorageAllFeatureEntries: jest.Mock;
-  getOrder: jest.Mock;
+  performBatchSetStorage: Mock;
+  performGetStorageAllFeatureEntries: Mock;
+  getOrder: Mock;
 } {
-  const performBatchSetStorage = jest.fn().mockResolvedValue(undefined);
-  const performGetStorageAllFeatureEntries = jest
+  const performBatchSetStorage = vi.fn().mockResolvedValue(undefined);
+  const performGetStorageAllFeatureEntries = vi
     .fn()
     .mockResolvedValue([] as string[]);
-  const getOrder = jest.fn();
+  const getOrder = vi.fn();
 
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -115,7 +117,7 @@ function setupControllerWithOrderSyncingMocks(args?: {
 
 describe('RampsController order syncing', () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('exposes the order syncing semaphore getter and setter', () => {
@@ -175,7 +177,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('stamps lastUpdatedAt on local addOrder edits', () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     const { controller } = setupControllerWithOrderSyncingMocks();
 
     controller.addOrder({
@@ -193,7 +195,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('does not bump lastUpdatedAt or write remotely when addOrder payload is unchanged', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     const { controller, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks();
     const order = createMockOrder({ status: RampsOrderStatus.Pending });
@@ -203,7 +205,7 @@ describe('RampsController order syncing', () => {
       setImmediate(resolve);
     });
     performBatchSetStorage.mockClear();
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
 
     controller.addOrder(order);
     await new Promise((resolve) => {
@@ -215,7 +217,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('does not write remotely when getOrder returns an unchanged order', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     const { controller, getOrder, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks();
     const order = createMockOrder({ status: RampsOrderStatus.Pending });
@@ -225,7 +227,7 @@ describe('RampsController order syncing', () => {
       setImmediate(resolve);
     });
     performBatchSetStorage.mockClear();
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
     getOrder.mockResolvedValue(order);
 
     await controller.getOrder('transak', 'abc-123', order.walletAddress);
@@ -260,7 +262,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('merges paymentDetails without bumping lastUpdatedAt or writing remotely when only paymentDetails changed', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     const { controller, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks();
     const order = createMockOrder({ status: RampsOrderStatus.Pending });
@@ -270,7 +272,7 @@ describe('RampsController order syncing', () => {
       setImmediate(resolve);
     });
     performBatchSetStorage.mockClear();
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
 
     const orderWithPaymentDetails = {
       ...order,
@@ -289,7 +291,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('merges paymentDetails from poll without remote write when only paymentDetails changed', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     const { controller, getOrder, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks();
     const order = createMockOrder({ status: RampsOrderStatus.Pending });
@@ -299,7 +301,7 @@ describe('RampsController order syncing', () => {
       setImmediate(resolve);
     });
     performBatchSetStorage.mockClear();
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
     const orderWithPaymentDetails = {
       ...order,
       paymentDetails: [{ method: 'bank_transfer', details: 'some-details' }],
@@ -319,10 +321,10 @@ describe('RampsController order syncing', () => {
   });
 
   it('reports incremental addOrder remote sync failures via onOrderSyncErroneousSituation', async () => {
-    const onOrderSyncErroneousSituation = jest.fn();
+    const onOrderSyncErroneousSituation = vi.fn();
     const { controller, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks({ onOrderSyncErroneousSituation });
-    const consoleErrorSpy = jest
+    const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
 
@@ -345,7 +347,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('reports incremental removeOrder remote sync failures via onOrderSyncErroneousSituation', async () => {
-    const onOrderSyncErroneousSituation = jest.fn();
+    const onOrderSyncErroneousSituation = vi.fn();
     const {
       controller,
       performBatchSetStorage,
@@ -353,7 +355,7 @@ describe('RampsController order syncing', () => {
     } = setupControllerWithOrderSyncingMocks({
       onOrderSyncErroneousSituation,
     });
-    const consoleErrorSpy = jest
+    const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
 
@@ -491,7 +493,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('queues mid-sync deletes and drains them after sync', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_700);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_700);
     const {
       controller,
       performBatchSetStorage,
@@ -697,7 +699,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('bumps lastUpdatedAt for external edits made while a sync is in progress', () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_222);
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_222);
     const { controller } = setupControllerWithOrderSyncingMocks();
 
     controller.setIsOrderSyncingInProgress(true);
@@ -748,7 +750,7 @@ describe('RampsController order syncing', () => {
   });
 
   it('reports when addOrder cannot derive an internal order code', () => {
-    const onOrderSyncErroneousSituation = jest.fn();
+    const onOrderSyncErroneousSituation = vi.fn();
     const rootMessenger: RootMessenger = new Messenger({
       namespace: MOCK_ANY_NAMESPACE,
     });

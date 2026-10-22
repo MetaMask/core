@@ -2,6 +2,7 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { p384, p521 } from '@noble/curves/nist';
 import { sha384, sha512 } from '@noble/hashes/sha2';
 import { webcrypto } from 'node:crypto';
+import { describe, expect, it } from 'vitest';
 
 import { base64URLToBytes } from '../utils/encoding.js';
 import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants.js';

@@ -4,7 +4,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getMessengerMock } from '../tests/messenger-mock.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   QuoteRequest,
   TransactionPayControllerMessenger,

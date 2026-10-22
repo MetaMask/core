@@ -1,8 +1,7 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "resolveJsonModule": true,
-    "types": ["jest"]
+    "resolveJsonModule": true
   },
   "references": [
     {
@@ -19,6 +18,9 @@
     },
     {
       "path": "../controller-utils"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

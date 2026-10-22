@@ -4,6 +4,7 @@ import type { Caip25CaveatValue } from '../caip25Permission.js';
 import type { InternalScopesObject } from '../scope/types.js';
 import {
   getEthAccounts,
+  getEthAccountsForScope,
   setEthAccounts,
   setNonSCACaipAccountIdsInCaip25CaveatValue,
   getCaipAccountIdsFromScopesObjects,
@@ -84,6 +85,55 @@ describe('CAIP-25 eth_accounts adapters', () => {
         '0x100',
         '0x5',
       ]);
+    });
+  });
+
+  describe('getEthAccountsForScope', () => {
+    it('returns an empty array if the scope is not present', () => {
+      const ethAccounts = getEthAccountsForScope(
+        {
+          requiredScopes: { 'eip155:1': { accounts: ['eip155:1:0x1'] } },
+          optionalScopes: {},
+        },
+        'eip155:2',
+      );
+      expect(ethAccounts).toStrictEqual([]);
+    });
+
+    it('returns an empty array if the scope has no accounts', () => {
+      const ethAccounts = getEthAccountsForScope(
+        {
+          requiredScopes: { 'eip155:1': { accounts: [] } },
+          optionalScopes: {},
+        },
+        'eip155:1',
+      );
+      expect(ethAccounts).toStrictEqual([]);
+    });
+
+    it('returns the accounts from the required scope', () => {
+      const ethAccounts = getEthAccountsForScope(
+        {
+          requiredScopes: {
+            'eip155:1': { accounts: ['eip155:1:0x1', 'eip155:1:0x2'] },
+            'eip155:2': { accounts: ['eip155:2:0x3'] },
+          },
+          optionalScopes: {},
+        },
+        'eip155:1',
+      );
+      expect(ethAccounts).toStrictEqual(['0x1', '0x2']);
+    });
+
+    it('returns the accounts from the optional scope', () => {
+      const ethAccounts = getEthAccountsForScope(
+        {
+          requiredScopes: {},
+          optionalScopes: { 'eip155:1': { accounts: ['eip155:1:0x1'] } },
+        },
+        'eip155:1',
+      );
+      expect(ethAccounts).toStrictEqual(['0x1']);
     });
   });
 

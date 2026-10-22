@@ -1729,7 +1729,7 @@ describe('PerpsController', () => {
       const feeParams = {
         orderType: 'market' as const,
         isMaker: false,
-        amount: '100000',
+        amount: '1000',
         symbol: 'BTC',
       };
 
@@ -1866,6 +1866,92 @@ describe('PerpsController', () => {
       refresh.mockRestore();
     });
 
+    it('passes one scoped rewards resolution to the fee preview and returns its source', async () => {
+      const params = {
+        orderType: 'market' as const,
+        symbol: 'BTC',
+        amount: '1000',
+      };
+      const resolution = {
+        feeBips: 3.5,
+        discountBips: 6500,
+        source: 'rewards' as const,
+        subscription: {
+          eligible: false,
+          reason: 'no-source' as const,
+        },
+      };
+      const resolveFee = jest
+        .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
+        .mockResolvedValue(resolution);
+      jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'refreshSubscriptionBenefits',
+        )
+        .mockResolvedValue(undefined);
+      const fees = { metamaskFeeRate: 0.00035, feeSource: 'rewards' as const };
+      mockMarketDataServiceInstance.calculateFees.mockResolvedValue(fees);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      expect(await controller.calculateFees(params)).toBe(fees);
+      expect(resolveFee).toHaveBeenCalledTimes(1);
+      expect(resolveFee).toHaveBeenCalledWith(1000, {
+        providerId: 'hyperliquid',
+        isTestnet: false,
+      });
+      expect(mockMarketDataServiceInstance.calculateFees).toHaveBeenCalledWith(
+        expect.objectContaining({
+          context: expect.objectContaining({
+            feeResolution: resolution,
+          }),
+        }),
+      );
+      jest.resetAllMocks();
+    });
+
+    it('scopes an aggregated fee preview to its concrete write provider', async () => {
+      const resolveFee = jest
+        .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
+        .mockResolvedValue({
+          feeBips: 2,
+          discountBips: 8000,
+          source: 'grant',
+          subscription: { eligible: false, reason: 'no-source' },
+        });
+      jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'refreshSubscriptionBenefits',
+        )
+        .mockResolvedValue(undefined);
+      const aggregatedProvider = new AggregatedPerpsProvider({
+        providers: new Map([['hyperliquid', mockProvider]]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      markControllerAsInitialized();
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testSetActiveProvider(aggregatedProvider);
+
+      await controller.calculateFees({
+        orderType: 'market',
+        symbol: 'BTC',
+        amount: '1000',
+      });
+
+      expect(resolveFee).toHaveBeenCalledWith(1000, {
+        providerId: 'hyperliquid',
+        isTestnet: false,
+      });
+
+      jest.restoreAllMocks();
+    });
+
     it('resolves the preview fee against the order notional', async () => {
       const feeParams = {
         orderType: 'market' as const,
@@ -1906,7 +1992,10 @@ describe('PerpsController', () => {
       // assertion lives in TradingService.test.ts ('charges a partial blend at
       // submit when the allowance is bounded'), which is what makes the two
       // paths verifiably agree.
-      expect(resolveFee).toHaveBeenCalledWith(1000);
+      expect(resolveFee).toHaveBeenCalledWith(1000, {
+        providerId: 'hyperliquid',
+        isTestnet: false,
+      });
       const { context } = (
         mockMarketDataServiceInstance.calculateFees as jest.Mock
       ).mock.calls.at(-1)[0];
@@ -1940,7 +2029,10 @@ describe('PerpsController', () => {
         symbol: 'BTC',
       });
 
-      expect(resolveFee).toHaveBeenCalledWith(undefined);
+      expect(resolveFee).toHaveBeenCalledWith(undefined, {
+        providerId: 'hyperliquid',
+        isTestnet: false,
+      });
 
       jest.restoreAllMocks();
     });

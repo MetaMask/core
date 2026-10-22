@@ -1,20 +1,23 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
 import type { BackupAndSyncContext } from '../types.js';
 import { compareAndSyncMetadata } from './metadata.js';
 
 describe('BackupAndSync - Syncing - Metadata', () => {
   let mockContext: BackupAndSyncContext;
-  let mockApplyLocalUpdate: jest.Mock;
-  let mockValidateUserStorageValue: jest.Mock;
-  let mockSetLocalWrite: jest.Mock;
+  let mockApplyLocalUpdate: Mock;
+  let mockValidateUserStorageValue: Mock;
+  let mockSetLocalWrite: Mock;
 
   beforeEach(() => {
-    mockApplyLocalUpdate = jest.fn();
-    mockValidateUserStorageValue = jest.fn().mockReturnValue(true);
-    mockSetLocalWrite = jest.fn();
+    mockApplyLocalUpdate = vi.fn();
+    mockValidateUserStorageValue = vi.fn().mockReturnValue(true);
+    mockSetLocalWrite = vi.fn();
 
     mockContext = {
-      emitAnalyticsEventFn: jest.fn(),
+      emitAnalyticsEventFn: vi.fn(),
       mutationTracker: {
         setLocalWrite: mockSetLocalWrite,
       },
@@ -22,7 +25,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('compareAndSyncMetadata', () => {
@@ -122,7 +125,7 @@ describe('BackupAndSync - Syncing - Metadata', () => {
     });
 
     it('handles async applyLocalUpdate function', async () => {
-      const asyncUpdate = jest.fn().mockResolvedValue(undefined);
+      const asyncUpdate = vi.fn().mockResolvedValue(undefined);
 
       await compareAndSyncMetadata({
         context: mockContext,

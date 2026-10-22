@@ -6,6 +6,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock, { cleanAll as nockCleanAll } from 'nock';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { Env, MONEY_ACCOUNT_API_URL_MAP } from './constants.js';
 import {
@@ -245,7 +247,7 @@ describe('MoneyAccountApiDataService', () => {
 
   describe('authentication headers', () => {
     it('attaches the profile bearer token to every API request', async () => {
-      const getBearerToken = jest.fn().mockResolvedValue('jwt-token');
+      const getBearerToken = vi.fn().mockResolvedValue('jwt-token');
       const { service } = createService(Env.DEV, { getBearerToken });
       const requestHeaders = {
         reqheaders: { authorization: 'Bearer jwt-token' },
@@ -990,7 +992,7 @@ describe('MoneyAccountApiDataService', () => {
     });
 
     it('attaches the profile bearer token', async () => {
-      const getBearerToken = jest.fn().mockResolvedValue('jwt-token');
+      const getBearerToken = vi.fn().mockResolvedValue('jwt-token');
       const { service } = createService(Env.DEV, { getBearerToken });
       const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
         reqheaders: { authorization: 'Bearer jwt-token' },
@@ -1115,10 +1117,10 @@ describe('MoneyAccountApiDataService', () => {
   });
 
   describe('tracing', () => {
-    let mockTrace: jest.Mock<MoneyAccountApiDataServiceTraceCallback>;
+    let mockTrace: Mock<MoneyAccountApiDataServiceTraceCallback>;
 
     beforeEach(() => {
-      mockTrace = jest.fn().mockResolvedValue(undefined);
+      mockTrace = vi.fn().mockResolvedValue(undefined);
     });
 
     it('emits a trace for fetchPositions on cache miss', async () => {
@@ -1290,7 +1292,7 @@ describe('MoneyAccountApiDataService', () => {
 
     it('traces non-Error rejections with the thrown value type', async () => {
       const { service } = createService(Env.DEV, { trace: mockTrace });
-      jest.spyOn(globalThis, 'fetch').mockRejectedValue('network down');
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue('network down');
 
       await expect(service.fetchPositions(MOCK_ADDRESS)).rejects.toBe(
         'network down',
@@ -1306,12 +1308,12 @@ describe('MoneyAccountApiDataService', () => {
           errorName: 'string',
         }),
       );
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
       service.destroy();
     });
 
     it('does not break the request when trace callback throws synchronously', async () => {
-      const throwingTrace = jest.fn().mockImplementation(() => {
+      const throwingTrace = vi.fn().mockImplementation(() => {
         throw new Error('trace sync failure');
       }) as unknown as MoneyAccountApiDataServiceTraceCallback;
 
@@ -1327,7 +1329,7 @@ describe('MoneyAccountApiDataService', () => {
     });
 
     it('does not break the request when trace callback rejects', async () => {
-      const rejectingTrace = jest
+      const rejectingTrace = vi
         .fn()
         .mockRejectedValue(
           new Error('trace async failure'),

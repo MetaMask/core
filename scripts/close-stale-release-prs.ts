@@ -8,8 +8,7 @@
 
 import * as core from '@actions/core';
 import { context, getOctokit } from '@actions/github';
-
-import { getErrorMessage } from './lib/utils.ts';
+import { getErrorMessage } from '@metamask/error-utils';
 
 /**
  * The label users can use to prevent stale release PRs from being auto-closed.

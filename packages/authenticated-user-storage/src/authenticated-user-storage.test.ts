@@ -5,6 +5,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   handleMockListDelegations,
@@ -722,7 +724,7 @@ describe('AuthenticatedUserStorageService', () => {
       handleMockCreateDelegation();
       handleMockListDelegations();
       const { service } = createService();
-      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+      const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
 
       await service.createDelegation(MOCK_DELEGATION_SUBMISSION);
 
@@ -735,7 +737,7 @@ describe('AuthenticatedUserStorageService', () => {
       handleMockRevokeDelegation();
       handleMockListDelegations();
       const { service } = createService();
-      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+      const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
 
       await service.revokeDelegation(
         MOCK_DELEGATION_SUBMISSION.metadata.delegationHash,
@@ -750,7 +752,7 @@ describe('AuthenticatedUserStorageService', () => {
       handleMockPutNotificationPreferences();
       handleMockGetNotificationPreferences();
       const { service } = createService();
-      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+      const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
 
       await service.putNotificationPreferences(MOCK_NOTIFICATION_PREFERENCES);
 
@@ -765,7 +767,7 @@ describe('AuthenticatedUserStorageService', () => {
       handleMockPutMarketingConsent();
       handleMockGetMarketingConsent();
       const { service } = createService();
-      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+      const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
 
       await service.putMarketingConsent(MOCK_MARKETING_CONSENT);
 
@@ -778,7 +780,7 @@ describe('AuthenticatedUserStorageService', () => {
       handleMockPutIdentitySharingConsent();
       handleMockGetIdentitySharingConsent();
       const { service } = createService();
-      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+      const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
 
       await service.putIdentitySharingConsent(
         MOCK_IDENTITY_SHARING_CONSENT_WRITE,
@@ -793,7 +795,7 @@ describe('AuthenticatedUserStorageService', () => {
       handleMockSetAssetsWatchlist();
       handleMockGetAssetsWatchlist();
       const { service } = createService();
-      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+      const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
 
       await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB);
 
@@ -869,10 +871,10 @@ function createService({
   service: AuthenticatedUserStorageService;
   rootMessenger: RootMessenger;
   messenger: AuthenticatedUserStorageMessenger;
-  mockGetBearerToken: jest.Mock;
+  mockGetBearerToken: Mock;
 } {
   const rootMessenger = createRootMessenger();
-  const mockGetBearerToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
+  const mockGetBearerToken = vi.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
   rootMessenger.registerActionHandler(
     'AuthenticationController:getBearerToken',
     mockGetBearerToken,
