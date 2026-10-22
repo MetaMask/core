@@ -346,7 +346,7 @@ function setup({
     });
 
   const mocks: Mocks = {
-    getServiceDetails: jest
+    getServiceDetails: vi
       .fn()
       .mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE),
     signPersonalMessage: vi.fn().mockResolvedValue('0xdeadbeef'),
