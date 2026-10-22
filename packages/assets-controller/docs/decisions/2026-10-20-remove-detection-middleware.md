@@ -58,7 +58,7 @@ each one chooses its own tokens. Hidden tokens are skipped by both.
 ```mermaid
 flowchart LR
   Bal["Fetch balances"] --> Names["Token metadata<br/>tokens that still need them"]
-  Bal --> Prices["Prices<br/>only tokens that<br/>still have no price"]
+  Bal --> Prices["Prices<br/>response tokens that<br/>still have no price"]
   Names --> Save["Save"]
   Prices --> Save
 ```
@@ -75,18 +75,15 @@ flowchart LR
 
 ## Prices
 
-A balance refresh fetches a price only when the wallet does not have one yet,
-and the token is any of these, on the accounts and chains this refresh asked
-about:
+A balance refresh fetches a price only for tokens on that response that the
+wallet does not have a price for yet, on the accounts and chains this refresh
+asked about.
 
-- A token the user already holds
-- A token the user added by hand
-- A token we already have a name or icon for
-- A token that just came back in this refresh's balances
-
-A token that already has a price is left alone. The separate price poll updates
-those. A caller that names specific tokens uses `syncAssetsPrices`, which
-fetches them again even when a price is already stored.
+A token that already has a price is left alone. The price poll updates those,
+and it also prices held tokens, custom tokens, and tokens we already have
+metadata for when this response did not include them. A caller that names
+specific tokens uses `syncAssetsPrices`, which fetches them again even when a
+price is already stored.
 
 Hidden tokens are skipped. So are tokens that cannot have a market price, such
 as staking placeholders and Tron bandwidth or energy. Tokens on a chain the
@@ -136,10 +133,11 @@ What we gain:
 
 What it costs:
 
-- More calls to the token and price services. Held tokens that are missing a
-  name or a price are now asked for on every refresh. A token the service has
-  no image or price for is asked for again each time. The one-minute price
-  cache and the shared in-flight request limit this, but do not remove it.
+- More calls to the token service. Held tokens that are missing a name or icon
+  are asked for on every refresh. A token the service has no image for is asked
+  for again each time. Prices are fetched only for tokens on this response that
+  have no price yet. The one-minute price cache and the shared in-flight
+  request limit repeat price calls, but do not remove them.
 - The two steps each decide which accounts, chains, and hidden tokens count.
   That logic now lives in two places and has to be kept in line.
 

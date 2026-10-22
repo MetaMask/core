@@ -7,9 +7,32 @@ import type {
   DataRequest,
   DataResponse,
 } from '../types.js';
-import { safeNormalizeAssetId } from './normalizeAssetId.js';
+import { tryNormalizeAssetId } from './normalizeAssetId.js';
 
 const log = createModuleLogger(projectLogger, 'getAssetIdsForPriceFetch');
+
+const NON_PRICEABLE_ASSET_PATTERNS = [
+  // Synthetic slip44 staking-position assets: the Price API only knows about
+  // pure numeric coin-type references (e.g. slip44:195). Any suffix after the
+  // number is a MetaMask-internal synthetic asset that has no market price.
+  /\/slip44:\d+-/u,
+  // Tron non-price resource assets (bandwidth, energy)
+  /\/slip44:bandwidth$/u,
+  /\/slip44:energy$/u,
+  /\/slip44:maximum-bandwidth$/u,
+  /\/slip44:maximum-energy$/u,
+];
+
+/**
+ * Check if an asset ID represents a priceable asset.
+ * Filters out internal resource tracking values that don't have market prices.
+ *
+ * @param assetId - The CAIP-19 asset ID to check.
+ * @returns True if the asset has market price data.
+ */
+export function isPriceableAsset(assetId: Caip19AssetId): boolean {
+  return !NON_PRICEABLE_ASSET_PATTERNS.some((pattern) => pattern.test(assetId));
+}
 
 export type GetAssetIdsForPriceFetchParams = {
   /** Current AssetsController state slices used for candidate collection. */
@@ -19,33 +42,31 @@ export type GetAssetIdsForPriceFetchParams = {
   >;
   /** Account and chain scope for the fetch. */
   request: Pick<DataRequest, 'accountsWithSupportedChains' | 'chainIds'>;
-  /** Current pipeline response balances to include. */
-  response: Pick<DataResponse, 'assetsBalance'>;
 };
 
 /**
- * Assets to price for this request: custom assets, balances, and metadata
- * already in state, plus balances on the current response, excluding hidden
- * assets. Scoped to the request's accounts and chains.
+ * Assets the price poll should price: custom assets, balances, and metadata
+ * already in state, excluding hidden assets. Scoped to the request's accounts
+ * and chains.
  *
- * @param params - State, request scope, and response balances.
+ * The balance-refresh middleware does not use this. It prices response
+ * balances through {@link getUnpricedResponseAssetIds}.
+ *
+ * @param params - State and request scope.
  * @param params.state - Controller state slices used for candidate collection.
  * @param params.request - Account and chain scope for the fetch.
- * @param params.response - Current pipeline response balances to include.
- * @returns Deduplicated, normalized CAIP-19 asset IDs.
+ * @returns Deduplicated, checksummed CAIP-19 asset IDs.
  */
 export function getAssetIdsForPriceFetch({
   state,
   request,
-  response,
 }: GetAssetIdsForPriceFetchParams): Set<Caip19AssetId> {
+  const assetIds = new Set<Caip19AssetId>();
+  const hiddenAssetIds = collectHiddenAssetIdKeys(state.assetPreferences);
   const accountFilter = buildAccountFilter(request);
   const chainFilter = buildChainFilter(request);
-  const hiddenAssetIds = collectHiddenAssetIdKeys(state.assetPreferences);
-  const assetIds = new Map<string, Caip19AssetId>();
-
   const addAssetId = (assetId: string): void => {
-    addNormalizedAssetId(assetId, assetIds, chainFilter, hiddenAssetIds);
+    addStoredAssetId(assetId, assetIds, chainFilter, hiddenAssetIds);
   };
 
   addBalancesFromAccounts(state.assetsBalance, accountFilter, addAssetId);
@@ -53,9 +74,123 @@ export function getAssetIdsForPriceFetch({
   for (const assetId of Object.keys(state.assetsInfo ?? {})) {
     addAssetId(assetId);
   }
-  addBalancesFromAccounts(response.assetsBalance, accountFilter, addAssetId);
 
-  return new Set(assetIds.values());
+  return assetIds;
+}
+
+export type GetResponseAssetIdsForPriceFetchParams = {
+  /** Current pipeline response balances. Already scoped to the request. */
+  response: Pick<DataResponse, 'assetsBalance'>;
+};
+
+/**
+ * Asset IDs on the current response balances. Balance sources already limit
+ * the response to the request and write ids in the form stored prices use.
+ *
+ * @param params - Response balances.
+ * @param params.response - Current pipeline response balances.
+ * @returns Deduplicated, checksummed CAIP-19 asset IDs.
+ */
+export function getResponseAssetIdsForPriceFetch({
+  response,
+}: GetResponseAssetIdsForPriceFetchParams): Set<Caip19AssetId> {
+  const assetIds = new Set<Caip19AssetId>();
+  for (const accountBalances of Object.values(response.assetsBalance ?? {})) {
+    for (const assetId of Object.keys(accountBalances)) {
+      const id = tryNormalizeAssetId(assetId as Caip19AssetId);
+      if (id === undefined) {
+        log('Skipping malformed asset ID for price fetch', { assetId });
+        continue;
+      }
+      assetIds.add(id);
+    }
+  }
+  return assetIds;
+}
+
+export type GetUnpricedResponseAssetIdsParams =
+  GetResponseAssetIdsForPriceFetchParams & {
+    /** Hidden preferences and stored prices. */
+    state: Pick<AssetsControllerState, 'assetPreferences' | 'assetsPrice'>;
+    /**
+     * Loads chains the price API can price. Called only when a priceable
+     * response balance remains. An empty set keeps every remaining asset.
+     */
+    getSupportedNetworks: () => Promise<Set<string>>;
+  };
+
+/**
+ * Response balances the balance-refresh middleware should price.
+ *
+ * Hidden assets are excluded, then non-priceable assets, assets on chains the
+ * price API does not support, and assets that already have a stored price.
+ *
+ * @param params - State, response balances, and network lookup.
+ * @param params.state - Hidden preferences and stored prices.
+ * @param params.response - Current pipeline response balances.
+ * @param params.getSupportedNetworks - Loads chains the price API can price.
+ * @returns Asset IDs that still need a price.
+ */
+export async function getUnpricedResponseAssetIds({
+  state,
+  response,
+  getSupportedNetworks,
+}: GetUnpricedResponseAssetIdsParams): Promise<Caip19AssetId[]> {
+  const hiddenAssetIds = collectHiddenAssetIdKeys(state.assetPreferences);
+  const priceableAssetIds = [
+    ...getResponseAssetIdsForPriceFetch({ response }),
+  ].filter(
+    (assetId) => !hiddenAssetIds.has(assetId) && isPriceableAsset(assetId),
+  );
+  if (priceableAssetIds.length === 0) {
+    return [];
+  }
+
+  const supportedNetworks = await getSupportedNetworks();
+  return filterAssetsMissingPrice(
+    filterAssetsBySupportedNetworks(priceableAssetIds, supportedNetworks),
+    state.assetsPrice,
+  );
+}
+
+/**
+ * Keeps asset IDs whose chain is in `supportedNetworks`.
+ *
+ * @param assetIds - CAIP-19 asset IDs.
+ * @param supportedNetworks - Supported CAIP-2 chain IDs.
+ * @returns Matching IDs, or all IDs if the set is empty.
+ */
+export function filterAssetsBySupportedNetworks(
+  assetIds: Caip19AssetId[],
+  supportedNetworks: Set<string>,
+): Caip19AssetId[] {
+  if (supportedNetworks.size === 0) {
+    return assetIds;
+  }
+  return assetIds.filter((assetId) => {
+    try {
+      const parsed = parseCaipAssetType(assetId);
+      const chainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
+      return supportedNetworks.has(chainId);
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
+ * Keep asset IDs that have no stored price.
+ *
+ * @param assetIds - CAIP-19 asset IDs from the response.
+ * @param storedPrices - Prices already in controller state.
+ * @returns IDs with no entry under that id.
+ */
+function filterAssetsMissingPrice(
+  assetIds: Caip19AssetId[],
+  storedPrices: AssetsControllerState['assetsPrice'] | undefined,
+): Caip19AssetId[] {
+  const prices = storedPrices ?? {};
+  return assetIds.filter((assetId) => prices[assetId] === undefined);
 }
 
 /**
@@ -88,46 +223,55 @@ function buildChainFilter(
 }
 
 /**
- * Lower-case normalized keys of assets the user has marked hidden.
+ * Ids of assets the user has marked hidden. Preferences in state are stored
+ * checksummed, same as balances and prices.
  *
  * @param assetPreferences - Preference map from controller state.
- * @returns Set of lower-case normalized CAIP-19 keys.
+ * @returns Set of hidden CAIP-19 asset IDs.
  */
 function collectHiddenAssetIdKeys(
   assetPreferences: AssetsControllerState['assetPreferences'] | undefined,
-): Set<string> {
+): Set<Caip19AssetId> {
   return new Set(
     Object.entries(assetPreferences ?? {})
       .filter(([, preferences]) => preferences.hidden)
-      .map(([assetId]) =>
-        safeNormalizeAssetId(assetId as Caip19AssetId).toLowerCase(),
-      ),
+      .flatMap(([assetId]) => {
+        const id = tryNormalizeAssetId(assetId as Caip19AssetId);
+        return id === undefined ? [] : [id];
+      }),
   );
 }
 
 /**
- * Normalize `assetId`, apply chain/hidden filters, and store under a
- * case-insensitive key. Malformed IDs are skipped.
+ * Checksum `assetId`, then keep it when it is in chain scope and not hidden.
+ * An id that fails checksumming is skipped. {@link tryNormalizeAssetId} uses
+ * the memoized checksum, so an id that is already checksummed is cheap.
  *
  * @param assetId - Candidate CAIP-19 asset ID.
- * @param assetIds - Output map (lower-case key → normalized ID).
+ * @param assetIds - Collected ids.
  * @param chainFilter - Optional allowed chain IDs.
- * @param hiddenAssetIds - Lower-case keys of hidden assets.
+ * @param hiddenAssetIds - Hidden asset IDs from state.
  */
-function addNormalizedAssetId(
+function addStoredAssetId(
   assetId: string,
-  assetIds: Map<string, Caip19AssetId>,
+  assetIds: Set<Caip19AssetId>,
   chainFilter: Set<string> | undefined,
-  hiddenAssetIds: Set<string>,
+  hiddenAssetIds: Set<Caip19AssetId>,
 ): void {
+  const id = tryNormalizeAssetId(assetId as Caip19AssetId);
+  if (id === undefined) {
+    log('Skipping malformed asset ID for price fetch', { assetId });
+    return;
+  }
+  if (hiddenAssetIds.has(id)) {
+    return;
+  }
   try {
-    const normalizedAssetId = safeNormalizeAssetId(assetId as Caip19AssetId);
-    const { chainId } = parseCaipAssetType(normalizedAssetId);
-    const key = normalizedAssetId.toLowerCase();
-    if ((chainFilter && !chainFilter.has(chainId)) || hiddenAssetIds.has(key)) {
+    const { chainId } = parseCaipAssetType(id);
+    if (chainFilter && !chainFilter.has(chainId)) {
       return;
     }
-    assetIds.set(key, normalizedAssetId);
+    assetIds.add(id);
   } catch (error) {
     log('Skipping malformed asset ID for price fetch', { assetId, error });
   }

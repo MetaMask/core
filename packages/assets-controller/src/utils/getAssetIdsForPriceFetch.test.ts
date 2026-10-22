@@ -8,7 +8,11 @@ import type {
   DataRequest,
   FungibleAssetMetadata,
 } from '../types.js';
-import { getAssetIdsForPriceFetch } from './getAssetIdsForPriceFetch.js';
+import {
+  getAssetIdsForPriceFetch,
+  getResponseAssetIdsForPriceFetch,
+  getUnpricedResponseAssetIds,
+} from './getAssetIdsForPriceFetch.js';
 import { normalizeAssetId } from './normalizeAssetId.js';
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
@@ -101,25 +105,13 @@ describe('getAssetIdsForPriceFetch', () => {
           [ACCOUNT_A]: { [NATIVE_MAINNET]: ZERO_BALANCE },
         },
       }),
-      response: {},
       expected: [NATIVE_MAINNET],
-    },
-    {
-      name: 'response balances in account/chain scope',
-      state: emptyState(),
-      response: {
-        assetsBalance: {
-          [ACCOUNT_A]: { [TOKEN_MAINNET]: ZERO_BALANCE },
-        },
-      },
-      expected: [normalizeAssetId(TOKEN_MAINNET)],
     },
     {
       name: 'custom assets in account/chain scope',
       state: emptyState({
         customAssets: { [ACCOUNT_A]: [CUSTOM_MAINNET] },
       }),
-      response: {},
       expected: [normalizeAssetId(CUSTOM_MAINNET)],
     },
     {
@@ -127,11 +119,10 @@ describe('getAssetIdsForPriceFetch', () => {
       state: emptyState({
         assetsInfo: { [METADATA_MAINNET]: TOKEN_METADATA },
       }),
-      response: {},
       expected: [normalizeAssetId(METADATA_MAINNET)],
     },
     {
-      name: 'union of state balance, response balance, custom, and metadata',
+      name: 'union of state balance, custom, and metadata',
       state: emptyState({
         assetsBalance: {
           [ACCOUNT_A]: { [NATIVE_MAINNET]: ZERO_BALANCE },
@@ -139,23 +130,16 @@ describe('getAssetIdsForPriceFetch', () => {
         customAssets: { [ACCOUNT_A]: [CUSTOM_MAINNET] },
         assetsInfo: { [METADATA_MAINNET]: TOKEN_METADATA },
       }),
-      response: {
-        assetsBalance: {
-          [ACCOUNT_A]: { [TOKEN_MAINNET]: ZERO_BALANCE },
-        },
-      },
       expected: [
         NATIVE_MAINNET,
         normalizeAssetId(CUSTOM_MAINNET),
         normalizeAssetId(METADATA_MAINNET),
-        normalizeAssetId(TOKEN_MAINNET),
       ].sort(),
     },
-  ])('includes $name', ({ state, response, expected }) => {
+  ])('includes $name', ({ state, expected }) => {
     const result = getAssetIdsForPriceFetch({
       state,
       request: createRequest(),
-      response,
     });
 
     expect(sortedIds(result)).toStrictEqual([...expected].sort());
@@ -173,22 +157,6 @@ describe('getAssetIdsForPriceFetch', () => {
         },
         assetPreferences: { [TOKEN_MAINNET]: { hidden: true } },
       }),
-      response: {},
-      expected: [NATIVE_MAINNET],
-    },
-    {
-      name: 'hidden response balance',
-      state: emptyState({
-        assetPreferences: { [TOKEN_MAINNET]: { hidden: true } },
-      }),
-      response: {
-        assetsBalance: {
-          [ACCOUNT_A]: {
-            [NATIVE_MAINNET]: ZERO_BALANCE,
-            [TOKEN_MAINNET]: ZERO_BALANCE,
-          },
-        },
-      },
       expected: [NATIVE_MAINNET],
     },
     {
@@ -197,7 +165,6 @@ describe('getAssetIdsForPriceFetch', () => {
         customAssets: { [ACCOUNT_A]: [CUSTOM_MAINNET] },
         assetPreferences: { [CUSTOM_MAINNET]: { hidden: true } },
       }),
-      response: {},
       expected: [],
     },
     {
@@ -206,14 +173,12 @@ describe('getAssetIdsForPriceFetch', () => {
         assetsInfo: { [METADATA_MAINNET]: TOKEN_METADATA },
         assetPreferences: { [METADATA_MAINNET]: { hidden: true } },
       }),
-      response: {},
       expected: [],
     },
-  ])('excludes $name', ({ state, response, expected }) => {
+  ])('excludes $name', ({ state, expected }) => {
     const result = getAssetIdsForPriceFetch({
       state,
       request: createRequest(),
-      response,
     });
 
     expect(sortedIds(result)).toStrictEqual(expected);
@@ -232,11 +197,6 @@ describe('getAssetIdsForPriceFetch', () => {
         },
       }),
       request: createRequest({ accountIds: [ACCOUNT_A] }),
-      response: {
-        assetsBalance: {
-          [ACCOUNT_B]: { [TOKEN_POLYGON]: ZERO_BALANCE },
-        },
-      },
     });
 
     expect(sortedIds(result)).toStrictEqual(
@@ -262,14 +222,6 @@ describe('getAssetIdsForPriceFetch', () => {
         },
       }),
       request: createRequest({ chainIds: [CHAIN_MAINNET] }),
-      response: {
-        assetsBalance: {
-          [ACCOUNT_A]: {
-            [TOKEN_MAINNET]: ZERO_BALANCE,
-            [TOKEN_POLYGON]: ZERO_BALANCE,
-          },
-        },
-      },
     });
 
     expect(sortedIds(result)).toStrictEqual(
@@ -277,12 +229,11 @@ describe('getAssetIdsForPriceFetch', () => {
         NATIVE_MAINNET,
         normalizeAssetId(CUSTOM_MAINNET),
         normalizeAssetId(METADATA_MAINNET),
-        normalizeAssetId(TOKEN_MAINNET),
       ].sort(),
     );
   });
 
-  it('deduplicates the same asset across state, response, custom, and metadata', () => {
+  it('deduplicates the same asset across state balance, custom, and metadata', () => {
     const result = getAssetIdsForPriceFetch({
       state: emptyState({
         assetsBalance: {
@@ -292,11 +243,6 @@ describe('getAssetIdsForPriceFetch', () => {
         assetsInfo: { [TOKEN_MAINNET]: TOKEN_METADATA },
       }),
       request: createRequest(),
-      response: {
-        assetsBalance: {
-          [ACCOUNT_A]: { [TOKEN_MAINNET]: ZERO_BALANCE },
-        },
-      },
     });
 
     expect([...result]).toStrictEqual([normalizeAssetId(TOKEN_MAINNET)]);
@@ -313,17 +259,101 @@ describe('getAssetIdsForPriceFetch', () => {
         },
       }),
       request: createRequest(),
-      response: {},
     });
 
     expect([...result]).toStrictEqual([NATIVE_MAINNET]);
+  });
+
+  it('returns every balance on the response', () => {
+    const result = getResponseAssetIdsForPriceFetch({
+      response: {
+        assetsBalance: {
+          [ACCOUNT_A]: {
+            [TOKEN_MAINNET]: ZERO_BALANCE,
+            [TOKEN_POLYGON]: ZERO_BALANCE,
+          },
+          [ACCOUNT_B]: { [NATIVE_MAINNET]: ZERO_BALANCE },
+        },
+      },
+    });
+
+    expect(sortedIds(result)).toStrictEqual(
+      [
+        NATIVE_MAINNET,
+        normalizeAssetId(TOKEN_MAINNET),
+        normalizeAssetId(TOKEN_POLYGON),
+      ].sort(),
+    );
+  });
+
+  it('returns unpriced priceable response balances on a supported chain', async () => {
+    const result = await getUnpricedResponseAssetIds({
+      state: {
+        ...emptyState(),
+        assetsPrice: {
+          [TOKEN_POLYGON]: { price: 1 },
+        } as AssetsControllerState['assetsPrice'],
+      },
+      response: {
+        assetsBalance: {
+          [ACCOUNT_A]: {
+            [TOKEN_MAINNET]: ZERO_BALANCE,
+            [TOKEN_POLYGON]: ZERO_BALANCE,
+            'tron:728126428/slip44:bandwidth': ZERO_BALANCE,
+          },
+        },
+      },
+      getSupportedNetworks: async () => new Set([CHAIN_MAINNET]),
+    });
+
+    expect(result).toStrictEqual([normalizeAssetId(TOKEN_MAINNET)]);
+  });
+
+  it('skips hidden response balances', async () => {
+    const getSupportedNetworks = jest.fn(async () => new Set([CHAIN_MAINNET]));
+
+    const result = await getUnpricedResponseAssetIds({
+      state: {
+        ...emptyState({
+          assetPreferences: { [TOKEN_MAINNET]: { hidden: true } },
+        }),
+        assetsPrice: {},
+      },
+      response: {
+        assetsBalance: {
+          [ACCOUNT_A]: { [TOKEN_MAINNET]: ZERO_BALANCE },
+        },
+      },
+      getSupportedNetworks,
+    });
+
+    expect(result).toStrictEqual([]);
+    expect(getSupportedNetworks).not.toHaveBeenCalled();
+  });
+
+  it('does not load supported networks when nothing priceable remains', async () => {
+    const getSupportedNetworks = jest.fn();
+
+    const result = await getUnpricedResponseAssetIds({
+      state: { ...emptyState(), assetsPrice: {} },
+      response: {
+        assetsBalance: {
+          [ACCOUNT_A]: {
+            'tron:728126428/slip44:bandwidth': ZERO_BALANCE,
+          },
+        },
+      },
+      getSupportedNetworks,
+    });
+
+    expect(result).toStrictEqual([]);
+    expect(getSupportedNetworks).not.toHaveBeenCalled();
   });
 
   it('returns an empty set when no candidates are in scope', () => {
     const result = getAssetIdsForPriceFetch({
       state: emptyState(),
       request: createRequest(),
-      response: {},
     });
 
     expect([...result]).toStrictEqual([]);

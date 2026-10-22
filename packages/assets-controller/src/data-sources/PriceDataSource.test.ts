@@ -273,7 +273,7 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
-  it('middleware prices the union of response and state balance assets', async () => {
+  it('middleware prices response balances and leaves state-only balances to the poll', async () => {
     const { controller, apiClient } = setupController({
       balanceState: {
         'mock-account-id': {
@@ -281,7 +281,6 @@ describe('PriceDataSource', () => {
         },
       },
       priceResponse: {
-        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
         [MOCK_TOKEN_ASSET]: createMockPriceData(1),
       },
     });
@@ -298,21 +297,17 @@ describe('PriceDataSource', () => {
     await controller.assetsMiddleware(context, jest.fn());
 
     const assetsCalled = apiClient.prices.fetchV3SpotPrices.mock.calls[0][0];
-    expect(assetsCalled).toStrictEqual([
-      MOCK_NATIVE_ASSET,
-      normalizeAssetId(MOCK_TOKEN_ASSET),
-    ]);
+    expect(assetsCalled).toStrictEqual([normalizeAssetId(MOCK_TOKEN_ASSET)]);
 
     controller.destroy();
   });
 
-  it('middleware excludes hidden assets from response and state balances', async () => {
+  it('middleware excludes hidden assets on the response', async () => {
     const getAssetsState = (): AssetsControllerState =>
       createTestAssetsState({
         assetsBalance: {
           'mock-account-id': {
             [MOCK_NATIVE_ASSET]: { amount: '1.5' },
-            [MOCK_TOKEN_ASSET]: { amount: '10' },
           },
         },
         assetPreferences: {
@@ -329,6 +324,7 @@ describe('PriceDataSource', () => {
       response: {
         assetsBalance: {
           'mock-account-id': {
+            [MOCK_NATIVE_ASSET]: { amount: '1.5' },
             [MOCK_TOKEN_ASSET]: { amount: '10' },
           },
         },
@@ -348,47 +344,21 @@ describe('PriceDataSource', () => {
   it.each([
     {
       source: 'balance',
-      hidden: false,
-      outcome: 'prices',
-      assetId: MOCK_NATIVE_ASSET,
-    },
-    {
-      source: 'balance',
-      hidden: true,
-      outcome: 'skips',
       assetId: MOCK_NATIVE_ASSET,
     },
     {
       source: 'metadata',
-      hidden: false,
-      outcome: 'prices',
       assetId:
         'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId,
     },
     {
-      source: 'metadata',
-      hidden: true,
-      outcome: 'skips',
-      assetId:
-        'eip155:1/erc20:0x3333333333333333333333333333333333333333' as Caip19AssetId,
-    },
-    {
       source: 'custom',
-      hidden: false,
-      outcome: 'prices',
       assetId:
         'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId,
     },
-    {
-      source: 'custom',
-      hidden: true,
-      outcome: 'skips',
-      assetId:
-        'eip155:1/erc20:0x4444444444444444444444444444444444444444' as Caip19AssetId,
-    },
   ])(
-    'middleware $outcome a $source asset when hidden is $hidden',
-    async ({ source, hidden, outcome, assetId }) => {
+    'middleware does not price a state-only $source asset',
+    async ({ source, assetId }) => {
       const { controller, apiClient } = setupController({
         getAssetsState: () =>
           createTestAssetsState({
@@ -414,12 +384,9 @@ describe('PriceDataSource', () => {
             ...(source === 'custom'
               ? { customAssets: { 'mock-account-id': [assetId] } }
               : {}),
-            ...(hidden
-              ? { assetPreferences: { [assetId]: { hidden: true } } }
-              : {}),
           }),
         priceResponse: {
-          [normalizeAssetId(assetId)]: createMockPriceData(1),
+          [assetId]: createMockPriceData(1),
         },
       });
 
@@ -428,13 +395,7 @@ describe('PriceDataSource', () => {
         jest.fn(),
       );
 
-      const expectedCalls =
-        outcome === 'prices' ? [[normalizeAssetId(assetId)]] : [];
-      expect(
-        apiClient.prices.fetchV3SpotPrices.mock.calls.map(
-          ([assetIds]) => assetIds,
-        ),
-      ).toStrictEqual(expectedCalls);
+      expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
 
       controller.destroy();
     },

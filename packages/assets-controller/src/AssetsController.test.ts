@@ -4138,6 +4138,33 @@ describe('AssetsController', () => {
 
       fetchSpy.mockRestore();
     });
+
+    it('returns without fetching prices when basic functionality is off', async () => {
+      const fetchSpy = jest
+        .spyOn(PriceDataSource.prototype, 'fetchAssetPrices')
+        .mockResolvedValue({
+          [MOCK_ASSET_ID]: {
+            assetPriceType: 'fungible',
+            price: 1.25,
+            usdPrice: 1.25,
+            lastUpdated: 123,
+          },
+        });
+
+      await withController(
+        { isBasicFunctionality: () => false },
+        async ({ controller, messenger }) => {
+          await messenger.call('AssetsController:syncAssetsPrices', [
+            MOCK_ASSET_ID,
+          ]);
+
+          expect(fetchSpy).not.toHaveBeenCalled();
+          expect(controller.state.assetsPrice[MOCK_ASSET_ID]).toBeUndefined();
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
   });
 
   describe('setSelectedCurrency', () => {

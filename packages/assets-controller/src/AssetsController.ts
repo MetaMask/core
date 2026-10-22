@@ -1658,10 +1658,14 @@ export class AssetsController extends BaseController<
    * Prices are shared across accounts, so this does not take an account or
    * chain scope and does not run the balance pipeline.
    *
+   * Returns without calling the Price API when basic functionality is off.
+   * That matches the asset pipeline, which drops the price source in RPC-only
+   * mode, and `setSelectedCurrency`, which skips its price refresh.
+   *
    * @param assetIds - CAIP-19 asset IDs to sync.
    */
   async syncAssetsPrices(assetIds: Caip19AssetId[]): Promise<void> {
-    if (assetIds.length === 0) {
+    if (!this.#isBasicFunctionality() || assetIds.length === 0) {
       return;
     }
 
