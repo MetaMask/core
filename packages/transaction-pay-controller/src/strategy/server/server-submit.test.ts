@@ -6,6 +6,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import { PaymentOverride } from '../../constants.js';
@@ -33,24 +34,24 @@ import { submitServerQuotes } from './server-submit.js';
 import { ServerStatus } from './types.js';
 import type { ServerQuote, ServerSignatureStep } from './types.js';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  successfulFetch: jest.fn(),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  successfulFetch: vi.fn(),
 }));
-jest.mock('../../utils/feature-flags');
-jest.mock('../../utils/polymarket/withdraw');
-jest.mock('../../utils/second-leg');
-jest.mock('../../utils/token', () => ({
-  ...jest.requireActual('../../utils/token'),
-  getLiveTokenBalance: jest.fn(),
+vi.mock(import('../../utils/feature-flags.js'));
+vi.mock(import('../../utils/polymarket/withdraw.js'));
+vi.mock(import('../../utils/second-leg.js'));
+vi.mock(import('../../utils/token.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getLiveTokenBalance: vi.fn(),
 }));
-jest.mock('../../utils/transaction', () => ({
-  ...jest.requireActual('../../utils/transaction'),
-  collectTransactionIds: jest.fn(),
-  getTransaction: jest.fn(),
-  waitForTransactionConfirmed: jest.fn(),
+vi.mock(import('../../utils/transaction.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  collectTransactionIds: vi.fn(),
+  getTransaction: vi.fn(),
+  waitForTransactionConfirmed: vi.fn(),
 }));
-jest.mock('./server-api');
+vi.mock(import('./server-api.js'));
 
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const ORIGINAL_TRANSACTION_ID_MOCK = 'original-transaction-id';
@@ -156,11 +157,11 @@ const DELEGATION_MOCK = {
 };
 
 describe('submitServerQuotes', () => {
-  const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
-  const getServerPollingIntervalMock = jest.mocked(getServerPollingInterval);
-  const getServerPollingTimeoutMock = jest.mocked(getServerPollingTimeout);
-  const getServerStatusMock = jest.mocked(getServerStatus);
-  const submitServerIntentMock = jest.mocked(submitServerIntent);
+  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalance);
+  const getServerPollingIntervalMock = vi.mocked(getServerPollingInterval);
+  const getServerPollingTimeoutMock = vi.mocked(getServerPollingTimeout);
+  const getServerStatusMock = vi.mocked(getServerStatus);
+  const submitServerIntentMock = vi.mocked(submitServerIntent);
 
   const {
     addTransactionMock: addTxMock,
@@ -179,7 +180,7 @@ describe('submitServerQuotes', () => {
   let request: PayStrategyExecuteRequest<ServerQuote>;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     currentTransaction = cloneDeep(TRANSACTION_META_MOCK);
     request = {
@@ -312,7 +313,7 @@ describe('submitServerQuotes', () => {
     const SECOND_LEG_HASH_MOCK = '0xsecondleg' as Hex;
     const RECIPIENT_MOCK = '0x9999999999999999999999999999999999999999' as Hex;
 
-    const submitSecondLegMock = jest.mocked(submitSecondLeg);
+    const submitSecondLegMock = vi.mocked(submitSecondLeg);
 
     beforeEach(() => {
       submitSecondLegMock.mockResolvedValue({
@@ -503,7 +504,7 @@ describe('submitServerQuotes', () => {
   });
 
   it('honors the polling timeout and includes the last status', async () => {
-    const dateNowMock = jest
+    const dateNowMock = vi
       .spyOn(Date, 'now')
       .mockReturnValueOnce(100)
       .mockReturnValueOnce(110);
@@ -519,7 +520,7 @@ describe('submitServerQuotes', () => {
   });
 
   it('omits last status detail when polling times out before any status is received', async () => {
-    const dateNowMock = jest
+    const dateNowMock = vi
       .spyOn(Date, 'now')
       .mockReturnValueOnce(100)
       .mockReturnValueOnce(110);
@@ -610,8 +611,8 @@ describe('submitServerQuotes', () => {
       `0xa9059cbb${'1'.padStart(64, '0')}${'2'.padStart(64, '0')}` as Hex;
     const PRE_SUBMIT_BALANCE_MOCK = 5n;
 
-    const submitPolymarketWithdrawMock = jest.mocked(submitPolymarketWithdraw);
-    const sweepPolymarketDepositWalletMock = jest.mocked(
+    const submitPolymarketWithdrawMock = vi.mocked(submitPolymarketWithdraw);
+    const sweepPolymarketDepositWalletMock = vi.mocked(
       sweepPolymarketDepositWallet,
     );
 
@@ -713,9 +714,9 @@ describe('submitServerQuotes', () => {
   });
 
   describe('non-gasless fallback', () => {
-    const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
-    const getTransactionMock = jest.mocked(getTransaction);
-    const waitForTransactionConfirmedMock = jest.mocked(
+    const collectTransactionIdsMock = vi.mocked(collectTransactionIds);
+    const getTransactionMock = vi.mocked(getTransaction);
+    const waitForTransactionConfirmedMock = vi.mocked(
       waitForTransactionConfirmed,
     );
     const SUBMITTED_TX_ID_MOCK = 'submitted-tx-id';
@@ -725,7 +726,7 @@ describe('submitServerQuotes', () => {
       collectTransactionIdsMock.mockImplementation(
         (_chainId, _from, _messenger, onTransactionId) => {
           onTransactionId(SUBMITTED_TX_ID_MOCK);
-          return { end: jest.fn() };
+          return { end: vi.fn() };
         },
       );
       getTransactionMock.mockReturnValue({
@@ -977,7 +978,7 @@ describe('submitServerQuotes', () => {
     });
 
     it('skips source hash update when no transaction ids were collected', async () => {
-      collectTransactionIdsMock.mockImplementation(() => ({ end: jest.fn() }));
+      collectTransactionIdsMock.mockImplementation(() => ({ end: vi.fn() }));
 
       await submitServerQuotes(buildNonGaslessRequest());
 
@@ -1104,8 +1105,8 @@ describe('submitServerQuotes', () => {
       },
     };
 
-    const signTypedMessageMock = jest.fn();
-    const successfulFetchMock = jest.mocked(successfulFetch);
+    const signTypedMessageMock = vi.fn();
+    const successfulFetchMock = vi.mocked(successfulFetch);
 
     // Register the handler once — can't re-register after the first test.
     // The outer beforeEach resets mock implementations so we re-apply in
@@ -1120,7 +1121,7 @@ describe('submitServerQuotes', () => {
     beforeEach(() => {
       signTypedMessageMock.mockResolvedValue(SIGNATURE_MOCK);
       successfulFetchMock.mockResolvedValue({
-        json: jest.fn().mockResolvedValue({ success: true }),
+        json: vi.fn().mockResolvedValue({ success: true }),
       } as never);
     });
 
@@ -1154,7 +1155,7 @@ describe('submitServerQuotes', () => {
 
     it('signs and POSTs signature step with rsv format', async () => {
       successfulFetchMock.mockResolvedValue({
-        json: jest.fn().mockResolvedValue({ status: 'ok' }),
+        json: vi.fn().mockResolvedValue({ status: 'ok' }),
       } as never);
 
       const rsvStep: ServerSignatureStep = {
@@ -1174,7 +1175,7 @@ describe('submitServerQuotes', () => {
 
     it('throws when rsv POST response status is not ok', async () => {
       successfulFetchMock.mockResolvedValue({
-        json: jest
+        json: vi
           .fn()
           .mockResolvedValue({ status: 'error', message: 'rejected' }),
       } as never);
@@ -1232,7 +1233,7 @@ describe('submitServerQuotes', () => {
 
   describe('validateSourceBalance', () => {
     it('throws when source balance is insufficient', async () => {
-      jest.mocked(getLiveTokenBalance).mockResolvedValue('0');
+      vi.mocked(getLiveTokenBalance).mockResolvedValue('0');
 
       const quote = cloneDeep(QUOTE_MOCK);
       quote.original.gasless = false;
@@ -1250,9 +1251,9 @@ describe('submitServerQuotes', () => {
     });
 
     it('wraps getLiveTokenBalance errors with context message', async () => {
-      jest
-        .mocked(getLiveTokenBalance)
-        .mockRejectedValue(new Error('RPC timeout'));
+      vi.mocked(getLiveTokenBalance).mockRejectedValue(
+        new Error('RPC timeout'),
+      );
 
       const quote = cloneDeep(QUOTE_MOCK);
       quote.original.gasless = false;
@@ -1286,16 +1287,16 @@ describe('submitServerQuotes', () => {
     };
 
     beforeEach(() => {
-      jest
-        .mocked(collectTransactionIds)
-        .mockImplementation((_chainId, _from, _messenger, onTransactionId) => {
+      vi.mocked(collectTransactionIds).mockImplementation(
+        (_chainId, _from, _messenger, onTransactionId) => {
           onTransactionId('submitted-tx-id');
-          return { end: jest.fn() };
-        });
-      jest.mocked(getTransaction).mockReturnValue({
+          return { end: vi.fn() };
+        },
+      );
+      vi.mocked(getTransaction).mockReturnValue({
         hash: '0xsubmitted' as Hex,
       } as TransactionMeta);
-      jest.mocked(waitForTransactionConfirmed).mockResolvedValue(undefined);
+      vi.mocked(waitForTransactionConfirmed).mockResolvedValue(undefined);
       addTxMock.mockResolvedValue({
         result: Promise.resolve('0xsubmitted' as Hex),
       });

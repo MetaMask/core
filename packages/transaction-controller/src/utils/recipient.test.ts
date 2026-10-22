@@ -1,5 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 import { abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
+import { describe, expect, it } from 'vitest';
 
 import type { TransactionMeta } from '../types.js';
 import { TransactionStatus, TransactionType } from '../types.js';
