@@ -1,9 +1,10 @@
-/* eslint-disable jest/expect-expect, n/no-sync */
+/* eslint-disable vitest/expect-expect, n/no-sync */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { describe, it } from 'vitest';
 
 import {
   getCacheKey,

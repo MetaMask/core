@@ -1,4 +1,6 @@
 import { MethodRegistry } from 'eth-method-registry';
+import type { Mocked } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   MethodData,
@@ -7,11 +9,11 @@ import type {
 import { getProvider } from '../utils/provider.js';
 import { MethodDataHelper } from './MethodDataHelper.js';
 
-jest.mock('eth-method-registry');
+vi.mock('eth-method-registry');
 
-jest.mock('../utils/provider', () => ({
-  ...jest.requireActual('../utils/provider'),
-  getProvider: jest.fn(),
+vi.mock(import('../utils/provider.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getProvider: vi.fn(),
 }));
 
 const FOUR_BYTE_PREFIX_MOCK = '0x12345678';
@@ -31,20 +33,20 @@ const METHOD_DATA_MOCK: MethodData = {
  *
  * @returns The mocked MethodRegistry instance.
  */
-function createMethodRegistryMock(): jest.Mocked<MethodRegistry> {
+function createMethodRegistryMock(): Mocked<MethodRegistry> {
   return {
-    lookup: jest.fn(),
-    parse: jest.fn(),
-  } as unknown as jest.Mocked<MethodRegistry>;
+    lookup: vi.fn(),
+    parse: vi.fn(),
+  } as unknown as Mocked<MethodRegistry>;
 }
 
 describe('MethodDataHelper', () => {
-  const methodRegistryClassMock = jest.mocked(MethodRegistry);
-  const getProviderMock = jest.mocked(getProvider);
+  const methodRegistryClassMock = vi.mocked(MethodRegistry);
+  const getProviderMock = vi.mocked(getProvider);
   const messengerMock = {} as TransactionControllerMessenger;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     getProviderMock.mockReturnValue({} as never);
   });
 
@@ -72,7 +74,9 @@ describe('MethodDataHelper', () => {
         METHOD_DATA_MOCK.parsedRegistryMethod,
       );
 
-      methodRegistryClassMock.mockReturnValueOnce(methodRegistryMock);
+      methodRegistryClassMock.mockImplementationOnce(function () {
+        return methodRegistryMock;
+      });
 
       const methodDataHelper = new MethodDataHelper({
         messenger: messengerMock,
@@ -91,7 +95,9 @@ describe('MethodDataHelper', () => {
       const methodRegistryMock = createMethodRegistryMock();
       methodRegistryMock.lookup.mockResolvedValueOnce(undefined);
 
-      methodRegistryClassMock.mockReturnValueOnce(methodRegistryMock);
+      methodRegistryClassMock.mockImplementationOnce(function () {
+        return methodRegistryMock;
+      });
 
       const methodDataHelper = new MethodDataHelper({
         messenger: messengerMock,
@@ -113,7 +119,9 @@ describe('MethodDataHelper', () => {
       const methodRegistryMock = createMethodRegistryMock();
       methodRegistryMock.lookup.mockResolvedValueOnce(undefined);
 
-      methodRegistryClassMock.mockReturnValueOnce(methodRegistryMock);
+      methodRegistryClassMock.mockImplementationOnce(function () {
+        return methodRegistryMock;
+      });
 
       const methodDataHelper = new MethodDataHelper({
         messenger: messengerMock,
@@ -154,14 +162,16 @@ describe('MethodDataHelper', () => {
         METHOD_DATA_MOCK.parsedRegistryMethod,
       );
 
-      methodRegistryClassMock.mockReturnValueOnce(methodRegistryMock);
+      methodRegistryClassMock.mockImplementationOnce(function () {
+        return methodRegistryMock;
+      });
 
       const methodDataHelper = new MethodDataHelper({
         messenger: messengerMock,
         getState: (): Record<string, MethodData> => ({}),
       });
 
-      const updateListener = jest.fn();
+      const updateListener = vi.fn();
       methodDataHelper.hub.on('update', updateListener);
 
       await methodDataHelper.lookup(

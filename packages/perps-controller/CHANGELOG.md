@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **BREAKING:** Set `USDC_ARBITRUM_TESTNET_ADDRESS` and `HYPERLIQUID_ASSET_CONFIGS.usdc.testnet` to USDC2 (`0x1baAbB04529D43a73232B713C0FE471f7c7334d5`), the token the Arbitrum Sepolia bridge credits, so testnet deposit and withdrawal routes name the token that is deposited and paid out ([#10991](https://github.com/MetaMask/core/pull/10991))
+  - The exported literal type of `USDC_ARBITRUM_TESTNET_ADDRESS` changes to the USDC2 address. Code typed against `typeof USDC_ARBITRUM_TESTNET_ADDRESS` with the previous value no longer compiles.
+  - On testnet, `withdraw` rejects the previous asset ID (`0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`). Read `HYPERLIQUID_ASSET_CONFIGS.usdc.testnet` or `getWithdrawalRoutes()` instead of hardcoding it, and update test fixtures that pin the previous asset ID.
+- On a testnet session, `depositWithConfirmation` now prepares an Arbitrum Sepolia transfer to the Hyperliquid testnet bridge instead of an Arbitrum One transfer to the mainnet bridge; `DepositService.prepareTransaction` takes deposit routes for the provider's own network instead of forcing mainnet ([#10991](https://github.com/MetaMask/core/pull/10991))
+
+## [21.0.0]
+
 ### Added
 
 - Add optional `change5m`, `changePercent5m`, `change1h`, and `changePercent1h` on `PerpsMarketData`, mapped from the v4 Terminal global snapshot. A null wire pair is `--` and `--%`, which means that window is unavailable. Disk hydration replaces a stored rolling change with those same placeholders, as it already does for the 24h change. ([#10855](https://github.com/MetaMask/core/pull/10855))
@@ -1258,7 +1267,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.1.0...@metamask/perps-controller@21.0.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.0.0...@metamask/perps-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@19.0.0...@metamask/perps-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...@metamask/perps-controller@19.0.0

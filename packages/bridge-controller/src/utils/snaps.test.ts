@@ -1,19 +1,21 @@
 import { SolScope } from '@metamask/keyring-api';
 import { v4 as uuid } from 'uuid';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   getMinimumBalanceForRentExemptionRequest,
   computeFeeRequest,
 } from './snaps.js';
 
-jest.mock('uuid', () => ({
-  v4: jest.fn(),
+vi.mock('uuid', () => ({
+  v4: vi.fn(),
 }));
 
 describe('Snaps Utils', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    (uuid as jest.Mock).mockReturnValue('test-uuid-1234');
+    vi.clearAllMocks();
+    (uuid as Mock).mockReturnValue('test-uuid-1234');
   });
 
   describe('getMinimumBalanceForRentExemptionRequest', () => {

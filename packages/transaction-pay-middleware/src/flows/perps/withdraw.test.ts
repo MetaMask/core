@@ -1,5 +1,6 @@
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { perpsWithdrawFlow } from './withdraw.js';
 

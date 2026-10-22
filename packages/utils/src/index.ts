@@ -55,6 +55,7 @@ export {
   wrapError,
 } from '@metamask/error-utils';
 export type {
+  AssertionErrorConstructor,
   Json,
   Mutable,
   NonEmptyArray,
@@ -64,6 +65,9 @@ export type {
   RuntimeObject as PlainObject,
 } from '@metamask/type-utils';
 export {
+  AssertionError,
+  assert,
+  assertExhaustive,
   isNonEmptyArray,
   getKnownPropertyNames,
   hasProperty,

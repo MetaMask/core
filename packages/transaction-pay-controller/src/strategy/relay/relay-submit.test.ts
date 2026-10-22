@@ -6,6 +6,8 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import { PaymentOverride } from '../../constants.js';
@@ -20,6 +22,7 @@ import {
   getRelayPollingInterval,
   getRelayPollingTimeout,
 } from '../../utils/feature-flags.js';
+import * as polymarketWithdraw from '../../utils/polymarket/withdraw.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   getLiveTokenBalance,
@@ -32,22 +35,21 @@ import {
   waitForTransactionConfirmed,
 } from '../../utils/transaction.js';
 import { FALLBACK_HASH, RELAY_STATUS_URL } from './constants.js';
+import * as hyperliquidWithdraw from './hyperliquid-withdraw.js';
 import { submitViaRelayExecute } from './relay-submit-execute.js';
 import { getRelaySubmitCalls, submitRelayQuotes } from './relay-submit.js';
 import type { RelayQuote, RelayTransactionStep } from './types.js';
 
-jest.mock('../../utils/second-leg', () => ({
-  ...jest.requireActual<typeof import('../../utils/second-leg.js')>(
-    '../../utils/second-leg',
-  ),
-  submitSecondLeg: jest.fn(),
+vi.mock(import('../../utils/second-leg.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  submitSecondLeg: vi.fn(),
 }));
-jest.mock('../../utils/token');
-jest.mock('../../utils/transaction');
-jest.mock('../../utils/feature-flags');
-jest.mock('./hyperliquid-withdraw');
-jest.mock('../../utils/polymarket/withdraw');
-jest.mock('./relay-submit-execute');
+vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/transaction.js'));
+vi.mock(import('../../utils/feature-flags.js'));
+vi.mock(import('./hyperliquid-withdraw.js'));
+vi.mock(import('../../utils/polymarket/withdraw.js'));
+vi.mock(import('./relay-submit-execute.js'));
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
 const SOURCE_HASH_MOCK = '0xsourcehash';
@@ -142,15 +144,15 @@ const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
 };
 
 describe('Relay Submit Utils', () => {
-  const updateTransactionMock = jest.mocked(updateTransaction);
-  let successfulFetchMock: jest.SpyInstance;
-  const getTransactionMock = jest.mocked(getTransaction);
-  const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
-  const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
-  const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
-  const normalizeTokenAddressMock = jest.mocked(normalizeTokenAddress);
-  const getRelayPollingIntervalMock = jest.mocked(getRelayPollingInterval);
-  const getRelayPollingTimeoutMock = jest.mocked(getRelayPollingTimeout);
+  const updateTransactionMock = vi.mocked(updateTransaction);
+  let successfulFetchMock: MockInstance;
+  const getTransactionMock = vi.mocked(getTransaction);
+  const collectTransactionIdsMock = vi.mocked(collectTransactionIds);
+  const getFeatureFlagsMock = vi.mocked(getFeatureFlags);
+  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalance);
+  const normalizeTokenAddressMock = vi.mocked(normalizeTokenAddress);
+  const getRelayPollingIntervalMock = vi.mocked(getRelayPollingInterval);
+  const getRelayPollingTimeoutMock = vi.mocked(getRelayPollingTimeout);
 
   const {
     addTransactionMock,
@@ -165,17 +167,17 @@ describe('Relay Submit Utils', () => {
 
   let request: PayStrategyExecuteRequest<RelayQuote>;
 
-  const waitForTransactionConfirmedMock = jest.mocked(
+  const waitForTransactionConfirmedMock = vi.mocked(
     waitForTransactionConfirmed,
   );
 
-  const submitViaRelayExecuteMock = jest.mocked(submitViaRelayExecute);
-  const submitSecondLegMock = jest.mocked(submitSecondLeg);
+  const submitViaRelayExecuteMock = vi.mocked(submitViaRelayExecute);
+  const submitSecondLegMock = vi.mocked(submitSecondLeg);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
-    successfulFetchMock = jest.spyOn(global, 'fetch');
+    successfulFetchMock = vi.spyOn(global, 'fetch');
 
     getKeyringControllerStateMock.mockReturnValue({
       isUnlocked: true,
@@ -214,7 +216,7 @@ describe('Relay Submit Utils', () => {
     collectTransactionIdsMock.mockImplementation(
       (_chainId, _from, _messenger, fn) => {
         fn(TRANSACTION_META_MOCK.id);
-        return { end: jest.fn() };
+        return { end: vi.fn() };
       },
     );
 
@@ -905,7 +907,7 @@ describe('Relay Submit Utils', () => {
     });
 
     it('throws if no Relay child transactions are collected', async () => {
-      collectTransactionIdsMock.mockReturnValue({ end: jest.fn() });
+      collectTransactionIdsMock.mockReturnValue({ end: vi.fn() });
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
         'Relay: No transactions submitted',
@@ -986,12 +988,12 @@ describe('Relay Submit Utils', () => {
     it('ignores network errors until timeout is reached', async () => {
       getRelayPollingTimeoutMock.mockReturnValue(100);
 
-      jest.spyOn(Date, 'now').mockReturnValue(0);
+      vi.spyOn(Date, 'now').mockReturnValue(0);
 
       successfulFetchMock
         .mockRejectedValueOnce(new Error('Network error'))
         .mockImplementation(() => {
-          jest.spyOn(Date, 'now').mockReturnValue(200);
+          vi.spyOn(Date, 'now').mockReturnValue(200);
           return Promise.reject(new Error('Network error'));
         });
 
@@ -1003,7 +1005,7 @@ describe('Relay Submit Utils', () => {
     it('throws timeout error with last status when polling exceeds configured timeout', async () => {
       getRelayPollingTimeoutMock.mockReturnValue(100);
 
-      jest.spyOn(Date, 'now').mockReturnValue(0);
+      vi.spyOn(Date, 'now').mockReturnValue(0);
 
       successfulFetchMock
         .mockResolvedValueOnce({
@@ -1011,7 +1013,7 @@ describe('Relay Submit Utils', () => {
           json: async () => ({ status: 'pending' }),
         })
         .mockImplementation(() => {
-          jest.spyOn(Date, 'now').mockReturnValue(200);
+          vi.spyOn(Date, 'now').mockReturnValue(200);
           return Promise.resolve({
             json: async () => ({ status: 'pending' }),
           } as Response);
@@ -1719,9 +1721,8 @@ describe('Relay Submit Utils', () => {
 
     describe('HyperLiquid source', () => {
       it('calls submitHyperliquidWithdraw instead of submitTransactions', async () => {
-        const { submitHyperliquidWithdraw: hlWithdrawMock } = jest.requireMock(
-          './hyperliquid-withdraw',
-        );
+        const { submitHyperliquidWithdraw: hlWithdrawMock } =
+          hyperliquidWithdraw;
 
         request.quotes[0].request.isHyperliquidSource = true;
         request.quotes[0].original.steps[0].kind = 'transaction';
@@ -1739,9 +1740,8 @@ describe('Relay Submit Utils', () => {
       });
 
       it('uses quote.request.from (accountOverride) for signing when accountOverride is set', async () => {
-        const { submitHyperliquidWithdraw: hlWithdrawMock } = jest.requireMock(
-          './hyperliquid-withdraw',
-        );
+        const { submitHyperliquidWithdraw: hlWithdrawMock } =
+          hyperliquidWithdraw;
 
         const ACCOUNT_OVERRIDE_MOCK = '0xaccountOverride' as Hex;
 
@@ -1777,9 +1777,8 @@ describe('Relay Submit Utils', () => {
       });
 
       it('does not call submitHyperliquidWithdraw for non-HL source', async () => {
-        const { submitHyperliquidWithdraw: hlWithdrawMock } = jest.requireMock(
-          './hyperliquid-withdraw',
-        );
+        const { submitHyperliquidWithdraw: hlWithdrawMock } =
+          hyperliquidWithdraw;
 
         request.quotes[0].request.isHyperliquidSource = false;
 
@@ -1794,14 +1793,14 @@ describe('Relay Submit Utils', () => {
       const POLYMARKET_SOURCE_HASH_MOCK: Hex = `0x${'bb'.repeat(32)}`;
 
       function getPolymarketMocks(): {
-        submitPolymarketWithdraw: jest.Mock;
-        sweepPolymarketDepositWallet: jest.Mock;
+        submitPolymarketWithdraw: Mock;
+        sweepPolymarketDepositWallet: Mock;
       } {
-        const mod = jest.requireMock('../../utils/polymarket/withdraw');
+        const mod = polymarketWithdraw;
         return {
-          submitPolymarketWithdraw: mod.submitPolymarketWithdraw as jest.Mock,
+          submitPolymarketWithdraw: mod.submitPolymarketWithdraw as Mock,
           sweepPolymarketDepositWallet:
-            mod.sweepPolymarketDepositWallet as jest.Mock,
+            mod.sweepPolymarketDepositWallet as Mock,
         };
       }
 

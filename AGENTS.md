@@ -222,7 +222,7 @@ Use the `sample-gas-prices-service/` directory in the `sample-controllers` packa
 
 ## Cursor Cloud specific instructions
 
-This repo is a **library monorepo** — a collection of `@metamask/*` TypeScript packages published to npm and consumed by MetaMask clients. There is **no long-running server/app to start**; "running" the code means building packages, running their test suites, or invoking one of the CLI packages (e.g. `messenger-cli`, `wallet-cli`). Do not look for a dev server.
+This repo is a **library monorepo** — a collection of `@metamask/*` TypeScript packages published to npm and consumed by MetaMask clients. There is **no long-running server/app to start**; "running" the code means building packages, running their test suites, or invoking one of the CLI packages (e.g. `messenger-cli`). Do not look for a dev server.
 
 Environment prerequisites (Node LTS + Yarn 4 via Corepack + `yarn install`) are handled by the startup update script, so you normally don't need to reinstall. If you do run it manually, use `corepack enable` before any `yarn` command — the base image's global `yarn` is Classic (1.x), and this repo requires Yarn 4 (pinned via `packageManager`).
 

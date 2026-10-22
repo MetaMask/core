@@ -1,6 +1,8 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
 import { buildPushPlatformNotificationsControllerMessenger } from './__fixtures__/mockMessenger.js';
 import { NotificationServicesPushController } from './NotificationServicesPushController.js';
@@ -16,31 +18,31 @@ const MOCK_FCM_TOKEN = 'mockFcmToken';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
 
 // Testing util to clean up verbose logs when testing errors
-const mockErrorLog = (): jest.SpyInstance =>
-  jest.spyOn(log, 'error').mockImplementation(jest.fn());
+const mockErrorLog = (): MockInstance =>
+  vi.spyOn(log, 'error').mockImplementation(vi.fn());
 
 describe('NotificationServicesPushController', () => {
   const arrangeServicesMocks = (
     token?: string,
   ): {
-    activatePushNotificationsMock: jest.SpyInstance;
-    deactivatePushNotificationsMock: jest.SpyInstance;
-    updateLinksAPIMock: jest.SpyInstance;
-    deleteLinksAPIMock: jest.SpyInstance;
+    activatePushNotificationsMock: MockInstance;
+    deactivatePushNotificationsMock: MockInstance;
+    updateLinksAPIMock: MockInstance;
+    deleteLinksAPIMock: MockInstance;
   } => {
-    const activatePushNotificationsMock = jest
+    const activatePushNotificationsMock = vi
       .spyOn(services, 'activatePushNotifications')
       .mockResolvedValue(token ?? MOCK_FCM_TOKEN);
 
-    const deactivatePushNotificationsMock = jest
+    const deactivatePushNotificationsMock = vi
       .spyOn(services, 'deactivatePushNotifications')
       .mockResolvedValue(true);
 
-    const updateLinksAPIMock = jest
+    const updateLinksAPIMock = vi
       .spyOn(services, 'updateLinksAPI')
       .mockResolvedValue(true);
 
-    const deleteLinksAPIMock = jest
+    const deleteLinksAPIMock = vi
       .spyOn(services, 'deleteLinksAPI')
       .mockResolvedValue(true);
 
@@ -54,16 +56,16 @@ describe('NotificationServicesPushController', () => {
 
   describe('subscribeToPushNotifications', () => {
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should unsubscribe to old listeners and subscribe to new listeners if called multiple times', async () => {
-      const mockUnsubscribe = jest.fn();
-      const mockSubscribe = jest.fn().mockReturnValue(mockUnsubscribe);
+      const mockUnsubscribe = vi.fn();
+      const mockSubscribe = vi.fn().mockReturnValue(mockUnsubscribe);
       const { controller } = arrangeMockMessenger({
         pushService: {
-          createRegToken: jest.fn(),
-          deleteRegToken: jest.fn(),
+          createRegToken: vi.fn(),
+          deleteRegToken: vi.fn(),
           subscribeToPushNotifications: mockSubscribe,
         },
       });
@@ -80,7 +82,7 @@ describe('NotificationServicesPushController', () => {
 
   describe('enablePushNotifications', () => {
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should update the state with the fcmToken', async () => {
@@ -192,7 +194,7 @@ describe('NotificationServicesPushController', () => {
 
   describe('disablePushNotifications', () => {
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should update the state removing the fcmToken', async () => {
@@ -238,7 +240,7 @@ describe('NotificationServicesPushController', () => {
 
   describe('updateTriggerPushNotifications', () => {
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should call activatePushNotifications with the correct parameters and update state', async () => {
@@ -335,7 +337,7 @@ describe('NotificationServicesPushController', () => {
 
   describe('deletePushNotificationLinks', () => {
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should call deleteLinksAPI with addresses and platform', async () => {
@@ -396,7 +398,7 @@ describe('NotificationServicesPushController', () => {
 
   describe('addPushNotificationLinks', () => {
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should call updateLinksAPI with addresses and the existing token', async () => {
@@ -580,9 +582,9 @@ function arrangeMockMessenger(
   const config: ControllerConfig = {
     isPushFeatureEnabled: true,
     pushService: {
-      createRegToken: jest.fn(),
-      deleteRegToken: jest.fn(),
-      subscribeToPushNotifications: jest.fn(),
+      createRegToken: vi.fn(),
+      deleteRegToken: vi.fn(),
+      subscribeToPushNotifications: vi.fn(),
     },
     platform: 'extension',
     ...configOverride,
@@ -618,21 +620,14 @@ function arrangeMockMessenger(
  */
 function mockAuthBearerTokenCall(
   messenger: NotificationServicesPushControllerMessenger,
-): jest.Mock<
-  ReturnType<
-    AuthenticationController.AuthenticationControllerGetBearerTokenAction['handler']
-  >,
-  Parameters<
-    AuthenticationController.AuthenticationControllerGetBearerTokenAction['handler']
-  >
+): Mock<
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction['handler']
 > {
   type Fn =
     AuthenticationController.AuthenticationControllerGetBearerTokenAction['handler'];
-  const mockAuthGetBearerToken = jest
-    .fn<ReturnType<Fn>, Parameters<Fn>>()
-    .mockResolvedValue(MOCK_JWT);
+  const mockAuthGetBearerToken = vi.fn<Fn>().mockResolvedValue(MOCK_JWT);
 
-  jest.spyOn(messenger, 'call').mockImplementation((...args) => {
+  vi.spyOn(messenger, 'call').mockImplementation((...args) => {
     const [actionType] = args;
     if (actionType === 'AuthenticationController:getBearerToken') {
       return mockAuthGetBearerToken();

@@ -68,7 +68,6 @@ export default createConfig({
         'packages/java-tron-up/**',
         'packages/messenger-cli/**',
         'packages/platform-api-docs/**',
-        'packages/wallet-cli/**',
         '**/scripts/**',
         'oxlint.config.ts',
         'jest.config.packages.cjs',

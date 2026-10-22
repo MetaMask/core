@@ -1,6 +1,7 @@
 import { toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { clone, cloneDeep } from 'lodash-es';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { GasFeeEstimates } from '../../../gas-fee-controller/src/index.js';
 import type {
@@ -18,11 +19,11 @@ import {
 } from './gas.js';
 import { getTokenBalance, getTokenFiatRate } from './token.js';
 
-jest.mock('./token');
-jest.mock('./feature-flags', () => ({
-  ...jest.requireActual('./feature-flags'),
-  getGasBuffer: jest.fn(),
-  getFallbackGas: jest.fn(),
+vi.mock(import('./token.js'));
+vi.mock(import('./feature-flags.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getGasBuffer: vi.fn(),
+  getFallbackGas: vi.fn(),
 }));
 
 const GAS_USED_MOCK = toHex(21000);
@@ -63,10 +64,10 @@ const GAS_FEE_CONTROLLER_STATE_MOCK = {
 };
 
 describe('Gas Utils', () => {
-  const getGasBufferMock = jest.mocked(getGasBuffer);
-  const getFallbackGasMock = jest.mocked(getFallbackGas);
-  const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
-  const getTokenBalanceMock = jest.mocked(getTokenBalance);
+  const getGasBufferMock = vi.mocked(getGasBuffer);
+  const getFallbackGasMock = vi.mocked(getFallbackGas);
+  const getTokenFiatRateMock = vi.mocked(getTokenFiatRate);
+  const getTokenBalanceMock = vi.mocked(getTokenBalance);
   const {
     estimateGasMock,
     findNetworkClientIdByChainIdMock,
@@ -75,7 +76,7 @@ describe('Gas Utils', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getGasFeeControllerStateMock.mockReturnValue(GAS_FEE_CONTROLLER_STATE_MOCK);
     getTokenBalanceMock.mockReturnValue('147000000000000');
