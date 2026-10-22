@@ -52,7 +52,6 @@ vi.mock(import('fs/promises'), async (importOriginal) => {
     copyFile: vi.fn(),
     rm: vi.fn(),
   };
-  // The test reads the default export, so it must carry the mocks as well.
   return { ...mockedFs, default: mockedFs };
 });
 
