@@ -89,7 +89,7 @@ function getFormatter(
       return oxfmt;
 
     default:
-      assertExhaustive(formatter);
+      return assertExhaustive(formatter);
   }
 }
 
