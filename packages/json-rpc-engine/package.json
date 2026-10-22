@@ -78,7 +78,7 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
-    "node": "^22.14.0 || ^24"
+    "node": "^22.14.0 || ^24 || ^26"
   },
   "lavamoat": {
     "allowScripts": {
