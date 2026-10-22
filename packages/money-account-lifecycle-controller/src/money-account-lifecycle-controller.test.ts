@@ -11,7 +11,10 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import type { MoneyAccount } from '@metamask/money-account-controller';
+import type {
+  GetMoneyAccountSelector,
+  MoneyAccount,
+} from '@metamask/money-account-controller';
 import type {
   FeatureFlags,
   RemoteFeatureFlagControllerState,
@@ -26,6 +29,8 @@ import { MoneyAccountLifecycleController } from './money-account-lifecycle-contr
 import type { MoneyAccountLifecycleControllerMessenger } from './money-account-lifecycle-controller.js';
 import type { RegistrationStatus } from './money-account-upgrade-controller-registration-status.js';
 
+const SFA_ACCOUNT_ID = 'sfa-account-id';
+const MPC_ACCOUNT_ID = 'mpc-account-id';
 const MONEY_ACCOUNT_ADDRESS = '0x00000000000000000000000000000000000000Aa';
 
 const MONEY_ACCOUNT_KEY = MONEY_ACCOUNT_ADDRESS.toLowerCase();
@@ -338,7 +343,7 @@ describe('MoneyAccountLifecycleController', () => {
         expect(controller.state.moneyAccounts).toStrictEqual({
           [MONEY_ACCOUNT_KEY]: { type: 'notInIdentity' },
         });
-        expect(mocks.useMpcKeyring).not.toHaveBeenCalled();
+        expect(mocks.setDefaultMoneyAccount).not.toHaveBeenCalled();
       });
     });
 
@@ -364,7 +369,7 @@ describe('MoneyAccountLifecycleController', () => {
         expect(controller.state.moneyAccounts).toStrictEqual({
           [MONEY_ACCOUNT_KEY]: { type: 'sfa', identity: SFA_IDENTITY },
         });
-        expect(mocks.useMpcKeyring).not.toHaveBeenCalled();
+        expect(mocks.setDefaultMoneyAccount).not.toHaveBeenCalled();
       });
     });
 
@@ -382,30 +387,43 @@ describe('MoneyAccountLifecycleController', () => {
             identity: MIGRATING_IDENTITY,
           },
         });
-        expect(mocks.useMpcKeyring).not.toHaveBeenCalled();
+        expect(mocks.setDefaultMoneyAccount).not.toHaveBeenCalled();
       });
     });
 
-    it('records a valid MFA and switches to the MPC keyring', async () => {
-      await withController(async ({ controller, mocks, init }) => {
-        mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [MFA_IDENTITY],
-        });
+    it('records a valid MFA and makes the MPC money account the default', async () => {
+      await withController(
+        { mpcAccountAddress: SUCCESSOR_ADDRESS },
+        async ({ controller, mocks, init }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({
+            identities: [MFA_IDENTITY],
+          });
 
+          await init();
+
+          expect(controller.state.moneyAccounts).toStrictEqual({
+            [MONEY_ACCOUNT_KEY]: { type: 'mfa', identity: MFA_IDENTITY },
+          });
+          expect(mocks.setDefaultMoneyAccount).toHaveBeenCalledTimes(1);
+          expect(mocks.setDefaultMoneyAccount).toHaveBeenCalledWith(
+            MPC_ACCOUNT_ID,
+          );
+        },
+      );
+    });
+
+    it('looks up the primary money account through its mnemonic selector', async () => {
+      await withController(async ({ mocks, init }) => {
         await init();
 
-        expect(controller.state.moneyAccounts).toStrictEqual({
-          [MONEY_ACCOUNT_KEY]: { type: 'mfa', identity: MFA_IDENTITY },
+        expect(mocks.getMoneyAccount).toHaveBeenCalledWith({
+          type: 'mnemonic',
         });
-        expect(mocks.useMpcKeyring).toHaveBeenCalledTimes(1);
-        expect(mocks.useMpcKeyring).toHaveBeenCalledWith({
-          moneyAccountAddress: MONEY_ACCOUNT_ADDRESS,
-          mpcAddress: SUCCESSOR_ADDRESS,
-        });
+        expect(mocks.getMoneyAccount).not.toHaveBeenCalledWith();
       });
     });
 
-    it('records a valid MFA and switches to the MPC keyring when its identity is migrating to a further address', async () => {
+    it('records a valid MFA and makes the MPC money account the default when its identity is migrating to a further address', async () => {
       const migratingIdentity: DerivedIdentity = {
         ...MFA_IDENTITY,
         status: 'MIGRATING',
@@ -418,28 +436,31 @@ describe('MoneyAccountLifecycleController', () => {
         },
       };
 
-      await withController(async ({ controller, mocks, init }) => {
-        mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [migratingIdentity],
-        });
+      await withController(
+        { mpcAccountAddress: SUCCESSOR_ADDRESS },
+        async ({ controller, mocks, init }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({
+            identities: [migratingIdentity],
+          });
 
-        await init();
+          await init();
 
-        expect(getLifecycle(controller)).toStrictEqual({
-          type: 'mfa',
-          identity: migratingIdentity,
-        });
-        expect(mocks.useMpcKeyring).toHaveBeenCalledWith({
-          moneyAccountAddress: MONEY_ACCOUNT_ADDRESS,
-          mpcAddress: SUCCESSOR_ADDRESS,
-        });
-        expect(mocks.captureException).not.toHaveBeenCalled();
-      });
+          expect(getLifecycle(controller)).toStrictEqual({
+            type: 'mfa',
+            identity: migratingIdentity,
+          });
+          expect(mocks.setDefaultMoneyAccount).toHaveBeenCalledWith(
+            MPC_ACCOUNT_ID,
+          );
+          expect(mocks.captureException).not.toHaveBeenCalled();
+        },
+      );
     });
 
-    it('switches to the MPC keyring on init when the persisted state already records the MFA', async () => {
+    it('makes the MPC money account the default on init when the persisted state already records the MFA', async () => {
       await withController(
         {
+          mpcAccountAddress: SUCCESSOR_ADDRESS,
           options: {
             state: {
               moneyAccounts: {
@@ -455,13 +476,14 @@ describe('MoneyAccountLifecycleController', () => {
 
           await init();
 
-          expect(mocks.useMpcKeyring).toHaveBeenCalledTimes(1);
+          expect(mocks.setDefaultMoneyAccount).toHaveBeenCalledTimes(1);
         },
       );
     });
 
-    it('does not switch to the MPC keyring again when a money account change leaves the MFA unchanged', async () => {
+    it('does not set the default again once the MPC money account is the default', async () => {
       await withController(
+        { mpcAccountAddress: SUCCESSOR_ADDRESS },
         async ({ mocks, init, triggerMoneyAccountChange }) => {
           mocks.getDerivedIdentities.mockResolvedValue({
             identities: [MFA_IDENTITY],
@@ -470,56 +492,94 @@ describe('MoneyAccountLifecycleController', () => {
           await init();
           await triggerMoneyAccountChange();
 
-          expect(mocks.getMoneyAccount).toHaveBeenCalledTimes(2);
-          expect(mocks.useMpcKeyring).toHaveBeenCalledTimes(1);
+          expect(mocks.setDefaultMoneyAccount).toHaveBeenCalledTimes(1);
         },
       );
     });
 
-    it('switches to the new MPC address when the successor address changes', async () => {
-      const newSuccessorAddress = '0x00000000000000000000000000000000000000cc';
-      const newIdentity: DerivedIdentity = {
-        currentAddress: newSuccessorAddress,
-        previousAddresses: [MONEY_ACCOUNT_ADDRESS, SUCCESSOR_ADDRESS],
-        status: 'DONE',
-        migration: null,
-      };
+    it('does not set the default when the MPC money account is already the default', async () => {
+      await withController(
+        { mpcAccountAddress: SUCCESSOR_ADDRESS, isMpcAccountDefault: true },
+        async ({ mocks, init }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({
+            identities: [MFA_IDENTITY],
+          });
 
-      await withController(async ({ controller, mocks, init, refetch }) => {
-        mocks.getDerivedIdentities
-          .mockResolvedValueOnce({ identities: [MFA_IDENTITY] })
-          .mockResolvedValueOnce({ identities: [newIdentity] });
+          await init();
 
-        await init();
-        await refetch();
-
-        expect(getLifecycle(controller)).toStrictEqual({
-          type: 'mfa',
-          identity: newIdentity,
-        });
-        expect(mocks.useMpcKeyring).toHaveBeenLastCalledWith({
-          moneyAccountAddress: MONEY_ACCOUNT_ADDRESS,
-          mpcAddress: newSuccessorAddress,
-        });
-      });
+          expect(mocks.setDefaultMoneyAccount).not.toHaveBeenCalled();
+        },
+      );
     });
 
-    it('reports a failure to switch to the MPC keyring', async () => {
-      await withController(async ({ controller, mocks, init }) => {
-        const error = new Error('Switch failed');
-        mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [MFA_IDENTITY],
-        });
-        mocks.useMpcKeyring.mockRejectedValue(error);
+    it('does not create the MPC money account for a valid MFA, and sets it as the default once it exists', async () => {
+      await withController(
+        async ({
+          controller,
+          gates,
+          mocks,
+          init,
+          triggerMoneyAccountChange,
+        }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({
+            identities: [MFA_IDENTITY],
+          });
 
-        await init();
+          await init();
 
-        expect(mocks.captureException).toHaveBeenCalledWith(error);
-        expect(getLifecycle(controller)).toStrictEqual({
-          type: 'mfa',
-          identity: MFA_IDENTITY,
-        });
-      });
+          expect(getLifecycle(controller)).toStrictEqual({
+            type: 'mfa',
+            identity: MFA_IDENTITY,
+          });
+          expect(mocks.setDefaultMoneyAccount).not.toHaveBeenCalled();
+          expect(mocks.captureException).not.toHaveBeenCalled();
+
+          gates.mpcAccountAddress = SUCCESSOR_ADDRESS;
+          await triggerMoneyAccountChange();
+
+          expect(mocks.setDefaultMoneyAccount).toHaveBeenCalledWith(
+            MPC_ACCOUNT_ID,
+          );
+        },
+      );
+    });
+
+    it('does not set the default when the MPC money account is not the identity current address', async () => {
+      await withController(
+        { mpcAccountAddress: '0x00000000000000000000000000000000000000cc' },
+        async ({ mocks, init }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({
+            identities: [MFA_IDENTITY],
+          });
+
+          await init();
+
+          expect(mocks.setDefaultMoneyAccount).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('reports a failure to set the MPC money account as the default', async () => {
+      await withController(
+        { mpcAccountAddress: SUCCESSOR_ADDRESS },
+        async ({ controller, mocks, init }) => {
+          const error = new Error('Switch failed');
+          mocks.getDerivedIdentities.mockResolvedValue({
+            identities: [MFA_IDENTITY],
+          });
+          mocks.setDefaultMoneyAccount.mockImplementation(() => {
+            throw error;
+          });
+
+          await init();
+
+          expect(mocks.captureException).toHaveBeenCalledWith(error);
+          expect(getLifecycle(controller)).toStrictEqual({
+            type: 'mfa',
+            identity: MFA_IDENTITY,
+          });
+        },
+      );
     });
 
     it('waits for the money account to exist before recording its lifecycle and registration status', async () => {
@@ -1011,19 +1071,18 @@ type Gates = {
   hasHdKeyring: boolean;
   remoteFeatureFlags: FeatureFlags;
   moneyAccountAddress: string | undefined;
+  mpcAccountAddress: string | undefined;
+  isMpcAccountDefault: boolean;
 };
 
 type Mocks = {
   getDerivedIdentities: Mock<() => Promise<DerivedIdentitiesResponse>>;
-  getMoneyAccount: Mock<() => MoneyAccount | undefined>;
+  getMoneyAccount: Mock<
+    (selector?: GetMoneyAccountSelector) => MoneyAccount | undefined
+  >;
   getRegistrationStatus: Mock<(address: string) => Promise<RegistrationStatus>>;
   upgradeAccount: Mock<(address: Hex) => Promise<void>>;
-  useMpcKeyring: Mock<
-    (options: {
-      moneyAccountAddress: string;
-      mpcAddress: string;
-    }) => Promise<void>
-  >;
+  setDefaultMoneyAccount: Mock<(id: string) => void>;
   isEnabled: Mock<(remoteFeatureFlags: FeatureFlags) => boolean>;
   captureException: Mock<(error: Error) => void>;
 };
@@ -1097,7 +1156,7 @@ function getMessenger(
       'ChompApiService:getDerivedIdentities',
       'KeyringController:getState',
       'MoneyAccountController:getMoneyAccount',
-      'MoneyAccountController:useMpcKeyring',
+      'MoneyAccountController:setDefaultMoneyAccount',
       'MoneyAccountUpgradeController:getRegistrationStatus',
       'MoneyAccountUpgradeController:upgradeAccount',
       'RemoteFeatureFlagController:getState',
@@ -1137,6 +1196,8 @@ async function withController<ReturnValue>(
       'moneyAccountAddress' in gateOverrides
         ? gateOverrides.moneyAccountAddress
         : MONEY_ACCOUNT_ADDRESS,
+    mpcAccountAddress: gateOverrides.mpcAccountAddress,
+    isMpcAccountDefault: gateOverrides.isMpcAccountDefault ?? false,
   };
 
   const mocks: Mocks = {
@@ -1144,26 +1205,41 @@ async function withController<ReturnValue>(
       .fn<() => Promise<DerivedIdentitiesResponse>>()
       .mockResolvedValue({ identities: [SFA_IDENTITY] }),
     getMoneyAccount: vi
-      .fn<() => MoneyAccount | undefined>()
-      .mockImplementation(() =>
-        gates.moneyAccountAddress === undefined
-          ? undefined
-          : ({ address: gates.moneyAccountAddress } as MoneyAccount),
-      ),
+      .fn<(selector?: GetMoneyAccountSelector) => MoneyAccount | undefined>()
+      .mockImplementation((selector) => {
+        const sfaAccount =
+          gates.moneyAccountAddress === undefined
+            ? undefined
+            : ({
+                id: SFA_ACCOUNT_ID,
+                address: gates.moneyAccountAddress,
+              } as MoneyAccount);
+        const mpcAccount =
+          gates.mpcAccountAddress === undefined
+            ? undefined
+            : ({
+                id: MPC_ACCOUNT_ID,
+                address: gates.mpcAccountAddress,
+              } as MoneyAccount);
+
+        if (selector === undefined) {
+          return gates.isMpcAccountDefault ? mpcAccount : sfaAccount;
+        }
+        return 'type' in selector && selector.type === 'mpc'
+          ? mpcAccount
+          : sfaAccount;
+      }),
     getRegistrationStatus: vi
       .fn<(address: string) => Promise<RegistrationStatus>>()
       .mockResolvedValue({ isRegistered: true }),
     upgradeAccount: vi
       .fn<(address: Hex) => Promise<void>>()
       .mockResolvedValue(undefined),
-    useMpcKeyring: vi
-      .fn<
-        (options: {
-          moneyAccountAddress: string;
-          mpcAddress: string;
-        }) => Promise<void>
-      >()
-      .mockResolvedValue(undefined),
+    setDefaultMoneyAccount: vi
+      .fn<(id: string) => void>()
+      .mockImplementation(() => {
+        gates.isMpcAccountDefault = true;
+      }),
     isEnabled: vi
       .fn<(remoteFeatureFlags: FeatureFlags) => boolean>()
       .mockImplementation(() => gates.isEnabled),
@@ -1183,8 +1259,8 @@ async function withController<ReturnValue>(
     mocks.getMoneyAccount,
   );
   rootMessenger.registerActionHandler(
-    'MoneyAccountController:useMpcKeyring',
-    mocks.useMpcKeyring,
+    'MoneyAccountController:setDefaultMoneyAccount',
+    mocks.setDefaultMoneyAccount,
   );
   rootMessenger.registerActionHandler(
     'MoneyAccountUpgradeController:getRegistrationStatus',

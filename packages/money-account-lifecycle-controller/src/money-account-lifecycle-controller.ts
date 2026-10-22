@@ -17,6 +17,7 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type {
   MoneyAccountControllerGetMoneyAccountAction,
+  MoneyAccountControllerSetDefaultMoneyAccountAction,
   MoneyAccountControllerStateChangeEvent,
 } from '@metamask/money-account-controller';
 import type { MoneyAccountUpgradeControllerUpgradeAccountAction } from '@metamask/money-account-upgrade-controller';
@@ -30,7 +31,6 @@ import deepEqual from 'fast-deep-equal';
 
 import { getMoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
-import type { MoneyAccountControllerUseMpcKeyringAction } from './money-account-controller-mpc-keyring.js';
 import type { MoneyAccountLifecycleControllerMethodActions } from './money-account-lifecycle-controller-method-action-types.js';
 import type { MoneyAccountUpgradeControllerGetRegistrationStatusAction } from './money-account-upgrade-controller-registration-status.js';
 
@@ -92,7 +92,7 @@ type AllowedActions =
   | ChompApiServiceGetDerivedIdentitiesAction
   | KeyringControllerGetStateAction
   | MoneyAccountControllerGetMoneyAccountAction
-  | MoneyAccountControllerUseMpcKeyringAction
+  | MoneyAccountControllerSetDefaultMoneyAccountAction
   | MoneyAccountUpgradeControllerGetRegistrationStatusAction
   | MoneyAccountUpgradeControllerUpgradeAccountAction
   | RemoteFeatureFlagControllerGetStateAction;
@@ -178,8 +178,10 @@ export class MoneyAccountLifecycleController extends BaseController<
    * successor, or a valid MFA, along with its identity. After each fetch, or
    * when the recorded lifecycle changes, looks up whether the Money Account
    * address, and the identity's current address for a valid MFA, are
-   * registered with CHOMP, and switches `MoneyAccountController` to the MPC
-   * keyring for a valid MFA. Registers the Money Account address through
+   * registered with CHOMP. For a valid MFA, makes `MoneyAccountController`'s
+   * MPC money account its default once that account exists and matches the
+   * identity's current address; it never creates the MPC money account.
+   * Registers the Money Account address through
    * `MoneyAccountUpgradeController` when it is not registered and is either
    * not in an identity or a valid SFA. A migrating Money Account is frozen by
    * CHOMP, so it is never registered.
@@ -220,6 +222,7 @@ export class MoneyAccountLifecycleController extends BaseController<
   getMoneyAccountIdentity(): MoneyAccountIdentity | undefined {
     const moneyAccount = this.messenger.call(
       'MoneyAccountController:getMoneyAccount',
+      { type: 'mnemonic' },
     );
     if (!moneyAccount) {
       return undefined;
@@ -306,6 +309,7 @@ export class MoneyAccountLifecycleController extends BaseController<
     try {
       const moneyAccount = this.messenger.call(
         'MoneyAccountController:getMoneyAccount',
+        { type: 'mnemonic' },
       );
       if (!moneyAccount) {
         return;
@@ -326,17 +330,12 @@ export class MoneyAccountLifecycleController extends BaseController<
         });
       }
 
-      if (!hasChanged && !isRehydrating) {
-        return;
+      if (lifecycle.type === 'mfa') {
+        this.#setMpcMoneyAccountAsDefault(lifecycle.identity.currentAddress);
       }
 
-      if (lifecycle.type === 'mfa') {
-        this.messenger
-          .call('MoneyAccountController:useMpcKeyring', {
-            moneyAccountAddress: moneyAccount.address,
-            mpcAddress: lifecycle.identity.currentAddress,
-          })
-          .catch((error: unknown) => this.#reportError(error));
+      if (!hasChanged && !isRehydrating) {
+        return;
       }
 
       this.#fetchRegistrationStatus(moneyAccount.address, {
@@ -350,6 +349,25 @@ export class MoneyAccountLifecycleController extends BaseController<
     } catch (error) {
       this.#reportError(error);
     }
+  }
+
+  #setMpcMoneyAccountAsDefault(mpcAddress: string): void {
+    const mpcMoneyAccount = this.messenger.call(
+      'MoneyAccountController:getMoneyAccount',
+      { type: 'mpc' },
+    );
+    if (
+      mpcMoneyAccount?.address.toLowerCase() !== mpcAddress.toLowerCase() ||
+      this.messenger.call('MoneyAccountController:getMoneyAccount')?.id ===
+        mpcMoneyAccount.id
+    ) {
+      return;
+    }
+
+    this.messenger.call(
+      'MoneyAccountController:setDefaultMoneyAccount',
+      mpcMoneyAccount.id,
+    );
   }
 
   #fetchRegistrationStatus(
