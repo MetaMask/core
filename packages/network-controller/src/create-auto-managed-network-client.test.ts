@@ -423,8 +423,6 @@ describe('createAutoManagedNetworkClient', () => {
           const blockNumberViaSync = await new Promise((resolve) => {
             blockTracker.once('sync', resolve);
           });
-          // False positive.
-          // eslint-disable-next-line n/no-sync
           expect(blockNumberViaSync).toStrictEqual({
             oldBlock: '0x1',
             newBlock: '0x2',

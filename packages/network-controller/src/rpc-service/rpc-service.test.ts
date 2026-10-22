@@ -1465,8 +1465,6 @@ function testsForNonRetriableErrors({
   rpcMethod?: string;
   expectedError: string | RegExp | Error | Constructable | undefined;
 }): void {
-  /* eslint-disable vitest/require-top-level-describe */
-
   it('re-throws the error without retrying the request', async () => {
     beforeCreateService({ endpointUrl, rpcMethod });
     const service = createService({ endpointUrl, expectedError });
@@ -1548,8 +1546,6 @@ function testsForNonRetriableErrors({
     );
     expect(onAvailableListener).not.toHaveBeenCalled();
   });
-
-  /* eslint-enable vitest/require-top-level-describe */
 }
 
 /**
@@ -1568,10 +1564,6 @@ function testsForRetriableFetchErrors({
   producedError: Error;
   expectedError: string | Constructable | RegExp | Error;
 }): void {
-  // This function is designed to be used inside of a describe, so this won't be
-  // a problem in practice.
-  /* eslint-disable vitest/require-top-level-describe */
-
   it('retries a constantly failing request up to 4 more times before re-throwing the error, if `request` is only called once', async () => {
     const mockFetch = vi.fn(() => {
       throw producedError;
@@ -1779,7 +1771,6 @@ function testsForRetriableFetchErrors({
       invocationIndex += 1;
       if (invocationIndex === DEFAULT_MAX_RETRIES + 1) {
         // Only used for testing.
-        // eslint-disable-next-line no-restricted-globals
         return new Response(
           JSON.stringify({
             id: 1,
@@ -1815,8 +1806,6 @@ function testsForRetriableFetchErrors({
 
     expect(onAvailableListener).toHaveBeenCalledTimes(1);
   });
-
-  /* eslint-enable vitest/require-top-level-describe */
 }
 
 /**
@@ -1842,10 +1831,6 @@ function testsForRetriableResponses({
   expectedError: string | Constructable | RegExp | Error;
   expectedOnBreakError?: string | Constructable | RegExp | Error;
 }): void {
-  // This function is designed to be used inside of a describe, so this won't be
-  // a problem in practice.
-  /* eslint-disable vitest/require-top-level-describe,vitest/no-identical-title */
-
   it('retries a constantly failing request up to 4 more times before re-throwing the error, if `request` is only called once', async () => {
     const scope = nock('https://rpc.example.chain')
       .post('/', {
@@ -2263,6 +2248,4 @@ function testsForRetriableResponses({
     expect(onBreakListener).not.toHaveBeenCalled();
     expect(scope.isDone()).toBe(true);
   });
-
-  /* eslint-enable vitest/require-top-level-describe,vitest/no-identical-title */
 }

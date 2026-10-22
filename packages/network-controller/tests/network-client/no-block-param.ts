@@ -285,7 +285,6 @@ export function testsForRpcMethodAssumingNoBlockParam(
 
       if (providerType === NetworkClientType.Infura) {
         // This is not ideal, but we can refactor this later.
-        // eslint-disable-next-line vitest/no-conditional-expect
         await expect(promise).rejects.toThrow(
           rpcErrors.internal({
             message: error.message,
@@ -294,7 +293,6 @@ export function testsForRpcMethodAssumingNoBlockParam(
         );
       } else {
         // This is not ideal, but we can refactor this later.
-        // eslint-disable-next-line vitest/no-conditional-expect
         await expect(promise).rejects.toThrow(
           rpcErrors.internal({ data: error }),
         );
