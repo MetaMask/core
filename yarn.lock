@@ -6309,7 +6309,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/base-controller@npm:^10.0.0, @metamask/base-controller@npm:^10.1.0, @metamask/base-controller@workspace:packages/base-controller":
+"@metamask/base-controller@npm:^10.1.0, @metamask/base-controller@workspace:packages/base-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
@@ -7654,7 +7654,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-controller@npm:^28.1.0, @metamask/keyring-controller@npm:^28.2.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
+"@metamask/keyring-controller@npm:^28.2.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
@@ -8132,9 +8132,9 @@ __metadata:
   resolution: "@metamask/money-account-lifecycle-controller@workspace:packages/money-account-lifecycle-controller"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
-    "@metamask/base-controller": "npm:^10.0.0"
+    "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/chomp-api-service": "npm:^6.0.1"
-    "@metamask/keyring-controller": "npm:^28.1.0"
+    "@metamask/keyring-controller": "npm:^28.2.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/money-account-controller": "npm:^2.0.0"
     "@metamask/money-account-upgrade-controller": "npm:^5.1.0"
