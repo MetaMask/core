@@ -20,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Add `@metamask/analytics-controller` as a dependency ([#10901](https://github.com/MetaMask/core/pull/10901))
-- Stop casting `AnalyticsController` init state now that partial initial state is accepted ([#10984](https://github.com/MetaMask/core/pull/10984))
 - Bump `@metamask/claims-controller` from `^1.0.3` to `^1.0.4` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/shield-controller` from `^7.0.4` to `^7.0.5` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/subscription-controller` from `^14.0.1` to `^14.0.2` ([#10925](https://github.com/MetaMask/core/pull/10925))
